@@ -10,6 +10,7 @@
 //! - [`inherited_listeners`], [`listener_at`] and [`open_listener`]: startup listeners.
 //! - [`open_root`]: a directory opened at startup as a root for io's files.
 //! - [`effective_user`]: the startup user ID for io's private-file configuration.
+//! - [`host_name`]: the kernel's host name at startup.
 //! - [`directory_access`]: the kernel's startup answer on writing and searching a directory.
 //! - [`process_id`]: the startup process ID for the service's report.
 //! - [`read_file`] and [`read_trust_roots`]: startup reads within configured bounds.
@@ -33,6 +34,9 @@ mod darwin;
 mod drive;
 #[cfg(unix)]
 mod group;
+/// First-line dispatch for the service's spawn helper.
+#[cfg(unix)]
+pub mod helper;
 #[cfg(unix)]
 pub mod keeper;
 #[cfg(unix)]
@@ -66,6 +70,8 @@ mod terminal;
 #[cfg(all(test, unix))]
 mod tests;
 
+pub use skein_lib::FixedStart;
+
 #[cfg(unix)]
 pub use clock::{Clock, Now};
 #[cfg(all(unix, target_os = "macos"))]
@@ -77,15 +83,19 @@ pub use drive::{Delegate, Host};
 pub(crate) use linux as system;
 
 #[cfg(unix)]
+pub use group::unreaped_children;
+#[cfg(unix)]
 pub use kernel::{Backend, Chosen, Config, Kernel, OpenError, Wait};
 #[cfg(unix)]
 pub use listeners::{
     ListenerCheck, ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener,
 };
 #[cfg(unix)]
-pub use posix::descriptor_writes;
+pub use posix::{descriptor_writes, host_name, login, login_passwd};
 #[cfg(unix)]
-pub use process::{close_startup_fd, exec_dying_with_parent, open_termination_signals, spawn_dying_with_parent};
+pub use process::{
+    close_startup_fd, exec_dying_with_parent, login_id, open_termination_signals, spawn_dying_with_parent,
+};
 #[cfg(unix)]
 pub use seed::{crypto_seed, seed};
 pub use settings::{Base, Fallback, Origin, Reason, Refusal, Resolved, Setting, Settings, Value, help, resolve};
@@ -95,7 +105,7 @@ pub use settings::{arguments, environment};
 pub use startup::{
     DirectoryAccess, OutputKind, RootBounds, Roots, RootsRefusal, STORE_OPERATIONS, StartupStore, StoreDirectory,
     Stored, Trust, Unread, Unstored, directory_access, effective_user, make_root, open_append, open_root,
-    prepare_output, process_id, read_file, read_private_file, read_trust_roots, store_file,
+    prepare_output, process_id, read_file, read_private_file, read_trust_roots, resolve_system_links, store_file,
 };
 
 #[cfg(unix)]

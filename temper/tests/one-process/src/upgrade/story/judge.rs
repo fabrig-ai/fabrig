@@ -20,6 +20,12 @@ pub(super) struct Judge {
     finished: bool,
     epoch: u32,
     ticks: u32,
+    answer_kept: bool,
+    agent_at: usize,
+    attempt_started: bool,
+    observed_commit: Option<u64>,
+    chat_resumed: bool,
+    write_in_flight: bool,
 }
 impl Judge {
     pub(super) fn new(
@@ -44,6 +50,12 @@ impl Judge {
             finished: false,
             epoch: 0,
             ticks: 0,
+            answer_kept: false,
+            agent_at: 0,
+            attempt_started: false,
+            observed_commit: None,
+            chat_resumed: false,
+            write_in_flight: false,
         }
     }
 
@@ -126,6 +138,39 @@ impl Judge {
         }
         Ok(())
     }
+    fn keep_answer(&mut self, procs: &[Proc]) {
+        if self.upgrade || self.answer_kept {
+            return;
+        }
+        for proc in procs {
+            if let Proc::Other(HarnessProcess::Calls(caller)) = proc
+                && let Some(answer) = caller.answers.first()
+            {
+                STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&answer.output));
+                self.answer_kept = true;
+            }
+        }
+    }
+    fn continued_ready(&mut self) -> bool {
+        let store = self.store.borrow();
+        let (task, attempt) = STATE.with(|s| (s.borrow().task, s.borrow().attempt));
+        self.attempt_started |= store.agent_records[self.agent_at..].iter().any(|record| {
+            matches!(record, referee::AgentRecord::Start {task: found, attempt: next, ..} if *found == task && *next > attempt)
+        });
+        self.agent_at = store.agent_records.len();
+        // After the wires check, rows change only at a committed observation.
+        // Re-evaluate absence as well as presence at every such change.
+        if self.observed_commit != Some(store.applied) {
+            self.chat_resumed = store.rows.values().any(|record| {
+                matches!(record, temper_engine_domain::Record::Core(Record::Core(CoreRecord::Turn(turn))) if turn.task == 1 && skein_lib::bytes::find(&turn.transcript, b"Paused chat resumed").is_some())
+            });
+            self.write_in_flight = store.rows.values().any(|record| {
+                matches!(record, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Flight {task: found, ..} if *found == task))
+            });
+            self.observed_commit = Some(store.applied);
+        }
+        self.attempt_started && self.chat_resumed && !self.write_in_flight
+    }
     fn start_client(&mut self, others: &mut [Proc]) {
         for proc in others.iter_mut() {
             if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
@@ -192,6 +237,9 @@ impl Judge {
             self.stopped = false;
             self.finished = false;
             self.released = false;
+            self.agent_at = 0;
+            self.attempt_started = false;
+            self.observed_commit = None;
         }
         let (first, others) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else {
@@ -201,15 +249,7 @@ impl Judge {
         if self.ticks >= 100_000 {
             return Err(format!("upgrade bounded turns: {:?}", service.service.wait_state()));
         }
-        if !self.upgrade {
-            for proc in others.iter() {
-                if let Proc::Other(HarnessProcess::Calls(caller)) = proc
-                    && let Some(answer) = caller.answers.first()
-                {
-                    STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&answer.output));
-                }
-            }
-        }
+        self.keep_answer(others);
         if !self.upgrade
             && let Some(link) = service.service.links().pop()
         {
@@ -221,14 +261,13 @@ impl Judge {
         }
         self.advance_write(others)?;
         let checked = STATE.with(|s| s.borrow().checked);
-        if self.upgrade && checked && !self.client_started {
+        if self.upgrade && checked && service.observer.clients_ready && !self.client_started {
             self.start_client(others);
         }
         let complete = if self.upgrade {
-            checked && self.store.borrow().agent_records.iter().any(|r| matches!(r, referee::AgentRecord::Start {task, attempt, ..} if STATE.with(|s| *task == s.borrow().task && *attempt > s.borrow().attempt)))
+            checked
+                && self.continued_ready()
                 && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 3))
-                && self.store.borrow().rows.values().any(|r| matches!(r, temper_engine_domain::Record::Core(Record::Core(CoreRecord::Turn(turn))) if turn.task == 1 && skein_lib::bytes::find(&turn.transcript,b"Paused chat resumed").is_some()))
-                && !self.store.borrow().rows.values().any(|r| matches!(r, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task))))
         } else {
             STATE.with(|s| s.borrow().issue)
                 && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 1))
@@ -257,8 +296,6 @@ impl Judge {
 
                             Ok(())
                         })?;
-                    } else {
-                        STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&caller.answers[0].output));
                     }
                 }
             }
@@ -274,11 +311,14 @@ impl Judge {
                     caller.closed = true;
                 }
             }
-            if !self.upgrade {
-                if !(self.store.borrow().rows.values().any(|r| matches!(r,temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task))))) { return Err(String::from("write still in flight at the stop boundary")); }
-                STATE.with(|s| s.borrow_mut().write_at = Some(service.observer.inner.submitted));
+            if !self.upgrade && !(self.store.borrow().rows.values().any(|r| matches!(r,temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task))))) { return Err(String::from("write still in flight at the stop boundary")); }
+            if STATE.with(|s| s.borrow().end_after_kill) {
+                // The ledger has seen the write, and its flight is still durable.
+                // Cut before the service's next turn can receive its answer.
+                self.controls.cut(0, skein_world::Cut::Kill);
+            } else {
+                self.controls.signal(0, ServiceSignal::Terminate);
             }
-            self.controls.signal(0, ServiceSignal::Terminate);
             self.stopped = true;
         }
         if self.stopped {
@@ -313,15 +353,15 @@ impl skein_world::Referee<Proc> for Judge {
             self.finished = procs.iter().all(Host::is_empty);
         }
         self.forge.observe(procs)?;
-        self.ledger.borrow_mut().extend(self.forge.take_ledger());
-        let issue = self.ledger.borrow().iter().any(|o| matches!(o, skein_fake_forge_domain::Observation::Opened {title, ..} if title.as_ref() == b"Upgrade once"));
+        let observations = self.forge.take_ledger();
+        let issue = observations.iter().any(|o| matches!(o, skein_fake_forge_domain::Observation::Opened {title, ..} if title.as_ref() == b"Upgrade once"));
+        self.ledger.borrow_mut().extend(observations);
         if issue {
             STATE.with(|s| {
                 let mut s = s.borrow_mut();
                 if !s.issue {
                     s.issue = true;
-                    let Proc::Service(service) = &procs[0] else { return Err(String::from("service")) };
-                    s.write_at = Some(service.observer.inner.submitted);
+                    let Proc::Service(_) = &procs[0] else { return Err(String::from("service")) };
                     self.transport.forge.borrow_mut().config.timeouts = 0;
                 }
 

@@ -29,24 +29,24 @@ const QUEUE_ENTRIES: u32 = OPERATIONS;
 const BOX_HOST: usize = 0;
 const PATIENCE: Duration = Duration::from_secs(2);
 const PROGRAM: &[u8] = b"synthetic-box-child";
-const FIRST: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-first\n";
-const FRESH: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-fresh\n";
+const FIRST: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=test-first\n";
+const FRESH: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=test-fresh\n";
 const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
 const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\nIn a terminal: temper http://127.0.0.1:8367\n";
 const ANNOUNCEMENT: &[u8] = b"\n";
 const FIRST_DIAGNOSTIC: &[u8] = b"diagnostic: between first pieces\n";
 const FRESH_DIAGNOSTIC: &[u8] = b"diagnostic: between fresh pieces\n";
 const SERVE_WRITES: [&[u8]; 4] = [
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=",
+    b"http://127.0.0.1:8367/sign-in?secret=",
     b"test-first\n",
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=",
+    b"http://127.0.0.1:8367/sign-in?secret=",
     b"test-fresh\n",
 ];
 const DIAGNOSTIC_WRITES: [&[u8]; 4] = [b"between first ", b"pieces\n", b"between fresh ", b"pieces\n"];
 
 #[derive(Debug)]
 enum Proc {
-    Box(Box<Service>),
+    Box(Box<GroupService>),
     Serve(Synthetic),
     Diagnostic(Synthetic),
     Capture(Synthetic),
@@ -65,6 +65,51 @@ impl Delegate for Proc {
             Self::Box(host) => host.as_mut(),
             Self::Serve(host) | Self::Diagnostic(host) | Self::Capture(host) => host,
         }
+    }
+}
+
+#[derive(Debug)]
+struct GroupService(Service);
+fn boxed(service: Service) -> Proc {
+    Proc::Box(Box::new(GroupService(service)))
+}
+impl Host for GroupService {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.0.iterate(now, wall);
+        while let Some((forge, address)) = self.0.take_group_listener() {
+            let fd = match skein_shell::open_listener(address, 128) {
+                Ok((fd, _)) => Some(fd),
+                Err(_) => None,
+            };
+            self.0.group_listener_opened(forge, fd);
+        }
+    }
+    fn drain(&mut self) {
+        self.0.drain();
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.0.completions()
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.0.submissions()
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.0.work_pending(now)
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.0.next_mechanism_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.0.next_policy_deadline()
+    }
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    fn exit(&self) -> Option<Exit> {
+        self.0.exit()
+    }
+    fn operations(&self) -> u32 {
+        self.0.operations()
     }
 }
 
@@ -412,7 +457,15 @@ impl Referee<Proc> for Judge {
 }
 
 fn startup(root: Fd, pipes: Box<[Pipe]>) -> Spawn {
-    Spawn { program: PROGRAM.into(), args: Box::new([]), env: Box::new([]), root, dir: Box::new([]), pipes }
+    Spawn {
+        reach: None,
+        program: PROGRAM.into(),
+        args: Box::new([]),
+        env: Box::new([]),
+        root,
+        dir: Box::new([]),
+        pipes,
+    }
 }
 fn close_placeholders(pipes: &HostedPipes) {
     for fd in [pipes.pidfd, pipes.signal, pipes.signal_writer] {
@@ -481,9 +534,9 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
             ]),
             asked: Box::new([]),
         };
-        Proc::Box(Box::new(
+        boxed(
             Service::new(
-                &temper_box_machine::limits::small(),
+                &temper_box_machine::limits::stock(),
                 steps,
                 Settings {
                     word: b"temper".as_slice().into(),
@@ -506,7 +559,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
                 },
             )
             .expect("real Service settings"),
-        ))
+        )
     });
     world.spawn_with_fds(vec![reader], || Proc::Capture(Synthetic::capture(reader)));
     let outcome = world.run(&clock, PATIENCE);
@@ -616,6 +669,8 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
     let cache = scratch.path().join("cache");
     std::fs::create_dir(&cache).unwrap();
     std::fs::write(cache.join("kept"), b"binary cache").unwrap();
+    std::fs::create_dir(scratch.path().join("playground-17")).unwrap();
+    std::fs::write(scratch.path().join("playground-17/setup"), br#"{"version":1,"kind":"fake","listen":{"socket":"127.0.0.1:0"},"remote":"http://127.0.0.1:3000","git":"demo/bin/git"}"#).unwrap();
     let root = open_root(scratch.path()).unwrap();
     let (reader, stdout, stderr) = shared_terminal(root);
     let clock = Clock::new();
@@ -628,17 +683,17 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
         wake: None,
     });
     world.spawn_signals(|signals| {
-        // All steps use the box's program; the remover execs the /bin/true stub.
+        // All steps use the box's program; the remover execs the /usr/bin/true stub.
         let script = b"printf 'start 17 fake\n' >&3; IFS= read -r step <&4; IFS= read -r started <&4; [ \"$step\" = 'step 17 run' ] && [ \"$started\" = 'started 17' ] || exit 1; printf 'remove 17\n' >&3; IFS= read -r removed <&4; [ \"$removed\" = 'removed 17' ] || exit 1; printf '%s\n' \"$removed\"; exec /bin/sleep 30";
         let steps = Steps {
             always: Box::new([Step::new(b"serve".as_slice().into(), Box::new([b"-c".as_slice().into(), script.as_slice().into()]), Kind::Long)]),
             asked: Box::new([Group {
                 kind: Some(BoxKind::Fake), forge: 0, label: b"Fake".as_slice().into(), recorded: true, before: 0,
                 steps: Box::new([(Stage::Run, Step::new(b"fake-forge".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/sleep 30".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Long))]),
-                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
+                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /usr/bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
             }]),
         };
-        Proc::Box(Box::new(Service::new(&temper_box_machine::limits::small(), steps, Settings {
+        boxed(Service::new(&temper_box_machine::limits::stock(), steps, Settings {
                     word: b"temper".as_slice().into(),
             parent: None,
             link_form: temper_box_machine::terminal::LinkForm::Bare,
@@ -648,7 +703,7 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
             program: b"/bin/sh".as_slice().into(), environment: Box::new([]), serve: b"serve".as_slice().into(),
             listeners: Box::new([]), root, echo: temper_box_machine::host::Echo::Steps,
             data: scratch.path().as_os_str().as_encoded_bytes().into(), signals, stdout, stderr,
-        }).unwrap()))
+        }).unwrap())
     });
     world.spawn_with_fds(vec![reader], || Proc::Capture(Synthetic::capture(reader)));
     let outcome = world.run(&clock, PATIENCE);
@@ -688,9 +743,9 @@ fn a_real_child_reads_the_secret_and_eof_on_stdin() {
             )]),
             asked: Box::new([]),
         };
-        Proc::Box(Box::new(
+        boxed(
             Service::new(
-                &temper_box_machine::limits::small(),
+                &temper_box_machine::limits::stock(),
                 steps,
                 Settings {
                     word: b"temper".as_slice().into(),
@@ -717,7 +772,7 @@ fn a_real_child_reads_the_secret_and_eof_on_stdin() {
                 },
             )
             .unwrap(),
-        ))
+        )
     });
     world.spawn_with_fds(vec![reader], || Proc::Capture(Synthetic::capture(reader)));
     let outcome = world.run(&clock, PATIENCE);

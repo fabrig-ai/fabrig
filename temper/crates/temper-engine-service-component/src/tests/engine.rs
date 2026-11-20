@@ -25,7 +25,7 @@ fn the_root_reports_the_earliest_credentials_expiry() {
 
 #[test]
 fn the_forge_reports_the_earliest_procedure_or_projection_wait() {
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     let mut domain = temper_engine_domain_forge::Domain::new(
         &own.forge,
         7,
@@ -529,6 +529,7 @@ fn startup_admission_keeps_no_forge() {
     assert!(engine.clients.starting.is_none());
     assert_eq!(engine.domain.forge_connection(1), forge::Connection::NotConnected);
     engine.step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(100)),
         identity: jig_domain_people::Identity {
@@ -595,6 +596,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::Bound { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
+                | root::Request::ChoosePlace { .. }
                 | root::Request::BoxGroup { .. }
                 | root::Request::PlaygroundActs { .. }
                 | root::Request::ResetAct { .. }
@@ -616,6 +618,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::ToChild(_)
                 | root::Request::Busy(_)
                 | root::Request::Restarting { .. }
+                | root::Request::LimitSettingsCommitted { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => crate::route::request(engine, other),
             }
@@ -703,28 +706,37 @@ fn nothing_leaves_before_the_mark() {
 }
 
 #[test]
+fn an_absent_jig_byte_budget_does_not_control_direct_engine_startup() {
+    let mut settings = fixtures::engine();
+    settings.jig.memory = None;
+    fixtures::fill_files(&mut settings);
+    let memory = settings.limits.root.transcript_memory;
+    let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    assert_eq!(service.engine.as_ref().unwrap().env.limits.transcript_memory, memory);
+}
+
+#[test]
 fn a_zero_byte_budget_refuses_direct_engine_startup() {
     let mut settings = fixtures::engine();
-    settings.jig.memory = 0;
+    settings.limits.root.transcript_memory = 0;
     fixtures::fill_files(&mut settings);
     let problems = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime())
         .err()
         .expect("a zero byte budget refuses direct startup");
     assert_eq!(problems.problems.len(), 1);
     let problem = problems.problems.get(0).unwrap();
-    assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"memory_bytes"));
+    assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"limits"));
     assert_eq!(problem.what, jig_protocol_config::What::Bound);
 }
 
 #[test]
-fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
+fn a_started_engines_root_uses_the_typed_transcript_memory_limit() {
     let mut settings = fixtures::engine();
-    // A distinct engine value: worker memory has a separate parsed document.
-    settings.jig.memory += 1;
-    let memory = settings.jig.memory;
+    let memory = settings.limits.root.transcript_memory + 1;
+    settings.limits.root.transcript_memory = memory;
     fixtures::fill_files(&mut settings);
     let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-    assert_eq!(service.engine.as_ref().expect("started engine").env.limits.memory_bytes, memory);
+    assert_eq!(service.engine.as_ref().expect("started engine").env.limits.transcript_memory, memory);
 }
 
 #[test]
@@ -1075,7 +1087,9 @@ fn unreadable_temper_rows_refuse_restart_by_their_row_key_before_switch() {
                 break;
             }
         }
-        let expected = crate::End::Stopped(crate::Stop::StoreRow { row: crate::UnreadableRow { key: key.clone() } });
+        let expected = crate::End::Stopped(crate::Stop::StoreRow {
+            row: crate::UnreadableRow { key: key.clone(), lowered: None },
+        });
         assert_eq!(service.end(), Some(&expected));
         let engine = service.engine.as_ref().unwrap();
         assert!(!engine.domain.ready());
@@ -1162,44 +1176,27 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
 
 fn retired_setting(key: temper_engine_domain_forge::settings::SettingKey) -> (Box<[u8]>, Box<[u8]>) {
     use temper_engine_domain_forge::{Key, settings::SettingSlot};
-    use temper_protocol_store::v25 as w;
+    use temper_protocol_store::v25::{self as w, Record};
     let slot = match key.slot {
         SettingSlot::Default => w::SettingSlot::Default,
         SettingSlot::Change => w::SettingSlot::Change,
-        SettingSlot::Replaced(number) => {
-            w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
-        }
-        SettingSlot::Proposal(number) => {
-            w::SettingSlot::Proposal(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
-        }
+        SettingSlot::Replaced(number) => w::SettingSlot::Replaced(w::Number { number }),
+        SettingSlot::Proposal(number) => w::SettingSlot::Proposal(w::Number { number }),
     };
     // The removed route's tag is 1; the live up route keeps tag 2.
-    let mut tag = skein_lib::Writer::new(1);
-    w::Route::Retired.encode(&mut tag).unwrap();
-    assert_eq!(tag.finish().as_ref(), &[1]);
+    let tag = w::Route::Retired.encode(&w::CEILINGS).unwrap();
+    assert_eq!(tag.as_ref(), &[1]);
     let value = if key.kind == 6 {
-        w::SettingValue::Questions(
-            w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
-        )
+        w::SettingValue::Questions(w::ProjectQuestions { route: w::Route::Retired })
     } else {
-        w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap())
+        w::SettingValue::Charter(w::CharterValue { number: 6 })
     };
-    let value = w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value, size: 1 }).unwrap();
-    let row = w::SettingRow::new(
-        &w::CEILINGS,
-        w::SettingRowParts {
-            kind: key.kind,
-            scope: key.scope,
-            number: key.number,
-            slot,
-            edit: w::SettingEdit::Set(value),
-        },
-    )
-    .unwrap();
-    let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut bytes).unwrap();
-    (temper_protocol_store::keys::encode(&Key::Setting(key), u32::MAX).unwrap(), bytes.finish())
+    let value = w::SizedValue { value, size: 1 };
+    let row =
+        w::SettingRow { kind: key.kind, scope: key.scope, number: key.number, slot, edit: w::SettingEdit::Set(value) };
+    let row = w::Row { value: w::Value::Setting(row) };
+    let bytes = row.encode(&w::CEILINGS).unwrap();
+    (temper_protocol_store::keys::encode(&Key::Setting(key), u32::MAX).unwrap(), bytes)
 }
 
 #[test]
@@ -1237,4 +1234,38 @@ fn a_retired_stored_setting_refuses_start_before_switch() {
         assert!(!engine.domain.ready());
         assert!(engine.store.pending_generation, "refused before switching generations");
     }
+}
+
+#[test]
+fn the_box_restores_local_and_an_engine_alone_has_no_default_worker() {
+    let mut service = fixtures::ready();
+    let workers = service.engine.as_ref().expect("engine").workers.host.component.workers();
+    assert_eq!(
+        workers,
+        &[jig_domain_core::settings::WorkerSetting {
+            number: 1,
+            name: b"local".as_slice().into(),
+            places: 4,
+            digest: None,
+            withdrawn: false,
+        }]
+    );
+    let record = fixtures::get(
+        &mut service,
+        jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::Default(
+            jig_domain_core::settings::Setting::Worker(1),
+        ))),
+    );
+    let Some(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+        jig_domain_core::settings::Record::Default { default, .. },
+    ))) = record
+    else {
+        panic!("first start stored the default worker")
+    };
+    let jig_domain_core::settings::Value::Worker(worker) = default.value else { panic!("worker value") };
+    assert_eq!(worker.name.as_ref(), b"local");
+    let mut alone = fixtures::engine().jig;
+    alone.hosts.listener =
+        Box::new([jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 0).into()))]);
+    assert!(crate::system::core_config(&alone, &fixtures::seeds()).defaults.workers.is_empty());
 }

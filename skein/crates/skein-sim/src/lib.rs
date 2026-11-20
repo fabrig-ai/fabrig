@@ -115,7 +115,7 @@
 extern crate alloc;
 
 mod config;
-mod machine;
+pub mod machine;
 mod net;
 mod sim;
 mod trace;

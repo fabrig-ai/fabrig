@@ -1,20 +1,6 @@
 //! Engine and worker documents (temper/docs/design/playground.md, 3).
 use skein_lib::{List, Secret};
-const DIGEST: &[u8] = b"6fb46f7a92742970166379ed5195e79c4493a7cc5664280c039cfd4095ba5faf";
-const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {
-"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1,
-"people.operations":2,"tasks.tasks":2,"tasks.exemptions":2,"tasks.funders":2,"tasks.project_tasks":1,"tasks.tree_tasks":1,"tasks.project_goals":1,
-"tasks.batch":1,"tasks.dependencies":1,"tasks.delegates":1,"tasks.charters":1,
-"people.people":1,"people.projects":2,"people.sign_ins":2,"people.holdings":1,
-"people.inbox_tasks":4,"people.pending":1,"people.waiters":1,
-"fleet.attempts":1,"fleet.calls":1,"fleet.turns":8,
-"brief.briefs":1,"brief.sections":8,"tasks.charter_documents":0,
-"notes.entries_per_scope":1,"notes.party_entries":1,"views.runs":1,
-"core.load_slots":1,"core.load_bytes":8192,"core.resume_bytes":4096,"core.run_bytes":4096,"views.text_bytes":1024
-,"core.templates":2,"documents.rows":1,"documents.lines":1,"documents.chips":1,"documents.text_bytes":128
-}},
-"llm": {
+pub(super) const CATALOGUE: &[u8] = br#"{
 "providers":[{"name":"fake-provider","number":1,"models":["fake"],"sources":{"keys":true}}],
 "endpoints": [{
 "name": "fake",
@@ -34,11 +20,10 @@ const ENGINE: &[u8] = br#"{
 "output": 512,
 "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000000}
 }]
-},
+}"#;
+const DIGEST: &[u8] = b"6fb46f7a92742970166379ed5195e79c4493a7cc5664280c039cfd4095ba5faf";
+const ENGINE: &[u8] = br#"{
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"}
-],
 "listener": [{"socket": "127.0.0.1:7200"}]
 },
 "charters": [{
@@ -52,46 +37,151 @@ const ENGINE: &[u8] = br#"{
 {"number": 2, "name": "goal", "executor": "chosen", "contract": {"report": {"words": 32}}, "shallower": 1, "budget": "given", "deadline": "given", "tracked": {"priority": 1}, "conversation": false, "listed": true, "retention": "kept", "label": 2, "grace_ms": null, "llm": null}
 ],
 "clients": {
-"heartbeat_ms": 10000,
-"link": true
 },
-"deployment": {"directory": "state", "seed": 7},
 "owners": [{"provider": 1, "subject": "owner-a"}],
-"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
-"connectors": [1,2],
-"memory_bytes": 1152921504606846976,
 "rules": {
 "ceiling": {"tools": 0, "grants": [],
 "delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
 "budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
 "period_spend": 100, "minimum_run_spend": 1, "maximum_run_spend": 100,
 "implies": [], "requirements": []
-},
-"projects": [{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
-"policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
-"ceiling": {"tools": 0, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
-"roles": [{"number": 0, "period_spend": 100, "requests": 511, "decides": 31,
-"authority": {"tools": 0, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
-}}]
+}
 }"#;
 
 pub(super) const WORKER_DOCUMENT: &[u8] = br#"{
 "workers":[{
 "engine":{"socket":"127.0.0.1:7200"},"name":"worker-a","secret":"worker.secret","slots":1,
-"programs":{"check_interval_ms":60000},
-"graces":{"grace_ms":300000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976
-}],"application":{"workers":[{"root":"agent-root"}]}}
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"hub.inbox":8,"hub.held":8,"tasks.run_inbox":8,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}}
+}],"application":{}}
 "#;
 
-pub(super) fn engine_document() -> Vec<u8> {
-    document(ENGINE)
+pub(super) const POLICIES: &[u8] = br#"[
+  {
+    "number": 1,
+    "roles": [
+      {
+        "connector": 1,
+        "permission": 1,
+        "role": 0
+      }
+    ],
+    "policy": {
+      "templates": [],
+      "escalation_role": 0,
+      "period_spend": 100,
+      "projections": [],
+      "requirements": [],
+      "ceiling": {
+        "tools": 0,
+        "grants": [],
+        "delegation": {
+          "kinds": [
+            {
+              "kind": "charter",
+              "number": 1
+            }
+          ],
+          "tasks": 8,
+          "depth": 8
+        },
+        "budget": {
+          "spend": 100,
+          "deadline_unix_seconds": null
+        },
+        "notes": 0,
+        "note_resources": []
+      },
+      "roles": [
+        {
+          "number": 0,
+          "period_spend": 100,
+          "requests": 511,
+          "decides": 31,
+          "authority": {
+            "tools": 0,
+            "grants": [],
+            "delegation": {
+              "kinds": [
+                {
+                  "kind": "charter",
+                  "number": 1
+                }
+              ],
+              "tasks": 8,
+              "depth": 8
+            },
+            "budget": {
+              "spend": 100,
+              "deadline_unix_seconds": null
+            },
+            "notes": 0,
+            "note_resources": []
+          }
+        }
+      ]
+    }
+  }
+]"#;
+
+pub(super) fn engine_document() -> super::Configuration {
+    let document: serde_json::Value = serde_json::from_slice(&document(ENGINE)).expect("engine JSON");
+    let mut world = super::Configuration::stock(document);
+    world.limits.root.transcript_memory = 1_152_921_504_606_846_976;
+    for (name, value) in [
+        ("tasks.inbox_bytes", 4096_u64),
+        ("tasks.run_inbox", 8_u64),
+        ("tasks.result_bytes", 32_u64),
+        ("people.amendment_bytes", 64_u64),
+        ("core.policy_bytes", 512_u64),
+        ("tasks.spec_bytes", 128_u64),
+        ("tasks.message_bytes", 512_u64),
+        ("tasks.hold_bytes", 64_u64),
+        ("tasks.authority_bytes", 64_u64),
+        ("people.words", 512_u64),
+        ("core.call_answer_bytes", 2048_u64),
+        ("notes.recalled", 1_u64),
+        ("people.operations", 2_u64),
+        ("tasks.tasks", 2_u64),
+        ("tasks.exemptions", 2_u64),
+        ("tasks.funders", 2_u64),
+        ("tasks.project_tasks", 1_u64),
+        ("tasks.tree_tasks", 1_u64),
+        ("tasks.project_goals", 1_u64),
+        ("tasks.batch", 1_u64),
+        ("tasks.dependencies", 1_u64),
+        ("tasks.delegates", 1_u64),
+        ("tasks.charters", 1_u64),
+        ("people.people", 1_u64),
+        ("people.projects", 2_u64),
+        ("people.sign_ins", 2_u64),
+        ("people.holdings", 1_u64),
+        ("people.inbox_tasks", 4_u64),
+        ("people.pending", 1_u64),
+        ("people.waiters", 1_u64),
+        ("fleet.attempts", 1_u64),
+        ("fleet.calls", 1_u64),
+        ("fleet.turns", 8_u64),
+        ("brief.briefs", 1_u64),
+        ("brief.sections", 8_u64),
+        ("tasks.charter_documents", 0_u64),
+        ("notes.entries_per_scope", 1_u64),
+        ("notes.party_entries", 1_u64),
+        ("views.runs", 1_u64),
+        ("core.load_slots", 1_u64),
+        ("core.load_bytes", 8192_u64),
+        ("core.resume_bytes", 4096_u64),
+        ("core.run_bytes", 4096_u64),
+        ("views.text_bytes", 1024_u64),
+        ("core.templates", 2_u64),
+        ("documents.rows", 1_u64),
+        ("documents.lines", 1_u64),
+        ("documents.chips", 1_u64),
+        ("documents.text_bytes", 128_u64),
+    ] {
+        world.jig_over(name, value);
+    }
+    world
 }
 fn document(engine: &[u8]) -> Vec<u8> {
     let mut document = b"{\"engine\":".to_vec();

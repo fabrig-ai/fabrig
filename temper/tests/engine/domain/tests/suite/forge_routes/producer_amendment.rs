@@ -194,9 +194,7 @@ fn an_amendment_keeps_the_producers_question_open_until_its_answer() {
     assert_eq!(row(&world, change).questions.open.len(), 1, "an amendment does not clear the question");
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
     assert_eq!(live_task(&world, producer.task).questions, open);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(
         !world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt),
         "an amendment never answers or lets a kept producer go on"

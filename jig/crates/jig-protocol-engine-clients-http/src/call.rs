@@ -1,6 +1,7 @@
 //! One HTTP server and its bounded request and response (protocol/client/wire.md, 2).
 use crate::{Limits, Request, dispatch::Route};
 use alloc::boxed::Box;
+use core::{net::IpAddr, str::FromStr};
 use skein_http::server as http;
 use skein_lib::{
     Env, Intake, Queue, Token, bytes,
@@ -14,6 +15,8 @@ pub(crate) struct Call {
     pub method: skein_http::Method,
     pub public: bool,
     pub stream: Option<crate::stream::Stream>,
+    pub replaces: Option<[u8; 16]>,
+    pub batch: Option<crate::batch::Batch>,
     pub events: Queue<http::Event>,
     pub requests: Queue<http::Request>,
     pub body_kind: http::Body,
@@ -22,6 +25,7 @@ pub(crate) struct Call {
     /// Whether the credential came by the cookie (protocol/client/default-http.md, 3).
     pub cookie: bool,
     pub via: crate::Via,
+    pub source: Option<IpAddr>,
     pub body: Intake,
     pub route: Route,
     pub response: Box<[u8]>,
@@ -30,6 +34,34 @@ pub(crate) struct Call {
     pub streaming: bool,
     pub reply_owed: bool,
 }
+/// A source is descriptive, never a check (protocol/client/default-http.md, 3).
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the HTTP transport reads proxy IP text as UTF-8 (protocol/client/default-http.md, 3)"
+)]
+pub(crate) fn source(via: crate::Via, head: &http::Call, peer: Option<IpAddr>) -> Option<IpAddr> {
+    match via {
+        crate::Via::Listener => peer,
+        crate::Via::Public => {
+            let mut last = None;
+            for header in &head.headers {
+                if header.is(b"x-forwarded-for") {
+                    last = Some(header.value.as_ref());
+                }
+            }
+            let field = last?;
+            let mut start = 0;
+            for (index, byte) in field.iter().enumerate() {
+                if *byte == b',' {
+                    start = index.checked_add(1).expect("element starts within field");
+                }
+            }
+            let element = field.get(start..).expect("last element within field");
+            let text = core::str::from_utf8(element).ok()?.trim_matches([' ', '\t']);
+            Some(IpAddr::from_str(text).ok()?.to_canonical())
+        }
+    }
+}
 impl Call {
     pub fn new(name: Token, limits: &Limits) -> Self {
         Self {
@@ -37,6 +69,8 @@ impl Call {
             method: skein_http::Method::Get,
             public: false,
             stream: None,
+            replaces: None,
+            batch: None,
             events: Queue::with_capacity(8),
             requests: Queue::with_capacity(8),
             body_kind: http::Body::None,
@@ -44,6 +78,7 @@ impl Call {
             browser: false,
             cookie: false,
             via: crate::Via::Listener,
+            source: None,
             body: Intake::with_capacity(limits.body),
             route: Route::Missing,
             response: Box::new([]),
@@ -106,7 +141,7 @@ impl Call {
             self.room(limits);
         }
     }
-    fn room(&mut self, limits: &Limits) {
+    pub(super) fn room(&mut self, limits: &Limits) {
         let left = self.response.len().checked_sub(self.offset).expect("response offset");
         self.requests.push(http::Request::Reply(Down::Demand {
             read: Read::Nothing,
@@ -171,6 +206,8 @@ impl Call {
                             self.reply_owed = true;
                             jig_protocol_engine_clients::FromTransport::Exchange {
                                 browser: self.cookie,
+                                via: self.via,
+                                source: self.source,
                                 exchange: self.name,
                                 credential,
                                 message,
@@ -178,7 +215,32 @@ impl Call {
                         }
                         None => {
                             self.streaming = true;
-                            jig_protocol_engine_clients::FromTransport::StreamOpen { stream: self.name, credential }
+                            jig_protocol_engine_clients::FromTransport::StreamOpen {
+                                stream: self.name,
+                                credential,
+                                replaces: self.replaces,
+                                version: match self.route {
+                                    Route::Stream(version) => version,
+                                    Route::Public(_)
+                                    | Route::Link
+                                    | Route::LinkAsk
+                                    | Route::Service
+                                    | Route::SignInApproval
+                                    | Route::ApprovalAsk
+                                    | Route::ApprovalRead
+                                    | Route::ApprovalDecide
+                                    | Route::SignOut
+                                    | Route::Authorize
+                                    | Route::Request
+                                    | Route::Read
+                                    | Route::Watch
+                                    | Route::Batch
+                                    | Route::Unwatch
+                                    | Route::Gone
+                                    | Route::BadQuery
+                                    | Route::Missing => unreachable!("stream route"),
+                                },
+                            }
                         }
                     };
                     out.push(Request::Component(message));
@@ -194,6 +256,7 @@ impl Call {
                     &mut stream.below,
                 );
             }
+            http::Event::Reply(Up::Room) if self.batch.is_some() => self.batch_send(&env.limits),
             http::Event::Reply(Up::Room) => self.send(&env.limits),
             http::Event::Done(_)
             | http::Event::Ended

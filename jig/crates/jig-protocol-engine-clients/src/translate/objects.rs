@@ -21,10 +21,12 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
                 result: current::result(models, result, limits)?,
             },
         )?),
-        reads::EndedValue::Proposal(value) => w::EndedValue::Proposal(w::EndedValueProposal::new(
-            limits,
-            w::EndedValueProposalParts { value: ended::proposal_history(models, value, limits)? },
-        )?),
+        reads::EndedValue::Proposal(value) | reads::EndedValue::PartyProposal(value) => {
+            w::EndedValue::Proposal(w::EndedValueProposal::new(
+                limits,
+                w::EndedValueProposalParts { value: ended::proposal_history(models, value, limits)? },
+            )?)
+        }
         reads::EndedValue::PersonProposal { proposal, decision } => match &proposal.action {
             jig_domain_tasks::PersonAction::Settings { against, items } => {
                 w::EndedValue::Proposal(w::EndedValueProposal::new(
@@ -139,6 +141,7 @@ pub fn document(
             reads::EndedValue::Turn(record) => w::ReadValue::Turn(super::activity::archive(record, None, limits)?),
             reads::EndedValue::Task { .. }
             | reads::EndedValue::Proposal(_)
+            | reads::EndedValue::PartyProposal(_)
             | reads::EndedValue::PersonProposal { .. }
             | reads::EndedValue::Escalation { .. }
             | reads::EndedValue::Question { .. }
@@ -167,6 +170,15 @@ fn ended_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::ObjectK
             w::ObjectKeyProposalParts {
                 value: task::proposal(
                     &d::ProposalRef { proposer: d::Proposer::Task(value.proposer), number: value.number },
+                    limits,
+                )?,
+            },
+        )?),
+        reads::EndedValue::PartyProposal(value) => w::ObjectKey::Proposal(w::ObjectKeyProposal::new(
+            limits,
+            w::ObjectKeyProposalParts {
+                value: task::proposal(
+                    &d::ProposalRef { proposer: d::Proposer::Party(value.proposer), number: value.number },
                     limits,
                 )?,
             },

@@ -1,4 +1,4 @@
-//! A check's base, contained heads and git paths (domain/forge/reds.md, 5.2).
+//! A check's base, contained heads and fixed run paths (domain/forge/reds.md, 5.2).
 use crate::{
     invocation::{self, Command},
     sequence::{self, Next},
@@ -12,11 +12,10 @@ pub enum CheckCommand {
     Merge,
     Base { merging: bool },
     Ancestor { expected: Box<[u8]>, base: git::Commit, width: usize, index: usize, kept: Box<[usize]> },
-    Path { kept: Box<[usize]> },
 }
 pub(crate) fn first(op: &git::Op) -> Next {
     if let git::Op::Reds { action: git::Reds::Clear, .. } = op {
-        return path(Box::new([]));
+        return path(op, &[]);
     }
     run(CheckCommand::Pin)
 }
@@ -48,22 +47,14 @@ pub(crate) fn arguments(command: &CheckCommand) -> Box<[Box<[u8]>]> {
             args.push(head_hex(expected)).expect("argv");
             args.push(invocation::hex(*base)).expect("argv");
         }
-        CheckCommand::Path { .. } => {
-            for word in [b"rev-parse".as_slice(), b"--path-format=relative", b"--git-path", b"temper"] {
-                args.push(Box::from(word)).expect("fixed argv");
-            }
-        }
     }
     args.into_boxed()
 }
 fn run(command: CheckCommand) -> Next {
     Next::Run(Command::Reds(command))
 }
-fn path(kept: Box<[usize]>) -> Next {
-    run(CheckCommand::Path { kept })
-}
 pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8]) -> Next {
-    let git::Op::Reds { at, action } = op else { unreachable!("check sequence") };
+    let git::Op::Reds { action, .. } = op else { unreachable!("check sequence") };
     match command {
         CheckCommand::Pin => {
             if code != 0 {
@@ -71,7 +62,7 @@ pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8
             }
             match action {
                 git::Reds::Write { .. } => run(CheckCommand::Merge),
-                git::Reds::Prepare { .. } | git::Reds::Clear | git::Reds::Read { .. } => path(Box::new([])),
+                git::Reds::Prepare { .. } | git::Reds::Clear | git::Reds::Read { .. } => path(op, &[]),
             }
         }
         CheckCommand::Merge => {
@@ -84,15 +75,15 @@ pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8
             let base = if code == 0 {
                 let end = skein_lib::bytes::find(stdout, b"\n").unwrap_or(stdout.len());
                 let line = stdout.get(..end).expect("first line");
-                let Some(base) = invocation::object(line) else { return path(Box::new([])) };
+                let Some(base) = invocation::object(line) else { return path(op, &[]) };
                 Some((base, line.len().checked_div(2).expect("object width")))
             } else {
                 None
             };
             let git::Reds::Write { reds } = action else { unreachable!("check base") };
             match base {
-                Some((base, width)) => query(reds, base, width, 0, Box::new([])),
-                None => path(Box::new([])),
+                Some((base, width)) => query(op, reds, base, width, 0, Box::new([])),
+                None => path(op, &[]),
             }
         }
         CheckCommand::Ancestor { base, width, index, kept, .. } => {
@@ -105,51 +96,36 @@ pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8
             if code == 0 {
                 accepted.push(*index).expect("one query per red");
             }
-            query(reds, *base, *width, index.checked_add(1).expect("bounded reds"), accepted.into_boxed())
-        }
-        CheckCommand::Path { kept } => {
-            if code != 0 {
-                return sequence::failed(git::Fault::Broken, b"reds git path", 0);
-            }
-            let Some(directory) = stdout.strip_suffix(b"\n") else {
-                return sequence::failed(git::Fault::Broken, b"reds git path", 0);
-            };
-            if directory.is_empty() || directory.contains(&0) {
-                return sequence::failed(git::Fault::Broken, b"reds git path", 0);
-            }
-            let directory = if directory.starts_with(b"/") {
-                Box::from(directory)
-            } else {
-                invocation::joined(&[&invocation::place(at), b"/", directory])
-            };
-            let (content, marker) = match action {
-                git::Reds::Read { .. } => return Next::Results { directory },
-                git::Reds::Clear => (None, false),
-                git::Reds::Prepare { wait_ms, .. } => (
-                    Some(invocation::joined(&[
-                        b"temper-reds-wait 1 ",
-                        Decimal::of(u64::from(*wait_ms)).as_bytes(),
-                        b"\n",
-                    ])),
-                    true,
-                ),
-                git::Reds::Write { reds } => (Some(contents(reds, kept)), false),
-            };
-            let rerun = match action {
-                git::Reds::Prepare { rerun_processes, .. } => Some(*rerun_processes),
-                git::Reds::Clear | git::Reds::Read { .. } | git::Reds::Write { .. } => None,
-            };
-            Next::Reds { directory, content, marker, rerun }
+            query(op, reds, *base, *width, index.checked_add(1).expect("bounded reds"), accepted.into_boxed())
         }
     }
 }
-fn query(reds: &[git::Red], base: git::Commit, width: usize, from: usize, kept: Box<[usize]>) -> Next {
+fn path(op: &git::Op, kept: &[usize]) -> Next {
+    let git::Op::Reds { at, action } = op else { unreachable!("reds files") };
+    let directory = invocation::joined(&[&invocation::place(at), b"/.git/temper"]);
+    let (content, marker) = match action {
+        git::Reds::Read { .. } => return Next::Results { directory },
+        git::Reds::Clear => (None, false),
+        git::Reds::Prepare { wait_ms, .. } => (
+            Some(invocation::joined(&[b"temper-reds-wait 1 ", Decimal::of(u64::from(*wait_ms)).as_bytes(), b"\n"])),
+            true,
+        ),
+        git::Reds::Write { reds } => (Some(contents(reds, kept)), false),
+    };
+    let rerun = match action {
+        git::Reds::Prepare { rerun_processes, .. } => Some(*rerun_processes),
+        git::Reds::Clear | git::Reds::Read { .. } | git::Reds::Write { .. } => None,
+    };
+    Next::Reds { directory, content, marker, rerun }
+}
+
+fn query(op: &git::Op, reds: &[git::Red], base: git::Commit, width: usize, from: usize, kept: Box<[usize]>) -> Next {
     for (index, red) in reds.iter().enumerate().skip(from) {
         if red.head.len() == width {
             return run(CheckCommand::Ancestor { expected: red.head.clone(), base, width, index, kept });
         }
     }
-    path(kept)
+    path(op, &kept)
 }
 fn contents(reds: &[git::Red], kept: &[usize]) -> Box<[u8]> {
     let mut keys = skein_lib::Set::with_capacity(u32::try_from(kept.len()).expect("red count"));

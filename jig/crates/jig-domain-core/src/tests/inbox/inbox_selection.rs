@@ -77,7 +77,7 @@ fn waiting(core: &mut Core, limits: &Limits, task: u64, kinds: &[people::EntryKi
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
-        people::Event::Waiting { task, entries: entries.into_boxed() },
+        people::Event::Waiting { source: people::NeedSource::Task(task), entries: entries.into_boxed() },
         &mut out,
     );
 }
@@ -89,6 +89,157 @@ fn inbox(core: &Core, limits: &Limits, rows: u32) -> Inbox {
         panic!("whole inbox document")
     };
     value
+}
+
+fn save_inbox_source(core: &mut Core, limits: &Limits, record: tasks::Stored) {
+    let mut child = Queue::uncapped();
+    child.push(tasks::Request::Save { record });
+    drop(crate::routing::task::tag_task_outputs(
+        core,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+        child,
+    ));
+}
+
+fn amendment_proposal(task: u64, number: u64) -> tasks::PersonProposal {
+    tasks::PersonProposal {
+        number,
+        proposer: 1,
+        project: 1,
+        action: tasks::PersonAction::Amend {
+            task,
+            revision: 0,
+            amendment: Box::new(fixtures::unchanged(b"review the task")),
+        },
+        reason: Box::from(b"please approve".as_slice()),
+        state: tasks::PersonProposalState::Pending { since: Wall::from_nanos(10) },
+    }
+}
+
+fn assert_source_needs(core: &mut Core, limits: &Limits, expected: &[InboxObject]) {
+    let mut whole_limits = *limits;
+    whole_limits.documents.rows = 16;
+    let whole = inbox(core, &whole_limits, 16);
+    let count = u32::try_from(expected.len()).unwrap();
+    let mut objects = List::with_capacity(count);
+    for entry in &whole.needs {
+        objects.push(entry.object).unwrap();
+    }
+    assert_eq!(objects.as_slice(), expected);
+    assert_eq!(whole.cached_needs, count);
+    let Document::Frame(me) = make(core, limits, 1, &Subject::Frame { party: 1 }, &window(), Wall::EPOCH).unwrap()
+    else {
+        panic!("me counts")
+    };
+    assert_eq!(me.needs, count);
+    assert_eq!(core.people.cached_waiting(&limits.people, 1).unwrap().len(), expected.len());
+    let mut after = None;
+    for (index, object) in expected.iter().enumerate() {
+        let Document::Inbox(page) =
+            make(core, limits, 1, &Subject::Inbox { party: 1 }, &Window { rows: 1, after }, Wall::EPOCH).unwrap()
+        else {
+            panic!("one need per page")
+        };
+        assert_eq!(page.needs.len(), 1);
+        let entry = page.needs.get(0).unwrap();
+        assert_eq!(entry.object, *object);
+        assert_eq!(entry.project, Some(1));
+        let TaskLink::Live(chip) = &entry.task else { panic!("live task link") };
+        assert_eq!(chip.number, 1);
+        assert!(page.updates.is_empty());
+        assert_eq!(page.next, (index.checked_add(1).unwrap() < expected.len()).then_some(entry.cursor));
+        after = page.next;
+    }
+    // The read API pages the same live census, without falling back to stored rows.
+    let mut from = None;
+    let mut found = List::with_capacity(count);
+    for _ in 0..=expected.len() {
+        core.reclaim();
+        let Held::Read { answer: crate::reads::Answer::Page(page), .. } = read_start(
+            core,
+            limits,
+            10,
+            crate::reads::Read::Inbox {
+                group: crate::reads::Group::Needs,
+                filter: crate::reads::Filter { project: Some(1), goal: None },
+                from,
+            },
+        ) else {
+            panic!("needs are live pages")
+        };
+        for row in &page.rows {
+            let crate::reads::PageRow::Inbox(entry) = row else { panic!("need row") };
+            found.push(entry.object).unwrap();
+        }
+        from = page.next;
+        if from.is_none() {
+            break;
+        }
+    }
+    assert_eq!(found.as_slice(), expected);
+    assert_eq!(from, None);
+}
+
+#[test]
+fn both_save_orders_keep_a_task_need_and_its_party_amendment_until_withdrawn() {
+    for proposal_first in [false, true] {
+        let (mut core, mut limits) = fixture();
+        limits.documents.rows = 1;
+        let mut task = core.tasks.task(1).unwrap().clone();
+        task.escalation = tasks::Escalation::Waiting {
+            revision: 1,
+            holder: tasks::EscalationHolder::Person(1),
+            entry: 1,
+            since: Wall::EPOCH,
+        };
+        let mut proposal = amendment_proposal(task.number, 7);
+        let task_row = tasks::Stored::Live(Box::new(task));
+        let proposal_row = tasks::Stored::PersonProposal(Box::new(proposal.clone()));
+        let rows = if proposal_first { [proposal_row, task_row] } else { [task_row, proposal_row] };
+        for row in rows {
+            save_inbox_source(&mut core, &limits, row);
+        }
+        let escalation = InboxObject::Escalation { revision: 1 };
+        assert_source_needs(
+            &mut core,
+            &limits,
+            &[escalation, InboxObject::Proposal { proposer: Proposer::Party(1), number: 7 }],
+        );
+        proposal.state = tasks::PersonProposalState::Withdrawn { at: Wall::from_nanos(20) };
+        save_inbox_source(&mut core, &limits, tasks::Stored::DecidedProposal(Box::new(proposal)));
+        assert_source_needs(&mut core, &limits, &[escalation]);
+    }
+}
+
+#[test]
+fn task_and_party_proposals_of_the_same_number_keep_distinct_needs() {
+    let (mut core, mut limits) = fixture();
+    limits.documents.rows = 1;
+    let mut task = core.tasks.task(1).unwrap().clone();
+    task.proposal = Some(Box::new(tasks::Proposal {
+        number: 7,
+        proposer: task.number,
+        project: 1,
+        action: tasks::ProposalAction::Amend {
+            task: task.number,
+            revision: 0,
+            amendment: fixtures::unchanged(b"review"),
+        },
+        reason: Box::new([]),
+        as_holder: false,
+        state: tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Person(1), since: Wall::EPOCH },
+    }));
+    save_inbox_source(&mut core, &limits, tasks::Stored::Live(Box::new(task)));
+    let proposal = amendment_proposal(1, 7);
+    save_inbox_source(&mut core, &limits, tasks::Stored::PersonProposal(Box::new(proposal)));
+    assert_source_needs(
+        &mut core,
+        &limits,
+        &[
+            InboxObject::Proposal { proposer: Proposer::Task(1), number: 7 },
+            InboxObject::Proposal { proposer: Proposer::Party(1), number: 7 },
+        ],
+    );
 }
 
 fn stored_page(
@@ -171,6 +322,7 @@ fn finished_chat() -> (Core, Limits, Box<[Record]>) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
@@ -660,7 +812,7 @@ fn inbox_context_keeps_all_six_raw_objects_groups_counts_and_full_width_identiti
     let (mut core, limits) = fixture();
     let kinds = [
         people::EntryKind::Question { message: u64::MAX },
-        people::EntryKind::Proposal { number: u64::MAX },
+        people::EntryKind::Proposal { proposer: Proposer::Task(3), number: u64::MAX },
         people::EntryKind::Escalation { revision: u64::MAX },
         people::EntryKind::PersonTask,
         people::EntryKind::Reply { message: u64::MAX },
@@ -901,7 +1053,7 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
     assert_eq!(core.tasks.task(1).unwrap().requester, tasks::Party::Person(1));
 }
 
-fn settings_document_bytes() -> u64 {
+fn settings_document_bytes(limits: &Limits) -> u64 {
     // A settings inventory document is priced beside every document (domain/engine/settings.md 7).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
@@ -920,10 +1072,11 @@ fn settings_document_bytes() -> u64 {
     // The two value sets each carry eight bytes for RunPolicy.tools.
     // Each set also carries a 16-byte parts slice and eight templates, each with
     // 24-byte later choices in both its Template and New carriers.
+    // Two limit override lists and their inventory lines occupy 2 * (256 * (40 + 64 + 120) + 88) bytes.
     // The closer adds 2 * 8 * (16 + 8) bytes to the Template and New carriers.
     // Each also holds 64 catalogue rows: a 192-byte carrier, two names, a description,
     // a program, efforts and the default effort. The inventory shares one model range.
-    120_528
+    const OTHER: u64 = 120_528
         + 4 * 72
         + 16 * 8
         + 2 * 8 * 16
@@ -944,6 +1097,20 @@ fn settings_document_bytes() -> u64 {
         + 64 * 88
         + 2 * (16 + 8 * (24 + 24))
         + 2 * 8 * (16 + 8)
+        + 2 * (256 * (40 + 64 + 120) + 88);
+    let worker = u64::try_from(size_of::<SettingLine>())
+        .unwrap()
+        .checked_add(u64::try_from(size_of::<crate::settings::WorkerSetting>()).unwrap())
+        .unwrap()
+        .checked_add(u64::from(limits.fleet.worker_name_bytes))
+        .unwrap();
+    u64::from(limits.fleet.configured_workers)
+        .checked_mul(2)
+        .unwrap()
+        .checked_mul(worker)
+        .unwrap()
+        .checked_add(OTHER)
+        .unwrap()
 }
 
 #[test]
@@ -984,11 +1151,17 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
         document_with_context_bound(&limits, &core.kinds),
         Some(
             document_bound(&limits.documents).unwrap()
+                + List::<UnreadWords>::price(limits.tasks.inbox_messages).unwrap()
+                + u64::from(limits.tasks.inbox_messages) * u64::from(UNREAD_HEAD_BYTES)
                 + delegates
                 + bound
                 + TEMPLATE_ENVELOPES
                 + u64::from(limits.documents.lines) * (offer + previews)
-                + settings_document_bytes()
+                + settings_document_bytes(&limits)
+                + 2 * crate::settings::providers::set_bound().unwrap()
+                + 2 * u64::from(crate::settings::PROVIDERS) * u64::try_from(size_of::<SettingLine>()).unwrap()
+                + List::<WorkerState>::price(limits.fleet.configured_workers).unwrap()
+                + u64::from(limits.fleet.configured_workers) * u64::from(limits.fleet.worker_name_bytes)
                 + u64::from(limits.people.words)
         )
     );

@@ -8,6 +8,8 @@ pub(in crate::tests) mod proposals;
 pub(in crate::tests) mod tracking;
 
 mod classifiers;
+mod widening;
+mod widening_funds;
 
 use crate::{
     acts as offers,
@@ -192,7 +194,7 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
     };
     assert_eq!(budget_left, 400);
     assert_eq!(authority.ceiling.spend, 500);
-    assert_eq!(ceiling.ceiling.spend, 600);
+    assert_eq!(ceiling.ceiling.spend, core.authority.policy(1).unwrap().ceiling.budget.spend);
     assert_eq!(authority.tasks, core.authority.role(1, 0).unwrap().authority.delegation.tasks);
     assert_eq!(beyond, Beyond::Proposed { to: policy_holder(&[0]) });
     let mut after = core.tasks.task(1).unwrap().authority.clone();
@@ -630,6 +632,7 @@ fn sign_in(core: &mut Core, limits: &Limits) {
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
         people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(100)),
             person: 1,

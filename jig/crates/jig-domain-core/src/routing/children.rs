@@ -507,7 +507,7 @@ pub(crate) fn tag_account(
         match child.pop().expect("account output count") {
             accounts::Request::ReadList { read, provider, grant, .. } => {
                 let endpoint = match core.settings.direct_endpoint(provider) {
-                    Some(facts) => facts.number,
+                    Some(facts) => Some(facts.number),
                     None => {
                         let mut endpoint = None;
                         for facts in &core.settings.endpoints {
@@ -516,8 +516,17 @@ pub(crate) fn tag_account(
                                 break;
                             }
                         }
-                        endpoint.expect("a listed provider has an endpoint")
+                        endpoint
                     }
+                };
+                let Some(endpoint) = endpoint else {
+                    append_account(
+                        core,
+                        env,
+                        accounts::Event::ListFailed { read, failure: accounts::ReadFailure::Unreachable, at: env.wall },
+                        &mut out,
+                    );
+                    continue;
                 };
                 append_fleet(
                     core,
@@ -798,6 +807,7 @@ pub(crate) fn route_fleet(
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
         | fleet::Event::Sources { .. }
+        | fleet::Event::Untooled { .. }
         | fleet::Event::Mismatch { .. }
         | fleet::Event::Draining { .. }
         | fleet::Event::Logins { .. }
@@ -902,7 +912,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
-        fleet::Event::ReadList { .. }
+        fleet::Event::Untooled { .. }
+        | fleet::Event::ReadList { .. }
         | fleet::Event::ListRead { .. }
         | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }

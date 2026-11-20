@@ -726,7 +726,6 @@ fn registered() -> (config::Engine, AccountsRuntime) {
         name: b"issuer".as_slice().into(),
         signed_in_plan: false,
         manage_usage: None,
-        models: Box::new([]),
         keys: true,
         programs: Box::new([]),
         sign_in: Some(config::llm::Registration {
@@ -913,7 +912,7 @@ fn pump_move_events(accounts: &mut Accounts, engine: &mut crate::engine::Engine)
 
 fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) -> Secret {
     use crate::tests::fixtures::http as peer;
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
     let limits = engine.clients.env.limits.wire;
     let change = w::AccountChange::MoveOut(
@@ -927,7 +926,13 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
     ask.encode(&mut bytes).unwrap();
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [attempt; 16], owner: w::Owner::Jig, version: 26, request: bytes.finish(), value: None },
+        w::KeyedParts {
+            key: [attempt; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: bytes.finish(),
+            value: None,
+        },
     )
     .unwrap();
     let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
@@ -964,7 +969,7 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
 #[test]
 fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
     use crate::tests::fixtures::http as peer;
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
 
     let mut service = fixtures::ready();
     let link = service.links().pop().expect("sign-in link");

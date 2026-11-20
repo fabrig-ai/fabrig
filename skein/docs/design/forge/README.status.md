@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-11. Where skein's code lags or departs from [README.md](README.md).
+2026-11-17. Where skein's code lags or departs from [README.md](README.md).
 
 `forgejo.md`, section 1.2 has no known gap in Forgejo's `Read::Commits`: its plan keeps
 the oldest commits the answer's rows and bytes hold, giving up the newest

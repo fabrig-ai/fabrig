@@ -52,7 +52,7 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.style(look::WAYS_PANEL);
         super::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
-            && let Some(stop) = tab.path.stops().get(open)
+            && let Some(stop) = tab.path.stops.get(open)
         {
             super::ways::card(b, stop, w, bindings, project);
         }
@@ -64,7 +64,7 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.close();
     }
     if w.shell == Shell::Terminal {
-        super::ways::head_acts(b, ways, w, bindings, project);
+        super::ways::head_acts(b, ways, &project_name(root, w, project), w, bindings, project);
     }
     b.close();
 }
@@ -92,20 +92,20 @@ pub(crate) fn rules(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
         }
     }
     b.close();
-    for row in rules.rows() {
+    for row in &rules.rows {
         b.open(Role::Row);
-        text(b, Role::Cell, row.paths(), look::HOW_PATHS);
+        text(b, Role::Cell, &row.paths, look::HOW_PATHS);
         if parts.review {
-            rule_cell(b, w, row.review(), false);
+            rule_cell(b, w, &row.review, false);
         }
-        rule_cell(b, w, row.sign_off(), true);
-        crate::cards::text(b, Role::Cell, row.lands());
+        rule_cell(b, w, &row.sign_off, true);
+        crate::cards::text(b, Role::Cell, &row.lands);
         b.close();
     }
     b.close();
     b.close();
-    if !rules.note().is_empty() {
-        text(b, Role::Paragraph, rules.note(), look::HOW_RULES_NOTE);
+    if !rules.note.is_empty() {
+        text(b, Role::Paragraph, &rules.note, look::HOW_RULES_NOTE);
     }
     b.close();
 }
@@ -133,12 +133,12 @@ pub(crate) fn roles(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
     b.close();
     b.open(Role::Slot);
     b.style(look::HOW_ROLES);
-    for role in view.roles() {
-        let card = role.card();
+    for role in &view.roles {
+        let card = &role.card;
         b.open(Role::Disclosure);
         b.style(look::HOW_ROLE);
-        b.name(card.name());
-        b.description(card.who());
+        b.name(&card.name);
+        b.description(&card.who);
         crate::views::facts(b, card);
         b.open(Role::Paragraph);
         b.style(look::HOW_ROLE_MORE);
@@ -146,7 +146,7 @@ pub(crate) fn roles(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
         crate::bindings::link(
             b,
             &name,
-            bindings.insert(Act::Go { address: Address::Role { project, charter: role.charter() } }),
+            bindings.insert(Act::Go { address: Address::Role { project, charter: role.charter } }),
         );
         b.text(Run::Plain, &name);
         b.close();
@@ -171,7 +171,7 @@ pub(crate) fn draw_budgets(b: &mut Builder, w: &Words, parts: &how::Parts) {
     for row in &parts.standing {
         b.open(Role::Slot);
         b.style(look::HOW_ROW);
-        crate::cards::text(b, Role::Text, &row.title);
+        crate::cards::text(b, Role::Text, &crate::common::chat::row_title(&row.title));
         text(b, Role::Text, &w.say(Word::HowStanding, &[Hole::Number(row.left)]), look::SETTINGS_DETAIL);
         crate::cards::text(b, Role::Text, &w.say(Word::HowAmount, &[Hole::Number(row.budget)]));
         b.close();

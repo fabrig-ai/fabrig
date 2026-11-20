@@ -1,6 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
+use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_forge::{self as top, history as history_rows};
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
@@ -57,6 +58,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 3,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -147,6 +149,8 @@ pub struct World {
     top_out: Queue<top::Request>,
     pending: Map<Token, Pending>,
     stored: Map<top::Key, top::Stored>,
+    // Index coordinates keep number/project order; reads still observe event erasure and replacement.
+    history_by_change: BTreeMap<u64, BTreeSet<(u64, u32)>>,
     history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
     history_page_rows: u32,
     history_hold: bool,
@@ -159,6 +163,7 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
+    timeout_merges: u32,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
@@ -307,6 +312,7 @@ impl World {
             gates.clone(),
             self.landing_policy,
             top::AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -787,6 +793,7 @@ impl World {
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
             stored: Map::with_capacity(4096),
+            history_by_change: BTreeMap::new(),
             history_loads: Vec::new(),
             history_page_rows: 32,
             history_hold: false,
@@ -799,6 +806,7 @@ impl World {
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
+            timeout_merges: 0,
             lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
@@ -1191,16 +1199,15 @@ impl World {
     #[must_use]
     pub fn history(&self, change: u64) -> Vec<history_rows::Event> {
         let mut events = Vec::new();
-        for (_, record) in &self.stored {
-            if let top::Stored::HistoryChange(index) = record
-                && index.change == change
-                && let Some(top::Stored::HistoryEvent(event)) =
-                    self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
-            {
-                events.push(event.clone());
+        if let Some(indexes) = self.history_by_change.get(&change) {
+            for &(number, project) in indexes {
+                if let Some(top::Stored::HistoryEvent(event)) =
+                    self.stored.get(&top::Key::HistoryEvent { project, number })
+                {
+                    events.push(event.clone());
+                }
             }
         }
-        events.sort_by_key(|event| event.number);
         events
     }
 
@@ -1230,7 +1237,7 @@ impl World {
 
     /// Erase a fixture event while retaining its index rows.
     pub fn erase_history_event(&mut self, project: u32, number: u64) {
-        self.stored.remove(&top::Key::HistoryEvent { project, number }).expect("fixture event exists");
+        self.erase_record(&top::Key::HistoryEvent { project, number }).expect("fixture event exists");
     }
 
     pub fn fallback(&mut self, interval: Duration) {
@@ -1300,6 +1307,18 @@ impl World {
     pub fn ended_landing_fixture(&mut self, task: u64) {
         let mut row = self.landing(task).clone();
         row.landing.phase = temper_engine_domain_forge_landing::Phase::Landed;
+        for member in &mut row.landing.members {
+            let mut change = self.change(member.change).clone();
+            let merge = change.change.last_head.expect("ready member's head");
+            member.landed = Some(merge);
+            member.recorded = true;
+            member.told = true;
+            change.change.state = temper_engine_domain_forge_change::State::Landed { merge, since: self.env.wall };
+            let (_, hot) = change.split();
+            self.stored
+                .insert(top::Key::ChangeHot(hot.task), top::Stored::ChangeHot(Box::new(hot)))
+                .expect("existing member");
+        }
         self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("existing landing");
         self.restart();
     }
@@ -1336,6 +1355,7 @@ impl World {
                 gates.clone(),
                 self.landing_policy,
                 top::AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -1617,7 +1637,21 @@ impl World {
                 self.event(event);
             }
         } else if let Some(event) = self.to_forge.pop() {
-            forge::step(&mut self.forge, &self.forge_env, event, &mut self.forge_out);
+            let mut env =
+                Env { now: self.forge_env.now, wall: self.forge_env.wall, limits: self.forge_env.limits.clone() };
+            if self.timeout_merges > 0
+                && matches!(
+                    &event,
+                    forge::Event::Call {
+                        op: raw::Op::Write(raw::Write::Merge { how: raw::MergeHow::FastForwardOnly, .. }),
+                        ..
+                    }
+                )
+            {
+                self.timeout_merges -= 1;
+                env.limits.timeouts = 1000;
+            }
+            forge::step(&mut self.forge, &env, event, &mut self.forge_out);
             self.take_forge();
         } else if self.top.is_ready() {
             top::resume(&mut self.top, &self.env, &mut self.top_out);
@@ -1660,9 +1694,28 @@ impl World {
     fn take_top(&mut self) {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
-        for _ in 0..self.top_out.len() {
-            let request = self.top_out.pop().expect("counted top output");
+        while let Some(request) = self.top_out.pop() {
             match request {
+                top::Request::ChoosePlace { request, kind, .. } => {
+                    let port = match kind {
+                        top::BoxKind::Owned => 8372,
+                        top::BoxKind::Fake => 8369,
+                    };
+                    let place = top::Place {
+                        api: top::Address { host: b"127.0.0.1".as_slice().into(), port, tls: None },
+                        git: format!("http://127.0.0.1:{port}").into_bytes().into_boxed_slice(),
+                        web: None,
+                    };
+                    top::step(
+                        &mut self.top,
+                        &self.env,
+                        top::Event::PlaceChosen { request, place: Some(place), git_program: None },
+                        &mut self.top_out,
+                    );
+                }
+                top::Request::LandingReady { task } => {
+                    self.top.decide_landing(&self.env, task, true, &mut self.top_out);
+                }
                 top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
                 page @ top::Request::HistoryPage { .. } => {
                     self.seen.push(page).expect("world output room");
@@ -1709,21 +1762,20 @@ impl World {
                         let top::Request::Save { record, .. } = kept.pop().expect("projection keep count") else {
                             panic!("admitted projection saves only")
                         };
-                        self.stored.insert(key(&record), record).expect("world store capacity");
+                        self.store_record(record);
                     }
                 }
                 top::Request::Save { record, release, .. } => {
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
-                    let key = key(&record);
-                    self.stored.insert(key, record).expect("world store capacity");
+                    self.store_record(record);
                     if let Some(entry) = release {
                         self.to_top.push((self.generation, top::Event::Committed { entry }));
                     }
                 }
                 top::Request::Erase { key } => {
-                    let removed = self.stored.remove(&key);
+                    let removed = self.erase_record(&key);
                     // Last rows can be replaced while loaded; release also erases an unwatched client repository.
                     if !matches!(
                         key,
@@ -1749,6 +1801,8 @@ impl World {
                 other @ (top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
@@ -1794,6 +1848,7 @@ impl World {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
+                | top::Request::FileVerdict { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
@@ -1997,6 +2052,11 @@ impl World {
         self.forge_env.limits.land_max = after;
     }
 
+    /// The fake makes these merges, then loses their answers (`Config::timeouts`).
+    pub fn timeout_merges(&mut self, count: u32) {
+        self.timeout_merges = count;
+    }
+
     /// Lose writes in transit, with no copy reaching the forge.
     pub fn lose_writes(&mut self) {
         self.lose_writes = true;
@@ -2027,6 +2087,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Call { key, .. } => top::Key::Call(*key),
         top::Stored::Repository(row) => top::Key::Repository(row.provider),
         top::Stored::Hold(row) => top::Key::Hold(row.name.clone()),
+        top::Stored::LimitHold(row) => top::Key::LimitHold(row.task),
         top::Stored::Names { task, .. } => top::Key::Names(*task),
         top::Stored::Subscription(row) => top::Key::Subscription { task: row.task, topic: row.topic.clone() },
         top::Stored::BranchHead(row) => top::Key::BranchHead(row.name.clone()),
@@ -2064,6 +2125,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
@@ -2235,6 +2297,7 @@ mod records {
                 asked: false,
                 first: Some(top::FirstIntent::Empty(top::EmptyIntent {
                     playground: false,
+                    sample: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                     label: b"Work".as_slice().into(),

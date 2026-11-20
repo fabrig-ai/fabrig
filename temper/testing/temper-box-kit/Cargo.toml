@@ -12,8 +12,20 @@ test = false
 doctest = false
 
 [dependencies]
+temper-config-shell.workspace = true
+rustix.workspace = true
+temper-engine-shell.workspace = true
+jig-client-protocol-http.workspace = true
+temper-settings-form = { path = "../../crates/temper-settings-form" }
+skein-json.workspace = true
+temper-worker-service.workspace = true
+temper-engine-service-vocabulary.workspace = true
+jig-protocol-worker-wire.workspace = true
+temper-limits-fixtures.workspace = true
+jig-protocol-config-fixtures.workspace = true
 temper-test-env.workspace = true
 temper-shell.workspace = true
+temper-service-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-fake.workspace = true
@@ -23,9 +35,11 @@ temper-client-shell-cli.workspace = true
 skein-forge.workspace = true
 jig-client-protocol-link.workspace = true
 temper-service.workspace = true
+temper-service-core.workspace = true
 temper-forge-setup.workspace = true
 temper-client-shell-terminal.workspace = true
 skein-ui.workspace = true
+skein-ui-screen.workspace = true
 skein-forge-connection.workspace = true
 jig-protocol-config.workspace = true
 skein-io.workspace = true
@@ -39,6 +53,7 @@ jig-domain-core.workspace = true
 jig-protocol-store.workspace = true
 skein-fake-forge-domain.workspace = true
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-playground.workspace = true
 skein-scratch.workspace = true
 jig-client.workspace = true
@@ -59,10 +74,14 @@ jig-channel-kit.workspace = true
 skein-tls-kit.workspace = true
 serde_json.workspace = true
 temper-box-shell.workspace = true
+temper-process-guard.workspace = true
 
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 rustls-std.workspace = true
+
+[dev-dependencies]
+skein-ui-screen-terminal.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

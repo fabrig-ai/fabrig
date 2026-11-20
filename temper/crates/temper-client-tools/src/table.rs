@@ -15,6 +15,7 @@ pub struct Group {
 pub const GROUPS: &[Group] = &[
     Group { name: b"sign-in", line: b"Sign in with a printed link or a service file" },
     Group { name: b"sign-out", line: b"End the sign-in and leave the token empty" },
+    Group { name: b"link", line: b"Write a fresh one-time sign-in link to a private file" },
     Group { name: b"pending", line: b"List the requests DIR keeps, without reaching the engine" },
     Group { name: b"help", line: b"Read the page ctl and the groups, a group's tools, or one tool's record" },
     Group { name: b"me", line: b"Read your party: its projects, what it may start, and what waits on it" },
@@ -24,7 +25,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"milestone", line: b"Milestones: make one, say whole, list and show its goals" },
     Group { name: b"goal", line: b"Goals: start one from a project template" },
     Group { name: b"role", line: b"Standing roles: start, list, read their Now or report, and talk" },
-    Group { name: b"proposal", line: b"Proposals: read one, decide it" },
+    Group { name: b"proposal", line: b"Proposals: read, decide or withdraw one" },
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
     Group { name: b"change", line: b"Changes: open one or read its way to landing" },
     Group { name: b"finding", line: b"Findings: file, read, hand on and triage them" },
@@ -49,7 +50,8 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
     Group { name: b"push", line: b"Push devices: list, add or remove your subscriptions" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
-    Group { name: b"deployment", line: b"Read the store's census in the deployment's document" },
+    Group { name: b"deployment", line: b"Read the deployment's store census or take a checkpoint" },
+    Group { name: b"worker", line: b"Workers: list, add, change places or remove" },
 ];
 pub const TOOLS: &[&Tool] = &[
     &rows::ME,
@@ -158,6 +160,14 @@ pub const TOOLS: &[&Tool] = &[
     &rows::MILESTONE_LIST,
     &rows::MILESTONE_SHOW,
     &crate::change::open::ROW,
+    &rows::WORKER_LIST,
+    &rows::WORKER_ADD,
+    &rows::WORKER_PLACES,
+    &rows::WORKER_REMOVE,
+    &crate::checkpoint::ROW,
+    &rows::USES,
+    &rows::LINK,
+    &rows::WITHDRAW,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;

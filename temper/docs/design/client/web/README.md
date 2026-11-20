@@ -64,8 +64,8 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   for the states no journey reaches.
 - **Journeys** are walks recorded in a browser on a fresh fake box,
   replayed natively through the shipped host and printed as the
-  client's pages, where the look is tuned and kept current by a test
-  (`journeys.md`).
+  client's pages, where the look is tuned (`journeys.md`), kept current
+  on main by one writer after each landing (`../journey-writer.md`).
 - **Look requests** carry the person's changes from the prints into a
   landing, an account and an after-landing render check (`look-requests.md`).
 
@@ -116,7 +116,10 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     given back as a report of that turn; jig's
     mapping under `/jig` and its stream; the root's requests to jig's
     adapter (`jig-client-shell-web`'s `adapter`) and skein's transport,
-    and their reports back to the root; and the wake, skein's timer
+    and their reports back to the root, the root settled once per report
+    before its requests are carried (jig's `client/domain/root.md`,
+    section 3), a batch's answer read a piece at a time as the stream is
+    (jig's `protocol/client/default-http.md`, section 6); and the wake, skein's timer
     set at the earlier of the root's deadline and the instant the
     view's words next change (`../view.md`, 6); its seam, a report
     given and the duties asked back, a turn's drawing and its deadline,
@@ -159,19 +162,25 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     (`testing.md`, 3, The tier's window), where they name none and
     131,072;
   - `internal-loopback-navigation`: skein's platform follows a
-    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
+    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8);
+  - `internal-fixed-start`, the one with a value other than `1`: a
+    fixed start, `SECONDS,SEED`, from which the page takes its seed, its
+    clocks and a UTC zone, as a journey's walk does
+    (`../journey-clock.md`, 4.2); off when its value doesn't read.
 
-  `internal-small-window` and `internal-loopback-navigation` are
+  `internal-small-window`, `internal-loopback-navigation` and
+  `internal-fixed-start` are
   honoured only on a loopback origin, the page's host `127.0.0.1` or
   `[::1]`, as the browser tier and the journeys tool serve it, and
   ignored elsewhere: loopback navigation elsewhere would let a page
   send a person's browser to plaintext services on their own machine,
-  and the small window is the browser tier's. `internal-record` is
+  the small window is the browser tier's, and a fixed start's seed is
+  known to anyone. `internal-record` is
   honoured everywhere: the recorder adds no node, no style and no
   request, and a recording leaves the browser only by the person's own
   Alt+Shift+S, or the save before a departure, into their own downloads
   (`journeys.md`, 3.1), so a link that sets it on someone else's page
-  takes nothing from them. Each of the three is taken out of the
+  takes nothing from them. Each of the four is taken out of the
   address wherever it is given, honoured or not. A reload is a load
   without them. The shell's limits are given at its host's start, which
   the replay gives the ordinary ones.
@@ -221,8 +230,8 @@ replay says the same clocks (`../view.md`, 6).
      `protocol/browser/README.md`, 12.1 and 12.2);
   2. with no bundle, the configuration naming none (`null`) and the
      binary built without its own (2.6), a `GET` of any other path but
-     under `/bundle/` and `/robots.txt`, the printed link's route among
-     them, answers `200` temper's page for no bundle, every other
+     under `/bundle/` and `/robots.txt`, the printed link's route and
+     its page, `/sign-in`, among them, answers `200` temper's page for no bundle, every other
      request not found, as `../engine.md` says. The page is
      fixed HTML in the binary, under the page's policy, with no script,
      style or picture: the level-1 heading "temper", then "This temper
@@ -242,7 +251,8 @@ replay says the same clocks (`../view.md`, 6).
      fixed in its binary, `no-cache` (2.7): the service worker,
      `Content-Type: text/javascript`, and the web app's manifest,
      `application/manifest+json`;
-  7. any other `GET`, the printed link's route among them: the page,
+  7. any other `GET`, the printed link's route and its page,
+     `/sign-in` (`../README.md`, section 4), among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's metas,** made into the bundle's page at start, before
@@ -312,7 +322,7 @@ replay says the same clocks (`../view.md`, 6).
 
   | Page | Path |
   |---|---|
-  | `Inbox { filter }` | `/`, and its filter's query |
+  | `Inbox { filter }` | `/needs`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
   | `AllHome` | `/home` (`../pages/README.md`, *Home on All projects*) |
   | `Changes { project }` | `/projects/<project>/changes` |
@@ -345,10 +355,24 @@ replay says the same clocks (`../view.md`, 6).
   decimal. A later page's path comes with it, in this shape
   (`/projects/<project>/board`). The
   public pages' paths, under `/public`, are `public.md`'s.
+- **The root, `/`, opens Home,** never Needs you, whatever waits (the
+  user's ask of 2026-11-18). It is no page's address: the codec reads `/`
+  whose query sets no field of the inbox's filter (below) as
+  `Place::Root`, and the client opens, once `me` is read, the page
+  `temper_client_domain::pages::rail::root_home(me: Option<&Me>) ->
+  Address` names: `Home { project }` for a person in exactly one
+  project, `AllHome` for one in two or more or in none, and for no `me`.
+  The address is then replaced with that page's; until then it stays `/`,
+  and the main is empty and busy, as at every address while `me` is read
+  (`../view.md`, 1). `/` whose query sets a field is an inbox link from
+  before Needs you had its own address: it opens Needs you with that
+  filter, its address replaced with the printed one,
+  `/?kind=question&goal=9` with `/needs?kind=question&goal=9`. The
+  terminal opens at the inbox as before (`../line.md`, 10).
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
-  every field unset, so that `/` is the inbox unfiltered and
-  `/?kind=question&goal=9` one filtered by kind and goal. `<project>`
+  every field unset, so that `/needs` is the inbox unfiltered and
+  `/needs?kind=question&goal=9` one filtered by kind and goal. `<project>`
   and `<goal>` are numbers in decimal, as a path's; `<kind>` is one of
   `proposal`, `question`, `held` and `person-task`: the kind's button
   word (`../pages/README.md`'s inbox), in lower case, its space a hyphen.
@@ -427,7 +451,8 @@ replay says the same clocks (`../view.md`, 6).
   again after it and a field of another name, and the address is
   replaced with the printed one: `/terminal?code=wdjb-mjht` with
   `/terminal?code=WDJB-MJHT`, `/terminal?code=AEIO` and
-  `/terminal?x=1` with `/terminal`. Its printing,
+  `/terminal?x=1` with `/terminal`; so is a code whose read answers a
+  `typed` ask, which only a typed code approves. Its printing,
   `address::print_approve(code: Option<ApprovalCode>)`, `/terminal`
   for none, is the shown form, upper case, and the only one: the TUI makes its tab's address from the engine's
   address and this path alone (`../README.md`, 4.1). The place is no
@@ -447,8 +472,9 @@ replay says the same clocks (`../view.md`, 6).
   goal's page, changing its filter alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
   the inbox's filter, a query the engine answers, reads its page anew.
-- **A path that is no page** opens the inbox, and the address is
-  replaced with `/`. The codec never prints a path under `/jig`,
+- **A path that is no page** opens Home as the root does, and the
+  address is replaced with that Home's (draft-2's answer of 2026-11-18:
+  a broken path lands where the root does). The codec never prints a path under `/jig`,
   `/bundle/`, `/test/` or `/forges/N/github/`, temper's routes for
   GitHub's steps (`../forge/served.md`, 1), nor `/robots.txt`.
 - **Moving** is skein's (skein's `ui/web/README.md`, section 7): a link pressed
@@ -480,11 +506,14 @@ replay says the same clocks (`../view.md`, 6).
 
 ### 2.4 Signing in
 
-- **The printed link,**
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, opened in a
+- **The printed link,** at its page,
+  `http://HOST:PORT/sign-in?secret=SECRET`, or the same link at the
+  route, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, as a
+  build before printed it, opened in a
   browser on the engine's machine (`../README.md`, section 4): temper's
-  server answers its `GET` with the page (2.2); jig's sign-in part takes
-  the secret and replaces the address with `/welcome`, temper's home for
+  server answers either's `GET` with the page, which spends nothing (2.2); jig's sign-in part,
+  given the link's route and its page, takes
+  the secret at either and replaces the address with `/welcome`, temper's home for
   a sign-in, before anything is sent; the client signs in with it
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
@@ -727,7 +756,8 @@ they are, and two small root files carry the rest.
     data the project; a payload it can't read shows "temper" and
     "Something needs you.", since a browser shows one for every push;
   - *a press on a notification* closes it and opens Needs you filtered
-    by its project, `Inbox { project }`'s path (`../view.md`, 3): an open
+    by its project, `Inbox { project }`'s path (`../view.md`, 3),
+    `/needs?project=N`, or `/needs` for data that names none: an open
     window of the origin, focused and sent there, or a new one.
 - **The manifest,** `/manifest.webmanifest`: `name` and `short_name`
   "temper", `start_url` `/`, `display` `standalone`, and the paper's
@@ -791,11 +821,8 @@ they are, and two small root files carry the rest.
   widths. Domain, view and shell tables and gallery prints establish no
   rendered browser result. The TUI's own flow and walk follow
   `../../draft/tui.execution.md`, M2.
-- **Terminal approval at a public name** (2.4): Google's browser sign-in,
-  the code typed rather than carried in the address, the request's origin
-  and age, and a person's list of sign-ins with each ended from there
-  (`../../draft/tui.md`, section 7). The loopback page signs in by the
-  printed link, or by Google's way where it is given.
+- **A person's list of sign-ins,** each ended from there
+  (`../../draft/tui.md`, section 7).
 
 - **The outside pages' comparison** (`README.md`, 2.4, `look.md`, `gallery.md`, 2; `../pages/README.md` and `../view.md`, 1
   ; `../forge/served.md`, 1; `../../protocol/sign-in.md`, 4.3): temper/ui
@@ -807,8 +834,9 @@ they are, and two small root files carry the rest.
   with and without Google; each `Authorize` state; out of date; no
   project yet with and without the welcome; the GitHub App's setup pages;
   and night. It takes in the six repairs of `look-round-22`: the
-  welcome's top bar, signed in, ending with the person's name and "Sign
-  out" after its steps at each width; the top bar over an empty main
+  welcome's top bar with its steps and link region, no person or "Sign
+  out", and the night switch last (`welcome-top` and `night-switch-top`)
+  at each width; the top bar over an empty main
   while `me` is read at `/chats` and `/chats/new`, until "No project yet"
   settles, with the heading's focus once the page comes (2.3); "Code" and
   "Project name" at 14 px on a 22.4 px line, the field and its act

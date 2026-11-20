@@ -4,6 +4,7 @@
     clippy::disallowed_types,
     reason = "ordinary tests inspect semantic subtrees and actions"
 )]
+mod row_paging;
 use super::{documents, fixtures as f};
 
 use crate::look;
@@ -77,6 +78,59 @@ fn group_open_card_adds_findings_but_keeps_question_controls_and_terminal_words(
     }
 }
 
+#[test]
+fn standing_person_group_draws_requester_title_rows_choices_and_terminal_question() {
+    const WORDS: &str = "Start goals?\nFindings: 2/2 2/8\nGroup: bugs · in temper\nChoice: Backlog them\nChoice: A goal for each (recommended)";
+    let rows = f::groups::bugs();
+    let root = f::groups::standing_person(WORDS, &rows[..2]);
+    let mut view = super::home::group_view(&root, true);
+    let tree = view.tree();
+    let from = super::inbox::subtree(tree, super::inbox::styled(tree, look::NEED_FROM));
+    assert_eq!(f::nodes_text(from).as_ref(), "Shop 2 bugs in temper · the oldest 1 d · Standing triager".as_bytes());
+    assert!(from.iter().any(|node| node.styles.as_slice().contains(&look::CHIP_HIGH)));
+    let links: Vec<_> = from.iter().filter(|node| node.role == Role::Link).collect();
+    assert!(
+        from.iter().any(
+            |node| node.styles.as_slice().contains(&look::CHIP) && node.name.as_deref() == Some(b"Shop".as_slice())
+        )
+    );
+    assert_eq!(links.len(), 1, "standing requester only, no goal or milestone");
+    assert_eq!(links[0].name.as_deref(), Some(b"Standing triager".as_slice()));
+    let requester = links[0].id;
+    let findings = super::inbox::subtree(tree, super::inbox::styled(tree, look::FINDING_ROWS));
+    assert_eq!(findings.iter().filter(|node| node.role == Role::Item).count(), 2);
+    assert!(!findings.iter().any(|node| node.role == Role::Link || node.binding.is_some()));
+    let text = f::nodes_text(findings);
+    let first = skein_lib::bytes::find(&text, b"The model picker keeps a later choice").unwrap();
+    let second = skein_lib::bytes::find(&text, b"A resolution ignores later files").unwrap();
+    assert!(first < second);
+    assert!(skein_lib::bytes::find(&text, "qa · 1 d".as_bytes()).is_some());
+    assert!(skein_lib::bytes::find(&text, "review · 16 h".as_bytes()).is_some());
+    assert!(f::find(tree, Role::TextArea, b"Or tell it something else").is_some());
+    let choices = super::inbox::subtree(tree, super::inbox::styled(tree, look::ASK_CHOICES));
+    let buttons: Vec<_> = choices.iter().filter(|node| node.role == Role::Button).collect();
+    assert_eq!(buttons.len(), 2);
+    assert_eq!(buttons[0].name.as_deref(), Some(b"A goal for each".as_slice()));
+    assert!(buttons[0].styles.as_slice().contains(&look::RECOMMENDED));
+    assert_eq!(buttons[1].name.as_deref(), Some(b"Backlog them".as_slice()));
+    let choice = buttons[0].id;
+    assert_eq!(
+        crate::act(&mut view, requester, Act::Press),
+        Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: 55 } }))
+    );
+    assert_eq!(
+        crate::act(&mut view, choice, Act::Press),
+        Some(d::Action::Pages(pages::Act::Needs(needs::Act::Choose {
+            object: c::ObjectKey::PersonTask(f::INBOX_TASK),
+            words: b"A goal for each".as_slice().into(),
+        })))
+    );
+    let terminal = super::home::group_view(&root, false);
+    let text = f::main_text(terminal.tree());
+    assert!(skein_lib::bytes::find(&text, WORDS.as_bytes()).is_some(), "terminal keeps the question's written words");
+    assert!(!terminal.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&look::FINDING_ROWS)));
+}
+
 fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let reach = temper_protocol_reaches::Reach {
@@ -88,30 +142,22 @@ fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
         matched: 0,
         away: false,
     };
-    let row = w::Decision::new(
-        &w::CEILINGS,
-        w::DecisionParts {
-            number: 1,
-            task: 99,
-            at: 0,
-            question: b"Which tests?".as_slice().into(),
-            took: b"The focused suite".as_slice().into(),
-            why: b"It covers the rule.".as_slice().into(),
-            overturned: false,
-            reach: temper_protocol_reaches::reach_record(&reach),
-        },
-    )
-    .unwrap();
-    let document = w::Decisions::new(
-        &w::CEILINGS,
-        w::DecisionsParts {
-            project: f::PROJECT,
-            rows: List::from_boxed(Box::new([row])),
-            asked: List::with_capacity(0),
-            cut: false,
-        },
-    )
-    .unwrap();
+    let row = w::Decision {
+        number: 1,
+        task: 99,
+        at: 0,
+        question: b"Which tests?".as_slice().into(),
+        took: b"The focused suite".as_slice().into(),
+        why: b"It covers the rule.".as_slice().into(),
+        overturned: false,
+        reach: temper_protocol_reaches::reach_record(&reach),
+    };
+    let document = w::Decisions {
+        project: f::PROJECT,
+        rows: List::from_boxed(Box::new([row])),
+        asked: List::with_capacity(0),
+        cut: false,
+    };
     let mut out = Queue::uncapped();
     event(
         root,
@@ -211,20 +257,22 @@ fn home_parts(root: &d::Domain, object: c::ObjectKey) {
 
 #[test]
 fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
-    for (root, object, title, task) in [
-        (Box::new(root()), object(1), b"welcome-stall".as_slice(), f::INBOX_TASK),
+    for (root, object, title, task, question_shown) in [
+        (Box::new(root()), object(1), b"welcome-stall".as_slice(), f::INBOX_TASK, true),
         (
             Box::new(word_person(QUESTION, false, false, c::Requester::Task(42))),
             c::ObjectKey::PersonTask(f::INBOX_TASK),
             b"Task 42",
             42,
+            true,
         ),
-        (Box::new(finished_person(true)), c::ObjectKey::PersonTask(f::INBOX_TASK), b"Task 42", 42),
+        (Box::new(finished_person(true)), c::ObjectKey::PersonTask(f::INBOX_TASK), b"Task 42", 42, true),
         (
             Box::new(word_person(QUESTION, false, true, c::Requester::Person(73))),
             c::ObjectKey::PersonTask(f::INBOX_TASK),
-            b"Review the plan",
+            "Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes(),
             f::INBOX_TASK,
+            false,
         ),
     ] {
         let needs::Need::Card(card) =
@@ -246,14 +294,21 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::ASK_CHOICES,
             look::NEED_TELL,
         ];
-        let order: Vec<_> =
-            styles.iter().map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap()).collect();
+        let order: Vec<_> = styles
+            .iter()
+            .filter(|s| **s != look::FLOW_Q || question_shown)
+            .map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap())
+            .collect();
         assert!(order.windows(2).all(|p| p[0] < p[1]));
-        assert_eq!(styled(&view, look::FLOW_Q).role, Role::Heading { level: 1 });
-        assert_eq!(
-            styled(&view, look::FLOW_Q).name.as_deref(),
-            Some("Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes())
-        );
+        if question_shown {
+            assert_eq!(styled(&view, look::FLOW_Q).role, Role::Heading { level: 1 });
+            assert_eq!(
+                styled(&view, look::FLOW_Q).name.as_deref(),
+                Some("Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes())
+            );
+        } else {
+            assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_Q)));
+        }
         assert!(
             styled(&view, look::ASK_META)
                 .name
@@ -885,7 +940,7 @@ fn list_keeps_one_card_and_opens_rows_in_place() {
             })
             .collect();
         assert_eq!(shapes, ["closed", "open", "closed"]);
-        assert_eq!(styled(&view, look::NEEDS_BAR_AT).name.as_deref(), Some(b"1 of 3".as_slice()));
+        assert_eq!(styled(&view, look::NEEDS_BAR_AT).name.as_deref(), Some(b"2 of 3".as_slice()));
         assert!(!has(&view, b"Next:"));
     }
 }
@@ -1004,6 +1059,7 @@ fn word_person_read(
 ) -> d::Domain {
     let mut person = person();
     person.task.task = f::INBOX_TASK;
+    person.task.title = self::words(words.split('\n').next().unwrap());
     person.spec.specification.words =
         c::DocumentText { bytes: c::Text::new(words.as_bytes().into(), 4096).unwrap(), cut: words_cut };
     person.spec.cut = document_cut;
@@ -1049,10 +1105,220 @@ fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn from_lines_cut_each_task_title_and_keep_eighty_characters() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for (title, expected) in [(long, cut), ("x".repeat(80), "x".repeat(80))] {
+        let mut task = milestone_task(true);
+        task.chip.title = words(&title);
+        for chip in task.lineage_chips.iter_mut() {
+            chip.title = words(&title);
+        }
+        let root = f::needs::with_task(task, d::address::Filter::ALL);
+        let view = f::browser_page_view(&root);
+        assert_eq!(
+            styled(&view, look::ASK_META).name.as_deref(),
+            Some(format!("Shop · {expected} › {expected} › {expected} · a question · under 1 min").as_bytes())
+        );
+        let from = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_META));
+        let links: Vec<_> = from.iter().filter(|n| n.role == Role::Link).collect();
+        assert_eq!(links.len(), 3);
+        for link in links {
+            assert_eq!(link.name.as_deref(), Some(expected.as_bytes()));
+            let at = view.tree().nodes().iter().position(|n| n.id == link.id).unwrap();
+            assert_eq!(f::node_text(view.tree(), at).as_ref(), expected.as_bytes());
+        }
+        let terminal = f::page_view(&root);
+        assert!(has(&terminal, format!("Shop › {expected} › T9 {expected}").as_bytes()));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn held_person_and_funds_cards_cut_titles_before_joining_lines() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut held = held(Some(c::HoldCategory::Stalled));
+    held.task.chip.title = words(&long);
+    let mut funds = held.clone();
+    funds.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+    let mut person = person();
+    person.task.title = words(&long);
+    for (row, heading) in [
+        (held_row(held), Some("The Ready page waits for this decision.")),
+        (held_row(funds), Some("31 of 40 used.")),
+        (
+            (
+                c::ObjectKey::PersonTask(person.task.task),
+                c::Read::PersonTask { task: person.task.task },
+                c::ReadValue::PersonTask(Box::new(person)),
+            ),
+            None,
+        ),
+    ] {
+        let number = crate::pages::inbox::source_task(row.0).unwrap();
+        let root = kinds(&[row]);
+        let view = f::browser_page_view(&root);
+        assert_eq!(
+            main(&view).iter().find(|n| n.styles.as_slice().contains(&look::FLOW_Q)).and_then(|n| n.name.as_deref()),
+            heading.map(str::as_bytes)
+        );
+        assert!(f::find(view.tree(), Role::Link, cut.as_bytes()).is_some());
+        assert!(!has(&view, long.as_bytes()));
+        let terminal = f::page_view(&root);
+        assert!(has(&terminal, format!("T{number} {cut}").as_bytes()));
+        assert!(f::find(terminal.tree(), Role::Heading { level: 3 }, cut.as_bytes()).is_some());
+        assert!(!has(&terminal, long.as_bytes()));
+    }
+}
+
+#[test]
+fn complete_title_only_held_card_words_are_omitted() {
+    held_card_words("Release the runner", false, false, c::HoldCategory::Stalled);
+}
+
+#[test]
+fn complete_title_only_funds_card_words_are_omitted() {
+    held_card_words("Release the runner", false, false, c::HoldCategory::Budget);
+}
+
+#[test]
+fn complete_title_only_person_card_words_are_omitted() {
+    person_card_words("Release the runner", false, false);
+}
+
+#[test]
+fn held_card_bodies_keep_only_body_words_in_the_browser_and_whole_words_in_the_terminal() {
+    held_card_words("Release the runner\nIt waits on CI.", false, true, c::HoldCategory::Stalled);
+}
+
+#[test]
+fn funds_card_bodies_keep_only_body_words_in_the_browser_and_whole_words_in_the_terminal() {
+    held_card_words("Release the runner\nIt waits on CI.", false, true, c::HoldCategory::Budget);
+}
+
+#[test]
+fn person_card_bodies_keep_only_body_words_in_the_browser_and_whole_words_in_the_terminal() {
+    person_card_words("Release the runner\nIt waits on CI.", false, true);
+}
+
+#[test]
+fn partial_title_only_held_card_words_keep_the_cut_notice() {
+    held_card_words("Release the runner", true, true, c::HoldCategory::Stalled);
+}
+
+#[test]
+fn partial_title_only_funds_card_words_keep_the_cut_notice() {
+    held_card_words("Release the runner", true, true, c::HoldCategory::Budget);
+}
+
+#[test]
+fn partial_title_only_person_card_words_keep_the_cut_notice() {
+    person_card_words("Release the runner", true, true);
+}
+
+fn held_card_words(written: &str, cut: bool, drawn: bool, reason: c::HoldCategory) {
+    let mut held = held(Some(reason));
+    held.task.chip.title = words("Release the runner");
+    held.task.spec.specification.words = words(written);
+    held.task.spec.specification.words.cut = cut;
+    card_words(held_row(held), written, cut, drawn);
+}
+
+fn person_card_words(written: &str, cut: bool, drawn: bool) {
+    let mut person = person();
+    person.task.title = words("Release the runner");
+    person.spec.specification.words = words(written);
+    person.spec.specification.words.cut = cut;
+    let row = (
+        c::ObjectKey::PersonTask(person.task.task),
+        c::Read::PersonTask { task: person.task.task },
+        c::ReadValue::PersonTask(Box::new(person)),
+    );
+    card_words(row, written, cut, drawn);
+}
+
+fn card_words(row: (c::ObjectKey, c::Read, c::ReadValue), written: &str, cut: bool, drawn: bool) {
+    let root = kinds(&[row]);
+    for (view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
+        let paragraphs: Vec<_> = view
+            .tree()
+            .nodes()
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.role == Role::Paragraph)
+            .map(|(at, _)| f::nodes_text(super::inbox::subtree(view.tree(), at)))
+            .collect();
+        assert_eq!(
+            paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
+            drawn && !browser,
+            "{written}, cut={cut}, browser={browser}"
+        );
+        assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
+        assert_eq!(has(&view, b"Some facts were omitted from this document."), cut);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn a_reasonless_batch_uses_the_cut_title_without_cutting_reasons() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for reason in ["", long.as_str()] {
+        let mut proposal = proposal(c::Proposer::Task(9));
+        proposal.reason = words(reason);
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { panic!("batch") };
+        tasks.get_mut(0).unwrap().spec.specification.words = words(&long);
+        let root = kinds(&[proposal_row(proposal)]);
+        let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+        for w in [f::browser_words(), f::words()] {
+            assert_eq!(crate::shared::proposal_line(card, &w).as_deref(), Some(cut.as_bytes()));
+        }
+        let view = f::browser_page_view(&root);
+        assert_eq!(
+            styled(&view, look::FLOW_Q).name.as_deref(),
+            Some(if reason.is_empty() { cut.as_bytes() } else { long.as_bytes() })
+        );
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn answered_lines_cut_titles_not_answers_or_task_addresses() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut root = fixture_title(QUESTION, false, 1, false, d::address::Filter::ALL, Some(long.as_bytes()));
+    choose(&mut root, 1);
+    for w in [f::browser_words(), f::words()] {
+        let mut builder = skein_ui::Builder::new(&f::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(128);
+        crate::pages::needs::main(
+            &mut builder,
+            &root,
+            &w,
+            &mut bindings,
+            4,
+            &mut crate::words::Times::new(f::NOW),
+            &crate::forge_sign_in::Forges::new(),
+        );
+        let tree = builder.finish();
+        let nodes = super::inbox::subtree(&tree, super::inbox::styled(&tree, look::ANSWERED));
+        let link = nodes.iter().find(|n| n.role == Role::Link).unwrap();
+        assert_eq!(link.name.as_deref(), Some(cut.as_bytes()));
+        assert!(skein_lib::bytes::find(&f::nodes_text(nodes), b"In the store").is_some());
+        assert_eq!(
+            bindings.decode(link.binding.unwrap().token, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } }))
+        );
+    }
+}
+
 fn ordered(view: &crate::View) {
     let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES]
         .iter()
-        .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
+        .filter_map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)))
         .collect();
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
 }
@@ -1209,8 +1475,15 @@ fn held_parts_release_leave_held_and_missing_hold() {
         let root = kinds(&[held_row(h)]);
         let mut view = f::browser_page_view(&root);
         ordered(&view);
-        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"first-run-projects".as_slice()));
-        assert!(has(&view, b"Both halves of the store task run."));
+        assert_eq!(
+            styled(&view, look::FLOW_Q).name.as_deref(),
+            Some(if reason.is_some() {
+                b"The Ready page waits for this decision.".as_slice()
+            } else {
+                b"This task is held."
+            })
+        );
+        assert!(!has(&view, b"Both halves of the store task run."));
         assert_eq!(has(&view, b"The Ready page waits"), reason.is_some());
         assert!(skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"held").is_some());
         assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some(b"Release".as_slice()));
@@ -1223,6 +1496,125 @@ fn held_parts_release_leave_held_and_missing_hold() {
             d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } })
         );
     }
+}
+
+#[test]
+fn held_and_funds_cards_keep_the_question_words_and_acts_without_raw_hold_facts() {
+    for (reason, question) in [
+        (c::HoldCategory::EffectFailed, "Forge could not release this task's resources."),
+        (c::HoldCategory::Budget, "31 of 40 used."),
+    ] {
+        let mut held = held(Some(reason));
+        held.task.chip.title = words("Release the runner");
+        held.task.spec.specification.words = words("Release the runner\nIt waits on CI.");
+        held.task.spec.specification.parameters = List::from_boxed(Box::new([
+            c::ParameterDocument::Number { name: 1, value: 2 },
+            c::ParameterDocument::Number { name: 2, value: 6765 },
+        ]));
+        held.task.hold.as_mut().unwrap().words = Some(words(
+            "forge could not release this task's resources; resolve this reason, then task release 6978 --hold 1; or task cancel 6978 REASON",
+        ));
+        let root = kinds(&[held_row(held)]);
+        for (view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
+            let card = super::inbox::subtree(
+                view.tree(),
+                super::inbox::styled(view.tree(), if browser { look::ASK } else { look::CARD }),
+            );
+            let drawn = f::nodes_text(card);
+            for hidden in [b"Parameter 1".as_slice(), b"Parameter 2", b"task release", b"task cancel", b"Hold revision"]
+            {
+                assert!(skein_lib::bytes::find(&drawn, hidden).is_none(), "{hidden:?}");
+            }
+            assert!(skein_lib::bytes::find(&drawn, b"It waits on CI.").is_some());
+            let q = card.iter().position(|n| n.name.as_deref() == Some(question.as_bytes())).unwrap();
+            let body = card
+                .iter()
+                .position(|n| n.text.iter().any(|run| skein_lib::bytes::find(&run.text, b"It waits on CI.").is_some()))
+                .unwrap();
+            let release = card
+                .iter()
+                .position(|n| {
+                    n.role == Role::Button
+                        && n.name.as_deref() == Some(if browser { b"Release".as_slice() } else { b"Release task" })
+                })
+                .unwrap();
+            assert!(q < body && body < release);
+            assert!(card.iter().any(|n| n.role == (if browser { Role::Disclosure } else { Role::Button })
+                && n.name.as_deref() == Some(b"Leave held")));
+            if browser {
+                assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(question.as_bytes()));
+                let from = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_META));
+                assert!(skein_lib::bytes::find(&f::nodes_text(from), b"Release the runner").is_some());
+                let context = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_CONTEXT));
+                assert!(skein_lib::bytes::find(&f::nodes_text(context), b"Release the runner").is_none());
+                assert_eq!(
+                    drawn.windows(b"Release the runner".len()).filter(|s| *s == b"Release the runner").count(),
+                    1
+                );
+            } else {
+                assert!(card.iter().any(
+                    |n| n.role == (Role::Heading { level: 3 }) && n.name.as_deref() == Some(b"Release the runner")
+                ));
+            }
+            assert_eq!(
+                skein_lib::bytes::find(&drawn, b"Insufficient activation budget.").is_some(),
+                reason == c::HoldCategory::Budget
+            );
+        }
+    }
+}
+
+#[test]
+fn a_person_question_keeps_words_past_its_title_but_keeps_the_title_for_a_task_requester() {
+    for (requester, question_shown) in [(c::Requester::Person(73), false), (c::Requester::Task(42), true)] {
+        let root = word_person("Release the runner\nIt waits on CI.", false, false, requester);
+        let view = f::browser_page_view(&root);
+        assert_eq!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_Q)), question_shown);
+        assert!(has(&view, b"It waits on CI."));
+        if question_shown {
+            assert!(f::find(view.tree(), Role::Link, b"Task 42").is_some());
+            assert!(
+                skein_lib::bytes::find(styled(&view, look::FLOW_Q).name.as_ref().unwrap(), b"Release the runner")
+                    .is_some()
+            );
+        } else {
+            assert!(f::find(view.tree(), Role::Link, b"Release the runner").is_some());
+            let context = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_CONTEXT));
+            assert!(skein_lib::bytes::find(&f::nodes_text(context), b"Release the runner").is_none());
+        }
+    }
+}
+
+#[test]
+fn closed_held_rows_show_the_sentence_and_person_rows_only_the_from_line() {
+    let mut h = held(Some(c::HoldCategory::Stalled));
+    h.task.chip.title = words("Release the runner");
+    let person = person();
+    let root = kinds(&[
+        proposal_row(proposal(c::Proposer::Task(9))),
+        held_row(h),
+        (
+            c::ObjectKey::PersonTask(person.task.task),
+            c::Read::PersonTask { task: person.task.task },
+            c::ReadValue::PersonTask(Box::new(person)),
+        ),
+    ]);
+    let view = f::browser_page_view(&root);
+    let rows: Vec<_> = view
+        .tree()
+        .nodes()
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| n.styles.as_slice().contains(&look::NEED_ROW))
+        .map(|(at, _)| super::inbox::subtree(view.tree(), at))
+        .collect();
+    assert_eq!(rows.len(), 2);
+    let held = f::nodes_text(rows[0]);
+    assert!(skein_lib::bytes::find(&held, b"The Ready page waits for this decision.").is_some());
+    assert_eq!(held.windows(b"Release the runner".len()).filter(|s| *s == b"Release the runner").count(), 1);
+    assert!(!rows[1].iter().any(|n| n.styles.as_slice().contains(&look::ASK_QUESTION)));
+    let person = f::nodes_text(rows[1]);
+    assert_eq!(person.windows(b"Review the plan".len()).filter(|s| *s == b"Review the plan").count(), 1);
 }
 
 #[test]
@@ -1243,7 +1635,7 @@ fn funds_use_budget_reason_plain_numbers_and_held_acts() {
         );
         assert_eq!(
             styled(&view, look::FLOW_Q).name.as_deref(),
-            Some(if funds { b"31 of 40 used.".as_slice() } else { b"first-run-projects" })
+            Some(if funds { b"31 of 40 used.".as_slice() } else { b"The Ready page waits for this decision." })
         );
         assert_eq!(
             skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"funds").is_some(),
@@ -1264,8 +1656,9 @@ fn person_spec_and_plain_acts() {
         kinds(&[(object, c::Read::PersonTask { task: person.task.task }, c::ReadValue::PersonTask(Box::new(person)))]);
     let mut view = f::browser_page_view(&root);
     ordered(&view);
-    assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"Review the plan".as_slice()));
-    assert!(has(&view, b"Read the proposed plan and record your review."));
+    assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_Q)));
+    assert!(f::find(view.tree(), Role::Link, b"Review the plan").is_some());
+    assert!(!has(&view, b"Read the proposed plan and record your review."));
     assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::RECOMMENDED)));
     for (name, act) in [(b"Take".as_slice(), c::ActKind::Take), (b"Hand back", c::ActKind::HandBack)] {
         assert_eq!(
@@ -1462,6 +1855,52 @@ fn stable_nodes(tree: &skein_ui::Tree) -> Vec<skein_ui::Node> {
         }
     }
     nodes
+}
+
+#[test]
+fn needs_keeps_its_count_and_cards_through_a_busy_refresh_in_both_shells() {
+    let filter = d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL };
+    let (mut root, watch, decided) = fixture_watched(QUESTION, false, 4, false, filter, None);
+    deliver_asked(&mut root, decided, None);
+    let cards = root.pages().inbox().unwrap().cards.len();
+    let mut page = f::ReadPage {
+        root,
+        inbox: Some(watch),
+        me: None,
+        chats: None,
+        out: Queue::uncapped(),
+        reads: List::uncapped(),
+    };
+    for stage in 0_u32..3 {
+        if stage == 1 {
+            page.refresh_inbox();
+            let read = super::home::needs_section(&page, c::InboxReadGroup::Needs);
+            page.answer(read, c::ReadResult::None(c::ReadNone::Busy));
+            page.sections(false);
+        } else if stage == 2 {
+            page.refresh_inbox();
+            super::home::answer_needs(&mut page, 4, None);
+            page.sections(false);
+        }
+        for browser in [false, true] {
+            let view = if browser { f::browser_page_view(&page.root) } else { f::page_view(&page.root) };
+            let text = f::main_text(view.tree());
+            assert!(
+                skein_lib::bytes::find(&text, if browser { b"Four things need you." } else { b"Needs you" }).is_some(),
+                "stage={stage} browser={browser}: {}",
+                core::str::from_utf8(&text).unwrap()
+            );
+
+            assert_eq!(page.root.pages().inbox().unwrap().rows.len(), 4);
+            assert_eq!(page.root.pages().inbox().unwrap().cards.len(), cards);
+            let printed = super::home::printed(&view);
+            assert!(skein_lib::bytes::find(&printed, b"4+").is_none());
+            assert!(
+                skein_lib::bytes::find(&printed, if browser { b"Four things need you." } else { b"Needs you 4" })
+                    .is_some()
+            );
+        }
+    }
 }
 
 fn empty_column(root: &d::Domain) {

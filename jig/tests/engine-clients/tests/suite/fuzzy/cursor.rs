@@ -1,35 +1,32 @@
 //! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/README.md, 6).
-use jig_protocol_engine_clients::cursor_v1::{CEILINGS, Held};
-use skein_lib::{Reader, Rng, Writer, length::len_u64};
-use std::fs;
+use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held, Record};
+use skein_lib::{Reader, Rng, length::len_u64};
 
 fn check(bytes: &[u8]) {
     if let Ok(held) = Held::decode(&CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(skein_lib::length::usize_of(held.measure()));
-        held.encode(&mut writer).expect("measured cursor");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(held.encode(&CEILINGS).expect("decoded cursor").as_ref(), bytes);
     }
 }
 fn goldens() -> Vec<Vec<u8>> {
-    let root = skein_scratch::paths::tree().join("crates/jig-protocol-engine-clients/golden");
-    let mut paths: Vec<_> = fs::read_dir(root).expect("cursor goldens").map(|p| p.expect("entry").path()).collect();
-    paths.sort();
+    let text = jig_protocol_engine_clients::SCHEMA;
+    let mut goldens = skein_codegen::values(text).goldens.clone();
+    goldens.sort_by(|left, right| left.name.cmp(&right.name));
     let mut values = Vec::new();
-    for path in paths {
-        let name = path.file_name().expect("golden name").to_string_lossy();
+    for golden in goldens {
+        let name = &golden.name;
         let prefix: &[u8] = if name.starts_with("record_held_") {
             &[]
         } else if name.starts_with("enum_form_") {
-            &[0, 1]
+            &[0, 2]
         } else if name.starts_with("enum_note_scope_") {
-            &[0, 1, 0, 1, 13]
+            &[0, 2, 0, 1, 13]
         } else if name.starts_with("enum_scope_") {
-            &[0, 1, 0, 1]
+            &[0, 2, 0, 1]
         } else {
             continue;
         };
         let mut bytes = prefix.to_vec();
-        bytes.extend(fs::read(&path).expect("golden bytes"));
+        bytes.extend(golden.bytes);
         if name.starts_with("enum_note_scope_") {
             bytes.push(0);
         }

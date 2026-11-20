@@ -3,8 +3,34 @@ use crate::directories::jig_directories;
 use crate::directories::tests::scratch;
 use std::fs;
 
+#[test]
+fn toml_fake_check_refuses_the_former_file_alone_or_beside_the_current_file() {
+    for present in [false, true] {
+        let scratch = skein_scratch::Scratch::new("fake-check-both-files");
+        let directories = crate::tests::configuration::directories(scratch.path());
+        std::fs::write(scratch.path().join(temper_config_shell::FILE), "listen = \"127.0.0.1:7100\"\n")
+            .expect("box file");
+        std::fs::create_dir(scratch.path().join(temper_config_shell::FORMER)).expect("former directory");
+        if !present {
+            std::fs::remove_file(scratch.path().join(temper_config_shell::FILE)).expect("current absent");
+        }
+        let check = super::super::Check {
+            forge: 1,
+            observations: scratch.path().join("absent-observations"),
+            store: scratch.path().join("absent-store"),
+        };
+        let actual = super::outcome(&directories, &check);
+        assert_eq!(actual.status, 1);
+        assert!(actual.stdout.is_empty());
+        assert_eq!(actual.stderr.as_ref(), format!(
+        "temper-box fake forge check: {}: moved: the configuration is {}; write it from temper-box help config, then remove {}\n",
+        temper_config_shell::FORMER, temper_config_shell::FILE, temper_config_shell::FORMER
+    ).as_bytes());
+    }
+}
+
 fn store_limits() -> jig_protocol_store::Limits {
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let mut limits = jig_protocol_config_fixtures::small().store;
     // Skein's real KV fixture, with chunk >= key + value + 20, and room
     // for the format and the eight rows of the tag-filter case.
     limits.store = skein_kv::Limits {
@@ -138,13 +164,29 @@ fn encoded(records: Records) -> Result<Vec<Vec<u8>>, String> {
         })
         .collect()
 }
+// A fixed 64 KiB write buffer, independent of the observation line bound.
+const OBSERVATION_CHUNK: usize = 64 * 1024;
+fn write_overlong(path: &Path, before: &[u8], after: &[u8]) {
+    use std::io::Write;
+    let mut file = fs::File::create(path).expect("overlong observations fixture");
+    file.write_all(before).expect("before overlong line");
+    let chunk = vec![b'x'; OBSERVATION_CHUNK];
+    let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
+    for _ in 0..bound / OBSERVATION_CHUNK {
+        file.write_all(&chunk).expect("overlong line chunk");
+    }
+    file.write_all(&chunk[..bound % OBSERVATION_CHUNK]).expect("overlong line remainder");
+    // Exactly one byte beyond the line bound (including LF).
+    file.write_all(b"\n").expect("overlong line LF");
+    file.write_all(after).expect("after overlong line");
+}
+
 #[test]
 fn observations() {
     let root = scratch("fake-check-observations");
+    write_overlong(&root.join("overlong-prefix"), b"", START);
+    write_overlong(&root.join("overlong-tail"), START, b"");
     let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
-    // Exactly one byte beyond the line bound (including LF).
-    let mut overlong = vec![b'x'; bound];
-    overlong.push(b'\n');
     let overlong_error = format!("line 1: line past {bound} bytes");
     let missing_file =
         format!("observations {}: {}", root.join("absent").display(), std::io::Error::from_raw_os_error(2));
@@ -173,8 +215,8 @@ fn observations() {
         ("no-checkpoint", Some(DELETED.to_vec()), Err(MISSING)),
         ("empty", Some(vec![]), Err(MISSING)),
         ("absent", None, Err(missing_file.as_str())),
-        ("overlong-prefix", Some([overlong.as_slice(), START].concat()), Err(overlong_error.as_str())),
-        ("overlong-tail", Some([START, overlong.as_slice()].concat()), Ok((1, 0, vec![START.to_vec()]))),
+        ("overlong-prefix", None, Err(overlong_error.as_str())),
+        ("overlong-tail", None, Ok((1, 0, vec![START.to_vec()]))),
         (
             "checkpoints",
             Some([START, DELETED, LOST, b"partial"].concat()),
@@ -229,6 +271,7 @@ const REPO: Repository = Repository { forge: 1, repository: 2 };
 fn repository() -> d::Stored {
     d::Stored::Repository(d::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -305,12 +348,11 @@ const DECISION: &[u8] = b"{\"decision\":{\"repository\":\"playground/widget\",\"
 const MERGE: &[u8] = b"{\"observation\":\"merged\",\"repository\":\"playground/widget\",\"number\":1,\"base\":\"main\",\"head\":2,\"commit\":3,\"by\":7}\n";
 const ORDER: &[u8] =
     b"{\"fail\":\"promise/order/playground%2Fwidget/1/2\",\"summary\":\"a merge with no decision at its head\"}\n";
-const INVALID_DOCUMENT: &[u8] = b"temper fake forge check: engine: missing\ntemper fake forge check: workers: missing\ntemper fake forge check: application: missing\n";
 fn expected(status: u8, stdout: &[u8], stderr: &[u8]) -> Outcome {
     Outcome { status, stdout: stdout.into(), stderr: stderr.into() }
 }
 fn diagnostic(why: &str) -> Vec<u8> {
-    format!("temper fake forge check: {why}\n").into_bytes()
+    format!("temper-box fake forge check: {why}\n").into_bytes()
 }
 fn refused(why: &str) -> Outcome {
     expected(1, b"", &diagnostic(why))
@@ -330,10 +372,15 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
     fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
-    fs::write(root.join("agent.json"), agent).expect("checked agent metadata fixture");
-    crate::agent::read(&root.join("agent.json")).expect("agent metadata")
+    let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
+    for endpoint in agent["endpoints"].as_array_mut().expect("fixture endpoints") {
+        endpoint.as_object_mut().expect("fixture endpoint").remove("program");
+    }
+    let bytes = serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice();
+    crate::agent::prepare_bytes(bytes).expect("agent metadata").agent
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the verb's outcome matrix shares its store and file setup")]
 fn verb() {
     let root = scratch("fake-check-verb");
     let agent = agent_metadata_fixture(&root);
@@ -380,16 +427,42 @@ fn verb() {
             None,
             checkpoint(),
             Copy::Absent,
-            refused(&format!("configuration {}: absent", path("absent-document", "temper.json").display())),
+            refused(&format!("{}: absent; temper-box init writes one", temper_config_shell::FILE)),
         ),
-        ("invalid-document", Some(serde_json::json!({})), None, Copy::Absent, expected(1, b"", INVALID_DOCUMENT)),
+        (
+            "invalid-document",
+            Some(serde_json::json!({})),
+            None,
+            Copy::Absent,
+            refused(&format!(
+                "{}:1: listen: a socket address on loopback, such as \"127.0.0.1:7100\"",
+                temper_config_shell::FILE
+            )),
+        ),
     ] {
         let directory = root.join(name);
         fs::create_dir(&directory).expect("row directory");
         let directories = crate::directories::tests::given(&directory);
+        let data = crate::path(&directories.data);
+        fs::create_dir_all(data).expect("fixture data");
+        let agent_value: serde_json::Value =
+            serde_json::from_slice(&crate::tests::configuration::documents(&root, "/fixture/temper").0)
+                .expect("agent JSON");
+        let mut fixture = crate::tests::configuration::check_document(&root);
+        temper_agent_fixtures::apply(&mut fixture, data, &agent_value);
+        let copy_before = fs::read(data.join("agents.setting")).expect("fixture copy");
         let bytes = document.map(|document| serde_json::to_vec(&document).expect("fixture document"));
         if let Some(bytes) = &bytes {
-            fs::write(directories.document(), bytes).expect("document file");
+            let text = if bytes.as_slice() == b"{}" {
+                b"listen = 42\n".as_slice().into()
+            } else {
+                temper_config_shell::render(
+                    &crate::tests::configuration::file(),
+                    temper_config_shell::Shape::Standalone,
+                )
+            };
+            fs::write(crate::path(&directories.config).join(temper_config_shell::FILE), text)
+                .expect("configuration file");
         }
         let check = Check { forge: 1, observations: directory.join("observations"), store: directory.join("copy") };
         if let Some(observations) = observations {
@@ -408,8 +481,14 @@ fn verb() {
             Copy::Absent => {}
             Copy::File => fs::write(&check.store, b"not a store").expect("non-store"),
         }
+        let entries_before = fs::read_dir(data).expect("fixture entries").count();
         assert_eq!(outcome(&directories, &check), expected, "{name}");
-        assert!(!directory.join("data").exists(), "{name}: creates no data directory");
+        assert_eq!(fs::read(data.join("agents.setting")).expect("copy remains"), copy_before, "{name}: read-only copy");
+        assert_eq!(
+            fs::read_dir(data).expect("data entries").count(),
+            entries_before,
+            "{name}: creates no data resources"
+        );
         assert!(!directory.join("cache").exists(), "{name}: creates no cache directory");
     }
     fs::remove_dir_all(root).expect("scratch removed");

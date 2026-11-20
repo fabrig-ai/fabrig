@@ -17,23 +17,7 @@ fn welcome() -> Host {
         with: Some(jig_client::With::Transport),
     });
     host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
-    let watch = host
-        .out
-        .iter()
-        .find_map(|request| {
-            if let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } = request
-            {
-                Some(*watch)
-            } else {
-                None
-            }
-        })
-        .expect("me watch");
+    let watch = skein_lib::Token::new(0);
     let link = jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).unwrap();
     let mut frame =
         jig_client_protocol_link::translate::documents::frame(jig_client_test_records::frame_record(), &link).unwrap();
@@ -74,22 +58,18 @@ fn welcome() -> Host {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if reading.read() == &temper_client_protocol_wire::v1::Read::Deployment { Some(*read) } else { None }
+                if reading.read == temper_client_protocol_wire::v1::Read::Deployment { Some(*read) } else { None }
             } else {
                 None
             }
         })
         .expect("deployment read");
-    let answer = temper_client_protocol_wire::v1::DeploymentAnswer::new(
-        &temper_client_protocol_wire::v1::CEILINGS,
-        temper_client_protocol_wire::v1::DeploymentAnswerParts {
-            push: None,
-            welcome: true,
-            owned: true,
-            program_login: None,
-        },
-    )
-    .unwrap();
+    let answer = temper_client_protocol_wire::v1::DeploymentAnswer {
+        push: None,
+        welcome: true,
+        owned: true,
+        program_login: None,
+    };
     host.client(jig_client::Event::Up {
         up: jig_client::Up::ReadDone {
             read: deployment,

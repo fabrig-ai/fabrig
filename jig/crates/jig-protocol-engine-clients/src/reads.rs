@@ -3,12 +3,7 @@ use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting
 use skein_lib::{Reader, Writer};
 impl Component {
     pub(super) fn serves(&self, family: Option<u16>, version: u32) -> bool {
-        for range in &self.settings.served {
-            if range.family == family && range.first <= version && version <= range.last {
-                return true;
-            }
-        }
-        false
+        crate::served::serves(&self.settings, family, version)
     }
     pub(super) fn read(
         &mut self,
@@ -18,9 +13,12 @@ impl Component {
         body: &[u8],
         out: &mut Queue<Request>,
     ) {
-        let Some(owner) = self.owner(exchange) else { return };
-        let active = self.active(sign_in);
-        if active >= env.limits.exchanges_per_client || self.admitted() >= env.limits.exchanges {
+        if self.owner(exchange).is_none() {
+            return;
+        }
+        if !self.exchange_room(env, exchange, sign_in)
+            || self.member_count(sign_in, false) >= env.limits.reads_per_client
+        {
             self.respond(exchange, routes::read_none(core::reads::Why::Busy, &env.limits.wire));
             return;
         }
@@ -28,7 +26,7 @@ impl Component {
         let record = match w::Owned::decode(&env.limits.wire, &mut reader) {
             Ok(value) if reader.is_empty() => value.into_parts(),
             Ok(_) | Err(_) => {
-                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                self.response(exchange, crate::Reply::NotARecord);
                 return;
             }
         };
@@ -48,10 +46,14 @@ impl Component {
                     self.respond(exchange, routes::read_none(core::reads::Why::Unknown, &env.limits.wire));
                     return;
                 };
+                let Some(core_read) = crate::translate::parts::read(&what, &self.settings, &env.limits.wire) else {
+                    self.respond(exchange, routes::read_none(core::reads::Why::Unknown, &env.limits.wire));
+                    return;
+                };
                 let request = Request::Core(Box::new(core::Event::Read {
                     reply: ReplyTo::new(exchange),
                     sign_in,
-                    read: what.clone(),
+                    read: core_read,
                 }));
                 self.pending
                     .exchanges
@@ -61,11 +63,11 @@ impl Component {
             }
             w::Owner::Family(value) => {
                 let Ok(body) = w::FamilyRecord::decode(&env.limits.wire, &mut Reader::new(&record.record)) else {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                    self.response(exchange, crate::Reply::NotARecord);
                     return;
                 };
                 let Some(window) = crate::served::window(body.window()) else {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                    self.response(exchange, crate::Reply::NotARecord);
                     return;
                 };
                 let scope = crate::served::scope(body.scope());
@@ -98,6 +100,7 @@ impl Component {
                         answer,
                         &self.settings.models,
                         &self.settings.private,
+                        &self.settings,
                         &env.limits.wire,
                     ),
                     &env.limits.wire,
@@ -119,6 +122,8 @@ impl Component {
                 }
             },
             Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
@@ -158,6 +163,8 @@ impl Component {
                 self.read_response(exchange, answer, &env.limits.wire);
             }
             Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
@@ -178,12 +185,11 @@ impl Component {
         }
     }
     fn read_response(&mut self, exchange: Token, answer: Result<w::ReadAnswer, w::Problem>, limits: &w::Limits) {
-        let Some(owner) = self.owner(exchange) else { return };
         match answer {
             Ok(value) => {
                 let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
                 value.encode(&mut bytes).expect("measured read answer");
-                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(bytes.finish()));
+                self.respond(exchange, bytes.finish());
             }
             Err(_) => self.respond(exchange, routes::read_none(core::reads::Why::Malformed, limits)),
         }

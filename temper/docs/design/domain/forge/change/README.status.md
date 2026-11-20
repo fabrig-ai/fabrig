@@ -1,9 +1,12 @@
 # README: status
 
-2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-19. Where the tree's code lags or departs from [README.md](README.md).
 
 
-
+- **Not yet:** 4, *A pull request already closed counts as closed*: the
+  forge's `Close` of a pull request Forgejo shows merged is refused, so
+  its change is held (skein's `forge/forgejo.status.md`) [in flight:
+  change 7115].
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
 - **Not yet:** 1, what every agent delegate is given: a producer's words

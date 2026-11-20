@@ -5,11 +5,13 @@ impl Frame {
     pub fn socket_wait() -> Self {
         let mut frame = Self::read(&["task", "show", "41", "--until", "changed"]);
         frame.host.test_connections = Some(jig_client_shell_native::Limits {
-            // The live stream and the two completed watches occupy all three sockets.
+            // The live stream, completed task watch and a completed read occupy all three sockets.
             exchanges: 2,
             ..crate::limits::native().connections
         });
         frame.sign_in_then_deliver_me();
+        frame.exchange(0);
+        frame.probe_replies.clear();
         frame
     }
     pub fn exchange(&mut self, number: u64) {
@@ -43,7 +45,8 @@ impl Frame {
                 }
                 jig_client::Event::Lost { exchange: lost } if lost == exchange => panic!("probe exchange lost"),
                 event @ (jig_client::Event::Start { .. }
-                | jig_client::Event::AskApproval
+                | jig_client::Event::AskLink
+                | jig_client::Event::AskApproval { .. }
                 | jig_client::Event::ReadApproval { .. }
                 | jig_client::Event::DecideApproval { .. }
                 | jig_client::Event::ApprovalAnswer { .. }
@@ -63,6 +66,8 @@ impl Frame {
                 | jig_client::Event::StreamGone
                 | jig_client::Event::Stored
                 | jig_client::Event::NotStored
+                | jig_client::Event::Part { .. }
+                | jig_client::Event::Done { .. }
                 | jig_client::Event::Up { .. }) => other.push(event),
             }
         }

@@ -1,5 +1,6 @@
 pub use smith_bench_fixtures::events;
 
+#[cfg(target_os = "linux")]
 use std::path::Path;
 
 #[must_use]
@@ -12,6 +13,7 @@ pub fn unissued_auth() -> Vec<u8> {
     .expect("fixture")
 }
 
+#[cfg(target_os = "linux")]
 #[must_use]
 pub fn unexecuted_arm(directory: &Path, repository: &Path) -> smith_bench::arm::Build {
     use sha2::{Digest, Sha256};

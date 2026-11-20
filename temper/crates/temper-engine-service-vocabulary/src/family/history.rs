@@ -1,9 +1,9 @@
 //! Client history records (temper/docs/design/domain/landing-history.md, 2 and 5.1).
-use super::{w, wire};
+use super::w;
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge::history as d;
-const FITS: &str = "bounded history event fits the client wire";
 fn encode_unready(value: d::Unready) -> w::HistoryUnready {
     match value {
         d::Unready::Held => w::HistoryUnready::Held,
@@ -49,10 +49,9 @@ fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
     match value {
         d::JobOutcome::Done => w::HistoryJobOutcome::Done,
         d::JobOutcome::Conflict => w::HistoryJobOutcome::Conflict,
-        d::JobOutcome::Failed { class } => w::HistoryJobOutcome::Failed(
-            w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class: encode_job_failure(class) })
-                .expect(FITS),
-        ),
+        d::JobOutcome::Failed { class } => {
+            w::HistoryJobOutcome::Failed(w::HistoryJobFailed { class: encode_job_failure(class) })
+        }
         d::JobOutcome::Timeout => w::HistoryJobOutcome::Timeout,
         d::JobOutcome::Cancelled => w::HistoryJobOutcome::Cancelled,
         d::JobOutcome::Lost => w::HistoryJobOutcome::Lost,
@@ -140,51 +139,35 @@ fn encode_after_verdict(value: d::AfterVerdict) -> w::HistoryAfterVerdict {
     }
 }
 fn encode_in_landing(value: &d::InLanding) -> w::HistoryInLanding {
-    w::HistoryInLanding::new(
-        &w::CEILINGS,
-        w::HistoryInLandingParts { task: value.task, round: value.round, unit: value.unit },
-    )
-    .expect(FITS)
+    w::HistoryInLanding { task: value.task, round: value.round, unit: value.unit }
 }
 fn encode_member(value: &d::Member) -> w::HistoryMember {
-    w::HistoryMember::new(
-        &w::CEILINGS,
-        w::HistoryMemberParts { change: value.change, unit: value.unit, head: value.head },
-    )
-    .expect(FITS)
+    w::HistoryMember { change: value.change, unit: value.unit, head: value.head }
 }
 fn encode_proof(value: &d::Proof) -> w::HistoryProof {
-    w::HistoryProof::new(&w::CEILINGS, w::HistoryProofParts { gate: value.gate, run: value.run }).expect(FITS)
+    w::HistoryProof { gate: value.gate, run: value.run }
 }
 fn encode_event(value: &d::Event) -> w::HistoryEvent {
-    w::HistoryEvent::new(
-        &w::CEILINGS,
-        w::HistoryEventParts {
-            project: value.project,
-            number: value.number,
-            at: value.at.as_nanos(),
-            source_at: match value.source_at {
-                Some(value) => Some(value.as_nanos()),
-                None => None,
-            },
-            change: value.change,
-            repository: w::HistoryRepository::new(
-                &w::CEILINGS,
-                w::HistoryRepositoryParts { forge: value.repository.forge, repository: value.repository.repository },
-            )
-            .expect(FITS),
-            landing: match value.landing {
-                Some(value) => Some(encode_in_landing(&value)),
-                None => None,
-            },
-            head: value.head,
-            base: value.base,
-            operation: value.operation,
-            attempt: value.attempt,
-            what: encode_what(&value.what),
+    w::HistoryEvent {
+        project: value.project,
+        number: value.number,
+        at: value.at.as_nanos(),
+        source_at: match value.source_at {
+            Some(value) => Some(value.as_nanos()),
+            None => None,
         },
-    )
-    .expect(FITS)
+        change: value.change,
+        repository: w::HistoryRepository { forge: value.repository.forge, repository: value.repository.repository },
+        landing: match value.landing {
+            Some(value) => Some(encode_in_landing(&value)),
+            None => None,
+        },
+        head: value.head,
+        base: value.base,
+        operation: value.operation,
+        attempt: value.attempt,
+        what: encode_what(&value.what),
+    }
 }
 fn encode_members(values: &[d::Member]) -> List<w::HistoryMember> {
     let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded history list"));
@@ -208,13 +191,9 @@ fn encode_style(value: skein_forge::api::UpdateStyle) -> w::HistoryUpdateStyle {
 }
 fn encode_departure(value: d::Departure) -> w::HistoryDeparture {
     match value {
-        d::Departure::Landing(cause) => w::HistoryDeparture::Landing(
-            w::HistoryLandingDeparture::new(
-                &w::CEILINGS,
-                w::HistoryLandingDepartureParts { cause: encode_leave(cause) },
-            )
-            .expect(FITS),
-        ),
+        d::Departure::Landing(cause) => {
+            w::HistoryDeparture::Landing(w::HistoryLandingDeparture { cause: encode_leave(cause) })
+        }
         d::Departure::Unready => w::HistoryDeparture::Unready,
         d::Departure::Conflict => w::HistoryDeparture::Conflict,
         d::Departure::Repair => w::HistoryDeparture::Repair,
@@ -223,211 +202,135 @@ fn encode_departure(value: d::Departure) -> w::HistoryDeparture {
 }
 fn encode_by(value: d::By) -> w::HistoryBy {
     match value {
-        d::By::Party(number) => {
-            w::HistoryBy::Party(w::HistoryNumber::new(&w::CEILINGS, w::HistoryNumberParts { number }).expect(FITS))
-        }
-        d::By::Task(number) => {
-            w::HistoryBy::Task(w::HistoryNumber::new(&w::CEILINGS, w::HistoryNumberParts { number }).expect(FITS))
-        }
+        d::By::Party(number) => w::HistoryBy::Party(w::HistoryNumber { number }),
+        d::By::Task(number) => w::HistoryBy::Task(w::HistoryNumber { number }),
     }
 }
-#[expect(clippy::too_many_lines, reason = "one exhaustive translation of history kinds")]
 fn encode_what(value: &d::What) -> w::HistoryWhat {
     match value {
         d::What::Ready => w::HistoryWhat::Ready,
-        d::What::Unready { why } => w::HistoryWhat::Unready(
-            w::HistoryUnreadyStep::new(&w::CEILINGS, w::HistoryUnreadyStepParts { why: encode_unready(*why) })
-                .expect(FITS),
-        ),
-        d::What::Joined { line, place, priority } => w::HistoryWhat::Joined(
-            w::HistoryJoined::new(
-                &w::CEILINGS,
-                w::HistoryJoinedParts {
-                    line: encode_line(*line),
-                    place: *place,
-                    priority: match *priority {
-                        Some(value) => Some(u32::from_be_bytes(value.to_be_bytes())),
-                        None => None,
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
-        d::What::Departed { line, cause } => w::HistoryWhat::Departed(
-            w::HistoryDeparted::new(
-                &w::CEILINGS,
-                w::HistoryDepartedParts { line: encode_line(*line), cause: encode_departure(*cause) },
-            )
-            .expect(FITS),
-        ),
+        d::What::Unready { why } => w::HistoryWhat::Unready(w::HistoryUnreadyStep { why: encode_unready(*why) }),
+        d::What::Joined { line, place, priority } => w::HistoryWhat::Joined(w::HistoryJoined {
+            line: encode_line(*line),
+            place: *place,
+            priority: match *priority {
+                Some(value) => Some(u32::from_be_bytes(value.to_be_bytes())),
+                None => None,
+            },
+        }),
+        d::What::Departed { line, cause } => {
+            w::HistoryWhat::Departed(w::HistoryDeparted { line: encode_line(*line), cause: encode_departure(*cause) })
+        }
         d::What::Selected => w::HistoryWhat::Selected,
-        d::What::Update { style } => w::HistoryWhat::Update(
-            w::HistoryUpdate::new(&w::CEILINGS, w::HistoryUpdateParts { style: encode_style(*style) }).expect(FITS),
-        ),
-        d::What::Updated { outcome } => w::HistoryWhat::Updated(
-            w::HistoryUpdated::new(&w::CEILINGS, w::HistoryUpdatedParts { outcome: encode_update_outcome(*outcome) })
-                .expect(FITS),
-        ),
-        d::What::Job { job, task } => w::HistoryWhat::Job(
-            w::HistoryJobStarted::new(&w::CEILINGS, w::HistoryJobStartedParts { job: encode_job(*job), task: *task })
-                .expect(FITS),
-        ),
-        d::What::JobEnded { job, outcome } => w::HistoryWhat::JobEnded(
-            w::HistoryJobEnded::new(
-                &w::CEILINGS,
-                w::HistoryJobEndedParts { job: encode_job(*job), outcome: encode_job_outcome(*outcome) },
-            )
-            .expect(FITS),
-        ),
-        d::What::Conflict { with, files } => w::HistoryWhat::Conflict(
-            w::HistoryConflict::new(&w::CEILINGS, w::HistoryConflictParts { with: encode_with(*with), files: *files })
-                .expect(FITS),
-        ),
-        d::What::Asked { ask, task, gate } => w::HistoryWhat::Asked(
-            w::HistoryAsked::new(
-                &w::CEILINGS,
-                w::HistoryAskedParts { ask: encode_ask(*ask), task: *task, gate: *gate },
-            )
-            .expect(FITS),
-        ),
-        d::What::Answered { ask, outcome } => w::HistoryWhat::Answered(
-            w::HistoryAnswered::new(
-                &w::CEILINGS,
-                w::HistoryAnsweredParts { ask: encode_ask(*ask), outcome: encode_answer(*outcome) },
-            )
-            .expect(FITS),
-        ),
+        d::What::Update { style, forge_base } => {
+            w::HistoryWhat::Update(w::HistoryUpdate { style: encode_style(*style), forge_base: *forge_base })
+        }
+        d::What::Updated { outcome, forge_base } => w::HistoryWhat::Updated(w::HistoryUpdated {
+            outcome: encode_update_outcome(*outcome),
+            forge_base: *forge_base,
+        }),
+        d::What::Job { job, task } => w::HistoryWhat::Job(w::HistoryJobStarted { job: encode_job(*job), task: *task }),
+        d::What::JobEnded { job, outcome } => w::HistoryWhat::JobEnded(w::HistoryJobEnded {
+            job: encode_job(*job),
+            outcome: encode_job_outcome(*outcome),
+        }),
+        d::What::Conflict { with, files } => {
+            w::HistoryWhat::Conflict(w::HistoryConflict { with: encode_with(*with), files: *files })
+        }
+        d::What::Asked { ask, task, gate } => {
+            w::HistoryWhat::Asked(w::HistoryAsked { ask: encode_ask(*ask), task: *task, gate: *gate })
+        }
+        d::What::Answered { ask, outcome } => {
+            w::HistoryWhat::Answered(w::HistoryAnswered { ask: encode_ask(*ask), outcome: encode_answer(*outcome) })
+        }
         d::What::Pushed => w::HistoryWhat::Pushed,
-        d::What::Delivered { checked } => w::HistoryWhat::Delivered(
-            w::HistoryDelivered::new(&w::CEILINGS, w::HistoryDeliveredParts { checked: *checked }).expect(FITS),
-        ),
-        d::What::Paused { why } => w::HistoryWhat::Paused(
-            w::HistoryPaused::new(&w::CEILINGS, w::HistoryPausedParts { why: encode_pause(*why) }).expect(FITS),
-        ),
+        d::What::Delivered { checked } => w::HistoryWhat::Delivered(w::HistoryDelivered { checked: *checked }),
+        d::What::Paused { why } => w::HistoryWhat::Paused(w::HistoryPaused { why: encode_pause(*why) }),
         d::What::Resumed => w::HistoryWhat::Resumed,
-        d::What::Formed { members, place } => w::HistoryWhat::Formed(
-            w::HistoryFormed::new(
-                &w::CEILINGS,
-                w::HistoryFormedParts { members: encode_members(members), place: *place },
-            )
-            .expect(FITS),
-        ),
-        d::What::RoundEnded { cause } => w::HistoryWhat::RoundEnded(
-            w::HistoryRoundEnded::new(&w::CEILINGS, w::HistoryRoundEndedParts { cause: encode_round_cause(*cause) })
-                .expect(FITS),
-        ),
-        d::What::Gate { gate, key } => w::HistoryWhat::Gate(
-            w::HistoryGate::new(&w::CEILINGS, w::HistoryGateParts { gate: *gate, key: *key }).expect(FITS),
-        ),
-        d::What::GateEnded { gate, key, verdict } => w::HistoryWhat::GateEnded(
-            w::HistoryGateEnded::new(
-                &w::CEILINGS,
-                w::HistoryGateEndedParts { gate: *gate, key: *key, verdict: encode_gate_verdict(*verdict) },
-            )
-            .expect(FITS),
-        ),
-        d::What::Proved { proofs } => w::HistoryWhat::Proved(
-            w::HistoryProved::new(&w::CEILINGS, w::HistoryProvedParts { proofs: encode_proofs(proofs) }).expect(FITS),
-        ),
+        d::What::Formed { members, place } => {
+            w::HistoryWhat::Formed(w::HistoryFormed { members: encode_members(members), place: *place })
+        }
+        d::What::RoundEnded { cause } => {
+            w::HistoryWhat::RoundEnded(w::HistoryRoundEnded { cause: encode_round_cause(*cause) })
+        }
+        d::What::Gate { gate, key } => w::HistoryWhat::Gate(w::HistoryGate { gate: *gate, key: *key }),
+        d::What::GateEnded { gate, key, verdict } => w::HistoryWhat::GateEnded(w::HistoryGateEnded {
+            gate: *gate,
+            key: *key,
+            verdict: encode_gate_verdict(*verdict),
+        }),
+        d::What::Proved { proofs } => w::HistoryWhat::Proved(w::HistoryProved { proofs: encode_proofs(proofs) }),
         d::What::Search => w::HistoryWhat::Search,
-        d::What::Searched { green, red, blamed } => w::HistoryWhat::Searched(
-            w::HistorySearched::new(
-                &w::CEILINGS,
-                w::HistorySearchedParts { green: *green, red: *red, blamed: *blamed },
-            )
-            .expect(FITS),
-        ),
+        d::What::Searched { green, red, blamed } => {
+            w::HistoryWhat::Searched(w::HistorySearched { green: *green, red: *red, blamed: *blamed })
+        }
         d::What::Probe => w::HistoryWhat::Probe,
-        d::What::ProbeEnded { green } => w::HistoryWhat::ProbeEnded(
-            w::HistoryProbeEnded::new(&w::CEILINGS, w::HistoryProbeEndedParts { green: *green }).expect(FITS),
-        ),
-        d::What::Turn { members } => w::HistoryWhat::Turn(
-            w::HistoryTurn::new(&w::CEILINGS, w::HistoryTurnParts { members: *members }).expect(FITS),
-        ),
+        d::What::ProbeEnded { green } => w::HistoryWhat::ProbeEnded(w::HistoryProbeEnded { green: *green }),
+        d::What::Turn { members } => w::HistoryWhat::Turn(w::HistoryTurn { members: *members }),
         d::What::Landed => w::HistoryWhat::Landed,
-        d::What::Recorded { state } => w::HistoryWhat::Recorded(
-            w::HistoryRecorded::new(&w::CEILINGS, w::HistoryRecordedParts { state: encode_recorded_state(*state) })
-                .expect(FITS),
-        ),
-        d::What::Ended { ending } => w::HistoryWhat::Ended(
-            w::HistoryEnded::new(&w::CEILINGS, w::HistoryEndedParts { ending: encode_ending(*ending) }).expect(FITS),
-        ),
-        d::What::LandingEnded { outcome } => w::HistoryWhat::LandingEnded(
-            w::HistoryLandingEnded::new(
-                &w::CEILINGS,
-                w::HistoryLandingEndedParts { outcome: encode_landing_outcome(*outcome) },
-            )
-            .expect(FITS),
-        ),
-        d::What::Held { on, reason, by } => w::HistoryWhat::Held(
-            w::HistoryHold::new(
-                &w::CEILINGS,
-                w::HistoryHoldParts {
-                    on: encode_on(*on),
-                    reason: reason.clone(),
-                    by: match *by {
-                        Some(value) => Some(encode_by(value)),
-                        None => None,
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
-        d::What::Released { on, reason, by } => w::HistoryWhat::Released(
-            w::HistoryHold::new(
-                &w::CEILINGS,
-                w::HistoryHoldParts {
-                    on: encode_on(*on),
-                    reason: reason.clone(),
-                    by: match *by {
-                        Some(value) => Some(encode_by(value)),
-                        None => None,
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
-        d::What::After { verdict } => w::HistoryWhat::After(
-            w::HistoryAfter::new(&w::CEILINGS, w::HistoryAfterParts { verdict: encode_after_verdict(*verdict) })
-                .expect(FITS),
-        ),
+        d::What::Recorded { state } => {
+            w::HistoryWhat::Recorded(w::HistoryRecorded { state: encode_recorded_state(*state) })
+        }
+        d::What::Ended { ending } => w::HistoryWhat::Ended(w::HistoryEnded { ending: encode_ending(*ending) }),
+        d::What::LandingEnded { outcome } => {
+            w::HistoryWhat::LandingEnded(w::HistoryLandingEnded { outcome: encode_landing_outcome(*outcome) })
+        }
+        d::What::Held { on, reason, by } => w::HistoryWhat::Held(w::HistoryHold {
+            on: encode_on(*on),
+            reason: reason.clone(),
+            by: match *by {
+                Some(value) => Some(encode_by(value)),
+                None => None,
+            },
+        }),
+        d::What::Released { on, reason, by } => w::HistoryWhat::Released(w::HistoryHold {
+            on: encode_on(*on),
+            reason: reason.clone(),
+            by: match *by {
+                Some(value) => Some(encode_by(value)),
+                None => None,
+            },
+        }),
+        d::What::After { verdict } => {
+            w::HistoryWhat::After(w::HistoryAfter { verdict: encode_after_verdict(*verdict) })
+        }
     }
 }
 fn encode_leave(why: temper_engine_domain_forge::LandingLeave) -> w::HistoryLeave {
     match why {
         temper_engine_domain_forge::LandingLeave::Conflict => w::HistoryLeave::Conflict,
         temper_engine_domain_forge::LandingLeave::EarlierConflict => w::HistoryLeave::EarlierConflict,
-        temper_engine_domain_forge::LandingLeave::Unit { change } => w::HistoryLeave::Unit(
-            w::HistoryLeftChange::new(&w::CEILINGS, w::HistoryLeftChangeParts { change }).expect(FITS),
-        ),
-        temper_engine_domain_forge::LandingLeave::Dependency { change } => w::HistoryLeave::Dependency(
-            w::HistoryLeftChange::new(&w::CEILINGS, w::HistoryLeftChangeParts { change }).expect(FITS),
-        ),
-        temper_engine_domain_forge::LandingLeave::Blamed { gate, run, red, green } => w::HistoryLeave::Blamed(
-            w::HistoryBlamed::new(&w::CEILINGS, w::HistoryBlamedParts { gate, run, red, green }).expect(FITS),
-        ),
-        temper_engine_domain_forge::LandingLeave::HeadMoved { head } => w::HistoryLeave::HeadMoved(
-            w::HistoryCommit::new(&w::CEILINGS, w::HistoryCommitParts { commit: head }).expect(FITS),
-        ),
+        temper_engine_domain_forge::LandingLeave::Unit { change } => {
+            w::HistoryLeave::Unit(w::HistoryLeftChange { change })
+        }
+        temper_engine_domain_forge::LandingLeave::Dependency { change } => {
+            w::HistoryLeave::Dependency(w::HistoryLeftChange { change })
+        }
+        temper_engine_domain_forge::LandingLeave::Blamed { gate, run, red, green } => {
+            w::HistoryLeave::Blamed(w::HistoryBlamed { gate, run, red, green })
+        }
+        temper_engine_domain_forge::LandingLeave::HeadMoved { head } => {
+            w::HistoryLeave::HeadMoved(w::HistoryCommit { commit: head })
+        }
         temper_engine_domain_forge::LandingLeave::Cancelled => w::HistoryLeave::Cancelled,
         temper_engine_domain_forge::LandingLeave::Held => w::HistoryLeave::Held,
-        temper_engine_domain_forge::LandingLeave::Refused { gate } => w::HistoryLeave::Refused(
-            w::HistoryGateRefused::new(&w::CEILINGS, w::HistoryGateRefusedParts { gate }).expect(FITS),
-        ),
-        temper_engine_domain_forge::LandingLeave::Failed { gate, run } => w::HistoryLeave::Failed(
-            w::HistoryGateFailed::new(&w::CEILINGS, w::HistoryGateFailedParts { gate, run }).expect(FITS),
-        ),
+        temper_engine_domain_forge::LandingLeave::Refused { gate } => {
+            w::HistoryLeave::Refused(w::HistoryGateRefused { gate })
+        }
+        temper_engine_domain_forge::LandingLeave::Failed { gate, run } => {
+            w::HistoryLeave::Failed(w::HistoryGateFailed { gate, run })
+        }
     }
 }
 
 pub(super) fn query(value: w::HistoryRead) -> Option<d::Query> {
-    let w::HistoryReadParts { project, of, since, until, after } = value.into_parts();
+    let w::HistoryRead { project, of, since, until, after } = value;
     Some(d::Query {
         project,
         of: match of {
             w::HistoryOf::Project => d::Of::Project,
-            w::HistoryOf::Change(task) => d::Of::Change(task.task()),
-            w::HistoryOf::Landing(task) => d::Of::Landing(task.task()),
+            w::HistoryOf::Change(task) => d::Of::Change(task.task),
+            w::HistoryOf::Landing(task) => d::Of::Landing(task.task),
         },
         since: match since {
             Some(n) => Some(Wall::from_nanos(n)),
@@ -446,9 +349,7 @@ pub(super) fn query(value: w::HistoryRead) -> Option<d::Query> {
 pub(super) fn answer(value: d::Reply, limits: &w::Limits) -> Option<Box<[u8]>> {
     let result = match value {
         d::Reply::Busy => w::HistoryReply::Busy,
-        d::Reply::Gone { from, first } => {
-            w::HistoryReply::Gone(w::HistoryGone::new(limits, w::HistoryGoneParts { from, first }).ok()?)
-        }
+        d::Reply::Gone { from, first } => w::HistoryReply::Gone(w::HistoryGone { from, first }),
         d::Reply::Page { events, after, upper, whole_since } => {
             let mut rows = List::with_capacity(limits.history_page_events);
             for event in &events {
@@ -458,22 +359,16 @@ pub(super) fn answer(value: d::Reply, limits: &w::Limits) -> Option<Box<[u8]>> {
                 Some(cursor) => Some(cursor.encode().as_ref().try_into().expect("17-byte cursor")),
                 None => None,
             };
-            w::HistoryReply::Page(
-                w::HistoryPage::new(
-                    limits,
-                    w::HistoryPageParts {
-                        events: rows,
-                        after,
-                        upper,
-                        whole_since: match whole_since {
-                            Some(at) => Some(at.as_nanos()),
-                            None => None,
-                        },
-                    },
-                )
-                .ok()?,
-            )
+            w::HistoryReply::Page(w::HistoryPage {
+                events: rows,
+                after,
+                upper,
+                whole_since: match whole_since {
+                    Some(at) => Some(at.as_nanos()),
+                    None => None,
+                },
+            })
         }
     };
-    Some(wire::history_answer(&w::HistoryAnswer::new(limits, w::HistoryAnswerParts { result }).ok()?))
+    (w::HistoryAnswer { result }).encode(limits).ok()
 }

@@ -11,6 +11,37 @@ fn with_row(row: ChangeRow) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     d
 }
+fn room_saves_mark_the_change(requests: &[Request], room: Option<u64>) {
+    let mut saved_change = false;
+    for (index, request) in requests.iter().enumerate() {
+        if let Request::Save { record: Stored::ChangeHot(saved), .. } = request {
+            saved_change = true;
+            assert_eq!(saved.task, fixtures::CHANGE);
+            assert_eq!(saved.room, room);
+            assert_eq!(
+                requests.get(index.checked_add(1).unwrap()),
+                Some(&Request::Marked { tasks: Box::new([fixtures::CHANGE]) })
+            );
+        }
+    }
+    assert!(saved_change);
+}
+#[test]
+fn an_outbox_wait_is_shown_and_cleared_by_marked_saves() {
+    let mut d = outbox_room::full();
+    outputs(&mut d, Event::Change { row: outbox_room::row(fixtures::CHANGE) });
+    assert_eq!(panel(&d).wait, None);
+    let waited = outbox_room::open(&mut d, fixtures::CHANGE, 21);
+    assert_eq!(panel(&d).wait, Some(PanelWait::OutboxRoom));
+    assert_eq!(panel(&d).step, PanelStep::Opening);
+    room_saves_mark_the_change(&waited, Some(1));
+    outbox_room::free_one(&mut d);
+    assert_eq!(panel(&d).wait, Some(PanelWait::OutboxRoom));
+    let admitted = outbox_room::open(&mut d, fixtures::CHANGE, 101);
+    assert!(d.entries.contains_key(&101));
+    assert_eq!(panel(&d).wait, None);
+    room_saves_mark_the_change(&admitted, None);
+}
 #[test]
 fn each_step_and_held_step_comes_from_the_retained_record() {
     let head = fixtures::HEAD;
@@ -660,8 +691,11 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
         .insert(
             (REPO, tier.clone()),
             TierRow {
+                many: None,
                 posting: None,
                 hold: None,
+                waiting: Box::new([]),
+                unkept: 0,
                 observations: Box::new([]),
                 repository: REPO,
                 tier,

@@ -42,7 +42,7 @@ fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
             assert_eq!(*scope, c::Scope::Project(1));
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
             let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
-            let w::Request::FileFinding(filing) = request.request() else { panic!("FileFinding") };
+            let w::Request::FileFinding(filing) = &request.request else { panic!("FileFinding") };
             sent.push((*attempt, filing.clone())).unwrap();
         }
     }
@@ -54,7 +54,7 @@ fn answer(root: &mut Domain, attempt: Token, outcome: Option<w::Outcome>) {
         Some(outcome) => Some(jig_client::Answered::Family(jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+            bytes: wire::answer(&w::Answer { outcome }),
         })),
         None => None,
     };
@@ -76,37 +76,26 @@ fn tell_files_trimmed_feedback_once_and_keeps_each_outcome() {
     assert!(root.pages().tell().is_none(), "empty words keep no state");
     let body = b"The export button is grey on dark.\nIt should show.";
     let (attempt, request) = sent(&tell(&mut root, b"  The export button is grey on dark.\nIt should show.  "));
-    assert_eq!(request.project(), 1);
-    assert_eq!(request.kind(), &w::FindingKind::Feedback);
-    assert_eq!(request.severity(), &w::Severity::Medium);
-    assert_eq!(request.area(), &None);
-    assert_eq!(request.title(), b"The export button is grey on dark.");
-    assert_eq!(request.body(), body);
+    assert_eq!(request.project, 1);
+    assert_eq!(&request.kind, &w::FindingKind::Feedback);
+    assert_eq!(&request.severity, &w::Severity::Medium);
+    assert_eq!(&request.area, &None);
+    assert_eq!(request.title.as_ref(), b"The export button is grey on dark.");
+    assert_eq!(request.body.as_ref(), body);
     assert_eq!(
         root.pages().tell(),
         Some(&Tell { serial: 1, project: 1, words: body.as_slice().into(), goes: None, state: State::Sending })
     );
     assert!(tell(&mut root, b"Another").is_empty(), "one in flight");
     assert_eq!(root.pages().tell().unwrap().serial, 1);
-    answer(
-        &mut root,
-        attempt,
-        Some(w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap())),
-    );
+    answer(&mut root, attempt, Some(w::Outcome::Filed(w::Filed { number: 12 })));
     assert_eq!(root.pages().tell().unwrap().state, State::Filed { number: 12 });
     assert!(tell(&mut root, b" \n ").is_empty());
     assert_eq!(root.pages().tell().unwrap().serial, 1, "empty words keep last outcome");
     let (attempt, _) = sent(&tell(&mut root, b"Another"));
     assert_eq!(root.pages().tell().unwrap().serial, 2);
-    let refusal =
-        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).unwrap());
-    answer(
-        &mut root,
-        attempt,
-        Some(w::Outcome::FindingRefused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: refusal.clone() }).unwrap(),
-        )),
-    );
+    let refusal = w::FindingRefusal::Full(w::FindingsFull { count: 128 });
+    answer(&mut root, attempt, Some(w::Outcome::FindingRefused(w::FindingRefused { reason: refusal.clone() })));
     assert_eq!(root.pages().tell().unwrap().state, State::Refused(refusal));
 }
 
@@ -154,53 +143,45 @@ fn tell_bounds_the_body_and_cuts_its_title_at_a_character() {
     assert_eq!(last.words.len(), 4097);
     assert_eq!(last.state, State::Long { over: 1 });
     let (attempt, request) = sent(&tell(&mut root, &[b'x'; 4096]));
-    assert_eq!(request.body().len(), 4096);
-    assert_eq!(request.title().len(), 200);
+    assert_eq!(request.body.len(), 4096);
+    assert_eq!(request.title.len(), 200);
     assert_eq!(root.pages().tell().unwrap().serial, 2);
     answer(&mut root, attempt, Some(w::Outcome::Unknown));
     for (prefix, length) in [(198, 200), (199, 199)] {
         let body = skein_lib::bytes::concat(&["x".repeat(prefix).as_bytes(), "éz\nNext".as_bytes()]);
         let (attempt, request) = sent(&tell(&mut root, body.as_ref()));
-        assert_eq!(request.title().len(), length, "two-byte character at {prefix}");
-        assert!(skein_lib::bytes::is_utf8(request.title()));
-        assert_eq!(request.body(), body.as_ref());
+        assert_eq!(request.title.len(), length, "two-byte character at {prefix}");
+        assert!(skein_lib::bytes::is_utf8(&request.title));
+        assert_eq!(request.body.as_ref(), body.as_ref());
         answer(&mut root, attempt, Some(w::Outcome::Unknown));
     }
 }
 
 fn task_holder(number: u64) -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
+    w::Holder::Task(w::HolderTask { number })
 }
-fn document() -> w::FindingsParts {
+fn document() -> w::Findings {
     let mut areas = List::with_capacity(3);
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52), (b"more-tests", 52)] {
         areas
-            .push(
-                w::AreaRow::new(
-                    &w::CEILINGS,
-                    w::AreaRowParts {
-                        name: name.into(),
-                        words: name.into(),
-                        owner: w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap()),
-                        holder: Some(task_holder(number)),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::AreaRow {
+                name: name.into(),
+                words: name.into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number }),
+                holder: Some(task_holder(number)),
+            })
             .unwrap();
     }
-    w::FindingsParts {
+    w::Findings {
         project: 1,
         rows: List::with_capacity(0),
         areas,
-        triager: Some(w::AreaOwner::Charter(
-            w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 14 }).unwrap(),
-        )),
+        triager: Some(w::AreaOwner::Charter(w::AreaCharter { number: 14 })),
         holder: task_holder(60),
         cut: false,
     }
 }
-fn read_findings(root: &mut Domain, parts: w::FindingsParts) {
+fn read_findings(root: &mut Domain, parts: w::Findings) {
     let out = super::welcome::event(
         root,
         Event::Went { place: Place::Address(Address::Inbox { filter: crate::address::Filter::ALL }) },
@@ -213,8 +194,8 @@ fn read_findings(root: &mut Domain, parts: w::FindingsParts) {
                     down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                 },
         } = request
-            && let w::Watch::Findings(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch()
-            && subject.project() == 1
+            && let w::Watch::Findings(subject) = &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
+            && subject.project == 1
         {
             found = Some(*watch);
         }
@@ -229,7 +210,7 @@ fn read_findings(root: &mut Domain, parts: w::FindingsParts) {
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::findings(&w::Findings::new(&w::CEILINGS, parts).unwrap()),
+                        bytes: wire::findings(&parts),
                     },
                 },
             },
@@ -254,7 +235,7 @@ fn tell_routes_the_pages_task_to_its_first_area() {
         let expected = Some(Goes::Area { name: b"tests".as_slice().into(), holder: Holder::Task(52) });
         assert_eq!(tell::goes(&root, 1, Some(&about)), expected);
         let (_, file) = sent(&tell_about(&mut root, b"The flake is back", Some(about)));
-        assert_eq!(file.area().as_deref(), Some(b"tests".as_slice()));
+        assert_eq!(file.area.as_deref(), Some(b"tests".as_slice()));
         assert_eq!(root.pages().tell().unwrap().goes, expected, "destination is kept at the act");
     }
 }
@@ -269,11 +250,8 @@ fn tell_falls_back_to_a_standing_triager_then_owners() {
             let expected = match fallback {
                 0 => Goes::Triager { holder: Holder::Task(60), areas: true },
                 1 => {
-                    document.triager = Some(w::AreaOwner::Task(
-                        w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 61 }).unwrap(),
-                    ));
-                    document.holder =
-                        w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).unwrap());
+                    document.triager = Some(w::AreaOwner::Task(w::AreaTask { number: 61 }));
+                    document.holder = w::Holder::Role(w::HolderRole { number: 0 });
                     Goes::Owners { areas: true }
                 }
                 2 => {
@@ -289,7 +267,7 @@ fn tell_falls_back_to_a_standing_triager_then_owners() {
             read_findings(&mut root, document);
             assert_eq!(tell::goes(&root, 1, about.as_ref()), Some(expected.clone()));
             let (_, file) = sent(&tell_about(&mut root, b"The flake is back", about.clone()));
-            assert_eq!(file.area(), &None);
+            assert_eq!(&file.area, &None);
             assert_eq!(root.pages().tell().unwrap().goes, Some(expected));
         }
     }
@@ -300,7 +278,7 @@ fn tell_files_without_waiting_for_an_unread_document() {
     let about = about(Address::Talk { project: 1, task: 52 });
     assert_eq!(pages::tell::goes(&root, 1, Some(&about)), None);
     let (_, file) = sent(&tell_about(&mut root, b"The flake is back", Some(about)));
-    assert_eq!(file.area(), &None);
+    assert_eq!(&file.area, &None);
     assert_eq!(root.pages().tell().unwrap().goes, None);
 }
 #[test]
@@ -324,17 +302,17 @@ fn tell_body_names_the_page_only_when_the_whole_line_fits() {
             let (_, file) = sent(&out);
             let expected =
                 if length + line.len() <= 4096 { skein_lib::bytes::concat(&[&words, line]) } else { words.clone() };
-            assert_eq!(file.body().len(), expected.len(), "length {length}");
-            assert_eq!(file.body(), expected.as_ref(), "length {length}");
-            assert_eq!(file.title(), &words[..length.min(200)]);
+            assert_eq!(file.body.len(), expected.len(), "length {length}");
+            assert_eq!(file.body.as_ref(), expected.as_ref(), "length {length}");
+            assert_eq!(file.title.as_ref(), &words[..length.min(200)]);
             assert_eq!(root.pages().tell().unwrap().words.as_ref(), words.as_ref());
         }
     }
     let mut root = setup();
     let (_, file) =
         sent(&tell_about(&mut root, b"The flake is back\nAgain", Some(about(Address::Talk { project: 1, task: 52 }))));
-    assert_eq!(file.body(), b"The flake is back\nAgain\n\nPage: /projects/1/talk/52 (Prover)");
-    assert_eq!(file.title(), b"The flake is back");
+    assert_eq!(file.body.as_ref(), b"The flake is back\nAgain\n\nPage: /projects/1/talk/52 (Prover)");
+    assert_eq!(file.title.as_ref(), b"The flake is back");
 }
 
 fn go(root: &mut Domain, address: Address) -> Queue<Request> {
@@ -392,7 +370,7 @@ fn tell_keeps_the_page_left_with_its_title_but_not_its_entry_pages() {
     super::welcome::deliver(
         &mut root,
         watch.unwrap(),
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line])), more: false })),
     );
     let expected = About { address: team, title: Some(b"Prover".as_slice().into()) };
     for address in [
@@ -455,8 +433,8 @@ fn tell_watches_its_findings_and_releases_them_when_left() {
                 },
         } = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
-            && subject.project() == 1
+            && let w::Watch::Findings(subject) = &watching.watch
+            && subject.project == 1
         {
             watch = Some(*token);
         }
@@ -471,7 +449,7 @@ fn tell_watches_its_findings_and_releases_them_when_left() {
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::findings(&w::Findings::new(&w::CEILINGS, document()).unwrap()),
+                        bytes: wire::findings(&document()),
                     },
                 },
             },
@@ -496,7 +474,7 @@ fn a_filed_tell_clears_the_field_and_says_its_destination_once() {
     read_findings(&mut root, document());
     write(&mut root, b"Keep all these words");
     let (attempt, _) = sent(&tell_about(&mut root, b"Keep all these words", Some(about(Address::Task { task: 52 }))));
-    let outcome = w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap());
+    let outcome = w::Outcome::Filed(w::Filed { number: 12 });
     answer(&mut root, attempt, Some(outcome.clone()));
     assert_eq!(root.pages().tell_words(), b"");
     assert_eq!(
@@ -515,15 +493,8 @@ fn a_filed_tell_clears_the_field_and_says_its_destination_once() {
     assert_eq!(root.pages().tell_words(), b"Next words");
     assert_eq!(root.pages().needs().toast(), None, "a repeated outcome never says it again");
     let (attempt, _) = sent(&tell(&mut root, b"Next words"));
-    let reason =
-        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).unwrap());
-    answer(
-        &mut root,
-        attempt,
-        Some(w::Outcome::FindingRefused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason }).unwrap(),
-        )),
-    );
+    let reason = w::FindingRefusal::Full(w::FindingsFull { count: 128 });
+    answer(&mut root, attempt, Some(w::Outcome::FindingRefused(w::FindingRefused { reason })));
     assert_eq!(root.pages().tell_words(), b"Next words", "a refusal keeps the words");
 }
 

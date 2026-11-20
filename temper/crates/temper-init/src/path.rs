@@ -1,9 +1,7 @@
 //! Paths are checked before any output is built (protocol/setup/init.md, 2).
 use crate::{Fact, Reason, Refusal};
-use alloc::boxed::Box;
-use skein_lib::Writer;
 
-#[expect(clippy::disallowed_methods, reason = "init is a protocol boundary: its paths must be JSON text")]
+#[expect(clippy::disallowed_methods, reason = "init validates its machine paths as UTF-8")]
 pub(crate) fn check(fact: Fact, path: &[u8], name: &[u8]) -> Result<(), Refusal> {
     if !path.starts_with(b"/") {
         return Err(Refusal { fact, reason: Reason::Relative });
@@ -23,12 +21,4 @@ fn separator(directory: &[u8], name: &[u8]) -> &'static [u8] {
 
 fn joined_len(directory: &[u8], name: &[u8]) -> usize {
     directory.len().saturating_add(separator(directory, name).len()).saturating_add(name.len())
-}
-
-pub(crate) fn join(directory: &[u8], name: &[u8]) -> Box<[u8]> {
-    let mut writer = Writer::new(joined_len(directory, name));
-    writer.put(directory).expect("the directory was counted");
-    writer.put(separator(directory, name)).expect("the separator was counted");
-    writer.put(name).expect("the name was counted");
-    writer.finish()
 }

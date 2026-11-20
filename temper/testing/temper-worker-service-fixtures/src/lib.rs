@@ -1,6 +1,40 @@
 //! Public worker fixtures for composition tests (temper/docs/design/protocol/services.md, 8).
 use jig_domain_link::{Bounds, EndpointBound};
 use temper_worker_service::settings;
+
+/// The typed plaintext provider shared by the small service worlds.
+#[must_use]
+pub fn providers() -> Box<[jig_protocol_config::ProviderSetting]> {
+    use jig_protocol_config::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    Box::new([ProviderSetting {
+        provider: Provider {
+            name: b"fake-provider".as_slice().into(),
+            number: 1,
+            endpoint: Some(b"fake".as_slice().into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: true,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            name: b"fake".as_slice().into(),
+            number: 1,
+            dialect: 3,
+            provider: b"fake-provider".as_slice().into(),
+            program: None,
+            address: EndpointAddress::Socket(([127, 0, 0, 1], 7101).into()),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: skein_lib::Duration::from_millis(10_000),
+            handshake: skein_lib::Duration::from_millis(10_000),
+        }]),
+        withdrawn: false,
+    }])
+}
+
 #[must_use]
 pub fn agent() -> settings::Agent {
     use skein_lib::Duration;
@@ -104,7 +138,13 @@ pub fn one_repository() -> wire::Workspace {
             name: b"app".as_slice().into(),
             remote: b"https://forge.example/acme/app.git".as_slice().into(),
             start: wire::Start::Base { branch: b"main".as_slice().into() },
-            access: wire::Access::Writable { push: b"temper/task-7".as_slice().into(), expected: None, landing: None },
+            access: wire::Access::Writable {
+                push: b"temper/task-7".as_slice().into(),
+                expected: None,
+                landing: None,
+                delivered: None,
+                pin: None,
+            },
             identity: 1,
             account: None,
         }]),
@@ -171,7 +211,7 @@ pub fn worker() -> temper_worker_service::Worker {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: pinned_agent(&worker_settings().jig.agent),
+            agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -181,22 +221,14 @@ pub fn worker() -> temper_worker_service::Worker {
 #[must_use]
 pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_protocol_worker_link::Request {
     let value = identity(token);
-    let record = temper_protocol_worker_wire::v1::Identity::new(
-        &wire_limits(),
-        temper_protocol_worker_wire::v1::IdentityParts {
-            kind: temper_protocol_worker_wire::v1::Kind::Forgejo(
-                temper_protocol_worker_wire::v1::Token::new(
-                    &wire_limits(),
-                    temper_protocol_worker_wire::v1::TokenParts { token: value.token },
-                )
-                .expect("token record"),
-            ),
-            login: value.login,
-            name: value.name,
-            email: value.email,
-        },
-    )
-    .expect("identity record");
+    let record = temper_protocol_worker_wire::v1::Identity {
+        kind: temper_protocol_worker_wire::v1::Kind::Forgejo(temper_protocol_worker_wire::v1::Token {
+            token: value.token,
+        }),
+        login: value.login,
+        name: value.name,
+        email: value.email,
+    };
     jig_protocol_worker_link::Request::Value {
         account: number,
         generation,
@@ -210,7 +242,7 @@ pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_prot
 #[must_use]
 pub fn worker_settings() -> temper_worker_service::settings::Worker {
     use jig_protocol_config as config;
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     limits.core.call_answer_bytes = 2048;
     limits.hub = jig_domain_host::Limits {
         application_ask_bytes: 0,
@@ -242,7 +274,7 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
             engine: config::Address::Addr(skein_io::Addr::InProcess(
                 skein_io::Name::new(b"workers").expect("worker fixture values fit their declared bounds"),
             )),
-            name: b"worker-a".as_slice().into(),
+            name: b"local".as_slice().into(),
             secret: b"worker-secret".as_slice().into(),
             slots: 1,
             graces: config::Graces {
@@ -253,12 +285,12 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
                 save: skein_lib::Duration::from_secs(10),
             },
             stop_bound: skein_lib::Duration::from_secs(60),
-            agent: config::Agent {
+            agent: Some(config::Agent {
                 program: TEMPER.into(),
                 arguments: Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), AGENT_JSON.into()]),
                 configuration: AGENT_JSON.into(),
-            },
-            limits,
+            }),
+            limits: Some(limits),
             memory: None,
         },
         root: b"worker-root".as_slice().into(),
@@ -267,9 +299,7 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
 }
 #[must_use]
 pub fn worker_limits() -> temper_worker_service::worker_settings::Limits {
-    let mut own = temper_worker_service::worker_settings::Limits::shared(temper_service_core::limits::profile(
-        temper_service_core::limits::Profile::Small,
-    ));
+    let mut own = temper_worker_service::worker_settings::Limits::shared(temper_service_core::limits::stock());
     own.checkout.workspaces = 1;
     own.checkout.repositories = 1;
     own.checkout.name_bytes = 64;

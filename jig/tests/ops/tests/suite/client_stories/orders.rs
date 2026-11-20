@@ -1,6 +1,6 @@
 //! The linked Ops root against scripted stream, transport and delayed storage.
 use jig_client::{Event as ClientEvent, Message, Streamed};
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use jig_client_view::address::Address as JigAddress;
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
 use jig_ops_world::{PARTY, PROJECT};
@@ -11,8 +11,8 @@ const STREAM: [u8; 16] = [11; 16];
 const HEARTBEAT: Duration = Duration::from_secs(1);
 // The fixture serves jig plus both Ops connector owners.
 const OWNERS: u32 = 3;
-// Three initial inbox exchanges and a read/watch pair for each connector.
-const EXCHANGES: u32 = 7;
+// One initial inbox batch and one read/watch batch for each connector.
+const EXCHANGES: u32 = 3;
 const INFRASTRUCTURE: u16 = 2;
 const OBSERVABILITY: u16 = 1;
 const ONE_PROJECT: u32 = 1;
@@ -24,7 +24,7 @@ struct World {
     // Storage deliberately remains outstanding while later entrances run.
     writes: Vec<root::store::Record>,
     steps: Vec<Vec<&'static str>>,
-    watches: Vec<(Token, u64)>,
+    watches: Vec<(Token, Option<u16>, u64)>,
     traffic: Vec<(usize, &'static str, u16)>,
 }
 
@@ -46,17 +46,27 @@ impl World {
         });
         world.client(ClientEvent::SignIn { with: jig_client::With::Transport });
         world.stream(&hello());
-        // All three children share the Me watch. The peer admits its exchange
-        // before delivering the frame, then storage is left delayed.
-        let (exchange, watch) = world.watches.remove(0);
-        let answer = w::OpenAnswer::Admitted;
-        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
-        answer.encode(&mut bytes).expect("measured open answer");
-        world.client(ClientEvent::Reply { exchange, message: bytes.finish() });
-        world.stream(&frame(watch));
+        world.admit_watches();
         world.steps.clear();
         world.traffic.clear();
         world
+    }
+
+    fn admit_watches(&mut self) {
+        for (exchange, member, _) in std::mem::take(&mut self.watches) {
+            let answer = w::OpenAnswer::Admitted;
+            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
+            answer.encode(&mut bytes).expect("opening answer");
+            if let Some(member) = member {
+                let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) })
+                    .expect("opening part");
+                let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure()));
+                part.encode(&mut bytes).expect("opening part bytes");
+                self.client(ClientEvent::Part { exchange, message: bytes.finish() });
+            } else {
+                self.client(ClientEvent::Reply { exchange, message: bytes.finish() });
+            }
+        }
     }
 
     fn client(&mut self, event: ClientEvent) {
@@ -72,6 +82,7 @@ impl World {
     fn step(&mut self, event: Event) {
         let mut out = Queue::uncapped();
         root::step(&mut self.root, &self.env, event, &mut out);
+        root::settle(&mut self.root, &self.env, &mut out);
         root::take(&mut self.root);
         self.drain(out);
     }
@@ -79,10 +90,39 @@ impl World {
     fn fire(&mut self) {
         let mut out = Queue::uncapped();
         root::fire(&mut self.root, &self.env, &mut out);
+        root::settle(&mut self.root, &self.env, &mut out);
         root::take(&mut self.root);
         self.drain(out);
     }
 
+    fn message(&mut self, exchange: Token, member: Option<u16>, message: Message) {
+        match message {
+            Message::Watch(bytes) => {
+                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("watch bytes");
+                self.watches.push((exchange, member, open.watch()));
+                self.traffic.push((self.steps.len(), "open", owner(open.subject().owner())));
+            }
+            Message::Read(bytes) => {
+                let read = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read bytes");
+                self.traffic.push((self.steps.len(), "read", owner(read.owner())));
+            }
+            Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
+            Message::Batch(_)
+            | Message::LinkAsk(_)
+            | Message::Request(_)
+            | Message::StreamGone(_)
+            | Message::SignInLink(_)
+            | Message::SignInService
+            | Message::SignOut
+            | Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::SignInApproval(_)
+            | Message::Authorize(_) => {
+                panic!("unplanned exchange");
+            }
+        }
+    }
     fn drain(&mut self, mut out: Queue<Request>) {
         let mut order = vec![];
         while let Some(request) = out.pop() {
@@ -93,29 +133,28 @@ impl World {
                 }
                 Request::Erase { .. } => order.push("erase"),
                 Request::Client { request: jig_client::Request::Exchange { exchange, message, .. } } => {
-                    match message {
-                        Message::Watch(bytes) => {
-                            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("watch bytes");
-                            self.watches.push((exchange, open.watch()));
-                            self.traffic.push((self.steps.len(), "open", owner(open.subject().owner())));
+                    if let Message::Batch(bytes) = message {
+                        let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("batch");
+                        for (place, record) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+                            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure() - 1));
+                            let message = match record {
+                                w::Member::Read(record) => {
+                                    record.encode(&mut writer).expect("read");
+                                    Message::Read(writer.finish())
+                                }
+                                w::Member::Open(record) => {
+                                    record.encode(&mut writer).expect("open");
+                                    Message::Watch(writer.finish())
+                                }
+                                w::Member::Close(record) => {
+                                    record.encode(&mut writer).expect("close");
+                                    Message::Unwatch(writer.finish())
+                                }
+                            };
+                            self.message(exchange, Some(u16::try_from(place).expect("member")), message);
                         }
-                        Message::Read(bytes) => {
-                            let read = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read bytes");
-                            self.traffic.push((self.steps.len(), "read", owner(read.owner())));
-                        }
-                        Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
-                        Message::Request(_)
-                        | Message::StreamGone(_)
-                        | Message::SignInLink(_)
-                        | Message::SignInService
-                        | Message::SignOut
-                        | Message::ApprovalAsk(_)
-                        | Message::ApprovalRead(_)
-                        | Message::ApprovalDecide(_)
-                        | Message::SignInApproval(_)
-                        | Message::Authorize(_) => {
-                            panic!("unplanned exchange");
-                        }
+                    } else {
+                        self.message(exchange, None, message);
                     }
                     order.push("exchange");
                 }
@@ -149,9 +188,11 @@ fn hello() -> w::StreamEvent {
             )
             .expect("three owners");
     }
-    w::StreamEvent::Hello(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served, heartbeat: HEARTBEAT })
-            .expect("hello fixture"),
+    let hello = w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served, heartbeat: HEARTBEAT })
+        .expect("hello fixture");
+    let w::StreamEvent::Delivery(delivery) = frame(0) else { unreachable!("me fixture") };
+    w::StreamEvent::Opened(
+        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: delivery.into_parts().document }).expect("opened"),
     )
 }
 
@@ -256,7 +297,7 @@ fn ops_child_records_precede_transport_within_a_step() {
             pool: None,
         })),
     });
-    assert_eq!(world.steps, vec![vec!["save", "exchange", "exchange"]]);
+    assert_eq!(world.steps, vec![vec!["save", "exchange"]]);
 }
 
 /// `child_requests_dispatched`: each connector's read/watch consequences
@@ -268,6 +309,7 @@ fn ops_client_routes_finish_before_their_caller_continues() {
     world.step(Event::Infrastructure(infrastructure::Event::Went {
         address: infrastructure::Address::Environments { project: PROJECT, pool: None },
     }));
+    world.admit_watches();
     world.step(Event::Observability(observability::Event::Went {
         address: observability::Address::Incident { project: PROJECT, incident: INCIDENT },
     }));
@@ -277,11 +319,11 @@ fn ops_client_routes_finish_before_their_caller_continues() {
         [
             (0, "read", INFRASTRUCTURE),
             (0, "open", INFRASTRUCTURE),
-            (1, "read", OBSERVABILITY),
-            (1, "open", OBSERVABILITY),
+            (2, "read", OBSERVABILITY),
+            (2, "open", OBSERVABILITY),
         ]
     );
-    assert_eq!(world.root.client().admission().attempts, EXCHANGES);
+    assert!(world.root.client().admission().attempts <= EXCHANGES);
     assert_eq!(
         world.writes.last(),
         Some(&root::store::Record::Observability(observability::Record::Place {

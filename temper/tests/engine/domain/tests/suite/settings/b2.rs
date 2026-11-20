@@ -36,8 +36,12 @@ fn configuration() -> engine::Config {
 
         providers: Box::new([]),
     };
+    let workers = config.core.defaults.workers.clone();
+    let providers = config.core.defaults.providers.clone();
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
+    config.core.defaults.workers = workers;
+    config.core.defaults.providers = providers;
 
     config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
         direct: Box::new([]),
@@ -371,12 +375,13 @@ fn no_settings_or_message_tools(run: &engine::Assignment) {
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let charter = temper_engine_smith::charter(run);
-    assert_eq!(charter.grants.host_tools.len(), 35);
+    assert_eq!(charter.grants.host_tools.len(), 5);
     for tool in &charter.grants.host_tools {
         assert!(
             tool.name.as_ref() != b"settings"
                 && tool.name.as_ref() != b"propose_settings"
                 && tool.name.as_ref() != b"message"
+                && tool.name.as_ref() != b"introduce"
         );
     }
 }

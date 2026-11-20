@@ -8,8 +8,8 @@ use smith_host_domain::channel::LiveAsk;
 fn start(live: Option<LiveAsk>) -> Box<smith_protocol_translate::DecodedStart> {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
-    let charter = include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin");
-    world.send_start_asking(Box::from(charter.as_slice()), live);
+    let charter = smith_agent_process_world::charter();
+    world.send_start_asking(charter, live);
     world.settle();
     world.take_agent_start().expect("the start reached the agent")
 }
@@ -18,7 +18,7 @@ fn start(live: Option<LiveAsk>) -> Box<smith_protocol_translate::DecodedStart> {
 fn a_start_with_an_ask_reaches_the_agent_with_its_kinds() {
     let ask = LiveAsk { text: true, reasoning: false, input: true };
     let live = start(Some(ask)).live.expect("the ask crossed");
-    assert_eq!((live.text(), live.reasoning(), live.input()), (true, false, true));
+    assert_eq!((live.text, live.reasoning, live.input), (true, false, true));
 }
 
 #[test]
@@ -29,10 +29,7 @@ fn a_start_with_no_ask_reaches_the_agent_with_none() {
 fn asking(ask: LiveAsk) -> World {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
-    world.send_start_asking(
-        Box::from(include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin").as_slice()),
-        Some(ask),
-    );
+    world.send_start_asking(smith_agent_process_world::charter(), Some(ask));
     world.settle();
     world
 }
@@ -168,8 +165,8 @@ fn two_calls_input_reaches_the_host_from_its_own_offset_zero() {
         assert_eq!(**offset, 0);
         assert_eq!(bytes.as_ref(), b"{}");
         let call = call.as_ref().expect("input identity");
-        assert_eq!(call.id(), [b"first".as_slice(), b"second".as_slice()][index]);
-        assert_eq!(call.tool(), b"finish");
+        assert_eq!(call.id.as_ref(), [b"first".as_slice(), b"second".as_slice()][index]);
+        assert_eq!(call.tool.as_ref(), b"finish");
     }
     assert_eq!(world.lost_live_bytes(), 0);
 }

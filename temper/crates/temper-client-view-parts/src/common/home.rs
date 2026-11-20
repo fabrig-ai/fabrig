@@ -1,4 +1,5 @@
-//! Shared home items (temper/docs/design/client/view-crates.md, 3.3).
+//! Shared home items (temper/docs/design/client/view-crates.md, 3.3;
+//! temper/docs/design/client/pages/home.md, 1, where nothing pays).
 use crate::words::{TimeForm, Times, Word, Words};
 use alloc::boxed::Box;
 use skein_ui::phrases::Hole;
@@ -13,6 +14,7 @@ pub struct Intro {
     pub headline: Box<[u8]>,
     pub lede: Option<Box<[u8]>>,
     pub byline: Option<Box<[u8]>>,
+    pub accounts: bool,
 }
 
 pub fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> {
@@ -39,7 +41,7 @@ pub fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> 
     kicker
 }
 
-/// The complete findings-only read counts findings; every other read counts cards.
+/// The complete findings-only read counts findings; every other read counts open needs.
 #[must_use]
 pub fn needs_count(needs: Needs) -> (u32, bool) {
     match needs {
@@ -70,7 +72,7 @@ pub fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
 
 pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
     let previous = match &facts.status {
-        Status::Shown(status) => *status.previous(),
+        Status::Shown(status) => status.previous,
         Status::Unknown => None,
     };
     let mut kicker = kicker(w, previous, times);
@@ -83,7 +85,7 @@ pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> 
     let landed = if facts.to_begin() { 0 } else { facts.landed_since() };
     let brief = if facts.to_begin() { None } else { facts.brief() };
     let sentence = match brief {
-        Some(brief) => brief.sentence().into(),
+        Some(brief) => brief.sentence.clone(),
         None => match landed {
             0 => match if facts.to_begin() { None } else { facts.last_landed() } {
                 Some(last) => {
@@ -100,13 +102,14 @@ pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> 
             2..=u64::MAX => w.say(Word::HomeLandedMany, &[Hole::Number(landed)]),
         },
     };
+    let accounts = brief.is_none() && facts.unpaid() && !facts.to_begin();
     let (lede, byline) = match brief {
         Some(brief) => {
-            let lede = if brief.lede().is_empty() { None } else { Some(brief.lede().into()) };
-            let at = times.say(w, TimeForm::Clock, skein_lib::Wall::from_nanos(brief.at()));
+            let lede = if brief.lede.is_empty() { None } else { Some(brief.lede.clone()) };
+            let at = times.say(w, TimeForm::Clock, skein_lib::Wall::from_nanos(brief.at));
             (lede, Some(w.say(Word::HomeByline, &[Hole::Name(at)])))
         }
-        None => (None, None),
+        None => (if accounts { Some(w.say(Word::HomeUnpaid, &[])) } else { None }, None),
     };
     if let Some(spell) = &facts.spell {
         if let Some(end) = spell.end {
@@ -137,10 +140,10 @@ pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> 
         };
         let headline =
             if landed.is_empty() { decided } else { crate::accounts::words::join(&[&landed, b" ", &decided]) };
-        return Intro { kicker, headline, lede, byline };
+        return Intro { kicker, headline, lede, byline, accounts };
     }
     let headline = if sentence.is_empty() { needs } else { crate::accounts::words::join(&[&sentence, b" ", &needs]) };
-    Intro { kicker, headline, lede, byline }
+    Intro { kicker, headline, lede, byline, accounts }
 }
 
 #[must_use]
@@ -175,7 +178,7 @@ pub fn need_words(need: &needs::Need<'_>, w: &Words) -> (Box<[u8]>, Box<[u8]>, c
             (title, asked.short, kind)
         }
         needs::Need::Approval(row) => {
-            (row.title.clone(), super::approval::question(row, w), crate::shared::NeedKind::Other)
+            (super::chat::row_title(&row.title), super::approval::question(row, w), crate::shared::NeedKind::Other)
         }
     }
 }

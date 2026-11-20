@@ -218,7 +218,7 @@ each behaviour in the lowest world that owns it, and one smoke above:
 
 | Where | What | Priced |
 |---|---|---|
-| step tests, in their crates | a landing rule's record: its golden bytes, the largest at its bounds within the kind's bound, one past refused; the forge's judge of each item, each refusal and an accepted rule, by a table; the two standing verdicts over a table of rules, deployment's and project's, enforcing or not, met, wait and refuse, a branch no rule covers; the stock defaults passing jig's one check for `temper-box init`'s document, for one with a single model and for one with the demo; each of the six members refused, naming its path; `temper-box init`'s document without them, and no `charters/` | milliseconds, outside the worlds' guides |
+| step tests, in their crates | a landing rule's record: its built-value round trips, the largest at its bounds within the kind's bound, one past refused; the forge's judge of each item, each refusal and an accepted rule, by a table; the two standing verdicts over a table of rules, deployment's and project's, enforcing or not, met, wait and refuse, a branch no rule covers; the stock defaults passing jig's one check for `temper-box init`'s document, for one with a single model and for one with the demo; each of the six members refused, naming its path; `temper-box init`'s document without them, and no `charters/` | milliseconds, outside the worlds' guides |
 | the client's step and view tests (`../client/testing.md`) | How work runs' rows from the `settings` document and each setting, in each tag; the card for an owner and for a member; the review's split of a proposal's items into enforced and followed, and its effect; stale and accepted; each act as the operations it sends; the gallery's worlds and the terminal's goldens gaining the two pages | milliseconds each, in their suites |
 | the forge's world (`tests/engine/forge`) | ../domain/forge/README.md 10's settings stories: a rule changed between two merges; a gate a rule adds asked for on a queued change, which leaves the queue; one a rule drops no longer waited on; a project's rule adding an approval; a rule refused; a change kept on its charter, and one held when it is no longer offered; a restart handing the values back before the records | about 0.3 s, seven stories at the world's usual cost |
 | the engine's domain world (`tests/engine/domain`) | through the root and the core on jig's store: a change naming a landing rule and a charter committed in one decision, and refused whole when the forge refuses its rule; a project's rule changed by its owner, refused as not theirs for another; a new forge's charter reaching the next change's delegates while a live change keeps its own; a project made after the first start covered by the deployment's rule; the two requirements removed from the rules, landing left to the procedure's waits; the resume fixture restarting with changed values. A stored settings policy and a stored project policy, each admitted under a larger policy allowance and committed through the real store, refuse a cold start under the smaller allowance naming the setting or project; a policy at the bound is admitted in its own story. Root and store use the same test envelope, including sufficient journal and page bytes. | about 0.6 s |
@@ -391,16 +391,17 @@ carries it.
 `temper box` with its owned forge (`../protocol/setup/box.md`),
 its settings the stock's. What the box brings, and the pass confirms
 before the chat starts (temper's through ctl, the repository's through
-the forge's API as an observer, the limits against the box's document):
+the forge's API as an observer, the limit settings through ctl):
 
 - **the models:** Opus 5.5 on Claude Code for the coordinator and
   designers; gpt-6.1-sol on smith's direct backend, on an OpenAI
   account's key, for producers and the triage; a real model
   for Ask temper, charter 11's;
-- **the document's members the profile sets** over `temper-box init`'s:
-  `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two
-  tiers (13.9); a change's question bound,
-  `forge.change_policy.questions`, explicitly overridden to 4 by `limits.json`;
+- **the profile's limit settings,** `limits` and `temper-limits`, over the
+  stock, confirmed through ctl (`../protocol/configuration/limit-settings.md`, 2);
+- **the document's members the profile sets:** a change's question bound,
+  `forge.change_policy.questions`, at 4; and `landing.json`, the project's
+  merge job and its two tiers (13.9);
 - **the project,** with its repository adopted, holding `AGENTS.md`,
   `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
   tiers' workflows and a merge-commit merge style; and, at the path the

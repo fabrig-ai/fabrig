@@ -9,7 +9,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 // The request's review size; the secret is thirty-two zero bytes, never a credential.
 const FULL: skein_ui_screen::Size = skein_ui_screen::Size { columns: 80, rows: 24 };
-const PRINTED: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const PRINTED: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPEN: &str = "Welcome. Set temper up in your browser: open this link on this machine.";
 const PENDING: &str = "The link comes here once the box has started.";
 const ONCE: &str = "It signs you in as this temper's owner, once, within 2 hours.";
@@ -32,7 +32,10 @@ fn front(link: Option<&[u8]>) -> Tui {
     tui
 }
 fn build(root: &Domain, tui: &Tui) -> crate::View {
-    let mut view = f::view();
+    build_with_words(root, tui, f::words())
+}
+fn build_with_words(root: &Domain, tui: &Tui, words: crate::words::Words) -> crate::View {
+    let mut view = f::view_of(words);
     f::build(&mut view, tui, root);
     view
 }
@@ -94,6 +97,7 @@ fn welcome_commands_wait_until_the_sign_in_lands() {
     reason = "the fixed state table holds Tui values with talk prompts and terminal-login facts"
 )]
 fn the_welcome_says_each_state() {
+    let mut vocabulary = f::words();
     let empty = welcome_root(&[], false, Some(false), None);
     let linked = welcome_root(&[], true, Some(false), None);
     let pending = welcome_root(&[], true, None, None);
@@ -106,53 +110,41 @@ fn the_welcome_says_each_state() {
     let forgejo = welcome_root(&[row(w::Kind::Forgejo, w::Connection::Connecting)], false, Some(false), None);
     let github_setup = welcome_root(&[row(w::Kind::Github, setting(None))], false, Some(false), None);
     let unaccepted = welcome_root(&[row(w::Kind::Github, self::connected())], false, Some(false), None);
-    let mut making = row(w::Kind::Forgejo, w::Connection::Connecting).into_parts();
-    making.first = Some(
-        w::FirstRepository::new(
-            &w::CEILINGS,
-            w::FirstRepositoryParts {
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
-                state: w::FirstState::Making,
-                label: Box::new([]),
-                playground: false,
-            },
-        )
-        .unwrap(),
-    );
+    let mut making = row(w::Kind::Forgejo, w::Connection::Connecting);
+    making.first = Some(w::FirstRepository {
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state: w::FirstState::Making,
+        label: Box::new([]),
+        playground: false,
+        sample: false,
+    });
     // A connected Forgejo counts as connected in the domain, including while its first repository is made.
     making.connection = self::connected();
     making.number = 1;
-    let making = welcome_root(&[w::ForgeRow::new(&w::CEILINGS, making).unwrap()], false, Some(false), None);
+    let making = welcome_root(&[making], false, Some(false), None);
     let failed = welcome_root(
         &[row(
             w::Kind::Forgejo,
-            w::Connection::SetUpFailed(
-                w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"stopped".as_slice().into(), at: None })
-                    .unwrap(),
-            ),
+            w::Connection::SetUpFailed(w::SetUpFailed { why: b"stopped".as_slice().into(), at: None }),
         )],
         false,
         Some(false),
         None,
     );
-    let mut fake = row(w::Kind::Forgejo, self::connected()).into_parts();
+    let mut fake = row(w::Kind::Forgejo, self::connected());
     fake.mode = w::Mode::Fake;
     fake.number = 7;
-    let fake = welcome_root(&[w::ForgeRow::new(&w::CEILINGS, fake).unwrap()], true, Some(false), Some(7));
-    let mut skipped = row(w::Kind::Forgejo, w::Connection::Connecting).into_parts();
+    let fake = welcome_root(&[fake], true, Some(false), Some(7));
+    let mut skipped = row(w::Kind::Forgejo, w::Connection::Connecting);
     skipped.number = 1;
-    let skipped = welcome_root(
-        &[w::ForgeRow::new(&w::CEILINGS, skipped).unwrap(), row(w::Kind::Github, w::Connection::Connecting)],
-        false,
-        Some(false),
-        Some(1),
-    );
+    let skipped =
+        welcome_root(&[skipped, row(w::Kind::Github, w::Connection::Connecting)], false, Some(false), Some(1));
     let quiet_first = welcome_root(
         &[row(w::Kind::Forgejo, w::Connection::NotSetUp), {
-            let mut second = row(w::Kind::Github, w::Connection::Connecting).into_parts();
+            let mut second = row(w::Kind::Github, w::Connection::Connecting);
             second.number = 3;
-            w::ForgeRow::new(&w::CEILINGS, second).unwrap()
+            second
         }],
         false,
         Some(false),
@@ -160,27 +152,16 @@ fn the_welcome_says_each_state() {
     );
     let first_failed = welcome_root(
         &[{
-            let mut failed = row(w::Kind::Forgejo, w::Connection::NotSetUp).into_parts();
-            failed.first = Some(
-                w::FirstRepository::new(
-                    &w::CEILINGS,
-                    w::FirstRepositoryParts {
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
-                        state: w::FirstState::Failed(
-                            w::CreateFailed::new(
-                                &w::CEILINGS,
-                                w::CreateFailedParts { step: w::CreateStep::Repository },
-                            )
-                            .unwrap(),
-                        ),
-                        label: Box::new([]),
-                        playground: false,
-                    },
-                )
-                .unwrap(),
-            );
-            w::ForgeRow::new(&w::CEILINGS, failed).unwrap()
+            let mut failed = row(w::Kind::Forgejo, w::Connection::NotSetUp);
+            failed.first = Some(w::FirstRepository {
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                state: w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository }),
+                label: Box::new([]),
+                playground: false,
+                sample: false,
+            });
+            failed
         }],
         false,
         Some(false),
@@ -189,10 +170,10 @@ fn the_welcome_says_each_state() {
     let fake_first = welcome_root(
         &[
             {
-                let mut fake = row(w::Kind::Forgejo, setting(Some(w::SetUpStep::Fetch))).into_parts();
+                let mut fake = row(w::Kind::Forgejo, setting(Some(w::SetUpStep::Fetch)));
                 fake.number = 1;
                 fake.mode = w::Mode::Fake;
-                w::ForgeRow::new(&w::CEILINGS, fake).unwrap()
+                fake
             },
             row(w::Kind::Github, w::Connection::Connecting),
         ],
@@ -300,39 +281,38 @@ fn the_welcome_says_each_state() {
     for (name, root, tui, expected) in rows {
         if name == "first repository making" {
             // Check the drawing at the Forge boundary too: the domain's connected row decides Model.
-            let mut part = crate::view::welcome::read(root, &tui, &f::words(), f::NOW);
+            let mut part = crate::view::welcome::read(root, &tui, &vocabulary, f::NOW);
             let forge = part.steps.get_mut(1).unwrap();
             assert_eq!(forge.detail.as_deref(), Some("making its first repository…".as_bytes()));
             for (step, style) in part.steps.iter_mut().zip(FORGE) {
                 step.style = style;
             }
-            let mut drawn = f::view();
+            let foot = crate::view::foot::read(root, &tui, &vocabulary, f::NOW);
+            let mut drawn = f::view_of(vocabulary);
             crate::view::signed(
                 &mut drawn,
-                &crate::view::Signed {
-                    body: crate::view::Body::Welcome(part),
-                    foot: crate::view::foot::read(root, &tui, &f::words(), f::NOW),
-                },
+                &crate::view::Signed { body: crate::view::Body::Welcome(part), foot },
                 &mut Queue::uncapped(),
             );
             f::find(drawn.tree(), Role::Text, "making its first repository…".as_bytes());
             super::limits::fits(drawn.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+            vocabulary = drawn.into_words();
         }
         if name == "the latest printed link" || name == "the printed link whole" {
             assert!(tui.printed().unwrap().expose() == PRINTED, "{name}: the fixture's printed link");
         }
-        let view = build(root, &tui);
+        let view = build_with_words(root, &tui, vocabulary);
         let tree = view.tree();
         let lines = body(tree);
         let mut want = List::with_capacity(16);
         match expected {
             Expect::Before | Expect::After { .. } => {
                 if root.client().link().state == jig_client::Link::OutOfDate {
-                    want.push(f::words().view().say(temper_client_view_words::words::Word::OutOfDateMain, &[]))
+                    want.push(view.words().view().say(temper_client_view_words::words::Word::OutOfDateMain, &[]))
                         .unwrap();
                 }
                 if tui.unkept() {
-                    want.push(f::words().say(crate::words::Word::NotKept, &[])).unwrap();
+                    want.push(view.words().say(crate::words::Word::NotKept, &[])).unwrap();
                 }
             }
             Expect::Elsewhere { .. } => {}
@@ -396,6 +376,7 @@ fn the_welcome_says_each_state() {
                 } else {
                     assert!(found, "{name}: other screen");
                 }
+                vocabulary = view.into_words();
                 continue;
             }
         }
@@ -422,13 +403,15 @@ fn the_welcome_says_each_state() {
             assert_eq!(f::text(tree, left).as_ref(), "● Connecting".as_bytes());
             assert_eq!(f::find(tree, Role::Text, "● Connecting".as_bytes()).styles.as_slice(), &[look::WAITING]);
         }
+        vocabulary = view.into_words();
     }
     for (root, state, style) in [(&empty, "● Live", look::LIVE), (&stale, "● Out of date", look::DOWN)] {
-        let view = build(root, &front(None));
+        let view = build_with_words(root, &front(None), vocabulary);
         let (left, right) = f::bottom_halves(view.tree());
         assert_eq!(f::text(view.tree(), left).as_ref(), state.as_bytes());
         assert!(f::text(view.tree(), right).is_empty());
         assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
+        vocabulary = view.into_words();
     }
 }
 
@@ -564,18 +547,37 @@ fn starting_root(live: bool) -> Domain {
     assert!(root.pages().me(root.client()).is_none());
     root
 }
+enum StartingRoot {
+    SignedOut,
+    Refused(jig_client_protocol_wire::SignInAnswer),
+    Signing,
+    Offline,
+    SignedIn,
+}
+impl StartingRoot {
+    fn domain(self) -> Domain {
+        match self {
+            Self::SignedOut => f::signed_out(),
+            Self::Refused(answer) => f::refused(answer),
+            Self::Signing => starting_root(false),
+            Self::Offline => {
+                let (mut root, watch) = f::live(None);
+                f::client(&mut root, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
+                root
+            }
+            Self::SignedIn => starting_root(true),
+        }
+    }
+}
 #[test]
-#[expect(clippy::large_stack_arrays, reason = "the fact rows own a client root each")]
 #[expect(clippy::too_many_lines, reason = "one fact table checks the starting steps, tokens, failure and quiet line")]
 fn the_starting_steps_follow_the_facts() {
     use crate::BoxStage;
     use jig_client_protocol_wire::SignInAnswer;
-    let (mut offline, watch) = f::live(None);
-    f::client(&mut offline, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
     let rows = [
         (
             BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
-            f::signed_out(),
+            StartingRoot::SignedOut,
             [
                 "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
                 "temper starting",
@@ -586,7 +588,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::signed_out(),
+            StartingRoot::SignedOut,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -597,7 +599,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::NotReady),
+            StartingRoot::Refused(SignInAnswer::NotReady),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -608,7 +610,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::Busy),
+            StartingRoot::Refused(SignInAnswer::Busy),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -619,7 +621,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::LinkUsed),
+            StartingRoot::Refused(SignInAnswer::LinkUsed),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -630,7 +632,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            starting_root(false),
+            StartingRoot::Signing,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -641,7 +643,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            offline,
+            StartingRoot::Offline,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -652,7 +654,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            starting_root(true),
+            StartingRoot::SignedIn,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -663,6 +665,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
     ];
     for (stage, root, labels, marks) in rows {
+        let root = root.domain();
         let mut tui = starting_tui();
         tui.step(Told::Stage { stage });
         tui.step(Told::BoxLine { line: BoxLine::Starting { name: b"Forgejo".as_slice().into() } });
@@ -847,38 +850,32 @@ fn the_starting_screens_are_their_goldens() {
 }
 
 fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() }).unwrap(),
-    )
+    w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() })
 }
 fn setting(step: Option<w::SetUpStep>) -> w::Connection {
-    w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step, fetched: None }).unwrap())
+    w::Connection::SettingUp(w::SettingUp { step, fetched: None })
 }
 fn row(kind: w::Kind, connection: w::Connection) -> w::ForgeRow {
-    w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
-            number: 2,
-            host: b"git.example".as_slice().into(),
-            kind,
-            mode: w::Mode::Owned,
-            connection,
-            offer: w::Offer::NotOffered,
-            first: None,
-            starts_with: w::StartsWith::Repository,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: None,
-            admin: false,
-            ended_stop: None,
-            read_only: false,
-            makings: List::with_capacity(0),
-        },
-    )
-    .unwrap()
+    w::ForgeRow {
+        number: 2,
+        host: b"git.example".as_slice().into(),
+        kind,
+        mode: w::Mode::Owned,
+        connection,
+        offer: w::Offer::NotOffered,
+        first: None,
+        starts_with: w::StartsWith::Repository,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        ended_stop: None,
+        read_only: false,
+        makings: List::with_capacity(0),
+    }
 }
 fn append(out: &mut Queue<Request>, mut more: Queue<Request>) {
     while let Some(request) = more.pop() {
@@ -967,14 +964,18 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
         },
     );
     append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    let me_opened = {
+        let mut me = f::me(&[]);
+        me.deployment_role = Some(c::HeldRole::Owner);
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+    };
+    let mut me_output = f::client(&mut root, jig_client::Event::Up { up: me_opened });
+    while let Some(request) = me_output.pop() {
+        out.push(request);
+    }
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                let mut me = f::me(&[]);
-                me.deployment_role = Some(c::HeldRole::Owner);
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
-            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Accounts) } => {
                 let Some(accounts) = &model else { continue };
                 Up::Watched {
@@ -990,45 +991,34 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(
-                            &w::Forges::new(
-                                &w::CEILINGS,
-                                w::ForgesParts { forges: List::from_boxed(rows.into()), linked },
-                            )
-                            .unwrap(),
-                        ),
+                        bytes: wire::forges(&w::Forges { forges: List::from_boxed(rows.into()), linked }),
                     },
                 }
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                 let Some(_) = model else { continue };
-                let record = match wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
-                    w::Read::Deployment => Some(wire::deployment_answer(
-                        &w::DeploymentAnswer::new(
-                            &w::CEILINGS,
-                            w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: None },
-                        )
-                        .unwrap(),
-                    )),
+                let record = match &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
+                    w::Read::Deployment => Some(wire::deployment_answer(&w::DeploymentAnswer {
+                        push: None,
+                        welcome: true,
+                        owned: true,
+                        program_login: None,
+                    })),
                     w::Read::Playground => match playground {
-                        Some(forge) => Some(wire::playground_answer(
-                            &w::PlaygroundAnswer::new(
-                                &w::CEILINGS,
-                                w::PlaygroundAnswerParts {
-                                    state: w::PlaygroundState::Running,
-                                    project: None,
-                                    forge,
-                                    provider: 17,
-                                    owner: b"demo".as_slice().into(),
-                                    name: b"demo".as_slice().into(),
-                                    cues: List::with_capacity(0),
-                                },
-                            )
-                            .unwrap(),
-                        )),
+                        Some(forge) => Some(wire::playground_answer(&w::PlaygroundAnswer {
+                            state: w::PlaygroundState::Running,
+                            project: None,
+                            forge,
+                            provider: 17,
+                            owner: b"demo".as_slice().into(),
+                            name: b"demo".as_slice().into(),
+                            cues: List::with_capacity(0),
+                        })),
                         None => None,
                     },
-                    w::Read::Setting(_)
+                    w::Read::Limits(_)
+                    | w::Read::LimitHolds(_)
+                    | w::Read::Setting(_)
                     | w::Read::Finding(_)
                     | w::Read::History(_)
                     | w::Read::Milestone(_)

@@ -1,5 +1,13 @@
 use jig_client_protocol_world::{fixtures, native};
 #[test]
+fn one_native_iteration_batches_three_reads_and_a_watch_and_routes_every_answer() {
+    native::batch::run(fixtures::SEED, false);
+}
+#[test]
+fn a_native_client_replaces_its_kept_stream_without_a_stream_gone_call() {
+    native::batch::run(fixtures::SEED, true);
+}
+#[test]
 fn a_native_client_signs_in_by_the_service_s_link_and_starts_a_chat() {
     let outcome = native::run(fixtures::SEED, native::Script::start_chat(b"Hello"));
     assert_eq!(outcome.signed_in, 1);

@@ -22,6 +22,7 @@ pub enum JigPhrase {
     SettingTemplate,
     SettingPolicy,
     SettingRules,
+    SettingLimits,
     SettingApplication,
     SettingFaultJudged,
     SettingFaultShape,
@@ -31,6 +32,18 @@ pub enum JigPhrase {
     SettingFaultBudget,
     SettingFaultGrace,
     SettingFaultOwner,
+    SettingFaultLinked,
+    SettingFaultAccounts,
+    SettingRangeStock,
+    SettingRangePast,
+    SettingRangeCharterStock,
+    SettingRangeCharterPast,
+    SettingRangeTemplateStock,
+    SettingRangeTemplatePast,
+    SettingRangePolicyStock,
+    SettingRangePolicyPast,
+    SettingRangeModelStock,
+    SettingRangeModelPast,
 
     ActRename,
     ActRemoveProject,
@@ -43,6 +56,7 @@ pub enum JigPhrase {
     EngineLimitProjects,
 
     BoundsWorker,
+    WaitUntooled,
     BoundsEngine,
     RefusedWorkerAt,
     RefusedEngineAt,
@@ -1095,6 +1109,7 @@ impl JigPhrase {
             Self::SettingTemplate => 7907,
             Self::SettingPolicy => 7908,
             Self::SettingRules => 7909,
+            Self::SettingLimits => 7995,
             Self::SettingApplication => 7925,
             Self::SettingFaultJudged => 7926,
             Self::SettingFaultShape => 7910,
@@ -1104,6 +1119,19 @@ impl JigPhrase {
             Self::SettingFaultBudget => 7914,
             Self::SettingFaultGrace => 7915,
             Self::SettingFaultOwner => 7916,
+            Self::SettingFaultLinked => 7930,
+            Self::SettingFaultAccounts => 7932,
+            Self::SettingRangeStock => 7933,
+            Self::SettingRangePast => 7934,
+            Self::SettingRangeCharterStock => 7935,
+            Self::SettingRangeCharterPast => 7936,
+            Self::SettingRangeTemplateStock => 7937,
+            Self::SettingRangeTemplatePast => 7938,
+            Self::SettingRangePolicyStock => 7939,
+            Self::SettingRangePolicyPast => 7940,
+            Self::SettingRangeModelStock => 7941,
+            Self::SettingRangeModelPast => 7942,
+
             Self::ActRename => 7837,
             Self::ActRemoveProject => 7839,
             Self::NameTaken => 7830,
@@ -1114,6 +1142,7 @@ impl JigPhrase {
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
             Self::BoundsWorker => 7840,
+            Self::WaitUntooled => 7931,
             Self::BoundsEngine => 7841,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
@@ -1751,7 +1780,17 @@ impl JigPhrase {
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
             ]),
-            Self::PolicyJudge
+            Self::SettingRangeStock
+            | Self::SettingRangePast
+            | Self::SettingRangeCharterStock
+            | Self::SettingRangeCharterPast
+            | Self::SettingRangeTemplateStock
+            | Self::SettingRangeTemplatePast
+            | Self::SettingRangePolicyStock
+            | Self::SettingRangePolicyPast
+            | Self::SettingRangeModelStock
+            | Self::SettingRangeModelPast
+            | Self::PolicyJudge
             | Self::PolicyPermission
             | Self::SpecificationResource
             | Self::MovedToNewest
@@ -1765,6 +1804,7 @@ impl JigPhrase {
             | Self::MalformedRunning
             | Self::SettingsUnchanged
             | Self::SettingRules
+            | Self::SettingLimits
             | Self::SettingFaultShape
             | Self::SettingFaultCount
             | Self::SettingFaultReference
@@ -1772,6 +1812,8 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
+            | Self::SettingFaultAccounts
+            | Self::SettingFaultLinked
             | Self::SettingFaultJudged
             | Self::DependencyParked
             | Self::CircleHold
@@ -2326,7 +2368,8 @@ impl JigPhrase {
             | Self::DependencyPending
             | Self::DependencyDone
             | Self::CircleWaitsFor
-            | Self::ResultsThrough => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
+            | Self::ResultsThrough
+            | Self::WaitUntooled => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
             Self::SettingsRestored
             | Self::PolicyEffect
             | Self::RunRetryFailed
@@ -2433,7 +2476,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 653] = [
+pub const ALL: [JigPhrase; 667] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2450,6 +2493,7 @@ pub const ALL: [JigPhrase; 653] = [
     JigPhrase::SettingTemplate,
     JigPhrase::SettingPolicy,
     JigPhrase::SettingRules,
+    JigPhrase::SettingLimits,
     JigPhrase::SettingApplication,
     JigPhrase::SettingFaultJudged,
     JigPhrase::SettingFaultShape,
@@ -2459,6 +2503,18 @@ pub const ALL: [JigPhrase; 653] = [
     JigPhrase::SettingFaultBudget,
     JigPhrase::SettingFaultGrace,
     JigPhrase::SettingFaultOwner,
+    JigPhrase::SettingFaultLinked,
+    JigPhrase::SettingFaultAccounts,
+    JigPhrase::SettingRangeStock,
+    JigPhrase::SettingRangePast,
+    JigPhrase::SettingRangeCharterStock,
+    JigPhrase::SettingRangeCharterPast,
+    JigPhrase::SettingRangeTemplateStock,
+    JigPhrase::SettingRangeTemplatePast,
+    JigPhrase::SettingRangePolicyStock,
+    JigPhrase::SettingRangePolicyPast,
+    JigPhrase::SettingRangeModelStock,
+    JigPhrase::SettingRangeModelPast,
     JigPhrase::ActRename,
     JigPhrase::ActRemoveProject,
     JigPhrase::NameTaken,
@@ -2469,6 +2525,7 @@ pub const ALL: [JigPhrase; 653] = [
     JigPhrase::NameDigits,
     JigPhrase::EngineLimitProjects,
     JigPhrase::BoundsWorker,
+    JigPhrase::WaitUntooled,
     JigPhrase::BoundsEngine,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,

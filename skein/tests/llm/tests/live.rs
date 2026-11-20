@@ -31,7 +31,8 @@ struct Login {
     variable: &'static str,
     file: &'static str,
 }
-/// Codex's `auth.json`, or a `CODEX_HOME` holding it.
+/// Codex's `auth.json`, holding an API key or a sign-in's access token,
+/// or a `CODEX_HOME` holding that file (skein/docs/design/llm/README.md, 5).
 const CODEX: Login = Login { variable: "SKEIN_TEST_LIVE_OPENAI_AUTH", file: "auth.json" };
 /// A plaintext Anthropic key file, readable by its owner alone.
 const ANTHROPIC_KEY: &str = "SKEIN_TEST_LIVE_ANTHROPIC_KEY";
@@ -44,13 +45,13 @@ const LOGIN_JSON: tokenizer::Limits =
     tokenizer::Limits { depth: 8, string: LOGIN_BYTES, number: LOGIN_BYTES, chunk: 4096, length: LOGIN_BYTES };
 /// Each record reads at least a byte of the file, and no text decodes longer than it is.
 const LOGIN_RETAINED: document::Limits = document::Limits { tokens: LOGIN_BYTES, text: LOGIN_BYTES };
-/// The strings at `fields` in the login its variable names. A missing
-/// variable, file or field fails the live run, naming the variable, the file
-/// and the field, never a value read from it.
-fn lent<const N: usize>(login: &Login, fields: [&[&str]; N]) -> [Box<[u8]>; N] {
+/// The public route's bearer from the login its variable names: an API key
+/// where a string, refused empty, else a sign-in's access token. A refusal
+/// names the variable, file or field, never a value read from it.
+fn lent(login: &Login) -> Box<[u8]> {
     let variable = login.variable;
     let named = lent_path(variable);
-    login_fields(&named, login.file, fields).unwrap_or_else(|refusal| panic!("{variable}: {refusal}"))
+    openai_bearer(&named, login.file).unwrap_or_else(|refusal| panic!("{variable}: {refusal}"))
 }
 fn lent_path(variable: &str) -> PathBuf {
     PathBuf::from(setting(variable).unwrap_or_else(|| panic!("live profile requires {variable}")))
@@ -60,44 +61,53 @@ fn lent_key() -> Box<[u8]> {
 }
 /// Read the owner's plaintext key once; refusals never include its bytes.
 fn key_file(path: &Path) -> Result<Box<[u8]>, String> {
-    use std::os::unix::fs::PermissionsExt as _;
-    let file = std::fs::File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
-    let metadata = file.metadata().map_err(|error| format!("{}: {error}", path.display()))?;
-    if !metadata.is_file() || metadata.permissions().mode() & 0o777 != 0o600 {
-        return Err(format!("{}: key file must have mode 0600", path.display()));
-    }
-    let mut text = Vec::new();
-    file.take(u64::from(LOGIN_BYTES) + 1)
-        .read_to_end(&mut text)
-        .map_err(|error| format!("{}: {error}", path.display()))?;
-    if text.len() > usize::try_from(LOGIN_BYTES).expect("u32 fits usize") {
-        return Err(format!("{}: key file is too large", path.display()));
-    }
+    let text = private_file(path, "key")?;
     let value = text.trim_ascii();
     if value.is_empty() {
         return Err(format!("{}: key file is empty", path.display()));
     }
     Ok(value.into())
 }
+/// Open once, check that handle's private regular file, and read at most
+/// one byte past the login bound. Refusals include no file contents.
+fn private_file(path: &Path, noun: &str) -> Result<Vec<u8>, String> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let file = std::fs::File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let metadata = file.metadata().map_err(|error| format!("{}: {error}", path.display()))?;
+    if !metadata.is_file() || metadata.permissions().mode() & 0o777 != 0o600 {
+        return Err(format!("{}: {noun} file must have mode 0600", path.display()));
+    }
+    let mut text = Vec::new();
+    file.take(u64::from(LOGIN_BYTES) + 1)
+        .read_to_end(&mut text)
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    if text.len() > usize::try_from(LOGIN_BYTES).expect("u32 fits usize") {
+        return Err(format!("{}: {noun} file is too large", path.display()));
+    }
+    Ok(text)
+}
 /// The file a login's variable names: `named` itself, or `file` in the
 /// directory `named`.
 fn login_file(named: &Path, file: &str) -> PathBuf {
     if named.is_dir() { named.join(file) } else { named.to_path_buf() }
 }
-/// The non-empty strings at `fields` in a login's JSON, each field a path of
-/// members from the root object. A refusal names the file and the first
-/// field it lacks, never a value read from it.
-fn login_fields<const N: usize>(named: &Path, file: &str, fields: [&[&str]; N]) -> Result<[Box<[u8]>; N], String> {
+/// The public route's bearer from a lent Codex login: an API key's
+/// `OPENAI_API_KEY`, else a sign-in's access token
+/// (skein/docs/design/llm/README.md, 5). Read once, within 64 KiB, only at
+/// mode 0600; no refusal holds a value read.
+fn openai_bearer(named: &Path, file: &str) -> Result<Box<[u8]>, String> {
     let path = login_file(named, file);
-    let text = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let text = private_file(&path, "login")?;
     let document = skein_json::parse(&text, &LOGIN_JSON, &LOGIN_RETAINED)
         .map_err(|error| format!("{}: not a login's JSON: {error:?}", path.display()))?;
-    let mut values: [Box<[u8]>; N] = std::array::from_fn(|_| Box::default());
-    for (value, field) in values.iter_mut().zip(fields) {
-        *value = login_string(&document, field)
-            .ok_or_else(|| format!("{}: no non-empty string at .{}", path.display(), field.join(".")))?;
-    }
-    Ok(values)
+    let key = document.member(0, b"OPENAI_API_KEY").and_then(|at| document.token(at));
+    let field: &[&str] = if key.is_some_and(|record| record.kind == Kind::String) {
+        &["OPENAI_API_KEY"]
+    } else {
+        &["tokens", "access_token"]
+    };
+    login_string(&document, field)
+        .ok_or_else(|| format!("{}: no non-empty string at .{}", path.display(), field.join(".")))
 }
 /// The decoded bytes of the string at `field` below the root object, or
 /// nothing when a member is absent, is not a string, or is empty.
@@ -140,7 +150,7 @@ fn input(provider: Provider, owner: u64) -> Call {
     let (endpoint, credential, model, instructions, effort, max_tokens) = match provider {
         Provider::OpenAi => {
             let endpoint = Endpoint::openai();
-            let [value] = lent(&CODEX, [&["tokens", "access_token"]]);
+            let value = lent(&CODEX);
             (
                 endpoint,
                 Credential::bearer(value),
@@ -502,7 +512,7 @@ fn unauthorized(provider: Provider) {
     assert!(!events.iter().any(|event| matches!(event, client::Event::Completed { .. })));
 }
 #[test]
-#[ignore = "live: needs a login that holds api.responses.write; run by the owner, how is decided later (skein/docs/design/llm/README.status.md, 5)"]
+#[ignore = "live: needs an OpenAI API key's login, which the daily live run lends (skein/docs/design/llm/README.status.md, 5)"]
 fn openai_streamed_text_and_history() {
     text_and_history(Provider::OpenAi);
 }
@@ -512,7 +522,7 @@ fn anthropic_streamed_text_and_history() {
     text_and_history(Provider::Anthropic);
 }
 #[test]
-#[ignore = "live: needs a login that holds api.responses.write; run by the owner, how is decided later (skein/docs/design/llm/README.status.md, 5)"]
+#[ignore = "live: needs an OpenAI API key's login, which the daily live run lends (skein/docs/design/llm/README.status.md, 5)"]
 fn openai_tool_round_trip() {
     tool_round_trip(Provider::OpenAi);
 }
@@ -533,33 +543,111 @@ fn anthropic_unauthorized() {
 
 /// Synthetic: a Codex `auth.json`'s fields, its values fixtures.
 const CODEX_AUTH: &[u8] = br#"{"OPENAI_API_KEY":null,"tokens":{"id_token":"fixture-id","access_token":"fixture-responses-access","refresh_token":"fixture-responses-refresh"},"last_refresh":"2026-11-01T00:00:00Z"}"#;
-/// Offline: a login's field read from the file its variable names, or from
-/// the directory holding that file.
+/// Synthetic: the login `codex login --with-api-key` writes, its key a fixture.
+const CODEX_API_KEY: &[u8] = br#"{"OPENAI_API_KEY":"fixture-api-key","auth_mode":"apikey"}"#;
+/// Offline: the API key takes precedence over tokens, while a non-string
+/// key falls back to the access token, from a file or its directory.
 #[test]
 fn a_login_is_read_from_its_file_or_the_directory_holding_it() {
-    let scratch = skein_scratch::Scratch::new("live-logins");
-    std::fs::write(scratch.path().join(CODEX.file), CODEX_AUTH).expect("write the Codex login");
-    let rows: [(&str, &str, &[&str], &[u8]); 2] = [
-        (CODEX.file, CODEX.file, &["tokens", "access_token"], b"fixture-responses-access"),
-        (".", CODEX.file, &["tokens", "access_token"], b"fixture-responses-access"),
+    use std::os::unix::fs::PermissionsExt as _;
+    let mut at_bound = CODEX_API_KEY.to_vec();
+    at_bound.resize(usize::try_from(LOGIN_BYTES).expect("u32 fits usize"), b' ');
+    let rows = [
+        (CODEX_API_KEY, 0o600, CODEX.file, b"fixture-api-key".as_slice()),
+        (CODEX_API_KEY, 0o600, ".", b"fixture-api-key".as_slice()),
+        (
+            br#"{"OPENAI_API_KEY":"fixture-api-key","tokens":{"access_token":"fixture-token"}}"#.as_slice(),
+            0o600,
+            CODEX.file,
+            b"fixture-api-key".as_slice(),
+        ),
+        (
+            br#"{"OPENAI_API_KEY":"fixture-api-key","tokens":null}"#.as_slice(),
+            0o600,
+            ".",
+            b"fixture-api-key".as_slice(),
+        ),
+        (CODEX_AUTH, 0o600, CODEX.file, b"fixture-responses-access".as_slice()),
+        (CODEX_AUTH, 0o600, ".", b"fixture-responses-access".as_slice()),
+        (br#"{"tokens":{"access_token":"fixture-token"}}"#.as_slice(), 0o600, CODEX.file, b"fixture-token".as_slice()),
+        (
+            br#"{"OPENAI_API_KEY":42,"tokens":{"access_token":"fixture-token"}}"#.as_slice(),
+            0o600,
+            ".",
+            b"fixture-token".as_slice(),
+        ),
+        (at_bound.as_slice(), 0o600, CODEX.file, b"fixture-api-key".as_slice()),
     ];
-    for (named, file, field, expected) in rows {
-        let [value] = login_fields(&scratch.path().join(named), file, [field]).expect("a lent login");
-        assert_eq!(&*value, expected, "{file} named as {named}");
+    for (contents, mode, named, expected) in rows {
+        let scratch = skein_scratch::Scratch::new("live-logins");
+        let path = scratch.path().join(CODEX.file);
+        std::fs::write(&path, contents).expect("write the synthetic login");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).expect("set synthetic login mode");
+        let value = openai_bearer(&scratch.path().join(named), CODEX.file).expect("a lent login");
+        assert_eq!(&*value, expected, "login named as {named}");
     }
 }
 /// Offline: the refusal names the file and the field, and no value the file holds.
 #[test]
 fn a_login_lacking_a_field_is_refused_naming_only_the_field() {
+    use std::os::unix::fs::PermissionsExt as _;
     let rows: [&[u8]; 3] =
         [br#"{"tokens":{}}"#, br#"{"tokens":{"access_token":null}}"#, br#"{"tokens":{"access_token":""}}"#];
     for contents in rows {
         let scratch = skein_scratch::Scratch::new("live-login");
         let path = scratch.path().join(CODEX.file);
         std::fs::write(&path, contents).expect("write the Codex login");
-        let refusal = login_fields(scratch.path(), CODEX.file, [&["tokens", "access_token"]])
-            .expect_err("a login without its access token");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("set synthetic login mode");
+        let refusal = openai_bearer(scratch.path(), CODEX.file).expect_err("a login without its access token");
         assert_eq!(refusal, format!("{}: no non-empty string at .tokens.access_token", path.display()));
+    }
+}
+
+/// Offline: login refusals precede parsing for non-private, non-regular or
+/// oversized files, and name no fixture value even for malformed JSON.
+#[test]
+fn a_login_requires_private_bounded_json_without_disclosing_values() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let mut over_bound = CODEX_API_KEY.to_vec();
+    over_bound.resize(usize::try_from(LOGIN_BYTES).expect("u32 fits usize"), b' ');
+    over_bound.extend_from_slice(b"fixture-secret-value");
+    let rows = [
+        (Some(CODEX_API_KEY), 0o644, CODEX.file, "login file must have mode 0600"),
+        (
+            Some(br#"{"OPENAI_API_KEY":"fixture-secret-value","#.as_slice()),
+            0o644,
+            ".",
+            "login file must have mode 0600",
+        ),
+        (None, 0o600, ".", "login file must have mode 0600"),
+        (Some(over_bound.as_slice()), 0o600, CODEX.file, "login file is too large"),
+        (
+            Some(br#"{"OPENAI_API_KEY":"fixture-secret-value","#.as_slice()),
+            0o600,
+            ".",
+            "not a login's JSON: Tokenizer(Truncated)",
+        ),
+        (
+            Some(br#"{"OPENAI_API_KEY":"","tokens":{"access_token":"fixture-token"}}"#.as_slice()),
+            0o600,
+            CODEX.file,
+            "no non-empty string at .OPENAI_API_KEY",
+        ),
+    ];
+    for (contents, mode, named, expected) in rows {
+        let scratch = skein_scratch::Scratch::new("live-login-refusal");
+        let path = scratch.path().join(CODEX.file);
+        match contents {
+            Some(contents) => std::fs::write(&path, contents).expect("write the synthetic login"),
+            None => std::fs::create_dir(&path).expect("create a directory instead of a login"),
+        }
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).expect("set synthetic login mode");
+        let named = if named == "." { scratch.path().to_path_buf() } else { scratch.path().join(named) };
+        let refusal = openai_bearer(&named, CODEX.file).expect_err("refuse the login");
+        assert_eq!(refusal, format!("{}: {expected}", path.display()));
+        for secret in ["fixture-api-key", "fixture-token", "fixture-secret-value"] {
+            assert!(!refusal.contains(secret), "a refusal discloses a fixture value");
+        }
     }
 }
 

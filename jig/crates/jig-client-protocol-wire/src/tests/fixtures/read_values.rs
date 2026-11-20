@@ -1,4 +1,4 @@
-//! Every contract read variant with its existing document's smallest value.
+//! Every contract read variant, including a task's non-zero remaining delegation.
 use crate::*;
 use skein_lib::{List, Reader};
 
@@ -16,12 +16,12 @@ macro_rules! value {
 pub fn read_values(limits: &Limits) -> List<(&'static str, ReadValue)> {
     let mut values = List::with_capacity(26);
     value!(values, limits, Project, Project, 116);
-    value!(values, limits, Ended, Ended, 300, Box::new);
+    value!(values, limits, Ended, Ended, 308, Box::new);
     value!(values, limits, Me, Me, 83);
     value!(values, limits, Turn, ArchivedTurn, 42);
-    value!(values, limits, Task, Task, 273);
+    values.push(("Task", ReadValue::Task(super::task(limits)))).expect("26 read variants");
     value!(values, limits, Proposal, Proposal, 61);
-    value!(values, limits, Escalation, Escalation, 277);
+    value!(values, limits, Escalation, Escalation, 285);
     value!(values, limits, Question, Question, 31);
     value!(values, limits, PersonTask, PersonTask, 71);
     value!(values, limits, Result, ResultDocument, 15);
@@ -31,6 +31,6 @@ pub fn read_values(limits: &Limits) -> List<(&'static str, ReadValue)> {
     value!(values, limits, Inbox, InboxPage, 8);
     value!(values, limits, Spend, SpendPage, 7);
     value!(values, limits, Notes, NotePage, 7);
-    value!(values, limits, Deployment, Deployment, 149);
+    value!(values, limits, Deployment, Deployment, 153);
     values
 }

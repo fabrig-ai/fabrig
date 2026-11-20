@@ -8,6 +8,38 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 
+/// Resolve a read's project repository before either read is admitted.
+fn read_repository(
+    domain: &mut Domain,
+    right: skein_lib::Token,
+    key: crate::CallKey,
+    repository: Option<Box<[u8]>>,
+) -> Option<temper_engine_domain_forge::Repository> {
+    let project = match domain.core.tasks.delegation(key.task) {
+        Some(context) => Some(context.project),
+        None => None,
+    };
+    let resolved = match project {
+        Some(project) => forge_route::named_repository(domain, project, repository.as_deref()),
+        None => Err(tasks::Refusal::Unknown),
+    };
+    match resolved {
+        Ok(adopted) => Some(adopted),
+        Err(_) => {
+            let repositories = match project {
+                Some(project) => forge_route::read_repositories(domain, project),
+                None => Box::new([]),
+            };
+            super::host_route::read(
+                domain,
+                ReplyTo::new(right),
+                super::CallAnswer::ReadRepositoryRefused { named: repository, repositories },
+            );
+            None
+        }
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the root translates every temper host tool into core or connector vocabulary"
@@ -85,37 +117,47 @@ pub(crate) fn relay_payload(
                 }
                 return;
             }
-            let tool = if let Tool::ReadNamed { repository, mut read } = body.tool {
-                let project = match domain.core.tasks.delegation(key.task) {
-                    Some(context) => Some(context.project),
-                    None => None,
-                };
-                let resolved = match project {
-                    Some(project) => forge_route::named_repository(domain, project, repository.as_deref()),
-                    None => Err(tasks::Refusal::Unknown),
-                };
-                let Ok(adopted) = resolved else {
-                    let repositories = match project {
-                        Some(project) => forge_route::read_repositories(domain, project),
-                        None => Box::new([]),
+            let right = reply_to.into_token();
+            if let Tool::ReadBranchFile { repository, mut branch, path, mut max_bytes } = body.tool {
+                let Some(adopted) = read_repository(domain, right, key, repository) else { return };
+                if branch.is_empty() {
+                    branch = adopted.settings.default_branch;
+                }
+                if max_bytes == 0 {
+                    max_bytes = env.limits.forge.client.answer_bytes;
+                }
+                let read = skein_forge::api::Read::Branch { branch: branch.clone() };
+                domain.call_renders.get_mut(&right).expect("decoded branch-file flight").render =
+                    super::host_route::FlightRender::BranchFile {
+                        repository: adopted.provider,
+                        branch,
+                        path,
+                        max_bytes,
                     };
-                    super::host_route::read(
-                        domain,
-                        reply_to,
-                        super::CallAnswer::ReadRepositoryRefused { named: repository, repositories },
-                    );
-                    return;
-                };
+                Domain::read_forge_call(domain, &env.limits, ReplyTo::new(right), key, adopted.provider, read);
+                return;
+            }
+            let tool = if let Tool::ReadNamed { repository, mut read } = body.tool {
+                let Some(adopted) = read_repository(domain, right, key, repository) else { return };
+                if let skein_forge::api::Read::Branch { branch } | skein_forge::api::Read::Protection { branch } =
+                    &mut read
+                    && branch.is_empty()
+                {
+                    *branch = adopted.settings.default_branch;
+                }
                 if let skein_forge::api::Read::File { max_bytes, .. } | skein_forge::api::Read::Job { max_bytes, .. } =
                     &mut read
                     && *max_bytes == 0
                 {
                     *max_bytes = env.limits.forge.client.answer_bytes;
                 }
+                domain.call_renders.get_mut(&right).expect("decoded named read").render =
+                    super::host_route::FlightRender::ForgeRead(Box::new(read.clone()));
                 Tool::ReadForge { repository: adopted.provider, read }
             } else {
                 body.tool
             };
+            let reply_to = ReplyTo::new(right);
             match tool {
                 Tool::See { line, from } => super::see::call(domain, env, decision, reply_to, key, line, from),
                 Tool::Document { action, body } => {
@@ -138,7 +180,9 @@ pub(crate) fn relay_payload(
                     );
                 }
                 tool @ Tool::ProposeSettings { .. } => propose_settings(domain, reply_to, key, tool),
-                Tool::ReadNamed { .. } => unreachable!("named reads resolved before deciding"),
+                Tool::ReadNamed { .. } | Tool::ReadBranchFile { .. } => {
+                    unreachable!("named reads resolved before deciding")
+                }
                 tool @ (Tool::Change { .. } | Tool::Goal { .. }) => {
                     if let Tool::Goal { advisor, agree, .. } = &tool
                         && let Some(words) = super::goal::refusal(domain, key.task, *advisor, *agree)
@@ -207,15 +251,22 @@ pub(crate) fn relay_payload(
                     key,
                     part: core::CallPart::NoteRefused(why),
                 })),
-                Tool::Note { entry, recalled } => domain.work.push(Work::Core(core::Event::NamedAction {
+                Tool::Note { entry, recalled, records } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,
                     key,
-                    action: core::NamedAction::Note { entry, recalled },
+                    action: core::NamedAction::Note { entry, recalled, records },
                 })),
-                Tool::NoteLines { entry, recalled, range } => domain.work.push(Work::Core(core::Event::NamedAction {
+                Tool::NoteLines { entry, recalled, range, records } => {
+                    domain.work.push(Work::Core(core::Event::NamedAction {
+                        to: reply_to,
+                        key,
+                        action: core::NamedAction::NoteLines { entry, recalled, range, records },
+                    }));
+                }
+                Tool::MarkRead { messages } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,
                     key,
-                    action: core::NamedAction::NoteLines { entry, recalled, range },
+                    action: core::NamedAction::MarkRead { messages },
                 })),
                 Tool::Recall { by, page } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,

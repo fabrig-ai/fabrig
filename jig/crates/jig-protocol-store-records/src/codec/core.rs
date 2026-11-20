@@ -1,5 +1,5 @@
 //! Core rows carried by their generated family (protocol/store/records.md, 1).
-use crate::core_v6 as wire;
+use crate::core_v6::{self as wire, Record};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core_vocabulary as domain;
@@ -7,7 +7,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Reader, Wall, Writer};
+use skein_lib::{List, Reader, Wall};
 mod calls;
 pub(crate) mod projections;
 mod runs;
@@ -40,6 +40,10 @@ pub(super) fn limits(
         call_part_tool_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
         call_part_delegated_value: domain.tasks.batch,
         call_part_delegation_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
+        call_part_note_written_recorded: domain.tasks.inbox_messages,
+        call_part_note_written_unknown: domain.tasks.inbox_messages,
+        call_part_words_recorded_recorded: domain.tasks.inbox_messages,
+        call_part_words_recorded_unknown: domain.tasks.inbox_messages,
         call_part_note_recalled_entries: domain.notes.recalled,
         task_bytes_value: u32::try_from(crate::tasks_v13::TaskProblem::encoded_bound(tasks)?).ok()?,
         note_bytes_value: u32::try_from(crate::notes_v1::Row::encoded_bound(notes)?).ok()?,
@@ -51,15 +55,14 @@ pub fn encode(row: &domain::CoreRecord, limits: &View) -> Result<Box<[u8]>, wire
     let value = match row {
         domain::CoreRecord::Call(call) => wire::Value::Call(calls::encode_call_record(call, limits)?),
         domain::CoreRecord::Settings(_) => {
-            return Err(wire::Problem { path: wire::Path::ValueTag, reason: skein_codec::Reason::Bound });
+            return Err(wire::Problem { path: wire::paths::VALUE_TAG, reason: skein_codec::Reason::Bound });
         }
-        domain::CoreRecord::Deployment(value) => wire::Value::Deployment(runs::encode_deployment(value, limits)?),
-        domain::CoreRecord::Projection(value) => wire::Value::Projection(wire::ProjectionValue::new(
-            &limits.core,
-            wire::ProjectionValueParts { value: projections::encode_projection_record(value, limits)? },
-        )?),
+        domain::CoreRecord::Deployment(value) => wire::Value::Deployment(runs::encode_deployment(value, limits)),
+        domain::CoreRecord::Projection(value) => wire::Value::Projection(wire::ProjectionValue {
+            value: projections::encode_projection_record(value, limits)?,
+        }),
         domain::CoreRecord::RunProof(value) => wire::Value::RunProof(runs::encode_run_proof(value, limits)?),
-        domain::CoreRecord::Turn(value) => wire::Value::Turn(runs::encode_turn_record(value, limits)?),
+        domain::CoreRecord::Turn(value) => wire::Value::Turn(runs::encode_turn_record(value, limits)),
         domain::CoreRecord::Terminal(value) => wire::Value::Terminal(runs::encode_terminal_record(value, limits)?),
         domain::CoreRecord::ProposalDecision(value) => {
             wire::Value::ProposalDecision(runs::encode_proposal_decision_record(value, limits)?)
@@ -68,18 +71,16 @@ pub fn encode(row: &domain::CoreRecord, limits: &View) -> Result<Box<[u8]>, wire
             wire::Value::EscalationDecision(runs::encode_escalation_decision_record(value, limits)?)
         }
     };
-    let row = wire::Row::new(&limits.core, wire::RowParts { value })?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut writer).expect("measured room");
-    Ok(writer.finish())
+    let row = wire::Row { value };
+    row.encode(&limits.core)
 }
 pub fn decode(bytes: &[u8], limits: &View) -> Result<domain::CoreRecord, wire::Problem> {
-    let wire::RowParts { value } = wire::Row::decode(&limits.core, &mut Reader::new(bytes))?.into_parts();
+    let wire::Row { value } = wire::Row::decode(&limits.core, &mut Reader::new(bytes))?;
     Ok(match value {
         wire::Value::Call(value) => domain::CoreRecord::Call(calls::decode_call_record(value, limits)?),
         wire::Value::Deployment(value) => domain::CoreRecord::Deployment(runs::decode_deployment(value)),
         wire::Value::Projection(value) => {
-            domain::CoreRecord::Projection(projections::decode_projection_record(value.into_parts().value, limits)?)
+            domain::CoreRecord::Projection(projections::decode_projection_record(value.value, limits)?)
         }
         wire::Value::RunProof(value) => domain::CoreRecord::RunProof(runs::decode_run_proof(value, limits)?),
         wire::Value::Turn(value) => domain::CoreRecord::Turn(runs::decode_turn_record(value)),
@@ -93,36 +94,32 @@ pub fn decode(bytes: &[u8], limits: &View) -> Result<domain::CoreRecord, wire::P
     })
 }
 fn problem(reason: skein_codec::Reason) -> wire::Problem {
-    wire::Problem { path: wire::Path::RowValue, reason }
+    wire::Problem { path: wire::paths::ROW_VALUE, reason }
 }
 fn task_problem(value: crate::tasks_v13::Problem) -> wire::Problem {
-    wire::Problem { path: wire::Path::TaskBytesValue, reason: value.reason }
+    wire::Problem { path: wire::paths::TASK_BYTES_VALUE, reason: value.reason }
 }
 fn note_problem(value: crate::notes_v1::Problem) -> wire::Problem {
-    wire::Problem { path: wire::Path::NoteBytesValue, reason: value.reason }
+    wire::Problem { path: wire::paths::NOTE_BYTES_VALUE, reason: value.reason }
 }
 fn too_large(_: core::num::TryFromIntError) -> wire::Problem {
     problem(skein_codec::Reason::Bound)
 }
-pub fn encode_proposer(value: &people::Proposer, limits: &View) -> Result<wire::Proposer, wire::Problem> {
+pub fn encode_proposer(value: &people::Proposer, _limits: &View) -> Result<wire::Proposer, wire::Problem> {
     Ok(match value {
-        people::Proposer::Task(value) => {
-            wire::Proposer::Task(wire::ProposerTask::new(&limits.core, wire::ProposerTaskParts { value: *value })?)
-        }
-        people::Proposer::Party(value) => {
-            wire::Proposer::Party(wire::ProposerParty::new(&limits.core, wire::ProposerPartyParts { value: *value })?)
-        }
+        people::Proposer::Task(value) => wire::Proposer::Task(wire::ProposerTask { value: *value }),
+        people::Proposer::Party(value) => wire::Proposer::Party(wire::ProposerParty { value: *value }),
     })
 }
 #[must_use]
 pub fn decode_proposer(value: wire::Proposer) -> people::Proposer {
     match value {
         wire::Proposer::Task(value) => {
-            let wire::ProposerTaskParts { value } = value.into_parts();
+            let wire::ProposerTask { value } = value;
             people::Proposer::Task(value)
         }
         wire::Proposer::Party(value) => {
-            let wire::ProposerPartyParts { value } = value.into_parts();
+            let wire::ProposerParty { value } = value;
             people::Proposer::Party(value)
         }
     }
@@ -151,15 +148,12 @@ pub fn decode_proposal_choice(value: wire::ProposalChoice) -> people::ProposalCh
 
 pub fn encode_escalation_decision(
     value: &people::EscalationDecision,
-    limits: &View,
+    _limits: &View,
 ) -> Result<wire::EscalationDecision, wire::Problem> {
     Ok(match value {
         people::EscalationDecision::Release => wire::EscalationDecision::Release,
         people::EscalationDecision::Reject { reason } => {
-            wire::EscalationDecision::Reject(wire::EscalationDecisionReject::new(
-                &limits.core,
-                wire::EscalationDecisionRejectParts { reason: reason.clone() },
-            )?)
+            wire::EscalationDecision::Reject(wire::EscalationDecisionReject { reason: reason.clone() })
         }
         people::EscalationDecision::Pass => wire::EscalationDecision::Pass,
     })
@@ -169,7 +163,7 @@ pub fn decode_escalation_decision(value: wire::EscalationDecision) -> people::Es
     match value {
         wire::EscalationDecision::Release => people::EscalationDecision::Release,
         wire::EscalationDecision::Reject(value) => {
-            let wire::EscalationDecisionRejectParts { reason } = value.into_parts();
+            let wire::EscalationDecisionReject { reason } = value;
             people::EscalationDecision::Reject { reason }
         }
         wire::EscalationDecision::Pass => people::EscalationDecision::Pass,
@@ -201,16 +195,13 @@ pub fn decode_proposal_kind(value: wire::ProposalKind) -> tasks::ProposalKind {
 
 pub fn encode_escalation_outcome(
     value: &tasks::EscalationOutcome,
-    limits: &View,
+    _limits: &View,
 ) -> Result<wire::EscalationOutcome, wire::Problem> {
     Ok(match value {
         tasks::EscalationOutcome::Released => wire::EscalationOutcome::Released,
         tasks::EscalationOutcome::Rejected => wire::EscalationOutcome::Rejected,
         tasks::EscalationOutcome::Passed { revision } => {
-            wire::EscalationOutcome::Passed(wire::EscalationOutcomePassed::new(
-                &limits.core,
-                wire::EscalationOutcomePassedParts { revision: *revision },
-            )?)
+            wire::EscalationOutcome::Passed(wire::EscalationOutcomePassed { revision: *revision })
         }
         tasks::EscalationOutcome::Stale => wire::EscalationOutcome::Stale,
         tasks::EscalationOutcome::NoFurther => wire::EscalationOutcome::NoFurther,
@@ -223,7 +214,7 @@ pub fn decode_escalation_outcome(value: wire::EscalationOutcome) -> tasks::Escal
         wire::EscalationOutcome::Released => tasks::EscalationOutcome::Released,
         wire::EscalationOutcome::Rejected => tasks::EscalationOutcome::Rejected,
         wire::EscalationOutcome::Passed(value) => {
-            let wire::EscalationOutcomePassedParts { revision } = value.into_parts();
+            let wire::EscalationOutcomePassed { revision } = value;
             tasks::EscalationOutcome::Passed { revision }
         }
         wire::EscalationOutcome::Stale => tasks::EscalationOutcome::Stale,
@@ -272,32 +263,33 @@ pub fn decode_source(value: wire::Source) -> authority::Source {
     }
 }
 
-pub fn encode_lacks(value: &authority::Lacks, limits: &View) -> Result<wire::Lacks, wire::Problem> {
+pub fn encode_lacks(value: &authority::Lacks, _limits: &View) -> Result<wire::Lacks, wire::Problem> {
     let authority::Lacks { tools, grants, executors, tasks, depth, spend, deadline, notes, models } = value;
-    wire::Lacks::new(
-        &limits.core,
-        wire::LacksParts {
-            skein_bools: [*tools, *grants, *executors, *tasks, *depth, *spend, *deadline, *notes, *models],
-        },
-    )
+    Ok(wire::Lacks {
+        tools: *tools,
+        grants: *grants,
+        executors: *executors,
+        tasks: *tasks,
+        depth: *depth,
+        spend: *spend,
+        deadline: *deadline,
+        notes: *notes,
+        models: *models,
+    })
 }
 #[must_use]
 pub fn decode_lacks(value: wire::Lacks) -> authority::Lacks {
-    let wire::LacksParts { skein_bools: [tools, grants, executors, tasks, depth, spend, deadline, notes, models] } =
-        value.into_parts();
+    let wire::Lacks { tools, grants, executors, tasks, depth, spend, deadline, notes, models } = value;
     authority::Lacks { tools, grants, executors, tasks, depth, spend, deadline, notes, models }
 }
 
-pub fn encode_judge(value: &authority::Judge, limits: &View) -> Result<wire::Judge, wire::Problem> {
+pub fn encode_judge(value: &authority::Judge, _limits: &View) -> Result<wire::Judge, wire::Problem> {
     let authority::Judge { connector, requirement, parameters } = value;
-    wire::Judge::new(
-        &limits.core,
-        wire::JudgeParts { connector: *connector, requirement: *requirement, parameters: *parameters },
-    )
+    Ok(wire::Judge { connector: *connector, requirement: *requirement, parameters: *parameters })
 }
 #[must_use]
 pub fn decode_judge(value: wire::Judge) -> authority::Judge {
-    let wire::JudgeParts { connector, requirement, parameters } = value.into_parts();
+    let wire::Judge { connector, requirement, parameters } = value;
     authority::Judge { connector, requirement, parameters }
 }
 
@@ -325,22 +317,19 @@ pub fn encode_finding(value: &authority::Finding, limits: &View) -> Result<wire:
         authority::Finding::Oversized => wire::Finding::Oversized,
         authority::Finding::UnknownProject => wire::Finding::UnknownProject,
         authority::Finding::UnknownRole => wire::Finding::UnknownRole,
-        authority::Finding::Authority { source, lacks } => wire::Finding::Authority(wire::FindingAuthority::new(
-            &limits.core,
-            wire::FindingAuthorityParts { source: encode_source(source), lacks: encode_lacks(lacks, limits)? },
-        )?),
-        authority::Finding::Executor { source } => wire::Finding::Executor(wire::FindingExecutor::new(
-            &limits.core,
-            wire::FindingExecutorParts { source: encode_source(source) },
-        )?),
-        authority::Finding::Tasks { source } => wire::Finding::Tasks(wire::FindingTasks::new(
-            &limits.core,
-            wire::FindingTasksParts { source: encode_source(source) },
-        )?),
-        authority::Finding::Spend { source } => wire::Finding::Spend(wire::FindingSpend::new(
-            &limits.core,
-            wire::FindingSpendParts { source: encode_source(source) },
-        )?),
+        authority::Finding::Authority { source, lacks } => wire::Finding::Authority(wire::FindingAuthority {
+            source: encode_source(source),
+            lacks: encode_lacks(lacks, limits)?,
+        }),
+        authority::Finding::Executor { source } => {
+            wire::Finding::Executor(wire::FindingExecutor { source: encode_source(source) })
+        }
+        authority::Finding::Tasks { source } => {
+            wire::Finding::Tasks(wire::FindingTasks { source: encode_source(source) })
+        }
+        authority::Finding::Spend { source } => {
+            wire::Finding::Spend(wire::FindingSpend { source: encode_source(source) })
+        }
         authority::Finding::Arithmetic => wire::Finding::Arithmetic,
         authority::Finding::RunBudget => wire::Finding::RunBudget,
         authority::Finding::RunCap => wire::Finding::RunCap,
@@ -348,33 +337,27 @@ pub fn encode_finding(value: &authority::Finding, limits: &View) -> Result<wire:
         authority::Finding::Account => wire::Finding::Account,
         authority::Finding::Writer => wire::Finding::Writer,
         authority::Finding::Tool => wire::Finding::Tool,
-        authority::Finding::Grant { source } => wire::Finding::Grant(wire::FindingGrant::new(
-            &limits.core,
-            wire::FindingGrantParts { source: encode_source(source) },
-        )?),
-        authority::Finding::Price { source } => wire::Finding::Price(wire::FindingPrice::new(
-            &limits.core,
-            wire::FindingPriceParts { source: encode_source(source) },
-        )?),
+        authority::Finding::Grant { source } => {
+            wire::Finding::Grant(wire::FindingGrant { source: encode_source(source) })
+        }
+        authority::Finding::Price { source } => {
+            wire::Finding::Price(wire::FindingPrice { source: encode_source(source) })
+        }
         authority::Finding::ResourceAccess => wire::Finding::ResourceAccess,
         authority::Finding::ResourceUnavailable => wire::Finding::ResourceUnavailable,
         authority::Finding::Reference => wire::Finding::Reference,
-        authority::Finding::Scope { source } => wire::Finding::Scope(wire::FindingScope::new(
-            &limits.core,
-            wire::FindingScopeParts { source: encode_source(source) },
-        )?),
-        authority::Finding::Required { judge } => wire::Finding::Required(wire::FindingRequired::new(
-            &limits.core,
-            wire::FindingRequiredParts { judge: encode_judge(judge, limits)? },
-        )?),
-        authority::Finding::Failed { judge } => wire::Finding::Failed(wire::FindingFailed::new(
-            &limits.core,
-            wire::FindingFailedParts { judge: encode_judge(judge, limits)? },
-        )?),
-        authority::Finding::Unguarded { judge } => wire::Finding::Unguarded(wire::FindingUnguarded::new(
-            &limits.core,
-            wire::FindingUnguardedParts { judge: encode_judge(judge, limits)? },
-        )?),
+        authority::Finding::Scope { source } => {
+            wire::Finding::Scope(wire::FindingScope { source: encode_source(source) })
+        }
+        authority::Finding::Required { judge } => {
+            wire::Finding::Required(wire::FindingRequired { judge: encode_judge(judge, limits)? })
+        }
+        authority::Finding::Failed { judge } => {
+            wire::Finding::Failed(wire::FindingFailed { judge: encode_judge(judge, limits)? })
+        }
+        authority::Finding::Unguarded { judge } => {
+            wire::Finding::Unguarded(wire::FindingUnguarded { judge: encode_judge(judge, limits)? })
+        }
         authority::Finding::Unpermitted => wire::Finding::Unpermitted,
         authority::Finding::Undecidable => wire::Finding::Undecidable,
         authority::Finding::PeriodSpend => wire::Finding::PeriodSpend,
@@ -387,19 +370,19 @@ pub fn decode_finding(value: wire::Finding) -> authority::Finding {
         wire::Finding::UnknownProject => authority::Finding::UnknownProject,
         wire::Finding::UnknownRole => authority::Finding::UnknownRole,
         wire::Finding::Authority(value) => {
-            let wire::FindingAuthorityParts { source, lacks } = value.into_parts();
+            let wire::FindingAuthority { source, lacks } = value;
             authority::Finding::Authority { source: decode_source(source), lacks: decode_lacks(lacks) }
         }
         wire::Finding::Executor(value) => {
-            let wire::FindingExecutorParts { source } = value.into_parts();
+            let wire::FindingExecutor { source } = value;
             authority::Finding::Executor { source: decode_source(source) }
         }
         wire::Finding::Tasks(value) => {
-            let wire::FindingTasksParts { source } = value.into_parts();
+            let wire::FindingTasks { source } = value;
             authority::Finding::Tasks { source: decode_source(source) }
         }
         wire::Finding::Spend(value) => {
-            let wire::FindingSpendParts { source } = value.into_parts();
+            let wire::FindingSpend { source } = value;
             authority::Finding::Spend { source: decode_source(source) }
         }
         wire::Finding::Arithmetic => authority::Finding::Arithmetic,
@@ -410,30 +393,30 @@ pub fn decode_finding(value: wire::Finding) -> authority::Finding {
         wire::Finding::Writer => authority::Finding::Writer,
         wire::Finding::Tool => authority::Finding::Tool,
         wire::Finding::Grant(value) => {
-            let wire::FindingGrantParts { source } = value.into_parts();
+            let wire::FindingGrant { source } = value;
             authority::Finding::Grant { source: decode_source(source) }
         }
         wire::Finding::Price(value) => {
-            let wire::FindingPriceParts { source } = value.into_parts();
+            let wire::FindingPrice { source } = value;
             authority::Finding::Price { source: decode_source(source) }
         }
         wire::Finding::ResourceAccess => authority::Finding::ResourceAccess,
         wire::Finding::ResourceUnavailable => authority::Finding::ResourceUnavailable,
         wire::Finding::Reference => authority::Finding::Reference,
         wire::Finding::Scope(value) => {
-            let wire::FindingScopeParts { source } = value.into_parts();
+            let wire::FindingScope { source } = value;
             authority::Finding::Scope { source: decode_source(source) }
         }
         wire::Finding::Required(value) => {
-            let wire::FindingRequiredParts { judge } = value.into_parts();
+            let wire::FindingRequired { judge } = value;
             authority::Finding::Required { judge: decode_judge(judge) }
         }
         wire::Finding::Failed(value) => {
-            let wire::FindingFailedParts { judge } = value.into_parts();
+            let wire::FindingFailed { judge } = value;
             authority::Finding::Failed { judge: decode_judge(judge) }
         }
         wire::Finding::Unguarded(value) => {
-            let wire::FindingUnguardedParts { judge } = value.into_parts();
+            let wire::FindingUnguarded { judge } = value;
             authority::Finding::Unguarded { judge: decode_judge(judge) }
         }
         wire::Finding::Unpermitted => authority::Finding::Unpermitted,
@@ -459,7 +442,7 @@ pub fn decode_host_kind(value: wire::HostKind) -> fleet::HostKind {
 
 pub fn encode_outbox_outcome(
     value: &domain::effects::connector::OutboxOutcome,
-    limits: &View,
+    _limits: &View,
 ) -> Result<wire::OutboxOutcome, wire::Problem> {
     Ok(match value {
         domain::effects::connector::OutboxOutcome::Made => wire::OutboxOutcome::Made,
@@ -467,9 +450,9 @@ pub fn encode_outbox_outcome(
         domain::effects::connector::OutboxOutcome::Withdrawn => wire::OutboxOutcome::Withdrawn,
         domain::effects::connector::OutboxOutcome::NotMade => wire::OutboxOutcome::NotMade,
         domain::effects::connector::OutboxOutcome::Uncertain => wire::OutboxOutcome::Uncertain,
-        domain::effects::connector::OutboxOutcome::Held { entry } => wire::OutboxOutcome::Held(
-            wire::OutboxOutcomeHeld::new(&limits.core, wire::OutboxOutcomeHeldParts { entry: *entry })?,
-        ),
+        domain::effects::connector::OutboxOutcome::Held { entry } => {
+            wire::OutboxOutcome::Held(wire::OutboxOutcomeHeld { entry: *entry })
+        }
     })
 }
 #[must_use]
@@ -481,7 +464,7 @@ pub fn decode_outbox_outcome(value: wire::OutboxOutcome) -> domain::effects::con
         wire::OutboxOutcome::NotMade => domain::effects::connector::OutboxOutcome::NotMade,
         wire::OutboxOutcome::Uncertain => domain::effects::connector::OutboxOutcome::Uncertain,
         wire::OutboxOutcome::Held(value) => {
-            let wire::OutboxOutcomeHeldParts { entry } = value.into_parts();
+            let wire::OutboxOutcomeHeld { entry } = value;
             domain::effects::connector::OutboxOutcome::Held { entry }
         }
     }
@@ -512,10 +495,8 @@ pub fn decode_delivery_outcome(value: wire::DeliveryOutcome) -> domain::Delivery
 
 /// The versioned body stored in a transcript frame (protocol/store/transcripts.md, 3).
 pub fn turn(value: &domain::TurnRecord, limits: &View) -> Result<Box<[u8]>, wire::Problem> {
-    let value = runs::encode_turn_record(value, limits)?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured room");
-    Ok(writer.finish())
+    let value = runs::encode_turn_record(value, limits);
+    value.encode(&limits.core)
 }
 /// Decode a transcript frame's versioned core turn.
 pub fn read_turn(bytes: &[u8], limits: &View) -> Result<domain::TurnRecord, wire::Problem> {

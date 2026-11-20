@@ -71,6 +71,11 @@ temper-engine-domain-forge-issues.workspace = true
 temper-worker-domain.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
+temper-service-link-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
+temper-limits-fixtures.workspace = true
+jig-protocol-config-fixtures.workspace = true
 temper-worker-protocol-git.workspace = true
 temper-worker-domain-checkout.workspace = true
 smith-host-protocol.workspace = true
@@ -107,6 +112,10 @@ skein-forge-kit.workspace = true
 skein-fake-forge-github.workspace = true
 skein-world.workspace = true
 temper-worker-protocol-git-world.workspace = true
+
+[[test]]
+name = "protocol_link"
+path = "src/protocol_link.rs"
 
 [lints]
 workspace = true

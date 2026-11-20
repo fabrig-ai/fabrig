@@ -1,4 +1,5 @@
 use crate::joined_world as joined;
+use jig_protocol_worker_wire::Record;
 mod joined_story {
     use super::joined::{Joined, application, credential, received, sent, values};
     use jig_domain_host as host;
@@ -175,7 +176,7 @@ mod joined_story {
         ];
         for row in rows {
             // Reuse the shipped Small profile's sizes: its cap admits the burst.
-            let sizes = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).workers.sizes;
+            let sizes = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).workers.sizes;
             let limits = jig_protocol_worker_link::Limits { sizes, ..fixtures::joined_limits() };
             let mut world = Joined::new(&limits, 1);
             world.run();
@@ -257,8 +258,8 @@ mod joined_story {
         world.finish();
     }
     #[test]
-    fn a_wrong_secret_worker_redials_after_unauthorized() {
-        refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 256);
+    fn a_wrong_secret_worker_redials_after_not_admitted() {
+        refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 260);
     }
     #[test]
     fn another_wire_version_worker_redials_after_wires() {
@@ -286,6 +287,10 @@ fn largest_worker_frame(sizes: &jig_protocol_worker_wire::sizes::Sizes) -> u32 {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the room refusal, live pings and following assignment form one link scenario"
+)]
 fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
     use jig_domain_host as host;
     use jig_protocol_engine_workers as engine;
@@ -299,7 +304,12 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
         sizes: jig_protocol_worker_wire::sizes::Sizes { charter, detail: 128, ..fixtures::SIZES },
         ..fixtures::joined_limits()
     };
-    let bytes = fixtures::assignment_record(fixtures::window()).measure() + 8 + charter - 7
+    let bytes = fixtures::assignment_record(fixtures::window())
+        .measure(&jig_protocol_worker_wire::CEILINGS)
+        .expect("record within limits")
+        + 8
+        + charter
+        - 7
         + u32::try_from(fixtures::TOKEN_TWO.len() - fixtures::TOKEN_ONE.len()).expect("fixture grant length");
     let room = bytes - 1;
     let mut world = joined::Joined::with_engine_room(&jig_protocol_worker_link::Limits { room, ..limits }, 1, room);
@@ -456,7 +466,7 @@ fn resumed_continues(world: &mut joined::Joined) {
 #[test]
 fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     use jig_domain_host as host;
-    use jig_protocol_config::{Profile, profile};
+
     use jig_protocol_engine_workers as engine;
     use jig_protocol_worker_link::{Limits, Request};
     use jig_protocol_worker_wire::fit::cut_words;
@@ -470,9 +480,9 @@ fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     const FEW: u32 = 3;
     const EXCESS: u32 = 2;
     let mut failures = Vec::new();
-    for p in [Profile::Small, Profile::Standard] {
-        let config = profile(p);
-        let engine = jig_test_service::limits::for_profile(p, &config).workers;
+    for p in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+        let config = p;
+        let engine = jig_test_service::limits::small(&config).workers;
         // The world's worker fixtures keep their deadlines and entrances;
         // its wire sizes are the profile's, with io's room capping its pipe.
         let limits =

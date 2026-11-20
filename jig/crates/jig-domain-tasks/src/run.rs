@@ -75,6 +75,7 @@ pub(crate) struct Claiming {
     pub(crate) number: u64,
     pub(crate) attempt: u64,
     pub(crate) resumed: bool,
+    pub(crate) fresh: Option<crate::Fresh>,
     pub(crate) budget: u64,
     pub(crate) account: Option<u32>,
     pub(crate) writes: Box<[crate::Name]>,
@@ -123,7 +124,8 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
 }
 
 fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
-    let Claiming { number, attempt, resumed, budget, account, reasons, offered, session_end, writes: _ } = claiming;
+    let Claiming { number, attempt, resumed, fresh, budget, account, reasons, offered, session_end, writes: _ } =
+        claiming;
     let task = task_mut(domain, number).expect("entrance names task");
     task.record.numbers.reserved = task.record.numbers.reserved.checked_add(budget).expect("available budget");
     task.record.run_reserved = budget;
@@ -156,7 +158,7 @@ fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: C
     task.record.refused = Box::new([]);
     task.record.phase = Phase::Active(Active::Claimed { attempt });
     let why = task.record.due_reason;
-    crate::activity::append(&mut task.record, env.wall, crate::Line::RunBegan { attempt, why, resumed }, out);
+    crate::activity::append(&mut task.record, env.wall, crate::Line::RunBegan { attempt, why, resumed, fresh }, out);
     publish(domain, env, number, out);
     fact(domain, Fact::Claimed { task: number, attempt });
     out.push(Request::Done { reply_to: to });
@@ -252,7 +254,8 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             }
         },
         TaskResult::Verdict { code, words, fields } => match contract {
-            Contract::Verdict { choices } => {
+            Contract::Change { choices, .. } if choices.is_empty() => Some(InvalidResult::Form),
+            Contract::Verdict { choices } | Contract::Change { choices, .. } => {
                 for choice in choices {
                     if choice.code == *code {
                         return if words.len() > skein_lib::length::usize_of(choice.words)
@@ -268,9 +271,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
                 }
                 Some(InvalidResult::Verdict)
             }
-            Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } => {
-                Some(InvalidResult::Form)
-            }
+            Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } => Some(InvalidResult::Form),
         },
         TaskResult::Change { connector, kind, title, words, .. } => {
             invalid_change(contract, *connector, *kind, &title.words, words, limits)
@@ -321,7 +322,7 @@ fn invalid_change(
     limits: &Limits,
 ) -> Option<InvalidResult> {
     match contract {
-        Contract::Change { connector: expected_connector, kind: expected_kind, words: limit } => {
+        Contract::Change { connector: expected_connector, kind: expected_kind, words: limit, .. } => {
             if connector != *expected_connector || kind != *expected_kind {
                 Some(InvalidResult::Change)
             } else if title.len().max(words.len()) > skein_lib::length::usize_of(*limit)
@@ -368,7 +369,7 @@ pub(crate) fn invalid_followups(
     }
     let count = batch.len();
     match (contract, result) {
-        (Contract::Verdict { choices }, TaskResult::Verdict { code, .. }) => {
+        (Contract::Verdict { choices } | Contract::Change { choices, .. }, TaskResult::Verdict { code, .. }) => {
             for choice in choices {
                 if choice.code == *code {
                     return if count > 0 && count <= skein_lib::length::usize_of(choice.followups) {
@@ -405,18 +406,6 @@ pub(crate) fn result_bytes(result: &TaskResult) -> usize {
             None => 0,
         }),
         TaskResult::Failure { reason } => reason.len(),
-    }
-}
-
-fn ending(result: TaskResult) -> Ending {
-    match result {
-        TaskResult::Failure { reason } => Ending::Failed { reason },
-        TaskResult::Approved { .. }
-        | TaskResult::Report { .. }
-        | TaskResult::Verdict { .. }
-        | TaskResult::Job { .. }
-        | TaskResult::NoChange { .. }
-        | TaskResult::Change { .. } => Ending::Done(result),
     }
 }
 
@@ -512,6 +501,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | Phase::Held { was: Was::Waiting | Was::Active(_), .. }
         | Phase::Ended(_) => None,
     };
+    let executor = old.executor;
     let narrowed = old.narrowing;
     let previous_tries = old.tries;
     let kept = ends::kept(domain, number);
@@ -631,7 +621,10 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 if cancel_delegates {
                     crate::closing::cancel_delegates(domain, env, number, b"", out);
                 }
-                Phase::Closing(Closing { stage: Stage::Delegates, ending: ending(result) })
+                Phase::Closing(Closing {
+                    stage: Stage::Delegates,
+                    ending: crate::failed::ending(result, executor, &env.limits),
+                })
             }
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
             End::Parked => {
@@ -660,7 +653,10 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         task.record.tries.add(Class::Run);
         let times = task.record.tries.of(Class::Run);
         if times > env.limits.retries.run.retries {
-            Phase::Closing(Closing { stage: Stage::Delegates, ending: Ending::Failed { reason: Box::new([]) } })
+            Phase::Closing(Closing {
+                stage: Stage::Delegates,
+                ending: Ending::Failed { reason: crate::failed::question_owed(&env.limits) },
+            })
         } else {
             next
         }
@@ -717,9 +713,6 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if !parked || !kept.owes {
         crate::wake::after_run(domain, env, number, out);
     }
-    let nothing_awaited = end_kind == crate::EndKind::Parked
-        && !narrowed
-        && nothing_awaited(domain, record(domain, number).expect("answered task live"));
     let question = if end_kind == crate::EndKind::Parked && !narrowed {
         question_left_open(domain, record(domain, number).expect("answered task live"))
     } else {
@@ -728,6 +721,14 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if question.is_some() {
         task_mut(domain, number).expect("idle question task").record.tries = previous_tries;
     }
+    let words =
+        end_kind == crate::EndKind::Parked && !narrowed && question.is_none() && words_left_unrecorded(domain, number);
+    if words {
+        task_mut(domain, number).expect("idle words task").record.tries = previous_tries;
+    }
+    let nothing_awaited = end_kind == crate::EndKind::Parked
+        && !narrowed
+        && nothing_awaited(domain, record(domain, number).expect("answered task live"));
     let closer = crate::closer::named(record(domain, number).expect("answered task live"));
     if nothing_awaited {
         let task = task_mut(domain, number).expect("idle task live");
@@ -736,12 +737,17 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             task.record.tries.add(Class::Run);
         }
         if task.record.tries.of(Class::Run) > env.limits.retries.run.retries {
-            task.record.phase =
-                Phase::Closing(Closing { stage: Stage::Delegates, ending: Ending::Failed { reason: Box::new([]) } });
+            task.record.phase = Phase::Closing(Closing {
+                stage: Stage::Delegates,
+                ending: Ending::Failed { reason: crate::failed::nothing_awaited(&env.limits) },
+            });
         }
     }
     crate::closer::take_available(domain, env, number, out);
     publish(domain, env, number, out);
+    if words {
+        crate::domain::activate(domain, number, out);
+    }
     if let Some(question) = question {
         let (QuestionWake::Awaits(question) | QuestionWake::Alone(question)) = question;
         out.push(Request::QuestionParked { task: number, question });
@@ -965,24 +971,9 @@ enum QuestionWake {
 fn question_left_open(domain: &Domain, row: &crate::TaskRecord) -> Option<QuestionWake> {
     if row.phase != Phase::Active(Active::Idle)
         || !row.wake.questions
-        || row.flags.conversation
+        || !crate::words::keeping(domain, row)
         || !ends::for_record(row).finishes_alone()
     {
-        return None;
-    }
-    let charter = match row.executor {
-        crate::Executor::Agent { charter } => charter,
-        crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => return None,
-    };
-    let mut latest = 0;
-    let mut resumes = false;
-    for version in domain.charters() {
-        if version.number == charter && version.revision <= row.settings.task && version.revision >= latest {
-            latest = version.revision;
-            resumes = version.resumes;
-        }
-    }
-    if resumes {
         return None;
     }
     if let Some(proposal) = &row.proposal {
@@ -1067,6 +1058,28 @@ pub(crate) fn question_parked(
         publish(domain, env, number, out);
         crate::domain::activate(domain, number, out);
     }
+}
+
+/// A fence-taken directing word earns one idle wake, never a poll
+/// (domain/tasks/lifecycle.md, 2).
+fn words_left_unrecorded(domain: &mut Domain, number: u64) -> bool {
+    let row = record(domain, number).expect("answered task live");
+    if row.phase != Phase::Active(Active::Idle) || !crate::words::keeping(domain, row) {
+        return false;
+    }
+    let mut newest = row.words_woken;
+    for word in &row.unrecorded {
+        if crate::wake::rule(domain, number, word) != crate::WakeRule::Never {
+            newest = newest.max(word.number);
+        }
+    }
+    if newest == row.words_woken {
+        return false;
+    }
+    let task = task_mut(domain, number).expect("idle words task");
+    task.record.words_woken = newest;
+    task.record.phase = Phase::Active(Active::Due);
+    true
 }
 
 /// Fixed durable notice text (domain/tasks/lifecycle.md, 2).

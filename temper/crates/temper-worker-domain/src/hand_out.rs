@@ -96,13 +96,46 @@ fn model_failure(failure: &agent::RunFailure, models: &[ModelName]) -> Option<ho
         agent::CompletionEvidence::Unknown => (host::ModelEvidence::Unknown, report.status),
         agent::CompletionEvidence::Response { status } => (host::ModelEvidence::Response, status.or(report.status)),
     };
+    let kind = crate::translate::model_failure_kind(failure);
+    let unsent = match evidence {
+        host::ModelEvidence::Unsent => true,
+        host::ModelEvidence::Unknown | host::ModelEvidence::Response => false,
+    };
+    let refused = match kind {
+        host::ModelFailureKind::Invalid | host::ModelFailureKind::Unsupported => true,
+        host::ModelFailureKind::Unavailable
+        | host::ModelFailureKind::Overloaded
+        | host::ModelFailureKind::RateLimited
+        | host::ModelFailureKind::Exhausted
+        | host::ModelFailureKind::TimedOut
+        | host::ModelFailureKind::ContextTooLong
+        | host::ModelFailureKind::Refused
+        | host::ModelFailureKind::Unauthorized
+        | host::ModelFailureKind::Protocol
+        | host::ModelFailureKind::Cancelled
+        | host::ModelFailureKind::Limit => false,
+    };
+    let refusal = if unsent && status.is_none() && refused { refusal_code(&report.code) } else { None };
     Some(host::ModelFailure {
         endpoint: name.endpoint.clone(),
         model: name.model.clone(),
-        kind: crate::translate::model_failure_kind(failure),
+        kind,
         evidence,
         status,
+        refusal,
     })
+}
+
+fn refusal_code(code: &[u8]) -> Option<Box<[u8]>> {
+    if code.is_empty() || code.len() > skein_lib::usize_of(host::ModelFailure::REFUSAL_BYTES) {
+        return None;
+    }
+    for byte in code {
+        if !byte.is_ascii_lowercase() && *byte != b'-' {
+            return None;
+        }
+    }
+    Some(code.into())
 }
 
 /// How the run finished, kept typed beside its encoded result.
@@ -128,6 +161,7 @@ impl Finish {
                 let model = match translated {
                     host::RunFailure::Model => model_failure(failure, models),
                     host::RunFailure::Exceeded(_)
+                    | host::RunFailure::Untooled
                     | host::RunFailure::Transcript
                     | host::RunFailure::Budget
                     | host::RunFailure::Policy
@@ -142,6 +176,71 @@ impl Finish {
                 agent::Refusal::Invalid(why) => StartClass::Invalid(crate::translate::start_cause(*why)),
                 agent::Refusal::Busy => StartClass::Busy,
             }),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn completion_refusals_keep_only_unsent_application_codes() {
+        use agent::CompletionEvidence::{Response, Unknown, Unsent};
+        use agent::CompletionFailure as C;
+        let names =
+            [ModelName { endpoint: b"anthropic-api".as_slice().into(), model: b"claude-opus-5-5".as_slice().into() }];
+        for (failure, eligible) in [
+            (C::Invalid, true),
+            (C::Unsupported, true),
+            (C::Unavailable, false),
+            (C::Overloaded, false),
+            (C::RateLimited { retry_after: skein_lib::Duration::from_secs(1) }, false),
+            (C::Exhausted { retry_after: None }, false),
+            (C::TimedOut { phase: smith_domain_run::CompletionPhase::Head }, false),
+            (C::ContextTooLong, false),
+            (C::Refused, false),
+            (C::Unauthorized, false),
+            (C::Protocol, false),
+            (C::Cancelled, false),
+            (C::ApplicationLimit, false),
+            (C::Limit { which: agent::Limit::Path(agent::Cap::Request), bound: 2048 }, false),
+        ] {
+            for (evidence, status, code, accepted) in [
+                (Unsent, None, b"empty-message".as_slice(), true),
+                (Unsent, None, b"a", true),
+                (Unsent, None, b"abcdefghijklmnopqrstuvwx", true),
+                (Unsent, None, b"", false),
+                (Unsent, None, b"abcdefghijklmnopqrstuvwxy", false),
+                (Unsent, None, b"Empty_Message", false),
+                (Unsent, None, b"empty1", false),
+                (Unsent, None, b"empty message", false),
+                (Unsent, None, b"empty\x00message", false),
+                (Unsent, None, b"empty\xffmessage", false),
+                (Unknown, None, b"empty-message", false),
+                (Response { status: None }, None, b"provider-code", false),
+                (Response { status: Some(400) }, None, b"provider-code", false),
+                (Response { status: None }, Some(400), b"provider-code", false),
+                (Unsent, Some(400), b"provider-code", false),
+            ] {
+                let result = agent::RunResult::Failed {
+                    failure: agent::RunFailure::Model(agent::ModelFault::Completion {
+                        failure,
+                        evidence,
+                        model: 0,
+                        attempts: 1,
+                        report: agent::Report { status, code: code.into(), request: Box::new([]), field: Box::new([]) },
+                    }),
+                };
+                match Finish::of(&result, &names) {
+                    Finish::Failed { model, .. } => {
+                        let model = model.expect("a completion names its call");
+                        let expected = if eligible && accepted { Some(code) } else { None };
+                        assert_eq!(model.refusal.as_deref(), expected, "{failure:?} {evidence:?} {status:?} {code:?}");
+                    }
+                    Finish::Ended | Finish::Parked | Finish::Refused(_) => unreachable!("a failed model call"),
+                }
+            }
         }
     }
 }

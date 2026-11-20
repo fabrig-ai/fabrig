@@ -43,15 +43,16 @@ fn defaults() -> s::Defaults {
 
 fn world_with_owner(identity: people::IdentityKey) -> World {
     let defaults = defaults();
-    let mut world = World::configured_stock_limits(
+    let mut world = World::configured_stock_limits_with(
         &defaults,
         &walking::models()[0],
         &temper_engine_domain_world::forge_routes::box_limits(),
-    )
-    .with_settings_owner(&identity);
+        StoryLimits { settings_owner: Some(identity.clone()), ..StoryLimits::default() },
+    );
     forge_with_only_temper(&mut world);
     world.until(Until::Ready);
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(90)),
         identity: people::Identity {
@@ -70,9 +71,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
         carried: None,
         request: engine::Application::Forge(forge_top::Ask::Adopt(temper_engine_domain_world::fixtures::adoption(1))),
     }));
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert!(!world.adopted.is_empty(), "adoption: {:?}", world.web_replies);
     assert!(matches!(world.external(1, raw::Op::Read(raw::Read::Collaborators)),
         raw::Answer::Collaborators(rows) if rows.len() == 1 && rows[0].user == 1));
@@ -167,9 +166,7 @@ fn proposal(world: &mut World, role: u32, key: u8, charter: u32) -> engine::Assi
         },
     });
     world.send(event);
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     run
 }
 
@@ -236,9 +233,13 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     clippy::fn_params_excessive_bools,
     reason = "the table varies the link, box and forge identities independently"
 )]
-fn approval_identity_world(link: bool, under_box: bool, second_forge: bool, fake_forge: bool) -> World {
-    let identity = if link { box_owner() } else { forge_top::user_key(1, 7) };
-    let mut world = world_with_owner(identity);
+fn approval_identity_world(
+    mut world: World,
+    link: bool,
+    under_box: bool,
+    second_forge: bool,
+    fake_forge: bool,
+) -> World {
     let person = world
         .store
         .rows
@@ -310,6 +311,15 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
     const OTHER_FORGE: &str =
         "project 1 role 0 on forge other.example requires 1 distinct known forge people; currently 0 eligible.";
     const FAKE: &str = "project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.";
+    // Each identity's stock start, sign-in and adoption are identical across its rows.
+    // Fork before editing any forge or rule; every row still restarts and closes cold.
+    let mut fixtures = Vec::new();
+    for identity in [forge_top::user_key(1, 7), box_owner()] {
+        let world = world_with_owner(identity);
+        let snapshot = world.store.fork();
+        let env = world.env.with(world.env.limits);
+        fixtures.push((Some(Box::new(world)), snapshot, env));
+    }
     for (kind, scope, role, required, link, under_box, second_forge, fake_forge, host, refusal) in [
         (1, 0, 0, 1, false, false, false, false, None, None),
         (2, 1, 0, 1, false, false, false, false, None, None),
@@ -328,7 +338,13 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
         (1, 0, 0, 1, false, false, false, true, None, Some(FAKE)),
         (2, 1, 0, 2, false, false, false, true, None, Some(FAKE)),
     ] {
-        let mut world = approval_identity_world(link, under_box, second_forge, fake_forge);
+        let (slot, snapshot, env) = &mut fixtures[usize::from(link)];
+        let mut world = *slot.take().expect("one world per identity");
+        world.store = snapshot.fork();
+        world.env = env.with(env.limits);
+        world.web_replies.clear();
+        forge_with_only_temper(&mut world);
+        let mut world = approval_identity_world(world, link, under_box, second_forge, fake_forge);
         let mut rule = approval_rule(role, required);
         if let Some(host) = host {
             let settings::Value::Rule(rule) = &mut rule else { panic!("approval rule") };
@@ -361,6 +377,7 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
             assert!(why.starts_with(expected.as_bytes()), "{}", String::from_utf8_lossy(why));
         }
         world.close();
+        *slot = Some(Box::new(world));
     }
 }
 
@@ -383,10 +400,15 @@ fn drop_approvals(world: &mut World) {
                         settings::Value::Charter(_)
                         | settings::Value::Questions(_)
                         | settings::Value::Ways(_)
+                        | settings::Value::Limits(_)
                         | settings::Value::CharterWords(_)
                         | settings::Value::Goal(_)
                         | settings::Value::Classes(_)
+                        | settings::Value::Welcome(_)
                         | settings::Value::ProjectAreas(_)
+                        | settings::Value::AgentFigures(_)
+                        | settings::Value::Landing(_)
+                        | settings::Value::Gates(_)
                         | settings::Value::ProjectTriager(_)
                         | settings::Value::ProjectWords(_)
                         | settings::Value::Dependency(_)
@@ -401,9 +423,7 @@ fn drop_approvals(world: &mut World) {
     assert_eq!(items.len(), 2, "deployment and project rules both enforce approvals");
     let before = kinds::revision(&world.store.rows);
     world.send(kinds::change(world.signed_in.expect("owner session"), before, 95, items.into_boxed_slice()));
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(kinds::revision(&world.store.rows), before + 1, "{:?}", world.web_replies);
 }
 
@@ -423,9 +443,7 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
     fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("producing change") };
     reviews::produce(&mut world, &producer, &branch);
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(world.merges, 0, "the rule waits for approval");
     let pull = light_rules::change_row(&world, change).pull.expect("opened pull");
     assert!(matches!(
@@ -446,9 +464,7 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
             key: None,
         },
     })));
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(world.merges, 0, "an unknown author's approval at the head cannot authorize merging");
     assert!(matches!(
         light_rules::change_row(&world, change).change.state,
@@ -661,9 +677,7 @@ fn approval_panel(world: &mut World, change: u64, watcher: u64) -> forge_top::Pa
         },
         window: jig_domain_core::documents::Window { rows: world.env.limits.documents.rows, after: None },
     }));
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     let panel = world
         .panels
         .iter()
@@ -673,9 +687,7 @@ fn approval_panel(world: &mut World, change: u64, watcher: u64) -> forge_top::Pa
         .1
         .clone();
     world.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: Token::new(watcher) }));
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     panel
 }
 
@@ -905,12 +917,12 @@ fn watch_approvals_at(world: &mut World, watcher: Token, connector: u16) {
 }
 
 fn linked_box_world() -> World {
-    let mut world = World::configured_stock_limits(
+    let mut world = World::configured_stock_limits_with(
         &defaults(),
         &walking::models()[0],
         &temper_engine_domain_world::forge_routes::box_limits(),
+        StoryLimits { settings_owner: Some(box_owner()), ..StoryLimits::default() },
     )
-    .with_settings_owner(&box_owner())
     .with_box_setup();
     forge_with_only_temper(&mut world);
     world.until(Until::Ready);
@@ -919,6 +931,7 @@ fn linked_box_world() -> World {
         state: forge_top::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
     })));
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(90)),
         identity: people::Identity {
@@ -953,6 +966,7 @@ fn sign_in_other_project(world: &mut World) {
     let project = *project;
     assert_ne!(project, 1);
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(161)),
         identity: people::Identity {
@@ -1096,9 +1110,7 @@ fn waiting_approval_with_client(concurrent: bool) -> (World, u64) {
         96,
         Box::new([kinds::item(1, 0, 1, &approval_rule(0, 1)), kinds::item(2, 1, 1, &approval_rule(0, 1))]),
     ));
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(kinds::revision(&world.store.rows), revision + 1, "{:?}", world.web_replies);
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change") };
     reviews::produce(&mut world, &producer, &branch);
@@ -1108,17 +1120,13 @@ fn waiting_approval_with_client(concurrent: bool) -> (World, u64) {
         &reviewer,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(world.merges, 0, "the approval rule keeps the change queued");
     (world, change)
 }
 
 pub(super) fn settle(world: &mut World) {
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
 }
 
 fn readopt(world: &mut World, key: u8) {
@@ -1191,7 +1199,6 @@ fn collaborator_roles(world: &World) -> std::collections::BTreeMap<u64, people::
 
 #[test]
 fn stock_adoption_seeds_safe_human_approval_roles() {
-    writer_identity_is_ineligible();
     assert_stock_roles();
     let mut world = box_world();
     let before = kinds::revision(&world.store.rows);
@@ -1239,7 +1246,6 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
     );
     stock_approval_lands(&mut world);
     world.close();
-    duplicate_approvals_count_once();
 }
 
 fn stock_waiting_change(world: &mut World) -> u64 {
@@ -1278,6 +1284,7 @@ fn stock_approval_lands(world: &mut World) {
     assert_eq!(world.merges, 1, "the known member's approval at the head permits landing");
 }
 
+#[test]
 fn writer_identity_is_ineligible() {
     let mut world = world_with_owner(temper_engine_domain_forge::user_key(1, 1_u64));
     let before = kinds::revision(&world.store.rows);
@@ -1323,6 +1330,7 @@ fn assert_stock_roles() {
 fn give_writer_legacy_membership(world: &mut World) {
     let owner = world.signed_in.expect("owner session");
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(150)),
         identity: people::Identity {
@@ -1401,6 +1409,7 @@ fn stock_produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]
     world.send(event);
 }
 
+#[test]
 fn duplicate_approvals_count_once() {
     let mut world = box_world();
     for user in [4, 7] {

@@ -142,6 +142,7 @@ pub(crate) fn runner(run: &api::Run, attempt: JobAttempt, head: Commit) -> Optio
             Verdict::Fault(RunFault::SetUp) => Some(b"set-up failed"),
             Verdict::Fault(RunFault::Completion) => Some(b"completion failed"),
             Verdict::Fault(RunFault::NoStep) => Some(b"no step failed"),
+            Verdict::Fault(RunFault::Unreported) => Some(b"no report uploaded"),
             Verdict::Running
             | Verdict::Passed
             | Verdict::Failed

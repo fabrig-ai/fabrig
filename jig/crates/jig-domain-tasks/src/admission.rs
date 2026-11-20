@@ -104,6 +104,7 @@ fn finish_turn(
     out: &mut Queue<Request>,
 ) {
     let Turned { number, attempt, turn, read, refusals, outstanding, cumulative, offered: _ } = turned;
+    let keeps_words = crate::words::keeping(domain, record(domain, number).expect("turn admitted"));
     crate::inbox::keep_refusals(domain, number, &refusals);
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
@@ -111,7 +112,7 @@ fn finish_turn(
         session.last = environment.wall;
     }
     task.turn = turn;
-    crate::inbox::take(task, read, Some(&outstanding));
+    crate::inbox::take(task, read, Some(&outstanding), keeps_words);
     task.ever_turned = true;
     task.last_reply = task.last_reply.checked_add(1).expect("reply ordinal admitted");
     crate::activity::append(

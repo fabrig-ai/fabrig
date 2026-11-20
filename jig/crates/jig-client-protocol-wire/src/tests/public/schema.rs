@@ -15,8 +15,8 @@ fn package() -> PathBuf {
     PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo supplies the running package"))
 }
 
-fn source() -> String {
-    fs::read_to_string(package().join("schema/public-v1.schema")).expect("public schema readable")
+fn source() -> &'static str {
+    crate::PUBLIC_SCHEMA
 }
 
 fn golden() -> String {
@@ -130,15 +130,13 @@ fn listing(schema: &Schema) -> String {
 }
 
 fn client_schema() -> Schema {
-    let mut source = fs::read_to_string(package().join("schema/client-v26.schema")).expect("client schema");
-    source.push_str(&fs::read_to_string(package().join("schema/client-v26-part1.schema")).expect("client schema part"));
-    parse(&source).expect("client schema valid")
+    skein_codegen::values(crate::CLIENT_SCHEMA).schema.clone()
 }
 
 #[test]
 fn the_public_schema_names_nothing_from_elsewhere() {
     // parse rejects every reference not declared in this schema, including enum payloads.
-    let schema = parse(&source()).expect("public schema is closed");
+    let schema = skein_codegen::values(source()).schema.clone();
     let private: BTreeSet<_> =
         client_schema().declarations.iter().map(|declaration| name(declaration).to_string()).collect();
     assert_eq!((&*schema.family, schema.version), ("jig-public-wire", crate::PUBLIC_VERSION));
@@ -149,7 +147,7 @@ fn the_public_schema_names_nothing_from_elsewhere() {
 
 #[test]
 fn the_fields_golden_is_the_reachable_wire_shape() {
-    let schema = parse(&source()).expect("public schema valid");
+    let schema = skein_codegen::values(source()).schema.clone();
     let reached = reachable(&schema);
     let declared: BTreeSet<_> = schema.declarations.iter().map(|declaration| name(declaration).to_string()).collect();
     let expected: BTreeSet<_> = [
@@ -173,8 +171,8 @@ fn the_fields_golden_is_the_reachable_wire_shape() {
     assert_eq!(listing(&schema), golden());
 }
 
-fn add_member(source: &str, declaration: &str, member: &str) -> String {
-    let schema = parse(source).expect("unmodified schema valid");
+fn add_member(source: &'static str, declaration: &str, member: &str) -> String {
+    let schema = &skein_codegen::values(source).schema;
     let line = match schema.declarations.iter().find(|item| name(item) == declaration).expect("mutation target") {
         Declaration::Record(record) => record.line,
         Declaration::Enum(enumeration) => enumeration.line,
@@ -199,14 +197,14 @@ fn add_member(source: &str, declaration: &str, member: &str) -> String {
 fn a_nested_field_added_changes_the_golden() {
     let source = source();
     for (declaration, member) in [("PublicLine", " added: u64 "), ("PublicPhase", " added, ")] {
-        let changed = add_member(&source, declaration, member);
+        let changed = add_member(source, declaration, member);
         assert_ne!(listing(&parse(&changed).expect("mutated schema valid")), golden(), "mutation in {declaration}");
     }
 }
 
 #[test]
 fn a_name_from_elsewhere_breaks_the_closure() {
-    let changed = add_member(&source(), "PublicLine", " private: MeProject ");
+    let changed = add_member(source(), "PublicLine", " private: MeProject ");
     let error = parse(&changed).expect_err("private reference must break closure");
     assert_eq!(error.message, "type MeProject used before declaration");
 }
@@ -228,7 +226,7 @@ fn carries_text(ty: &Type) -> bool {
 
 #[test]
 fn no_public_record_carries_text() {
-    let schema = parse(&source()).expect("public schema valid");
+    let schema = skein_codegen::values(source()).schema.clone();
     let mut fields = BTreeSet::new();
     for declaration in &schema.declarations {
         match declaration {
@@ -259,7 +257,7 @@ fn variants(schema: &Schema, target: &str) -> Vec<String> {
 
 #[test]
 fn public_phase_and_hold_kinds_match_the_client_contract() {
-    let schema = parse(&source()).expect("public schema valid");
+    let schema = skein_codegen::values(source()).schema.clone();
     let client = client_schema();
     let phases: Vec<_> = variants(&client, "Phase").into_iter().filter(|phase| phase != "ended").collect();
     assert_eq!(variants(&schema, "PublicPhase"), phases);

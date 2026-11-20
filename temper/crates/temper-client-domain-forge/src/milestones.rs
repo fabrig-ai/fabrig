@@ -69,23 +69,7 @@ pub fn facts(task: &contract::Task) -> Facts {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Of {
-    Milestone(u64),
-    Read(u64),
-    None,
-}
-
 #[must_use]
-pub fn of(line: &contract::TaskLine, milestones: &[u64]) -> Of {
-    match line.requester {
-        contract::Requester::Task(task) => {
-            if milestones.contains(&task) {
-                Of::Milestone(task)
-            } else {
-                Of::Read(task)
-            }
-        }
-        contract::Requester::Person(_) | contract::Requester::Deployment { .. } => Of::None,
-    }
+pub fn of(line: &contract::TaskLine) -> Option<u64> {
+    crate::parts::goal(line)?.milestone
 }

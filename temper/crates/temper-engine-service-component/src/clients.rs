@@ -56,12 +56,13 @@ pub struct Clients {
     provider_documents: Option<provider::Documents>,
     provider_replies: Map<Token, provider::Reply>,
     next_provider: u64,
+    provider_changes: Queue<(skein_lib::ReplyTo, kit::ProviderClientChange)>,
     server: crate::server::Server,
     mount: http::Mount,
     mount_env: Env<http::Limits>,
     mount_out: Queue<http::Request>,
     server_out: Queue<crate::server::Routed>,
-    waiting: Map<Token, skein_http::server::Call>,
+    waiting: Map<Token, (skein_http::server::Call, Option<::core::net::IpAddr>)>,
     replies: Map<Token, bundle::Reply>,
     github: Map<Token, github::Reply>,
     pub(crate) google: Option<google::Google>,
@@ -103,6 +104,7 @@ pub struct Clients {
     playground_starts: Map<Token, root::Event>,
     playground_reads: Queue<crate::HandoverRead>,
     playground_ready: Queue<root::Event>,
+    pub(crate) playground_preparing: bool,
     next_playground: u64,
     playground_carries: Queue<kit::SecretsRequest>,
 }
@@ -116,6 +118,11 @@ impl Clients {
         ::core::mem::replace(&mut self.linked_changed, false)
     }
 
+    pub(crate) fn playground_admitted(&mut self) {
+        if self.playground_starts.is_empty() && self.playground_ready.is_empty() {
+            self.playground_preparing = false;
+        }
+    }
     pub(crate) fn playground_read(&mut self) -> Option<crate::HandoverRead> {
         self.playground_reads.pop()
     }
@@ -175,7 +182,7 @@ impl Clients {
         seeds: &Seeds,
         journal: &root::JournalLimits,
         sign_in: Option<&crate::settings::SignIn>,
-        machine: Option<&temper_forge_setup::machine::OwnedMachine>,
+        _machine: Option<&temper_forge_setup::machine::OwnedMachine>,
         files: &[(Box<[u8]>, skein_lib::Secret)],
     ) -> Result<Self, Problems> {
         if !crate::server::valid(&crate::limits::server(&config.limits)) {
@@ -196,8 +203,10 @@ impl Clients {
                 login: match sign_in {
                     Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
                         .ok_or(config::clients::invalid(What::Refers))?,
-                    None => match machine {
-                        Some(machine) if machine.sign_in.is_some() => machine.person.login.clone(),
+                    None => match owner.identity.subject.strip_suffix(b"@localhost") {
+                        Some(login) if config.clients.provider.is_some() && skein_forge_setup::given::login(login) => {
+                            Box::from(login)
+                        }
                         Some(_) | None => Box::from(b"owner".as_slice()),
                     },
                 },
@@ -273,6 +282,7 @@ impl Clients {
             provider_documents,
             provider_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             next_provider: 1,
+            provider_changes: Queue::uncapped(),
             server: crate::server::Server::new(*listener, &crate::limits::server(&config.limits)),
             mount: http::Mount::new(
                 http::Settings {
@@ -325,6 +335,7 @@ impl Clients {
             playground_starts: Map::with_capacity(PLAYGROUND_STARTS),
             playground_reads: Queue::with_capacity(PLAYGROUND_STARTS),
             playground_ready: Queue::with_capacity(PLAYGROUND_STARTS),
+            playground_preparing: false,
             next_playground: 1,
             playground_carries: Queue::with_capacity(PLAYGROUND_STARTS),
         })
@@ -385,12 +396,16 @@ impl Clients {
                 || self.endings.ready()
                 || secrets_ready && !self.playground_carries.is_empty()
                 || !self.playground_ready.is_empty()
+                || !self.provider_changes.is_empty()
                 || !self.out.is_empty()
                 || !self.io.is_empty()
                 || match self.next_deadline() {
                     Some(at) => at <= now,
                     None => false,
                 })
+    }
+    pub(crate) fn provider_client(&mut self, reply: skein_lib::ReplyTo, change: kit::ProviderClientChange) {
+        self.provider_changes.push((reply, change));
     }
     pub fn down(&mut self, event: kit::Event) {
         if let kit::Event::Stop | kit::Event::Close | kit::Event::Abort = &event {
@@ -486,15 +501,15 @@ impl Clients {
         for _ in 0..self.server_out.len() {
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
-                crate::server::Routed::Call { call, head } => {
+                crate::server::Routed::Call { call, head, peer } => {
                     // Claims depend on the prefix alone; the mounted mapping checks the Host.
                     let claimed = http::claims(&http_settings(None), &head);
                     if claimed && !head.target.starts_with(b"/jig/v1/public/") && self.stopping.is_none() {
                         // The existing connection and stall bounds hold this head;
                         // its body is not asked for until the mapping has room.
-                        self.waiting.insert(call, head).expect("one waiting head per server connection");
+                        self.waiting.insert(call, (head, peer)).expect("one waiting head per server connection");
                     } else if claimed && self.mount.room_for(&head) > 0 {
-                        self.mount.down(&self.mount_env, http::Event::Call { call, head });
+                        self.mount.down(&self.mount_env, http::Event::Call { call, head, peer });
                     } else if !claimed && provider::claims(&head.target) {
                         self.provider_call(call, head);
                     } else if !claimed && google::claims(&head.target) {
@@ -547,18 +562,18 @@ impl Clients {
     }
     fn admit_waiting(&mut self) -> bool {
         let mut ready = None;
-        for (call, head) in &self.waiting {
+        for (call, (head, _)) in &self.waiting {
             if self.stopping.is_some() || self.mount.room_for(head) > 0 {
                 ready = Some(*call);
                 break;
             }
         }
         let Some(call) = ready else { return false };
-        let head = self.waiting.remove(&call).expect("ready head");
+        let (head, peer) = self.waiting.remove(&call).expect("ready head");
         if self.stopping.is_some() {
             self.serve_call(call, &head, true);
         } else {
-            self.mount.down(&self.mount_env, http::Event::Call { call, head });
+            self.mount.down(&self.mount_env, http::Event::Call { call, head, peer });
         }
         true
     }
@@ -585,9 +600,7 @@ impl Clients {
             self.root(value, events);
         }
         for _ in 0..self.out.len() {
-            if self.playground_starts.len().saturating_add(self.playground_ready.len()) >= PLAYGROUND_STARTS
-                || (self.starting.is_none() && events.room() == 0)
-            {
+            if self.playground_preparing || (self.starting.is_none() && events.room() == 0) {
                 break;
             }
             match self.out.pop().expect("client requests") {
@@ -624,9 +637,19 @@ impl Clients {
                     Err(value) => self.down(*value),
                 },
                 kit::Request::Application(value) => {
+                    if let kit::ToApplication::ProviderClientChanged { result, .. } = value {
+                        if result.is_err() {
+                            self.notes.push(crate::Note::StartupWarning {
+                                line: Box::from(b"forge provider client change refused".as_slice()),
+                            });
+                        }
+                        continue;
+                    }
                     let carried = match &value {
                         kit::ToApplication::Request { carried, .. } => *carried,
-                        kit::ToApplication::Read { .. } | kit::ToApplication::Watch { .. } => None,
+                        kit::ToApplication::Read { .. }
+                        | kit::ToApplication::Watch { .. }
+                        | kit::ToApplication::ProviderClientChanged { .. } => None,
                     };
                     match crate::family::to_root(
                         &self.directories,
@@ -643,6 +666,7 @@ impl Clients {
                                 ..
                             }) = &value
                                 && let Some(demo) = demo
+                                && self.playground.is_none()
                             {
                                 if let root::Event::Party(root::PartyInput::Application { carried, .. }) = &mut value
                                     && let Some(carried) = carried.take()
@@ -651,6 +675,7 @@ impl Clients {
                                         number: carried.number,
                                     }));
                                 }
+                                self.playground_preparing = true;
                                 let run = Token::new((1_u64 << 63) | self.next_playground);
                                 self.next_playground = self.next_playground.checked_add(1).expect("demo read sequence");
                                 self.playground_starts.insert(run, value).expect("bounded parked starts");
@@ -712,6 +737,9 @@ impl Clients {
         }
         if self.closed {
             return;
+        }
+        while let Some((reply, change)) = self.provider_changes.pop() {
+            self.down(kit::Event::ProviderClient { reply, change });
         }
         self.server_queued = false;
         self.pushes.advance(now, wall, self.stopping.is_some(), events, &mut self.io);
@@ -902,7 +930,12 @@ fn http_settings(public: Option<&crate::startup::application::Origin>) -> http::
         Some(origin) => Some(origin.name.clone()),
         None => None,
     };
-    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public }
+    http::Settings {
+        max_age: 0,
+        prefix: Box::from(b"/jig".as_slice()),
+        page: Some(Box::from(temper_client_protocol_wire::LINK_PAGE)),
+        public,
+    }
 }
 
 fn event_owner(event: &io::Event) -> Option<Token> {

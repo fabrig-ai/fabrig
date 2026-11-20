@@ -1,6 +1,8 @@
 //! Shared shell words for a full deployment (client/line.md, 7).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Wall, Writer};
+pub use temper_client_protocol_wire::LINK_PAGE;
+
 const FULL: [&[u8]; 4] = [
     b": all ",
     b" sign-ins are in use; the earliest ends at ",

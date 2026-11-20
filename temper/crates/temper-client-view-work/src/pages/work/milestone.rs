@@ -55,25 +55,24 @@ pub(super) fn card(
         Some(read) => read.needs_person(task),
         None => false,
     };
-    let headline = milestones::headline(line, milestone.goals.as_slice(), milestone.totals.as_ref(), needs);
-    let report = match headline {
-        milestones::Headline::Running { goal, .. } => match goals_read {
-            Some(read) => read.report(goal),
-            None => None,
-        },
-        milestones::Headline::Count(_)
-        | milestones::Headline::Complete(_)
-        | milestones::Headline::Open(_)
-        | milestones::Headline::Closed(_)
-        | milestones::Headline::Ended { .. } => None,
-    };
-    text(
-        b,
-        Role::Paragraph,
-        look::WORK_QUOTE,
-        &super::super::milestones::headline(words, headline, milestone.goals.as_slice(), report, &names),
-    );
-    super::super::milestones::strip(b, words, milestone.goals.as_slice(), needing.as_slice(), count);
+    if milestone.totals.is_some() {
+        let headline = milestones::headline(line, milestone.goals.as_slice(), milestone.totals.as_ref(), needs);
+        let report = match headline {
+            milestones::Headline::Running { goal, .. } => milestone.headline(goal),
+            milestones::Headline::Count(_)
+            | milestones::Headline::Complete(_)
+            | milestones::Headline::Open(_)
+            | milestones::Headline::Closed(_)
+            | milestones::Headline::Ended { .. } => None,
+        };
+        text(
+            b,
+            Role::Paragraph,
+            look::WORK_QUOTE,
+            &super::super::milestones::headline(words, headline, milestone.goals.as_slice(), report, &names),
+        );
+        super::super::milestones::strip(b, words, milestone.goals.as_slice(), needing.as_slice(), count);
+    }
     let mut waiting = List::uncapped();
     let mut ended = Map::uncapped();
     b.open(Role::List);
@@ -159,12 +158,14 @@ fn from_line(
             &words.say(if facts.whole.is_some() { Word::MsWhole } else { Word::MsSoFar }, &[]),
         ]);
     }
-    parts.push(amount).expect("count and spend");
+    if milestone.totals.is_some() {
+        parts.push(amount).expect("count and spend");
+    }
     if let Some(totals) = &milestone.totals
         && line.budget.numbers.budget > 0
     {
         parts
-            .push(words.say(Word::MsSpent, &[Hole::Number(totals.spent()), Hole::Number(line.budget.numbers.budget)]))
+            .push(words.say(Word::MsSpent, &[Hole::Number(totals.spent), Hole::Number(line.budget.numbers.budget)]))
             .expect("count and spend");
     }
     linked_from(
@@ -277,11 +278,16 @@ fn goal_line(
         Some(read) => read.needs_person(line.chip.task),
         None => false,
     };
-    let report = match read {
-        Some(read) => read.report(line.chip.task),
-        None => None,
-    };
-    let state = goals::state(&line.chip, needs, report.is_some(), line.delegates_total);
+    let mut has_report = false;
+    if let Some(reads) = root.pages().milestones() {
+        for milestone in reads.drawn() {
+            has_report |= milestone.headline(line.chip.task).is_some();
+        }
+    }
+    if let Some(read) = read {
+        has_report |= read.report(line.chip.task).is_some();
+    }
+    let state = goals::state(&line.chip, needs, has_report, line.delegates_total);
     let (mut status, _) = super::super::goals::state_word(words, state, names, &line.chip);
     let mark: &[u8] = match state {
         goals::State::Landed => {

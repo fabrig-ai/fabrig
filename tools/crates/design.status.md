@@ -1,8 +1,12 @@
 # design: status
 
-2026-11-16. Where the repository lags or departs from [design.md](design.md).
+2026-11-18. Where the repository lags or departs from [design.md](design.md).
 
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-protocol-store` until its split [in flight: change 5418].
+
+- **Not yet:** 3.2: no `temper-agent-fixtures` or `temper-landing-fixtures`: `temper-fixtures` holds the agent and landing fixtures, and every test that links it links the worker's, the engine's and the forge's crates they need [in flight: change 8037].
+
+- **Not yet:** 3.2: no `temper-process-guard`: `temper-box-kit` holds the process guard, and its `parent` test links the whole kit [in flight: change 8038].
 
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-client-view` until its split [in flight: change 4395].
 

@@ -7,8 +7,24 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
+fn activity(world: &World) -> Vec<tasks::Line> {
+    world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row))) = row {
+                Some(row.line.clone())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn a_chat_answers_parks_and_resumes() {
     let mut world = World::new(Setup { seed: 101, ..Setup::default() });
+    assert!(matches!(activity(&world).last(), Some(tasks::Line::RunBegan { fresh: None, .. })));
     let first = world.assigned.as_ref().expect("chat assigned").attempt;
     world.turn(1, 3, None, b"first opaque turn");
     world.park_for_message(3);
@@ -30,6 +46,7 @@ fn a_chat_answers_parks_and_resumes() {
         [Box::<[u8]>::from(&b"first opaque turn"[..]), Box::<[u8]>::from(&b"second opaque turn"[..])]
     );
     let task = third.task;
+    assert!(matches!(activity(&world).last(), Some(tasks::Line::RunBegan { resumed: true, fresh: None, .. })));
     assert_eq!(world.spent(), 5, "each attempt's accepted spend is charged once");
     world.end(
         tasks::End::Finished {
@@ -119,6 +136,10 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
     world.park_for_message(2);
     world.say(76);
     assert!(world.assigned.as_ref().expect("fresh chat").transcript.is_empty());
+    assert!(matches!(
+        activity(&world).last(),
+        Some(tasks::Line::RunBegan { resumed: false, fresh: Some(tasks::Fresh::Limit), .. })
+    ));
 }
 
 // The reference root asks resume_bytes (256), below the store page bound.
@@ -151,7 +172,7 @@ fn window_page_case(seed: u64, bodies: &[&[u8]], resume: bool, tail: Option<&[u8
     assert_eq!(assignment.run.policy.resume, resume);
     let expected: Vec<Box<[u8]>> = if resume { bodies.iter().map(|body| Box::from(*body)).collect() } else { vec![] };
     assert_eq!(assignment.transcript.as_ref(), expected);
-    assert_eq!(closed_proofs::tail(&world), tail);
+    assert_eq!(run_helpers::tail(&world), tail);
 }
 
 fn a_window_turn_charging_exactly_the_room_resumes_whole() {
@@ -247,80 +268,7 @@ fn a_window_past_the_resume_limit_starts_fresh_with_its_tail() {
     assert_eq!(tail.as_ref(), [b'c'; 100]);
 }
 
-use crate::closed_proofs;
-
-#[test]
-fn a_closed_window_starts_fresh_with_its_tail() {
-    use closed_proofs as f;
-    let mut world = f::parked();
-    let mut control = f::parked();
-    f::close(&mut world);
-    f::restart(&mut world);
-    f::restart(&mut control);
-    world.say(87);
-    control.say(87);
-    f::fresh(&world);
-    assert_eq!(f::tail(&world), Some(f::TAIL));
-    assert_eq!(f::tries(&world), f::tries(&control));
-    let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
-    *resumed = true;
-    assert_eq!(activity, f::activity(&control));
-    assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
-    assert_eq!(
-        control.assigned.as_ref().expect("control resumes").transcript.as_ref(),
-        [f::turn(b"closed window"), f::turn(b"window continuation"),]
-    );
-    assert_eq!(f::tail(&control), None);
-}
-
-#[test]
-fn a_closed_window_keeps_its_tail_after_a_transient_try() {
-    use closed_proofs as f;
-    let mut world = f::parked();
-    let mut control = f::parked();
-    for run in [&mut world, &mut control] {
-        // The failed attempt resumed the parked window but wrote no new turn.
-        run.say(87);
-        run.end(tasks::End::Failed(tasks::Class::Transient), 0);
-    }
-    f::close(&mut world);
-    f::restart(&mut world);
-    f::restart(&mut control);
-    world.retry_due();
-    control.retry_due();
-    f::fresh(&world);
-    assert_eq!(f::tail(&world), Some(f::TAIL));
-    assert_eq!(f::tries(&world).transient, 1);
-    assert_eq!(f::tries(&world), f::tries(&control));
-    assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
-    let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
-    *resumed = true;
-    assert_eq!(activity, f::activity(&control));
-}
-
-#[test]
-fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
-    use closed_proofs as f;
-    let mut world = f::parked();
-    let mut control = f::parked();
-    f::close(&mut world);
-    f::restart(&mut world);
-    f::restart(&mut control);
-    world.store.unread_transcript(f::proof(&world).task);
-    world.say(87);
-    control.say(87);
-    f::fresh(&world);
-    assert_eq!(f::tail(&world), None);
-    assert_eq!(f::tries(&world), f::tries(&control));
-    let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
-    *resumed = true;
-    assert_eq!(activity, f::activity(&control));
-    // The store deliberately keeps the closed transcript unreadable.
-    world.broken();
-}
+use crate::run_helpers;
 
 fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh() {
     let mut world = World::new(Setup { seed: 106, ..Setup::default() });
@@ -688,6 +636,170 @@ fn a_resumed_run_names_its_first_runs_attempt() {
     }
 }
 
+fn untooled_world() -> World {
+    use jig_domain_accounts as accounts;
+    let (mut config, mut limits) = super::credentials::program_configuration(183);
+    limits.core.fleet.workers = 2;
+    config.core.defaults.workers = [b"box-1", b"box-2"]
+        .iter()
+        .enumerate()
+        .map(|(index, name)| core::settings::WorkerSetting {
+            number: u32::try_from(index + 1).expect("two fixture workers"),
+            name: name.as_slice().into(),
+            places: 1,
+            digest: Some([7; 32]),
+            withdrawn: false,
+        })
+        .collect();
+    let initial = jig_test_profile::fixtures::create_chat(
+        &jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+        1,
+        0,
+        b"use the tools".as_slice().into(),
+    );
+    let mut rows = jig_test_profile::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
+    for row in &mut rows {
+        if let root::Record::Core(core::Record::Accounts(accounts::Stored::Account { holder, .. })) = row {
+            *holder = accounts::Holder::Party(1);
+        }
+        if let root::Record::Core(core::Record::Accounts(accounts::Stored::Source { kind, name, .. })) = row {
+            *kind = accounts::Kind::Program;
+            *name = b"claude-alice".as_slice().into();
+        }
+    }
+    rows.push(root::Record::Core(core::Record::Accounts(accounts::Stored::Issued {
+        number: 1,
+        holder: accounts::Holder::Party(1),
+        name: b"claude-alice".as_slice().into(),
+        signed_out: false,
+    })));
+    World::new(Setup {
+        seed: 183,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows.into_boxed_slice()),
+        ..Setup::default()
+    })
+}
+
+fn untooled_on(world: &mut World, channel: Token) {
+    use jig_domain_host as host;
+    world.send(root::Event::Link {
+        channel,
+        link: root::link::Event::Up(host::LinkUp::Answer {
+            run: Token::new(world.task()),
+            attempt: Token::new(world.attempt()),
+            answer: host::RunAnswer {
+                turns: 0,
+                spent: 0,
+                read: None,
+                refused: Box::new([]),
+                ending: host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Untooled),
+                    detail: b"not the task's reason".as_slice().into(),
+                    work: host::Work { left: None, saved: None },
+                    model: None,
+                },
+            },
+        }),
+    });
+}
+
+fn untooled_hello(world: &mut World, channel: Token, worker: u32) {
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
+        worker,
+        channel,
+        hello: Hello {
+            jobs: Box::new([]),
+            bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: skein_lib::Duration::from_millis(100),
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
+    })));
+}
+
+#[test]
+fn an_untooled_program_leaves_each_place_until_a_worker_reopens() {
+    use jig_domain_fleet as fleet;
+    use jig_domain_link::SourceName;
+    for reopen in [true, false] {
+        let mut world = untooled_world();
+        let task = world.task();
+        let first = world.attempt();
+        assert_eq!(world.received_grant().unwrap().0, Token::new(7));
+        untooled_on(&mut world, Token::new(7));
+        let reason: Box<[u8]> =
+            b"claude_code started without smith's tools: account claude-alice on worker box-1".as_slice().into();
+        let row = world.domain.core().tasks.task(task).unwrap().clone();
+        assert_eq!(row.tries, tasks::Tries::NONE);
+        assert_eq!(row.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason.clone()) }));
+        assert!(matches!(row.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+        assert!(world.store.rows.values().any(|row| matches!(row,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+        if terminal.task == task && terminal.attempt == first && terminal.end == tasks::End::RefusedWithReason { reason: reason.clone() }
+    )));
+        untooled_on(&mut world, Token::new(7));
+        assert_eq!(world.domain.core().tasks.task(task).unwrap(), &row, "a duplicate ends no second time");
+        world.retry_due();
+        assert_eq!(
+            funding_wait(&mut world, task),
+            Some(core::documents::TaskRunWait::Account {
+                account: Some(0),
+                source: Some(1),
+                why: core::documents::TaskWaitWhy::Untooled { worker: 1 },
+            })
+        );
+        untooled_hello(&mut world, Token::new(8), 1);
+        assert!(world.attempt() > first);
+        assert_eq!(world.received_grant().unwrap().0, Token::new(8));
+        assert_eq!(
+            world.received_grant().unwrap().3.form,
+            Form::Program(SourceName::new(b"claude-alice").expect("fixture source"))
+        );
+        untooled_on(&mut world, Token::new(8));
+        assert_eq!(
+            world.domain.core().fleet.untooled(Token::new(task)),
+            Some(fleet::Untooled {
+                channel: Token::new(8),
+                worker: 1,
+                source: SourceName::new(b"claude-alice").expect("fixture source"),
+            })
+        );
+        let last = world.attempt();
+        world.assigned = None;
+        world.advance(skein_lib::Duration::from_secs(10));
+        assert!(world.assigned.is_none(), "no place left: no timer-driven attempt");
+        assert_eq!(world.domain.core().tasks.task(task).unwrap().attempt, last);
+        assert!(world.domain.core().run_choice(task).is_err());
+        assert_eq!(
+            funding_wait(&mut world, task),
+            Some(core::documents::TaskRunWait::Account {
+                account: Some(0),
+                source: Some(1),
+                why: core::documents::TaskWaitWhy::Untooled { worker: 2 },
+            })
+        );
+        let channel = if reopen {
+            world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
+            untooled_hello(&mut world, Token::new(9), 0);
+            Token::new(9)
+        } else {
+            world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Check {
+                channel: Token::new(7),
+                name: SourceName::new(b"claude-alice").expect("fixture source"),
+            })));
+            Token::new(7)
+        };
+        assert_eq!(world.received_grant().unwrap().0, channel);
+        assert!(world.attempt() > last);
+        assert_eq!(world.domain.core().tasks.task(task).unwrap().tries, tasks::Tries::NONE);
+        assert_eq!(funding_wait(&mut world, task), None);
+    }
+}
+
 fn transcript_failure() -> jig_domain_host::Ending {
     jig_domain_host::Ending::Failed {
         failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Transcript),
@@ -809,7 +921,7 @@ fn unusable_history_closes_its_committed_window_before_the_retry() {
         let fresh = world.assigned.as_ref().expect("fresh attempt");
         assert!(fresh.transcript.is_empty());
         assert_eq!(fresh.conversation, fresh.attempt);
-        assert_eq!(closed_proofs::tail(&world), Some(b"saved tail".as_slice()));
+        assert_eq!(run_helpers::tail(&world), Some(b"saved tail".as_slice()));
         assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.transient, 1);
     }
 }
@@ -1207,6 +1319,7 @@ fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
                         kind,
                         evidence,
                         status,
+                        refusal: None,
                     }),
                 },
                 0,

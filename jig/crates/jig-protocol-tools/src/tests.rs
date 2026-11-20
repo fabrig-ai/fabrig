@@ -817,7 +817,7 @@ fn a_line_range_decodes_to_note_lines() {
         let input =
             note_input(&format!(r#", "name":20,"recalled":7,"first":3,"remove":2,"references":[9],"join":{join}"#));
         let decoded = crate::decode(b"note", &input, &fixtures::LIMITS);
-        let Decoded::Action(core::NamedAction::NoteLines { entry, recalled, range }) = decoded else {
+        let Decoded::Action(core::NamedAction::NoteLines { entry, recalled, range, .. }) = decoded else {
             panic!("range decoded: {decoded:?}")
         };
         assert_eq!(recalled, 7);
@@ -862,7 +862,7 @@ fn first_zero_is_out_of_range() {
 fn a_note_without_first_decodes_as_today() {
     for members in ["", r#", "name":20,"recalled":7"#] {
         let decoded = crate::decode(b"note", &note_input(members), &fixtures::LIMITS);
-        let Decoded::Action(core::NamedAction::Note { entry, recalled }) = decoded else {
+        let Decoded::Action(core::NamedAction::Note { entry, recalled, .. }) = decoded else {
             panic!("whole write: {decoded:?}")
         };
         assert_eq!(&*entry.body, b"next");
@@ -890,6 +890,8 @@ fn each_note_refusal_says_what_to_do_next() {
         added: 18,
         removed: 6,
         first: 31,
+        recorded: Box::new([]),
+        unknown: Box::new([]),
     });
     assert!(!rendered.error);
     assert_eq!(&*rendered.text, b"Wrote note 12 revision 3, 64 lines");

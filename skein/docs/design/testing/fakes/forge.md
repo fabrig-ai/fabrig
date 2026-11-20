@@ -254,7 +254,12 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   (`flaky: [id]`, bounded as `fails`, empty by default): each fails in
   a run not given the selection input and passes in a run whose
   selection lists it, stateless, so that a world shows a flake's rerun
-  passing. `Read::Artifact` reads it, and
+  passing. It may name ids that fail once (`once: [id]`, bounded as
+  `fails`, empty by default): each fails at the first attempt of the
+  workflow's first run over a commit's tree, and passes in a job's rerun
+  and in every later run over that tree, read from the runs it keeps, so
+  that a world shows a gate run once more at the same content passing.
+  `Read::Artifact` reads it, and
   `Read::Commits` a range's commits with their messages.
 
 ### 2.4 Seen from outside
@@ -547,7 +552,10 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   `pulls/{base}/{head}` names the oldest of several; a pull request whose
   head adds nothing is opened (`201`); an issue's edit, close or reopen
   answers `201`, as a reviewer's request does, and a reviewer's removal and
-  a branch's deletion answer `204` with no body; deleting a branch that is
+  a branch's deletion answer `204` with no body; a close or reopen of a
+  merged pull request answers `412`, `cannot change state of this pull
+  request, it was already merged`, before the domain is called, and changes
+  nothing (the GitHub layer still closes it, `200`); deleting a branch that is
   not there answers `500`; a failed job's completion step reports
   `failure`; a push to a pull request's head or base starts a mergeability
   check. `../../forge/forgejo.md`, section 2 names the fact that records each, or lists

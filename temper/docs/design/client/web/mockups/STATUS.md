@@ -146,7 +146,7 @@ Where the client does otherwise:
 
   | Page | Where the client does otherwise, or what is left |
   |---|---|
-  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../README.md`, 2.3), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../../pages/README.md`). The opening draws the lede "How a change is produced and lands in PROJECT.", a head with the shown way's line, its act ("Use this" or "Keep it" where offered), "Back" while a way the project doesn't run is shown, and the "Stock ways" drop-down; the shown way's path from the `ways` read, a pressed stop's card, the legend and "How does temper work?"; then "✦ Change anything by asking temper below." (the look requests `ask-temper-ways` and `ways-current`). It has no heading, starters or temper's own way's card, and no reference beside the page. On a phone the path runs down the page; while To begin is left, its three tabs stay under the composer. The opening, turns and composer share a column at most 720 px wide, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". Render comparison follows landing, owned by temper/ui (`../../README.md`, section 5). |
+  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../README.md`, 2.3), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../../pages/README.md`). The opening draws the lede "How a change is produced and lands in PROJECT.", a head with the shown way's line, the column to itself, and at the lede's right its act ("Use this" or "Keep it" where offered) and a drop-down naming the way shown, its menu ticking it and saying "current" at the way the project runs, with no "Back"; the shown way's path from the `ways` read, a pressed stop's card, the legend and "How does temper work?"; then "✦ Change anything by asking temper below." (the look requests `ask-temper-ways`, `ways-current` and `ways-shown`). It has no heading, starters or temper's own way's card, and no reference beside the page. On a phone the path runs down the page; while To begin is left, its three tabs stay under the composer. The opening, turns and composer share a column at most 720 px wide, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". Render comparison follows landing, owned by temper/ui (`../../README.md`, section 5). |
 
   The model line names the first usable account's kind and the first
   model `me` serves for the project (`../../pages/README.md`), rather than
@@ -179,10 +179,11 @@ Where the client does otherwise:
   person or "Sign out" (`welcome-top`); temper box's line is a paragraph
   under the Welcome step's cards' note, not in the bar, and Forge, Model
   and Ready draw none. "Set up temper" is the first card and the default;
-  Forge's Forgejo card comes first with "Run on this machine" alone,
-  no "Or connect your deployment", which opens Forgejo's sheet, what
-  it starts with, an empty repository by default, as the user's
-  greenfield mock draws it; Model's cards hold the plans alone,
+  Forge's Forgejo card comes first, headed "Local", with "Run on this
+  machine" alone, no "Or connect your deployment", which opens
+  Forgejo's sheet, "Local forge", what it starts with, the sample by
+  default with no fields (the look request `local-forge`), where the
+  user's greenfield mock draws an empty repository with its names; Model's cards hold the plans alone,
   no key; the forge's ticked line says who temper is on it and that
   its first repository is made; the foot has no "Later";
   Ready is the greenfield mock's, its pane, the request
@@ -214,7 +215,7 @@ Anything else on a page is the UI's own words, and those name no workflow: the d
 
 What temper does not have yet, drawn ahead of its design and marked with its gap's label while **Annotations** is on:
 
-- **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
+- **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. The client draws them wherever a window is held (`../../pages/accounts.md`, 2, *Usage*), but nothing writes one yet (`../../../draft/usage-windows.md`). A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
 - **6.4, worker health:** the ops strip on the workers page, an ops application's report of load and disk.
 - **6.5, open findings:** a finding on a goal's page, the board and the changes page, where a failure that matches an open finding attaches to it and leaves the queue running.
 - **6.7, fleet occupancy:** a worker's free slots, and the director's read of them.
@@ -348,7 +349,8 @@ What is not built here, though the main drawings show it:
 
 - A chats row's or update's reply preview; a chats row's ended
   delegates; fractional spend.
-- A program's usage windows (6.3); an account's email display.
+- A program's usage windows (6.3), which the client draws but no
+  engine's fact writes yet; an account's email display.
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).

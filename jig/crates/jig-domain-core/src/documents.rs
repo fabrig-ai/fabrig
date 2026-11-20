@@ -35,7 +35,7 @@ mod inbox_deployment;
 mod inbox_selection;
 mod live_delegates;
 mod objects;
-pub(crate) use objects::run_proposal;
+pub(crate) use objects::{party_proposal_history, run_proposal};
 mod offers;
 mod programs;
 mod project_note;
@@ -49,6 +49,7 @@ mod task_wait;
 
 pub use deployment::{DocumentClock, make_with_clock};
 pub(crate) use inbox_selection::retained as inbox_selection_from_ancestry;
+pub use jig_domain_core_vocabulary::documents::small::chip_title;
 pub use objects::{
     EndedDelegate, attempt_from_row, ended_delegate_from_row, history_from_row, hold_from_row, person_from_row,
     result_from_row, retained_action,
@@ -58,6 +59,7 @@ pub use settings::inventory as settings_inventory;
 pub use task_lines::{task_line, task_line_from_summary};
 pub use task_query::lines;
 pub use task_tree::task_from_row;
+pub use task_wait::waiting as run_wait;
 
 use crate::{Core, Limits};
 use alloc::boxed::Box;

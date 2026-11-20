@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-16. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -142,10 +142,6 @@ that proof remains with the after-landing runs (11).
   after-landing run proves them (11).
 
 
-- **Not yet:** 2.8: temper's one story on macOS has not run green
-  on the runner, so `../draft/macos.md`'s acceptance stands open.
-
-
 - **Not yet:**
   4.2: temper-box-kit's ctl checks panic where they find, and the fake
   box's readiness panics when the child ends before it is ready; their
@@ -162,23 +158,8 @@ that proof remains with the after-landing runs (11).
   a turn gap, and the port chooser panics on a narrow range; their
   tests are `#[should_panic]`. [in flight: change 3251]
 
-- **Not yet:**
-  2.5: the template's paging story is still the one-process world's,
-  not `tests/client`'s. [in flight: change 5562]
-  2.5: a worker's opening with chosen wires is still checked in the
-  one-process world, not `temper-worker-service`'s tests.
-  [in flight: change 5561]
-  2.5: the stories past their 2 s aim share the world's start, ctl
-  calls and referee steps at costs not yet profiled.
-  [in flight: change 5568]
-  2.5: the `m15` and `github` stories and the renewal across versions
-  rescan what they kept at each checkpoint and step.
-  [in flight: change 5569]
-  2.5: the `copy`, `ready_copies` and `push` stories recheck each answer
-  at every step, and the restart mid-copy calibrates with a whole run.
-  [in flight: change 5570]
-  2.5: story A, the golden stories, the incident stories and the goal
-  across versions make what doesn't change more than once.
-  [in flight: change 5571]
+- **Not yet:** 2.5: the upgrade stories' killed in-flight write, settled image and rehearsal with going back are past the 2 s a story aims at. By the gate's CPU on 11-18, scaled by their measured gains, they come to about 8.2, 6.1 and 2.8 s. That is after the killed story stopped walking a second deployment to measure its cut, the upgrade judge read only new observations, and the layout planner's interning was indexed. What is left is the walks themselves: the service's turns are 36 to 42 per cent, the native person's 17 to 24 per cent, and in the rehearsal, seven fresh service starts and their registry openings. Each walk is what a story checks. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
+- **Not yet:** 2.5: story A and the golden floor's making and opening are past the 2 s a story aims at, about 8.2, 6.5 and 3.1 s by the gate's CPU on 11-18, once the referee read only new commits and the floor's judge cached its mid-run check. Most of what is left is the service, the client, the agents and the simulator that the walks run. The durable observer takes 8 to 19 per cent. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
+
 
 

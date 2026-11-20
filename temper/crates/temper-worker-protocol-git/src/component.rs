@@ -6,10 +6,11 @@ use crate::{
     limits,
     operation::Operation,
     sequence::{self, Next},
+    store_lock::Access,
 };
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
-use skein_lib::{Id, Map, Slab, Time, Token};
+use skein_lib::{Id, List, Map, Slab, Time, Token};
 use temper_worker_domain_checkout::{self as checkout, git};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -29,6 +30,8 @@ pub struct Component {
     pub(crate) settings: Settings,
     slots: Slab<Operation>,
     index: Map<Token, Id<Operation>>,
+    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.13).
+    store_waiters: Map<Token, Id<Operation>>,
     serial: u64,
     start: Start,
     shutting_down: bool,
@@ -57,6 +60,7 @@ impl Component {
             settings,
             slots: Slab::with_capacity(slots),
             index: Map::with_capacity(capacity),
+            store_waiters: Map::with_capacity(limits.operations),
             serial: 0,
             start: Start::Idle,
             shutting_down: false,
@@ -78,7 +82,7 @@ impl Component {
         assert!(self.index.insert(key, id).expect("admitted index fits").is_none(), "unique invocation token");
         id
     }
-    /// Keep workspace directories across this worker's start.
+    /// Keep workspace and worker git directories across this worker's start.
     pub fn keep_workspaces(&mut self) {
         assert_eq!(self.start, Start::Idle, "set workspace reuse before start");
         self.directories.keep = true;
@@ -125,6 +129,78 @@ impl Component {
                 self.maintain(false, out);
             }
         }
+        self.wake_stores(now, out);
+    }
+    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.13).
+    fn store_step(&mut self, id: Id<Operation>, command: &Command) -> bool {
+        let operation = self.slots.get(id).expect("live operation");
+        let access = match &operation.op {
+            Some(op) => Access::for_command(op, command),
+            None => None,
+        };
+        let Some(access) = access else {
+            self.slots.get_mut(id).expect("live operation").store_lock = None;
+            return true;
+        };
+        if operation.store_lock == Some(access) && !operation.waiting() {
+            return true;
+        }
+        let admission = operation.admission;
+        let free = self.store_free(admission, access);
+        self.slots.get_mut(id).expect("live operation").store_lock = Some(access);
+        if !free {
+            assert!(self.store_waiters.insert(admission, id).expect("one waiter per operation").is_none(), "wait once");
+        }
+        free
+    }
+    fn store_free(&self, admission: Token, access: Access) -> bool {
+        for (_, id) in &self.index {
+            let operation = self.slots.get(*id).expect("live index");
+            if operation.admission != admission
+                && !operation.waiting()
+                && let Some(held) = operation.store_lock
+                && access.conflicts(held)
+            {
+                return false;
+            }
+        }
+        for (earlier, id) in &self.store_waiters {
+            if *earlier >= admission {
+                break;
+            }
+            let waiting = self.slots.get(*id).expect("live waiter").store_lock.expect("waiter requests a lock");
+            if waiting.store == access.store {
+                return false;
+            }
+        }
+        true
+    }
+    fn wake_stores(&mut self, now: Time, out: &mut Outputs) {
+        if self.store_waiters.is_empty() {
+            return;
+        }
+        let mut queued = List::with_capacity(self.store_waiters.len());
+        for (_, id) in &self.store_waiters {
+            queued.push(*id).expect("at most one waiter per operation");
+        }
+        for &id in &queued {
+            let operation = self.slots.get_mut(id).expect("live waiter");
+            if operation.stop.is_none() && now >= operation.deadline {
+                operation.stop = Some(git::Fault::TimedOut);
+            }
+            if let Some(fault) = operation.stop {
+                self.finish(id, git::Done::Failed { fault }, out);
+                continue;
+            }
+            let admission = operation.admission;
+            let access = operation.store_lock.expect("waiter requests a lock");
+            if self.store_free(admission, access) {
+                self.store_waiters.remove(&admission).expect("queued waiter");
+                let command = self.slots.get_mut(id).expect("live waiter").resume();
+                self.advance(id, Next::Run(command), out);
+            }
+        }
+        self.maintain(false, out);
     }
     fn begin(
         &mut self,
@@ -135,7 +211,7 @@ impl Component {
         identity: Option<Identity>,
         out: &mut Outputs,
     ) {
-        let needs_identity = match op {
+        let needs_identity = match &op {
             git::Op::Store { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
@@ -144,6 +220,8 @@ impl Component {
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => true,
             git::Op::Reds { .. }
+            | git::Op::Reset { .. }
+            | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
@@ -262,9 +340,14 @@ impl Component {
                 self.maintain(false, out);
             }
         }
+        self.wake_stores(now, out);
     }
     fn retire(&mut self, id: Id<Operation>) {
         let operation = self.slots.get_mut(id).expect("live index");
+        if operation.waiting() {
+            self.store_waiters.remove(&operation.admission).expect("retiring a queued waiter");
+        }
+        operation.store_lock = None;
         operation.identity = None;
         operation.op = None;
         operation.command = Command::Version;
@@ -281,11 +364,32 @@ impl Component {
         let next = match next {
             Next::End(done) => {
                 let operation = self.slots.get(id).expect("live operation");
+                if operation.scan_index.is_some() {
+                    self.finish(id, done, out);
+                    return;
+                }
                 if let Command::Store { directory, .. } = &operation.command {
                     Next::InstallStore { directory: directory.clone(), done: Box::new(done) }
+                } else if !operation.viewed {
+                    sequence::ending(operation.op.as_ref().expect("operation terminal"), done)
                 } else {
                     Next::End(done)
                 }
+            }
+            Next::InitView { done, format } => {
+                let operation = self.slots.get_mut(id).expect("view operation");
+                operation.view_done = Some(done);
+                let command = match format {
+                    Some(format) => Command::Clone {
+                        directory: crate::invocation::place(
+                            sequence::view_place(operation.op.as_ref().expect("view operation")).expect("view place"),
+                        ),
+                        format,
+                        bare: false,
+                    },
+                    None => Command::Format,
+                };
+                Next::Run(command)
             }
             Next::Snapshot { parent, merging } => {
                 let operation = self.slots.get_mut(id).expect("live snapshot");
@@ -304,13 +408,28 @@ impl Component {
             | Next::Reds { .. }
             | Next::Run(_)
             | Next::Make
+            | Next::Look { .. }
             | Next::Store
             | Next::InstallStore { .. }
-            | Next::Alternates
+            | Next::View { .. }
+            | Next::RemakeView { .. }
+            | Next::Alternates { .. }
             | Next::Scan { .. }) => other,
         };
         match next {
             Next::Run(command) => {
+                if command == Command::Add {
+                    let operation = self.slots.get_mut(id).expect("live scan");
+                    if let Some(directory) = operation.scan_index.take() {
+                        let task = Task::remove_index(directory, Next::Run(command), operation.word);
+                        self.file_start(id, task, out);
+                        return;
+                    }
+                }
+                if !self.store_step(id, &command) {
+                    self.slots.get_mut(id).expect("live waiter").wait(command);
+                    return;
+                }
                 let operation = self.slots.get(id).expect("live index");
                 if let Command::Store { .. } = &command
                     && let Some(program) =
@@ -361,7 +480,9 @@ impl Component {
                 operation.spawn(token, command, &self.settings, out);
                 assert!(self.index.insert(token, id).expect("same operation").is_none(), "unique token");
             }
-            Next::Snapshot { .. } => unreachable!("snapshot parents were resolved before dispatch"),
+            Next::Snapshot { .. } | Next::InitView { .. } => {
+                unreachable!("continuations were resolved before dispatch")
+            }
             Next::End(done) => self.finish(id, done, out),
             Next::Make => {
                 let Some(git::Op::Make { workspace, stores }) = &self.slots.get(id).expect("live index").op else {
@@ -369,6 +490,7 @@ impl Component {
                 };
                 self.file_start(id, Task::make(*workspace, stores.clone()), out);
             }
+            Next::Look { directory } => self.file_start(id, Task::look(directory), out),
             Next::Store => {
                 let Some(git::Op::Store { store, aside, remote, .. }) = &self.slots.get(id).expect("live index").op
                 else {
@@ -386,21 +508,30 @@ impl Component {
                 operation.command = Command::Version;
                 self.file_start(id, task, out);
             }
-            Next::Alternates => {
-                let Some(git::Op::Clone { at, store, remote }) = &self.slots.get(id).expect("live index").op else {
+            Next::View { done, retry } => {
+                self.slots.get_mut(id).expect("view operation").view_done = None;
+                self.view_start(id, done, retry, false, None, out);
+            }
+            Next::RemakeView { done, format } => self.view_start(id, done, true, true, format, out),
+            Next::Alternates { format } => {
+                let Some(git::Op::Clone { at, store, remote } | git::Op::Look { at, store, remote }) =
+                    &self.slots.get(id).expect("live index").op
+                else {
                     unreachable!("Clone sequence")
                 };
-                self.file_start(id, Task::alternates(at, *store, remote.clone()), out);
+                self.file_start(id, Task::alternates(at, *store, remote.clone(), format), out);
             }
             Next::Reds { directory, content, marker, rerun } => {
                 self.file_start(id, Task::reds(directory, content, marker, rerun), out);
             }
             Next::Results { directory } => self.file_start(id, Task::results(directory), out),
-            Next::Scan { files } => {
+            Next::Scan { files, cut } => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
                     git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
+                    | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Store { .. }
                     | git::Op::Make { .. }
@@ -415,14 +546,43 @@ impl Component {
                     | git::Op::Merge { .. }
                     | git::Op::Push { .. } => unreachable!("scan sequence"),
                 };
-                self.file_start(id, Task::scan(files, crate::invocation::place(at)), out);
+                let directory = crate::invocation::git_dir(at);
+                let place = crate::invocation::place(at);
+                let operation = self.slots.get_mut(id).expect("live scan");
+                if cut && operation.scan_index.is_none() {
+                    operation.scan_index = Some(directory.clone());
+                    self.file_start(id, Task::copy_index(directory, Next::Scan { files, cut }), out);
+                } else {
+                    self.file_start(id, Task::scan(files, place, cut), out);
+                }
             }
         }
+    }
+    fn view_start(
+        &mut self,
+        id: Id<Operation>,
+        done: Box<git::Done>,
+        retry: bool,
+        remake: bool,
+        format: Option<crate::invocation::Format>,
+        out: &mut Outputs,
+    ) {
+        let operation = self.slots.get_mut(id).expect("view operation");
+        operation.viewed = true;
+        let at = sequence::view_place(operation.op.as_ref().expect("view operation")).expect("view place");
+        let task = Task::view(at, done, retry, remake, format);
+        self.file_start(id, task, out);
     }
     /// Every terminal with output names where it ended
     /// (temper/docs/design/protocol/git.md, section 6).
     fn finish(&mut self, id: Id<Operation>, done: git::Done, out: &mut Outputs) {
-        let operation = self.slots.get(id).expect("live index");
+        let operation = self.slots.get_mut(id).expect("live index");
+        if let Some(directory) = operation.scan_index.take() {
+            let done = operation.named(done);
+            let task = Task::remove_index(directory, Next::End(done), operation.word);
+            self.file_start(id, task, out);
+            return;
+        }
         if !operation.aborted {
             let done = operation.named(done);
             event(out, Event::Done { owner: operation.owner, done });
@@ -434,7 +594,7 @@ impl Component {
         out.kernel.push(kernel::Submit { op: task.pending, kind });
     }
     fn background(&mut self, mut task: Task, out: &mut Outputs) {
-        let action = task.first(&mut self.directories, &self.settings);
+        let action = task.first(&mut self.directories, &self.settings, &self.limits);
         self.background_action(task, action, out);
     }
     fn background_action(&mut self, mut task: Task, action: Action, out: &mut Outputs) {
@@ -480,7 +640,7 @@ impl Component {
     }
     fn file_start(&mut self, id: Id<Operation>, mut task: Task, out: &mut Outputs) {
         self.slots.get_mut(id).expect("live operation").word = task.word;
-        let action = task.first(&mut self.directories, &self.settings);
+        let action = task.first(&mut self.directories, &self.settings, &self.limits);
         self.file_action(id, task, action, out);
     }
     fn file_action(&mut self, id: Id<Operation>, mut task: Task, action: Action, out: &mut Outputs) {
@@ -536,7 +696,7 @@ impl Component {
             task.complete(complete, &mut self.directories, &self.settings, &self.limits, operation.stop.is_some());
         self.file_action(id, task, action, out);
     }
-    /// Kill and settle at most one operation whose one deadline has elapsed.
+    /// Kill at most one due child, and settle due store waiters without a child.
     pub fn fire(&mut self, now: Time, out: &mut Outputs) {
         for (_, id) in &self.index {
             let operation = self.slots.get_mut(*id).expect("live index");
@@ -545,6 +705,7 @@ impl Component {
                 break;
             }
         }
+        self.wake_stores(now, out);
     }
     /// Abort each child and pipe; retain a pending spawn until it can settle.
     pub fn abort(&mut self, out: &mut Outputs) {
@@ -556,6 +717,7 @@ impl Component {
             operation.identity = None;
             operation.cancel(git::Fault::Cancelled, &self.checkout, out);
         }
+        self.wake_stores(Time::ZERO, out);
         self.maintain(false, out);
     }
     #[must_use]
@@ -601,6 +763,7 @@ impl Component {
             && self.background.is_none()
             && self.directories.trash.is_none()
             && self.directories.workspaces.is_none()
+            && self.directories.gitdirs.is_none()
             && self.directories.stores.is_none()
             && self.directories.making.is_none()
     }

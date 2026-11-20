@@ -379,6 +379,7 @@ fn a_subtree_cursor_advances_past_rows_whose_owner_is_gone() {
 
 fn task_query() -> documents::TaskQuery {
     documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: None,
         requester: Some(tasks::Party::Person(ALICE)),
         root: None,

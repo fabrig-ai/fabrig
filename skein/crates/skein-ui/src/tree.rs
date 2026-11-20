@@ -100,6 +100,8 @@ pub enum Role {
     Tab,
     /// A progress node.
     Progress,
+    /// A value in a known range.
+    Meter,
     /// A time node.
     Time,
     /// A code node.
@@ -170,7 +172,7 @@ impl Role {
             | Self::Drawing => 0,
             Banner | Navigation | Complementary | ContentInfo | Form | Search | Region | Log | Tabs => REGION,
             Self::Main => REGION | FOCUS,
-            Self::Text | Self::Progress => RUNS,
+            Self::Text | Self::Progress | Self::Meter => RUNS,
             Self::List | Self::Tree => COLLECTION | LIST,
             Self::Item => POSITIONED | LIST_ITEM | KEYED | WORDS_INSIDE | DESCRIPTION_INSIDE,
             Self::Table => COLLECTION,
@@ -320,6 +322,8 @@ pub enum State {
     SubmitsOnEnter,
     /// A disclosure folds on an outside press or Escape.
     FoldsAway,
+    /// A disclosure child shown in its head, folded or not.
+    ShownFolded,
     /// The log's last entry is not its list's last.
     Continues,
     /// A button takes the page's logs to their ends before its press reaches its owner where bound.
@@ -460,6 +464,14 @@ pub struct Drawing {
     pub data: Box<[u8]>,
 }
 
+/// The words and name of the button a shell shows a menu behind
+/// (skein's ui/README.md, 3.2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct MenuButton {
+    pub words: Box<[u8]>,
+    pub name: Box<[u8]>,
+}
+
 /// One node and its attributes; `size` includes its descendants.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Node {
@@ -476,6 +488,7 @@ pub struct Node {
     pub placeholder: Option<Box<[u8]>>,
     /// Words a shell with a pointer shows on hover, never needed to decide (ui/README.md, 3.2).
     pub hint: Option<Box<[u8]>>,
+    pub button: Option<MenuButton>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub end_request: Option<u64>,
@@ -512,6 +525,7 @@ impl Node {
             description: None,
             placeholder: None,
             hint: None,
+            button: None,
             entry: None,
             focus: None,
             end_request: None,
@@ -546,6 +560,7 @@ impl Node {
             description: None,
             placeholder: None,
             hint: None,
+            button: None,
             entry: None,
             focus: None,
             end_request: None,
@@ -582,6 +597,10 @@ impl Node {
         }
         if let Some(hint) = &self.hint {
             bytes = bytes.checked_add(length(hint)).expect("node bytes fit u32");
+        }
+        if let Some(button) = &self.button {
+            bytes = bytes.checked_add(length(&button.words)).expect("node bytes fit u32");
+            bytes = bytes.checked_add(length(&button.name)).expect("node bytes fit u32");
         }
         if let Some(source) = &self.source {
             match source {

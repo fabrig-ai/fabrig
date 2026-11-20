@@ -4,6 +4,8 @@
 extern crate alloc;
 use alloc::boxed::Box;
 mod acts;
+mod fixed;
+pub use fixed::{Fixed, FixedClients};
 mod charters;
 mod core;
 mod templates;
@@ -12,31 +14,32 @@ mod directories;
 pub use directories::{Directories, Directory};
 mod defaults;
 mod domain;
-pub use defaults::pass;
+pub use defaults::{pass, pass_providers};
 mod projects;
 pub use domain::{
     Deployment, Provider as IdentityProvider, ProviderKind, amendment_bytes_max, check_effective_limits,
     policy_bytes_max,
 };
-pub use projects::{Policy, Project};
+pub use projects::{Policy, Project, policies};
 mod check;
 mod worker;
-pub use worker::{Agent, Graces, Worker, stop_bound, worker};
+pub use worker::{Agent, FixedWorker, Graces, Worker, stop_bound, worker, worker_over};
 pub mod clients;
 mod files;
 pub mod hosts;
 pub mod llm;
 pub use clients::Clients;
 pub use files::{File, Files, files, worker_files};
-pub use hosts::{Hosts, WorkerName};
-pub use llm::{Endpoint, Header, Llm, Provider, Transport};
+pub use hosts::Hosts;
+pub use llm::{Endpoint, EndpointAddress, Header, Llm, Provider, ProviderSetting, Registration, Transport};
 pub mod address;
 mod document;
 pub mod members;
 pub mod names;
 pub mod overrides;
+pub use overrides::with_overrides;
 pub mod profile;
-pub use profile::{JournalSizes, Limits, Link, Profile, profile};
+pub use profile::{JournalSizes, Limits, Link, stock};
 pub mod forms;
 mod problem;
 pub mod read;
@@ -52,6 +55,8 @@ pub enum Defaults {
     Document,
     /// The application's defaults, given by `pass`; the four members are refused.
     Passed,
+    /// All defaults, including providers, passed by the application.
+    PassedProviders,
 }
 /// The engine's protocol configuration (configuration.md, 3).
 #[derive(Clone, Debug)]
@@ -68,10 +73,12 @@ pub struct Engine {
     pub seed_policies: Box<[Option<u32>]>,
     pub policies: Box<[Policy]>,
     pub connectors: Box<[u16]>,
-    pub memory: u64,
+    pub memory: Option<u64>,
     pub charters: Box<[jig_domain_core_vocabulary::Charter]>,
     pub templates: Box<[jig_domain_core_vocabulary::Template]>,
     pub llm: Llm,
+    pub provider_defaults: Option<Box<[ProviderSetting]>>,
+    pub fixed_llm_providers: Box<[ProviderSetting]>,
     pub hosts: Hosts,
     pub clients: Clients,
     pub limits: Limits,
@@ -82,15 +89,30 @@ pub fn engine(
     at: u32,
     directories: &Directories,
     defaults: Defaults,
+    fixed: &Fixed,
+) -> Result<Engine, Problems> {
+    engine_over(document, at, directories, defaults, fixed, &stock())
+}
+
+/// Parse jig's engine member over an application's base (protocol/limits.md, the stock).
+#[expect(clippy::too_many_lines, reason = "one ordered read before the engine whole-check")]
+#[expect(clippy::manual_map, reason = "step code uses no closures")]
+pub fn engine_over(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &Directories,
+    defaults: Defaults,
+    fixed: &Fixed,
+    base: &Limits,
 ) -> Result<Engine, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems, "engine") else {
         return Err(problems);
     };
-    let mut limits = profile(Profile::Standard);
-    if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        let parsed = overrides::parse(document, at, &path.member(b"limits"));
+    let mut limits = *base;
+    if let Some(at) = object.member(document, b"limits") {
+        let parsed = overrides::parse_over(document, at, &path.member(b"limits"), base);
         limits = parsed.limits;
         for problem in &parsed.problems.problems {
             problems.push(problem.path.clone(), problem.what);
@@ -98,7 +120,12 @@ pub fn engine(
         problems.past = problems.past.saturating_add(parsed.problems.past);
     }
     let mut llm = None;
-    if let Some(at) = object.required(document, b"llm", &path, &mut problems) {
+    if defaults == Defaults::PassedProviders {
+        if object.member(document, b"llm").is_some() {
+            problems.push(path.member(b"llm"), What::Stored);
+        }
+        llm = Some(Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) });
+    } else if let Some(at) = object.required(document, b"llm", &path, &mut problems) {
         llm = llm::parse(document, at, &path.member(b"llm"), directories, defaults, &mut problems);
     }
     let mut hosts = None;
@@ -106,31 +133,47 @@ pub fn engine(
         hosts = hosts::parse(document, at, &path.member(b"hosts"), &limits, directories, &mut problems);
     }
     let mut clients = None;
-    if let Some(at) = object.required(document, b"clients", &path, &mut problems) {
-        clients = clients::parse(document, at, &path.member(b"clients"), directories, &mut problems);
+    let clients_at = if fixed.clients.is_some() {
+        object.member(document, b"clients")
+    } else {
+        object.required(document, b"clients", &path, &mut problems)
+    };
+    if let Some(at) = clients_at {
+        clients =
+            clients::parse(document, at, &path.member(b"clients"), directories, fixed.clients.as_ref(), &mut problems);
+    } else if let Some(given) = &fixed.clients {
+        clients = Some(given.clients());
     }
     let offers = defaults::offers(document, &mut object, llm.as_ref(), &limits, directories, defaults, &mut problems);
     let configured = match &llm {
         Some(llm) => llm.models(),
         None => Box::default(),
     };
-    let mut deployment = None;
-    if let Some(at) = object.required(document, b"deployment", &path, &mut problems) {
+    let mut deployment = fixed.deployment.clone();
+    if let Some(at) =
+        fixed::member(&mut object, document, b"deployment", fixed.deployment.is_some(), &path, &mut problems)
+    {
         deployment = domain::deployment(document, at, &path.member(b"deployment"), directories, &mut problems);
     }
-    let mut providers = None;
-    if let Some(at) = object.required(document, b"providers", &path, &mut problems) {
+    let mut providers = fixed.providers.clone();
+    if let Some(at) =
+        fixed::member(&mut object, document, b"providers", fixed.providers.is_some(), &path, &mut problems)
+    {
         providers = domain::providers(document, at, &path.member(b"providers"), &mut problems);
     }
-    let mut rules = if defaults == Defaults::Passed { Some(defaults::empty_rules()) } else { None };
+    let mut rules = if defaults == Defaults::Document { None } else { Some(defaults::empty_rules()) };
     if defaults == Defaults::Document
         && let Some(at) = object.required(document, b"rules", &path, &mut problems)
     {
         let authority = &limits.core.authority;
         rules = projects::rules(document, at, &path.member(b"rules"), authority, &configured, &mut problems);
     }
-    let mut projects = None;
-    if let Some(at) = object.required(document, b"projects", &path, &mut problems) {
+    let mut projects = match &fixed.projects {
+        Some(values) => Some(projects::Projects { values: values.clone(), policies: Box::default() }),
+        None => None,
+    };
+    if let Some(at) = fixed::member(&mut object, document, b"projects", fixed.projects.is_some(), &path, &mut problems)
+    {
         projects = projects::projects(document, at, &path.member(b"projects"), &limits, &configured, &mut problems);
     }
     let policies = if defaults == Defaults::Document {
@@ -138,14 +181,23 @@ pub fn engine(
     } else {
         Some(Box::default())
     };
-    let mut connectors = None;
-    if let Some(at) = object.required(document, b"connectors", &path, &mut problems) {
+    let mut connectors = fixed.connectors.clone();
+    if let Some(at) =
+        fixed::member(&mut object, document, b"connectors", fixed.connectors.is_some(), &path, &mut problems)
+    {
         connectors =
             domain::connectors(document, at, &path.member(b"connectors"), limits.core.connectors, &mut problems);
     }
-    let acts = acts::parse(&mut object, document, &path, connectors.as_deref().unwrap_or(&[]), &mut problems);
-    limits.core.people.act_grants = u32::try_from(acts.len()).expect("document count fits u32");
-    let memory = check::integer(&mut object, document, b"memory_bytes", &path, &mut problems);
+    let acts = if let Some(given) = &fixed.acts {
+        fixed::refuse(&mut object, document, b"acts", &path, &mut problems);
+        acts::check(given, connectors.as_deref().unwrap_or(&[]), &path.member(b"acts"), &mut problems);
+        given.clone()
+    } else {
+        acts::parse(&mut object, document, &path, connectors.as_deref().unwrap_or(&[]), &mut problems)
+    };
+    fixed::check(fixed, &limits, &mut problems);
+    limits.core.people.act_grants = u32::try_from(acts.len()).expect("act-grant count fits u32");
+    let memory = check::optional_integer(&mut object, document, b"memory_bytes", &path, &mut problems);
     let owners = object.required(document, b"owners", &path, &mut problems);
     object.finish(document, &path, &mut problems);
     if !problems.is_empty() {
@@ -163,10 +215,12 @@ pub fn engine(
         connectors: connectors.expect("required member checked"),
         owners: Box::default(),
         acts,
-        memory: memory.expect("required member checked"),
+        memory,
         charters: offers.charters.expect("required member checked"),
         templates: offers.templates.expect("required member checked"),
         llm: llm.expect("required member checked"),
+        provider_defaults: None,
+        fixed_llm_providers: Box::new([]),
         hosts: hosts.expect("required member checked"),
         clients: clients.expect("required member checked"),
         limits,

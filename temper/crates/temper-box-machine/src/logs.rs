@@ -520,6 +520,7 @@ fn error_name(error: Error) -> Box<[u8]> {
         Error::Unreachable => b"Unreachable",
         Error::TimedOut => b"TimedOut",
         Error::TooLate => b"TooLate",
+        Error::Reach(_) => b"Reach",
         Error::Other(code) => {
             return joined(&[
                 b"Other(",

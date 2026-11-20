@@ -47,6 +47,7 @@ pub fn adoption() -> client::forge::Adoption {
 }
 pub fn adopted(protection: client::forge::Protection) -> client::forge::Adopted {
     client::forge::Adopted {
+        landing: b"main".as_slice().into(),
         forge: 1,
         repository: 7,
         owner: Box::from(*b"acme"),
@@ -255,6 +256,19 @@ fn populate_page(
 ) {
     use contract::{Delivery, ReadResult, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
+    client::step(
+        root,
+        env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: Token::new(0),
+                    event: WatchEvent::Delivered(Delivery::Me(Box::new(page_frame(address)))),
+                },
+            },
+        },
+        out,
+    );
     for _ in 0..128 {
         let Some(request) = out.pop() else {
             break;
@@ -267,8 +281,8 @@ fn populate_page(
                     },
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
-                    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap();
+                if let w::Read::Setting(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
+                    let value = w::SettingAnswer { revision: None, value: None };
                     client::step(
                         root,
                         env,
@@ -295,70 +309,54 @@ fn populate_page(
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("fixture family watch");
-                if let w::Watch::Changes(subject) = watching.watch() {
+                if let w::Watch::Changes(subject) = &watching.watch {
                     let mut changes = skein_lib::List::with_capacity(1);
                     changes
-                        .push(
-                            w::ChangesQueued::new(
-                                &w::CEILINGS,
-                                w::ChangesQueuedParts {
-                                    task: 9,
-                                    title: b"Store: policy record".as_slice().into(),
-                                    ready_since: 0,
-                                    checks_since: Some(0),
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        .push(w::ChangesQueued {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
+                            task: 9,
+                            title: b"Store: policy record".as_slice().into(),
+                            ready_since: 0,
+                            checks_since: Some(0),
+                        })
                         .unwrap();
                     let mut queues = skein_lib::List::with_capacity(1);
                     queues
-                        .push(
-                            w::ChangesQueue::new(
-                                &w::CEILINGS,
-                                w::ChangesQueueParts {
-                                    way: w::Way::Queue,
-                                    in_flight: None,
-                                    repository: b"owner/repo".as_slice().into(),
-                                    branch: b"main".as_slice().into(),
-                                    red: false,
-                                    changes,
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        .push(w::ChangesQueue {
+                            way: w::Way::Queue,
+                            in_flight: None,
+                            repository: b"owner/repo".as_slice().into(),
+                            branch: b"main".as_slice().into(),
+                            red: false,
+                            changes,
+                        })
                         .unwrap();
                     let mut landed = skein_lib::List::with_capacity(1);
                     landed
-                        .push(
-                            w::ChangesLanded::new(
-                                &w::CEILINGS,
-                                w::ChangesLandedParts {
-                                    signed: skein_lib::List::with_capacity(8),
-                                    commit: [0xab; 32],
-                                    default_branch: true,
-                                    task: 10,
-                                    title: b"A landed change".as_slice().into(),
-                                    at: 0,
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        .push(w::ChangesLanded {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
+                            signed: skein_lib::List::with_capacity(8),
+                            commit: [0xab; 32],
+                            default_branch: true,
+                            task: 10,
+                            title: b"A landed change".as_slice().into(),
+                            at: 0,
+                        })
                         .unwrap();
-                    let panel = w::ChangesPanel::new(
-                        &w::CEILINGS,
-                        w::ChangesPanelParts {
-                            landed_default: skein_lib::List::with_capacity(0),
-                            landed_default_more: 0,
-                            project: subject.project(),
-                            landing: b"main".as_slice().into(),
-                            queues,
-                            more: 0,
-                            landed,
-                            landed_more: 0,
-                        },
-                    )
-                    .unwrap();
+                    let panel = w::ChangesPanel {
+                        landed_default: skein_lib::List::with_capacity(0),
+                        landed_default_more: 0,
+                        project: subject.project,
+                        landing: b"main".as_slice().into(),
+                        queues,
+                        more: 0,
+                        landed,
+                        landed_more: 0,
+                    };
                     client::step(
                         root,
                         env,
@@ -424,13 +422,10 @@ fn populate_page(
                         held: skein_lib::List::with_capacity(0),
                         pending: skein_lib::List::with_capacity(0),
                     }))),
-                    Subject::Me => Some(Delivery::Me(Box::new(super::render::models_frame(
-                        address,
-                        jig_client_kit::stories::frame(1),
-                    )))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_kit::stories::task()))),
-                    Subject::Deployment => Some(Delivery::Deployment(Box::new(jig_client_kit::stories::deployment()))),
-                    Subject::Terminal { .. }
+                    Subject::Deployment => Some(Delivery::Deployment(Box::new(workers_deployment()))),
+                    Subject::Me
+                    | Subject::Terminal { .. }
                     | Subject::Tree { .. }
                     | Subject::Chips { .. }
                     | Subject::Inbox { .. }
@@ -489,7 +484,7 @@ pub fn page_words() -> temper_client_view::words::Words {
         .get_or_init(|| {
             temper_client_view::words::Words::english(
                 temper_client_protocol_wire::FORGE,
-                32,
+                temper_client_protocol_wire::v1::CEILINGS.class_item_words,
                 temper_client_view::words::Shell::Terminal,
             )
             .expect("temper words fit")
@@ -863,7 +858,7 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
         Read::Me => Some(ReadValue::Me(Box::new(jig_client_kit::stories::frame(1)))),
         Read::Task { .. } => Some(ReadValue::Task(Box::new(jig_client_kit::stories::task()))),
         Read::Project { .. } => Some(ReadValue::Project(Box::new(jig_client_kit::stories::project()))),
-        Read::Deployment => Some(ReadValue::Deployment(Box::new(jig_client_kit::stories::deployment()))),
+        Read::Deployment => Some(ReadValue::Deployment(Box::new(workers_deployment()))),
         Read::Proposal { .. } => Some(ReadValue::Proposal(Box::new(jig_client_kit::stories::proposal()))),
         Read::Inbox { group, .. } => Some(ReadValue::Inbox(Box::new(inbox_document(*group)))),
         Read::ActivityBeside { .. } => Some(ReadValue::Activity(Box::new(contract::ActivityPage {
@@ -1008,4 +1003,38 @@ pub fn changes_page() -> skein_ui::Tree {
 }
 pub fn team_page() -> skein_ui::Tree {
     page(&client::Address::Team { project: 1, role: None }, false)
+}
+
+/// The terminal's Workers print has a box worker and a lost remote worker.
+fn workers_deployment() -> contract::Deployment {
+    let mut doc = jig_client_kit::stories::deployment();
+    doc.worker_settings = skein_lib::List::from_boxed(Box::new([
+        contract::WorkerState {
+            number: 1,
+            name: b"local".as_slice().into(),
+            places: 2,
+            digest: None,
+            withdrawn: false,
+            linked: false,
+            since: None,
+        },
+        contract::WorkerState {
+            number: 2,
+            name: b"w1".as_slice().into(),
+            places: 4,
+            digest: Some([0xab; 32]),
+            withdrawn: false,
+            linked: false,
+            since: Some(NOW),
+        },
+    ]));
+    doc
+}
+
+fn page_frame(address: &client::Address) -> contract::Me {
+    let mut me = super::render::models_frame(address, jig_client_kit::stories::frame(1));
+    if matches!(address, client::Address::Builders { .. }) {
+        me.deployment_role = Some(contract::HeldRole::Owner);
+    }
+    me
 }

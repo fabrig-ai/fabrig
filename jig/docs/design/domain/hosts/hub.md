@@ -151,7 +151,9 @@ Typed, so the engine can act on them without reading prose:
   section 9), a failure of its model naming the model call where it can
   (below), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which
-  is no failure of its task's (../tasks/lifecycle.md, 6; ../accounts.md, 3.5);
+  is no failure of its task's (../tasks/lifecycle.md, 6; ../accounts.md, 3.5),
+  or because its program started without its agent's tools, a fault of
+  its place (below);
 - **the agent failed:** it could not be started, it exited or was dropped
   without answering, it broke the channel's rules, or the watchdog or its
   bound on wall time stopped it;
@@ -194,6 +196,18 @@ the next attempt to resume it;
 an unread tail does not spend another transient try. It does not retry the same
 history as an invalid start or a model failure.
 
+**A program that started without its tools** is
+`RunFailure::Untooled`, a unit variant: the run's program, on a
+program source, gave a first output (its init) without smith's tools
+(smith's `protocol/programs.md`, 5.6), so the program source's login
+on this host, not the task, is at fault. Its application names it from
+its agent's own fault (temper's `domain/worker/README.md`, 4.3), its
+detail the agent's bounded words as for any failed run, and `model`
+none. It crosses the channel as `untooled` (`../../protocol/channel/records.md`,
+1), and the engine keeps the task off that place without spending a
+try (`../engine/fleet.md`). Every other program failure stays the
+run's own, `RunFailure::Model` with `model` none.
+
 **A configured bound** is `RunFailure::Exceeded(Exceeded)`, where
 `Exceeded { bound: Bound, value: u64 }` names the bound and its configured
 value in that bound's unit, never a measured size. The payload is `Copy`
@@ -230,9 +244,11 @@ pub struct ModelFailure {
     pub kind: ModelFailureKind,
     pub evidence: ModelEvidence,
     pub status: Option<u16>,     // the HTTP status the call's answer carried, where one came
+    pub refusal: Option<Box<[u8]>>,  // why its application refused the call before sending it, by its cause's name
 }
 impl ModelFailure {
     pub const NAME_BYTES: u32 = 40;     // each name's bound
+    pub const REFUSAL_BYTES: u32 = 24;  // the refusal's bound
     pub fn outage(&self) -> bool;       // the provider unreachable (below)
     pub fn words(&self) -> Box<[u8]>;   // its words (below)
 }
@@ -258,15 +274,27 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
   class, one to one, a local limit's being `Limit`; the evidence says
   whether the call's request went out (`Unsent`: no call reached the
   model), may have (`Unknown`), or was answered (`Response`).
+- **The refusal** says why a call its application refused before
+  sending it was refused, by its cause's name: smith's, or skein's
+  client's which smith passes on (smith's `protocol/llm.md`, section 6;
+  skein's `llm/admission.md`). It comes only with the kind `Invalid` or
+  `Unsupported`, the evidence `Unsent` and no status, and is at most
+  `REFUSAL_BYTES` of lowercase ASCII letters and hyphens; a name past
+  that is none, never cut. It is fixed bytes of the application's, never
+  a provider's code or text, so one refusal is told from another without
+  any prose: an empty message from a tool's schema, say.
 - **Its words** are `<endpoint> <model>: <kind>, status <status>,
-  <evidence>`, the status part only where one came, and each name's
-  bytes outside printable ASCII written `?`:
-  `anthropic claude-opus-5-5: unavailable, status 403, unsent`. The kinds
-  are written `unavailable`, `overloaded`, `rate limited`, `exhausted`,
-  `timed out`, `context too long`, `invalid`, `refused`, `unsupported`,
-  `unauthorized`, `protocol`, `cancelled` and `limit`; the evidence
-  `unsent`, `unknown` and `response`. They are at most 123 bytes, within
-  the tasks child's `REASON_BYTES` (128).
+  <evidence>`, the status part only where one came, then `: <refusal>`
+  where one came, and each name's bytes outside printable ASCII written
+  `?`: `anthropic claude-opus-5-5: unavailable, status 403, unsent`, and
+  `anthropic-api claude-opus-5-5: invalid, unsent: empty-message`. The
+  kinds are written `unavailable`, `overloaded`, `rate limited`,
+  `exhausted`, `timed out`, `context too long`, `invalid`, `refused`,
+  `unsupported`, `unauthorized`, `protocol`, `cancelled` and `limit`;
+  the evidence `unsent`, `unknown` and `response`. They are at most 123
+  bytes without a refusal, and 128 with one, which comes with no status
+  and a kind of at most 11 bytes: within the tasks child's
+  `REASON_BYTES` (128).
 - **An outage** is a failure of kind `Unavailable` or `Overloaded` whose
   evidence is `Unsent`: the provider could not be reached, and no call
   reached the model. The engine counts it an infrastructure failure

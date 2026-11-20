@@ -107,20 +107,7 @@ pub fn bound(template: &Step, forge: u16) -> Step {
         })
         .expect("argument capacity");
     }
-    let mut step = Step::new(
-        crate::lines::joined(&[template.name(), b"-", digits.as_bytes()]),
-        args.into_boxed(),
-        template.kind(),
-    )
-    .listening(Box::from(template.listeners()));
-    if template.ignores_ending() {
-        step = step.ending_ignored();
-    }
-    if let Some(address) = template.ready() {
-        step = step.with_ready(address);
-    }
-    step.set_started_notice(bytes::copy_of(template.started_notice()));
-    step
+    template.clone().with_command(crate::lines::joined(&[template.name(), b"-", digits.as_bytes()]), args.into_boxed())
 }
 
 /// A group's opaque label substitutes only its forge placeholder (temper/docs/design/protocol/setup/box.md, 3).

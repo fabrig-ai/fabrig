@@ -70,6 +70,7 @@ fn signed_out_is_handed_up_as_signed_out() {
 fn a_failed_exchange_is_handed_up_lost() {
     let (mut h, exchange) = fixtures::Harness::sending();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
     h.lost();
 }
 #[test]
@@ -83,6 +84,7 @@ fn a_final_answer_that_does_not_decode_is_lost_and_reported() {
 fn a_late_answer_cannot_answer_an_abandoned_attempt_twice() {
     let (mut h, exchange) = fixtures::Harness::sending();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
     h.answer(exchange, &fixtures::answer_done_chat(31));
     assert_eq!(h.terminals(), 1);
     h.lost();
@@ -129,7 +131,7 @@ fn an_invalid_client_limit_literal_is_refused() {
 fn a_not_served_answer_holds_its_request_for_its_owner() {
     let (mut h, exchange) = fixtures::Harness::sending_family();
     h.answer(exchange, &fixtures::encoded_answer(&w::KeyedAnswer::NotServed(fixtures::not_served())));
-    assert!(h.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 26, last: 26 }) }));
+    assert!(h.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 28, last: 28 }) }));
     assert_eq!(h.answered(fixtures::ATTEMPT), Some((RequestEnvelope::Again, None)));
 }
 

@@ -207,7 +207,7 @@ fn escalation(w: &mut World, before_hold: fn(&mut World)) {
         reply_to,
         task: CHAT,
         revision,
-        by: CHAT_PERSON,
+        by: jig_domain_tasks::EscalationDecider::Person(CHAT_PERSON),
         entry: None,
         decision: EscalationDecision::Release,
     });
@@ -236,11 +236,16 @@ fn amend(w: &mut World, task: u64, dependencies: &[u64]) {
     let call = reply_to.into_token();
     let message = w.record(task).last_message + 1;
     w.send(Event::Amend {
-        operation: tasks::Amend { task, message, stop_run: false, amendment: Box::new(amendment(dependencies, None)) },
+        operation: tasks::Amend {
+            funder: None,
+            task,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment(dependencies, None)),
+        },
         places: Box::new([]),
         reply_to: ReplyTo::new(call),
         by: Party::Person(CHAT_PERSON),
-        funder: None,
     });
     assert_eq!(w.replies[&call.raw()], Reply::Done);
 }
@@ -316,6 +321,7 @@ fn staged_release(w: &mut World) {
         vec![
             Operation::Release(Release { task: CHAT, again: None, message: None }),
             Operation::Amend(tasks::Amend {
+                funder: None,
                 task: CHAT,
                 message,
                 stop_run: false,
@@ -334,6 +340,7 @@ fn staged_amendment_release(w: &mut World) {
         w,
         vec![
             Operation::Amend(tasks::Amend {
+                funder: None,
                 task: CHAT,
                 message,
                 stop_run: false,

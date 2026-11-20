@@ -1,6 +1,7 @@
 //! Checkout items (jig's domain/connectors.md, section 10). The connector
 //! selects starts and write destinations from its adopted and procedure facts.
 //! Items are returned whole with their byte size; no copy is retained here.
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Role};
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -41,6 +42,8 @@ impl Domain {
             start: Start::Commit(base),
             push: Some(branch),
             landing: None,
+            pin: None,
+            delivered: None,
             holder: Some(holder),
             credential,
             bytes,
@@ -195,6 +198,12 @@ impl Domain {
         if repository.role == Role::Context || !repository.kinds.push {
             push = None;
         }
+        let delivered = match inherited {
+            Some((row, _)) if push.is_some() && row.change.last_checked_by == Some(seed.task) => {
+                row.change.last_checked
+            }
+            Some(_) | None => None,
+        };
         let landing = match inherited {
             Some((row, change::Delegate::Produce)) => match &push {
                 Some(_) => Some(row.base.clone()),
@@ -218,6 +227,13 @@ impl Domain {
                 | Start::Merge { .. }
                 | Start::Merged { .. } => None,
             },
+        };
+        let pin = match inherited {
+            Some((row, change::Delegate::Repair(why))) if push.is_some() => match self.landing_failure(row.task, why) {
+                Some(failure) => failure.base,
+                None => None,
+            },
+            Some(_) | None => None,
         };
         let name = repository.name.clone();
         let mut bytes = u64::try_from(size_of::<Item>())
@@ -254,6 +270,8 @@ impl Domain {
             start,
             push,
             landing,
+            pin,
+            delivered,
             holder,
             credential: match self.records.get(&repository.provider.forge) {
                 Some(record) => Some(u32::from(record.number)),
@@ -302,13 +320,7 @@ impl Domain {
                 }
             }
         }
-        Some((
-            Start::Base(repository.settings.default_branch.clone()),
-            Some(seed.run_branch.clone()),
-            None,
-            None,
-            false,
-        ))
+        Some((Start::Base(repository.landing.clone()), Some(seed.run_branch.clone()), None, None, false))
     }
 
     /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge/change/README.md, 1).

@@ -29,8 +29,6 @@ pub(crate) fn model_list() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::ModelsList))
 }
 
-// One hook per push: the setup's topic push and the agent's change.
-pub(crate) const ADOPT_HOOKS: usize = 2;
 // Two one-token producer turns leave three, below the four-unit admission floor.
 const CHANGE_ALLOWANCE: u64 = 5;
 const RUN_ALLOWANCE: u64 = 8;
@@ -53,6 +51,8 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
         limits.io.output = limits.io.receive;
         limits.connections.http.read = limits.io.receive;
         limits.connections.http.send = limits.io.receive;
+        limits.connections.tls.read = limits.io.receive;
+        limits.connections.tls.send = limits.io.receive;
     }
     limits
 }
@@ -298,7 +298,7 @@ pub(crate) fn adopted(rows: &BTreeMap<root::Key, root::Record>) -> u32 {
         root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Repository(_))
     )).count()).expect("adopted repositories")
 }
-pub(crate) fn configure(value: &mut serde_json::Value) {
+pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. })) {
         return;
     }
@@ -308,7 +308,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     documents::configure(value);
     if STORY.with(|slot| matches!(slot.get(), Story::Merge)) {
         // The compact resolution and change context fit beside the pinned parameters.
-        value["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = 1024.into();
+        value.jig_over("tasks.spec_bytes", 1024);
     }
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
         value["world_settings"]["landing"]["deployment"] = serde_json::json!([{
@@ -374,7 +374,7 @@ pub(crate) fn settings_revision() -> u32 {
     REVISION.with(std::cell::Cell::get)
 }
 /// The service's typed defaults, starting from the binary's stock and the document's models.
-pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+pub(crate) fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
     let mut document = document.clone();
     document["world_settings"] = fixtures::world_document()["world_settings"].clone();
     let read_wait =

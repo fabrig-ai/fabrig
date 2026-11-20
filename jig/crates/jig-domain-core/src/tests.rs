@@ -6,7 +6,7 @@ mod admission;
 mod documents;
 mod effects;
 mod fill;
-mod fixtures;
+pub(crate) mod fixtures;
 mod funding;
 mod holdings;
 mod inbox;
@@ -15,6 +15,7 @@ mod limits;
 #[path = "tests/person_task.rs"]
 mod person_task_stories;
 mod reads;
+mod reports;
 mod routing;
 mod run_policy_tools;
 mod runs;
@@ -438,9 +439,11 @@ pub(crate) fn config(seed: u64) -> Config {
         requirements: Box::new([]),
     };
     Config {
+        fixed_providers: Box::new([]),
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
-        worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+
         deployment: [31; 16],
         seed,
         workers_in_process: false,
@@ -493,6 +496,24 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            limits: Box::default(),
+            providers: Box::new([provider_setting(1, b"Fake", 1)]),
+            workers: Box::new([
+                crate::settings::WorkerSetting {
+                    number: 1,
+                    name: b"alpha".as_slice().into(),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                },
+                crate::settings::WorkerSetting {
+                    number: 2,
+                    name: b"beta".as_slice().into(),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                },
+            ]),
             models: Box::default(),
             charters: Box::new([Charter {
                 parts: Box::new([]),
@@ -527,7 +548,7 @@ pub(crate) fn config(seed: u64) -> Config {
     }
 }
 
-fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u32, provider: u32) {
+pub(crate) fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u32, provider: u32) {
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
@@ -800,6 +821,7 @@ fn documents_run_has_only_the_live_proofs_committed_progress() {
                 task: 1,
                 attempt: 7,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 window: None,
                 crossed: false,
@@ -1335,9 +1357,8 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Amend {
-            operation: tasks::Amend { task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
+            operation: tasks::Amend { funder: None, task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
             places: Box::new([]),
-            funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
         },
@@ -1585,6 +1606,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
@@ -1698,6 +1720,28 @@ fn documents_person_task_has_the_current_revision_holder_and_answer_form() {
     let ContractLine::Verdict { choices, cut } = task.contract else { panic!() };
     assert!(!cut);
     assert_eq!(choices.get(0).unwrap().code, 3);
+}
+
+#[test]
+fn a_done_verdict_notifies_the_requester_with_its_code_and_fields() {
+    let result = tasks::TaskResult::Verdict {
+        code: 1,
+        fields: Box::new([tasks::ResultField { name: b"reason".as_slice().into(), value: b"test".as_slice().into() }]),
+        words: b"flaky".as_slice().into(),
+    };
+    assert_eq!(
+        crate::routing::task::result_notice(tasks::Ending::Done(result)),
+        (
+            tasks::ResultKind::Verdict {
+                code: 1,
+                fields: Box::new([tasks::ResultField {
+                    name: b"reason".as_slice().into(),
+                    value: b"test".as_slice().into()
+                }]),
+            },
+            b"flaky".as_slice().into(),
+        )
+    );
 }
 
 #[test]
@@ -2060,14 +2104,14 @@ fn documents_inbox_keeps_two_projects_groups_order_and_exact_cursor() {
     people::step(
         &mut core.people,
         &env,
-        people::Event::Waiting { task: 1, entries: Box::new([needs[0], needs[1]]) },
+        people::Event::Waiting { source: people::NeedSource::Task(1), entries: Box::new([needs[0], needs[1]]) },
         &mut out,
     );
     people::step(
         &mut core.people,
         &env,
         people::Event::Waiting {
-            task: 5,
+            source: people::NeedSource::Task(5),
             entries: Box::new([
                 needs[2],
                 people::Entry {
@@ -2280,6 +2324,7 @@ fn watch_core() -> (Core, Limits) {
                 task: 1,
                 attempt: 7,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 window: None,
                 crossed: false,
@@ -2334,6 +2379,7 @@ fn watch_subjects() -> [(&'static str, Watched, Subject); 9] {
     let mut chips = List::with_capacity(1);
     chips.push(1).unwrap();
     let query = TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(1),
         requester: None,
         root: None,
@@ -2351,7 +2397,7 @@ fn watch_subjects() -> [(&'static str, Watched, Subject); 9] {
         ("Chips", Watched::Chips { tasks: chips.clone() }, Subject::Chips { tasks: chips }),
         ("Inbox", Watched::Inbox, Subject::Inbox { party: 1 }),
         ("Accounts", Watched::Accounts, Subject::Accounts { party: 1 }),
-        ("Tasks", Watched::Query { query }, Subject::Query { query }),
+        ("Tasks", Watched::Query { query: query.clone() }, Subject::Query { query }),
         ("Run", Watched::Run { task: 1 }, Subject::Run { task: 1 }),
         ("Deployment", Watched::Deployment, Subject::Deployment),
     ]
@@ -2598,6 +2644,7 @@ fn one_task_change_marks_trees_queries_and_named_chips_once() {
         Watched::Tree { task: 1 },
         Watched::Query {
             query: TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(1),
                 requester: None,
                 root: None,
@@ -2643,7 +2690,7 @@ fn ten_changed_decisions_coalesce_behind_one_inflight_delivery() {
             &mut core,
             &limits,
             Event::People(people::Event::Waiting {
-                task: 1,
+                source: people::NeedSource::Task(1),
                 entries: Box::new([people::Entry {
                     task: 1,
                     project: 1,
@@ -3337,6 +3384,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
         &mut core.people,
         &env,
         people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(500)),
             person: 10,
@@ -3609,6 +3657,7 @@ fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
         saved: None,
         invalid_saved: false,
         unusable_history: false,
+        untooled: false,
     };
     let mut out = step(&mut core, &env, event);
     let Request::Now(answer) = out.pop().unwrap() else { panic!("payload drop") };
@@ -3643,7 +3692,13 @@ fn startup_refuses_too_many_configured_workers() {
 fn startup_refuses_an_oversized_worker_name() {
     let mut config = config(41);
     let limits = limits();
-    config.worker_names = Box::new([configured_worker_name(limits.fleet.worker_name_bytes + 1)]);
+    config.defaults.workers = Box::new([crate::settings::WorkerSetting {
+        number: 1,
+        name: configured_worker_name(limits.fleet.worker_name_bytes + 1),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }]);
     assert_eq!(
         Core::new(config, &limits).err(),
         Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
@@ -3654,14 +3709,20 @@ fn startup_refuses_an_oversized_worker_name() {
 fn startup_accepts_the_configured_worker_count_bound() {
     let config = config(41);
     let mut limits = limits();
-    limits.fleet.configured_workers = u32::try_from(config.worker_names.len()).expect("fixture worker count");
+    limits.fleet.configured_workers = u32::try_from(config.defaults.workers.len()).expect("fixture worker count");
     let _core = Core::new(config, &limits).expect("configured membership at its bound");
 }
 #[test]
 fn startup_accepts_the_worker_name_byte_bound() {
     let mut config = config(41);
     let limits = limits();
-    config.worker_names = Box::new([configured_worker_name(limits.fleet.worker_name_bytes)]);
+    config.defaults.workers = Box::new([crate::settings::WorkerSetting {
+        number: 1,
+        name: configured_worker_name(limits.fleet.worker_name_bytes),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }]);
     let _core = Core::new(config, &limits).expect("configured membership at its bound");
 }
 
@@ -3744,6 +3805,7 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
         let subject = if change == 3 {
             Watched::Query {
                 query: TaskQuery {
+                    parts: List::with_capacity(0),
                     project: Some(1),
                     requester: None,
                     root: None,
@@ -3822,9 +3884,14 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
         &mut core,
         &limits,
         tasks::Event::Amend {
-            operation: tasks::Amend { task: 1, message: 21, stop_run: false, amendment: Box::new(amendment) },
+            operation: tasks::Amend {
+                funder: None,
+                task: 1,
+                message: 21,
+                stop_run: false,
+                amendment: Box::new(amendment),
+            },
             places: Box::new([]),
-            funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
         },
@@ -3955,4 +4022,106 @@ fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {
     assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(env));
+}
+
+#[test]
+fn deployment_worker_settings_join_names_and_keep_admission_and_loss_times() {
+    let (mut core, limits) = make_tree();
+    restore_document_party(&mut core, &limits, &[0]);
+    for (number, name, withdrawn) in
+        [(2, b"alpha".as_slice(), false), (1, b"beta".as_slice(), true), (3, b"unknown".as_slice(), false)]
+    {
+        core.current
+            .changes
+            .insert(
+                crate::settings::Setting::Worker(number),
+                crate::settings::Changed {
+                    revision: 2,
+                    value: Some(crate::settings::Value::Worker(Box::new(crate::settings::WorkerSetting {
+                        number,
+                        name: name.into(),
+                        places: 1,
+                        digest: Some([4; 32]),
+                        withdrawn,
+                    }))),
+                },
+            )
+            .unwrap();
+    }
+    let document = |core: &Core| {
+        let Document::Deployment(document) =
+            make(core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH).unwrap()
+        else {
+            panic!("deployment")
+        };
+        document
+    };
+    let initial = document(&core);
+    assert_eq!(initial.worker_settings.len(), 3);
+    for (row, number) in initial.worker_settings.iter().zip([1, 2, 3]) {
+        assert_eq!((row.number, row.linked, row.since), (number, false, None));
+    }
+    assert!(initial.worker_settings.get(0).unwrap().withdrawn);
+    let mut env = Env { now: Time::from_nanos(100), wall: Wall::from_nanos(1000), limits: limits.fleet };
+    let mut out = Queue::uncapped();
+    fleet::step(
+        &mut core.fleet,
+        &env,
+        fleet::Event::Hello {
+            worker: 0,
+            channel: Token::new(10),
+            hello: Hello {
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+        &mut out,
+    );
+    let linked = document(&core);
+    let row = linked.worker_settings.get(1).unwrap();
+    assert_eq!((row.number, row.name.as_ref(), row.linked, row.since), (2, b"alpha".as_slice(), true, Some(env.wall)));
+    assert!(!linked.worker_settings.get(0).unwrap().linked);
+    env.wall = Wall::from_nanos(2000);
+    fleet::step(&mut core.fleet, &env, fleet::Event::Lost { channel: Token::new(10) }, &mut out);
+    let lost = document(&core);
+    assert_eq!(
+        (lost.worker_settings.get(1).unwrap().linked, lost.worker_settings.get(1).unwrap().since),
+        (false, Some(env.wall))
+    );
+    assert_eq!(lost.worker_settings.get(2).unwrap().since, None);
+}
+
+pub(crate) fn provider_setting(number: u32, name: &[u8], endpoint: u32) -> crate::settings::ProviderSetting {
+    use crate::settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    ProviderSetting {
+        provider: Provider {
+            number,
+            name: name.into(),
+            endpoint: Some(name.into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            number: endpoint,
+            name: name.into(),
+            provider: name.into(),
+            dialect: 3,
+            program: None,
+            address: EndpointAddress::Socket(core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: Duration::from_millis(10000),
+            handshake: Duration::from_millis(10000),
+        }]),
+        withdrawn: false,
+    }
 }

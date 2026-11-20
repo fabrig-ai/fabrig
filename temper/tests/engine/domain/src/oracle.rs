@@ -47,6 +47,15 @@ pub struct Snapshot {
 impl Snapshot {
     #[must_use]
     pub fn new(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
+        let mut snapshot = Self::reads_only(rows, wall);
+        snapshot.rows = rows.clone();
+        snapshot
+    }
+
+    /// Capture public queries without copying durable rows. This snapshot is for
+    /// answer comparisons only; row-comparing oracles use `new`.
+    #[must_use]
+    pub fn reads_only(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
         let sessions: Vec<_> = rows
             .values()
             .filter_map(|row| {
@@ -67,7 +76,7 @@ impl Snapshot {
                 }
             }
         }
-        Self { rows: rows.clone(), wall, queries, answers: Vec::new() }
+        Self { rows: BTreeMap::new(), wall, queries, answers: Vec::new() }
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
@@ -247,18 +256,7 @@ impl Driver {
                 self.collect();
             }
             self.advance(true);
-            // Domain::quiescent also rejects future fleet deadlines. This
-            // boundary drains immediate commits, deliveries and loads only.
-            if self.root.ready()
-                && !self.root.forge_work_ready()
-                && self.root.held_bytes() == 0
-                && self.events.is_empty()
-                && self.out.is_empty()
-                && self.store.idle()
-                && self.store.held.is_empty()
-                && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
-                && self.store.applied == commit
-            {
+            if self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
                     return;
@@ -302,6 +300,8 @@ impl Driver {
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
+            | Delivery::Providers(..)
+            | Delivery::WorkerFigures { .. }
             | Delivery::PlaygroundNote { .. }
             | Delivery::Panel { .. }
             | Delivery::ForgeDocument { .. }
@@ -325,12 +325,14 @@ impl Driver {
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. }
@@ -346,7 +348,7 @@ impl Driver {
         self.serial += 1;
         let token = Token::new(self.serial);
         let reply_to = ReplyTo::new(token);
-        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to, sign_in, read: read.clone() }));
+        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to, sign_in, read: Box::new(read.clone()) }));
         for _ in 0..200 {
             if let Some(index) = self
                 .delivered
@@ -497,6 +499,34 @@ mod tests {
         let finding = snapshot.compare_answer(0, Answer::None(core::reads::Why::Gone)).expect_err("changed readback");
         assert!(finding.contains("restart oracle document Result { task: 7 }, sign-in 42, field"), "{finding}");
         assert!(finding.contains("Unknown") && finding.contains("Gone"), "{finding}");
+    }
+
+    #[test]
+    fn landings_documents_compare_retained_times_not_the_read_clock() {
+        let before = forge::LandingsView {
+            now: skein_lib::Wall::from_nanos(7),
+            turn_since: Some(skein_lib::Wall::from_nanos(3)),
+            project: 1,
+            turn: Some(61),
+            landings: Box::new([]),
+        };
+        let mut after = before.clone();
+        after.now = skein_lib::Wall::from_nanos(11);
+        assert_eq!(
+            compare_forge(
+                1,
+                2,
+                Some(forge::Document::Landings(before.clone())),
+                Some(forge::Document::Landings(after.clone()))
+            ),
+            Ok(())
+        );
+        after.turn_since = None;
+        assert!(
+            compare_forge(1, 2, Some(forge::Document::Landings(before)), Some(forge::Document::Landings(after)))
+                .is_err(),
+            "the turn's stored start still compares"
+        );
     }
 
     #[test]

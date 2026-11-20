@@ -3,8 +3,13 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/ops-client-v1.schema");
+
+
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/ops_client.rs"]
 pub mod v1;
 
 /// The single version spoken by both connector families.

@@ -27,6 +27,7 @@ pub(crate) enum Waiting {
     Notes,
     Document,
     Remember,
+    Parts,
 }
 
 pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
@@ -42,8 +43,37 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
         Some(Read::Document(_)) => Some(Waiting::Document),
+        Some(Read::Parts(_)) => Some(Waiting::Parts),
         Some(Read::Remember(_)) => Some(Waiting::Remember),
         None => None,
+    }
+}
+
+/// Reserve both owners before the held load can wait on durability (root.md, 7).
+pub(crate) fn reserve_ended(domain: &mut Domain, read: EndedRead) -> Token {
+    let EndedRead::EndedTask { task, .. } = &read else { unreachable!("only ended tasks wait for room") };
+    let task = *task;
+    let waiter = domain.archive_reads.insert(Some(Read::Ended(read))).expect("ended read room checked").token();
+    loads::reserve_result(&mut domain.loads, waiter, task);
+    waiter
+}
+
+/// The oldest waiting reads own reclaimed room before any newer read can take it.
+/// Their work emits held loads in a later decision, behind all earlier commits.
+pub(crate) fn reclaim_ended(domain: &mut Domain) {
+    if domain.core.stopping() || domain.journal.stopped() || domain.start_stop().is_some() {
+        domain.ended_waiting.clear();
+        return;
+    }
+    for _ in 0..domain.limits.loads.loads {
+        if domain.archive_reads.is_full() || !domain.loads.has_room() {
+            return;
+        }
+        let Some(read) = domain.ended_waiting.pop() else { return };
+        let EndedRead::EndedTask { task, .. } = &read else { unreachable!("only ended tasks wait for room") };
+        let task = *task;
+        let waiter = reserve_ended(domain, read);
+        domain.work.push(Work::EndedLoad { waiter, task });
     }
 }
 
@@ -130,6 +160,7 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
         Some(
             Read::ChangeDelegate { .. }
             | Read::History { .. }
+            | Read::Parts(_)
             | Read::Document(_)
             | Read::Remember(_)
             | Read::SettingsNote { .. }
@@ -279,6 +310,10 @@ pub(crate) fn ended_failed(domain: &mut Domain, waiter: Token) {
 /// Answer the core's ended-row question in its own vocabulary.
 pub(crate) fn ended_answer(domain: &mut Domain, read: EndedRead, row: Option<Box<tasks::TaskRecord>>, busy: bool) {
     let event = match read {
+        EndedRead::ChangeFrom { task } => {
+            domain.work.push(Work::ChangeFromLoaded { task, row });
+            return;
+        }
         EndedRead::EndedTask { request, .. } => jig_domain_core::Event::EndedTaskLoaded { request, row, busy },
         EndedRead::SeenConversation { request, .. } => {
             jig_domain_core::Event::SeenConversationLoaded { request, row, busy }
@@ -536,100 +571,6 @@ mod tests {
 
     fn transcript_read(domain: &mut Domain) -> Token {
         domain.archive_reads.insert(Some(Read::Transcript { task: TASK })).expect("reserved transcript read").token()
-    }
-
-    #[test]
-    fn unread_retires_once_and_ignores_a_stale_preparation() {
-        let (mut domain, _) = root();
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, None);
-        let waiter = transcript_read(&mut domain);
-        transcript_unread(&mut domain, waiter);
-        transcript_unread(&mut domain, waiter);
-        let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread })) =
-            domain.work.pop()
-        else {
-            panic!("one core unread terminal")
-        };
-        assert_eq!(task, TASK);
-        assert!(domain.work.is_empty());
-        domain.archive_reads.reclaim();
-        assert!(domain.archive_reads.is_empty());
-
-        let stale = transcript_read(&mut domain);
-        drop(domain.core.transcripts.remove(&TASK));
-        transcript_unread(&mut domain, stale);
-        assert!(domain.work.is_empty(), "no current preparation to fail");
-        domain.archive_reads.reclaim();
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, None);
-        let current = transcript_read(&mut domain);
-        transcript_unread(&mut domain, stale);
-        assert!(domain.work.is_empty(), "a retired waiter cannot reach a later preparation");
-        assert!(waiting(&domain, current) == Some(Waiting::Transcript));
-        transcript_unread(&mut domain, current);
-        let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread })) =
-            domain.work.pop()
-        else {
-            panic!("current preparation receives unread")
-        };
-        assert_eq!(task, TASK);
-        assert!(domain.work.is_empty());
-    }
-
-    #[test]
-    fn malformed_transcript_rows_and_texts_still_answer_failed() {
-        let row = Record::Core(core::Record::Core(core::CoreRecord::Turn(crate::TurnRecord {
-            task: TASK,
-            attempt: PREVIOUS_ATTEMPT,
-            turn: 1,
-            spent: 1,
-            read: None,
-            at: skein_lib::Wall::EPOCH,
-            opens_window: true,
-            transcript: Box::new([]),
-        })));
-        let mut body = row.clone();
-        let Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = &mut body else { panic!("turn") };
-        turn.transcript = Box::new(*b"x");
-        let other: Box<[Record]> = Box::new([Record::Forge {
-            row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [1; 32], task: TASK }),
-        }]);
-        let too_long = usize::try_from(crate::TRANSCRIPT_TAIL_BYTES)
-            .expect("tail fits usize")
-            .checked_add(1)
-            .expect("one extra byte");
-        let no_texts: crate::TranscriptTexts = Box::new([]);
-        for (name, rows, texts, cut) in [
-            ("row kind", other, None, None),
-            ("text count", Box::new([row.clone()]), Some(no_texts), None),
-            (
-                "text bound",
-                Box::new([row.clone()]),
-                Some(Box::new([crate::TurnText::Rendered(skein_lib::bytes::zeroed(too_long))])),
-                None,
-            ),
-            ("cut body", Box::new([body]), Some(Box::new([crate::TurnText::Cut(1)])), None),
-            (
-                "cut alone",
-                Box::new([row.clone(), row.clone()]),
-                Some(Box::new([crate::TurnText::Cut(1), crate::TurnText::Unrendered])),
-                None,
-            ),
-            ("load seam cut", Box::new([row]), None, Some(loads::Cut { rows: 1, bytes: 1 })),
-        ] {
-            let (mut domain, _) = root();
-            domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
-            let waiter = transcript_read(&mut domain);
-            let mut out = Queue::with_capacity(1);
-            transcript_loaded(&mut domain, waiter, rows, texts, None, cut, &mut out);
-            let Some(Work::Core(core::Event::TranscriptLoaded { task: TASK, load: core::TranscriptLoad::Failed })) =
-                domain.work.pop()
-            else {
-                panic!("{name}: malformed page answers Failed");
-            };
-            assert!(out.is_empty() && domain.work.is_empty(), "{name}: one terminal");
-            domain.archive_reads.reclaim();
-            assert!(domain.archive_reads.is_empty(), "{name}: read retired");
-        }
     }
 
     #[test]

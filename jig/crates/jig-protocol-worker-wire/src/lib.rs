@@ -4,12 +4,17 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/worker-wire-v18.schema");
+
 use alloc::boxed::Box;
 use skein_lib::Token;
 
 #[rustfmt::skip]
-#[path = "generated/v15.rs"]
-pub mod v15;
+#[path = "generated/worker_wire.rs"]
+pub mod v18;
 mod application;
 mod kinds;
 mod spoken;
@@ -27,36 +32,28 @@ pub mod fit;
 #[cfg(test)]
 mod tests;
 
-pub use v15::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
+pub use v18::Record;
+
+pub use v18::{ModelEvidence, ModelFailure, ModelFailureKind};
 
 pub use kinds::{
     KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
 };
-pub use v15::{
-    AccountRefused, AccountRefusedParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, Answer, AnswerParts,
-    Bound, Call, CallParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Count, CountKind, CountParts,
-    Ended, EndedParts, Ending, Exceeded, ExceededParts, Fact, FactParts, FactValue, Failed, FailedParts, Failure,
-    Invalid, InvalidStart, InvalidStartParts, InvalidValue, InvalidValueParts, Limited, LimitedAccount,
-    LimitedAccountParts, LimitedParts, Long, LongParts, MessageRefusal, Mismatch, MismatchParts, Operation, Parked,
-    ParkedParts, PhaseValue, PhaseValueParts, Preparation, PreparationValue, PreparationValueParts, Refusal,
-    RefusalValue, RefusalValueParts, Refused, RefusedAccount, RefusedAccountParts, RefusedParts, Resource,
-    ResourceParts, RunFailure, RunFailureValue, RunFailureValueParts, StartCause, Turn, TurnParts, Unauthorized,
-    UnauthorizedParts, Work, WorkParts,
+pub use v18::Restarting;
+pub use v18::{
+    AccountRefused, AgentFailure, AgentFailureValue, Answer, Bound, Call, CancelReason, CancelReasonValue, Count,
+    CountKind, Ended, Ending, Exceeded, Fact, FactValue, Failed, Failure, Invalid, InvalidStart, InvalidValue, Limited,
+    LimitedAccount, Long, MessageRefusal, Mismatch, Operation, Parked, PhaseValue, Preparation, PreparationValue,
+    Refusal, RefusalValue, Refused, RefusedAccount, Resource, RunFailure, RunFailureValue, StartCause, Turn,
+    Unauthorized, Work,
 };
-pub use v15::{
-    Acknowledge, AcknowledgeParts, AnsweredCall, AnsweredCallParts, ApplicationValue, ApplicationValueParts,
-    Assignment, AssignmentParts, Cancel, CancelParts, CredentialValue, CredentialValueParts, DeliveryAnswer,
-    DeliveryAnswerParts, DeliveryOutcome, Grant, GrantParts, GrantValue, Granted, GrantedParts, HostAnswer,
-    HostAnswerParts, Inbound, InboundParts, Message, MessageParts, ProgramValue, ProgramValueParts, RelayAnswer,
-    RelayText, RelayTextParts, Relayed, RelayedParts, Scheme, SettledAnswer, TurnBusy, TurnBusyParts, TurnKept,
-    TurnKeptParts, Workspace, WorkspaceParts,
+pub use v18::{
+    Acknowledge, AnsweredCall, ApplicationValue, Assignment, Cancel, CredentialValue, DeliveryAnswer, DeliveryOutcome,
+    Grant, GrantValue, Granted, HostAnswer, Inbound, Message, ProgramValue, RelayAnswer, RelayText, Relayed, Scheme,
+    SettledAnswer, TurnBusy, TurnKept, Workspace,
 };
-pub use v15::{AgreedWire, AgreedWireParts, Draining, DrainingParts};
-pub use v15::{
-    Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
-    Hosting, HostingParts, Phase, Wire, WireParts,
-};
-pub use v15::{Restarting, RestartingParts};
+pub use v18::{AgreedWire, Draining};
+pub use v18::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -78,6 +75,7 @@ pub enum Reason {
     Replaced,
     NotAdmitted,
     Stopping,
+    Starting,
 }
 
 impl Reason {
@@ -90,6 +88,7 @@ impl Reason {
             Self::Replaced => 259,
             Self::NotAdmitted => 260,
             Self::Stopping => 261,
+            Self::Starting => 262,
         }
     }
 
@@ -102,31 +101,26 @@ impl Reason {
             259 => Some(Self::Replaced),
             260 => Some(Self::NotAdmitted),
             261 => Some(Self::Stopping),
+            262 => Some(Self::Starting),
             _ => None,
         }
     }
 }
 
-pub use v15::{
-    Check, CheckParts, Login, LoginOtherwise, LoginOtherwiseParts, LoginParts, LoginState, Logins, LoginsParts,
-    ProgramSource, ProgramSourceParts, SignOut, SignOutParts, SignOutResult, SignedOut, SignedOutParts, SourceFailed,
-    SourceFailedParts, SourceFailure, Sources, SourcesParts,
+pub use v18::{
+    Check, Login, LoginOtherwise, LoginState, Logins, ProgramSource, SignOut, SignOutResult, SignedOut, SourceFailed,
+    SourceFailure, Sources,
 };
 
-pub use v15::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
+pub use v18::{InputCall, LiveAsk, LiveKind, Piece};
 
 // Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
-pub use v15::{
-    DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
-    JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,
-    JobInvalidStartParts, JobInvalidValue, JobInvalidValueParts, JobParts, JobRefusal, JobRefusalValue,
-    JobRefusalValueParts,
+pub use v18::{
+    DeliveryOutcomeValue, Job, JobAnswer, JobBound, JobEnding, JobFailed, JobFailure, JobFinished, JobInvalid,
+    JobInvalidStart, JobInvalidValue, JobRefusal, JobRefusalValue,
 };
 
-pub use v15::{
-    ListFailed, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, ListRefused,
-    ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
-};
+pub use v18::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
 
 /// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
@@ -134,14 +128,13 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 15;
+    pub const VERSION: u16 = crate::v18::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
     #[cfg(test)]
-    #[expect(clippy::disallowed_macros, reason = "the wire identity test embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/worker-wire-v15.schema");
+    const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
@@ -168,4 +161,6 @@ pub mod wire {
     }
 }
 
-pub use v15::{Ask, AskAnswer, AskBytes, AskBytesParts, AskParts, Asked, AskedParts};
+pub use v18::{Ask, AskAnswer, AskBytes, Asked};
+
+pub use v18::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};

@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -76,18 +76,24 @@ const PROJECT_ROOM: [u32; 2] = [2, 32];
 #[test]
 fn me_encoding_preserves_rows_despite_spare_list_capacity() {
     let limits = fixtures::wire_limits();
+    let expected = translate::owner::frame(&frame_with_creating_bounds(), &[], &limits).unwrap();
     for project_room in PROJECT_ROOM {
-        let mut frame = fixtures::frame_two_projects();
+        let mut frame = frame_with_creating_bounds();
         let mut projects = List::with_capacity(project_room);
-        for project in frame.projects.into_boxed() {
+        for mut project in frame.projects.into_boxed() {
+            if let Some(creating) = &mut project.creating
+                && let jig_domain_core_vocabulary::acts::Bounds::Create { authority, .. } = &mut creating.within
+            {
+                let mut kinds = List::with_capacity(64);
+                for kind in &authority.executors {
+                    kinds.push(*kind).expect("stock executor room");
+                }
+                authority.executors = kinds;
+            }
             projects.push(project).expect("fixture project room");
         }
         frame.projects = projects;
-        assert_eq!(
-            translate::owner::frame(&frame, &[], &limits),
-            Ok(fixtures::frame_two_projects_record()),
-            "projects room {project_room}"
-        );
+        assert_eq!(translate::owner::frame(&frame, &[], &limits), Ok(expected.clone()), "projects room {project_room}");
     }
 }
 fn a_task_with_a_hold_becomes_its_record() {
@@ -186,7 +192,7 @@ fn a_deployment_document_becomes_its_record() {
 fn a_lines_document_becomes_its_tasks_rows_record() {
     let limits = fixtures::wire_limits();
     assert_eq!(
-        translate::queries::lines(&fixtures::tasks_document(), &limits),
+        translate::queries::lines(&fixtures::tasks_document(), &List::with_capacity(0), &limits),
         Ok(jig_client_test_records::tasks_rows_record())
     );
 }
@@ -420,6 +426,42 @@ fn a_circle_hold_keeps_its_order_and_cut_through_the_client() {
     let circle = hold.circle.unwrap();
     assert_eq!(circle.tasks.as_slice(), &[9, 7]);
     assert!(circle.cut);
+}
+
+#[test]
+fn unread_words_cross_into_the_wire_document_empty_and_full() {
+    use jig_domain_core_vocabulary::documents::UnreadWords;
+    let limits = fixtures::wire_limits();
+    let mut source = fixtures::task_with_hold();
+    for count in [0, limits.task_unread] {
+        source.unread = List::with_capacity(count);
+        for message in 0..count {
+            source
+                .unread
+                .push(UnreadWords {
+                    message: u64::from(message),
+                    by: jig_domain_tasks::Party::Person(42),
+                    at: skein_lib::Wall::from_nanos(77),
+                    seen: message % 2 == 0,
+                    head: jig_domain_core_vocabulary::documents::Text { bytes: Box::new([b'x'; 256]), cut: true },
+                    bytes: 300,
+                })
+                .unwrap();
+        }
+        let record = translate::task::document(&source, &[], &limits).unwrap();
+        assert_eq!(record.unread().len(), count);
+        for (actual, expected) in record.unread().iter().zip(source.unread.iter()) {
+            assert_eq!(actual.message(), expected.message);
+            assert_eq!(
+                actual.by(),
+                &w::Requester::Person(w::RequesterPerson::new(&limits, w::RequesterPersonParts { value: 42 }).unwrap())
+            );
+            assert_eq!(actual.at(), expected.at.as_nanos());
+            assert_eq!(actual.seen(), expected.seen);
+            assert_eq!(actual.head(), expected.head.bytes.as_ref());
+            assert_eq!(actual.bytes(), expected.bytes);
+        }
+    }
 }
 
 #[test]

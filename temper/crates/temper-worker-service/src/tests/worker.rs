@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::worker_settings;
 use fixtures::worker_peers::*;
+use smith_channel::Record;
 
 #[test]
 fn the_link_s_credential_names_temper_s_wire() {
@@ -94,7 +95,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
     let charter = start.charter.value();
     assert_eq!(run::brief_room(charter, Some(&workspace), &agent.run_limits), Some(256));
     assert!(run::brief_bytes(&charter.brief).unwrap() <= 256);
-    assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_ci]\n"));
     let table = crate::worker::credentials::Table::new(0, 0);
     let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
     encode_grants(start, values, &agent).expect("the fitted start encodes with its prepared workspace");
@@ -174,9 +175,9 @@ fn an_answer_goes_up_with_its_left_and_saved_parts() {
     assert_eq!(work.saved, Some(parts[1].token));
     let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[0].bytes)).unwrap();
     let saved = v1::Saved::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[1].bytes)).unwrap();
-    assert_eq!((left.landed().get(0).unwrap().tag(), left.landed().get(0).unwrap().commit()), (3, &[7; 32]));
-    let row = saved.repositories().get(0).unwrap();
-    assert_eq!((row.tag(), row.from_saved(), row.landing()), (3, true, &v1::Landing::Moved));
+    assert_eq!((left.landed.get(0).unwrap().tag, left.landed.get(0).unwrap().commit), (3, [7; 32]));
+    let row = saved.repositories.get(0).unwrap();
+    assert_eq!((row.tag, row.from_saved, &row.landing), (3, true, &v1::Landing::Moved));
 }
 
 #[test]
@@ -292,8 +293,8 @@ fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
 fn a_one_argument_agent_lists_with_its_configuration_alone() {
     use crate::worker::credentials::{Scheme, Value};
     let mut settings = fixtures::worker_settings();
-    settings.jig.agent.arguments = Box::new([Box::from(fixtures::AGENT_JSON)]);
-    settings.jig.agent.configuration = Box::from(fixtures::AGENT_JSON);
+    settings.jig.agent.as_mut().expect("checked worker agent").arguments = Box::new([Box::from(fixtures::AGENT_JSON)]);
+    settings.jig.agent.as_mut().expect("checked worker agent").configuration = Box::from(fixtures::AGENT_JSON);
     let mut worker = crate::Worker::new(
         &settings,
         &fixtures::worker_agent(),
@@ -303,7 +304,7 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
             wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: fixtures::pinned_agent(&settings.jig.agent),
+            agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -354,7 +355,7 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
         for word in words {
             arguments.push(Box::from(*word)).unwrap();
         }
-        settings.jig.agent.arguments = arguments.into_boxed();
+        settings.jig.agent.as_mut().expect("checked worker agent").arguments = arguments.into_boxed();
         let mut worker = crate::Worker::new(
             &settings,
             &fixtures::worker_agent(),
@@ -364,7 +365,7 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
                 wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
-                agent: fixtures::pinned_agent(&settings.jig.agent),
+                agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
             },
             7,
         )
@@ -396,7 +397,7 @@ fn a_worker_s_secret_is_read_and_checked_at_its_path() {
         [("missing", empty, 64, What::Unreadable), ("too long", fixtures::worker_files(), 1, What::Bound)]
     {
         let mut settings = fixtures::worker_settings();
-        settings.jig.limits.link.secret = secret_bound;
+        settings.jig.limits.as_mut().expect("checked worker limits").link.secret = secret_bound;
         let problem = crate::Worker::new(
             &settings,
             &fixtures::worker_agent(),
@@ -406,7 +407,7 @@ fn a_worker_s_secret_is_read_and_checked_at_its_path() {
                 wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
-                agent: fixtures::pinned_agent(&settings.jig.agent),
+                agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
             },
             7,
         )
@@ -608,13 +609,10 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
         let encoded = encode_grants(*start, values, &agent).unwrap();
         let body = &encoded.bytes()[encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap()..];
         let decoded = smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(body)).unwrap();
-        let value = decoded.grants().get(0).unwrap();
-        assert_eq!(
-            (value.account(), value.generation(), value.valid()),
-            (grant.account, grant.generation, grant.valid)
-        );
-        let smith_channel::GrantValue::Program(value) = value.value() else { panic!("only a program name") };
-        assert_eq!(value.name(), bytes.as_ref());
+        let value = decoded.grants.get(0).unwrap();
+        assert_eq!((value.account, value.generation, value.valid), (grant.account, grant.generation, grant.valid));
+        let smith_channel::GrantValue::Program(value) = &value.value else { panic!("only a program name") };
+        assert_eq!(value.name.as_ref(), bytes.as_ref());
         let mut mismatched = decoded_chat_start(&agent);
         mismatched.grants = Box::new([grant]);
         let wrong = smith_host_protocol::Values {
@@ -775,8 +773,14 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
     use crate::worker::credentials::{Scheme, Value};
     use smith_host_domain as smith;
     let mut settings = fixtures::worker_settings();
-    settings.jig.limits.token = 1;
-    let key_bytes = settings.jig.limits.token.min(jig_client_protocol_wire::v26::CEILINGS.keyed_value_some);
+    settings.jig.limits.as_mut().expect("checked worker limits").token = 1;
+    let key_bytes = settings
+        .jig
+        .limits
+        .as_ref()
+        .expect("checked worker limits")
+        .token
+        .min(jig_client_protocol_wire::CEILINGS.keyed_value_some);
     let agent = fixtures::worker_agent();
     let limits = fixtures::worker_limits();
     let files = fixtures::worker_files();
@@ -811,11 +815,11 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
         let offset = encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap();
         let decoded =
             smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(&encoded.bytes()[offset..])).unwrap();
-        let smith_channel::GrantValue::Credential(value) = decoded.grants().get(0).unwrap().value() else {
+        let smith_channel::GrantValue::Credential(value) = &decoded.grants.get(0).unwrap().value else {
             panic!("credential")
         };
-        assert_eq!(value.scheme(), &smith_channel::Scheme::Key);
-        assert_eq!(value.bytes().expose().len(), usize::try_from(size).unwrap());
+        assert_eq!((&value.scheme), &smith_channel::Scheme::Key);
+        assert_eq!(value.bytes.expose().len(), usize::try_from(size).unwrap());
     }
 }
 
@@ -924,9 +928,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
 }
 
 pub(super) fn alone_service() -> crate::worker_alone::Service {
-    let part =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &jig_protocol_config::Directories::working())
-            .unwrap();
+    let part = fixtures::part(&fixtures::worker_alone_document());
     crate::startup::worker_alone(part, &fixtures::files(), &fixtures::startup_agent(), fixtures::worker_runtime(), 7)
         .expect("worker alone prepared")
 }
@@ -1080,7 +1082,7 @@ fn a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line() {
     LinkPeer::new().open(&mut stand.worker);
     while stand.worker.notes().pop().is_some() {}
     let settings = fixtures::worker_settings();
-    let now = fixtures::NOW.saturating_add(settings.jig.limits.link.silence);
+    let now = fixtures::NOW.saturating_add(settings.jig.limits.as_ref().expect("checked worker limits").link.silence);
     stand.worker.iterate(now, Wall::EPOCH);
     assert_eq!(stand.worker.notes().pop(), Some(lost_note(link::Loss::Silence)));
     // The linked loss's Fact is consumed once, even if seen again.
@@ -1114,21 +1116,21 @@ fn refusal_note(reason: crate::Refusal) -> crate::worker_alone::Note {
 #[test]
 fn worker_preparation_accepts_large_representable_io_edges() {
     let mut settings = fixtures::worker_settings();
-    settings.jig.limits.io.sockets = (1 << 24_u32) - 1;
-    settings.jig.limits.io.sends = u32::MAX;
+    settings.jig.limits.as_mut().expect("checked worker limits").io.sockets = (1 << 24_u32) - 1;
+    settings.jig.limits.as_mut().expect("checked worker limits").io.sends = u32::MAX;
     worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap();
 }
 
 #[test]
 fn worker_preparation_refuses_unusable_io_and_overflowing_operation_counts() {
     let mut settings = fixtures::worker_settings();
-    let stock = settings.jig.limits.io;
+    let stock = settings.jig.limits.as_ref().expect("checked worker limits").io;
     for io in [
         io::Limits { refusals: 0, ..stock },
         io::Limits { retry: Duration::ZERO, ..stock },
         io::Limits { sockets: u32::MAX, ..stock },
     ] {
-        settings.jig.limits.io = io;
+        settings.jig.limits.as_mut().expect("checked worker limits").io = io;
         let refused =
             worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap_err();
         assert_eq!(refused.problems.len(), 1);

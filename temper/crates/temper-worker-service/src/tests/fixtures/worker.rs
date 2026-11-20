@@ -9,7 +9,13 @@ pub fn one_repository() -> wire::Workspace {
             name: b"app".as_slice().into(),
             remote: b"https://forge.example/acme/app.git".as_slice().into(),
             start: wire::Start::Base { branch: b"main".as_slice().into() },
-            access: wire::Access::Writable { push: b"temper/task-7".as_slice().into(), expected: None, landing: None },
+            access: wire::Access::Writable {
+                push: b"temper/task-7".as_slice().into(),
+                expected: None,
+                landing: None,
+                delivered: None,
+                pin: None,
+            },
             identity: 1,
             account: None,
         }]),
@@ -72,7 +78,7 @@ pub fn worker() -> crate::Worker {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: pinned_agent(&worker_settings().jig.agent),
+            agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -96,22 +102,14 @@ pub fn repository_assignment() -> jig_protocol_worker_link::Request {
 }
 pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_protocol_worker_link::Request {
     let value = identity(token);
-    let record = temper_protocol_worker_wire::v1::Identity::new(
-        &super::wire_limits(),
-        temper_protocol_worker_wire::v1::IdentityParts {
-            kind: temper_protocol_worker_wire::v1::Kind::Forgejo(
-                temper_protocol_worker_wire::v1::Token::new(
-                    &super::wire_limits(),
-                    temper_protocol_worker_wire::v1::TokenParts { token: value.token },
-                )
-                .expect("token record"),
-            ),
-            login: value.login,
-            name: value.name,
-            email: value.email,
-        },
-    )
-    .expect("identity record");
+    let record = temper_protocol_worker_wire::v1::Identity {
+        kind: temper_protocol_worker_wire::v1::Kind::Forgejo(temper_protocol_worker_wire::v1::Token {
+            token: value.token,
+        }),
+        login: value.login,
+        name: value.name,
+        email: value.email,
+    };
     jig_protocol_worker_link::Request::Value {
         account: number,
         generation,
@@ -124,7 +122,7 @@ pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_prot
 
 pub fn worker_settings() -> crate::settings::Worker {
     use jig_protocol_config as config;
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     limits.core.call_answer_bytes = 2048;
     limits.hub = jig_domain_host::Limits {
         application_ask_bytes: 0,
@@ -165,12 +163,12 @@ pub fn worker_settings() -> crate::settings::Worker {
                 save: skein_lib::Duration::from_secs(10),
             },
             stop_bound: skein_lib::Duration::from_secs(60),
-            agent: config::Agent {
+            agent: Some(config::Agent {
                 program: TEMPER.into(),
                 arguments: Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), AGENT_JSON.into()]),
                 configuration: AGENT_JSON.into(),
-            },
-            limits,
+            }),
+            limits: Some(limits),
             memory: None,
         },
         root: b"worker-root".as_slice().into(),
@@ -178,9 +176,7 @@ pub fn worker_settings() -> crate::settings::Worker {
     }
 }
 pub fn worker_limits() -> crate::worker_settings::Limits {
-    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-        temper_service_core::limits::Profile::Small,
-    ));
+    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::stock());
     own.checkout.workspaces = 1;
     own.checkout.repositories = 1;
     own.checkout.name_bytes = 64;
@@ -210,45 +206,29 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let mut repositories = List::with_capacity(1);
     if repository {
         repositories
-            .push(
-                v1::Repository::new(
-                    &super::wire_limits(),
-                    v1::RepositoryParts {
-                        save: Some(b"temper/saved-7".as_slice().into()),
-                        git: None,
-                        tag: (1_u64 << 32) | 3,
-                        name: b"app".as_slice().into(),
-                        remote: b"https://forge.example/acme/app.git".as_slice().into(),
-                        start: v1::Start::Base(
-                            v1::Branch::new(
-                                &super::wire_limits(),
-                                v1::BranchParts { branch: b"main".as_slice().into() },
-                            )
-                            .unwrap(),
-                        ),
-                        access: v1::Access::Writable(
-                            v1::Writable::new(
-                                &super::wire_limits(),
-                                v1::WritableParts {
-                                    push: b"temper/task-7".as_slice().into(),
-                                    expected: None,
-                                    landing: None,
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        identity: 1,
-                        account: None,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(v1::Repository {
+                save: Some(b"temper/saved-7".as_slice().into()),
+                git: None,
+                tag: (1_u64 << 32) | 3,
+                name: b"app".as_slice().into(),
+                remote: b"https://forge.example/acme/app.git".as_slice().into(),
+                start: v1::Start::Base(v1::Branch { branch: b"main".as_slice().into() }),
+                access: v1::Access::Writable(v1::Writable {
+                    push: b"temper/task-7".as_slice().into(),
+                    expected: None,
+                    landing: None,
+                    delivered: None,
+                    pin: None,
+                }),
+                identity: 1,
+                account: None,
+            })
             .unwrap();
     }
     let parts = if repository {
         Box::from([jig_protocol_worker_wire::Part {
             token: Token::new(1),
-            bytes: payload::items(&v1::Items::new(&super::wire_limits(), v1::ItemsParts { repositories }).unwrap()),
+            bytes: payload::items(&v1::Items { repositories }),
         }])
     } else {
         Box::default()

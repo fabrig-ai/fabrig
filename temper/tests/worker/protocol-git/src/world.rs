@@ -15,6 +15,8 @@ pub enum Stop {
     Deadline(u32),
     Cancel(u32),
     ExitFirst,
+    FileDeadline(u32),
+    FileCancel(u32),
 }
 #[derive(Debug)]
 pub struct Scenario {
@@ -31,6 +33,7 @@ pub struct Outcome {
     pub terminals: Vec<(Token, git::Done)>,
     pub spawns: u32,
     pub signals: u32,
+    pub view_steps: u32,
     pub tree: BTreeMap<Vec<u8>, Node>,
 }
 impl Outcome {
@@ -43,7 +46,8 @@ impl Outcome {
                     *owner,
                     match done {
                         git::Done::Failed { fault } | git::Done::FailedWithOutput { fault, .. } => Some(*fault),
-                        git::Done::Looked { .. }
+                        git::Done::ParentUnreachable { .. }
+                        | git::Done::Looked { .. }
                         | git::Done::Results { .. }
                         | git::Done::Paths { .. }
                         | git::Done::Brings { .. }
@@ -126,17 +130,20 @@ pub fn run_on_tree(scenario: &Scenario, seed: u64, tree: BTreeMap<Vec<u8>, Node>
         if !stopped
             && match scenario.stop {
                 Stop::Deadline(at) | Stop::Cancel(at) => below.spawns == at,
+                Stop::FileDeadline(at) | Stop::FileCancel(at) => below.view_steps == at,
                 Stop::None | Stop::ExitFirst => false,
             }
         {
             stopped = true;
             referee.stop(below.spawns);
             match scenario.stop {
-                Stop::Deadline(_) => {
+                Stop::Deadline(_) | Stop::FileDeadline(_) => {
                     now = fixtures::DEADLINE;
                     component.fire(now, &mut below.out);
                 }
-                Stop::Cancel(_) => component.down(now, Request::CancelIo { owner: fixtures::OWNER }, &mut below.out),
+                Stop::Cancel(_) | Stop::FileCancel(_) => {
+                    component.down(now, Request::CancelIo { owner: fixtures::OWNER }, &mut below.out);
+                }
                 Stop::None | Stop::ExitFirst => unreachable!("stop selected"),
             }
         }
@@ -170,5 +177,12 @@ pub fn run_on_tree(scenario: &Scenario, seed: u64, tree: BTreeMap<Vec<u8>, Node>
         deliver(&mut component, &mut below, now, input);
     }
     assert!(component.is_empty() && below.settled(), "teardown has no live resources");
-    Outcome { verdict, terminals: referee.terminals, spawns: below.spawns, signals: below.signals, tree: below.tree }
+    Outcome {
+        verdict,
+        terminals: referee.terminals,
+        spawns: below.spawns,
+        signals: below.signals,
+        view_steps: below.view_steps,
+        tree: below.tree,
+    }
 }

@@ -14,7 +14,7 @@ use crate::{
     TaskRecord, Was,
 };
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, List, Queue, Set, Token};
 
 /// Key for one connector-defined resource kind.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -23,27 +23,106 @@ pub(crate) struct KindKey {
     pub kind: u16,
 }
 
-/// Cache a named report. Reports may arrive before task creation. At capacity,
-/// forget one report no live task names; admission always waits for a missing report.
+/// A report's order is refreshed even when its name is already cached
+/// (domain/tasks/holds.md, 2). Reports and pins are memory alone.
+#[derive(Hash, Debug)]
+pub(crate) struct Report {
+    pub hold: HoldKind,
+    pub order: u64,
+}
+
+fn named(domain: &Domain, name: &Name) -> bool {
+    for (number, _) in &domain.names {
+        let row = record(domain, *number).expect("live task");
+        for holding in &row.holdings {
+            if self::name(holding) == name {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn pinned(domain: &Domain, name: &Name) -> bool {
+    for (_, names) in &domain.report_pins {
+        if names.contains(name) {
+            return true;
+        }
+    }
+    false
+}
+
+impl Domain {
+    /// Reserve the distinct names live tasks and waiting batches keep
+    /// (domain/tasks/holds.md, 2). A refusal changes no pins.
+    pub fn pin_reports(&mut self, owner: Token, batch: &[New]) -> Result<(), crate::CapacityCause> {
+        if self.report_pins.contains_key(&owner) {
+            return Ok(());
+        }
+        let limit = self.resources.capacity();
+        let mut kept = Set::with_capacity(limit);
+        for (number, _) in &self.names {
+            let row = record(self, *number).expect("live task");
+            for holding in &row.holdings {
+                if kept.insert(name(holding).clone()).is_err() {
+                    return Err(crate::CapacityCause::ResourceReports { limit });
+                }
+            }
+        }
+        for (_, names) in &self.report_pins {
+            for name in names {
+                if kept.insert(name.clone()).is_err() {
+                    return Err(crate::CapacityCause::ResourceReports { limit });
+                }
+            }
+        }
+        let mut own = Set::with_capacity(limit);
+        for member in batch {
+            for holding in &member.holdings {
+                let name = name(holding);
+                if kept.insert(name.clone()).is_err() {
+                    return Err(crate::CapacityCause::ResourceReports { limit });
+                }
+                own.insert(name.clone()).expect("batch names fit beside kept names");
+            }
+        }
+        if !own.is_empty() {
+            self.report_pins.insert(owner, own).expect("owners bounded by admitted core continuations");
+        }
+        Ok(())
+    }
+
+    /// Release a made, refused or dropped batch's reservation; repeated release is harmless.
+    pub fn unpin_reports(&mut self, owner: Token) {
+        self.report_pins.remove(&owner);
+    }
+
+    /// Distinct names pinned by uncommitted batches, reported or not.
+    #[must_use]
+    pub fn pinned_reports(&self) -> u32 {
+        let mut names = Set::with_capacity(self.resources.capacity());
+        for (_, pins) in &self.report_pins {
+            for name in pins {
+                names.insert(name.clone()).expect("pins admitted within report capacity");
+            }
+        }
+        names.len()
+    }
+}
+
+/// Cache a named report, replacing the least recently reported unkept name.
 pub(crate) fn resource(domain: &mut Domain, limits: &Limits, name: Name, hold: HoldKind) {
     if !shape(limits, &name) {
         return;
     }
+    domain.report_order = domain.report_order.checked_add(1).expect("report order fits u64");
     if !domain.resources.contains_key(&name) && domain.resources.len() == domain.resources.capacity() {
-        let mut unused = None;
-        for (known, _) in &domain.resources {
-            let mut named = false;
-            for (number, _) in &domain.names {
-                let row = record(domain, *number).expect("live task");
-                for holding in &row.holdings {
-                    if self::name(holding) == known {
-                        named = true;
-                    }
-                }
-            }
-            if !named {
+        let mut unused: Option<Name> = None;
+        let mut oldest = u64::MAX;
+        for (known, report) in &domain.resources {
+            if report.order <= oldest && !named(domain, known) && !pinned(domain, known) {
+                oldest = report.order;
                 unused = Some(known.clone());
-                break;
             }
         }
         match unused {
@@ -53,7 +132,7 @@ pub(crate) fn resource(domain: &mut Domain, limits: &Limits, name: Name, hold: H
             None => return,
         }
     }
-    let _previous = domain.resources.insert(name, hold);
+    let _previous = domain.resources.insert(name, Report { hold, order: domain.report_order });
 }
 
 /// Install immutable connector configuration before admission.
@@ -164,7 +243,7 @@ fn kind(holding: &Holding) -> u16 {
 pub(crate) fn rule(domain: &Domain, holding: &Holding) -> Option<HoldKind> {
     let key = KindKey { connector: name(holding).connector, kind: kind(holding) };
     match domain.resources.get(name(holding)) {
-        Some(rule) => Some(*rule),
+        Some(report) => Some(report.hold),
         None => domain.hold_kinds.get(&key).copied(),
     }
 }

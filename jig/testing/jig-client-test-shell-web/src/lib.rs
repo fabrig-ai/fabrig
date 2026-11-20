@@ -47,7 +47,8 @@ pub fn start() {
         return;
     }
     // Replace the printed secret's address before starting anything that can send.
-    let secret = sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/" });
+    let secret =
+        sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", page: None, home: b"/" });
     let window = web_sys::window().expect("window");
     let mount = window.document().expect("document").get_element_by_id("app").expect("bundle mount");
     let facts = platform::facts();
@@ -100,6 +101,15 @@ impl Shell {
         self.host.clocks(now, wall);
         let mut new_page = false;
         while let Some(report) = inbox.next() {
+            let read_exchange = match &report {
+                Report::Fetch(report) => adapter::read_on_exchange(report),
+                Report::Start
+                | Report::Due
+                | Report::Act(..)
+                | Report::Carried(..)
+                | Report::Place(_)
+                | Report::Returned(_) => None,
+            };
             let read_on =
                 matches!(&report, Report::Fetch(fetch::Report::StreamOpened | fetch::Report::StreamPiece { .. }));
             match report {
@@ -122,6 +132,9 @@ impl Shell {
             transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
             if stored || !carried.is_empty() {
                 inbox.raise(Report::Carried(carried, stored));
+            }
+            if let Some(exchange) = read_exchange {
+                self.platform.fetch.read_on_exchange(exchange);
             }
             if read_on {
                 self.platform.fetch.read_on();

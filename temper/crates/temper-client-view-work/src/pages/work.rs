@@ -40,7 +40,7 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindin
                 card_view(b, root, words, bindings, times, project, card);
             }
             b.close();
-        } else if drafts_only {
+        } else if drafts_only && placed.drafts_known {
             text(b, Role::Paragraph, look::GOALS_EMPTY, &words.say(Word::GoalsEmpty, &[]));
         }
         if !drafts_only && !placed.landed.is_empty() {
@@ -94,8 +94,12 @@ pub(crate) fn head(
     b.open(Role::Slot);
     b.style(look::WORK_INTRO);
     text(b, Role::Paragraph, look::WORK_KICKER, &words.say(Word::WorkKicker, &[Hole::Name(name.clone())]));
-    if let Some(placed) = &placed {
+    if let Some(placed) = &placed
+        && placed.known
+    {
         text(b, Role::Heading { level: 1 }, look::WORK_HEADLINE, &heading(placed, words));
+    } else {
+        held_heading(b, words, 1, look::WORK_HEADLINE);
     }
     let mut lede = Word::WorkLede;
     if let Some(milestones) = root.pages().milestones()
@@ -108,9 +112,9 @@ pub(crate) fn head(
         match page.state() {
             State::Shown(panel) => {
                 let mut red = List::uncapped();
-                for queue in panel.queues() {
-                    if queue.red() {
-                        red.push(queue.branch()).expect("one signal per queue");
+                for queue in &panel.queues {
+                    if queue.red {
+                        red.push(queue.branch.as_ref()).expect("one signal per queue");
                     }
                 }
                 let facts = super::changes::LandingFacts::panel(panel, red.as_slice());
@@ -125,6 +129,18 @@ pub(crate) fn head(
     filters(b, root, words, bindings, project, placed.as_ref());
     b.close();
     placed
+}
+
+/// The browser holds the heading's line unnamed; the terminal prints nothing for it.
+pub(crate) fn held_heading(b: &mut Builder, words: &Words, level: u8, style: Style) {
+    match words.shell {
+        Shell::Browser => {
+            b.open(Role::Heading { level });
+            b.style(style);
+            b.close();
+        }
+        Shell::Terminal => {}
+    }
 }
 
 pub(crate) fn heading(placed: &Work, words: &Words) -> Box<[u8]> {
@@ -167,8 +183,12 @@ fn filters(
     placed: Option<&Work>,
 ) {
     let counts = match placed {
-        Some(placed) => placed.filters,
-        None => work::Filters::default(),
+        Some(placed) if placed.known => placed.filters,
+        Some(_) | None => work::Filters::default(),
+    };
+    let known = match placed {
+        Some(placed) => placed.known,
+        None => false,
     };
     let shown = work::shown(&counts, work::overrides(root, project));
     let current = root.pages().address();
@@ -221,7 +241,7 @@ fn filters(
             continue;
         }
         let label = match count {
-            Some(count) if placed.is_some() => words.say(word, &[Hole::Number(u64::from(count))]),
+            Some(count) if known => words.say(word, &[Hole::Number(u64::from(count))]),
             Some(_) => words.say(unknown, &[]),
             None => words.say(word, &[]),
         };
@@ -357,32 +377,32 @@ fn goal(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
 }
 fn change(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, task: u64) {
     let Some(panel) = panel(root) else { return };
-    for queue in panel.queues() {
-        if let Some(flight) = queue.in_flight()
-            && flight.member() == task
+    for queue in &panel.queues {
+        if let Some(flight) = &queue.in_flight
+            && flight.member == task
         {
-            let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
+            let status = super::change::say(words, super::changes::step_word(&flight.step), &[]);
             linked_from(
                 b,
                 words,
                 bindings,
                 Word::WorkChangeTag,
                 look::WORK_CODE,
-                flight.title(),
+                &flight.title,
                 Address::Task { task },
                 &[status],
             );
             return;
         }
-        for (index, row) in queue.changes().iter().enumerate() {
-            if row.task() == task {
+        for (index, row) in queue.changes.iter().enumerate() {
+            if row.task == task {
                 linked_from(
                     b,
                     words,
                     bindings,
                     Word::WorkChangeTag,
                     look::WORK_CODE,
-                    row.title(),
+                    &row.title,
                     Address::Task { task },
                     &[queue_label(queue, index, words)],
                 );
@@ -403,6 +423,7 @@ fn chat(
     let Some(page) = root.pages().chats() else { return };
     let Some(line) = chat_line(root, task) else { return };
     if draft {
+        let title = crate::common::chat::row_title(line.chip.title.bytes());
         from(b, words, Word::WorkDraftTag, look::WORK_PERSON);
         if let Some(document) = page.documents.get(&task) {
             let name = words.say(
@@ -414,17 +435,21 @@ fn chat(
         separated(b, words, &words.say(Word::WorkAChatWithYou, &[]));
         separated(b, words, &times.say(words, TimeForm::Clock, line.last_activity));
         b.close();
-        text(b, Role::Paragraph, look::WORK_QUOTE, line.chip.title.bytes());
+        text(b, Role::Paragraph, look::WORK_QUOTE, &title);
         link(b, words, bindings, &words.say(Word::WorkOpenDraft, &[]), Address::Chat { task });
         b.close();
     } else {
         // The chat list carries no creation time; activity and phase times do not name its start.
-        let label = crate::accounts::words::join(&[
-            &words.say(Word::WorkWithYou, &[]),
-            &words.say(Word::ToolSeparator, &[]),
-            &words.say(Word::WorkChatTitle, &[Hole::Name(line.chip.title.bytes().into())]),
-        ]);
-        linked_from(b, words, bindings, Word::WorkChatTag, look::WORK_PERSON, &label, Address::Chat { task }, &[]);
+        linked_from(
+            b,
+            words,
+            bindings,
+            Word::WorkChatTag,
+            look::WORK_PERSON,
+            line.chip.title.bytes(),
+            Address::Chat { task },
+            &[],
+        );
     }
 }
 fn landed_draft(
@@ -438,10 +463,10 @@ fn landed_draft(
 ) {
     let Some(page) = root.pages().drafts() else { return };
     let temper_client_domain::pages::drafts::State::Shown(panel) = page.state() else { return };
-    let Some(row) = panel.drafts().get(index) else { return };
-    let file = temper_client_domain::pages::goal::file_of(row.path());
-    let dir = row.path().strip_suffix(file).expect("file is the last segment");
-    let dir = if dir.is_empty() { crate::accounts::words::join(&[row.name(), b"/"]) } else { dir.into() };
+    let Some(row) = panel.drafts.get(index) else { return };
+    let file = temper_client_domain::pages::goal::file_of(&row.path);
+    let dir = row.path.strip_suffix(file).expect("file is the last segment");
+    let dir = if dir.is_empty() { crate::accounts::words::join(&[&row.name, b"/"]) } else { dir.into() };
     b.open(Role::Paragraph);
     b.style(look::WORK_FROM);
     text(b, Role::Text, look::WORK_PERSON, &words.say(Word::WorkDraftTag, &[]));
@@ -450,11 +475,11 @@ fn landed_draft(
     separated(
         b,
         words,
-        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at())))]),
+        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at)))]),
     );
     b.close();
-    if !row.title().is_empty() {
-        text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
+    if !row.title.is_empty() {
+        text(b, Role::Paragraph, look::WORK_QUOTE, &crate::common::chat::row_title(&row.title));
     }
     let Some(me) = root.pages().me(root.client()) else { return };
     let ways = super::goals::ways(me, project, words);
@@ -569,23 +594,23 @@ fn change_row(
 ) {
     let task = row.task;
     let Some(panel) = panel(root) else { return };
-    for queue in panel.queues() {
-        if let Some(flight) = queue.in_flight()
-            && flight.member() == task
+    for queue in &panel.queues {
+        if let Some(flight) = &queue.in_flight
+            && flight.member == task
         {
-            let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
-            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status, None, style);
+            let status = super::change::say(words, super::changes::step_word(&flight.step), &[]);
+            work_row(b, words, bindings, task, b"\xc2\xb7", &flight.title, &status, None, style);
             return;
         }
-        for (index, row) in queue.changes().iter().enumerate() {
-            if row.task() == task {
+        for (index, row) in queue.changes.iter().enumerate() {
+            if row.task == task {
                 work_row(
                     b,
                     words,
                     bindings,
                     task,
                     b"\xc2\xb7",
-                    row.title(),
+                    &row.title,
                     &queue_label(queue, index, words),
                     None,
                     style,
@@ -594,35 +619,45 @@ fn change_row(
             }
         }
     }
-    for change in panel.landed() {
-        if change.task() == task {
+    for change in &panel.landed {
+        if change.task == task {
             let when = words
-                .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at())))]);
-            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when, row.signed.as_deref(), style);
+                .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at)))]);
+            work_row(
+                b,
+                words,
+                bindings,
+                task,
+                b"\xe2\x9c\x93",
+                change.title.as_ref(),
+                &when,
+                row.signed.as_deref(),
+                style,
+            );
             return;
         }
     }
 }
 fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, row: &Landed) {
     let Some(panel) = panel(root) else { return };
-    for change in panel.landed_default() {
-        if change.task() != row.change {
+    for change in &panel.landed_default {
+        if change.task != row.change {
             continue;
         }
         let when = times.say(words, TimeForm::Clock, row.at);
         let origin = match root.pages().changes() {
-            Some(page) => page.from(root.client(), row.change),
+            Some(page) => page.from(row.change),
             None => None,
         };
         let (task, title) = match row.item {
             Item::Goal(goal) => {
                 let title = match origin {
                     Some(temper_client_domain::pages::changes::From::Goal(title)) => title,
-                    Some(temper_client_domain::pages::changes::From::Chat(_)) | None => change.title(),
+                    Some(temper_client_domain::pages::changes::From::Chat(_)) | None => change.title.as_ref(),
                 };
                 (goal, title)
             }
-            Item::Change(task) => (task, change.title()),
+            Item::Change(task) => (task, change.title.as_ref()),
             Item::Milestone(_) | Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => {
                 unreachable!("landed rows are goals or changes")
             }
@@ -674,7 +709,7 @@ pub(crate) fn work_row(
     b.text(Run::Plain, mark);
     b.close();
     b.open(Role::Paragraph);
-    link(b, words, bindings, title, Address::Task { task });
+    link(b, words, bindings, &crate::common::chat::row_title(title), Address::Task { task });
     b.close();
     if let Some(byline) = byline {
         text(
@@ -738,10 +773,20 @@ fn linked_from(
     address: Address,
     parts: &[Box<[u8]>],
 ) {
+    let title = crate::common::chat::row_title(title);
+    let title = if tag == Word::WorkChatTag {
+        crate::accounts::words::join(&[
+            &words.say(Word::WorkWithYou, &[]),
+            &words.say(Word::ToolSeparator, &[]),
+            &words.say(Word::WorkChatTitle, &[Hole::Name(title)]),
+        ])
+    } else {
+        title
+    };
     match words.shell {
         Shell::Browser => {
             from(b, words, tag, style);
-            link(b, words, bindings, title, address);
+            link(b, words, bindings, &title, address);
             b.close();
             for part in parts {
                 separated(b, words, part);
@@ -754,7 +799,7 @@ fn linked_from(
             } else {
                 crate::accounts::words::join(&[&words.say(tag, &[]), b" "])
             };
-            let mut label = crate::accounts::words::join(&[&prefix, title]);
+            let mut label = crate::accounts::words::join(&[&prefix, &title]);
             for part in parts {
                 label = crate::accounts::words::join(&[&label, &words.say(Word::ToolSeparator, &[]), part]);
             }
@@ -766,13 +811,13 @@ fn linked_from(
 }
 
 fn queue_label(queue: &w::ChangesQueue, index: usize, words: &Words) -> Box<[u8]> {
-    if *queue.way() == w::Way::Queue {
+    if queue.way == w::Way::Queue {
         return queue_word(index, words);
     }
     let place = skein_lib::len_u64(index)
         .checked_add(1)
         .expect("wire queue fits")
-        .checked_add(u64::from(queue.in_flight().is_some()))
+        .checked_add(u64::from(queue.in_flight.is_some()))
         .expect("wire queue fits");
     words.say(Word::ChangesPlace, &[Hole::Name(super::changes::ordinal(place, words))])
 }

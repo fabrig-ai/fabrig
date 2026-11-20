@@ -8,25 +8,23 @@ use std::process::{Command, ExitCode};
 
 use skein_codegen::diff::Rename;
 use skein_codegen::patch::{self, Landed, Options};
-use skein_codegen::{generate, parse};
+use skein_codegen::{check_as, form_of, generate_as, parse};
 
-const USAGE: &str = "usage: skein-codegen <schema> <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
+const USAGE: &str = "usage: skein-codegen <schema>... <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
 
 #[derive(Debug, PartialEq, Eq)]
 enum Arguments {
-    Generate { schema: PathBuf, out: PathBuf },
+    Generate { schemas: Vec<PathBuf>, out: PathBuf },
     Patch { owner: PathBuf, options: Options, base: Option<String>, check: bool },
 }
 
-fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
-    let mut args = args.iter();
+fn arguments(values: &[String]) -> Result<Arguments, &'static str> {
+    let mut args = values.iter();
     let first = args.next().ok_or(USAGE)?;
     let second = args.next().ok_or(USAGE)?;
     if first != "patch" {
-        if args.next().is_some() {
-            return Err(USAGE);
-        }
-        return Ok(Arguments::Generate { schema: first.into(), out: second.into() });
+        let (out, schemas) = values.split_last().ok_or(USAGE)?;
+        return Ok(Arguments::Generate { schemas: schemas.iter().map(PathBuf::from).collect(), out: out.into() });
     }
     let mut options = Options::default();
     let mut base = None;
@@ -85,8 +83,8 @@ fn main() -> ExitCode {
 fn execute() -> Result<u8, Box<dyn core::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match arguments(&args)? {
-        Arguments::Generate { schema, out } => {
-            generate_files(&schema, &out)?;
+        Arguments::Generate { schemas, out } => {
+            generate_files(&schemas, &out)?;
             Ok(0)
         }
         Arguments::Patch { owner, options, base, check } => {
@@ -139,20 +137,29 @@ fn landed(owner: &Path, base: Option<&str>) -> Result<Landed, Box<dyn core::erro
     Ok(Landed::new(files))
 }
 
-fn generate_files(schema_path: &Path, out_dir: &Path) -> Result<(), Box<dyn core::error::Error>> {
-    let source = std::fs::read_to_string(schema_path)?;
-    let schema = parse(&source)?;
-    std::fs::create_dir_all(out_dir)?;
-    let output = generate(&schema);
-    let path = out_dir.join(format!("v{}.rs", schema.version));
-    std::fs::write(path, output.records)?;
-    let schema_directory = schema_path.parent().ok_or("schema has no parent directory")?;
-    let crate_directory = schema_directory.parent().ok_or("schema directory has no parent")?;
-    let golden_directory = crate_directory.join("golden").join(format!("v{}", schema.version));
-    std::fs::create_dir_all(&golden_directory)?;
-    for golden in output.goldens {
-        std::fs::write(golden_directory.join(golden.name), golden.bytes)?;
+/// The command's texts and filename (data/codec/README.md, 4).
+fn generate_files(schema_paths: &[PathBuf], out_dir: &Path) -> Result<(), Box<dyn core::error::Error>> {
+    let first = schema_paths.first().ok_or(USAGE)?;
+    let (family, version) = first
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_suffix(".schema"))
+        .and_then(|name| name.rsplit_once("-v"))
+        .ok_or("expected <family>-v<N>.schema")?;
+    if family.is_empty() || version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err("expected <family>-v<N>.schema".into());
     }
+    let mut source = String::new();
+    for path in schema_paths {
+        source.push_str(&std::fs::read_to_string(path)?);
+    }
+    let schema = parse(&source)?;
+    let form = form_of(first.parent().ok_or("schema has no directory")?, &schema.family)?;
+    check_as(&schema, form)?;
+    let output = generate_as(&schema, form);
+    std::fs::create_dir_all(out_dir)?;
+    let path = out_dir.join(format!("{}.rs", family.replace('-', "_")));
+    std::fs::write(path, output.records)?;
     Ok(())
 }
 
@@ -175,20 +182,65 @@ mod tests {
         let source = "family sample 1\nrecord Note { body: text 8 }";
         std::fs::write(&schema_path, source).expect("schema fixture");
         let out = scratch.path().join("src/generated");
-        super::generate_files(&schema_path, &out).expect("generate files");
+        super::generate_files(&[schema_path], &out).expect("generate files");
         let output = skein_codegen::generate(&skein_codegen::parse(source).expect("valid schema"));
-        assert_eq!(std::fs::read_to_string(out.join("v1.rs")).expect("written records"), output.records);
-        for golden in output.goldens {
-            assert_eq!(
-                std::fs::read(scratch.path().join("golden/v1").join(golden.name)).expect("written golden"),
-                golden.bytes
-            );
-        }
+        assert_eq!(std::fs::read_to_string(out.join("sample.rs")).expect("written records"), output.records);
+        assert!(!scratch.path().join("golden").exists());
+        assert!(!scratch.path().join("tests").exists());
+        assert_eq!(std::fs::read_dir(out).expect("output directory").count(), 1);
     }
 
     #[test]
-    fn schema_generation_keeps_its_two_positional_arguments() {
-        assert_eq!(read(&["schema", "out"]), Ok(Arguments::Generate { schema: "schema".into(), out: "out".into() }));
+    fn schema_generation_takes_schemas_then_output_directory() {
+        assert_eq!(
+            read(&["schema", "out"]),
+            Ok(Arguments::Generate { schemas: vec!["schema".into()], out: "out".into() })
+        );
+        assert_eq!(
+            read(&["first", "second", "out"]),
+            Ok(Arguments::Generate { schemas: vec!["first".into(), "second".into()], out: "out".into() })
+        );
+    }
+
+    #[test]
+    fn split_schema_generation_concatenates_texts_in_order() {
+        let scratch = skein_scratch::Scratch::new("codegen-split");
+        let first = scratch.path().join("note-v3.schema");
+        let second = scratch.path().join("note-v3-part1.schema");
+        let a = "family note 3\nrecord First { body: text 8 }\n";
+        let b = "record Second { first: First }\n";
+        std::fs::write(&first, a).expect("first part");
+        std::fs::write(&second, b).expect("second part");
+        let out = scratch.path().join("generated");
+        super::generate_files(&[first, second], &out).expect("generate split family");
+        let output = skein_codegen::generate(&skein_codegen::parse(&format!("{a}{b}")).expect("valid schema"));
+        assert_eq!(std::fs::read_to_string(out.join("note.rs")).expect("records"), output.records);
+        assert_eq!(std::fs::read_dir(out).expect("output directory").count(), 1);
+    }
+
+    #[test]
+    fn schema_generation_replaces_hyphens_in_the_stem() {
+        let scratch = skein_scratch::Scratch::new("codegen-stem");
+        let schema = scratch.path().join("worker-wire-v17.schema");
+        std::fs::write(&schema, "family worker_wire 17\nrecord Note { body: text 8 }").expect("schema");
+        let out = scratch.path().join("generated");
+        super::generate_files(&[schema], &out).expect("generate family");
+        assert!(out.join("worker_wire.rs").is_file());
+        assert_eq!(std::fs::read_dir(out).expect("output directory").count(), 1);
+    }
+
+    #[test]
+    fn invalid_or_unreadable_schema_writes_nothing() {
+        let scratch = skein_scratch::Scratch::new("codegen-invalid");
+        let first = scratch.path().join("note-v3.schema");
+        let second = scratch.path().join("note-v3-part1.schema");
+        std::fs::write(&first, "family note 3\nrecord Note { body: text 8 }\n").expect("first part");
+        let out = scratch.path().join("generated");
+        assert!(super::generate_files(&[first.clone(), second.clone()], &out).is_err());
+        assert!(!out.exists());
+        std::fs::write(&second, "not a schema").expect("invalid part");
+        assert!(super::generate_files(&[first, second], &out).is_err());
+        assert!(!out.exists());
     }
 
     #[test]
@@ -248,13 +300,6 @@ mod tests {
         for args in [
             vec![],
             vec!["schema"],
-            vec!["schema", "out", "extra"],
-            vec!["schema", "out", "--names"],
-            vec!["schema", "out", "--names", "bounds"],
-            vec!["schema", "out", "--names", "unknown"],
-            vec!["schema", "out", "--names", "worst-case"],
-            vec!["schema", "out", "--names", "both"],
-            vec!["schema", "out", "--names", "bounds", "extra"],
             vec!["patch", "crate", "--owner"],
             vec!["patch", "crate", "--after", "up", "no"],
             vec!["patch", "crate", "--rename", "shelf", "Old"],

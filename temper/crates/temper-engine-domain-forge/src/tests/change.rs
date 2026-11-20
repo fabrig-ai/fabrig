@@ -4,6 +4,8 @@ mod amended_review;
 mod empty_repair;
 mod execution;
 mod fence;
+mod flake;
+mod no_test;
 mod released_resolution;
 
 /// Landing mode is selected at readiness, including work restored across a configuration change
@@ -35,6 +37,7 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
             Box::new([]),
             temper_engine_domain_forge_landing::Project::DEFAULT,
             AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -772,6 +775,8 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                flake: false,
+                no_test: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -1532,6 +1537,8 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             child: 52,
             status: change::Status::Failed,
             no_change: false,
+            flake: false,
+            no_test: false,
             failed: false,
             cancelled: false,
             words: words.as_bytes().into(),
@@ -1655,6 +1662,8 @@ fn only_the_active_successful_repair_supplies_an_account() {
                 child,
                 status,
                 no_change,
+                flake: false,
+                no_test: false,
                 failed,
                 cancelled,
                 words: b"Adds changes/2.md".as_slice().into(),
@@ -1683,12 +1692,31 @@ fn delegate_waiting(
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.delegate = Some((52, kind));
+    row.delegate_head = row.change.last_head;
     row.delegate_status = change::Status::Pending;
     row.title = Box::new([]);
     row.change.state = state;
     row.change.since = Wall::EPOCH;
     outputs(&mut d, Event::Change { row });
     d
+}
+
+fn verdict_terminal(d: &mut Domain, child: u64, words: &[u8]) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::DelegateResult {
+            task: fixtures::CHANGE,
+            child,
+            ended_at: None,
+            status: temper_engine_domain_forge_change::Status::Passed,
+            no_change: false,
+            flake: true,
+            no_test: false,
+            failed: false,
+            cancelled: false,
+            words: words.into(),
+        },
+    )
 }
 
 fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
@@ -1700,6 +1728,8 @@ fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
             child: 52,
             status: temper_engine_domain_forge_change::Status::Passed,
             no_change,
+            flake: false,
+            no_test: false,
             failed: false,
             cancelled: false,
             words: b"Nothing applies".as_slice().into(),
@@ -1719,6 +1749,8 @@ fn waiting_step(live: bool, released: bool) -> Event {
             spend: None,
             delegate: change::Status::Pending,
             delegate_running: false,
+            flake: false,
+            no_test: false,
             delegate_live: live,
             effect: change::EffectResult::None,
             released,
@@ -2093,6 +2125,12 @@ fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     entry.effect.write =
         Write::Update { number: 1, style: if preparing { UpdateStyle::Rebase } else { UpdateStyle::Merge } };
     entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: fixtures::BASE };
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: env().now,
+        deadline: env().now,
+        wall: env().wall,
+        expires: env().wall,
+    });
     outputs(&mut d, Event::Change { row });
     outputs(&mut d, Event::Enqueue { entry: entry.clone() });
     (d, entry)
@@ -2126,7 +2164,13 @@ fn an_update_lost_or_overtaken_is_let_go_with_its_account() {
     use skein_forge_client::Outcome;
     use temper_engine_domain_forge_change::EffectResult;
     for preparing in [false, true] {
-        for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
+        for error in [
+            Error::Timeout,
+            Error::Unavailable,
+            Error::Stale,
+            Error::BaseMoved { base: Some([6; 32]) },
+            Error::BaseMoved { base: None },
+        ] {
             let (mut d, entry) = updating_entry(preparing);
             settled_change(&mut d, Outcome::Failed(error));
             let row = d.change(fixtures::CHANGE).expect("settled update");
@@ -2238,15 +2282,21 @@ fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
 #[test]
 fn a_let_go_update_is_decided_again() {
     for preparing in [false, true] {
-        let (mut d, _) = updating_entry(preparing);
-        let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout));
-        assert!(settled.contains(&Request::ChangeDecision {
-            task: fixtures::CHANGE,
-            decision: temper_engine_domain_forge_change::Decision::None,
-            entry: None,
-            evidence: None,
-        }));
-        decide_update_again(&mut d, preparing, 2);
+        for error in [
+            skein_forge::api::Error::Timeout,
+            skein_forge::api::Error::BaseMoved { base: Some([6; 32]) },
+            skein_forge::api::Error::BaseMoved { base: None },
+        ] {
+            let (mut d, _) = updating_entry(preparing);
+            let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(error));
+            assert!(settled.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: temper_engine_domain_forge_change::Decision::None,
+                entry: None,
+                evidence: None,
+            }));
+            decide_update_again(&mut d, preparing, 2);
+        }
     }
 }
 
@@ -2332,6 +2382,7 @@ fn a_release_of_a_failed_update_drops_its_result() {
     for preparing in [false, true] {
         for (effect, update_state, expected) in [
             (change::EffectResult::Failed, true, change::EffectResult::None),
+            (change::EffectResult::Stale, true, change::EffectResult::None),
             (change::EffectResult::Conflict, true, change::EffectResult::Conflict),
             (change::EffectResult::Failed, false, change::EffectResult::Failed),
         ] {
@@ -2737,6 +2788,7 @@ fn a_containment_landing_withdraws_its_pending_merge() {
     let (mut d, mut entry) = updating_entry(false);
     entry.effect.write = Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style };
     entry.effect.condition = skein_forge_client::Condition::Merge { base: b"main".as_slice().into() };
+    entry.attempt = None;
     d.entries.get_mut(&entry.number).expect("pending entry").entry = entry.clone();
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("change");
     row.change.state = change::State::Landing { head: fixtures::HEAD };
@@ -2960,6 +3012,7 @@ fn an_ended_writers_slot_stops_waiting_after_its_branch_is_read() {
                 },
                 task: fixtures::CHANGE,
                 writer: Some(Writer::Run { task: 52, attempt: 1 }),
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),
@@ -3061,6 +3114,146 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
         }
         assert_eq!(d.steps.len(), 1);
     }
+}
+
+// Leave the pull read refused after the branch and base have answered.
+fn pull_refused_for_capacity() -> Domain {
+    use crate::domain::read_session::client_refusals;
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Ready { head: fixtures::HEAD, ready_since: env().wall },
+        change::Delegate::Produce,
+    );
+    let row = d.changes.get_mut(&fixtures::CHANGE).expect("ready change");
+    row.change.way = change::Way::Turn;
+    row.change.ready_since = Some(env().wall);
+    row.pull = Some(1);
+    row.delegate = None;
+    row.title = b"Small fix".as_slice().into();
+    outputs(&mut d, fixtures::change_step());
+    let (branch, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    fixtures::answer(&mut d, branch, Ok(Answer::Commit(fixtures::HEAD)));
+    let (base, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
+    for owner in 1_u64..u64::from(CLIENT.pending) {
+        outputs(
+            &mut d,
+            Event::Client(skein_forge_client::Event::Read {
+                owner: Token::new(8000_u64.saturating_add(owner)),
+                repository: REPO,
+                read: Read::Settings,
+            }),
+        );
+    }
+    assert_eq!(client_refusals(&mut d), 0);
+    fixtures::answer(&mut d, base, Ok(Answer::Commit(fixtures::BASE)));
+    assert_eq!(client_refusals(&mut d), 1, "the later pull read was refused");
+    for _ in 1..CLIENT.pending {
+        let (filler, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Settings));
+        fixtures::answer(&mut d, filler, Ok(Answer::Settings(adopted().settings)));
+    }
+    d
+}
+
+#[test]
+fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut d = pull_refused_for_capacity();
+    let mut clock = env();
+    assert!(fixtures::advance(&mut d, &mut clock, Duration::from_millis(999)).is_empty());
+    fixtures::advance(&mut d, &mut clock, Duration::from_millis(1));
+    let (pull, op) = fixtures::next_at(&mut d, &clock);
+    assert_eq!(op, Op::Read(Read::Pull { number: 1, ci: true }), "retry the refused pull, not the branch");
+    let mut decisions = skein_lib::List::uncapped();
+    let answered = fixtures::answer_at(&mut d, &clock, pull, Ok(Answer::Pull(fixtures::open_pull())));
+    for request in &answered {
+        if let Request::ChangeDecision { decision, .. } = request {
+            decisions.push(*decision).expect("uncapped decisions");
+        }
+    }
+    for _ in 0_u32..8 {
+        if d.steps.is_empty() {
+            break;
+        }
+        let (call, op) = fixtures::next_at(&mut d, &clock);
+        let answer = match op {
+            Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(_) | Op::Write(_) => panic!("the gather keeps its first reads: {op:?}"),
+        };
+        for request in &fixtures::answer_at(&mut d, &clock, call, Ok(answer)) {
+            if let Request::ChangeDecision { decision, .. } = request {
+                decisions.push(*decision).expect("uncapped decisions");
+            }
+        }
+    }
+    assert!(d.steps.is_empty(), "one gather ends");
+    assert_eq!(decisions.as_slice(), [change::Decision::Wait { until: None }], "one decision from one branch read");
+    assert!(matches!(d.change(fixtures::CHANGE).expect("ready change").change.state, change::State::Ready { .. }));
+}
+
+#[test]
+fn invalidation_during_a_capacity_retry_restarts_from_the_branch() {
+    use skein_forge::api::{Hint, Op, Read};
+    let mut d = pull_refused_for_capacity();
+    outputs(
+        &mut d,
+        Event::Hint {
+            hint: Hint {
+                repository: REPO,
+                change: skein_forge::api::Change::Branch(b"temper/51".as_slice().into()),
+                key: None,
+            },
+        },
+    );
+    // The root offers the activation caused by that hint while the gather waits.
+    fixtures::step_change(&mut d);
+    let mut clock = env();
+    fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+    let (_, op) = fixtures::next_at(&mut d, &clock);
+    assert_eq!(
+        op,
+        Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }),
+        "invalidation discards the gather"
+    );
+}
+
+#[test]
+fn capacity_retries_spend_the_gathers_original_stall_deadline() {
+    use crate::domain::read_session::client_refusals;
+    use temper_engine_domain_forge_change as change;
+    let mut d = pull_refused_for_capacity();
+    for owner in 0_u64..u64::from(CLIENT.pending) {
+        outputs(
+            &mut d,
+            Event::Client(skein_forge_client::Event::Read {
+                owner: Token::new(9000_u64.saturating_add(owner)),
+                repository: REPO,
+                read: skein_forge::api::Read::Settings,
+            }),
+        );
+    }
+    let until = d.next_wall_deadline().expect("gather stall");
+    let mut clock = env();
+    for _ in 0_u32..3 {
+        fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+        assert_eq!(client_refusals(&mut d), 1);
+        assert_eq!(d.next_wall_deadline(), Some(until), "a refusal is not progress");
+    }
+    let stalled = fixtures::advance(&mut d, &mut clock, LIMITS.change_policy.stall);
+    assert!(
+        matches!(
+            d.change(fixtures::CHANGE).expect("stalled change").change.state,
+            change::State::Held { why: change::Hold::Stalled, .. }
+        ),
+        "the original deadline bounds retries: {stalled:?}"
+    );
+    assert!(d.steps.is_empty());
 }
 
 #[test]
@@ -3289,6 +3482,8 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
                     child: 52,
                     status: c::Status::Failed,
                     no_change: false,
+                    flake: false,
+                    no_test: false,
                     failed: true,
                     cancelled: false,
                     words: reason.into(),
@@ -3308,4 +3503,69 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
             assert_eq!(restored.change(fixtures::CHANGE).unwrap().producer_failure.as_deref(), Some(words));
         }
     }
+}
+
+#[test]
+fn an_update_refused_before_sending_reports_stale_not_a_lost_write() {
+    use skein_forge::api::Error;
+    use skein_forge_client::Outcome;
+    use temper_engine_domain_forge_change::EffectResult;
+    for preparing in [false, true] {
+        for error in [Error::Stale, Error::BaseMoved { base: Some([6; 32]) }, Error::BaseMoved { base: None }] {
+            let (mut d, mut entry) = updating_entry(preparing);
+            entry.attempt = None;
+            d.entries.get_mut(&entry.number).unwrap().entry = entry.clone();
+            settled_change(&mut d, Outcome::Failed(error));
+            assert_eq!(d.change(fixtures::CHANGE).unwrap().effect, EffectResult::Stale);
+            assert_settled_account(&d, &entry, Outcome::Failed(error));
+        }
+    }
+}
+
+#[test]
+fn a_stale_preparation_reads_the_new_base_beside_its_pin_and_replans() {
+    use skein_forge::api::{Answer, CommitMessage, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    const NEW: skein_forge::api::Commit = [6; 32];
+    let (mut d, entry) = updating_entry(true);
+    d.entries.get_mut(&entry.number).unwrap().entry.attempt = None;
+    settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base: Some(NEW) }));
+    seen_base(&mut d, NEW);
+    fixtures::step_change(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
+    let mut pull = fixtures::open_pull();
+    pull.base_commit = Some(NEW);
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+    fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
+    fixtures::answer(
+        &mut d,
+        call,
+        Ok(Answer::Commits {
+            commits: Box::new([CommitMessage {
+                id: fixtures::BASE,
+                parents: Box::new([]),
+                message: b"pin ahead".as_slice().into(),
+            }]),
+            more: false,
+        }),
+    );
+    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
+    let decided = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+    let mut replanned = false;
+    for request in &decided {
+        if let Request::ChangeDecision {
+            decision: change::Decision::Effect(change::Effect::Prepare { head: fixtures::HEAD, main: NEW }),
+            evidence: Some(evidence),
+            ..
+        } = request
+        {
+            assert_eq!(evidence.base_tip, fixtures::BASE);
+            replanned = true;
+        }
+    }
+    assert!(replanned, "new base observed beside the preparation's pin");
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.updates, 1);
 }

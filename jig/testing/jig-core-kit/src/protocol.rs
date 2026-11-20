@@ -4,6 +4,7 @@ use jig_domain_fleet as fleet;
 use jig_protocol_tools as tools;
 use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
+use smith_channel::Record;
 use std::collections::BTreeMap;
 
 type Envelope = (Box<[u8]>, Box<[u8]>);
@@ -147,14 +148,9 @@ impl crate::world::World {
     /// Ask again under a chosen name, as a host retry does.
     pub fn tool_call_at(&mut self, completion: u32, tool: &[u8], input: &[u8], writes: bool) -> Token {
         let assignment = self.assigned.as_ref().expect("assigned run");
-        let name = smith_channel::CallName::new(
-            &smith_channel::CEILINGS,
-            smith_channel::CallNameParts { activation: assignment.attempt, completion, position: 0 },
-        )
-        .expect("bounded call name");
-        let mut encoded = skein_lib::Writer::new(name.measure() as usize);
-        name.encode(&mut encoded).expect("measured call name");
-        self.relay_call(&encoded.finish(), tool, input, writes);
+        let name = smith_channel::CallName { activation: assignment.attempt, completion, position: 0 };
+        let encoded = name.encode(&smith_channel::CEILINGS).expect("call name has no variable bounds");
+        self.relay_call(&encoded, tool, input, writes);
         Token::new(u64::from(completion))
     }
 
@@ -174,7 +170,7 @@ impl crate::world::World {
         self.send(root::Event::Core(core::Event::NamedAction {
             to: ReplyTo::new(token),
             key,
-            action: core::NamedAction::PersonRead(read),
+            action: core::NamedAction::PersonRead(Box::new(read)),
         }));
         token
     }

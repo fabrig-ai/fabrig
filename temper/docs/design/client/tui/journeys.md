@@ -30,19 +30,25 @@ the look, 11 what is open.
 - **Replayed, it must ask what it asked,** each key giving the event it
   gave; otherwise the journey is stale and recorded again (sections 4
   and 8). The first replay proves itself against the live frames.
-- **Redacted and scanned by the browser's code** (`../web/journeys.md`, 3.6
-  and 3.7), which gains the TUI's originals: the approval's secret, the
+- **Redacted and scanned by the browser's code** (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7
+  ), which gains the TUI's originals: the approval's secret, the
   credential the TUI takes and the bearer every exchange carries
   (section 5).
+- **Placeholders for what varies,** once proved: the build, the
+  loopback ports and the approval codes, as the browser's journeys take
+  them (`../journey-placeholders.md`; section 5).
 - **Printed by `temper-client-journeys`,** under
   `docs/design/client/tui/journeys/`: a text and a page per mark, a
   generated `theme.css` and `tui-journey.js`, and an empty `overlay.css`
   (section 6). No terminal, no box, the same bytes every time.
-- **Kept current by the journeys' test,** with the browser's, which
-  also fails while the TUI's `overlay.css` holds anything (section 7).
+- **Kept current by one writer,** with the browser's, after each
+  landing (`../journey-writer.md`); the delivery check and the journeys'
+  tests refuse a TUI `overlay.css` that holds anything (section 7).
 - **Recorded again by a command:** `again NAME` walks the journey's
   `walk` on a fresh fake box, the TUI in a pseudo-terminal and the
-  approval given in headless Chromium, and adds the result (section 8).
+  approval given in headless Chromium, all on one fixed start
+  (`../journey-clock.md`), and adds the result (section 8); on main the
+  journeys' writer alone runs it.
 - **The look is asked for on the frames:** a frame's text edited in
   place, the theme's overlay written, each request landing as the
   browser's do (section 10).
@@ -142,7 +148,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
 | `plain` | none | when the start's terminal draws no mark (`README.md`, 3, `Start.plain`; `pages/README.md`, 3) |
 | `version` | the build as bytes | the start's `version`, when it is not empty (`README.md`, 3) |
-| `address` | `HOST:PORT` as bytes | the start's address |
+| `address` | the origin as `Origin::print` prints it, as bytes; a bare `HOST:PORT`, as a recording made before it holds, reads as `http://HOST:PORT` | the start's origin (`README.md`, 1) |
 | `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
 | `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
 | `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
@@ -163,6 +169,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
+| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
@@ -172,7 +179,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `erase` | a record's key | `Request::Erase`, one per key (shared) |
 | `keep` | the credential's bytes, or `none` | the duty `keep` |
 | `note` | `until` and nanoseconds, or `signed-out` | the duty `note` |
-| `signed` | `HOST:PORT` as bytes | the duty `address` |
+| `signed` | the origin as `address` has it | the duty `address` |
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |
@@ -276,11 +283,14 @@ yields the host's frame.
 the replay's `Frame::print` is the recorded one, or the recording is
 refused, naming the mark and the first line of the print that differs,
 never its text. Once every mark matches, the live prints are dropped,
-and the print is the replay's from then on.
+the recording takes its placeholders and replays again, as the check
+has it (`../journey-placeholders.md`, 4.1), and the print is that
+replay's. The proof comes first since a frame lays its rows out by
+width, so a placeholder of another width moves what follows it.
 
 ## 5. Redaction and the last scan
 
-The browser's, with the same code (`../web/journeys.md`, 3.6 to 3.8), over
+The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7 to 3.8), over
 the TUI's lines.
 
 - **The shared code** gains three kinds of original, `Kind::Approval`,
@@ -317,7 +327,7 @@ the TUI's lines.
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
   `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
-  `browse`, `mark` and `end` are text (`../web/journeys.md`, 3.6, *A form's
+  `browse`, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
@@ -330,7 +340,7 @@ the TUI's lines.
   elements in the `Typed` event's Debug print. Each becomes those
   encodings of the redacted secret, so the paste and its event, and the
   box's line, still replay. This is the TUI's addition; the browser's
-  code and encodings stay as `../web/journeys.md`, 3.6 describes.
+  code and encodings stay as `../web/journey-redaction.md` describes.
 - **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
@@ -343,6 +353,14 @@ the TUI's lines.
 - **What is left to the person** is `../web/journeys.md`, 3.8's, and: a
   link typed key by key is never found whole, so its proof fails and
   nothing is written; paste it.
+- **Placeholders** (`../journey-placeholders.md`), after the proof, with
+  the shared code: the build from the `version` fact; each loopback port
+  in every field, `address`, `signed`, `browse`, a `found`'s and a
+  `box-line`'s bytes and the framed fields among them, and in a pasted
+  address's decimal byte elements in its `Typed` event; and each code a
+  `browse` address shows, its letters in the ask's `reply` too. A framed
+  field takes a placeholder of the original's width alone
+  (`../journey-placeholders.md`, 3.3).
 
 ## 6. The print
 
@@ -358,10 +376,12 @@ records again the TUI's journeys beside the browser's, through
   `docs/design/client/tui/journeys/NAME/`. A NAME is one journey's
   across both directories: `add` refuses a TUI recording under a name
   the browser's directory holds, and the reverse. It redacts (section
-  5), proves (4.3), scans and prints in memory, writing nothing until
-  the scan has passed, and prints its counts as the browser's does.
+  5), proves (4.3), normalises, scans and prints in memory, writing
+  nothing until the scan has passed, and prints its counts as the
+  browser's does (`../journey-placeholders.md`, 4.1).
 - The reprint, `cargo run -p temper-client-journeys`, prints both
-  directories' journeys.
+  directories' journeys, and `normalise` gives both directories'
+  recordings their placeholders (`../journey-placeholders.md`, 4.3).
 - `again NAME` records the TUI journey NAME when its directory holds a
   `walk` (section 8), the browser's otherwise.
 
@@ -445,12 +465,12 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   passing the scan in a `browse` address and a frame, and a `code=` of
   any other value still refused; a redacted approval walk replaying as
   it stands.
-- **The print:** every committed TUI journey reprinted into a scratch
-  directory equals its directory and the files beside it, byte for byte;
-  one that differs or is stale fails, naming the command that reprints;
-  the tests fail while the TUI's `overlay.css` holds any byte, and for a
-  journey whose `../../README.md` is missing or empty; a page's runs, palette
-  classes, attributes and key links in the print's unit tests.
+- **The print,** on walks the tests record in the host's world: printed
+  and proved; no test replays, reprints or compares a recording or a
+  frame of main's (`../journey-writer.md`, 7); the tests fail while the
+  TUI's `overlay.css` holds any byte, and for a journey whose
+  `../../README.md` is missing or empty; a page's runs, palette classes,
+  attributes and key links in the print's unit tests.
 - **The walk, natively:** a `walk` read back, each record among them,
   and another version, a record out of its place and a second `end`
   unreadable; a recording checked against its walk; a TUI journey's
@@ -458,9 +478,8 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   one holding a `mark` refused, naming its line.
 - **`again`'s half that drives a terminal and a browser** has no story of
   its own: the first journey, recorded by it, proves it (8.2).
-- **Their cost:** the reprint of both directories together within the
-  browser's 1 s of the default suite; no fuzzy test; no default test
-  starts a terminal, a browser or a box.
+- **Their cost:** within their layers' budgets as they stand; no fuzzy
+  test; no default test starts a terminal, a browser or a box.
 
 ## 8. Recorded again
 
@@ -480,6 +499,9 @@ recording's (3.2).
 | `approve` | none | the browser opens the address of the latest save's last `browse` and presses its button "Approve", found by role and name as skein's fake person finds it |
 | `end` | none | last, once: the save key in its Shift form, Alt+Shift+S (3.1), whose save is the new recording |
 
+- **A `see` names no varying value:** it is found in the live frames,
+  which hold the box's ports and the build as they are
+  (`../journey-placeholders.md`, 4.2).
 - **Its bounds:** a `see` not shown within 30 seconds, or an `approve`
   whose page shows no "Approve" within 30 seconds, stops `again`,
   naming the step.
@@ -506,7 +528,9 @@ ordinary Rust over skein's harness:
   --fake-backends` from that copy serving that bundle, every directory
   in the scratch directory, and headless Chromium from
   `SKEIN_TEST_CHROMIUM`, as the browser tier drives it, its printed
-  sign-in link opened, so that the browser is signed in.
+  sign-in link opened, so that the browser is signed in. The box takes
+  `again`'s fixed start as `--fixed-start`, and the page as
+  `internal-fixed-start` (`../journey-clock.md`, 4.4).
 - **The TUI in a pseudo-terminal** of 80 columns by 24 rows (skein's
   harness starts a binary on one), `temper http://HOST:PORT` at the
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
@@ -520,12 +544,15 @@ ordinary Rust over skein's harness:
   (`theme.md`, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
-  0, and leaves the tab to `again`. Its output is read and dropped.
+  0, and leaves the tab to `again`; and `TEMPER_INTERNAL_FIXED_START`,
+  `again`'s fixed start, so that the TUI's seed and clock are the walk's
+  (`../journey-clock.md`, 4.3). Its output is read and dropped.
 - **A setup,** where the journey's directory holds one: its `setup`
   file, in the browser's format and with its rules (`../web/journeys.md`,
-  8.2), its `after` naming a browser journey, read from the browser's
-  journeys' directory, as `project-landing`'s steps to a project with a
-  model. `again` walks it in the signed-in browser, its `reload` loaded
+  8.2), its `after`, where it has one, naming a browser journey not yet
+  moved, read from the browser's journeys' directory. The three that go
+  to a project with a model hold `project-landing`'s steps themselves,
+  since that journey is a walk (`../journey-walks.md`, 6). `again` walks it in the signed-in browser, its `reload` loaded
   last where it has one, before the TUI starts, so that the TUI opens on
   what the setup made; a `mark` in it is refused when it is read, since
   the TUI's `walk` marks its own frames. Its steps and their bounds are
@@ -563,7 +590,8 @@ where 8.2 says otherwise:
   rather than before the TUI starts; a `see` after it waits for the
   frame the steps lead to.
 - **The welcome's link, wrapped:** at 80 columns the welcome draws the
-  printed link over rows. The redaction seeks a `box-line` link's secret in
+  printed link over rows, and so does `/web`'s note (`box.md`, *`/web`,
+  temper in the browser*). The redaction seeks a `box-line` link's secret in
   each `mark`'s and the `end`'s print across the rows it wraps over too,
   the print's rows read as one where the link continues, each row's
   indentation and line feed left out, and the last scan reads the
@@ -577,12 +605,26 @@ where 8.2 says otherwise:
   replay's proof, as a link typed key by key does (section 5), and
   nothing is written.
 
+### 8.4 Recorded again after R4
+
+Milestone R4 of `../../draft/page-round-trips.md` holds Work to its budget,
+which changes which requests the pages send and when (`../README.md`, 3.4;
+`../pages/work.md`, 1, *Its budget*), so an exchange recorded on the
+pages before it is stale (section 7, *The print*). `sign-in-approved`,
+`launchpad-chat`, `launchpad-drawn` and `design-session` are recorded on
+R4's pages with `again NAME` (8.2), on journey-clock's fixed start
+(`../journey-clock.md`, 4.4), the last three's `setup` holding
+`project-landing`'s steps (8.2), as section 9's table has it. Their steps are a real `temper`'s in front of a real `temper box
+--fake-backends`: a step that stalls under `again` is a fault of the
+client or the box, repaired where it is, never a walk's patience raised
+or its step dropped.
+
 ## 9. The journeys
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the launchpad, with no project yet | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the launchpad of a box with no project (`pages/README.md`), at the recording's end; its `../../README.md` says so |
-| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages/README.md`); its `../../README.md` names each frame |
+| `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, 4 and 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
+| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `project-landing`'s steps, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages/README.md`); its `../../README.md` names each frame |
 | `launchpad-drawn` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello; then as `sign-in-approved` to the launchpad; `/change` and a change asked in words, which starts a chat; its fake model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count; `n` and the walk's prompt; its first choice taken; the walk's end; the end | `03`, the launchpad as drawn, with the chat, its need and Start (`pages/launchpad.md`); `05`, the walk's prompt under the box (*Walking what needs you*); `07`, the launchpad after the walk, its note, at the recording's end; `01`, `02`, `04` and `06`, the frames before the keys that act (3.3); its `../../README.md` names each frame |
 | `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at the recording's 80 columns goes first (`pages/design-session.md`, 1, *narrow*; the goal's part is the 110-column golden's); the end | `03`, the session at half with the drafter's choices under the box; `05`, the pane at all; `07`, folded; `10`, Open questions marked new; `12`, `/goal`'s ways prompt; `14` and `15`, the returned chat with its goal linked, marked and at the recording's end (`pages/design-session.md`, 1); `01`, Hello's launchpad; `02`, `04`, `06`, `08`, `09`, `11` and `13`, before the keys that act (3.3); its `../../README.md` names each frame |
 | `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`box.md`); its `../../README.md` names each frame |
@@ -604,13 +646,14 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
   never landed (`../web/journeys.md`, section 7;
   `../web/look-requests.md`, 2).
-- **Never landed:** the journeys' test refuses a request's frames, which
-  differ from the reprint, and its overlay, so `main`'s overlay stays
-  empty.
+- **Never landed:** the delivery check refuses a request's frames
+  beside any other file, and its overlay (`../journey-writer.md`, 5), so
+  `main`'s overlay stays empty.
 - **Done** is a landing carrying the request's trailer in commits of its
   own that moves the overlay's rules into `temper-client-tui`'s theme
   (its palette, its tokens' paints, its borders and glyphs) and the
-  frames' changes into its view and words, and reprints.
+  frames' changes into its view and words, and compares by a reprint in
+  its own tree, committing no frame (`../web/look-requests.md`, 3).
 
 ## 11. Open questions
 
@@ -657,6 +700,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   directory (8.2); neither is
   drawn, and `add --redact` refuses an admitted recording. The
   `launchpad-chat`, `launchpad-drawn`, `sign-in-approved` and
-  `design-session` recordings are committed so (the user, 2026-11-11).
+  `design-session` recordings are committed so (the user, 2026-11-11),
+  and so again on R4's pages (8.4).
   Default: so, until a later change gives the fake box a fixed account
   label under `again` and redacts the scratch prefix in what it records.

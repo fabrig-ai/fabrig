@@ -1,4 +1,5 @@
 //! Project landings, sittings and briefs (temper/docs/design/domain/forge/attention.md, 2, 3).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
@@ -15,7 +16,7 @@ pub(crate) fn landed(d: &mut Domain, now: Wall, repository: Repository, out: &mu
     }
     let mut row = match d.project_facts.remove(&project) {
         Some(row) => row,
-        None => ProjectFacts { project, landed: 0, last_landed: now, brief: None, running: None },
+        None => ProjectFacts { project, landed: 0, last_landed: now },
     };
     row.landed = row.landed.checked_add(1).expect("project landing count fits u64");
     row.last_landed = now;
@@ -63,7 +64,7 @@ pub(crate) fn looked(
     out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
     d.looked.insert(key, row).expect("looked room checked");
     if sitting {
-        ask_run(d, env, project, out);
+        ask_run(d, env, party, project, out);
     }
     d.connect.answer(request, token, Answered::Looked(LookedAnswer::Looked), out);
 }
@@ -84,6 +85,17 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
         out.push(Request::Erase { key: Key::Looked { party, project } });
         changed = true;
     }
+    let mut erases = List::with_capacity(d.person_briefs.len());
+    for ((party, held), _) in &d.person_briefs {
+        if *held == project {
+            erases.push(*party).expect("bounded person briefs");
+        }
+    }
+    for party in erases.into_boxed() {
+        d.person_briefs.remove(&(party, project));
+        out.push(Request::Erase { key: Key::PersonBrief { party, project } });
+        changed = true;
+    }
     if changed {
         out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
     }
@@ -96,6 +108,7 @@ impl Domain {
             landed: 0,
             last_landed: None,
             brief: None,
+            unpaid: false,
             previous: None,
             seen: 0,
             queued: 0,
@@ -105,7 +118,10 @@ impl Domain {
         if let Some(row) = self.project_facts.get(&project) {
             view.landed = row.landed;
             view.last_landed = if row.landed == 0 { None } else { Some(row.last_landed) };
+        }
+        if let Some(row) = self.person_briefs.get(&(party, project)) {
             view.brief.clone_from(&row.brief);
+            view.unpaid = row.unpaid.is_some();
         }
         view.seen = view.landed;
         if let Some(row) = self.looked.get(&(party, project)) {
@@ -119,7 +135,7 @@ impl Domain {
         }
         for (repository, adopted) in &self.repositories {
             if adopted.project == project && adopted.home {
-                view.branch.clone_from(&adopted.settings.default_branch);
+                view.branch.clone_from(&adopted.landing);
                 view.red = self.branch_red(*repository, &view.branch);
                 break;
             }
@@ -137,21 +153,32 @@ fn old(now: Wall, then: Wall) -> bool {
         None => false,
     }
 }
-fn save(row: &ProjectFacts, out: &mut Queue<Request>) {
-    out.push(Request::Save { record: Stored::ProjectFacts(row.clone()), release: None, read_afresh: None });
+fn save(row: &PersonBrief, out: &mut Queue<Request>) {
+    out.push(Request::Save { record: Stored::PersonBrief(row.clone()), release: None, read_afresh: None });
 }
-fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
+fn ask_run(d: &mut Domain, env: &Env<Limits>, party: u64, project: u32, out: &mut Queue<Request>) {
     let (findings, mark) = words::findings(d, project);
     if !d.project_facts.contains_key(&project) {
         if mark.is_none() || d.project_facts.len() == d.project_facts.capacity() {
             return;
         }
-        let row = ProjectFacts { project, landed: 0, last_landed: env.wall, brief: None, running: None };
-        save(&row, out);
+        let row = ProjectFacts { project, landed: 0, last_landed: env.wall };
+        out.push(Request::Save { record: Stored::ProjectFacts(row.clone()), release: None, read_afresh: None });
         out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
         d.project_facts.insert(project, row).expect("project facts room checked");
     }
-    let row = d.project_facts.get(&project).expect("held facts");
+    let facts = d.project_facts.get(&project).expect("held facts");
+    let key = (party, project);
+    if !d.person_briefs.contains_key(&key) && d.person_briefs.len() == d.person_briefs.capacity() {
+        return;
+    }
+    let mut row = d.person_briefs.get(&key).cloned().unwrap_or(PersonBrief {
+        party,
+        project,
+        brief: None,
+        running: None,
+        unpaid: None,
+    });
     let covered = match &row.brief {
         Some(brief) => brief.landed,
         None => 0,
@@ -160,7 +187,7 @@ fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Requ
         Some(brief) => brief.findings,
         None => None,
     };
-    let fresh = row.landed > covered;
+    let fresh = facts.landed > covered;
     let changed = mark != previous;
     if !fresh && !changed {
         return;
@@ -179,28 +206,35 @@ fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Requ
         Some(brief) => brief.at,
         None => Wall::EPOCH,
     };
-    let (words, signers) = words::specification(d, row, since, env.wall);
-    let row = d.project_facts.get_mut(&project).expect("held facts");
-    row.running = Some(StatusRunning { task: None, landed: row.landed, since: env.wall, findings: mark });
-    save(row, out);
-    out.push(Request::StatusRun { project, since, words, findings, signers });
+    let (words, signers) = words::specification(d, facts, row.brief.as_ref(), since, env.wall);
+    row.running = Some(StatusRunning { task: None, landed: facts.landed, since: env.wall, findings: mark });
+    save(&row, out);
+    d.person_briefs.insert(key, row).expect("person brief room checked");
+    out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
+    out.push(Request::StatusRun { project, party, since, words, findings, signers });
 }
 
-pub(crate) fn task(d: &mut Domain, project: u32, task: Option<u64>, out: &mut Queue<Request>) {
-    let Some(row) = d.project_facts.get_mut(&project) else { return };
+pub(crate) fn task(d: &mut Domain, now: Wall, party: u64, project: u32, task: Option<u64>, out: &mut Queue<Request>) {
+    let Some(row) = d.person_briefs.get_mut(&(party, project)) else { return };
     let Some(running) = &mut row.running else { return };
     match task {
         Some(task) => running.task = Some(task),
-        None => row.running = None,
+        None => {
+            row.running = None;
+            row.unpaid = Some(now);
+        }
     }
     save(row, out);
+    out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
 }
 
 pub(crate) fn heard(d: &mut Domain, now: Wall, task: u64, report: Option<Box<[u8]>>, out: &mut Queue<Request>) {
-    if let Some(project) = d.status_project(task) {
-        let row = d.project_facts.get_mut(&project).expect("named status project");
+    if let Some(owner) = d.status_owner(task) {
+        let row = d.person_briefs.get_mut(&owner).expect("named status owner");
         let running = row.running.as_ref().expect("named run");
-        if let Some(report) = &report {
+        if !old(now, running.since)
+            && let Some(report) = &report
+        {
             let (sentence, lede) = status_paragraphs(report);
             if !sentence.is_empty() {
                 row.brief = Some(Brief {
@@ -210,23 +244,24 @@ pub(crate) fn heard(d: &mut Domain, now: Wall, task: u64, report: Option<Box<[u8
                     landed: running.landed,
                     findings: running.findings,
                 });
-                out.push(Request::Marked { tasks: Box::new([status_subject(row.project)]) });
             }
         }
         row.running = None;
+        row.unpaid = None;
         save(row, out);
+        out.push(Request::Marked { tasks: Box::new([status_subject(row.project)]) });
     }
 }
 
 impl Domain {
-    /// The project whose current status run names this task (temper/docs/design/domain/forge/attention.md, 3).
+    /// The party and project whose current status run names this task (temper/docs/design/domain/forge/attention.md, 3).
     #[must_use]
-    pub fn status_project(&self, task: u64) -> Option<u32> {
-        for (project, row) in &self.project_facts {
+    pub fn status_owner(&self, task: u64) -> Option<(u64, u32)> {
+        for (owner, row) in &self.person_briefs {
             if let Some(running) = &row.running
                 && running.task == Some(task)
             {
-                return Some(*project);
+                return Some(*owner);
             }
         }
         None

@@ -36,15 +36,15 @@ pub(super) fn world(name: &str) -> Domain {
     }
     let reader = me.party.number;
     let (mut root, mut out) = started(Address::Team { project: PROJECT, role: if role { Some(52) } else { None } });
+
+    let mut me = me.clone();
+    me.needs_total = if alone { 0 } else { QUESTIONS };
+    me.needs.questions = me.needs_total;
+    deliver(&mut root, skein_lib::Token::new(0), c::Delivery::Me(Box::new(me)), &mut out);
+
     while let Some(request) = out.pop() {
         let Some(request) = down(request) else { continue };
         match request {
-            Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                let mut me = me.clone();
-                me.needs_total = if alone { 0 } else { QUESTIONS };
-                me.needs.questions = me.needs_total;
-                deliver(&mut root, watch, c::Delivery::Me(Box::new(me)), &mut out);
-            }
             Down::Read { read, what: Readable::Jig(c::Read::Project { project: PROJECT }) } => {
                 answer(&mut root, read, c::ReadValue::Project(Box::new(project(reader, alone))), &mut out);
             }
@@ -72,7 +72,12 @@ pub(super) fn world(name: &str) -> Domain {
                 } else {
                     List::with_capacity(0)
                 };
-                deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })), &mut out);
+                deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })),
+                    &mut out,
+                );
             }
             Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } if role => {
                 deliver(&mut root, watch, c::Delivery::Task(Box::new(prover(reader))), &mut out);
@@ -90,11 +95,10 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Read { read, what: Readable::Family { record, .. } } if role => {
                 if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
-                    && let w::Read::View(view) = reading.read()
-                    && view.address() == b"charter 13"
+                    && let w::Read::View(view) = &reading.read
+                    && view.address.as_ref() == b"charter 13"
                 {
-                    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: charter() })
-                        .expect("charter answer");
+                    let answer = w::ViewAnswer { view: charter() };
                     step(
                         &mut root,
                         Event::Client {
@@ -114,7 +118,7 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| *watching.watch() == w::Watch::Approvals) =>
+                    .is_some_and(|watching| watching.watch == w::Watch::Approvals) =>
             {
                 step(
                     &mut root,
@@ -135,7 +139,7 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| matches!(watching.watch(), w::Watch::Changes(_))) =>
+                    .is_some_and(|watching| matches!(&watching.watch, w::Watch::Changes(_))) =>
             {
                 step(
                     &mut root,
@@ -157,7 +161,7 @@ pub(super) fn world(name: &str) -> Domain {
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if role
                     && wire::decode_watching(&record.bytes, &w::CEILINGS).is_some_and(
-                        |watching| matches!(watching.watch(), w::Watch::Findings(subject) if !subject.mine()),
+                        |watching| matches!(&watching.watch, w::Watch::Findings(subject) if !subject.mine),
                     ) =>
             {
                 step(
@@ -180,7 +184,7 @@ pub(super) fn world(name: &str) -> Domain {
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if role
                     && wire::decode_watching(&record.bytes, &w::CEILINGS)
-                        .is_some_and(|watching| matches!(watching.watch(), w::Watch::Follows(_))) =>
+                        .is_some_and(|watching| matches!(&watching.watch, w::Watch::Follows(_))) =>
             {
                 step(
                     &mut root,
@@ -212,75 +216,61 @@ pub(super) fn world(name: &str) -> Domain {
 }
 
 fn areas(reader: u64) -> w::Findings {
-    let owner = w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).expect("task"));
-    let holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("task"));
-    let party =
-        w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: reader }).expect("party"));
-    let person =
-        w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: reader }).expect("party"));
+    let owner = w::AreaOwner::Task(w::AreaTask { number: 52 });
+    let holder = w::Holder::Task(w::HolderTask { number: 52 });
+    let party = w::AreaOwner::Party(w::AreaParty { number: reader });
+    let person = w::Holder::Party(w::HolderParty { number: reader });
     let rows = [
         (b"core".as_slice(), b"The protocol, its state machine and its document".as_slice(), party, person),
         (b"tests".as_slice(), b"Tests, fuzzing and the tiers".as_slice(), owner.clone(), holder.clone()),
     ]
-    .map(|(name, words, owner, holder)| {
-        w::AreaRow::new(
-            &w::CEILINGS,
-            w::AreaRowParts { name: name.into(), words: words.into(), owner, holder: Some(holder) },
-        )
-        .expect("area")
+    .map(|(name, words, owner, holder)| w::AreaRow {
+        name: name.into(),
+        words: words.into(),
+        owner,
+        holder: Some(holder),
     });
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project: PROJECT,
-            rows: List::with_capacity(0),
-            areas: List::from_boxed(Box::new(rows)),
-            triager: Some(owner),
-            holder,
-            cut: false,
-        },
-    )
-    .expect("Team's areas")
+    w::Findings {
+        project: PROJECT,
+        rows: List::with_capacity(0),
+        areas: List::from_boxed(Box::new(rows)),
+        triager: Some(owner),
+        holder,
+        cut: false,
+    }
 }
 
 fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
     let mut rows = List::with_capacity(5);
     if !alone {
         let at = super::now(crate::samples::World::Solo).as_nanos().saturating_sub(86_400_000_000_000);
-        let both = [reader, SAM];
-        let sam = [SAM];
+        let both = [(reader, "Reader"), (SAM, "Sam")];
+        let sam = [(SAM, "Sam")];
         for task in 1..=5 {
-            rows.push(
-                w::ChangesLanded::new(
-                    &w::CEILINGS,
-                    w::ChangesLandedParts {
-                        task,
-                        title: b"A signed change".as_slice().into(),
-                        at,
-                        commit: [0xab; 32],
-                        default_branch: true,
-                        signed: crate::samples::signoffs(if task <= 4 { both.as_slice() } else { sam.as_slice() }, at),
-                    },
-                )
-                .expect("signed sample landing"),
-            )
+            rows.push(w::ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
+                task,
+                title: b"A signed change".as_slice().into(),
+                at,
+                commit: [0xab; 32],
+                default_branch: true,
+                signed: crate::samples::signoffs(if task <= 4 { both.as_slice() } else { sam.as_slice() }, at),
+            })
             .expect("five sample landings");
         }
     }
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
-            project: PROJECT,
-            landing: b"main".as_slice().into(),
-            queues: List::with_capacity(0),
-            more: 0,
-            landed: rows.clone(),
-            landed_more: 0,
-            landed_default: rows,
-            landed_default_more: 0,
-        },
-    )
-    .expect("sample changes")
+    w::ChangesPanel {
+        project: PROJECT,
+        landing: b"main".as_slice().into(),
+        queues: List::with_capacity(0),
+        more: 0,
+        landed: rows.clone(),
+        landed_more: 0,
+        landed_default: rows,
+        landed_default_more: 0,
+    }
 }
 
 fn member(party: u64, kind: c::PartyKind, name: &str, role: c::HeldRole) -> c::ProjectMember {
@@ -357,46 +347,40 @@ fn sams_tasks() -> c::Tasks {
     task.requester = c::Requester::Person(SAM);
     task.waits_on =
         c::WaitsOn::Party { whom: c::Whom::Person(SAM), entries: 1, task: SAM_CHAT, kind: c::WaitedFor::Question };
-    c::Tasks { rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
+    c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
 }
 
 fn approvals(alone: bool) -> w::Approvals {
     let mut rows = List::with_capacity(1);
     if !alone {
-        rows.push(
-            w::ApprovalRow::new(
-                &w::CEILINGS,
-                w::ApprovalRowParts {
-                    task: REVIEW,
-                    project: PROJECT,
-                    goal: None,
-                    forge: FORGE,
-                    kind: w::Kind::Forgejo,
-                    owner: b"work".as_slice().into(),
-                    name: b"shop".as_slice().into(),
-                    pull: 1,
-                    address: b"https://forge.example/work/shop/pulls/1/files".as_slice().into(),
-                    title: b"A change".as_slice().into(),
-                    since: super::now(crate::samples::World::Solo).as_nanos(),
-                    scope: 1,
-                    rule: 1,
-                    role: 0,
-                    required: 1,
-                    counted: 0,
-                    sets: List::with_capacity(0),
-                    whole: true,
-                    yours: w::ApprovalYours::Counts,
-                    signed: List::with_capacity(0),
-                    can_sign: List::with_capacity(0),
-                    can_sign_more: 0,
-                    size: None,
-                },
-            )
-            .expect("review"),
-        )
+        rows.push(w::ApprovalRow {
+            task: REVIEW,
+            project: PROJECT,
+            goal: None,
+            forge: FORGE,
+            kind: w::Kind::Forgejo,
+            owner: b"work".as_slice().into(),
+            name: b"shop".as_slice().into(),
+            pull: 1,
+            address: b"https://forge.example/work/shop/pulls/1/files".as_slice().into(),
+            title: b"A change".as_slice().into(),
+            since: super::now(crate::samples::World::Solo).as_nanos(),
+            scope: 1,
+            rule: 1,
+            role: 0,
+            required: 1,
+            counted: 0,
+            sets: List::with_capacity(0),
+            whole: true,
+            yours: w::ApprovalYours::Counts,
+            signed: List::with_capacity(0),
+            can_sign: List::with_capacity(0),
+            can_sign_more: 0,
+            size: None,
+        })
         .expect("one review");
     }
-    w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows, more: 0 }).expect("approvals")
+    w::Approvals { rows, more: 0 }
 }
 
 const NOW: &[u8] = b"- Finding 91, from the fuzz tier at 01:50: a commit is lost when a witness rejoins during a view change. Reproduced with seed 4417 in a deterministic test, tests/sim/rejoin.c.\n- The fix is the protocol core's: count a rejoining witness only once it holds the log suffix. Asked you; I start the change at your answer.\n- Triaged three findings this week: two to you, one kept, a flaky replica timeout, repaired and landed.\n- Next: the fuzz tier's next run, then my weekly report on Monday.";
@@ -467,22 +451,14 @@ fn provers_report() -> c::NotePage {
 }
 
 fn charter() -> w::View {
-    let fact = w::Fact::new(
-        &w::CEILINGS,
-        w::FactParts {
-            label: b"Asked to".as_slice().into(),
-            value: b"Reproduce before routing: a finding gets a seed or a test first.".as_slice().into(),
-        },
-    )
-    .expect("Asked to");
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
-            who: b"an agent".as_slice().into(),
-            name: b"Prover".as_slice().into(),
-            facts: List::from_boxed(Box::new([fact])),
-        },
-    )
-    .expect("charter card");
-    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 13, card }).expect("charter"))
+    let fact = w::Fact {
+        label: b"Asked to".as_slice().into(),
+        value: b"Reproduce before routing: a finding gets a seed or a test first.".as_slice().into(),
+    };
+    let card = w::Card {
+        who: b"an agent".as_slice().into(),
+        name: b"Prover".as_slice().into(),
+        facts: List::from_boxed(Box::new([fact])),
+    };
+    w::View::Charter(w::CharterView { charter: 13, card })
 }

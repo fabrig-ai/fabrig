@@ -1,7 +1,51 @@
 //! Shared activity wire records; original client values remain independent.
 use super::w;
 use skein_lib::Writer;
-pub const FULL_TURN: &[u8] = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
+use smith_transcript::Record;
+/// An archived v6 turn, built from a current turn without supplied system context.
+#[must_use]
+pub fn full_turn() -> Box<[u8]> {
+    use skein_lib::List;
+    use smith_transcript as s;
+    let replay = s::Replay { dialect: u32::MAX, bytes: Box::new([0, 127, 255]) };
+    let text = s::Text { text: b"abc".as_slice().into(), replay: Some(replay) };
+    let mut blocks = List::with_capacity(1);
+    blocks.push(s::Block::Text(text)).expect("one block");
+    let message = s::Message { role: s::Role::User, blocks };
+    let mut messages = List::with_capacity(1);
+    messages.push(message).expect("one message");
+    let affinity = s::Affinity { key: [165; 16], thread: u32::MAX };
+    let opening = s::Opening { affinity, account: Some(u32::MAX), backend: s::Backend::Direct };
+    let usage = s::Usage {
+        input: Some(u64::MAX),
+        output: Some(u64::MAX),
+        cache_read: Some(u64::MAX),
+        cache_write: Some(u64::MAX),
+        reasoning: Some(u64::MAX),
+    };
+    let turn = s::Turn {
+        kind: s::TurnKind::Ordinary,
+        opening: Some(opening),
+        endpoint: b"abc".as_slice().into(),
+        model: b"abc".as_slice().into(),
+        effort: Some(b"abc".as_slice().into()),
+        dialect: u32::MAX,
+        place: u32::MAX,
+        usage,
+        spent: u64::MAX,
+        jobs: u32::MAX,
+        messages,
+        system: None,
+    };
+    let mut writer = Writer::new(skein_lib::length::usize_of(turn.measure(&s::CEILINGS).expect("bounded transcript")));
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
+    let current = writer.finish();
+    let (last, body) = current.split_last().expect("system option suffix");
+    assert_eq!(*last, 0, "no system context");
+    let mut archived = body.to_vec();
+    archived.get_mut(..2).expect("version prefix").copy_from_slice(&[0, 6]);
+    archived.into_boxed_slice()
+}
 const UTF8_TEXTS: [&[u8]; 1] = [b"~\0\x01"];
 fn wire_cursor(value: &[u8]) -> w::Cursor {
     w::Cursor::new(&w::CEILINGS, w::CursorParts { value: Box::from(value) }).expect("literal fixture fits")
@@ -76,17 +120,17 @@ fn second_turn(bytes: &[u8]) -> w::DecodedActivityLine {
 
 #[must_use]
 pub fn decoded_activity_record() -> w::ActivityPage {
-    unread_activity_record(FULL_TURN)
+    unread_activity_record(&full_turn())
 }
 
 #[must_use]
 pub fn unread_activity_record(bytes: &[u8]) -> w::ActivityPage {
-    activity_rows(&[first_turn(bytes), second_turn(FULL_TURN)])
+    activity_rows(&[first_turn(bytes), second_turn(&full_turn())])
 }
 
 #[must_use]
 pub fn cut_activity_record() -> w::ActivityPage {
-    activity_rows(&[first_turn(FULL_TURN)])
+    activity_rows(&[first_turn(&full_turn())])
 }
 
 fn owner_turn_source() -> w::ActivityLine {

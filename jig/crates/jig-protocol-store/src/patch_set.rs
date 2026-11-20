@@ -1,9 +1,19 @@
 //! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening.md, 3).
-use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
+use crate::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// The store's part of jig's owner set; accounts adds its kept family.
-pub const JIG_STORE_SET: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Jig, name: "jig", level: Some(6), families: &STORE_FAMILIES };
+pub const JIG_STORE_SET: OwnerSet = OwnerSet {
+    jobs: &[Job {
+        name: "escalation-deciders",
+        keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }],
+        converts: None,
+        counts: &["tasks"],
+    }],
+    owner: Owner::Jig,
+    name: "jig",
+    level: Some(6),
+    families: &STORE_FAMILIES,
+};
 
 /// Every store-owned family, in owner-set order.
 #[expect(
@@ -45,67 +55,66 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         ],
         frames: None,
     },
-    KeptFamily {
-        retired: &[],
-        current: include_str!("../schema/core-v6.schema"),
-        types: &[
-            ValueType {
-                number: 0,
-                root: "Row",
-                variant: Some("deployment"),
-                keys: &[KeyRange { from: &[1, 0, 0], to: &[1, 0, 1] }],
-            },
-            ValueType {
-                number: 1,
-                root: "Row",
-                variant: Some("projection"),
-                keys: &[KeyRange { from: &[1, 0, 1], to: &[1, 0, 2] }],
-            },
-            ValueType {
-                number: 2,
-                root: "Row",
-                variant: Some("run_proof"),
-                keys: &[KeyRange { from: &[1, 0, 2], to: &[1, 0, 3] }],
-            },
-            ValueType {
-                number: 3,
-                root: "Row",
-                variant: Some("call"),
-                keys: &[KeyRange { from: &[1, 0, 3], to: &[1, 0, 4] }],
-            },
-            ValueType {
-                number: 4,
-                root: "Row",
-                variant: Some("turn"),
-                keys: &[KeyRange { from: &[1, 0, 4], to: &[1, 0, 5] }],
-            },
-            ValueType {
-                number: 5,
-                root: "Row",
-                variant: Some("terminal"),
-                keys: &[KeyRange { from: &[1, 0, 5], to: &[1, 0, 6] }],
-            },
-            ValueType {
-                number: 6,
-                root: "Row",
-                variant: Some("proposal_decision"),
-                keys: &[KeyRange { from: &[1, 0, 6], to: &[1, 0, 7] }],
-            },
-            ValueType {
-                number: 7,
-                root: "Row",
-                variant: Some("escalation_decision"),
-                keys: &[KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] }],
-            },
-        ],
-        name: "jig-store-core",
-        map: KeptMap::Store,
-        keys: &[Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" }],
-        frames: Some(crate::Frames {
-            root: "TurnRecord",
-            texts: &[include_str!("../schema/core-v6.schema")],
-            patches: &[],
-        }),
+    {
+        let core = include_str!("../schema/core-v6.schema");
+        KeptFamily {
+            retired: &[],
+            current: core,
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: Some("deployment"),
+                    keys: &[KeyRange { from: &[1, 0, 0], to: &[1, 0, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("projection"),
+                    keys: &[KeyRange { from: &[1, 0, 1], to: &[1, 0, 2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("run_proof"),
+                    keys: &[KeyRange { from: &[1, 0, 2], to: &[1, 0, 3] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Row",
+                    variant: Some("call"),
+                    keys: &[KeyRange { from: &[1, 0, 3], to: &[1, 0, 4] }],
+                },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("turn"),
+                    keys: &[KeyRange { from: &[1, 0, 4], to: &[1, 0, 5] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Row",
+                    variant: Some("terminal"),
+                    keys: &[KeyRange { from: &[1, 0, 5], to: &[1, 0, 6] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Row",
+                    variant: Some("proposal_decision"),
+                    keys: &[KeyRange { from: &[1, 0, 6], to: &[1, 0, 7] }],
+                },
+                ValueType {
+                    number: 7,
+                    root: "Row",
+                    variant: Some("escalation_decision"),
+                    keys: &[KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] }],
+                },
+            ],
+            name: "jig-store-core",
+            map: KeptMap::Store,
+            keys: &[Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" }],
+            frames: Some(crate::Frames { root: "TurnRecord", texts: &[core], patches: &[] }),
+        }
     },
     KeptFamily {
         retired: &[],

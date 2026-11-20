@@ -1,4 +1,8 @@
 //! The root's half of a change's relay (temper/docs/design/domain/forge/change/questions.md, 1).
+pub(super) use super::forge::relay_route::questions_held;
+use super::forge::relay_route::{
+    asking_delegate, find_question, has_ask, hold_words, is_answer, left_words, question_words, word_message,
+};
 use super::{
     Box, Domain, Env, Limits, List, ProcedureStep, append, forge_change as change, holds, takes_no_messages, tasks,
 };
@@ -187,53 +191,6 @@ fn live_producer(domain: &Domain, delegate: Option<(u64, change::Delegate)>) -> 
     }
 }
 
-fn word_message(act: &change::WordAct, requester: tasks::Party, route: change::Route, bound: u32) -> StepMessage {
-    let mut words = List::uncapped();
-    let target = match act {
-        change::WordAct::Pass { producer, from, words: sent } => {
-            append(&mut words, b"From task ");
-            append(&mut words, skein_lib::Decimal::of(*from).as_bytes());
-            append(&mut words, b", your change's requester:\n\n");
-            append(&mut words, sent);
-            *producer
-        }
-        change::WordAct::Tell { requester, producer, line } => {
-            append(&mut words, b"Passed to task ");
-            append(&mut words, skein_lib::Decimal::of(*producer).as_bytes());
-            append(&mut words, b", this change's producer.");
-            if let Some(line) = line {
-                append(&mut words, b" Its question still waits, and words do not answer it: ");
-                append(&mut words, line);
-                append(
-                    &mut words,
-                    b". Answer it with message form=answer; read_task on this change gives the question's number.",
-                );
-            }
-            *requester
-        }
-        change::WordAct::Fallback { requester: target } => {
-            return StepMessage {
-                target: *target,
-                kind: tasks::MessageKind::Words,
-                words: takes_no_messages(requester, route, bound),
-            };
-        }
-        change::WordAct::NotPassed { requester, words: reply } => {
-            append(&mut words, reply);
-            *requester
-        }
-    };
-    StepMessage {
-        target,
-        kind: tasks::MessageKind::Words,
-        words: super::forge::text::fit(
-            words.as_slice(),
-            usize::try_from(bound).expect("message bound"),
-            "…".as_bytes(),
-        ),
-    }
-}
-
 fn amend_delegate(
     domain: &Domain,
     env: &Env<Limits>,
@@ -252,7 +209,14 @@ fn amend_delegate(
     let Some(change) = domain.core.tasks.task(task) else { return };
     let (words, reason) = match kind {
         change::Delegate::Produce => {
-            let Some(words) = super::production_words(domain, env, task, row, questions) else { return };
+            let Some(words) = super::production_words(
+                (change.revisions.spec, &change.spec.words),
+                row,
+                questions,
+                env.limits.tasks.spec_bytes,
+            ) else {
+                return;
+            };
             if super::before_context(&words) == super::before_context(&record.spec.words) {
                 return;
             }
@@ -302,53 +266,6 @@ fn amend_delegate(
         })
         .expect("one live delegate amendment");
     decision.amendments = amendments.into_boxed();
-}
-
-fn question_words(words: &[u8], reasons: &[u8], bound: u32) -> Box<[u8]> {
-    let mut text = List::uncapped();
-    append(&mut text, words);
-    if !reasons.is_empty() {
-        append(&mut text, b"\n\n");
-        append(&mut text, reasons);
-    }
-    super::forge::text::fit(text.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
-}
-
-fn left_words(asker: u64, number: u64, line: &[u8], answered: bool, bound: u32) -> Box<[u8]> {
-    let mut words = List::uncapped();
-    append(&mut words, b"Task ");
-    append(&mut words, skein_lib::Decimal::of(asker).as_bytes());
-    if answered {
-        append(&mut words, b" ended; your answer to its question ");
-    } else {
-        append(&mut words, b" ended with its question ");
-    }
-    append(&mut words, skein_lib::Decimal::of(number).as_bytes());
-    if answered {
-        append(&mut words, b" goes no further: ");
-    } else {
-        append(&mut words, b" open; it reached no one: ");
-    }
-    append(&mut words, line);
-    super::forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
-}
-
-fn hold_words(questions: &change::Questions, bound: u32) -> Box<[u8]> {
-    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    let bound = skein_lib::Decimal::of(u64::from(bound));
-    append(&mut words, b"its questions are spent: ");
-    append(&mut words, bound.as_bytes());
-    append(&mut words, b" of ");
-    append(&mut words, bound.as_bytes());
-    append(&mut words, b" taken");
-    if let Some(question) = questions.open.first() {
-        append(&mut words, b"; question ");
-        append(&mut words, skein_lib::Decimal::of(question.number).as_bytes());
-        append(&mut words, b" of task ");
-        append(&mut words, skein_lib::Decimal::of(question.asker).as_bytes());
-        append(&mut words, b" waits; release it to pass the question up");
-    }
-    words.into_boxed()
 }
 
 /// A refused Ask stays taken; commit its failed-effect hold without retrying the full inbox.
@@ -532,51 +449,6 @@ fn take<'a>(
     Inbox { messages, asked, answer, amended, words }
 }
 
-fn has_ask(acts: &[change::RelayAct]) -> bool {
-    for act in acts {
-        match act {
-            change::RelayAct::Ask { .. } => return true,
-            change::RelayAct::Answer { .. } | change::RelayAct::Left { .. } | change::RelayAct::Hold => {}
-        }
-    }
-    false
-}
-
-#[expect(clippy::manual_find, reason = "the programming model uses bounded loops instead of iterator closures")]
-fn find_question(open: &[change::Open], asker: u64, number: u64) -> Option<&change::Open> {
-    for question in open {
-        if question.asker == asker && question.number == number {
-            return Some(question);
-        }
-    }
-    None
-}
-
-fn is_answer(kind: &tasks::MessageKind) -> bool {
-    match kind {
-        tasks::MessageKind::Answer { .. } => true,
-        tasks::MessageKind::Question
-        | tasks::MessageKind::Words
-        | tasks::MessageKind::Result(_)
-        | tasks::MessageKind::Escalation { .. }
-        | tasks::MessageKind::Proposal { .. }
-        | tasks::MessageKind::ProposalDecision { .. }
-        | tasks::MessageKind::SettingsDecision { .. }
-        | tasks::MessageKind::FinishRequested { .. }
-        | tasks::MessageKind::Amendment { .. }
-        | tasks::MessageKind::Met { .. }
-        | tasks::MessageKind::Notice { .. }
-        | tasks::MessageKind::QuestionAnswered { .. }
-        | tasks::MessageKind::QuestionOwed
-        | tasks::MessageKind::NothingAwaited
-        | tasks::MessageKind::QuestionEnded { .. }
-        | tasks::MessageKind::Timer { .. }
-        | tasks::MessageKind::PersonStalled { .. }
-        | tasks::MessageKind::EffectNotMade { .. }
-        | tasks::MessageKind::News { .. } => false,
-    }
-}
-
 /// What an agent hears of its words to its own change: its report goes in `finish`
 /// (temper/docs/design/domain/forge/change/questions.md, 1).
 const REPORT_IN_FINISH: &[u8] =
@@ -589,47 +461,6 @@ pub(crate) fn own_agents_words(domain: &Domain, task: u64, target: u64) -> Optio
         Some(REPORT_IN_FINISH)
     } else {
         None
-    }
-}
-
-fn asking_delegate(delegate: Option<(u64, change::Delegate)>, target: u64) -> bool {
-    match delegate {
-        Some((child, change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Resolve { .. })) => {
-            child == target
-        }
-        Some((_, change::Delegate::Gate { .. } | change::Delegate::Merge { .. } | change::Delegate::Close)) | None => {
-            false
-        }
-    }
-}
-
-pub(super) fn questions_held(state: &change::State) -> bool {
-    match state {
-        change::State::Held { why, .. } => *why == change::Hold::Questions,
-        change::State::Taking { .. }
-        | change::State::Producing { .. }
-        | change::State::Opening { .. }
-        | change::State::Recreating { .. }
-        | change::State::Reopening { .. }
-        | change::State::Checking { .. }
-        | change::State::Judging { .. }
-        | change::State::Gating { .. }
-        | change::State::CancellingGates { .. }
-        | change::State::Ready { .. }
-        | change::State::Preparing { .. }
-        | change::State::Queued { .. }
-        | change::State::First { .. }
-        | change::State::Updating { .. }
-        | change::State::WaitingProducer { .. }
-        | change::State::Resolving { .. }
-        | change::State::Repairing { .. }
-        | change::State::Landing { .. }
-        | change::State::Landed { .. }
-        | change::State::Red { .. }
-        | change::State::Cleared { .. }
-        | change::State::Uncleared { .. }
-        | change::State::NoChange { .. }
-        | change::State::Ended => false,
     }
 }
 

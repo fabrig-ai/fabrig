@@ -3,6 +3,7 @@ use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Settings, World};
 use jig_domain_core::settings;
 use jig_domain_people as people;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
@@ -36,11 +37,21 @@ fn world() -> ClientWorld {
     configured_world([configuration(), configuration()])
 }
 fn configured_world(configs: [engine::Config; 2]) -> ClientWorld {
-    let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
+    settings_world(configs, fixtures::domain_limits(), None)
+}
+fn settings_world(
+    configs: [engine::Config; 2],
+    client: temper_client_domain::Limits,
+    stored_policy_bytes: Option<u32>,
+) -> ClientWorld {
+    let mut front = Joint::new(fixtures::SEED, client);
     let mut limits = front.engine.env.limits;
     limits.people.initial_owners = 2;
     limits.tasks.charters = u32::try_from(configs[0].core.defaults.charters.len()).expect("fixture charters");
     limits.documents.text_bytes = WHOLE_SETTING_BYTES;
+    if let Some(bytes) = stored_policy_bytes {
+        limits.journal.run_bytes = bytes;
+    }
     let forge = front.engine.forge.take();
     front.engine = Driver::configured(Store::with_limits(&limits), configs, &limits);
     front.engine.forge = forge;
@@ -56,7 +67,7 @@ fn configured_world(configs: [engine::Config; 2]) -> ClientWorld {
 fn call(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
     let number = fixtures::give(world, agent, words);
     let printed = fixtures::answered(world, agent, number);
-    assert_eq!(printed.status, 0, "{printed:?}");
+    assert_eq!(printed.status, 0, "{words:?}: {printed:?}");
     String::from_utf8(printed.stdout.into_vec()).expect("ctl UTF-8")
 }
 
@@ -154,8 +165,8 @@ fn a_settings_file_sets_a_project_policy_through_ctl_proposed_shown_and_accepted
     );
     assert_eq!(decided, "done: decide\n");
     let project = call(&mut world, agent, &[b"project", b"show", b"1"]);
-    assert!(project.contains("spend per period: 900"), "{project}");
-    assert!(project.contains("budget 900,"), "{project}");
+    assert!(project.contains("spend per period: 9.00"), "{project}");
+    assert!(project.contains("budget 9.00,"), "{project}");
     let after = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(after.starts_with("newest revision 2\n"), "{after}");
     let rows = world.front().engine.store.rows.clone();
@@ -288,37 +299,57 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     use skein_lib::{Duration, Reader, Writer};
     use temper_client_protocol_wire::v1 as w;
     match value {
-        c::SettingValue::Overlay(_) => {}
+        c::SettingValue::Provider(_) | c::SettingValue::Overlay(_) => {}
         c::SettingValue::Model(value) => value.picker = !value.picker,
+        c::SettingValue::Worker(value) => {
+            if let Some(digest) = value.digest.as_mut() {
+                for byte in digest {
+                    *byte = byte.wrapping_add(1);
+                }
+            }
+        }
         c::SettingValue::Charter(value) => {
             value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");
         }
         // jig/docs/design/domain/engine/settings.md, 2: the template stays within the task grace bound.
         c::SettingValue::Template(value) => value.grace = Some(Duration::from_secs(4)),
         c::SettingValue::Policy(value) => value.period_spend = CHANGED_SPEND,
+        c::SettingValue::Limits(_) => panic!("limits have no file editor"),
         c::SettingValue::Rules(value) => value.maximum_run_spend += 1,
         c::SettingValue::Application(bytes) => {
             if matches!(setting, c::Setting::Application { kind: 3, .. }) {
-                let mut parts =
-                    w::ForgeCharter::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("charter").into_parts();
+                let mut parts = w::ForgeCharter::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("charter");
                 parts.charter = if parts.charter == 1 { 2 } else { 1 };
-                let value = w::ForgeCharter::new(&w::CEILINGS, parts).expect("changed charter");
-                let mut writer = Writer::new(usize::try_from(value.measure()).expect("charter bytes"));
-                value.encode(&mut writer).expect("measured charter");
+                let value = parts;
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .expect("charter bytes"),
+                );
+                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured charter");
                 *bytes = writer.finish();
             } else if matches!(setting, c::Setting::Application { kind: 11, .. }) {
-                let value = w::TemplateGoal::new(&w::CEILINGS, w::TemplateGoalParts { design: true, close_out: true })
-                    .expect("changed goal work");
-                let mut writer = Writer::new(usize::try_from(value.measure()).expect("goal work bytes"));
-                value.encode(&mut writer).expect("measured goal work");
+                let value = w::TemplateGoal { design: true, close_out: true };
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .expect("goal work bytes"),
+                );
+                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured goal work");
                 *bytes = writer.finish();
             } else {
-                let mut parts =
-                    w::LandingRule::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("rule").into_parts();
+                let mut parts = w::LandingRule::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("rule");
                 parts.ci = !parts.ci;
-                let value = w::LandingRule::new(&w::CEILINGS, parts).expect("changed rule");
-                let mut writer = Writer::new(usize::try_from(value.measure()).expect("rule bytes"));
-                value.encode(&mut writer).expect("measured rule");
+                let value = parts;
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .expect("rule bytes"),
+                );
+                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured rule");
                 *bytes = writer.finish();
             }
         }
@@ -631,6 +662,42 @@ fn a_settings_file_rule_keeps_its_sets_when_applied_and_shown_as_json() {
         let shown = call(&mut world, agent, &words);
         assert!(shown.contains("\"sets\":[1]"), "{shown}");
     }
+}
+
+#[test]
+fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes() {
+    let mut client = fixtures::domain_limits();
+    client.client.domain.document_bytes = temper_client_tools::limits::client().client.domain.document_bytes;
+    // The ctl transport and stored-policy bound are the shipped profile's, not the tiny world's.
+    let mut world = settings_world([configuration(), configuration()], client, Some(65_536));
+    let agent = fixtures::agent(&mut world);
+    let mut charter = configuration().core.defaults.charters[0].clone();
+    charter.number = 33;
+    charter.policy.instructions = vec![b'x'; 82_000].into_boxed_slice();
+    let charter = value_json(
+        c::Setting::Charter(c::SettingNumber { number: 33 }),
+        client_value(&settings::Value::Charter(Box::new(charter))),
+    );
+    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":33}},"set":{charter}}}]}}"#);
+    let before = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(before.starts_with("newest revision 1\n"), "{before}");
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"charter.json", b"--against", b"1", b"--key", b"large-charter"],
+        file.as_bytes(),
+    );
+    let refused = fixtures::answered(&mut world, agent, number);
+    assert_eq!(refused.status, 2, "{refused:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&refused.stderr),
+        "settings apply: out of shape; item 0; charter 33: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
+    );
+    assert_eq!(call(&mut world, agent, &[b"settings", b"show"]), before);
+    // The world keeps decoded records; ctl pending lists the same records through this renderer.
+    let printed = temper_client_tools::jig::render::pending::pending(world.kept(agent), 0, false);
+    assert_eq!(printed.status, 0);
+    assert!(printed.stdout.is_empty(), "ctl pending lists no request: {printed:?}");
 }
 
 #[test]
@@ -982,4 +1049,31 @@ fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_rest
     assert!(shown.contains("new default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
     let inventory = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(inventory.contains("charter 2: overlay"), "{inventory}");
+}
+
+#[test]
+fn limit_files_apply_show_and_review_as_one_named_list() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":32,"reason":"more work"}]},{"setting":{"kind":"temper-limits"},"set":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"limits.json", b"--against", b"1", b"--key", b"limits"],
+        file,
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    assert!(call(&mut world, agent, &[b"settings", b"show", b"limits"]).contains("tasks.tasks = 32  more work"));
+    assert!(
+        call(&mut world, agent, &[b"settings", b"show", b"temper-limits"]).contains("forge.entries = 16  dev's outbox")
+    );
+    for words in [vec![b"settings".as_slice(), b"show"], vec![b"revision", b"show", b"2"]] {
+        let text = call(&mut world, agent, &words);
+        let first = text.find("forge.entries = 16  dev's outbox [temper-limits]").expect(&text);
+        let second = text.find("tasks.tasks = 32  more work [limits]").expect(&text);
+        assert!(first < second, "one list by name: {text}");
+    }
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"temper-limits", b"--json"]);
+    assert!(shown.contains(r#""value":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#), "{shown}");
 }

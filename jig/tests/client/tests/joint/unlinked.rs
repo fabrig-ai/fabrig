@@ -1,0 +1,163 @@
+use jig_client::{Client, Event, Link, UnlinkedRequest};
+use jig_client_world::{Front, SIGNING_PARTY, Test, harness::ClientId, joint::Joint};
+use skein_lib::{Duration, List, Queue, Time, Wall};
+const CLIENT: ClientId = ClientId(0);
+const NOW: Time = Time::ZERO;
+const WALL: Wall = Wall::from_nanos(1_000_000_000_000);
+const FIRST_RETRY: Duration = Duration::from_millis(10);
+const MOST_RETRY: Duration = Duration::from_millis(80);
+fn front() -> Joint {
+    let mut owner = jig_test_profile::limits();
+    owner.core.documents.rows = 2;
+    owner.core.documents.lines = 2;
+    owner.core.documents.chips = 2;
+    owner.core.documents.text_bytes = 32;
+    jig_client_world::joint::front::fixture(&owner)
+}
+fn limits() -> jig_client::Limits {
+    jig_client::Limits {
+        domain: jig_client::DomainLimits {
+            owners: &[],
+            handles: 8,
+            backoff: jig_client::Backoff { first: FIRST_RETRY, most: MOST_RETRY },
+            ..jig_client_world::test::limits().client.domain
+        },
+        exchanges: 8,
+    }
+}
+
+fn drain(client: &mut Client, front: &mut Joint, out: &mut Queue<UnlinkedRequest>) {
+    while let Some(request) = out.pop() {
+        match request {
+            UnlinkedRequest::Down { down } => front.down(CLIENT, NOW, WALL, down).expect("Jig transport operation"),
+            UnlinkedRequest::Told { .. }
+            | UnlinkedRequest::ApprovalAct(_)
+            | UnlinkedRequest::AskedLink(_)
+            | UnlinkedRequest::Approval(_)
+            | UnlinkedRequest::Authorized(_) => {}
+            UnlinkedRequest::SignOut => panic!("unlinked client emits domain operations"),
+        }
+    }
+    client.reclaim();
+}
+#[test]
+fn an_unlinked_client_sees_me_live_against_the_real_core() {
+    let limits = limits();
+    let mut client = Client::unlinked(&limits, 8512).expect("bounded client");
+    let mut out = Queue::uncapped();
+    let mut front = front();
+    Front::<Test>::bind(&mut front, CLIENT, SIGNING_PARTY);
+    client.step_unlinked(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
+    client.step_unlinked(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
+    drain(&mut client, &mut front, &mut out);
+    for _ in 0..20 {
+        for (owner, up) in front.up(NOW, WALL, limits.domain.owners) {
+            assert_eq!(owner, CLIENT);
+            client.step_unlinked(NOW, WALL, Event::Up { up }, &mut out);
+            drain(&mut client, &mut front, &mut out);
+        }
+        if client.link().state == Link::Live {
+            break;
+        }
+    }
+    assert_eq!((client.link().state, client.link().party), (Link::Live, Some(1)));
+}
+
+#[test]
+fn a_key_constructor_sends_the_value_once_without_keeping_it() {
+    use jig_client::{Asker, Down, Key, Outcome, Told, contract as c};
+    use skein_lib::{RequestEnvelope, Secret, sha256};
+    let limits = limits();
+    let mut client = Client::unlinked(&limits, 8513).expect("bounded client");
+    let mut out = Queue::uncapped();
+    let mut front = front();
+    Front::<Test>::bind(&mut front, CLIENT, SIGNING_PARTY);
+    client.step_unlinked(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
+    client.step_unlinked(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
+    drain(&mut client, &mut front, &mut out);
+    for _ in 0..20 {
+        for (_, up) in front.up(NOW, WALL, limits.domain.owners) {
+            client.step_unlinked(NOW, WALL, Event::Up { up }, &mut out);
+            drain(&mut client, &mut front, &mut out);
+        }
+        if client.link().state == Link::Live {
+            break;
+        }
+    }
+    assert_eq!(client.link().state, Link::Live);
+    let key = Key { asker: Asker(7), number: 31 };
+    let bytes = b"a key supplied only for this sending";
+    for (name, event) in [
+        (
+            [31; 16],
+            jig_client::accounts::add_key(
+                key,
+                [31; 16],
+                c::AskAccountHolder::Own,
+                3,
+                None,
+                Secret::new(Box::from(bytes.as_slice())),
+            ),
+        ),
+        (
+            [32; 16],
+            jig_client::accounts::replace_key(
+                key,
+                [32; 16],
+                c::AskAccountHolder::Own,
+                9,
+                Secret::new(Box::from(bytes.as_slice())),
+            ),
+        ),
+    ] {
+        client.step_unlinked(NOW, WALL, event, &mut out);
+        let mut sent = None;
+        while let Some(request) = out.pop() {
+            match request {
+                UnlinkedRequest::Down { down: Down::Send { attempt, key: actual, request, value: Some(value) } } => {
+                    assert_eq!(actual, name);
+                    assert_eq!(value.expose(), bytes);
+                    let jig_client::Ask::Jig(ask) = request else { panic!("jig ask") };
+                    let c::Ask::AccountChange {
+                        change: c::AccountChange::AddKey { digest, .. } | c::AccountChange::ReplaceKey { digest, .. },
+                        ..
+                    } = *ask
+                    else {
+                        panic!("typed key ask")
+                    };
+                    assert_eq!(digest, sha256::digest(bytes));
+                    assert!(sent.replace(attempt).is_none());
+                }
+                UnlinkedRequest::Told { told: Told::Pending { .. } } => {}
+                other @ (UnlinkedRequest::Told { .. }
+                | UnlinkedRequest::Down { .. }
+                | UnlinkedRequest::SignOut
+                | UnlinkedRequest::ApprovalAct(_)
+                | UnlinkedRequest::AskedLink(_)
+                | UnlinkedRequest::Approval(_)
+                | UnlinkedRequest::Authorized(_)) => panic!("carried account key must not be saved: {other:?}"),
+            }
+        }
+        let attempt = sent.expect("sent once");
+        client.step_unlinked(
+            NOW,
+            WALL,
+            Event::Up {
+                up: jig_client::Up::Answer { attempt, envelope: RequestEnvelope::Lost, answer: None, why: None },
+            },
+            &mut out,
+        );
+        let mut lost = false;
+        while let Some(request) = out.pop() {
+            if matches!(request, UnlinkedRequest::Told { told: Told::Answered { outcome: Outcome::Lost, .. } }) {
+                lost = true;
+            }
+        }
+        assert!(lost);
+        assert!(client.pending(key).is_none());
+        client.fire_unlinked(NOW.saturating_add(Duration::from_secs(1)), WALL, &mut out);
+        while let Some(request) = out.pop() {
+            assert!(!matches!(request, UnlinkedRequest::Down { down: Down::Send { .. } | Down::Save { .. } }));
+        }
+    }
+}

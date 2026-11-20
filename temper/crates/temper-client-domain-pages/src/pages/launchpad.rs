@@ -36,6 +36,7 @@ impl LeftOff {
         ] {
             let query = match shapes::template(me, self.project, template) {
                 Some(template) => Some(c::TaskQuery {
+                    parts: skein_lib::List::with_capacity(0),
                     project: None,
                     requester: Some(c::Requester::Person(me.party.number)),
                     root: None,
@@ -54,7 +55,7 @@ impl LeftOff {
             if held.is_some() {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle }));
             }
-            *held = query;
+            held.clone_from(&query);
             if let Some(query) = query {
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle,
@@ -76,7 +77,7 @@ impl LeftOff {
         }
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
-        for (handle, query) in [(self.chats, self.chat_query), (self.goals, self.goal_query)] {
+        for (handle, query) in [(self.chats, self.chat_query.clone()), (self.goals, self.goal_query.clone())] {
             if query.is_some() {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle }));
             }

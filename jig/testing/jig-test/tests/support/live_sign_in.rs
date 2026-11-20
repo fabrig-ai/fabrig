@@ -46,7 +46,7 @@ pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec:
         "sources":{"sign_in":peers.sign_in()}
     });
     let endpoint = &mut engine["llm"]["endpoints"][0];
-    endpoint["provider"] = "openai".into();
+    endpoint["provider"] = "ChatGPT".into();
     endpoint["dialect"] = 3.into();
     endpoint["address"] = serde_json::json!({"socket":address});
     endpoint["transport"] = "tls".into();
@@ -353,8 +353,15 @@ pub fn store_limits(bytes: &[u8]) -> codec::View {
         .expect("document object")
         .member(&document, b"engine")
         .expect("engine member");
-    let engine = config::engine(&document, at, &config::Directories::working(), config::Defaults::Document)
-        .expect("live engine configuration");
+    let engine = config::engine_over(
+        &document,
+        at,
+        &config::Directories::working(),
+        config::Defaults::Document,
+        &config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
+    )
+    .expect("live engine configuration");
     codec::limits(&engine.limits.core).expect("live store codec limits")
 }
 

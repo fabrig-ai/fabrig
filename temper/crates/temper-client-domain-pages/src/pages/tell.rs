@@ -8,6 +8,7 @@ pub(super) use context::{outcome, remember, showing};
 use jig_client::{Client, Key, Told};
 use skein_lib::{Env, Queue};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 /// The page and destination of a word (client/pages/needs-you.md, 1, Tell temper).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,22 +30,22 @@ pub fn route(document: &w::Findings, about: Option<&About>) -> Goes {
         None => None,
     };
     if let Some(task) = task {
-        for area in document.areas() {
-            let held = match area.holder() {
-                Some(w::Holder::Task(holder)) => holder.number() == task,
+        for area in &document.areas {
+            let held = match &area.holder {
+                Some(w::Holder::Task(holder)) => holder.number == task,
                 Some(w::Holder::Party(_) | w::Holder::Role(_)) | None => false,
             };
             if held {
-                return Goes::Area { name: area.name().into(), holder: team::Holder::Task(task) };
+                return Goes::Area { name: area.name.clone(), holder: team::Holder::Task(task) };
             }
         }
     }
-    let areas = !document.areas().is_empty();
-    let holder = team::area_holder(document.holder());
-    let stands = match document.triager() {
-        Some(w::AreaOwner::Task(owner)) => holder == team::Holder::Task(owner.number()),
-        Some(w::AreaOwner::Party(owner)) => holder == team::Holder::Party(owner.number()),
-        Some(w::AreaOwner::Role(owner)) => holder == team::Holder::Role(owner.number()),
+    let areas = !document.areas.is_empty();
+    let holder = team::area_holder(&document.holder);
+    let stands = match &document.triager {
+        Some(w::AreaOwner::Task(owner)) => holder == team::Holder::Task(owner.number),
+        Some(w::AreaOwner::Party(owner)) => holder == team::Holder::Party(owner.number),
+        Some(w::AreaOwner::Role(owner)) => holder == team::Holder::Role(owner.number),
         Some(w::AreaOwner::Charter(_)) => match holder {
             team::Holder::Task(_) => true,
             team::Holder::Party(_) | team::Holder::Role(_) => false,
@@ -159,9 +160,9 @@ impl Store {
         };
         let outcome = forge::findings::outcome(outcome, limits);
         let state = if let Some(w::Outcome::Filed(filed)) = &outcome {
-            State::Filed { number: filed.number() }
+            State::Filed { number: filed.number }
         } else if let Some(w::Outcome::FindingRefused(refused)) = &outcome {
-            State::Refused(refused.reason().clone())
+            State::Refused(refused.reason.clone())
         } else {
             State::Lost
         };
@@ -211,17 +212,20 @@ pub(super) fn act(
         Some(Goes::Area { name, .. }) => Some(name.clone()),
         Some(Goes::Triager { .. } | Goes::Owners { .. }) | None => None,
     };
-    let Ok(filing) = w::FileFinding::new(
-        &bounds,
-        w::FileFindingParts {
+    let Ok(filing) = ({
+        let value = w::FileFinding {
             project,
             kind: w::FindingKind::Feedback,
             severity: w::Severity::Medium,
             area,
             title,
             body: body(words.as_bytes(), about.as_ref()),
-        },
-    ) else {
+        };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }) else {
         return;
     };
     let Some(request) = forge::findings::request(project, w::Request::FileFinding(filing), env.limits.forge) else {

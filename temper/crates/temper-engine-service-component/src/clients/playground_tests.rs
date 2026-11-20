@@ -8,7 +8,7 @@ fn enqueue(clients: &mut Clients) {
     enqueue_request(clients, w::Request::StartPlayground);
 }
 fn enqueue_request(clients: &mut Clients, request: w::Request) {
-    let requesting = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+    let requesting = w::Requesting { request };
     clients.out.push(kit::Request::Application(kit::ToApplication::Request {
         reply_to: skein_lib::ReplyTo::new(Token::new(91)),
         sign_in: 1,
@@ -82,11 +82,6 @@ fn start_reads_the_key(request: w::Request, expected: temper_engine_domain_forge
         panic!("the demo key is adoptable as a source")
     };
     assert_eq!(value.expose(), b"test-key\n");
-    enqueue_request(&mut engine.clients, request.clone());
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
-    let next = engine.clients.playground_read().unwrap();
-    assert_eq!(next.path, read.path);
-    assert_ne!(next.run, read.run);
 }
 
 #[test]
@@ -119,16 +114,31 @@ fn unreadable_empty_and_oversize_playground_keys_carry_nothing() {
 }
 
 #[test]
-fn parked_playground_starts_are_bounded() {
+fn concurrent_playground_starts_wait_for_the_first_keys_read_and_admission() {
     let mut service = fixtures::demo_service();
     let engine = service.engine.as_mut().unwrap();
     for _ in 0..=PLAYGROUND_STARTS {
         enqueue(&mut engine.clients);
         engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     }
-    assert_eq!(engine.clients.playground_starts.len(), PLAYGROUND_STARTS);
-    assert_eq!(engine.clients.playground_reads.len(), PLAYGROUND_STARTS);
-    assert_eq!(engine.clients.out.len(), 1);
+    assert_eq!(engine.clients.playground_starts.len(), 1);
+    assert_eq!(engine.clients.playground_reads.len(), 1);
+    assert_eq!(engine.clients.out.len(), PLAYGROUND_STARTS);
+}
+
+#[test]
+fn running_and_starting_playgrounds_do_not_write_or_read_another_key() {
+    use temper_engine_domain_forge::{Playground, PlaygroundState};
+    for state in [PlaygroundState::Running, PlaygroundState::Starting] {
+        let mut service = fixtures::demo_service();
+        let engine = service.engine.as_mut().unwrap();
+        engine.clients.starting = None;
+        engine.clients.playground = Some(Playground { state, forge: 1, project: None, account: None });
+        enqueue(&mut engine.clients);
+        engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+        assert!(engine.clients.playground_read().is_none(), "no key IO while {state:?}");
+        assert!(!engine.events.is_empty(), "the root answers the start from its row");
+    }
 }
 
 #[test]
@@ -142,7 +152,12 @@ fn the_playground_read_uses_the_restored_engine_row() {
         Box::new([root::Write::Save(root::Record::Forge { row: Box::new(forge::Stored::Playground(row)) })]),
     );
     previous.store.host.above.pop().expect("playground saved");
-    let mut service = fixtures::restarting_from(previous);
+    let reopened = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut settings = fixtures::engine();
+    // Hold the reset at its project so the read observes the restored row.
+    settings.jig.acts = Box::new([]);
+    settings.jig.limits.core.people.act_grants = 0;
+    let mut service = fixtures::start_configured(settings, &[(1, 100)], Some(reopened), false, false);
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().unwrap();
     let resetting = forge::Playground { state: forge::PlaygroundState::Resetting(forge::ResetStep::Project), ..row };

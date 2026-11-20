@@ -18,12 +18,15 @@
 //! - A stream read/write borrows its slice for the call only. A signal read
 //!   writes one initialized local signalfd record, with its exact size passed.
 //! - Epoll's event pointers and ownership are documented in `epoll`.
+//! - Landlock's local uapi records, helper exec arrays and descriptor ownership
+//!   are documented in `helper`; calls retain no borrowed memory.
 
 #![expect(unsafe_code, reason = "Linux calls borrow buffers only until they return (runtime/readiness.md, 5)")]
 
 pub(crate) mod epoll;
 pub(crate) mod files;
 pub(crate) mod group;
+pub(crate) mod helper;
 #[path = "listener_calls.rs"]
 pub(crate) mod listener_calls;
 
@@ -41,6 +44,7 @@ mod startup;
 mod sync;
 
 pub use roots::make_root;
+pub use startup::resolve_system_links;
 pub(crate) use startup::{read_file, read_private_file};
 use sync::encode;
 pub(crate) use sync::{
@@ -146,6 +150,15 @@ pub(crate) fn release() -> Result<Box<[u8]>, i32> {
     // SAFETY: uname wrote a NUL-terminated release in name, which lives across this borrow.
     let release = unsafe { std::ffi::CStr::from_ptr(name.release.as_ptr()) };
     Ok(Box::from(release.to_bytes()))
+}
+
+pub(crate) fn descriptor_path(fd: Fd) -> Result<Box<[u8]>, i32> {
+    use std::os::unix::ffi::OsStrExt;
+
+    // A closed descriptor's proc entry is absent, but its error is EBADF, not ENOENT.
+    retry(|| status_flags(fd.raw()))?;
+    let path = std::fs::read_link(format!("/proc/self/fd/{}", fd.raw())).map_err(|error| sync::errno_of(&error))?;
+    Ok(path.as_os_str().as_bytes().into())
 }
 
 pub(crate) const PATH_ONLY: i32 = libc::O_PATH;

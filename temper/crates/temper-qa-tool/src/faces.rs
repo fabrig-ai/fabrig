@@ -1,10 +1,11 @@
 //! The loop's world (qa/landings.md, 6; qa/triage.md, 5; testing/tools.md, 4.3).
 use crate::{Exit, Refusal, refused};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     os::unix::{
         ffi::OsStrExt,
         fs::OpenOptionsExt,
@@ -66,6 +67,7 @@ pub trait GitFace {
     fn fetch(&mut self, remote: &str, branch: &str) -> Result<(), Refusal>;
     fn head(&mut self, reference: &str) -> Result<String, Refusal>;
     fn commits(&mut self, old: &str, new: &str) -> Result<Vec<Commit>, Refusal>;
+    fn parents(&mut self, commit: &str) -> Result<Vec<String>, Refusal>;
     fn message(&mut self, commit: &str) -> Result<String, Refusal>;
     fn contains(&mut self, ancestor: &str, descendant: &str) -> Result<bool, Refusal>;
     fn count(&mut self, commit: &str) -> Result<u64, Refusal>;
@@ -158,6 +160,13 @@ impl GitFace for RealGit {
     }
     fn commits(&mut self, old: &str, new: &str) -> Result<Vec<Commit>, Refusal> {
         parse_commits(&self.text(&["rev-list", "--topo-order", "--reverse", "--parents", new, &format!("^{old}")])?)
+    }
+    fn parents(&mut self, commit: &str) -> Result<Vec<String>, Refusal> {
+        parse_commits(&self.text(&["rev-list", "--parents", "-n", "1", commit])?)?
+            .into_iter()
+            .next()
+            .map(|commit| commit.parents)
+            .ok_or_else(|| refused("git rev-list: no commit"))
     }
     fn message(&mut self, commit: &str) -> Result<String, Refusal> {
         self.text(&["show", "-s", "--format=%B", commit])
@@ -560,19 +569,27 @@ pub trait ArchiveFace {
     fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal>;
     fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal>;
 }
+/// The system's tar, with pinned paths set aside for saves and removed after restores
+/// (qa/places.md, 4 and 8).
 pub struct RealArchive {
     pub environment: Environment,
 }
 impl RealArchive {
-    fn command(&self, operation: &str, scratch: &Path, archive: &Path, left_out: &[&str]) -> Command {
+    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
         let mut command = Command::new("tar");
         captured(&mut command, &self.environment);
         command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
-        command.args(["--anchored", "--no-wildcards"]);
-        for path in left_out {
-            command.arg(format!("--exclude={path}"));
-        }
         command
+    }
+
+    fn remove(path: &Path) -> Result<(), Refusal> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(path),
+            Ok(_) => fs::remove_file(path),
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(why) => Err(why),
+        }
+        .map_err(|why| refused(format!("{}: {why}", path.display())))
     }
 }
 /// A copy's members present in `scratch`: a box run with fake backends keeps its configuration under
@@ -587,22 +604,59 @@ pub fn copy_members(scratch: &Path) -> Result<Vec<&'static str>, Refusal> {
 impl ArchiveFace for RealArchive {
     fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         let members = copy_members(scratch)?;
-        checked(
-            self.command("--create", scratch, archive, left_out)
-                .args(members)
-                .output()
-                .map_err(|why| refused(format!("tar: {why}")))?,
-            "tar --create",
-        )?;
-        Ok(())
+        let mut aside = archive.as_os_str().to_owned();
+        aside.push(".left-out");
+        let aside = PathBuf::from(aside);
+        Self::remove(&aside)?;
+        let mut moved = Vec::new();
+        let result = (|| {
+            for (index, path) in left_out.iter().enumerate() {
+                let path = scratch.join(path);
+                match fs::symlink_metadata(&path) {
+                    Ok(_) => {}
+                    Err(why) if why.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(why) => return Err(refused(format!("{}: {why}", path.display()))),
+                }
+                if moved.is_empty() {
+                    crate::private::directory(&aside)?;
+                }
+                let saved = aside.join(index.to_string());
+                fs::rename(&path, &saved).map_err(|why| refused(format!("{}: {why}", path.display())))?;
+                moved.push((path, saved));
+            }
+            checked(
+                self.command("--create", scratch, archive)
+                    .args(members)
+                    .output()
+                    .map_err(|why| refused(format!("tar: {why}")))?,
+                "tar --create",
+            )
+            .map(|_| ())
+        })();
+        let mut failures = Vec::new();
+        if let Err(why) = result {
+            failures.push(why.to_string());
+        }
+        let mut restored = true;
+        for (path, saved) in moved {
+            if let Err(why) = fs::rename(&saved, &path) {
+                failures.push(format!("{}: {why}", path.display()));
+                restored = false;
+            }
+        }
+        if restored && let Err(why) = Self::remove(&aside) {
+            failures.push(why.to_string());
+        }
+        if failures.is_empty() { Ok(()) } else { Err(refused(failures.join("; "))) }
     }
     fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         checked(
-            self.command("--extract", scratch, archive, left_out)
-                .output()
-                .map_err(|why| refused(format!("tar: {why}")))?,
+            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
             "tar --extract",
         )?;
+        for path in left_out {
+            Self::remove(&scratch.join(path))?;
+        }
         Ok(())
     }
 }
@@ -624,48 +678,45 @@ pub trait BuildFilesFace {
     fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal>;
     fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()>;
 }
-pub struct RealBuildFiles {
-    pub environment: Environment,
-}
-impl RealBuildFiles {
-    fn command(&self, directory: &Path) -> Command {
-        let mut command = Command::new("sha256sum");
-        captured(&mut command, &self.environment);
-        command.current_dir(directory).stdin(Stdio::null());
-        command
+pub struct RealBuildFiles;
+
+fn checksum(path: &Path) -> std::io::Result<String> {
+    let mut file = File::open(path)?;
+    let mut hash = Sha256::new();
+    let mut buffer = vec![0_u8; 65_536].into_boxed_slice();
+    loop {
+        let count = match file.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(count) => count,
+            Err(why) if why.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(why) => return Err(why),
+        };
+        hash.update(&buffer[..count]);
     }
+    Ok(format!("{:x}", hash.finalize()))
 }
 impl BuildFilesFace for RealBuildFiles {
     fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal> {
-        checked(
-            self.command(directory)
-                .arg("--")
-                .args(files)
-                .output()
-                .map_err(|why| refused(format!("sha256sum: {why}")))?,
-            "sha256sum",
-        )
+        let mut answer = Vec::new();
+        for path in files {
+            let hex = checksum(&directory.join(path))
+                .map_err(|why| refused(format!("checksum: {}: {why}", path.display())))?;
+            answer.extend_from_slice(&crate::manifest::line(&hex, path));
+        }
+        Ok(answer)
     }
     fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal> {
-        let manifest = fs::canonicalize(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
-        let output = self
-            .command(directory)
-            .arg("--check")
-            .arg("--")
-            .arg(manifest)
-            .output()
-            .map_err(|why| refused(format!("sha256sum --check: {why}")))?;
-        if output.status.success() {
-            Ok(())
-        } else {
-            // --check names mismatching files on stdout, with its summary on stderr.
-            Err(refused(format!(
-                "sha256sum --check: {}: {}{}",
-                output.status,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr),
-            )))
+        let bytes = fs::read(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
+        let rows = crate::manifest::rows(&bytes).map_err(|why| refused(format!("checksum check: {why}")))?;
+        let mut failures = Vec::new();
+        for (path, expected) in rows {
+            match checksum(&directory.join(&path)) {
+                Ok(hex) if hex == expected => {}
+                Ok(_) => failures.push(format!("{}: FAILED", path.display())),
+                Err(why) => failures.push(format!("{}: {why}", path.display())),
+            }
         }
+        if failures.is_empty() { Ok(()) } else { Err(refused(format!("checksum check: {}", failures.join("; ")))) }
     }
 
     fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()> {

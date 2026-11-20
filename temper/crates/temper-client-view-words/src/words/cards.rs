@@ -48,6 +48,7 @@ pub enum CardWord {
     RequestsInFlight,
     RequestUnconfirmed,
     HoldRevision,
+    HeldSentence,
     InFlight,
     Retrying,
     AnswersFull,
@@ -117,6 +118,7 @@ const ALL: &[CardWord] = &[
     CardWord::RequestsInFlight,
     CardWord::RequestUnconfirmed,
     CardWord::HoldRevision,
+    CardWord::HeldSentence,
     CardWord::InFlight,
     CardWord::Retrying,
     CardWord::AnswersFull,
@@ -192,6 +194,7 @@ impl CardWord {
             Self::RequestNotKept => (19, &[b"The request was not kept."], &[]),
             Self::RequestsInFlight => (20, &[b"Too many requests are pending."], &[]),
             Self::RequestUnconfirmed => (21, &[b"Sign in before sending this request."], &[]),
+            Self::HeldSentence => (5, &[b"This task is held."], &[]),
             Self::HoldRevision => (22, &[b"Hold revision ", b""], &[Number]),
             Self::InFlight => (23, &[b"Pending"], &[]),
             Self::Retrying => (24, &[b"Retrying"], &[]),
@@ -232,7 +235,7 @@ impl CardWord {
 }
 #[must_use]
 pub fn say(words: &Words, phrase: CardWord, holes: &[Hole]) -> Box<[u8]> {
-    words.book.say(words.language, phrase.id(), holes).expect("checked temper card phrase").text
+    words.book().say(words.language, phrase.id(), holes).expect("checked temper card phrase").text
 }
 pub fn extend(text: u32, shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
     for word in ALL {

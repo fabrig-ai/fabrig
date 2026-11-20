@@ -1,7 +1,7 @@
 use super::fixtures as f;
 use crate::{Told, Tui, approval_address, may_ask_again};
 use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Queue, Secret, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Request, asked::State};
 
@@ -11,14 +11,15 @@ pub(super) fn code() -> ApprovalCode {
 
 #[test]
 fn the_approval_address_uses_the_tuis_address_and_shown_code() {
-    let rows: &[(&[u8], &[u8], &[u8])] = &[
-        (b"127.0.0.1:8367", b"WDJBMJHT", b"http://127.0.0.1:8367/terminal?code=WDJB-MJHT"),
-        (b"127.0.0.1:9000", b"bcdfghjk", b"http://127.0.0.1:9000/terminal?code=BCDF-GHJK"),
-        (b"[::1]:8367", b"bcdf-ghjk", b"http://[::1]:8367/terminal?code=BCDF-GHJK"),
+    use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+    let rows: &[(SocketAddr, &[u8], &[u8])] = &[
+        (SocketAddr::from((Ipv4Addr::LOCALHOST, 8367)), b"WDJBMJHT", b"http://127.0.0.1:8367/terminal?code=WDJB-MJHT"),
+        (SocketAddr::from((Ipv4Addr::LOCALHOST, 9000)), b"bcdfghjk", b"http://127.0.0.1:9000/terminal?code=BCDF-GHJK"),
+        (SocketAddr::from((Ipv6Addr::LOCALHOST, 8367)), b"bcdf-ghjk", b"http://[::1]:8367/terminal?code=BCDF-GHJK"),
     ];
     for (address, letters, expected) in rows {
         let code = ApprovalCode::parse(letters).unwrap();
-        let actual = approval_address(address, code);
+        let actual = approval_address(&crate::Origin::Http(*address), code);
         assert_eq!(actual.as_ref(), *expected);
         assert!(actual.ends_with(&code.shown()));
     }
@@ -95,10 +96,13 @@ pub(super) fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
     }
     let out = f::client(
         root,
-        jig_client::Event::SignIn { with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])) } },
+        jig_client::Event::SignIn {
+            with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])), grant: None },
+        },
     );
     let id = exchange(out);
     let answer = match why {
+        NotSignedIn::Approval(Taking::NotGranted) => w::ApprovalSignInAnswer::NotGranted,
         NotSignedIn::Approval(Taking::Waiting) => w::ApprovalSignInAnswer::Waiting,
         NotSignedIn::Approval(Taking::Refused) => w::ApprovalSignInAnswer::Refused,
         NotSignedIn::Approval(Taking::Expired) => w::ApprovalSignInAnswer::Expired,

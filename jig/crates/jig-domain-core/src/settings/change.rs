@@ -4,6 +4,7 @@ use crate::{
     CoreKey, CoreRecord, Write,
     settings::{Changed, Current, Edit, Item, Key, Record, Setting},
 };
+use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::settings::change::*;
 use skein_lib::List;
 #[must_use]
@@ -15,6 +16,20 @@ pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
         let after = match &item.edit {
             Edit::Set(value) => Some(value),
             Edit::Removed => {
+                if let Some(value) = current.value(item.setting)
+                    && let Some(provider) = value.as_provider()
+                {
+                    if !provider.withdrawn {
+                        return true;
+                    }
+                    continue;
+                }
+                if let Some(worker) = super::workers::worker(current.value(item.setting)) {
+                    if !worker.withdrawn {
+                        return true;
+                    }
+                    continue;
+                }
                 if let Some(model) = match current.value(item.setting) {
                     Some(value) => value.as_model(),
                     None => None,
@@ -38,6 +53,7 @@ pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
     false
 }
 /// Apply only a checked, nonempty set. Both persisted and held changes get the same stamp.
+#[expect(clippy::too_many_lines, reason = "one checked edit stamps each kind and retains withdrawn identities")]
 pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> List<Write> {
     let mut writes = List::with_capacity(
         u32::try_from(items.len())
@@ -55,11 +71,12 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         let erase = match item.edit {
             Edit::Reset => true,
             Edit::Removed => match item.setting {
-                Setting::Model(_) => false,
+                Setting::Provider(_) | Setting::Worker(_) | Setting::Model(_) => false,
                 Setting::Charter(_)
                 | Setting::Template(_)
                 | Setting::Policy(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::Application { .. }
                 | Setting::ProjectPolicy { .. } => current.defaults.get(&item.setting).is_none(),
             },
@@ -76,6 +93,25 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         let value = match &item.edit {
             Edit::Set(value) => Some(Some(value.clone())),
             Edit::Removed => match item.setting {
+                Setting::Provider(_) => match current.value(item.setting) {
+                    Some(value) => match value.as_provider() {
+                        Some(value) => {
+                            let mut value = value.clone();
+                            value.withdrawn = true;
+                            Some(Some(super::Value::Provider(Box::new(value))))
+                        }
+                        None => None,
+                    },
+                    None => None,
+                },
+                Setting::Worker(_) => match super::workers::worker(current.value(item.setting)) {
+                    Some(value) => {
+                        let mut value = value.clone();
+                        value.withdrawn = true;
+                        Some(Some(super::Value::Worker(Box::new(value))))
+                    }
+                    None => None,
+                },
                 Setting::Model(_) => match current.value(item.setting) {
                     Some(super::Value::Model(value)) => {
                         let mut value = value.clone();
@@ -86,11 +122,14 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                         Some(Some(super::Value::Model(value)))
                     }
                     Some(
-                        super::Value::Overlay(_)
+                        super::Value::Provider(_)
+                        | super::Value::Worker(_)
+                        | super::Value::Overlay(_)
                         | super::Value::Charter(_)
                         | super::Value::Template(_)
                         | super::Value::Policy(_)
                         | super::Value::Rules(_)
+                        | super::Value::Limits(_)
                         | super::Value::Application(_),
                     )
                     | None => None,
@@ -99,6 +138,7 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                 | Setting::Template(_)
                 | Setting::Policy(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::Application { .. }
                 | Setting::ProjectPolicy { .. } => {
                     if current.defaults.get(&item.setting).is_some() {

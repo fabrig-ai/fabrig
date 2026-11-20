@@ -1,6 +1,7 @@
 //! Byte-summed pieces preserve the domain's admissions (skein/docs/design/data/codec/README.md, 3).
 use super::fixtures;
 use crate::codec::{people, tasks};
+use crate::tasks_v13::Record;
 use crate::{people_v17, tasks_v13};
 use jig_domain_people as person;
 use jig_domain_tasks as task;
@@ -40,9 +41,7 @@ fn the_pattern_piece_admits_512_segments_and_refuses_513() {
         let encoded = people::policy::encode_pattern(&value, &limits);
         if passes {
             let encoded = encoded.expect(label);
-            let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
-            encoded.encode(&mut out).expect("measured pattern");
-            let bytes = out.finish();
+            let bytes = encoded.encode(&limits).expect("bounded value");
             let decoded = people_v17::Pattern::decode(&limits, &mut Reader::new(&bytes)).expect("encoded pattern");
             assert_eq!(people::policy::decode_pattern(decoded, &limits), Ok(value), "{label}");
         } else {
@@ -57,18 +56,16 @@ fn a_whole_amendment_admits_its_full_sum_and_refuses_one_byte_past_it() {
     let value = amendment();
     assert_eq!(person::amendment_bytes(&value), Some(8192));
     let encoded = people::policy::encode_amendment(&value, &limits).expect("whole sum fits");
-    let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
-    encoded.encode(&mut out).expect("measured amendment");
-    let bytes = out.finish();
+    let bytes = encoded.encode(&limits).expect("bounded value");
     let decoded = people_v17::Amendment::decode(&limits, &mut Reader::new(&bytes)).expect("whole amendment");
     assert_eq!(people::policy::decode_amendment(decoded, &limits), Ok(value.clone()));
     let mut past = value;
     past.reason = Box::new([1]);
     assert_eq!(person::amendment_bytes(&past), Some(8193));
     assert_eq!(people::policy::encode_amendment(&past, &limits), Err(people_problem()), "encoded past_sum");
-    let mut parts = encoded.into_parts();
+    let mut parts = encoded;
     parts.reason = Box::new([1]);
-    let forged = people_v17::Amendment::new(&limits, parts).expect("each scalar still fits");
+    let forged = parts;
     assert_eq!(people::policy::decode_amendment(forged, &limits), Err(people_problem()), "decoded past_sum");
 }
 
@@ -90,14 +87,12 @@ fn saved_fields(
 ) -> Result<Box<[task::ResultField]>, tasks_v13::Problem> {
     let value = task::TaskResult::Verdict { code: 7, fields: fields.into(), words: Box::new([]) };
     let encoded = tasks::phase::result(&value, limits)?;
-    let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
-    encoded.encode(&mut out).expect("measured verdict");
-    let bytes = out.finish();
+    let bytes = encoded.encode(limits)?;
     let decoded = tasks_v13::TaskResult::decode(limits, &mut Reader::new(&bytes))?;
     match tasks::phase::read_result(decoded, limits)? {
         task::TaskResult::Verdict { fields, .. } => Ok(fields),
         task::TaskResult::Job { .. } => {
-            Err(tasks_v13::Problem { path: tasks_v13::Path::TaskResultTag, reason: skein_codec::Reason::Malformed })
+            Err(tasks_v13::Problem { path: tasks_v13::paths::TASK_RESULT_TAG, reason: skein_codec::Reason::Malformed })
         }
         task::TaskResult::Approved { .. }
         | task::TaskResult::Report { .. }
@@ -118,7 +113,7 @@ fn verdict_fields_round_trip_at_the_domain_sum_and_refuse_one_past_it() {
         } else {
             assert_eq!(
                 saved,
-                Err(tasks_v13::Problem { path: tasks_v13::Path::TaskResultTag, reason: skein_codec::Reason::Bound }),
+                Err(tasks_v13::Problem { path: tasks_v13::paths::TASK_RESULT_TAG, reason: skein_codec::Reason::Bound }),
                 "{label}"
             );
         }
@@ -131,14 +126,14 @@ fn the_encoded_piece_bound_holds_a_verdict_at_the_domain_sum_exactly() {
     let value = task::TaskResult::Verdict { code: 7, fields: fields(512), words: Box::new([]) };
     let encoded = tasks::phase::result(&value, &limits).expect("domain sum fits");
     let tasks_v13::TaskResult::Verdict(encoded) = encoded else { unreachable!("verdict fixture") };
-    assert_eq!(encoded.fields().len(), 6656);
+    assert_eq!(encoded.fields.len(), 6656);
     assert_eq!(limits.verdict_result_fields, 6656);
     assert_eq!(limits.verdict_fields, 6656);
     assert_eq!(limits.verdict_message_fields, 6656);
 }
 
 fn people_problem() -> people_v17::Problem {
-    people_v17::Problem { path: people_v17::Path::RowValue, reason: skein_codec::Reason::Bound }
+    people_v17::Problem { path: people_v17::paths::ROW_VALUE, reason: skein_codec::Reason::Bound }
 }
 
 #[test]
@@ -161,16 +156,9 @@ fn a_creation_without_payload_has_only_its_fixed_part() {
     assert!(creation < 1024, "New={} Member(EMPTY)={member} Creation(EMPTY)={creation}", size_of::<task::New>());
 }
 
-fn wire_round_trip<T>(
-    value: T,
-    limits: &tasks_v13::Limits,
-    measure: fn(&T) -> u32,
-    encode: fn(&T, &mut Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&tasks_v13::Limits, &mut Reader<'_>) -> Result<T, tasks_v13::Problem>,
-) -> T {
-    let mut out = Writer::new(skein_lib::length::usize_of(measure(&value)));
-    encode(&value, &mut out).expect("measured item");
-    decode(limits, &mut Reader::new(&out.finish())).expect("encoded item")
+fn wire_round_trip<T: Record<Limits = tasks_v13::Limits>>(value: T, limits: &tasks_v13::Limits) -> T {
+    let bytes = value.encode(limits).expect("bounded item");
+    T::decode(limits, &mut Reader::new(&bytes)).expect("encoded item")
 }
 
 fn task_segments(count: u32) -> Box<[Box<[u8]>]> {
@@ -206,16 +194,10 @@ fn an_authority_is_one_piece_by_its_bytes() {
     }
     value.note_resources = scopes.into_boxed();
     let encoded = tasks::value::authority(&value, &limits, None).expect("shared byte sum fits");
-    let encoded = wire_round_trip(
-        encoded,
-        &limits,
-        tasks_v13::Authority::measure,
-        tasks_v13::Authority::encode,
-        tasks_v13::Authority::decode,
-    );
+    let encoded = wire_round_trip(encoded, &limits);
     assert_eq!(tasks::value::read_authority(encoded, &limits), Ok(value.clone()));
     value.grants[0].pattern.last = task::Last::Exact(Box::new([b'b'; 7]));
-    assert_eq!(tasks::value::authority(&value, &limits, None), Err(task_problem(tasks_v13::Path::AuthorityGrants)));
+    assert_eq!(tasks::value::authority(&value, &limits, None), Err(task_problem(tasks_v13::paths::AUTHORITY_GRANTS)));
 }
 
 #[test]
@@ -232,7 +214,7 @@ fn a_name_is_one_piece_by_the_hold_bytes() {
     writer.resource = value;
     assert_eq!(
         tasks::encode(&task::Stored::Writer(writer), &limits, &[]),
-        Err(task_problem(tasks_v13::Path::NamePath))
+        Err(task_problem(tasks_v13::paths::NAME_PATH))
     );
 }
 
@@ -244,11 +226,10 @@ fn a_spec_parameters_piece_holds_the_spec_bytes() {
     value.words = Box::new([b'a'; 16]);
     value.parameters[1] = task::Parameter::Bytes { name: 2, value: Box::new([b'b'; 16]) };
     let encoded = tasks::value::spec(&value, &limits).expect("spec byte sum fits");
-    let encoded =
-        wire_round_trip(encoded, &limits, tasks_v13::Spec::measure, tasks_v13::Spec::encode, tasks_v13::Spec::decode);
+    let encoded = wire_round_trip(encoded, &limits);
     assert_eq!(tasks::value::read_spec(encoded, &limits), Ok(value.clone()));
     value.words = Box::new([b'a'; 17]);
-    assert_eq!(tasks::value::spec(&value, &limits), Err(task_problem(tasks_v13::Path::SpecWords)));
+    assert_eq!(tasks::value::spec(&value, &limits), Err(task_problem(tasks_v13::paths::SPEC_WORDS)));
 }
 
 fn task_problem(path: tasks_v13::Path) -> tasks_v13::Problem {
@@ -309,13 +290,7 @@ fn assert_batch_round_trips(label: &str, batch: &[task::New], domain: &task::Lim
     let mut proposal = fixtures::task_proposal();
     proposal.action = task::ProposalAction::Batch(batch.into());
     let encoded = tasks::proposals::proposal(&proposal, &limits, None).expect(label);
-    let encoded = wire_round_trip(
-        encoded,
-        &limits,
-        tasks_v13::Proposal::measure,
-        tasks_v13::Proposal::encode,
-        tasks_v13::Proposal::decode,
-    );
+    let encoded = wire_round_trip(encoded, &limits);
     assert_eq!(tasks::proposals::read_proposal(encoded, &limits), Ok(proposal), "{label}: proposal");
     let end = task::End::FinishedWithFollowups {
         result: task::TaskResult::Verdict { code: 7, fields: Box::new([]), words: Box::new([]) },
@@ -326,13 +301,7 @@ fn assert_batch_round_trips(label: &str, batch: &[task::New], domain: &task::Lim
     if recurring {
         let template = task::RecurringTemplate { key: 1, batch: batch.into(), overlap: task::RecurringOverlap::Wait };
         let encoded = tasks::phase::template(&template, &limits, None).expect(label);
-        let encoded = wire_round_trip(
-            encoded,
-            &limits,
-            tasks_v13::RecurringTemplate::measure,
-            tasks_v13::RecurringTemplate::encode,
-            tasks_v13::RecurringTemplate::decode,
-        );
+        let encoded = wire_round_trip(encoded, &limits);
         assert_eq!(tasks::phase::read_template(encoded, &limits), Ok(template), "{label}: template");
     }
 }
@@ -414,6 +383,6 @@ fn a_creations_piece_past_its_bound_is_refused() {
     out.put(&skein_lib::bytes::zeroed(usize::try_from(bound).unwrap() + 1)).expect("piece room");
     assert_eq!(
         tasks_v13::ProposedBatch::decode(&limits, &mut Reader::new(&out.finish())),
-        Err(task_problem(tasks_v13::Path::ProposedBatchMembers)),
+        Err(task_problem(tasks_v13::paths::PROPOSED_BATCH_MEMBERS)),
     );
 }

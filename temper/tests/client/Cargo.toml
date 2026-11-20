@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-limits-fixtures.workspace = true
+temper-landing-fixtures.workspace = true
 temper-protocol-reaches.workspace = true
 jig-protocol-engine-clients.workspace = true
 skein-forge.workspace = true
@@ -28,6 +30,7 @@ skein-fake-person.workspace = true
 jig-client-test-domain.workspace = true
 jig-test-domain.workspace = true
 jig-core-kit.workspace = true
+jig-test-profile.workspace = true
 jig-domain-core.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-accounts.workspace = true

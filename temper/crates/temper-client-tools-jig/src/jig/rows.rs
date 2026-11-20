@@ -4,6 +4,58 @@ use super::table::{
     Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
+/// Worker shorthands (client/ctl/workers.md, 1–3).
+pub const WORKER_LIST_AT: u8 = 106;
+pub const WORKER_ADD_AT: u8 = 107;
+pub const WORKER_PLACES_AT: u8 = 108;
+pub const WORKER_REMOVE_AT: u8 = 109;
+pub const WORKER_LIST: Tool = Tool {
+    name: b"worker list",
+    line: b"Read the workers not withdrawn, in number order",
+    prints: b"A line per worker: WORKER, its places, up since TIME, down since TIME or down, and its runs' count",
+    result: b"workers",
+    forms: &[&[]],
+    keyed: Keyed::Never,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Runs are those of the connected host of the worker's name.\nJSON gives each worker not withdrawn, with its runs' count.\n",
+};
+pub const WORKER_ADD: Tool = Tool {
+    name: b"worker add",
+    line: b"Add a worker, or bring a withdrawn one back at its number",
+    prints: b"`worker WORKER: revision R`, the new revision",
+    result: b"change_settings",
+    forms: &[&[
+        positional(b"worker", b"WORKER", Kind::Worker, Required, b"The worker's name"),
+        flag(b"places", b"PLACES", Kind::Places, Required, b"The worker's places"),
+        flag(b"digest", b"SHA256", Kind::Sha256, Required, b"The SHA-256 of the worker's secret"),
+    ]],
+    keyed: Keyed::Required,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Make the secret on the worker's own machine as temper help server says;\nthe digest is its SHA-256. A worker started first redials until added.\nChanges one setting against the newest revision read; running work stays.\n",
+};
+pub const WORKER_PLACES: Tool = Tool {
+    name: b"worker places",
+    line: b"Change a worker's places",
+    prints: b"`worker WORKER: revision R`, the new revision",
+    result: b"change_settings",
+    forms: &[&[
+        positional(b"worker", b"WORKER", Kind::Worker, Required, b"The live worker's name"),
+        positional(b"places", b"PLACES", Kind::Places, Required, b"The worker's new places"),
+    ]],
+    keyed: Keyed::Required,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"A linked worker takes its new places at its next start.\nChanges one setting against the newest revision read; running work stays.\n",
+};
+pub const WORKER_REMOVE: Tool = Tool {
+    name: b"worker remove",
+    line: b"Remove a worker, withdrawn at its number",
+    prints: b"`worker WORKER: revision R`, the new revision",
+    result: b"change_settings",
+    forms: &[&[positional(b"worker", b"WORKER", Kind::Worker, Required, b"The live worker's name")]],
+    keyed: Keyed::Required,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Stop a linked worker first; its runs end interrupted.\nChanges one setting against the newest revision read; running work stays.\n",
+};
 /// Deployment census (client/ctl/tools.md, 2; client/ctl/results.md, 1 and 2).
 pub const DEPLOYMENT_CENSUS_AT: u8 = 98;
 pub const DEPLOYMENT_CENSUS: Tool = Tool {
@@ -162,7 +214,17 @@ pub const SIGN_IN: Tool = Tool {
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`; each ends `temper-box serve prints\na fresh one`. Other refusals keep the line without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`. For a fresh link, temper-box serve\nprints one, or a signed-in client asks with\n`temper ctl DIRECTORY link --out FILE`. Other refusals keep the\nline without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+};
+pub const LINK: Tool = Tool {
+    name: b"link",
+    line: b"Write a fresh one-time sign-in link to a private file",
+    prints: b"sign-in link written to FILE; it signs in once, until U; JSON: file and expires",
+    result: b"link",
+    forms: &[&[flag(b"out", b"FILE", Kind::File, Required, b"A new private file for the sign-in link")]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"DIR must be signed in. FILE existing refuses before anything is sent.\nThe host writes the link's URL to FILE at 0o600 and makes it durable\nbefore success prints. The link is never printed or passed in argv.\nIt signs in DIR's party once, until U, in universal time to the second.\nAsking again replaces the previous asked link. The engine gives a\nlink to a person's sign-in alone, where its printed link is enabled.\n",
 };
 pub const SIGN_OUT: Tool = Tool {
     name: b"sign-out",
@@ -355,6 +417,21 @@ pub const DECIDE: Tool = Tool {
     area: 1,
     notes: b"A decision asked again under its key prints its first answer.\nA retained decision, by your party or another, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal answers exit 2:\nthis proposal isn't waiting; it may have been decided or replaced.\n",
 };
+/// Appended to the host's table so existing tool positions keep their meanings.
+pub const WITHDRAW_AT: u8 = 113;
+pub const WITHDRAW: Tool = Tool {
+    name: b"proposal withdraw",
+    line: b"Withdraw your own pending proposal",
+    prints: b"`done: withdraw`, or `decided first:`, by whom, how and when, if its decision is retained",
+    result: b"withdraw",
+    forms: &[&[
+        positional(b"proposal", b"PROPOSAL", Kind::Proposal, Required, b"Your party's proposal, pN/K"),
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project printed with the proposal"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 2,
+    notes: b"Sends without reading the proposal. Only the signed-in party's pN/K\nmay be withdrawn; a task's or another party's key is usage, exit 1,\nnothing sent. A withdrawal asked again under its key prints its first\nanswer. A retained decision, including withdrawal, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal or one of another\nproject answers exit 2: this proposal isn't waiting; it may have been\ndecided or replaced. A proposal's acts offer withdrawal to its maker alone.\n",
+};
 pub const RELEASE: Tool = Tool {
     name: b"task release",
     line: b"Lift a task's hold",
@@ -541,6 +618,30 @@ pub const RANK: Tool = Tool {
     area: 5,
     notes: b"Without `--source`, the account moves among the accounts; with it,\nthe source moves among its account's sources.\n",
 };
+/// Account uses append after the existing tools to preserve keyed identities.
+pub const USES_AT: u8 = 111;
+/// The wire's `AccountChangeSetUses` list bound (client/ctl/README.md, 5).
+pub const ACCOUNT_USES: u32 = 16;
+pub const USES: Tool = Tool {
+    name: b"account uses",
+    line: b"Set exactly which parties and projects an account pays for, or restore its defaults",
+    prints: b"`done: uses`",
+    result: b"uses",
+    forms: &[
+        &[
+            positional(b"account", b"ACCOUNT", Kind::Number, Required, b"The account's number, as account list prints it"),
+            flag(b"party", b"N", Kind::NumberRange { min: 0, max: u64::MAX }, Repeated { most: ACCOUNT_USES }, b"A party whose work the account pays for"),
+            flag(b"project", b"N", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Repeated { most: ACCOUNT_USES }, b"A project whose work the account pays for"),
+        ],
+        &[
+            positional(b"account", b"ACCOUNT", Kind::Number, Required, b"The account's number, as account list prints it"),
+            super::table::Argument { occurs: Required, ..switch(b"default", b"Restore jig's default uses") },
+        ],
+    ],
+    keyed: Keyed::Optional,
+    area: 5,
+    notes: b"Name at least one party or project, at most 16 uses together.\nEach flag repeats; the named uses replace the whole list.\n--default restores jig's defaults, with no --party or --project.\nA person's plan may pay for its holder's services, and projects\nwhose other members are services. Another person, or a project\nwith another person, is refused by the engine (exit 2).\n",
+};
 pub const RETRY: Tool = Tool {
     name: b"account retry",
     line: b"Resume a source that reached a limit",
@@ -571,7 +672,7 @@ pub const AMEND: Tool = Tool {
     result: b"amend",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
-        flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority alone"),
+        flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority or its address alone"),
         flag(b"priority", b"PRIORITY", Kind::Number, Optional, b"Track it at this priority"),
         switch(b"untracked", b"Stop tracking it"),
         flag(b"deadline", b"TIME", Kind::Literal, Optional, b"Its new deadline, as 2026-10-24T17:00Z"),
@@ -590,10 +691,13 @@ pub const AMEND: Tool = Tool {
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
         positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
         flag(b"tasks", b"N", Kind::Number, Optional, b"The tasks its subtree may make over its life; the rest of its authority kept"),
+        flag(b"to-party", b"PARTY", Kind::Number, Optional, b"Address the person task to this party"),
+        flag(b"to-role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Address the person task to this role of its project"),
+        flag(b"budget", b"AMOUNT", Kind::Amount, Optional, b"Its budget, as task show prints it; the rest of its authority kept"),
     ]],
     keyed: Keyed::Optional,
     area: 2,
-    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\n",
+    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\nAn address re-addresses at this read's person revision; a non-person\ntask fails (exit 1).\n",
 };
 
 /// Appended so existing keyed tool identities stay stable.
@@ -673,7 +777,7 @@ pub const SETTINGS: Tool = Tool {
     line: b"Read the settings, the revisions running work holds, and pending proposals",
     prints: b"`newest revision R`, each setting and its last revision, the held revisions and their live tasks, and the pending proposals",
     result: b"settings",
-    forms: &[&[]],
+    forms: &[&[], &[positional(b"kind", b"provider", Kind::Word { set: &[b"provider"] }, Required, b"Every provider, including withdrawn ones; taken at the engine's next start")]],
     keyed: Keyed::Never,
     area: 1,
     notes: b"settings show KIND NUMBER --json prints one value to edit.\nsettings apply and settings propose take the newest revision this\nprints as `--against`.\n",
@@ -687,8 +791,8 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"charter|template|policy|model",
-                Kind::Word { set: &[b"charter", b"template", b"policy", b"model"] },
+                b"charter|template|policy|model|worker|provider",
+                Kind::Word { set: &[b"charter", b"template", b"policy", b"model", b"worker", b"provider"] },
                 Required,
                 b"The setting's kind",
             ),
@@ -913,7 +1017,7 @@ pub const PROJECT_SHOW: Tool = Tool {
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
+    notes: b"Amounts are as task show prints budgets. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
 };
 pub const PROJECT_FUND: Tool = Tool {
     name: b"project fund",
@@ -922,7 +1026,7 @@ pub const PROJECT_FUND: Tool = Tool {
     result: b"project_fund",
     forms: &[&[
         positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        positional(b"amount", b"AMOUNT", Kind::NumberRange { min: 0, max: u64::MAX }, Required, b"The spend per period, in the deployment's unit"),
+        positional(b"amount", b"AMOUNT", Kind::Amount, Required, b"The spend per period, as task show prints budgets"),
         flag(b"role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Set this role's spend per period"),
     ]],
     keyed: Keyed::Required,
@@ -991,7 +1095,7 @@ pub const ROLE_START: Tool = Tool {
     result: b"role_create",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        flag(b"budget", b"AMOUNT", Kind::Number, Required, b"The budget each period, in the deployment's unit"),
+        flag(b"budget", b"AMOUNT", Kind::Amount, Required, b"The budget each period, as task show prints budgets"),
         positional(b"text", b"TEXT", Kind::Text, Required, b"What the role owns and how"),
         flag(b"charter", b"CHARTER", Kind::NumberRange { min: 1, max: 4_294_967_295 }, Optional, b"The role's charter; 13 when absent"),
     ]],
@@ -1087,11 +1191,11 @@ pub const GOAL_START: Tool = Tool {
         flag(
             b"budget",
             b"AMOUNT",
-            Kind::NumberRange { min: 0, max: u64::MAX },
+            Kind::Amount,
             Optional,
-            b"The spend in the deployment's unit; required for a given budget unless --as-allowed",
+            b"The spend, as task show prints budgets; required for a given budget unless --as-allowed",
         ),
-        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        switch(b"as-allowed", b"Take all you may give from your pool, or with --milestone all the milestone has left, instead of a named budget: none is left for the next start while this goal is live"),
         flag(
             b"deadline",
             b"TIME",
@@ -1120,21 +1224,24 @@ pub const GOAL_START: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 2,
-    notes: b"The template fills charter, contract, tracking, label, flags, models
+    notes: b"Template sets charter, contract, tracking, label, flags, models
 and symbolic resources. TEXT's first line is the goal's title, as Home
 and Work show it: at most 60 characters naming the work for a person,
-as \"Store shape S7: history in task logs\"; the rest of TEXT follows
-on the lines below. --charter is required only for a chosen executor.
-Given budget needs --budget or --as-allowed (alternatives); given
-deadline needs --deadline or --no-deadline. Absent controls keep defaults.
+as \"Store shape: history in task logs\"; the rest of TEXT follows
+on the lines below.
+Given budget: --budget or --as-allowed; given deadline: --deadline
+or --no-deadline. Defaults otherwise.
 A goal waiting on tasks counts its deadline from when it was made.
---effort needs --model; absent, its default is taken. --model wins
-each run, replacing the later choice too; sub-agents stay unless
---sub-agent replaces them. Without --model the choice holds whole.
+With --milestone, --as-allowed takes all the milestone has left, so
+a second --as-allowed goal in it is refused for its budget: give each
+goal in a milestone --budget AMOUNT.
+--effort needs --model, defaults if absent. --model wins each run
+and replaces the later choice; only --sub-agent replaces sub-agents.
+Without --model the choice holds whole.
 Refused model flags name value and bound; nothing made.
-Within bounds, created; past them but proposable, proposed (exit 0);
+Within bounds: created; past but proposable: proposed (exit 0);
 not offered or past ceilings, nothing sent (exit 1).
-Then task show TASK --until replied.
+task show TASK --until replied.
 ",
 };
 
@@ -1392,11 +1499,11 @@ pub const MILESTONE_NEW: Tool = Tool {
         flag(
             b"budget",
             b"AMOUNT",
-            Kind::Number,
+            Kind::Amount,
             Optional,
-            b"Spend in the deployment's unit; required for a given budget unless --as-allowed",
+            b"The spend, as task show prints budgets; required for a given budget unless --as-allowed",
         ),
-        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        switch(b"as-allowed", b"Take all you may give from your pool instead of a named budget: none is left for your next start while this milestone is live"),
         flag(b"deadline", b"TIME", Kind::Literal, Optional, b"UTC to the minute, as 2026-10-24T17:00Z"),
     ]],
     keyed: Keyed::Required,

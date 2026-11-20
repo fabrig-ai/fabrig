@@ -40,6 +40,7 @@ pub enum Line {
         attempt: u64,
         why: Why,
         resumed: bool,
+        fresh: Option<Fresh>,
     },
     RunEnded {
         attempt: u64,
@@ -79,6 +80,16 @@ pub enum Line {
         pending: Box<[u64]>,
         question: Option<u64>,
     },
+}
+
+/// Why a resumable charter began fresh with an earlier window (domain/engine/executors.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fresh {
+    Moved,
+    Closed,
+    Cut,
+    Limit,
+    Session,
 }
 
 /// Maximum bytes retained from a standing run's result (jig/docs/design/domain/tasks/standing.md, 7).
@@ -183,5 +194,5 @@ pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
 /// plus one notice for each bounded standing interest.
 #[must_use]
 pub fn lines_per_decision(limits: &crate::Limits) -> Option<u32> {
-    limits.tasks.checked_mul(12)?.checked_add(limits.tasks.checked_mul(limits.subscriptions)?)
+    limits.tasks.checked_mul(12)?.checked_add(limits.tasks.checked_mul(crate::subscriptions::kept_capacity(limits)?)?)
 }

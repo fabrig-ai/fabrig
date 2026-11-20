@@ -5,6 +5,7 @@
 
 
 
+
 - **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
 
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4).
@@ -31,4 +32,6 @@ remain `README.md`, section 9's deferred work.
 - **Design departs:** from the request `ui-walk-large` of 2026-11-06, decided by its plan's cut: the room outside the pool is one chat's 24K, where the request has the status agent's small allowance, because a run's spend stays spent, so K would pay for one brief in a period and 24K for at least twenty-four.
 
 - **Design departs:** from the request `ui-home-status` of 2026-11-05, decided by its plan's cut: the status agent is stock charter 9, where the request has 7, because the reference's settings already number its designer 7 and its triage 8 (`reference.md`), so a stock 7 would run the designer's words there. Its "no tools but finish" holds by the run's authority, which names none, since the host part declares its fixed tools whatever a charter says, but for the settings and delegate families', which charter 9 doesn't name (`../../domain/agent/tools.md`).
+
+- **Not yet:** charter 14's sorts of a red after landing and its acts `repair` and `blame` [in flight: change 10368].
 

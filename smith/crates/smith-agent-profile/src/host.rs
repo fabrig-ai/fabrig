@@ -1,16 +1,23 @@
 //! Host bounds derived from the agent profile, never a chat or run charter.
-//! `host_limits` grants a window large enough for the agent's largest turn.
+//! `host_limits` grants a window large enough for the agent's largest turn and
+//! a no-progress deadline above its silence, tool and endpoint bounds.
+//! Watchdog contract: smith/docs/design/domain/host.md, section 4.
 //! Contracts: smith/docs/design/shell/README.md, sections 2.1 and 2.6;
 //! smith/docs/design/protocol/limits.md, sections 3.6 and 3.8.
 
 use crate::profile::{Check, Layer, LimitName, Refusal, Value};
 use skein_lib::Duration;
+use smith_channel::Record;
 use smith_host_domain as host;
 
 const HOST_FACTS: u32 = 1024;
 
-/// Build the standard host bounds around the largest turn its agent can emit.
-pub fn host_limits(profile: &crate::profile::Profile, agent: &crate::Limits) -> Result<host::Limits, Refusal> {
+/// Build the host's window and watchdog from its agent and endpoint bounds.
+pub fn host_limits(
+    profile: &crate::profile::Profile,
+    agent: &crate::Limits,
+    endpoints: &[smith_domain::EndpointLimits],
+) -> Result<host::Limits, Refusal> {
     let run = agent.domain.run;
     let largest_turn = smith_domain::max_turn_bytes(&agent.domain)
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "turn_bytes") })?;
@@ -30,7 +37,17 @@ pub fn host_limits(profile: &crate::profile::Profile, agent: &crate::Limits) -> 
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "fact_bytes") })?;
     let name = LimitName::deployment(Layer::Service, "silence");
     let silence = crate::profile::silence_bound(agent).ok_or(Refusal::Derived { limit: name })?;
+    let mut longest_turn = Duration::ZERO;
+    for endpoint in endpoints {
+        let turn = endpoint
+            .head
+            .checked_add(endpoint.idle)
+            .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "no_progress") })?;
+        longest_turn = longest_turn.max(turn);
+    }
     let no_progress = silence
+        .max(agent.domain.session.tools.tool_deadline)
+        .max(longest_turn)
         .checked_add(agent.io.close_timeout)
         .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "no_progress") })?;
     let teardown_name = LimitName::deployment(Layer::Service, "teardown");

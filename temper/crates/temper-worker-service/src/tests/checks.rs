@@ -9,29 +9,20 @@ use crate::startup::{Problems, What, lines};
 use jig_protocol_config as config;
 use jig_protocol_config::Path;
 #[test]
-fn a_worker_part_names_the_agents_program() {
-    let part =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
-    assert_eq!(part.named.program.as_ref(), fixtures::TEMPER);
-}
-
-#[test]
 fn worker_checkout_capacity_names_stdout_and_its_room_without_an_engine() {
-    let document = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
-    );
+    let mut part = fixtures::part(&fixtures::worker_alone_document());
+    part.limits.checkout.conflicts = 1024;
+    part.limits.checkout.path_bytes = 4096;
+    part.limits.git_component.stdout_bytes = 262_144;
     let mut agent = fixtures::startup_agent();
     agent.host_limits.path_bytes = 4096;
-    let part = crate::startup::worker_part(&document, &config::Directories::working()).unwrap();
     let found = crate::startup::worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7)
         .err()
         .expect("checkout capacity is refused");
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401267 bytes\n"
     );
 }
 
@@ -55,17 +46,7 @@ fn a_worker_alone_names_each_shape_departure() {
             br#"{"socket":"127.0.0.1:7000","transport":"tls"}"#,
             vec![(engine.member(b"transport"), What::Jig(config::What::Unknown))],
         ),
-        (b"application.workers", b"[]", vec![(root.member(b"application").member(b"workers"), What::WorkerAlone)]),
-        (
-            b"application.workers",
-            br#"[{"root":"one","git":null},{"root":"two","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::WorkerAlone)],
-        ),
-        (
-            b"application",
-            br#"{"workers":[{"root":"worker","git":null}],"limits":{"profile":"small","overrides":{}},"forges":[]}"#,
-            vec![(root.member(b"application").member(b"forges"), What::WorkerAlone)],
-        ),
+        (b"application", br#"{"forges":[]}"#, vec![(root.member(b"application").member(b"forges"), What::WorkerAlone)]),
     ];
     for (member, value, expected) in rows {
         let input = fixtures::with(&base, member, value);
@@ -107,7 +88,8 @@ fn turn_checks_use_only_what_each_process_knows() {
     let worker = fixtures::worker_settings().jig;
     let mut agent = fixtures::startup_agent();
     let mut found = Problems::empty();
-    agent.limits.bodies.turn_body = u32::try_from(worker.limits.hub.turn_bytes).unwrap();
+    agent.limits.bodies.turn_body =
+        u32::try_from(worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes).unwrap();
     crate::startup::worker::checks::turns(core::slice::from_ref(&worker), &agent, &mut found);
     assert_eq!(&*lines(&found), b"");
     agent.limits.bodies.turn_body += 1;
@@ -120,12 +102,10 @@ fn turn_checks_use_only_what_each_process_knows() {
 
 #[test]
 fn installations_past_the_grant_bound_refuse_the_start_naming_the_limit() {
-    let document = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"forges.installations":10,"forge_component.installations":10}"#,
-    );
-    let found = crate::startup::worker_part(&document, &config::Directories::working()).unwrap_err();
+    let mut part = fixtures::part(&fixtures::worker_alone_document());
+    part.limits.peer.installations = 10;
+    let mut found = Problems::empty();
+    crate::startup::worker::checks::channel(&part.limits.bounds(), &mut found);
     assert_eq!(
         &*lines(&found),
         b"workers.limits.application_value_secret: 8625 bytes, past its bound of 8192\n".as_slice()

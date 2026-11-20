@@ -27,7 +27,7 @@ pub struct Tui {
     pub keeps: Vec<Option<Secret>>,
     pub opens: Vec<Box<[u8]>>,
     pub approval_asks: usize,
-    pub address: Option<Box<[u8]>>,
+    pub address: Option<temper_client_tui::Origin>,
     pub closed: bool,
     pub reads: usize,
     pub notes: Vec<Note>,
@@ -161,7 +161,7 @@ impl Tui {
                 plain: false,
                 version: Box::default(),
                 boxed: false,
-                address: ADDRESS.into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 kept: Vec::new(),
                 credential,
             }),
@@ -199,10 +199,15 @@ impl Tui {
         while world.now() < until {
             world.run(Until::Steps(1));
             let now = world.now();
-            let heard = world.front().heard(self.who, now);
-            self.clocks(world);
-            for event in heard {
-                self.report(world, Report::Heard(event));
+            loop {
+                let heard = world.front().heard(self.who, now);
+                self.clocks(world);
+                if heard.is_empty() {
+                    break;
+                }
+                for event in heard {
+                    self.report(world, Report::Heard(event));
+                }
             }
             if self.host.deadline().is_some_and(|at| at <= now) {
                 self.report(world, Report::Due);

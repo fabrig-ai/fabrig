@@ -15,13 +15,12 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         .output()
         .expect("init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    document["engine"]["projects"] = serde_json::json!([]);
-    document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
-    document["application"]["demo"] = serde_json::Value::Null;
-    document["application"]["landing"] = serde_json::json!({"projects": []});
-    fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
+    fs::write(
+        scratch.path().join("limits-held"),
+        "core.policy_bytes 100
+",
+    )
+    .expect("held limit");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
         .args(support::configuration::flags(scratch.path()))
@@ -31,7 +30,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     // Each executor place in four policy authorities adds 32 bytes.
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n",
+        "temper-box serve: limits-held line 1: core.policy_bytes (setting limits): core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -100,16 +99,21 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
     use std::os::unix::ffi::OsStrExt;
     let scratch = support::Scratch::startup("rung-b0-admission");
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    support::forge_land::rung::deployment(&paths);
+    let figures = support::forge_land::rung::deployment(&paths);
     let mut directories = support::configuration::directories(scratch.path());
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    let result = temper_box_shell::boxed_operations_in(
+    let result = temper_box_shell::operations_in_with_limits(
+        "temper",
         &[],
         b"/",
         &directories,
-        &fs::read(paths[0].join("temper.json")).expect("configuration"),
+        &support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document,
+        &temper_service::stock::Given::Stock,
+        &figures.jig,
+        &figures.limits,
     );
     assert!(result.is_ok(), "B0's real configuration admits before any live account: {:?}", result.err());
     scratch.remove();
@@ -173,10 +177,7 @@ esac
     stub
 }
 
-#[test]
-fn a_held_login_import_refuses_after_returning_without_starting_ctl() {
-    let scratch = support::Scratch::startup("held-login-import");
-    let root = scratch.path();
+fn held_import_echo(root: &Path) -> std::path::PathBuf {
     let stub = root.join("ctl-stub's path");
     support::write_private(
         &stub,
@@ -185,6 +186,47 @@ printf '%s\n' "$@"
 "#,
     );
     fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable ctl stub");
+    stub
+}
+
+#[test]
+fn a_held_login_import_waits_for_the_rust_file_lock() {
+    use std::os::unix::fs::OpenOptionsExt;
+    let scratch = support::Scratch::startup("held-login-lock");
+    let root = scratch.path();
+    let stub = held_import_echo(root);
+    let _call = support::held_login::import_guard(&stub, root, root, &[]);
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(root.join("login.lock"))
+        .expect("login lock");
+    lock.lock().expect("hold login lock in Rust");
+    let mut guard = support::parent::Guard::new(
+        std::process::Command::new(root.join("import-held"))
+            .env_clear()
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("start import wrapper"),
+    );
+    // One bounded observation while Rust holds the lock; ctl exits as soon as it starts.
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let blocked = guard.child.as_mut().expect("import child").try_wait().expect("import status").is_none();
+    drop(lock);
+    let output = guard.child.take().expect("import child").wait_with_output().expect("import after unlock");
+    assert!(blocked, "the import wrapper must not reach ctl while Rust holds login.lock");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).expect("ctl arguments"), format!("ctl\n{}\n", root.display()));
+    scratch.remove();
+}
+
+#[test]
+fn a_held_login_import_refuses_after_returning_without_starting_ctl() {
+    let scratch = support::Scratch::startup("held-login-import");
+    let root = scratch.path();
+    let stub = held_import_echo(root);
     let arguments = ["account", "import", "synthetic-record", "--key", "connect-plan"];
     let call = support::held_login::import_guard(&stub, root, root, &arguments);
     let ended = support::ctl::alone(root, call.clone());
@@ -276,7 +318,7 @@ fn a_rungs_setup_keeps_the_final_json_answer_after_progress_and_refuses_a_broken
 fn a_configuration_file_past_its_bound_is_refused() {
     let scratch = support::Scratch::startup("configuration-bound");
     let directory = scratch.path();
-    fs::File::create(directory.join("temper.json"))
+    fs::File::create(directory.join(temper_config_shell::FILE))
         .expect("configuration file")
         .set_len(1_048_577)
         .expect("one byte past bound");
@@ -284,7 +326,7 @@ fn a_configuration_file_past_its_bound_is_refused() {
         temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
             .err()
             .expect("refused"),
-        format!("temper serve: configuration {}: past 1048576 bytes\n", directory.join("temper.json").display())
+        format!("temper serve: {}: past 1048576 bytes\n", temper_config_shell::FILE)
     );
     scratch.remove();
 }
@@ -314,7 +356,7 @@ fn a_worker_root_reached_through_a_link_is_refused() {
     let directory = scratch.path();
     support::configuration(directory, &support::Forge::Unreached);
     fs::create_dir(directory.join("real-root")).expect("root directory");
-    symlink(directory.join("real-root"), directory.join("worker-root")).expect("linked root");
+    symlink(directory.join("real-root"), directory.join("workspaces")).expect("linked root");
     assert_eq!(
         temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
             .err()
@@ -327,11 +369,9 @@ fn a_worker_root_reached_through_a_link_is_refused() {
 fn problems_reach_stderr_one_line_each() {
     let scratch = support::Scratch::startup("problem-lines");
     let directory = scratch.path();
-    fs::write(directory.join("temper.json"), b"{}").expect("configuration");
     assert_eq!(
-        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-            .err()
-            .expect("refused"),
+        temper_box_shell::operations_in(&[], b"/", &support::configuration::directories(directory), b"{}")
+            .expect_err("refused"),
         "temper serve: engine: missing\ntemper serve: workers: missing\ntemper serve: application: missing\n"
     );
     scratch.remove();
@@ -341,22 +381,19 @@ fn problems_reach_stderr_one_line_each() {
 fn a_document_charter_is_refused_naming_temper_ctl_settings() {
     let scratch = support::Scratch::startup("stored-charters");
     support::configuration(scratch.path(), &support::Forge::Unreached);
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("configuration bytes")).expect("configuration JSON");
+    let path = scratch.path().join(temper_config_shell::FILE);
+    let mut document: serde_json::Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
     document["engine"]["charters"] = serde_json::json!([]);
-    support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
-    let ended = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
-        .arg("serve")
-        .args(support::configuration::flags(scratch.path()))
-        .env_clear()
-        .output()
-        .expect("serve refusal");
-    assert_eq!(ended.status.code(), Some(1));
-    assert_eq!((ended.stdout).len(), 0);
+    let why = temper_box_shell::operations_in(
+        &[],
+        b"/",
+        &support::configuration::directories(scratch.path()),
+        &serde_json::to_vec(&document).expect("start JSON"),
+    )
+    .expect_err("start refusal");
     assert_eq!(
-        ended.stderr,
-        b"temper serve: engine.charters: settings live in the store; read them with temper ctl DIR settings show\n"
+        why,
+        "temper serve: engine.charters: settings live in the store; read them with temper ctl DIR settings show\n"
     );
     scratch.remove();
 }
@@ -365,24 +402,21 @@ fn a_document_charter_is_refused_naming_temper_ctl_settings() {
 fn an_inline_seed_policy_is_refused_naming_its_path() {
     let scratch = support::Scratch::startup("inline-seed-policy");
     support::configuration(scratch.path(), &support::Forge::Unreached);
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("configuration bytes")).expect("configuration JSON");
+    let path = scratch.path().join(temper_config_shell::FILE);
+    let mut document: serde_json::Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
     let original: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("jig fixture");
-    document["engine"]["projects"][0]["policy"] = original["engine"]["projects"][0]["policy"].clone();
-    support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
-    let ended = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
-        .arg("serve")
-        .args(support::configuration::flags(scratch.path()))
-        .env_clear()
-        .output()
-        .expect("serve refusal");
-    assert_eq!(ended.status.code(), Some(1));
-    assert_eq!((ended.stdout).len(), 0);
+    document["engine"]["projects"] = original["engine"]["projects"].clone();
+    let why = temper_box_shell::operations_in(
+        &[],
+        b"/",
+        &support::configuration::directories(scratch.path()),
+        &serde_json::to_vec(&document).expect("start JSON"),
+    )
+    .expect_err("start refusal");
     assert_eq!(
-        ended.stderr,
-        b"temper serve: engine.projects[0].policy: name a policy, policy: 1; change it with temper ctl settings apply\n"
+        why,
+        "temper serve: engine.projects: moved: projects are made at runtime; make one from the client or temper ctl\n"
     );
     scratch.remove();
 }
@@ -411,42 +445,52 @@ fn an_address_with_no_token_in_the_directory_is_not_signed_in() {
 #[test]
 fn a_setup_limit_past_its_check_refuses_temper_serve_naming_both_limits() {
     let scratch = support::Scratch::startup("setup-limits");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("fixture")).expect("JSON");
-    value["application"]["limits"]["overrides"]["setup.backoff_ms"] = 6000.into();
-    support::write_private(
-        &scratch.path().join("temper.json"),
-        &serde_json::to_vec(&value).expect("configuration JSON"),
-    );
+    let mut value = support::configuration(scratch.path(), &support::Forge::Unreached);
+    value.temper_over("setup.backoff_ms", 6000);
     assert_eq!(
-        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
-            .err()
-            .expect("configuration refused"),
+        typed_prepare(scratch.path(), &value).err().expect("configuration refused"),
         "temper serve: application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n"
     );
     scratch.remove();
 }
-fn box_document(scratch: &support::Scratch) -> serde_json::Value {
-    support::configuration(scratch.path(), &support::Forge::Unreached);
-    serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration")).expect("JSON")
-}
-fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String {
-    support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(value).expect("JSON"));
-    temper_box_shell::run(
-        temper_box_shell::Command::Box {
-            directories: support::configuration::directories(scratch.path()),
-            echo: temper_box_machine::host::Echo::None,
-            front: false,
-            record: false,
-        },
+fn typed_prepare(
+    directory: &Path,
+    figures: &temper_playground::documents::Configuration,
+) -> Result<temper_box_shell::Service, String> {
+    let mut service = temper_box_shell::prepare_in_with_limits(
+        "temper",
         &[],
         b"/",
-        b"temper-box",
-        "0.0.0",
-        "0123456789ab",
+        &support::configuration::directories(directory),
+        &temper_service::stock::Given::Stock,
+        &[],
+        &figures.jig,
+        &figures.limits,
+    )?;
+    // These tests inspect a prepared start without driving its root.
+    temper_engine_shell::serve::close_limits_store(service.engine_component().store())?;
+    Ok(service)
+}
+fn box_document(scratch: &support::Scratch) -> serde_json::Value {
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    serde_json::from_slice(
+        &support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document,
     )
-    .expect_err("box refused")
+    .expect("JSON")
+}
+fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String {
+    let why = temper_box_shell::box_command::configuration_steps(
+        &support::configuration::directories(scratch.path()),
+        &serde_json::to_vec(value).expect("start JSON"),
+        Box::new([]),
+    )
+    .expect_err("box refused before building steps");
+    let mut lines = String::new();
+    for line in why.lines() {
+        writeln!(&mut lines, "temper-box: {line}").expect("diagnostic");
+    }
+    lines
 }
 #[test]
 fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
@@ -463,7 +507,7 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| panic!("serve's link: {diagnostic}"));
-    assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "{diagnostic}");
+    assert!(skein_lib::bytes::find(link, b"/sign-in?secret=").is_some(), "{diagnostic}");
     assert!(support::boxed::serve_listening(scratch.path()), "serve listens: {diagnostic}");
     assert!(!diagnostic.contains("application.setup"), "{diagnostic}");
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
@@ -488,10 +532,13 @@ fn a_box_adopts_an_inherited_clients_listener_without_binding_again() {
     support::own_listener_files(scratch.path());
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
     let address = listener.local_addr().expect("client address");
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    document["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
-    support::write_private(&path, &serde_json::to_vec(&document).expect("JSON"));
+    let dirs = support::configuration::directories(scratch.path());
+    let mut file = temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").file;
+    file.listen = Some(address);
+    support::write_private(
+        &scratch.path().join(temper_config_shell::FILE),
+        &temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
+    );
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
     command.args(support::configuration::flags(scratch.path()));
     let ended = listeners::probe(command, address, "secret=");
@@ -515,7 +562,7 @@ fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
         String::from_utf8(ended.stderr).expect("diagnostic"),
         format!(
             "temper-box: {}: inherited listener fd 3 at {address}: no step names this listener\n",
-            scratch.path().join("temper.json").display()
+            scratch.path().join(temper_config_shell::FILE).display()
         )
     );
     assert!(ended.stdout.is_empty(), "no step started");
@@ -539,10 +586,7 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             "0.0.0",
             "0123456789ab",
         ),
-        Err(format!(
-            "temper-box: configuration {}: absent; temper init writes one\n",
-            scratch.path().join("temper.json").display()
-        ))
+        Err(format!("temper-box: {}: absent; temper-box init writes one\n", temper_config_shell::FILE))
     );
     scratch.remove();
 }
@@ -565,91 +609,16 @@ fn a_setup_naming_no_forge_refuses_the_box_before_it_starts() {
     assert!(!scratch.path().join("forge-7").exists());
     scratch.remove();
 }
-#[test]
-fn a_box_maximum_backoff_below_its_base_is_refused() {
-    let scratch = support::Scratch::startup("box-backoff");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.backoff_max_ms"] = 100.into();
-    assert_eq!(
-        refused_box(&scratch, &value),
-        "temper-box: application.limits.overrides.box.backoff_ms: must agree with box.backoff_max_ms\n"
-    );
-    scratch.remove();
-}
-#[test]
-fn a_box_maximum_backoff_reaching_its_window_is_refused() {
-    let scratch = support::Scratch::startup("box-window");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.backoff_max_ms"] = 300_000.into();
-    assert_eq!(
-        refused_box(&scratch, &value),
-        "temper-box: application.limits.overrides.box.backoff_max_ms: must agree with box.window_ms\n"
-    );
-    scratch.remove();
-}
-#[test]
-fn a_box_restart_count_past_its_bound_is_refused() {
-    let scratch = support::Scratch::startup("box-restarts");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.restarts"] = 65.into();
-    assert_eq!(
-        refused_box(&scratch, &value),
-        "temper-box: application.limits.overrides.box.restarts: past its bound\n"
-    );
-    scratch.remove();
-}
-#[test]
-fn a_box_restart_count_outside_its_type_is_refused() {
-    let scratch = support::Scratch::startup("box-restarts-type");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.restarts"] = 4_294_967_296_u64.into();
-    assert_eq!(
-        refused_box(&scratch, &value),
-        "temper-box: application.limits.overrides.box.restarts: outside its type\n"
-    );
-    scratch.remove();
-}
-#[test]
-fn an_unknown_box_limit_is_refused() {
-    let scratch = support::Scratch::startup("box-unknown");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.nope"] = 1.into();
-    assert_eq!(
-        refused_box(&scratch, &value),
-        "temper-box: application.limits.overrides.box.nope: no limit of temper's has this name\n"
-    );
-    scratch.remove();
-}
-#[test]
-fn a_box_limit_past_its_check_refuses_temper_serve_too() {
-    let scratch = support::Scratch::startup("box-serve-refused");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.backoff_max_ms"] = 100.into();
-    support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&value).expect("JSON"));
-    assert_eq!(
-        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
-            .err()
-            .expect("serve refused"),
-        "temper serve: application.limits.overrides.box.backoff_ms: must agree with box.backoff_max_ms\n"
-    );
-    scratch.remove();
-}
-#[test]
-fn a_box_limit_within_its_check_is_accepted_by_temper_serve() {
-    let scratch = support::Scratch::startup("box-serve-accepted");
-    let mut value = box_document(&scratch);
-    value["application"]["limits"]["overrides"]["box.restarts"] = 3.into();
-    support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&value).expect("JSON"));
-    assert!(temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path())).is_ok());
-    scratch.remove();
-}
 
 fn owned_example(case: &str) -> support::Scratch {
     let scratch = support::Scratch::startup(case);
     let owned = support::owned::Owned::example();
     support::owned::lay(scratch.path(), &owned);
-    fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
-        .expect("example configuration");
+    fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        temper_config_shell::render(&support::owned::example_file(&owned), temper_config_shell::Shape::Standalone),
+    )
+    .expect("example configuration");
     scratch
 }
 #[test]
@@ -668,55 +637,60 @@ fn serve_prepares_once_on_the_owned_example() {
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
-/// The owned example, raised by what a worker of 8 slots and 10 workspaces needs.
-fn eight_slots(case: &str, leave: Option<&str>) -> support::Scratch {
+/// The owned example with typed engine figures for eight places and ten workspaces.
+fn eight_slots(case: &str) -> (support::Scratch, temper_playground::documents::Configuration) {
     let scratch = owned_example(case);
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    document["workers"][0]["slots"] = 8.into();
-    for (part, name, value) in [
-        ("worker", "hub.slots", 8),
-        ("engine", "fleet.slots", 8),
-        ("application", "checkout.workspaces", 10),
-        ("application", "git_component.operations", 10),
-    ] {
-        if leave != Some(name) {
-            let limits = if part == "worker" { &mut document["workers"][0] } else { &mut document[part] };
-            limits["limits"]["overrides"][name] = value.into();
-        }
-    }
-    fs::write(path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
-    scratch
+    let path = scratch.path().join(temper_config_shell::FILE);
+    let mut document = temper_playground::documents::Configuration::from_jig(support::start_document(
+        &path,
+        temper_config_shell::Shape::Standalone,
+    ));
+    document.jig_over("hub.slots", 8);
+    document.jig_over("fleet.slots", 8);
+    document.temper_over("checkout.workspaces", 10);
+    document.temper_over("git_component.operations", 10);
+    support::limit_settings::local_places(scratch.path(), 8);
+    (scratch, document)
 }
 
 #[test]
 fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
-    let scratch = eight_slots("eight-slots", None);
-    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
-    assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+    let (scratch, document) = eight_slots("eight-slots");
+    support::admission(scratch.path(), &document).expect("eight-place startup");
+    assert!(document["engine"].get("limits").is_none());
     scratch.remove();
 }
 
 #[test]
-fn serve_names_what_to_raise_for_eight_slots() {
-    for (name, line) in [
-        (
-            "hub.slots",
-            "workers[0].slots: past this worker's limits.overrides.hub.slots, which must be at least its slots",
-        ),
-        ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots"),
-        (
-            "checkout.workspaces",
-            "workers[0].slots: must agree with application.limits.overrides.checkout.workspaces, at least the slots",
-        ),
-        (
-            "git_component.operations",
-            "application.limits.overrides.git_component.operations: must agree with checkout.workspaces",
-        ),
-    ] {
-        let scratch = eight_slots(&format!("eight-slots-{name}"), Some(name));
-        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
-        assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
+fn serve_sizes_its_worker_from_eight_setting_places_not_document_slots() {
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
+    {
+        let (scratch, mut document) = eight_slots("eight-setting-places");
+        support::admission(scratch.path(), &document).expect("complete figures");
+        let local = fs::read(scratch.path().join("local.setting")).expect("local setting");
+        let local = WorkerSetting::decode(&CEILINGS, &mut skein_lib::Reader::new(&local)).expect("worker setting");
+        assert_eq!(local.places(), 8);
+        assert_eq!(document["workers"][0]["slots"], 1, "the file carries no places");
+        document.jig_over("hub.slots", 7);
+        document.temper_over("checkout.workspaces", 7);
+        document.temper_over("git_component.operations", 7);
+        let part = temper_service::startup::box_worker_with_limits(
+            &serde_json::to_vec(&document).expect("deployment JSON"),
+            &jig_protocol_config::Directories::working(),
+            &temper_service::stock::Given::Stock,
+            &temper_service::stock::agents(),
+            local.places(),
+            &[],
+            None,
+            (&document.jig, &document.limits),
+        )
+        .expect("engine figures")
+        .expect("worker");
+        assert_eq!(part.worker.jig.slots, 8);
+        assert_eq!(part.worker.jig.limits.expect("applied figures").hub.slots, 8);
+        assert_eq!(part.limits.checkout.workspaces, 8);
+        assert_eq!(part.limits.git_component.operations, 8);
+        typed_prepare(scratch.path(), &document).expect("derived capacities prepare");
         scratch.remove();
     }
 }
@@ -738,25 +712,26 @@ fn serve_prepares_once_on_a_bare_init() {
 #[test]
 fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     let scratch = owned_example("owned-call-input-bound");
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    // The owned agent declares tool_payload 10662; one below refuses, equality prepares.
+    let path = scratch.path().join(temper_config_shell::FILE);
+    let mut document = temper_playground::documents::Configuration::from_jig(support::start_document(
+        &path,
+        temper_config_shell::Shape::Standalone,
+    ));
+    // The owned agent declares tool_payload 63740; one below refuses, equality prepares.
     for (bound, expected) in [
         (
-            10661,
+            63739,
             Some(concat!(
-                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: 10661 bytes, short of the agent's call input (profile.declared.tool_payload), 10662 bytes; raise it to at least 10662 bytes, or omit it to follow the agent's call input\n",
-                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: call input 10662 bytes; wire answer 10661 bytes; smith host_reply_bytes 10662 bytes\n",
+                "engine.limits.overrides.core.call_answer_bytes: 63739 bytes, short of the agent's call input (profile.declared.tool_payload), 63740 bytes; raise it to at least 63740 bytes, or omit it to follow the agent's call input\n",
+                "engine.limits.overrides.core.call_answer_bytes: call input 63740 bytes; wire answer 63739 bytes; smith host_reply_bytes 63740 bytes\n",
             )),
         ),
-        (10662, None),
+        (63740, None),
     ] {
-        document["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
-        support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
-        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
+        document.jig_over("core.call_answer_bytes", bound);
+        let prepared = support::admission(scratch.path(), &document);
         match expected {
-            Some(lines) => assert_eq!(prepared.err().expect("call input refused"), lines),
+            Some(lines) => assert_eq!(prepared.expect_err("call input refused"), lines),
             None => assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default()),
         }
     }
@@ -766,9 +741,16 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
 #[test]
 fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let scratch = owned_example("owned-admission-bounds");
-    let path = scratch.path().join("owned/agent.json");
-    let original: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("agent fixture")).expect("agent JSON");
+    let bytes =
+        support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document;
+    let mut figures = temper_playground::documents::Configuration::stock(serde_json::from_slice(&bytes).expect("JSON"));
+    figures.jig_over("tasks.message_bytes", 10660);
+    figures.jig_over("tasks.result_bytes", 10660);
+    figures.jig_over("tasks.inbox_bytes", 874_120);
+    figures.limits.tool_payload = 10662;
+    temper_agent_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
+    let original = temper_agent_fixtures::read(scratch.path());
     for (member, value, expected) in [
         (
             "max_turns",
@@ -788,27 +770,21 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         ("max_turns", 800, None),
         (
             "check_timeout",
-            60001,
+            300_001,
             Some(
-                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
+                "engine.charters[1].reserve_time_ms: needs checks within 300000 ms; the agent's profile.policy.check_timeout is 300001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
             ),
         ),
-        ("check_timeout", 60000, None),
-        (
-            "check_timeout",
-            300_000,
-            Some(
-                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
-            ),
-        ),
+        ("check_timeout", 300_000, None),
+        ("check_timeout", 60_000, None),
         (
             "tool_payload",
-            10661,
+            63739,
             Some(
-                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 10659 (tool_payload less 2)\n",
+                "workers[0].limits.overrides.hub.event_bytes: 63738 bytes, past agents setting declared.tool_payload less the 2-byte separator of 63737\n",
             ),
         ),
-        ("tool_payload", 10662, None),
+        ("tool_payload", 63740, None),
         (
             "tool_payload",
             600,
@@ -820,13 +796,15 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let mut agent = original.clone();
         let section = if member == "tool_payload" { "declared" } else { "policy" };
         agent["profile"][section][member] = value.into();
-        support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
-        let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
+        temper_agent_fixtures::install(scratch.path(), &agent);
+        support::configuration::turn_bounds::apply(
+            &mut figures,
+            support::configuration::turn_bounds::turn_body(&agent),
+        );
+        let result = typed_prepare(scratch.path(), &figures);
         match expected {
             Some(line) if member != "tool_payload" => {
-                let temper_box_shell::Service::Joined(mut service) = result.expect("charter shortfalls warn") else {
-                    panic!("standalone service")
-                };
+                let mut service = result.expect("charter shortfalls warn");
                 assert_eq!(
                     service.notes().pop(),
                     Some(temper_service::Note::Engine(temper_service::EngineNote::StartupWarning {
@@ -848,11 +826,10 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     agent["profile"]["policy"]["max_turns"] = 5.into();
     agent["profile"]["policy"]["check_timeout"] = 300_000.into();
     agent["profile"]["declared"]["tool_payload"] = 600.into();
-    support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::install(scratch.path(), &agent);
+    support::configuration::turn_bounds::apply(&mut figures, support::configuration::turn_bounds::turn_body(&agent));
     assert_eq!(
-        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
-            .err()
-            .expect("old tuple refused"),
+        typed_prepare(scratch.path(), &figures).err().expect("old tuple refused"),
         "temper serve: engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     scratch.remove();
@@ -910,19 +887,25 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
         .expect("rendered message");
     assert!(agent.host_limits.message_bytes >= payload);
     let named = service::named(&bounded.document, &config::Directories::working()).expect("owned configuration");
+    let mut jig = config::worker(
+        &configuration_document(&value["workers"][0]),
+        0,
+        &config::Directories::working(),
+        &temper_service::startup::fixed_worker(),
+    )
+    .expect("worker configuration");
+    jig.limits = Some(engine.limits);
+    jig.agent = Some(temper_playground::documents::pinned_agent());
     let worker = &service::settings::Worker {
-        jig: config::worker(&configuration_document(&value["workers"][0]), 0, &config::Directories::working())
-            .expect("worker configuration"),
+        jig,
         root: named.worker.expect("standalone worker").root,
         git: Some(b"/usr/bin/git".as_slice().into()),
     };
-    let mut own = service::limits::profile(service::limits::Profile::Small);
-    for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("overrides") {
-        service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))
-            .expect("application override");
-    }
-    let own = &own;
-    assert!(worker.jig.limits.hub.event_bytes >= u64::from(agent.bounds.message_bytes));
+    let own = &temper_playground::documents::Configuration::stock(value.clone()).limits;
+    assert!(
+        worker.jig.limits.as_ref().expect("configured worker limits").hub.event_bytes
+            >= u64::from(agent.bounds.message_bytes)
+    );
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
     let prepared = service::worker_settings::prepare(worker, agent, &service::limits::worker(own))
         .expect("complete worker bounds");
@@ -944,7 +927,7 @@ fn the_owned_example_is_named_without_a_problem() {
     // Only naming a fixture document; no deployment or files are opened.
     let named = temper_service::named(support::owned::EXAMPLE, &jig_protocol_config::Directories::working())
         .expect("owned example named");
-    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"/home/me/temper/owned/agent.json");
+    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"agent.json");
     assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
     assert_eq!(named.deployment.as_ref(), b"state");
     for path in [b"forge-1/api_token".as_slice(), b"forge-1/user", b"forge-1/webhook_secret", b"forge-1/git_token"] {
@@ -959,12 +942,22 @@ fn the_owned_example_is_named_without_a_problem() {
 #[test]
 fn every_command_checks_setup_before_reading_files() {
     let scratch = owned_example("every-command-setup");
-    let path = scratch.path().join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["limits"]["overrides"]["setup.backoff_ms"] = 6000.into();
-    let bytes = serde_json::to_vec(&value).expect("configuration JSON");
-    support::write_private(&path, &bytes);
-    let line = "application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n";
+    support::owned::setup(
+        scratch.path(),
+        &support::owned::Names {
+            forgejo: Path::new("/opt/forgejo"),
+            runner: None,
+            port: 3000,
+            bot: "temper",
+            person: "ada",
+        },
+    );
+    let path = scratch.path().join(temper_config_shell::FILE);
+    support::write_private(&path, b"limits = {}\n");
+    let line = format!(
+        "{}:1: limits: moved: limits are settings; ask temper, or use temper ctl settings apply\n",
+        temper_config_shell::FILE
+    );
     for (command, refused) in [
         (
             "serve",
@@ -997,11 +990,11 @@ fn every_command_checks_setup_before_reading_files() {
         );
     }
     for verb in ["prepare", "run"] {
-        support::owned::refused(scratch.path(), verb, format!("temper forge {verb}: forge 1: {line}").as_bytes());
+        support::owned::refused(scratch.path(), verb, format!("temper-box forge {verb}: forge 1: {line}").as_bytes());
     }
     let runner = support::owned::command(scratch.path(), "runner").output().expect("runner refuses");
     assert_eq!(runner.status.code(), Some(1));
-    assert_eq!(runner.stderr, format!("temper forge run: forge 1: {line}").as_bytes());
+    assert_eq!(runner.stderr, format!("temper-box forge run: forge 1: {line}").as_bytes());
     scratch.remove();
 }
 
@@ -1010,8 +1003,6 @@ const DIGEST: &str = "bundle/0123456789abcdef";
 
 /// A refusal's row: its name, what spoils the bundle, and the start's refusal.
 type Spoiled<'a> = (&'a str, fn(&std::path::Path), &'a str);
-/// A limit's row: its name, the configuration's change, and the start's refusal.
-type Limited<'a> = (&'a str, fn(&mut serde_json::Value), &'a str);
 
 const BUNDLE_FILES: &[(&str, &[u8])] = &[
     ("index.html", PAGE),
@@ -1032,13 +1023,19 @@ fn fixture_bundle(directory: &std::path::Path) {
         fs::write(file, bytes).expect("bundle file");
     }
 }
-fn bundle_configuration(directory: &std::path::Path) {
-    support::configuration(directory, &support::Forge::Unreached);
-    let document = directory.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&document).expect("configuration")).expect("JSON");
-    value["application"]["clients"]["bundle"] = directory.join("bundle").to_str().expect("bundle path").into();
-    support::write_private(&document, &serde_json::to_vec(&value).expect("JSON"));
+fn file_problem(directory: &Path, member: &str, words: &str) -> String {
+    let keys =
+        support::read_start(&directory.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).keys;
+    format!("temper serve: {}\n", keys.render_member(member, words))
+}
+
+fn bundle_configuration(directory: &std::path::Path) -> temper_playground::documents::Configuration {
+    let figures = support::configuration(directory, &support::Forge::Unreached);
+    let document = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&document, temper_config_shell::Shape::Standalone);
+    file.internal.bundle = Some(directory.join("bundle"));
+    support::write_file(&document, &file, temper_config_shell::Shape::Standalone);
+    figures
 }
 #[test]
 fn a_bundle_directory_is_read_with_its_one_digest_directory() {
@@ -1263,13 +1260,13 @@ fn embedded_files_at_each_bound_are_admitted() {
 fn a_bundle_with_a_forge_sign_in_entry_starts_before_any_forge_is_kept() {
     let scratch = support::Scratch::startup("bundle-forge-sign-in");
     let directory = scratch.path();
-    bundle_configuration(directory);
+    let figures = bundle_configuration(directory);
     fixture_bundle(directory);
     fs::write(directory.join("bundle/index.html"), b"<!doctype html><head></head><body>temper</body>")
         .expect("page with a head");
     support::forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:7100", "127.0.0.1:7200");
     support::forge_sign_in::success(&support::forge_sign_in::command(directory).output().expect("sign-in key"));
-    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
+    let prepared = typed_prepare(directory, &figures);
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
@@ -1285,9 +1282,10 @@ fn a_bundle_page_without_a_head_refuses_the_start_for_its_metadata() {
         .expect("page refused");
     assert_eq!(
         why,
-        format!(
-            "temper serve: application.clients.bundle: {}/bundle: the page has no </head> for its sign-in metadata\n",
-            directory.display()
+        file_problem(
+            directory,
+            "application.clients.bundle",
+            &format!("{}/bundle: the page has no </head> for its sign-in metadata", directory.display())
         )
     );
     scratch.remove();
@@ -1327,37 +1325,15 @@ fn a_directory_that_is_no_bundle_refuses_the_start() {
             temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
                 .err()
                 .expect("refused"),
-            expected.replace(": bundle", &format!(": {}/bundle", directory.display())),
-            "row {name}"
-        );
-        scratch.remove();
-    }
-}
-#[test]
-fn a_bundle_past_a_limit_refuses_the_start() {
-    let rows: [Limited<'_>; 2] = [
-        (
-            "files",
-            |value| value["application"]["limits"]["overrides"]["clients.bundle_files"] = 2.into(),
-            "temper serve: application.clients.bundle: bundle/0123456789abcdef/files/robots.txt: past clients.bundle_files\n",
-        ),
-        (
-            "bytes",
-            |value| value["application"]["limits"]["overrides"]["clients.bundle_bytes"] = 61.into(),
-            "temper serve: application.clients.bundle: bundle/0123456789abcdef/files/robots.txt: past clients.bundle_bytes\n",
-        ),
-    ];
-    for (name, limit, expected) in rows {
-        let scratch = support::Scratch::startup(&format!("bundle-limit-{name}"));
-        let directory = scratch.path();
-        bundle_configuration(directory);
-        fixture_bundle(directory);
-        support::owned::configuration_value(directory, limit);
-        assert_eq!(
-            temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-                .err()
-                .expect("refused"),
-            expected.replace(": bundle", &format!(": {}/bundle", directory.display())),
+            file_problem(
+                directory,
+                "application.clients.bundle",
+                &expected
+                    .strip_prefix("temper serve: application.clients.bundle: ")
+                    .expect("bundle diagnostic")
+                    .trim_end()
+                    .replace("bundle", &format!("{}/bundle", directory.display()))
+            ),
             "row {name}"
         );
         scratch.remove();
@@ -1366,7 +1342,7 @@ fn a_bundle_past_a_limit_refuses_the_start() {
 
 #[test]
 fn programs_directories_are_checked_at_the_name_before_startup_effects() {
-    for row in ["missing", "private", "link", "linked-parent", "mode", "file"] {
+    for row in ["missing", "private", "link", "mode", "file"] {
         let scratch = support::Scratch::startup(&format!("programs-{row}"));
         let directory = scratch.path();
         support::configuration(directory, &support::Forge::Unreached);
@@ -1380,30 +1356,21 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
                     .expect("directory mode");
             }
         }
-        let path = match row {
-            "link" => {
-                let link = directory.join("linked");
-                symlink(&target, &link).expect("leaf link");
-                link
-            }
-            "linked-parent" => {
-                let parent = directory.join("parent");
-                symlink(directory, &parent).expect("parent link");
-                parent.join("programs")
-            }
-            _ => target.clone(),
-        };
-        let agent_path = directory.join("agent.json");
-        let mut agent: serde_json::Value =
-            serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
-        agent["programs"] = serde_json::json!({"claude_code":{"path":"/nonexistent/claude", "directory":path}});
-        fs::write(agent_path, serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
+        if row == "link" {
+            let real = directory.join("real-programs");
+            fs::rename(&target, &real).expect("move private program directory");
+            symlink(&real, &target).expect("leaf link");
+        }
+        let path = target.clone();
+        let mut agent = temper_agent_fixtures::read(directory);
+        agent["programs"] = serde_json::json!({"claude_code":{"path":"/usr/bin/true", "directory":path}});
+        temper_agent_fixtures::install(directory, &agent);
         // A later missing secret proves that the preflight neither creates nor inspects a login.
         fs::remove_file(directory.join("worker.secret")).expect("absent peer");
         let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
             .err()
             .expect("refused");
-        if ["missing", "private", "linked-parent"].contains(&row) {
+        if ["missing", "private"].contains(&row) {
             assert!(refused.contains("workers[0].secret"), "{row}: {refused}");
             assert!(!refused.contains("programs.claude_code.directory"), "{row}: {refused}");
         } else {
@@ -1415,13 +1382,10 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
             };
             assert_eq!(
                 refused,
-                format!(
-                    "temper serve: workers[0].agent.configuration: programs.claude_code.directory: {}: {reason}\n",
-                    path.display()
-                )
+                format!("temper serve: programs.claude_code.directory: {}: {reason}\n", path.display())
             );
         }
-        assert!(!directory.join("worker-root").exists(), "{row}: no worker root");
+        assert!(!directory.join("workspaces").exists(), "{row}: no worker root");
         assert!(!target.exists() || row != "missing", "missing programs stay missing");
         scratch.remove();
     }
@@ -1430,19 +1394,19 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
 #[test]
 fn program_login_refuses_invalid_input_before_creation() {
     use support::program_login::{configuration, no_deployment_resources, refused};
-    for row in ["no-program", "malformed", "missing-members", "oversized", "bad-agent", "bad-name"] {
+    for row in ["malformed", "wrong-type", "oversized", "bad-name"] {
         let scratch = support::Scratch::startup(&format!("login-{row}"));
         let directory = scratch.path();
         let programs = directory.join("programs");
         configuration(
             directory,
             (row != "no-program").then_some(programs.as_path()),
-            std::path::Path::new("/nonexistent/claude"),
+            std::path::Path::new("/usr/bin/true"),
         );
         match row {
-            "malformed" => fs::write(directory.join("temper.json"), b"{").expect("malformed JSON"),
-            "missing-members" => fs::write(directory.join("temper.json"), b"{}").expect("missing members"),
-            "oversized" => fs::File::create(directory.join("temper.json"))
+            "malformed" => fs::write(directory.join(temper_config_shell::FILE), b"[").expect("malformed TOML"),
+            "wrong-type" => fs::write(directory.join(temper_config_shell::FILE), b"owner = 42\n").expect("wrong type"),
+            "oversized" => fs::File::create(directory.join(temper_config_shell::FILE))
                 .expect("configuration")
                 .set_len(1_048_577)
                 .expect("past bound"),
@@ -1494,7 +1458,7 @@ fn program_login_checks_both_directory_names_before_creating_anything() {
             fs::write(target, b"file").expect("wrong kind");
             "not a directory"
         };
-        configuration(directory, Some(&programs), std::path::Path::new("/nonexistent/claude"));
+        configuration(directory, Some(&programs), std::path::Path::new("/usr/bin/true"));
         let why = refused(directory, "source".as_ref());
         assert!(why.contains(expected), "{row}: {why}");
         assert!(why.contains(&target.display().to_string()), "{row}: {why}");
@@ -1510,7 +1474,7 @@ fn program_login_checks_both_directory_names_before_creating_anything() {
 #[test]
 fn program_login_prepares_private_directories_through_each_supported_parent() {
     use support::program_login::{configuration, no_deployment_resources, refused};
-    for row in ["missing", "private", "linked-parent"] {
+    for row in ["missing", "private"] {
         let scratch = support::Scratch::startup(&format!("login-create-{row}"));
         let directory = scratch.path();
         let programs = directory.join("programs");
@@ -1524,7 +1488,10 @@ fn program_login_prepares_private_directories_through_each_supported_parent() {
         } else {
             programs.clone()
         };
-        configuration(directory, Some(&configured), std::path::Path::new("/nonexistent/claude"));
+        let program = directory.join("claude");
+        fs::write(&program, b"#!/nonexistent/interpreter\n").expect("unlaunchable executable");
+        fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).expect("executable mode");
+        configuration(directory, Some(&configured), &program);
         let why = refused(directory, "source".as_ref());
         assert!(why.starts_with("temper-box program-login: exec: "), "{row}: {why}");
         assert_eq!(why.lines().count(), 1);
@@ -1539,7 +1506,7 @@ fn program_login_prepares_private_directories_through_each_supported_parent() {
 #[test]
 fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr() {
     const NO_GIT: &str =
-        "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as workers[].git";
+        "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git";
     for (has_git, boxed) in [(true, false), (false, false), (true, true), (false, true)] {
         let scratch = support::Scratch::startup(&format!("init-command-{has_git}-{boxed}"));
         let bin = scratch.path().join("bin");
@@ -1562,9 +1529,9 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
-            vec!["worker.secret", "worker.digest", "demo/llm.key", "demo/bin/git", "agent.json", "temper.json"]
+            vec!["worker.secret", "demo/bin/git", temper_config_shell::FILE]
         } else {
-            vec!["worker.secret", "worker.digest", "agent.json", "temper.json"]
+            vec!["worker.secret", temper_config_shell::FILE]
         };
         for name in names {
             writeln!(expected, "init: wrote {}", scratch.path().join(name).display()).expect("string");
@@ -1583,11 +1550,9 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
 
         let diagnostics: Vec<_> = lines.lines().filter(|line| line.starts_with("init: no git")).collect();
         assert_eq!(diagnostics, if has_git { vec![] } else { vec![NO_GIT] });
-        let document: serde_json::Value =
-            serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration"))
-                .expect("JSON");
-        assert_eq!(document["application"]["workers"][0]["git"].is_null(), !has_git);
-        assert_eq!(document["application"]["welcome"].as_bool(), if boxed { Some(true) } else { None });
+        let document = temper_agent_fixtures::start(scratch.path());
+        assert!(document["application"].get("workers").is_none());
+        assert!(document["application"].get("welcome").is_none());
         assert_eq!(scratch.path().join("demo").exists(), boxed);
         if !boxed {
             assert!(!lines.contains("person is person"), "bare init has no person diagnostic");
@@ -1625,14 +1590,14 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
         if row == "nonempty" {
             assert_eq!(
                 result.expect_err("missing document"),
-                format!("configuration {}: absent; temper init writes one", dirs.document().display())
+                format!("{}: absent; temper-box init writes one", temper_config_shell::FILE)
             );
             assert_eq!(fs::read(config.join("other")).expect("kept"), b"kept");
             assert!(!data.exists());
             assert!(!cache.exists());
         } else {
             let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 5, "init retains its five listeners");
+            assert_eq!(held.len(), 2, "init retains clients and webhooks");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
             let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");
@@ -1678,7 +1643,7 @@ fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
             assert_eq!((output.stdout).len(), 0);
             assert_eq!(
                 String::from_utf8(output.stderr).expect("UTF-8 diagnostic"),
-                format!("temper serve: --box: fd {fd} is not an open pipe\n")
+                format!("temper-box serve: --box: fd {fd} is not an open pipe\n")
             );
         }
     }
@@ -1689,12 +1654,13 @@ fn serve_claims_its_clients_listener_and_box_pipes_follow_it() {
     for boxed in [false, true] {
         let scratch = support::Scratch::startup(if boxed { "inherited-boxed" } else { "inherited-serve" });
         support::configuration(scratch.path(), &support::Forge::Unreached);
+        support::stock_agent(scratch.path());
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
         let address = listener.local_addr().expect("address");
-        let path = scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("config")).expect("JSON");
-        value["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
-        support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+        let path = scratch.path().join(temper_config_shell::FILE);
+        let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
+        file.listen = Some(address);
+        support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
         let script = if boxed { "exec \"$@\" 3<&0 4>&1 5<&2 0</dev/null 2>&1" } else { "exec \"$@\" 3<&0 0</dev/null" };
         let mut command = listeners::command(listener, script);
         if boxed {
@@ -1707,7 +1673,7 @@ fn serve_claims_its_clients_listener_and_box_pipes_follow_it() {
         }
         let ended = listeners::probe(command, address, "secret=");
         drop(keep_answers_open);
-        assert!(ended.ready.is_some(), "serve ready: {:?} {:?}", ended.stdout, ended.stderr);
+        assert!(ended.ready.is_some(), "serve ready: {:?} {}", ended.stdout, String::from_utf8_lossy(&ended.stderr));
         assert!(ended.reply.expect("clients answer").starts_with(b"HTTP/1.1 "));
         assert!(ended.status.success(), "serve drains: {:?} {:?}", ended.stdout, ended.stderr);
         scratch.remove();
@@ -1770,74 +1736,56 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
     scratch.remove();
 }
 
-/// Hold only the limit maps this derivation owns; keep the document's other text.
+/// Documents carry no turn maps; workers receive them from the engine.
 fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
-    use support::configuration::turn_bounds;
     let text = fs::read_to_string(path).expect("turn-bound document");
-    let plain = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text.clone() };
-    let before: serde_json::Value = serde_json::from_str(&plain).expect("document JSON");
-    let mut after = before.clone();
-    turn_bounds::apply(&mut after, turn);
-    let mut maps = Vec::new();
-    for pointer in ["/engine/limits/overrides", "/application/limits/overrides"] {
-        if let Some(previous) = before.pointer(pointer) {
-            maps.push((previous, after.pointer(pointer).expect("same map")));
+    let plain = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
+    let document = template_start(path, &plain);
+    turn_bound_members(&document, &path.display().to_string(), turn);
+}
+fn template_start(path: &std::path::Path, text: &str) -> serde_json::Value {
+    if path.extension().is_some_and(|extension| extension == "toml") {
+        let mut text = text.to_owned();
+        for name in [
+            "story.clients",
+            "story.workers",
+            "story.webhooks",
+            "proc.forge.ready.address",
+            "proc.engine.ready.workers",
+            "place.clients",
+            "place.workers",
+            "place.webhooks",
+        ] {
+            text = text.replace(&format!("{{{name}}}"), "127.0.0.1:9");
+        }
+        let text = text.replace("{place.bundle}", "/fixture/bundle");
+        serde_json::from_slice(
+            &support::configuration::parse(text.as_bytes(), temper_config_shell::Shape::EngineAlone).document,
+        )
+        .expect("template start")
+    } else {
+        serde_json::from_str(text).expect("document JSON")
+    }
+}
+
+fn turn_bound_members(document: &serde_json::Value, source: &str, turn: u32) {
+    assert!(turn > 0, "the generated agent has a bounded turn");
+    for name in ["engine", "application"] {
+        if let Some(part) = document.get(name) {
+            assert!(part.get("limits").is_none(), "{source}: {name}.limits moved to settings");
         }
     }
-    if let Some(workers) = before["workers"].as_array() {
-        for (index, worker) in workers.iter().enumerate() {
-            maps.push((&worker["limits"]["overrides"], &after["workers"][index]["limits"]["overrides"]));
+    if let Some(workers) = document["workers"].as_array() {
+        for worker in workers {
+            assert!(worker.get("limits").is_none(), "{source}: workers take engine figures");
         }
     }
-    let write = temper_test_env::rewrite();
-    if !write {
-        assert_eq!(
-            before,
-            after,
-            "{}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-box --test suite -E 'test(turn_bounds)'",
-            path.display()
-        );
-        return;
-    }
-    let mut result = String::new();
-    let mut rest = plain.as_str();
-    while let Some(at) = rest.find("\"overrides\"") {
-        let start = at + rest[at..].find('{').expect("override map");
-        let end = start + rest[start..].find('}').expect("flat numeric overrides") + 1;
-        let previous: serde_json::Value = serde_json::from_str(&rest[start..end]).expect("override JSON");
-        let (_, next) = maps.iter().find(|(old, _)| **old == previous).expect("known override map");
-        result.push_str(&rest[..start]);
-        let indent = rest[..at].rsplit_once('\n').map_or("", |(_, line)| line);
-        let indent = &indent[..indent.len() - indent.trim_start().len()];
-        let map = serde_json::to_string_pretty(next).expect("limit map JSON");
-        result.push_str(&map.replace('\n', &format!("\n{indent}")));
-        rest = &rest[end..];
-    }
-    result.push_str(rest);
-    if escaped {
-        // Only JSON object braces are doubled in the fixture's format; interpolation
-        // braces inside quoted strings remain the fixture reader's expressions.
-        let mut in_string = false;
-        let mut slash = false;
-        result = result.chars().fold(String::new(), |mut out, c| {
-            if !in_string && matches!(c, '{' | '}') {
-                out.push(c);
-            }
-            out.push(c);
-            if c == '"' && !slash {
-                in_string = !in_string;
-            }
-            slash = c == '\\' && !slash;
-            out
-        });
-    }
-    fs::write(path, result).expect("write derived turn bounds");
 }
 
 #[test]
 fn the_live_github_configuration_passes_startup_admission() {
     use std::os::unix::ffi::OsStrExt;
-    use support::live_github::{configure_engine, document};
+    use support::live_github::configure_engine;
 
     let templates = skein_scratch::paths::package().join("tests/fixtures/github");
     let api = "127.0.0.1:31001".parse().expect("synthetic API socket");
@@ -1856,14 +1804,22 @@ fn the_live_github_configuration_passes_startup_admission() {
     }
     cluster.prepare("engine");
     cluster.prepare("w1");
-    let engine_path = cluster.dir("engine").join("config/temper.json");
-    let mut engine = document(&engine_path);
+    let engine_path = cluster.dir("engine").join("config").join(temper_config_shell::FILE);
+    let mut engine = temper_playground::documents::Configuration::from_jig(support::start_document(
+        &engine_path,
+        temper_config_shell::Shape::EngineAlone,
+    ));
     configure_engine(&mut engine, owner, api, git, workers);
-    support::write_private(&engine_path, &serde_json::to_vec(&engine).expect("live-shaped engine JSON"));
-    let worker_path = cluster.dir("w1").join("config/temper.json");
-    let mut worker = document(&worker_path);
-    worker["application"]["workers"][0]["git"] = "/usr/bin/git".into();
-    support::write_private(&worker_path, &serde_json::to_vec(&worker).expect("worker JSON"));
+    let mut file = support::read_file(&engine_path, temper_config_shell::Shape::EngineAlone);
+    file.workers = Some(workers);
+    file.test.github = Some(temper_config_shell::TestGitHub {
+        api: api.to_string(),
+        transport: temper_config_shell::Transport::Plaintext,
+        remote: format!("http://{git}"),
+        web: format!("http://{git}"),
+        git: None,
+    });
+    support::write_file(&engine_path, &file, temper_config_shell::Shape::EngineAlone);
     for member in ["engine", "w1"] {
         let directory = cluster.dir(member);
         let config = directory.join("config");
@@ -1881,9 +1837,44 @@ fn the_live_github_configuration_passes_startup_admission() {
         .map(Box::from)
         .collect();
         let (directories, _) = temper_box_shell::directories::resolve(&args, &[], b"/").expect("member directories");
-        let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
-        let operations = temper_box_shell::operations_in(&[], b"/", &directories, &bytes)
-            .unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
+        let bytes = support::read_start(
+            &config.join(temper_config_shell::FILE),
+            if member == "engine" {
+                temper_config_shell::Shape::EngineAlone
+            } else {
+                temper_config_shell::Shape::WorkerAlone
+            },
+        )
+        .document;
+        let operations = if member == "w1" {
+            let mut part = temper_worker_service::startup::worker_part(
+                &bytes,
+                &temper_box_shell::directories::jig_directories(&directories),
+                None,
+                &[],
+            )
+            .expect("worker part");
+            part.named.program = skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into();
+            part.named.arguments = Box::new([part.named.agent.clone()]);
+            let files =
+                temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())
+                    .expect("worker files");
+            let mut descriptors = Vec::new();
+            let service = temper_worker_shell::worker::from_figures(
+                part,
+                support::cluster::figures_with_limits(&engine),
+                &files,
+                &directories,
+                &mut descriptors,
+                &[],
+            )
+            .expect("worker figures admission");
+            let operations = service.operations();
+            temper_service_shell::close(descriptors);
+            operations
+        } else {
+            crate::admission(&directories, &bytes).unwrap_or_else(|why| panic!("{owner}/{member}: {why}"))
+        };
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
     scratch.remove();
@@ -1903,18 +1894,18 @@ fn the_reference_profile_passes_startup_admission() {
 #[test]
 fn checked_in_deployment_profiles_pass_startup_admission() {
     let profiles = [
-        "docs/examples/owned.json",
-        "crates/temper-init/template/temper.json",
-        "bin/temper-box/tests/fixtures/cluster/engine.json",
-        "bin/temper-box/tests/fixtures/cluster/w1.json",
-        "bin/temper-box/tests/fixtures/cluster/w2.json",
+        "docs/examples/owned.json".to_owned(),
+        "init --box".to_owned(),
+        format!("bin/temper-box/tests/fixtures/cluster/engine/{}", temper_config_shell::FILE),
+        format!("bin/temper-box/tests/fixtures/cluster/w1/{}", temper_config_shell::FILE),
+        format!("bin/temper-box/tests/fixtures/cluster/w2/{}", temper_config_shell::FILE),
     ];
     let mut failures = String::new();
     for (index, relative) in profiles.iter().enumerate() {
         let scratch = support::Scratch::startup(&format!("deployment-profile-{index}"));
-        let profile = match *relative {
+        let profile = match relative.as_str() {
             "docs/examples/owned.json" => support::owned::bounded(scratch.path()),
-            "crates/temper-init/template/temper.json" => support::owned::bounded_template(scratch.path()),
+            "init --box" => support::owned::bounded_template(scratch.path()),
             _ => support::owned::deployment_profile(scratch.path(), relative),
         };
         let turn = profile.agent.limits.bodies.turn_body;
@@ -1938,34 +1929,81 @@ fn checked_in_deployment_profiles_pass_startup_admission() {
 #[test]
 fn turn_bounds() {
     let root = skein_scratch::paths::tree();
-    for (deployment, agent) in [
-        ("crates/temper-init/template/temper.json", "crates/temper-init/template/agent.json"),
-        ("crates/temper-init/template/bare.json", "crates/temper-init/template/bare-agent.json"),
-        ("docs/examples/owned.json", "docs/examples/owned/agent.json"),
-    ] {
-        let agent: serde_json::Value =
-            serde_json::from_slice(&fs::read(root.join(agent)).expect("agent document")).expect("agent JSON");
+    for boxed in [false, true] {
+        let agent = temper_agent_fixtures::stock(boxed);
         let turn = support::configuration::turn_bounds::turn_body(&agent);
-        turn_bound_document(&root.join(deployment), turn, false);
-        eprintln!("{deployment}: T={turn}");
+        let document = serde_json::from_slice(&temper_config_shell::init_document(boxed)).expect("init start");
+        turn_bound_members(&document, "init", turn);
     }
+    let deployment = "docs/examples/owned.json";
+    let agent = temper_agent_fixtures::configuration(
+        &serde_json::from_slice(&fs::read(root.join(deployment)).expect("owned document")).expect("JSON"),
+    );
+    let turn = support::configuration::turn_bounds::turn_body(&agent);
+    turn_bound_document(&root.join(deployment), turn, false);
     let directory = root.join("bin/temper-box/tests/fixtures/cluster");
-    let agent = fs::read_to_string(directory.join("agent.json")).expect("cluster agent");
-    let agent: serde_json::Value =
-        serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("cluster agent JSON");
+    let scratch = support::Scratch::startup("cluster-turn-bounds");
+    let cluster = support::cluster::Cluster::documents(
+        scratch.path(),
+        &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
+    );
+    let engine: serde_json::Value = serde_json::from_slice(
+        &support::read_start(
+            &cluster.dir("engine").join("config").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::EngineAlone,
+        )
+        .document,
+    )
+    .expect("JSON");
+    let agent = support::cluster::agent_configuration(&engine, scratch.path());
     let turn = support::configuration::turn_bounds::turn_body(&agent);
-    for name in ["engine.json", "w1.json", "w2.json"] {
-        turn_bound_document(&directory.join(name), turn, true);
-    }
+    turn_bound_document(&directory.join("engine").join(temper_config_shell::FILE), turn, true);
+    scratch.remove();
     eprintln!("cluster fixture: T={turn}");
-    let github = root.join("bin/temper-box/tests/fixtures/github");
-    let agent = fs::read_to_string(github.join("agent.json")).expect("GitHub agent");
-    let agent: serde_json::Value =
-        serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("GitHub agent JSON");
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    for name in ["engine.json", "w1.json"] {
-        turn_bound_document(&github.join(name), turn, true);
+    let turn = temper_playground::documents::agent().limits.bodies.turn_body;
+    turn_bound_document(&root.join("crates/temper-playground/stories/a/deployment.json"), turn, false);
+    eprintln!("story A: T={turn}");
+    for (relative, escaped) in [
+        (format!("bin/temper-box/tests/fixtures/cluster-turn/engine/{}", temper_config_shell::FILE), true),
+        ("docs/development/qa/setups/turn-landing/config/engine.toml".to_owned(), false),
+        ("docs/development/qa/setups/stock-landing/config/engine.toml".to_owned(), false),
+    ] {
+        let path = root.join(relative);
+        let text = fs::read_to_string(&path).expect("engine-figures fixture");
+        let text = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
+        let mut text = text;
+        for name in [
+            "story.workers",
+            "story.clients",
+            "story.webhooks",
+            "proc.llm.ready.address",
+            "place.model",
+            "place.workers",
+        ] {
+            text = text.replace(&format!("{{{name}}}"), "127.0.0.1:9");
+        }
+        let mut engine = template_start(&path, &text);
+        // The turn needs only the LLM profile, so the unrendered worker address is inert.
+        engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:9"}]);
+        let agent = support::cluster::agent_configuration(&engine, std::path::Path::new("/fixture"));
+        let turn = support::configuration::turn_bounds::turn_body(&agent);
+        turn_bound_document(&path, turn, escaped);
     }
+    let github = root.join("bin/temper-box/tests/fixtures/github");
+    let source = fs::read_to_string(github.join("engine").join(temper_config_shell::FILE)).expect("GitHub engine");
+    let mut source = source.replace("{{", "{").replace("}}", "}");
+    for (name, value) in [
+        ("{proc.llm.ready.address}", "127.0.0.1:1"),
+        ("{proc.forge.ready.address}", "127.0.0.1:2"),
+        ("{story.clients}", "127.0.0.1:3"),
+        ("{proc.llm.dir}", "/fixture"),
+    ] {
+        source = source.replace(name, value);
+    }
+    let engine = template_start(&github.join("engine").join(temper_config_shell::FILE), &source);
+    let agent = support::cluster::agent_configuration(&engine, std::path::Path::new("/fixture"));
+    let turn = support::configuration::turn_bounds::turn_body(&agent);
+    turn_bound_document(&github.join("engine").join(temper_config_shell::FILE), turn, true);
 }
 
 #[test]
@@ -1977,25 +2015,25 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
         .output()
         .expect("init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
-    let limits = &mut document["engine"]["limits"]["overrides"];
-    limits["hub.turn_bytes"] = hub.turn_bytes.into();
-    limits["hub.transcript_bytes"] = hub.transcript_bytes.into();
-    limits["hub.turn_queue_bytes"] = hub.turn_queue_bytes.into();
-    fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
+    let hub = jig_protocol_config_fixtures::small().hub;
+    support::write_private(
+        &scratch.path().join("limits-held"),
+        format!(
+            "hub.turn_bytes {}\nhub.transcript_bytes {}\nhub.turn_queue_bytes {}\n",
+            hub.turn_bytes, hub.transcript_bytes, hub.turn_queue_bytes
+        )
+        .as_bytes(),
+    );
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
         .args(support::configuration::flags(scratch.path()))
         .output()
         .expect("serve");
-    let agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("agent.json")).expect("agent")).expect("agent JSON");
+    let agent = temper_agent_fixtures::read(scratch.path());
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).lines().find(|line| line.starts_with("temper serve:")).expect("startup problem").starts_with(&format!(
-        "temper serve: engine.limits.overrides.hub.turn_bytes: 65536 bytes, short of the agent's largest turn, {turn} bytes"
+    assert!(String::from_utf8_lossy(&output.stderr).contains(&format!(
+        "temper-box serve: limits-held line 1: hub.turn_bytes (setting limits): 65536 bytes, short of the source's derivation, {turn} bytes"
     )), "{}", String::from_utf8_lossy(&output.stderr));
     scratch.remove();
 }
@@ -2021,7 +2059,7 @@ fn forge_run_refuses_a_listener_at_the_wrong_address_before_taking_the_lock() {
     assert_eq!(ended.status.code(), Some(1));
     assert_eq!(
         String::from_utf8(ended.stderr).expect("diagnostic"),
-        format!("temper forge run: forge 1: fd 3 listens at {found}, expected owned.listen 127.0.0.1:9\n")
+        format!("temper-box forge run: forge 1: fd 3 listens at {found}, expected owned.listen 127.0.0.1:9\n")
     );
     assert!(!scratch.path().join("forge-1/forgejo.lock").exists());
     scratch.remove();
@@ -2040,12 +2078,12 @@ fn forge_run_keeps_fd_three_through_the_version_spawn_and_exec() {
             r#"#!/bin/sh
 if [ "$1" = --version ]; then
     test -z "${{LISTEN_FDS+x}}" || exit 20
-    test ! -S /proc/self/fd/3 || exit 21
+    test ! -S /dev/fd/3 || exit 21
     printf 'forgejo version {VERSION}\n'
     exit 0
 fi
 test "$LISTEN_FDS" = 1 || exit 22
-test -S /proc/self/fd/3 || exit 23
+test -S /dev/fd/3 || exit 23
 printf 'inherited fd 3 after exec\n'
 "#
         ),
@@ -2282,20 +2320,6 @@ fn forge_child_refuses_a_wrong_parent_or_missing_program_without_reading_a_docum
 }
 
 #[test]
-fn box_logs_must_hold_one_whole_record_and_tails_at_least_one_line() {
-    for (name, value) in [("log_bytes", 4117), ("tail_lines", 0)] {
-        let scratch = support::Scratch::startup(&format!("box-{name}"));
-        let mut document = box_document(&scratch);
-        document["application"]["limits"]["overrides"][format!("box.{name}")] = value.into();
-        assert_eq!(
-            refused_box(&scratch, &document),
-            format!("temper-box: application.limits.overrides.box.{name}: past its bound\n")
-        );
-        scratch.remove();
-    }
-}
-
-#[test]
 fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
     let scratch = support::Scratch::startup("box-both-models");
     let clock = skein_shell::Clock::new();
@@ -2314,9 +2338,7 @@ fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
     );
     eprintln!("fresh box Model step: {} ms", clock.now().now.as_nanos().saturating_sub(began.as_nanos()) / 1_000_000);
     assert!(seen.finished, "{}", String::from_utf8_lossy(&seen.stderr));
-    let agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("agent.json")).expect("agent document"))
-            .expect("agent JSON");
+    let agent = temper_agent_fixtures::read(scratch.path());
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     scratch.remove();
 }
@@ -2336,7 +2358,7 @@ fn a_fetched_program_runs_through_its_launcher() {
         .output()
         .unwrap();
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
-    let agent: serde_json::Value = serde_json::from_slice(&fs::read(directory.join("agent.json")).unwrap()).unwrap();
+    let agent = temper_agent_fixtures::read(directory);
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     let build = claude_code::build(
         if cfg!(target_os = "macos") {
@@ -2353,6 +2375,7 @@ fn a_fetched_program_runs_through_its_launcher() {
     fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s %s' \"$DISABLE_AUTOUPDATER\" \"$DISABLE_UPDATES\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf '%s' \"$ANTHROPIC_CONFIG_DIR\" > '{}/anthropic-source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display(), directory.display())).unwrap();
     fs::OpenOptions::new().write(true).open(&file).unwrap().set_len(build.bytes).unwrap();
     fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+    fs::set_permissions(directory.join("claude-code"), fs::Permissions::from_mode(0o700)).unwrap();
     let login = std::process::Command::new(&temper)
         .arg("program-login")
         .args(support::configuration::flags(directory))
@@ -2410,14 +2433,20 @@ fn program_login_places_both_launcher_links_only_for_a_fetched_program() {
         support::program_login::configuration(
             directory,
             Some(&programs),
-            if fetched { Path::new("fetched") } else { Path::new("/missing/claude") },
+            if fetched { Path::new("fetched") } else { Path::new("/usr/bin/false") },
         );
         let mut command = std::process::Command::new(skein_scratch::paths::binary("temper-box"));
-        command.arg("program-login").args(support::configuration::flags(directory)).arg("source").env_clear();
+        command
+            .arg("program-login")
+            .args(support::configuration::flags(directory))
+            .arg("source")
+            .env_clear()
+            .env("PATH", directory.join("program-bin"));
         // A wrong-sized cached build refuses before any network request.
         let build = directory.join("claude-code/2.1.311/claude");
         fs::create_dir_all(build.parent().unwrap()).unwrap();
         fs::write(&build, b"wrong size").unwrap();
+        fs::set_permissions(directory.join("claude-code"), fs::Permissions::from_mode(0o700)).unwrap();
         let launcher = directory.join("claude-code/claude");
         let cache = directory.join("claude-code/cache");
         if fetched {
@@ -2449,46 +2478,40 @@ fn program_login_places_both_launcher_links_only_for_a_fetched_program() {
 }
 
 #[test]
-fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
-    for worker in [false, true] {
-        for fetched in [false, true] {
-            let scratch = support::Scratch::startup(&format!("serve-launcher-{worker}-{fetched}"));
-            let directory = scratch.path();
-            support::program_login::configuration(
-                directory,
-                Some(&directory.join("programs")),
-                if fetched { Path::new("fetched") } else { Path::new("/found/claude") },
-            );
-            for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-                if !name.starts_with(b"charters/") {
-                    let path = directory.join(std::str::from_utf8(&name).unwrap());
-                    fs::create_dir_all(path.parent().unwrap()).unwrap();
-                    support::write_private(&path, bytes.expose());
-                }
+fn serve_places_links_only_for_a_fetched_program() {
+    for fetched in [false, true] {
+        let scratch = support::Scratch::startup(&format!("serve-launcher-{fetched}"));
+        let directory = scratch.path();
+        support::program_login::configuration(
+            directory,
+            Some(&directory.join("programs")),
+            if fetched { Path::new("fetched") } else { Path::new("/usr/bin/true") },
+        );
+        for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
+            if !name.starts_with(b"charters/") && name.as_ref() != b"agent.json" {
+                let path = directory.join(std::str::from_utf8(&name).unwrap());
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                support::write_private(&path, bytes.expose());
             }
-            support::write_private(&directory.join("worker.secret"), b"worker-secret");
-            if worker {
-                let document = directory.join("temper.json");
-                let mut input: serde_json::Value = serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
-                input.as_object_mut().unwrap().remove("engine");
-                input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-                input["application"] = serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
-                fs::write(&document, serde_json::to_vec(&input).unwrap()).unwrap();
-            }
-            let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
-            assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
-            let launcher = directory.join("claude-code/claude");
-            let cache = directory.join("claude-code/cache");
-            if fetched {
-                assert_eq!(fs::read_link(&launcher).unwrap(), skein_scratch::paths::binary("temper-box"));
-                assert_eq!(fs::read_link(&cache).unwrap(), directory);
-            } else {
-                assert!(fs::symlink_metadata(launcher).is_err());
-                assert!(fs::symlink_metadata(cache).is_err());
-            }
-            assert!(!directory.join("claude-code/2.1.311").exists(), "startup fetches nothing");
-            scratch.remove();
         }
+        support::write_private(&directory.join("worker.secret"), b"worker-secret");
+        let prepared = temper_box_shell::prepare_in(
+            &support::program_login::environment(directory),
+            b"/",
+            &support::configuration::directories(directory),
+        );
+        assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+        let launcher = directory.join("claude-code/claude");
+        let cache = directory.join("claude-code/cache");
+        if fetched {
+            assert_eq!(fs::read_link(&launcher).unwrap(), std::env::current_exe().unwrap());
+            assert_eq!(fs::read_link(&cache).unwrap(), directory);
+        } else {
+            assert!(fs::symlink_metadata(launcher).is_err());
+            assert!(fs::symlink_metadata(cache).is_err());
+        }
+        assert!(!directory.join("claude-code/2.1.311").exists(), "startup fetches nothing");
+        scratch.remove();
     }
 }
 

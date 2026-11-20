@@ -1,5 +1,6 @@
 //! The visitor against a scripted HTTP host (skein/docs/design/playground.md, 8).
 mod server;
+pub mod tab;
 use server::Server;
 use skein_http::{Header, client as http};
 use skein_io::{self as io, kernel};

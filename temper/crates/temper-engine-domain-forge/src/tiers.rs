@@ -1,4 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierLanding, TierRow, Topic, What};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -6,10 +7,13 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
+pub(crate) mod filing;
 mod goals;
 pub(crate) mod hold;
 pub(crate) mod parts;
 mod post;
+mod report;
+pub use report::tier_report_words;
 pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
@@ -78,7 +82,7 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
 fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
     match &tier.follows {
         Follows::Branch(branch) => Some(branch.clone()),
-        Follows::Landing => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+        Follows::Landing => Some(d.repositories.get(&repository)?.landing.clone()),
         Follows::Goals => None,
     }
 }
@@ -233,7 +237,10 @@ fn word(out: &mut skein_lib::Writer, value: usize) {
 
 fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
     TierRow {
+        many: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([]),
         repository,
         tier,
@@ -347,6 +354,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             let range = range.into_boxed();
             let next = p::start(&row.record, target.commit, tip_key, range, None, &settings(d, repository));
             let p::Next::Dispatch(run) = next else { unreachable!("a run without a receipt dispatches") };
+            row.many = None;
             row.result = d.landing.receipts.get(&receipt_key(d, &row, tip_key)).cloned();
             row.received = row.result.is_some();
             row.record.run = Some(run);
@@ -712,6 +720,7 @@ fn fault_words(run: &p::Run, workflow: &[u8], fault: landing::Fault) -> Box<[u8]
         landing::Fault::SetUp => b"set-up",
         landing::Fault::Completion => b"completion",
         landing::Fault::NoStep => b"no step",
+        landing::Fault::Unreported => b"no report uploaded",
         landing::Fault::Cancelled => b"cancelled",
         landing::Fault::OtherCommit => b"other commit",
         landing::Fault::Lost => b"lost",
@@ -737,6 +746,9 @@ fn observed_part(
         }
         Some(landing::Verdict::Failed | landing::Verdict::Running) | None => return,
     };
+    if row.record.run.as_ref().expect("observed run").part == p::Part::Whole {
+        row.many = None;
+    }
     advance(d, env, row, follow, outcome, out);
 }
 fn reported_part(
@@ -939,16 +951,28 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u
             return;
         }
     } else {
-        let newly_red = red::landings(d, row, &verdict);
-        if !newly_red.is_empty() {
-            let Some(logs) = red::logs(d, env, row, out) else {
+        let project = d.repositories.get(&row.repository).expect("adopted tier").project;
+        let ends_landed = match d.after_landing(project) {
+            Some(after) => after.wait == temper_engine_domain_forge_change::Wait::Landed,
+            None => false,
+        };
+        if ends_landed {
+            if !filing::finish(d, env, row, &verdict, out) {
                 wait(row.task.expect("tier task"), out);
                 return;
-            };
-            red::landed(d, row, &newly_red, &logs, message_bytes, out);
+            }
+        } else {
+            let newly_red = red::landings(d, row, &verdict);
+            if !newly_red.is_empty() {
+                let Some(logs) = red::logs(d, env, row, out) else {
+                    wait(row.task.expect("tier task"), out);
+                    return;
+                };
+                red::landed(d, row, &newly_red, &logs, message_bytes, out);
+            }
         }
         let run = row.record.run.as_ref().expect("judged range");
-        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
+        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, row.many.as_ref(), out);
     }
     let run = row.record.run.clone();
     if !goal {
@@ -1196,7 +1220,7 @@ pub(crate) fn step(
     }
 }
 fn room(d: &Domain, env: &Env<Limits>, entry: u64) -> bool {
-    !d.entries.contains_key(&entry) && d.entries.len() < env.limits.entries
+    !d.entries.contains_key(&entry) && crate::room::check(d, &env.limits, None)
 }
 fn task_key(d: &Domain, task: u64) -> Option<(Repository, Box<[u8]>)> {
     for (key, row) in &d.tiers {
@@ -1843,9 +1867,43 @@ fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p:
             })
             .expect("bounded range");
     }
-    posted_words(&row.tier, verdict, posted.as_slice())
+    posted_row_words(row, verdict, posted.as_slice())
 }
-fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
+fn posted_row_words(row: &TierRow, verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    parts.push(posted_words(&row.tier, verdict, landings, row.many.as_ref())).expect("verdict words");
+    if !row.waiting.is_empty() {
+        parts
+            .push(joined(&[
+                b"\n",
+                skein_lib::Decimal::of(skein_lib::len_u64(row.waiting.len())).as_bytes(),
+                b" red filings wait for room in the project's findings.",
+            ]))
+            .expect("waiting count");
+    }
+    if row.unkept > 0 {
+        parts
+            .push(joined(&[
+                b"\n",
+                skein_lib::Decimal::of(u64::from(row.unkept)).as_bytes(),
+                b" red filings were dropped for want of room.",
+            ]))
+            .expect("unkept count");
+    }
+    let mut words = List::uncapped();
+    for part in parts.as_slice() {
+        for byte in part {
+            words.push(*byte).expect("verdict words");
+        }
+    }
+    words.into_boxed()
+}
+fn posted_words(
+    tier: &[u8],
+    verdict: &p::Verdict,
+    landings: &[crate::TierPostedLanding],
+    many: Option<&p::ManyTests>,
+) -> Box<[u8]> {
     let mut parts = List::uncapped();
     parts.push(verdict_summary(tier, verdict)).expect("verdict words");
     for (at, blame) in verdict.landings.iter().enumerate() {
@@ -1871,6 +1929,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
             }
         }
     }
+    if verdict.failing == p::Failures::Many
+        && let Some(many) = many
+        && !many.tests.is_empty()
+    {
+        let mut names = Box::from(b"\nIts report names: ".as_slice());
+        for (at, test) in many.tests.iter().enumerate() {
+            names = joined(&[&names, if at == 0 { b"" } else { b", " }, &report_id(test)]);
+        }
+        if let Some(tail) = crate::many_remainder(many, 0) {
+            names = joined(&[&names, b" ", &tail]);
+        }
+        parts.push(joined(&[&names, b"."])).expect("many names line");
+    }
     let mut words = List::uncapped();
     for part in parts.as_slice() {
         for byte in part {
@@ -1881,7 +1952,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
 }
 
 fn landing_change(d: &Domain, repository: Repository, commit: Commit) -> Option<u64> {
-    d.verifications.get(&(repository, commit))?.changes.first().copied()
+    if let Some(verification) = d.verifications.get(&(repository, commit)) {
+        return verification.changes.first().copied();
+    }
+    let log = d.landing_log(repository)?;
+    for landing in &log.landings {
+        if landing.commit == commit {
+            return match landing.changes.first() {
+                Some(member) => Some(member.task),
+                None => None,
+            };
+        }
+    }
+    None
 }
 
 // One complete attribution per line lets the task shell fit its report without cutting an ID.

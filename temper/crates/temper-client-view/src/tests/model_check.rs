@@ -13,6 +13,7 @@ use temper_client_domain::{
     pages::{accounts::Way, connect_model::Act},
 };
 use temper_client_protocol_wire as wire;
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn the_welcomes_host_check_precedes_the_trial() {
@@ -135,8 +136,7 @@ fn trial_failures_say_why_and_retry_the_account() {
         (v::TrialClass::Lost, "The machine running it went away."),
         (v::TrialClass::Refused, "The try couldn't start."),
     ] {
-        let why =
-            v::TrialWhy::Ended(v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: class.clone() }).unwrap());
+        let why = v::TrialWhy::Ended(v::TrialEnded { class: class.clone() });
         rows(&mut root, watch, &[row(v::TrialStep::Answers, failed(why))]);
         for w in [f::words(), f::browser_words()] {
             let (tree, bindings) = from_root(&root, &w);
@@ -213,6 +213,9 @@ fn up(root: &mut d::Domain, up: jig_client::Up) -> Queue<d::Request> {
 }
 
 fn opening(out: &Queue<d::Request>, subject: jig_client::Watchable) -> Token {
+    if subject == jig_client::Watchable::Jig(c::Subject::Me) {
+        return Token::new(0);
+    }
     out.iter()
         .find_map(|r| {
             if let d::Request::Unlinked {
@@ -249,7 +252,6 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
         out.push(r);
     }
     let me_watch = opening(&out, jig_client::Watchable::Jig(c::Subject::Me));
-    let accounts = opening(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
     let mut more = up(
         &mut root,
         jig_client::Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
@@ -257,6 +259,7 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     while let Some(r) = more.pop() {
         out.push(r);
     }
+    let accounts = opening(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
     let trials = opening(&out, d::forge::trials::watch(&f::limits().forge).unwrap());
     for request in &out {
         if let d::Request::Unlinked {
@@ -265,20 +268,16 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read() == &v::Read::Deployment
+            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read == v::Read::Deployment
         {
             f::deliver_deployment(&mut root, *read, true, true);
         }
     }
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
-    let forges_doc = v::Forges::new(
-        &v::CEILINGS,
-        v::ForgesParts {
-            forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
-            linked: false,
-        },
-    )
-    .unwrap();
+    let forges_doc = v::Forges {
+        forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
+        linked: false,
+    };
     up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -308,13 +307,15 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
 }
 
 pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(&v::CEILINGS, v::TrialRowParts { account: 1, task: Some(91), took: None, step, state }).unwrap()
+    v::TrialRow { run_wait: None, account: 1, task: Some(91), took: None, step, state }
 }
 
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
-    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
-    let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
-    doc.encode(&mut writer).unwrap();
+    let doc = v::Trials { rows: List::from_boxed(rows.into()) };
+    let mut writer = Writer::new(
+        usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
         jig_client::Up::FamilyDelivered {
@@ -325,7 +326,7 @@ pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> 
 }
 
 pub(crate) fn failed(why: v::TrialWhy) -> v::TrialState {
-    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+    v::TrialState::Failed(v::TrialFailed { why })
 }
 
 pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
@@ -340,4 +341,39 @@ pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
         model_check::Place::Welcome,
     );
     (b.finish(), bindings)
+}
+
+#[test]
+fn a_trial_row_draws_its_wait_and_keeps_it_after_timeout() {
+    let (mut root, watch, _) = fed(d::WayKind::Program);
+    let mut parts = row(v::TrialStep::Answers, v::TrialState::Running);
+    let wait = jig_client_protocol_wire::TaskRunWait::Credential;
+    let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
+    wait.encode(&mut writer).unwrap();
+    parts.run_wait = Some(writer.finish());
+    let out = rows(&mut root, watch, &[parts]);
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { subject: jig_client::Watchable::Jig(c::Subject::Task { .. }), .. },
+                },
+        } = request
+        {
+            panic!("a trial follows its row, not a task watch");
+        }
+    }
+    for state in [v::TrialState::Running, failed(v::TrialWhy::Waited)] {
+        if state != v::TrialState::Running {
+            rows(&mut root, watch, &[row(v::TrialStep::Answers, state)]);
+        }
+        for words in [f::words(), f::browser_words()] {
+            let trial = model_check::trial(&root, &words).unwrap();
+            let State::Stopped { at, why, .. } = trial.state else { panic!("the row's wait stops the trial line") };
+            assert_eq!(at, 2);
+            assert_eq!(why.as_ref(), b"This work needs a credential from its forge.");
+            let tree = from_root(&root, &words).0;
+            position(&tree, Role::Paragraph, &why);
+        }
+    }
 }

@@ -154,7 +154,7 @@ Kind: answered question. Owner: `temper/docs/design/protocol/channel.md`.
 
 Kind: answered question. Owner: `temper/docs/design/protocol/git.md`.
 
-"HEAD after saving unfinished work" in `temper/docs/design/protocol/git.md`, 10 is now a complete answer: a nonsnapshot commit does not move HEAD, preparation checks it out, and save/delivery snapshots advance it. Those rules are designed in `temper/docs/design/protocol/git.md`, 4.7 and in the preamble of `temper/docs/design/domain/worker/checkouts.md`. Suggest removing the answered question rather than moving its restatement.
+"HEAD after saving unfinished work" in `temper/docs/design/protocol/git-later.md`, 1 is now a complete answer: a nonsnapshot commit does not move HEAD, preparation checks it out, and save/delivery snapshots advance it. Those rules are designed in `temper/docs/design/protocol/git.md`, 4.7 and in the preamble of `temper/docs/design/domain/worker/checkouts.md`. Suggest removing the answered question rather than moving its restatement.
 
 ### 2.16 A10: Clients that are not a person's
 
@@ -338,31 +338,31 @@ Map item 25: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/des
 
 ### 3.26 A workflow that runs on no pull request
 
-Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.27 What a refused copy leaves
 
-Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.28 A merge style per repository,
 
-Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.29 A change whose forge is not connected,
 
-Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.30 `Forbidden` and `Missing` taken as access lacking
 
-Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.31 Signed commits required
 
-Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.32 Connecting a forge as another user
 
-Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 8.
+Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.33 Saved branches outside the task's saved set
 
@@ -426,35 +426,35 @@ Map item 47: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/de
 
 ### 3.48 A gate's live run past the stall
 
-Map item 48: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 48: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.49 A green head no wake reaches
 
-Map item 49: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 49: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.50 A retry before the read
 
-Map item 50: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 50: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.51 A hold at gating at a green head
 
-Map item 51: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 51: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.52 A repair held for its brief
 
-Map item 52: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 52: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.53 A forge out of reach or not connected
 
-Map item 53: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 53: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.54 A failing check's repair brief
 
-Map item 54: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 54: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.55 What failed on a queue's group
 
-Map item 55: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 55: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.56 A refused `message` keeps no record
 
@@ -763,7 +763,7 @@ Map item 131: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/d
 
 ### 3.132 A clean update's other words
 
-Map item 132: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs.md`, 1.
+Map item 132: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/repairs-later.md`.
 
 ### 3.133 A resource refused as forbidden
 

@@ -74,6 +74,62 @@ The fleet child domain knows the hosts and the runs they host:
   task off that channel until the channel is lost, while the channel
   takes every other run and job; the task claims again, spending no
   try, on any other host that may take it, or waits.
+- **A program that starts without its tools leaves that place to its
+  task.** A run whose program started without smith's tools ends
+  `RunFailure::Untooled` (`../hosts/hub.md`, 3): a fault of its place,
+  the program source's login on that worker, never of its task.
+  - **It fails once.** The core ends the attempt
+    `End::RefusedWithReason { reason }`, as an untranslated assignment's,
+    spending no try (`../tasks/lifecycle.md`, 6), its reason
+    `PROGRAM started without smith's tools: account SOURCE on worker
+    WORKER`: the program the attempt's main model's endpoint names
+    (`claude_code`), the program source that model ran on, by name
+    (`../accounts.md`, 3.4), and the worker's configured name
+    (`workers.md`, 2), its number where its setting is gone; cut as an
+    invalid start's words are (`../hosts/hub.md`, 3):
+    `claude_code started without smith's tools: account claude-alice on
+    worker box-2`. An attempt with no program source among its bindings,
+    which no program can fail so, keeps the run's own failure,
+    `End::Failed(Run)`.
+  - **The fleet keeps the fault,** told it by the core in that decision:
+    the run, the channel the attempt was placed on (`RunProof.placement`)
+    and the source's name. It keeps it on that channel, as it keeps an
+    untranslated task: one entry per run and source, in memory, so a
+    restart starts with none. While it stands, placement takes that
+    source's login there as unusable for that run alone, as a login
+    needing sign-in on that host (`../accounts.md`, 3.4): the holder's
+    order passes to the account's next source on that host, or the run
+    goes to another host whose login is usable, the claim's recheck
+    before its assignment leaves (`run_choice`) judging it the same way.
+    Every other run takes that login there as ever.
+  - **It lifts when something changes there:** the channel is lost, so
+    the worker's next channel starts with none (the worker reopens); the
+    fleet sends that channel a check of that source (`check`: a holder's
+    check, a declaration of its name again, a terminal login's end,
+    `../accounts.md`, 3.4 and section 5); or that channel's `logins`
+    report that source other than usable, so a sign-in there makes it
+    usable with no fault.
+  - **With no place left, the task waits,** trying nothing until a fault
+    lifts or another place opens, and says why: where the fleet holds a
+    standing fault of the task's run, the core refines a `RunWait::Host`
+    that neither a standing hello refusal nor a bounds refusal (below)
+    explains, and a `RunWait::Account { why: Host }` for that fault's
+    source, into `TaskRunWait::Account { account, source, why:
+    TaskWaitWhy::Untooled { worker } }`, naming the fault's account,
+    source and worker, `worker` its setting number (`workers.md`, 4). Its
+    latest fault, where several stand. Derived, as those refusals are:
+    nothing is stored, and no task state, attempt or retry changes.
+
+  ```rust
+  // jig-domain-fleet
+  pub struct Untooled { pub channel: Token, pub worker: u32, pub source: SourceName } // worker: its position
+  impl Domain {
+      /// The run's latest standing fault, if any.
+      pub fn untooled(&self, run: Token) -> Option<Untooled>;
+      /// Whether a fault keeps that run off that source's login on that channel.
+      pub fn untooled_on(&self, run: Token, channel: Token, source: &SourceName) -> bool;
+  }
+  ```
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops
@@ -259,13 +315,19 @@ The fleet child domain knows the hosts and the runs they host:
   limits, for the deployment's document, and start empty after a
   restart.
 
-Workers are known by their delivery channel and by the configured worker
-position that channel authenticated as. A hello naming an unconfigured
-position or one held by a live channel is refused as `Position`, naming that
-position separately from capacity refusals. Program login answers and
-deployment facts name the configured worker, whose name is supplied at startup, never
-from a worker message. A sign-out targets every configured worker; one not in
-contact is unconfirmed at once. An old channel's result cannot change a new
+Workers are known by their delivery channel and by the worker position
+that channel authenticated as: a worker setting's number less one
+(`workers.md`, 4). The fleet's membership is the current workers, given
+at the start's restore and replaced in each decision that changes one. A
+hello at a position with no worker, a withdrawn one, or one held by a live
+channel is refused as `Position`, naming that position separately from
+capacity refusals, and an admitted worker's slots are the smaller of its
+setting's places and its hello's. Program login answers and deployment
+facts name the worker its setting names, never a worker message. A
+sign-out targets every worker not withdrawn; one not in contact is
+unconfirmed at once. The fleet keeps, per worker, whether an admitted
+channel holds it and since when, for the deployment document
+(`workers.md`, 6). An old channel's result cannot change a new
 channel's inventory or complete a later operation. Cleanup of issued names
 after reconnect is a separate operation, and its login restrictions remain
 until the host establishes absence.

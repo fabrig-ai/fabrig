@@ -62,7 +62,10 @@ fn a_lost_sign_out_keeps_the_credential() {
         let exchange = h.sign_out();
         match body {
             Some(body) => h.answer(exchange, body),
-            None => h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out),
+            None => {
+                h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+                h.link.settle(&mut h.out);
+            }
         }
         assert!(
             h.has(&Request::Signing { signing: if *expected { Signing::Again } else { Signing::Lost } }),
@@ -74,6 +77,7 @@ fn a_lost_sign_out_keeps_the_credential() {
     assert_eq!(h.sign_in(held()), None);
     let exchange = h.sign_out();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert!(h.has(&Request::Signing { signing: Signing::Lost }));
     assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));
 }
@@ -97,9 +101,11 @@ fn an_old_sign_out_cannot_end_a_new_held_credential() {
         assert_eq!(h.sign_in(held()), None);
         let exchange = h.sign_out();
         h.link.step(Time::ZERO, Event::SignIn { with: With::Held(Secret::new(Box::new(NEW_CREDENTIAL))) }, &mut h.out);
+        h.link.settle(&mut h.out);
         h.out = Queue::uncapped();
         if lost {
             h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+            h.link.settle(&mut h.out);
         } else {
             h.answer(exchange, &[0]);
         }
@@ -185,7 +191,10 @@ fn a_refused_not_ready_or_lost_link_installs_none_of_its_held_credential() {
             .expect("link exchange");
         match body {
             Some(body) => h.answer(exchange, body),
-            None => h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out),
+            None => {
+                h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+                h.link.settle(&mut h.out);
+            }
         }
         assert!(h.has(&Request::Signing { signing: expected }));
         assert_eq!(h.link.credential(), None);
@@ -253,6 +262,7 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             Signing::SignedIn { party: PARTY },
         ),
         (w::ApprovalSignInAnswer::Waiting, Signing::Approval(Taking::Waiting)),
+        (w::ApprovalSignInAnswer::NotGranted, Signing::Approval(Taking::NotGranted)),
         (w::ApprovalSignInAnswer::Refused, Signing::Approval(Taking::Refused)),
         (w::ApprovalSignInAnswer::Expired, Signing::Approval(Taking::Expired)),
         (w::ApprovalSignInAnswer::Used, Signing::Approval(Taking::Used)),
@@ -281,16 +291,18 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             Signing::Lost,
         ),
     ] {
-        for trailing in [false, true] {
+        for (trailing, grant) in [(false, None), (true, None), (false, Some(Secret::new(Box::new([9; 32]))))] {
             let mut h = Harness::new(&limits());
             h.sign_in(held());
-            let exchange = h.sign_in(With::Approval { secret: Secret::new(Box::new(LINK_SECRET)) }).unwrap();
+            let exchange =
+                h.sign_in(With::Approval { secret: Secret::new(Box::new(LINK_SECRET)), grant: grant.clone() }).unwrap();
             assert_eq!(h.credentials().as_slice(), &[None], "a take never carries the held credential");
             let Some(Request::Exchange { message: Message::SignInApproval(body), .. }) = h.out.pop() else {
                 panic!("take exchange")
             };
             let record = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
             assert_eq!(record.secret().expose(), LINK_SECRET);
+            assert_eq!(record.grant(), &grant);
             let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap() + usize::from(trailing));
             answer.encode(&mut bytes).unwrap();
             if trailing {

@@ -13,7 +13,12 @@ fn open() -> Store {
     let mut store = fixtures::over(fixtures::stores());
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else { panic!("store opens") };
     store
@@ -129,6 +134,54 @@ fn a_missing_census_owner_is_a_link_with_both_domain_keys() {
 }
 
 #[test]
+fn a_stock_written_record_refuses_a_lowered_start_page_without_losing_its_cause() {
+    let mut identity = jig_protocol_store_kit::identity();
+    identity.name = Box::new([b'x'; 24]);
+    let record = Record::People(jig_domain_people::Stored::Person { number: ALICE, identity });
+    let mut store = open();
+    fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(record.clone())]));
+    let stores = store.into_stores();
+    let mut store = fixtures::over(stores);
+    fixtures::run(
+        &mut store,
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
+    );
+    let mut lower = store.limits.core;
+    lower.people.identity_bytes = 16;
+    store.limits.commits.writes = 3;
+    store.install_limits(&lower, fixtures::APPLICATION, 64).unwrap();
+    let Event::PageRefused { failure, .. } = request(&mut store, live(), None, ROWS) else { panic!("lowered page") };
+    assert_eq!(
+        failure.cause,
+        Cause::Decode(DecodeFailure::Lowered(crate::codec::Lowered {
+            name: b"people.identity_bytes",
+            configured: 16,
+            held: 24,
+        }))
+    );
+    let key = keys::encode(&record.key(), fixtures::KEY_LIMIT).unwrap();
+    assert_eq!(failure.row, Some(crate::restore::site(&store, &key)));
+    assert_eq!(store.phase, Phase::Stopped);
+    let mut stock = fixtures::over(store.into_stores());
+    fixtures::run(
+        &mut stock,
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
+    );
+    let (items, _) = page(request(&mut stock, Restore::Jig(Box::new([RestoreRange::People])), None, ROWS));
+    assert_eq!(records(items).as_ref(), [record]);
+}
+
+#[test]
 fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
     let key = keys::encode(&fixtures::person(ALICE).key(), fixtures::KEY_LIMIT).expect("person key");
     let mut stores = fixtures::stores();
@@ -136,7 +189,6 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
         &mut stores,
         &[
             fixtures::format_put(fixtures::DEPLOYMENT),
-            fixtures::layouts_put(),
             fixtures::header_put(fixtures::DEPLOYMENT, 1),
             fixtures::installation_put(fixtures::INSTALLATION),
             skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) },
@@ -145,7 +197,12 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
         panic!("store opens before reading people")

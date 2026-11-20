@@ -132,8 +132,14 @@
        Forgejo's on the welcome (`welcome.md`, 1, *Forge*), "Add a repository to
        PROJECT", the muted "Made or copied on your Forgejo, then in this
        project at once.", the legend "A repository", "An empty repository"
-       with its two fields and "Copies of public repositories" with its
-       addresses, opened at the one pressed; "Cancel", also Escape; and the
+       with "A README and a starter CI check." and its two fields, and
+       "Copies of public repositories" with "Copied into your Forgejo from
+       GitHub or another git host, to play around with. Nothing is sent
+       back." and its addresses, opened at the one pressed. Both lines are
+       the sheet's own words: the welcome's sheet offers the sample in the
+       empty repository's place, and says "your local forge" where this
+       sheet, which opens on a managed Forgejo too, says "your Forgejo"
+       (the look request `local-forge`). Then "Cancel", also Escape; and the
        primary "Add it". Its fields are read and its alerts said as the
        welcome's are. It sends `MakeRepository` `into { project, home: true
        }`, the first of several the home, under keys of its own; the step's
@@ -203,11 +209,16 @@
       not `../view.md`, 6's short span: "a minute", "2 minutes", "an hour", "9
       hours", "a day", "3 days", each rounded down;
     - *the headline:* the landed sentence, then a space and the needs
-      sentence, by the project's open cards (`needs-you.md`, 1, *What the client
-      keeps*): "Nothing needs you.", "One thing needs you.", "Two things
-      need you." and so on in number words to "Nine", digits after,
-      "N+ things need you." where the read is cut, the
-      project's name until its needs have answered. Where every open card
+      sentence, by the project's open cards, each open need once whether
+      its card is read or not, as `me` counts them, never the first
+      page's (`needs-you.md`, 1, *What the client keeps*, *The needs' rows*
+      and *Later*): "Nothing needs you.", "One thing needs you.", "Two things
+      need you." and so on in number words to "Nine", digits after, "29
+      things need you.", "N+ things need you." where the read is cut, the
+      project's name until its needs have answered whole: the count and its
+      "+" are the last whole read's, through every refresh and every read
+      that ends without its value (`needs-you.md`, 1, *The needs' rows*).
+      Where every open card
       concerns findings (1, **Findings, drawn**, *Counted*) and the read
       is not cut, "finding" stands for "thing" and the number is the
       findings', `Counted::total`, each once, not the cards': "One
@@ -222,14 +233,30 @@
       and a `last_landed`, "The last change landed SPAN ago.", SPAN the
       kicker's word, "just now" under a minute; nothing with nothing landed.
       So a landing never stands under "Nothing needs you." alone, whatever
-      became of the brief: a refused, failed or unfunded run isn't the
-      person's error, and Home has no word for one. "overnight" is the status
+      became of the brief: a failed or refused run isn't the person's
+      error, and Home has no word for one; an unpaid one has the line
+      below. "overnight" is the status
       agent's word, never the computed sentence's;
-    - *the lede and the byline:* the brief's `lede`, if the brief is new as
+    - *the lede and the byline:* the brief, the person's own (the
+      document is the watcher's, `../../domain/forge/attention.md`, 2):
+      its `lede`, if the brief is new as
       above, then "Written by the status
       agent at 07:42", its `at` by `../view.md`, 6's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
-      no prose of its own.
+      no prose of its own;
+    - *where nothing pays* (`../../draft/brief-per-person.md`, 3): with no
+      brief new to the person and the document's `unpaid` true, their
+      last run having found no account to pay for it or no room in their
+      pool (`../../domain/forge/attention.md`, 3, *When nothing pays*), the
+      lede's place holds one line, in the lede's style: "No brief: no
+      account pays for your work here." then a space and the link
+      "Accounts", to `Accounts` (`Address::Accounts`), drawn as *More
+      accounts*' link is; no byline. The headline is unchanged, the
+      computed landed sentence. A brief new to the person wins over the
+      line, and `unpaid` false draws nothing there. The terminal shell's
+      layout draws the same line in its lede's place. Home on All
+      projects joins briefs alone and draws no such line: the line says
+      "here" of one project.
   - *Needs you,* the first region after the intro, a region named "Needs you", drawn while an open card
     waits (1, *A page's parts*): what needs the person in this
     project, the groups of `Inbox` but its updates, read as `Inbox` reads
@@ -238,7 +265,9 @@
     open the region is left out, the headline above having said "Nothing
     needs you." (`../../draft/surfaces.md`, 14: no part is drawn empty). Its
     head is the level-2 heading "Needs you · N", N in the signal colour,
-    the findings' `Counted::total` where the headline's number is it;
+    the headline's number: every open need, or the findings'
+    `Counted::total` where the headline's number is it, "N+" where the
+    read is cut;
     then, while an open card concerns findings, their severities counted,
     `temper-home-sevs`, "2 high · 4 medium · 5 low", each its glyph then
     its count and word (1, **Findings, drawn**, *The head's counts*); and
@@ -260,8 +289,15 @@
         (`needs-you.md`, 1, *The card*); the asked task's link as
         the inbox's card has it; its kind and age ("Add a README · a
         question · 4 min"); " · later" on a card marked later;
-      - *its question* in `.q`, 17px; a funds card's "S of L used." and
-        an approval's question as on *Needs you*;
+      - *its question* in `.q`, 17px: its SHORT (`needs-you.md`, 1,
+        *SHORT*); a held card's why it's held (`needs-you.md`, 1, *Why
+        it's held*: "Forge could not release this task's resources."), a
+        funds card's "S of L used." and an approval's question as on
+        *Needs you*; none on a person task's card, whose from line names
+        its title (`needs-you.md`, 1, *Its title once*). A held card says
+        nothing more of its hold: "Land Fork core crash sweeps at their
+        held prefixes · held · 4 min", then its question, its reason
+        line and Release and Leave held;
       - *an approval's size,* under its question, its row of chips as on
         *Needs you* (`../forge/README.md`, 4.1, *Its size*), as
         `pair/home.html` draws it; none without one;
@@ -356,6 +392,13 @@
       milestone's being the newest of its own and its goals', a tie the
       lower task number first; then ended rows, the newest end first. As
       many as the larger of 5 and the live rows, counted after grouping.
+    - *One stable list:* a goal under a drawn milestone is drawn under
+      that milestone's row alone, never also as a row of its own, and a
+      row's headline, a milestone's count, state and strip are what its
+      part last said, kept through a delivery whose part is not made
+      (`../forge/parts.md`, 5; `milestone.md`, 1, *A goal's milestone*).
+      So a refresh that finds nothing changed draws the same rows, in the
+      same order, with the same words.
     - *A milestone's row,* one link to its `Task`, `temper-goals-row` and
       `temper-ms-row`, as the mockup `../web/home-for-a-person/home.html`
       draws it: its top line, `temper-goals-top`, at the left its tag and
@@ -413,7 +456,9 @@
   story's `home.html` and `phone-home.html`, `web/whole-story/`):
   `AllHome`, at `/home`, Home for every project the person is in, as
   `me` lists them and in its order, the first 16 read (`all_home::ACROSS`)
-  and the rest left out. It draws in the open project's frame, as `Inbox`
+  and the rest left out. The root, `/`, opens it for a person in two
+  projects or more or in none, and a project's Home for one in one
+  (`../web/README.md`, 2.3). It draws in the open project's frame, as `Inbox`
   does: the rail and the tab bar are the open project's, or with none open
   `me`'s first project's, "Home" current (`../view.md`, 3). Going to it opens no
   project and moves none. With no project in `me` it draws its intro
@@ -451,7 +496,9 @@
       away SINCE to OFF", both by `../view.md`, 6's *clock*, the newest such spell;
     - *the headline:* the landed sentence across projects, then a space
       and the needs sentence, Home's words over every open card across
-      projects, "N+" where the inbox or `approvals` is cut. With N the sum
+      projects, each open need once (`needs-you.md`, 1, *What the client
+      keeps*, *The needs' rows*), "N+" where the needs' rows or
+      `approvals` is cut. With N the sum
       over the projects shown of `landed` less `seen`, and P the number of
       them where it is above 0: "N changes landed across P projects.",
       P in number words to "nine", digits after; with P one, "N changes
@@ -466,7 +513,7 @@
       and ": " in the strong weight, then the first sentence of its `lede`,
       up to and with the first ".", "!" or "?" that ends the lede or is
       followed by a space, the whole lede with none. The name says whose,
-      since one brief a project is written in its own project's words
+      since the person's brief in each project is written in that project's words
       (`../../draft/surfaces.md`, 15, its default);
     - *the byline:* "Each project's brief, its first line · the newest,
       vsr's, by the status agent at 07:52", vsr the newest joined brief's
@@ -842,7 +889,7 @@
 - **How a project lands, on To begin's repository step**
   (`../../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a
-  project's `by` (`../../domain/landing.md`, 13.1). A new fact of a protocol,
+  project's `by` (`../../domain/landing-settings.md`, 1.1). A new fact of a protocol,
   the user's. Default: "Chats can change its code now." on every project,
   which names no way of landing.
 - **Decided for you across many projects** (1, *Decided for you*): the

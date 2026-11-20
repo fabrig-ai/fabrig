@@ -1,6 +1,6 @@
 # A deployment at its place
 
-Provisional, 2026-11-14, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 2, 5,
+Provisional, 2026-11-14, revised 2026-11-17, from `../../draft/landed-qa.md`, sections 2, 5,
 6 and 10, milestones Q6 and Q7 of `../../draft/landed-qa.execution.md`. A place
 of the deployment's kind: temper's engine, worker and agent, each its own
 process from its own document, with the fake Forgejo and the fake model
@@ -27,8 +27,9 @@ deployment's engine rather than a box of their own.
 - **Prepared once** (section 4): the documents rendered, the worker's
   secret and its digest made; the fake git's link made at every start.
 - **Started in order, stopped in reverse** (sections 5 and 7): the fake
-  Forgejo, the fake model, the engine, the worker; ctl signed in from a
-  file, no link printed anywhere; then, but in a ctl session, the
+  Forgejo, the fake model, the engine; ctl signed in from a file, no
+  link printed anywhere, and the worker added as a setting; the worker,
+  admitted by it; then, but in a ctl session, the
   browser signed in from the engine's fresh link, as a box's is; at the
   end the TUI and the browser go first.
 - **Its lines** (section 6): ctl and forge lines with the deployment's
@@ -45,35 +46,47 @@ deployment's engine rather than a box of their own.
 ## 2. Its documents
 
 A deployment's root recipe holds `config/` (`../../client/recipe.md`,
-2): the documents its processes start from, each JSON as a deployment
-writes it, with the fakes in place of real backends
-(`../../draft/landed-qa.md`, 5 and 6).
+2): the documents its processes start from, as a deployment writes
+them, with the fakes in place of real backends
+(`../../draft/landed-qa.md`, 5 and 6): the engine's and the worker's
+each a `temper.toml` of its binary's shape
+(`../../protocol/configuration/file.md`), the fakes' JSON.
 
 | File | Whose | Its shape |
 |---|---|---|
-| `engine.json` | the engine's | an engine alone (`../../protocol/cluster.md`, 1), as `temper-engine serve` takes it |
-| `worker.json` | the worker's | a worker alone, one worker, as `temper-worker serve` takes it |
-| `agent.json` | the worker's agent's | smith's agent configuration (`../../protocol/configuration/README.md`, 4) |
+| `engine.toml` | the engine's | an engine alone's file (`../../protocol/cluster.md`, 1; `../../protocol/configuration/file.md`, 3), as `temper-engine serve` reads it |
+| `worker.toml` | the worker's | a worker alone's file, its `name` given, as `temper-worker serve` reads it |
 | `forgejo.json` | the fake Forgejo's | `temper-box fake forge --document`'s, with no `github` member (`../fakes.md`, 2) |
 | `model.json` | the fake model's | `temper-box fake llm --document`'s (`../../protocol/setup/playground.md`) |
 
 - **Each one required,** a regular file of at most 256 KiB, and nothing
   else in `config/`.
+- **No `agent.json`:** temper writes the worker's agent's configuration,
+  pinned under the worker's root at each start, from the engine's
+  figures and the machine's programs, and a worker refuses an
+  `agent.json` beside its document
+  (`../../protocol/configuration/figures.md`, 6 and 7). A setup's
+  `config/agent.json` is refused as any other unexpected file is.
 - **No credential:** no document holds a key, a token or a secret
   (`../../draft/landed-qa.md`, 5). The worker's secret and its digest are
   the place's (section 4); the model's key and the forge's admin token
   are outputs the fakes write where their documents say; accounts and
   forges are made by the recipe's lines, as a person makes them.
-- **Three paths fixed:** the worker's document names its secret at its
-  data path `secrets/worker.secret`, and the engine's names that
-  worker's digest at its data path `secrets/worker.digest`, the files
-  the place makes (section 4); and the worker's document names its root
-  `workspaces`, under its data path, so that the agent it pins is in
+- **Three paths fixed,** each by the worker alone's file
+  (`../../protocol/configuration/file.md`, 4), never by a key: its secret at its data path
+  `secrets/worker.secret`; the engine's file names no worker, since
+  workers are settings, and the session keeps that worker's digest at
+  the engine's data path `secrets/worker.digest`, which section 5's
+  `worker add` sends; both files the place makes (section 4); and its
+  root `workspaces`, under its data path, so that the agent it pins is in
   `data/worker/workspaces/agent/`, which a copy leaves out (`places.md`,
   4).
-- **The place's names.** Within the documents' JSON string values alone,
+- **The place's names.** Within the documents' string values alone,
   each `{place.NAME}` is replaced by the place's value when they are
-  rendered (section 4); any other text stays as it is, a `{` not followed
+  rendered (section 4), written in a `temper.toml` as a TOML basic
+  string's content, escaped; then each `temper.toml` is read as its
+  binary reads it (`../../protocol/configuration/file.md`, 5, `parse`) and written by `render`. Any
+  other text stays as it is, a `{` not followed
   by `place.` among it, so that a cue's `{pull}` keeps its meaning:
 
   | Name | Its value |
@@ -86,7 +99,7 @@ writes it, with the fakes in place of real backends
   | `{place.config}`, `{place.data}`, `{place.cache}` | the scratch directory's `config/`, `data/` and `cache/`, absolute |
   | `{place.bin}` | the session's `--bin`, absolute; the worker's agent is `{place.bin}/temper-agent` |
   | `{place.git}` | the scratch directory's `data/bin/git`, absolute: the fake git program (section 4) |
-  | `{place.bundle}` | the session's `--bundle`, absolute: the web bundle the engine serves, named by its document's `application.clients.bundle` (`../../protocol/configuration/engine.md`), as a box is given its `--bundle` |
+  | `{place.bundle}` | the session's `--bundle`, absolute: the web bundle the engine serves, named by its file's `[internal]` `bundle` (`../../protocol/configuration/file.md`, 3.2), as a box is given its `--bundle` |
 
   A `{place.NAME}` of no name here refuses the session, naming the
   document and the name; `{place.bundle}` in a session given no
@@ -124,11 +137,11 @@ for a deployment:
 
 | Path | What |
 |---|---|
-| `config/engine/temper.json` | the engine's document, rendered |
-| `config/worker/temper.json`, `config/worker/agent.json` | the worker's and its agent's, rendered |
+| `config/engine/temper.toml` | the engine's file, rendered |
+| `config/worker/temper.toml` | the worker's, rendered |
 | `config/forgejo.json`, `config/model.json` | the fakes' documents, rendered |
-| `data/engine/` | the engine's data directory: its store, `secrets/worker.digest` |
-| `data/worker/` | the worker's: `secrets/worker.secret`, its workspaces, its programs |
+| `data/engine/` | the engine's data directory: its store, and `secrets/worker.digest`, which the session reads for the worker's setting and the engine reads not at all |
+| `data/worker/` | the worker's: `secrets/worker.secret`, its workspaces, its programs, and its agent's configuration as temper pins it, `workspaces/agent/agent.json` |
 | `data/forgejo/` | the fake Forgejo's kept state, `state`, and the outputs its document names there |
 | `data/model/` | the fake model's outputs its document names there |
 | `data/bin/git` | a link to `{place.bin}/temper-box`, the fake git program (`../fakes.md`, 3) |
@@ -189,16 +202,28 @@ nowhere. Each within its bound; a failure is the deployment's (section
    its stderr has said `listening clients ` and `listening workers ` and
    its stdout has given its first line starting `http://`, within 120
    seconds.
-4. **The worker:** `temper-worker serve --config SCRATCH/config/worker
+4. **ctl, signed in from a file:** the engine's first link written to
+   `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
+   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
+   exit 0 within 60 seconds, then `session/link` removed.
+5. **The worker's setting:** an engine admits only a worker its settings
+   hold (`../../draft/config.md`, 6.7), so the session adds it as its
+   owner does, `temper ctl SCRATCH/session/ctl worker add WORKER
+   --places PLACES --digest SHA256` (`../../client/ctl/workers.md`):
+   `WORKER` the rendered worker file's `name`, `PLACES` 2, the
+   deployment's own figure, since a file has no places
+   (`../../protocol/configuration/file.md`, 3.3) and every setup's worker is of two places
+   (`setups.md`), `SHA256` the 64 digits of `data/engine/secrets/worker.digest`;
+   exit 0 within 60 seconds. A held deployment's store keeps the
+   setting, so where `temper ctl SCRATCH/session/ctl worker list --json`
+   already lists `WORKER`, nothing is added. A refusal is the
+   deployment's failure (section 7).
+6. **The worker:** `temper-worker serve --config SCRATCH/config/worker
    --data SCRATCH/data/worker --cache SCRATCH/cache/worker`, ready at its
    stderr's `linked `, within 120 seconds. It pins its agent's program,
    `{place.bin}/temper-agent`, as it starts (`../../protocol/binaries.md`,
    5).
-5. **ctl, signed in from a file:** the engine's first link written to
-   `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
-   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
-   exit 0 within 60 seconds, then `session/link` removed.
-6. **The browser,** but in a ctl session (`../../client/drive.md`,
+7. **The browser,** but in a ctl session (`../../client/drive.md`,
    2.6): `../../client/drive.md`, 2.3's step 3 on the engine's origin,
    the first link's `http://HOST:PORT`, `{place.clients}`. Headless
    Chromium opens the first link, now spent; the engine, as a box's
@@ -213,10 +238,10 @@ nowhere. Each within its bound; a failure is the deployment's (section
    start fails it, as `../../client/drive.md`, 2.3 has them; here such
    a failure is the deployment's (section 7). So the browser holds the
    session's sign-in and a copy holds none, as at a box.
-7. **`ready`** on stdout, and the lines are read.
+8. **`ready`** on stdout, and the lines are read.
 
 Every link the engine prints but its first and, in a full session, the
-fresh one step 6 takes is read and dropped, and the engine's stdout is
+fresh one step 7 takes is read and dropped, and the engine's stdout is
 written nowhere. So no link is printed, logged, answered or kept, and no
 copy holds a sign-in (`../../draft/landed-qa.md`, 5 and 11).
 
@@ -258,21 +283,28 @@ session's, never the deployment's: no copy holds it.
 
 `deployment patch DOCUMENT PATH`, an owner's change to the deployment's
 configuration between two of its starts (`../../draft/landed-qa.md`,
-10): DOCUMENT `engine`, `worker` or `agent`; PATH a file of the files
+10): DOCUMENT `engine` or `worker`, the documents an owner writes
+(section 2); PATH a file of the files
 directory as a `forge commit` line's is, the session's `--files DIR` or,
 on a walk, the recipe's own `files/` (`../../client/drive.md`, 3.5), at
 most 64 KiB.
 
-1. **Read:** PATH as a JSON merge patch (RFC 7396), one JSON object, its
-   string values rendered with the place's names (section 2).
+1. **Read:** PATH as TOML, keys of DOCUMENT's file
+   (`../../protocol/configuration/file.md`, 3), its string values
+   rendered with the place's names (section 2). Each top-level key or
+   table it gives (`listen`, `[sign_in]`, `[environment]`, ...) replaces
+   the file's whole; a key it omits stays; it deletes nothing, since
+   TOML has no null. The patched file is checked as its binary checks
+   it (`../../protocol/configuration/file.md`, 2), a required key taken from the file, so a patch
+   needs none.
 2. **The TUI ended,** where one runs, as `tui stop` ends it
    (`../../client/drive.md`, 3.3): its connection is the engine's, which
    is about to stop, so the next `tui` line starts it again, signed in
    afresh.
 3. **Stopped:** the worker, then the engine, as at the end (section 7),
    each exiting 0.
-4. **Patched:** the patch applied to `config/engine/temper.json`,
-   `config/worker/temper.json` or `config/worker/agent.json`, written to
+4. **Patched:** the patch applied to `config/engine/temper.toml` or
+   `config/worker/temper.toml`, written by `render` to
    a temporary file beside it and renamed over it.
 5. **Started again:** the engine, then the worker, as section 5's steps
    3 and 4. ctl's sign-in and the browser's are the engine store's and
@@ -284,25 +316,22 @@ most 64 KiB.
 
 It answers `| patched DOCUMENT` and `ok`. The page's troubles are not
 counted during the line: the engine is down for part of it, and the
-page's requests then fail by design; step 6's main region is its check.
-A patch that is no JSON
-object, a result that is no JSON object, or a file missing fails the
-line before anything stops, naming it. An engine or worker that does
+page's requests then fail by design; step 7's main region is its check.
+A patch that is no TOML,
+a key not of DOCUMENT's file, a result its binary would refuse, or a
+file missing fails the line before anything stops, naming it, with
+the file's refusal words (`../../protocol/configuration/file.md`, 2). An engine or worker that does
 not start again ends the deployment as failed (section 7): the line
 fails, and every later one fails `failed: the deployment exited`. A page
-that shows no main region within step 6's bound fails the line, naming
+that shows no main region within step 7's bound fails the line, naming
 what it showed, and the deployment runs on. Its
 bound is 300 seconds. It is kept as any line (`../../client/drive.md`,
 4), so the recipe holds it, and its file in `files/`.
 
-So a recipe gives a project's landing to what its own lines made, a
-project and a repository whose numbers exist once those lines have run
-(`../../domain/landing.md`, 13.1): `deployment patch engine
-landing.json`, the file holding `{"application": {"landing":
-{"projects": [...]}}}`, which a merge patch replaces whole. Once a
-project's `by`, `batch` and gates are settings
-(`../../protocol/configuration/settings.md`, 2), a ctl line changes them
-instead.
+A project's landing is settings
+(`../../domain/landing-settings.md`, 1.1), so a recipe sets it with a
+ctl line, `ctl settings apply`, never a patch; a patch is for what an
+owner writes in the file, such as `public` or `[sign_in.google]`.
 
 ## 7. Stopped, and its exits
 
@@ -358,7 +387,10 @@ instead.
     secret's and the digest's form; the link made again;
   - the start: the order and each ready line over injected events; ctl
     signed in from `session/link`, the link in no log, no answer and no
-    program's argument; a process's exit before its ready line, status
+    program's argument; the worker's `worker add` after the sign-in and
+    before the worker starts, its name, places and digest from the
+    rendered document and the digest file, none sent where `worker list`
+    already lists it, and its refusal status 4; a process's exit before its ready line, status
     4; every later link dropped;
   - the stop's order and bounds; status 3 from the engine's refusal and
     from the forge's state;
@@ -367,7 +399,7 @@ instead.
     in a ctl session, web and tui lines failing, unkept;
   - `{place.bundle}` rendered from `--bundle`, and refused, naming the
     document, in a session given none;
-  - the browser at a deployment (section 5, step 6), over injected
+  - the browser at a deployment (section 5, step 7), over injected
     events: after ctl's sign-in the spent first link opened, the
     engine's next stdout link taken as the fresh one and opened, `/`
     loaded on the engine's origin and the main region found before

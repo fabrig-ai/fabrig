@@ -40,7 +40,7 @@ pub fn restart() {
         .expect("uninstalled fixture");
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
-    let engine = description.dir("engine").join("config/temper.json");
+    let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
     std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
         .expect("worker's fake git");
     let (mut members, hosts) = description.members();
@@ -149,7 +149,7 @@ impl Judge {
                 .map_err(|_| "LLM JSON".to_owned())?;
             value["asked"][0]["turns"].as_array_mut().ok_or_else(|| "chat turns".to_owned())?.insert(
                 2,
-                serde_json::json!({"lines":[{"call":"read_pull_for","arguments":{"head":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
+                serde_json::json!({"lines":[{"call":"read_issues","arguments":{"what":"pull_for","branch":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
             );
             super::write_private(&path, &serde_json::to_vec(&value).map_err(|_| "LLM JSON".to_owned())?);
             self.members.up(&["llm"]);
@@ -168,9 +168,7 @@ impl Judge {
                 return Err("Must: no seeded forge records".to_owned());
             }
             self.members.prepare("engine");
-            let mut document: Value =
-                serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
-                    .map_err(|_| "engine JSON".to_owned())?;
+            let mut document = super::limit_settings::configuration(&self.members.dir("engine").join("config"));
             // Restart retains the worker's files. Reserve its engine endpoint,
             // as the clients' endpoint is reserved for the App's setup URL.
             document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
@@ -187,9 +185,11 @@ impl Judge {
                 &serde_json::to_vec(&landing_settings(address, "acme", "app"))
                     .map_err(|_| "landing settings".to_owned())?,
             );
-            fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
-                .map_err(|_| "fixed workers listener".to_owned())?;
+            let mut file = super::read_file(&self.engine, temper_config_shell::Shape::EngineAlone);
+            file.workers = Some(self.workers);
+            super::write_file(&self.engine, &file, temper_config_shell::Shape::EngineAlone);
             let directory = self.members.dir("engine");
+            super::limit_settings::remember(&directory.join("config"), &document);
             super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
             // temper/docs/design/protocol/setup/github.md, 7; temper/docs/design/protocol/forge/engine.md, 1.
             let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
@@ -201,7 +201,7 @@ impl Judge {
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
             self.members.act(now, hosts);
-        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
+        } else if matches!(self.stage, Stage::Worker) && self.members.capture("engine", "link").is_some() {
             self.mark("engine and worker ready");
             self.begin(host)?;
         } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
@@ -278,30 +278,20 @@ impl Judge {
     }
     fn begin(&mut self, host: &mut cluster::Root) -> Result<(), String> {
         use ctl::Call;
-        let engine: Value = serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine document".to_owned())?)
-            .map_err(|_| "engine JSON".to_owned())?;
+        let engine: Value = super::start_document(&self.engine, temper_config_shell::Shape::EngineAlone);
         if engine["workers"] != serde_json::json!([]) {
             return Err("engine alone".to_owned());
         }
-        if engine["application"]["workers"] != serde_json::json!([]) {
+        if engine["application"].get("workers").is_some() {
             return Err(format!(
                 "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
                 engine["application"]["workers"],
                 serde_json::json!([])
             ));
         }
-        let workers = engine["engine"]["hosts"]["workers"].as_array().ok_or_else(|| "worker positions".to_owned())?;
-        if workers.len() != 1 {
-            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", workers.len(), 1));
-        }
-        if workers[0]["name"] != "w1" {
-            return Err(format!(
-                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                workers[0]["name"], "w1"
-            ));
-        }
-        if self.members.linked("w1") != 1 {
-            return Err("the sole worker linked".to_owned());
+        let workers = cluster::worker_settings(&self.members.dir("engine").join("settings.json"));
+        if workers.len() != 1 || workers[0]["set"]["name"] != "w1" {
+            return Err("one w1 worker setting".into());
         }
         self.queue_steps(
             host,
@@ -599,7 +589,7 @@ impl Judge {
             return Err(format!("chat heard the landed pull: {activity}"));
         }
         if !activity["rows"].to_string().contains("Pull 1 head ") {
-            return Err(format!("chat received its read_pull_for answer: {activity}"));
+            return Err(format!("chat received its read_issues what=pull_for answer: {activity}"));
         }
         self.queue(host, landing_reads())?;
         self.stage = Stage::BeforeRestart;
@@ -1138,7 +1128,7 @@ pub fn configure_llm(path: &Path) {
     value["cued"].as_array_mut().expect("scripts").push(json!({"cue":"Review this change at the named head","turns":[{"lines":[{"call":"finish","arguments":{"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]}}],"finish":"tool_calls","tokens":20}]}));
     super::write_private(path, &serde_json::to_vec(&value).expect("LLM JSON"));
 }
-fn configure_engine(value: &mut Value) {
+fn configure_engine(value: &mut temper_playground::documents::Configuration) {
     // This fixture seeds its own project on stock policy 1, with no story-specific tool grants.
     let engine = value["engine"].as_object_mut().expect("engine object");
     for member in ["charters", "templates", "policies", "rules"] {
@@ -1146,19 +1136,18 @@ fn configure_engine(value: &mut Value) {
     }
     engine.insert("projects".into(), serde_json::json!([{"number": 1, "policy": 1}]));
     // Nine slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
+    value.jig_over("tasks.charters", 16);
+    value.jig_over("core.templates", 7);
     // Keep log polling aligned with the live GitHub story.
-    let limits = &mut value["application"]["limits"]["overrides"];
     for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
-        limits[format!("forge.client.{name}")] = millis.into();
+        value.temper_over(format!("forge.client.{name}"), millis);
     }
-    limits["forge.client.window_ms"] = 100.into();
-    limits["forge.client.pending"] = 8.into();
-    limits["forge.client.calls"] = 4.into();
-    limits["forge_component.connections"] = 4.into();
-    limits["forge_component.log_poll_ms"] = 15000.into();
-    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 512.into();
+    value.temper_over("forge.client.window_ms", 100);
+    value.temper_over("forge.client.pending", 8);
+    value.temper_over("forge.client.calls", 4);
+    value.temper_over("forge_component.connections", 4);
+    value.temper_over("forge_component.log_poll_ms", 15000);
+    value.jig_over("tasks.result_bytes", 512);
 }
 
 pub(crate) fn landing_reads() -> Vec<ctl::Call> {

@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 #[expect(clippy::disallowed_types, reason = "keep the public row encoder's Vec result")]
 use alloc::vec::Vec;
 use skein_lib::{List, Reader, Secret, Writer};
+use v1::Record;
 
 /// The carried value's aggregate budget (protocol/credentials.md, 2.2).
 pub const PASTED_BYTES: usize = 4096;
@@ -17,14 +18,12 @@ pub fn encode(item: Item, bytes: &[u8]) -> Result<Vec<u8>, Unreadable> {
         return Err(Unreadable);
     }
     let item = generated(item, bytes)?;
-    let row = v1::Stored::new(&v1::CEILINGS, v1::StoredParts { item }).or(Err(Unreadable))?;
-    let mut out = Writer::new(usize::try_from(row.measure()).expect("row length"));
-    row.encode(&mut out).expect("measured row");
-    Ok(out.finish().into_vec())
+    let row = v1::Stored { item };
+    Ok(row.encode(&v1::CEILINGS).or(Err(Unreadable))?.into_vec())
 }
 pub fn decode(item: Item, bytes: &[u8]) -> Result<Secret, Unreadable> {
     let row = v1::Stored::decode(&v1::CEILINGS, &mut Reader::new(bytes)).or(Err(Unreadable))?;
-    let (found, value) = raw(row.into_parts().item)?;
+    let (found, value) = raw(row.item)?;
     if found != item {
         return Err(Unreadable);
     }
@@ -32,45 +31,18 @@ pub fn decode(item: Item, bytes: &[u8]) -> Result<Secret, Unreadable> {
 }
 
 fn generated(item: Item, bytes: &[u8]) -> Result<v1::Item, Unreadable> {
-    let limits = &v1::CEILINGS;
     Ok(match item {
-        Item::AdminToken => v1::Item::AdminToken(
-            v1::AdminToken::new(limits, v1::AdminTokenParts { value: Secret::new(Box::from(bytes)) })
-                .or(Err(Unreadable))?,
-        ),
-        Item::ApiToken => v1::Item::ApiToken(
-            v1::ApiToken::new(limits, v1::ApiTokenParts { value: Secret::new(Box::from(bytes)) })
-                .or(Err(Unreadable))?,
-        ),
-        Item::GitToken => v1::Item::GitToken(
-            v1::GitToken::new(limits, v1::GitTokenParts { value: Secret::new(Box::from(bytes)) })
-                .or(Err(Unreadable))?,
-        ),
-        Item::User => v1::Item::User(
-            v1::User::new(limits, v1::UserParts { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) })
-                .or(Err(Unreadable))?,
-        ),
-        Item::WebhookSecret => v1::Item::WebhookSecret(
-            v1::WebhookSecret::new(limits, v1::WebhookSecretParts { value: Secret::new(Box::from(bytes)) })
-                .or(Err(Unreadable))?,
-        ),
-        Item::AppId => v1::Item::AppId(
-            v1::AppId::new(limits, v1::AppIdParts { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) })
-                .or(Err(Unreadable))?,
-        ),
-        Item::AppMade => v1::Item::AppMade(
-            v1::AppMade::new(
-                limits,
-                v1::AppMadeParts { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) },
-            )
-            .or(Err(Unreadable))?,
-        ),
-        Item::AppSlug => v1::Item::AppSlug(
-            v1::AppSlug::new(limits, v1::AppSlugParts { value: Box::from(bytes) }).or(Err(Unreadable))?,
-        ),
-        Item::AppKey => v1::Item::AppKey(
-            v1::AppKey::new(limits, v1::AppKeyParts { value: Secret::new(Box::from(bytes)) }).or(Err(Unreadable))?,
-        ),
+        Item::AdminToken => v1::Item::AdminToken(v1::AdminToken { value: Secret::new(Box::from(bytes)) }),
+        Item::ApiToken => v1::Item::ApiToken(v1::ApiToken { value: Secret::new(Box::from(bytes)) }),
+        Item::GitToken => v1::Item::GitToken(v1::GitToken { value: Secret::new(Box::from(bytes)) }),
+        Item::User => v1::Item::User(v1::User { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) }),
+        Item::WebhookSecret => v1::Item::WebhookSecret(v1::WebhookSecret { value: Secret::new(Box::from(bytes)) }),
+        Item::AppId => v1::Item::AppId(v1::AppId { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) }),
+        Item::AppMade => {
+            v1::Item::AppMade(v1::AppMade { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) })
+        }
+        Item::AppSlug => v1::Item::AppSlug(v1::AppSlug { value: Box::from(bytes) }),
+        Item::AppKey => v1::Item::AppKey(v1::AppKey { value: Secret::new(Box::from(bytes)) }),
         Item::Accepted => v1::Item::Accepted(accepted(bytes)?),
         Item::Origin => v1::Item::Origin(decoded_origin(bytes)?),
     })
@@ -85,44 +57,42 @@ fn accepted(bytes: &[u8]) -> Result<v1::Accepted, Unreadable> {
     for chunk in chunks {
         values.push(u64::from_le_bytes(*chunk)).or(Err(Unreadable))?;
     }
-    v1::Accepted::new(&v1::CEILINGS, v1::AcceptedParts { values }).or(Err(Unreadable))
+    Ok(v1::Accepted { values })
 }
 /// Decode the origin record and reject an empty API address.
 pub fn decoded_origin(bytes: &[u8]) -> Result<v1::Origin, Unreadable> {
     let value = v1::Origin::decode(&v1::CEILINGS, &mut Reader::new(bytes)).or(Err(Unreadable))?;
-    if value.api().is_empty() {
+    if value.api.is_empty() {
         return Err(Unreadable);
     }
     Ok(value)
 }
 fn origin_bytes(value: &v1::Origin) -> Result<Secret, Unreadable> {
-    if value.api().is_empty() {
+    if value.api.is_empty() {
         return Err(Unreadable);
     }
-    let mut out = Writer::new(usize::try_from(value.measure()).expect("origin length"));
-    value.encode(&mut out).expect("measured origin");
-    Ok(Secret::new(out.finish()))
+    Ok(Secret::new(value.encode(&v1::CEILINGS).or(Err(Unreadable))?))
 }
 // Skein setup's item boundary remains little-endian; the generated list on
 // disk is big-endian. Keep this conversion usable without the forge runtime.
 fn accepted_bytes(value: &v1::Accepted) -> Secret {
-    let mut out = Writer::new(value.values().as_slice().len().checked_mul(8).expect("accepted length"));
-    for id in value.values().as_slice() {
+    let mut out = Writer::new(value.values.as_slice().len().checked_mul(8).expect("accepted length"));
+    for id in value.values.as_slice() {
         out.put(&id.to_le_bytes()).expect("measured accepted item");
     }
     Secret::new(out.finish())
 }
 fn raw(value: v1::Item) -> Result<(Item, Secret), Unreadable> {
     Ok(match value {
-        v1::Item::AdminToken(value) => (Item::AdminToken, value.into_parts().value),
-        v1::Item::ApiToken(value) => (Item::ApiToken, value.into_parts().value),
-        v1::Item::GitToken(value) => (Item::GitToken, value.into_parts().value),
-        v1::Item::User(value) => (Item::User, Secret::new(Box::from(value.value().to_le_bytes()))),
-        v1::Item::WebhookSecret(value) => (Item::WebhookSecret, value.into_parts().value),
-        v1::Item::AppId(value) => (Item::AppId, Secret::new(Box::from(value.value().to_le_bytes()))),
-        v1::Item::AppMade(value) => (Item::AppMade, Secret::new(Box::from(value.value().to_le_bytes()))),
-        v1::Item::AppSlug(value) => (Item::AppSlug, Secret::new(value.into_parts().value)),
-        v1::Item::AppKey(value) => (Item::AppKey, value.into_parts().value),
+        v1::Item::AdminToken(value) => (Item::AdminToken, value.value),
+        v1::Item::ApiToken(value) => (Item::ApiToken, value.value),
+        v1::Item::GitToken(value) => (Item::GitToken, value.value),
+        v1::Item::User(value) => (Item::User, Secret::new(Box::from(value.value.to_le_bytes()))),
+        v1::Item::WebhookSecret(value) => (Item::WebhookSecret, value.value),
+        v1::Item::AppId(value) => (Item::AppId, Secret::new(Box::from(value.value.to_le_bytes()))),
+        v1::Item::AppMade(value) => (Item::AppMade, Secret::new(Box::from(value.value.to_le_bytes()))),
+        v1::Item::AppSlug(value) => (Item::AppSlug, Secret::new(value.value)),
+        v1::Item::AppKey(value) => (Item::AppKey, value.value),
         v1::Item::Accepted(value) => (Item::Accepted, accepted_bytes(&value)),
         v1::Item::Origin(value) => (Item::Origin, origin_bytes(&value)?),
     })
@@ -154,10 +124,7 @@ pub fn encode_pasted(items: &[(u16, &[u8])]) -> Result<Secret, Unreadable> {
             return Err(Unreadable);
         }
         let item = if code == 11 {
-            v1::PastedItem::Pem(
-                v1::Pem::new(&v1::CEILINGS, v1::PemParts { value: Secret::new(Box::from(bytes)) })
-                    .or(Err(Unreadable))?,
-            )
+            v1::PastedItem::Pem(v1::Pem { value: Secret::new(Box::from(bytes)) })
         } else {
             let (_, _, item) =
                 super::parse((u64::from(super::FAMILY_FORGE) << 48) | u64::from(code)).ok_or(Unreadable)?;
@@ -170,13 +137,13 @@ pub fn encode_pasted(items: &[(u16, &[u8])]) -> Result<Secret, Unreadable> {
         seen |= bit;
         values.push(item).or(Err(Unreadable))?;
     }
-    let row = v1::Pasted::new(&v1::CEILINGS, v1::PastedParts { items: values }).or(Err(Unreadable))?;
-    let size = usize::try_from(row.measure()).expect("pasted length");
+    let row = v1::Pasted { items: values };
+    let size = usize::try_from(row.measure(&v1::CEILINGS).or(Err(Unreadable))?).expect("pasted length");
     if size > PASTED_BYTES {
         return Err(Unreadable);
     }
     let mut out = Writer::new(size);
-    row.encode(&mut out).expect("measured pasted value");
+    row.write(&v1::CEILINGS, &mut out).expect("measured pasted value");
     Ok(Secret::new(out.finish()))
 }
 /// The bundle's distinct, nonempty items, in their encoded order.
@@ -194,7 +161,7 @@ pub fn decode_pasted(bytes: &[u8]) -> Result<Box<[(u16, Secret)]>, PastedError> 
             });
         }
     };
-    let items = row.into_parts().items;
+    let items = row.items;
     if items.is_empty() {
         return Err(PastedError::Unreadable);
     }
@@ -213,7 +180,7 @@ pub fn decode_pasted(bytes: &[u8]) -> Result<Box<[(u16, Secret)]>, PastedError> 
 }
 fn pasted_value(item: v1::PastedItem) -> Result<(u16, Secret), PastedError> {
     let item = match item {
-        v1::PastedItem::Pem(value) => return Ok((11, value.into_parts().value)),
+        v1::PastedItem::Pem(value) => return Ok((11, value.value)),
         v1::PastedItem::AdminToken(value) => v1::Item::AdminToken(value),
         v1::PastedItem::ApiToken(value) => v1::Item::ApiToken(value),
         v1::PastedItem::GitToken(value) => v1::Item::GitToken(value),

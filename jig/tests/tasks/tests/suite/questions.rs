@@ -617,7 +617,7 @@ fn once_asked_the_owing_task_is_kept_by_its_question() {
 
 #[test]
 fn an_owing_task_that_never_asks_ends_by_its_tries() {
-    let mut world = pair_with_asks(true);
+    let mut world = pair_with_limits(true, &Limits { result_bytes: 256, ..LIMITS });
     let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
     for attempt in 1..=attempts {
         if attempt > ATTEMPT {
@@ -628,7 +628,13 @@ fn an_owing_task_that_never_asks_ends_by_its_tries() {
     assert_eq!(u64::from(world.record(ASKER).tries.run), attempts);
     assert!(matches!(world.record(ASKER).phase, Phase::Closing(Closing { ending: Ending::Failed { .. }, .. })));
     world.settle(ASKER);
-    assert!(matches!(world.results[&ASKER], Ending::Failed { .. }));
+    let words = format!(
+        "Its runs finished without asking its requester the question it owes, past its {} run tries.",
+        world.env.limits.retries.run.retries
+    );
+    assert_eq!(world.results[&ASKER], Ending::Failed { reason: words.as_bytes().into() });
+    let Stored::Summary(summary) = &world.records[&Key::Summary(ASKER)] else { panic!("task summary") };
+    assert_eq!(summary.reason.as_ref(), words.as_bytes());
 }
 
 #[test]
@@ -650,11 +656,16 @@ fn asks_cannot_be_amended() {
             reason: Box::new([]),
         };
         let reply = response(&mut world, |reply_to| Event::Amend {
-            operation: tasks::Amend { task: ASKER, stop_run: false, amendment: Box::new(amendment), message: ANSWER },
+            operation: tasks::Amend {
+                funder: None,
+                task: ASKER,
+                stop_run: false,
+                amendment: Box::new(amendment),
+                message: ANSWER,
+            },
             reply_to,
             by: Party::Task(REQUESTER),
             places: Box::new([]),
-            funder: None,
         });
         assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
         assert_eq!(world.record(ASKER).spec.asks, old);
@@ -897,13 +908,13 @@ fn keep_requester(world: &mut World) {
             reply_to,
             by: PERSON_PARTY,
             operation: tasks::Amend {
+                funder: None,
                 task: REQUESTER,
                 stop_run: false,
                 amendment: Box::new(amendment),
                 message: ANSWER,
             },
             places: Box::new([]),
-            funder: None,
         }),
         Reply::Done
     );
@@ -1027,7 +1038,7 @@ fn read_inbox(world: &mut World, task: u64, attempt: u64) {
 
 #[test]
 fn parking_with_nothing_awaited_exhausts_run_tries() {
-    let mut world = pair();
+    let mut world = pair_with_limits(false, &Limits { result_bytes: 256, ..LIMITS });
     let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
     for attempt in 1..=attempts {
         if attempt > ATTEMPT {
@@ -1043,7 +1054,13 @@ fn parking_with_nothing_awaited_exhausts_run_tries() {
     assert_eq!(u64::from(world.record(ASKER).tries.run), attempts);
     assert!(matches!(world.record(ASKER).phase, Phase::Closing(Closing { ending: Ending::Failed { .. }, .. })));
     world.settle(ASKER);
-    assert!(matches!(world.results[&ASKER], Ending::Failed { .. }));
+    let words = format!(
+        "Its runs parked with nothing left to await, past its {} run tries.",
+        world.env.limits.retries.run.retries
+    );
+    assert_eq!(world.results[&ASKER], Ending::Failed { reason: words.as_bytes().into() });
+    let Stored::Summary(summary) = &world.records[&Key::Summary(ASKER)] else { panic!("task summary") };
+    assert_eq!(summary.reason.as_ref(), words.as_bytes());
 }
 
 #[test]

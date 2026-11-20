@@ -73,6 +73,18 @@ impl Records {
             answer: None,
         }
     }
+    pub fn read_setup(&mut self, forge: u16, kind: Option<BoxKind>) {
+        self.files.read_setup(forge, kind);
+    }
+    pub fn take_setup(&mut self) -> Option<crate::group_records::SetupRead> {
+        self.files.take_setup()
+    }
+    pub fn probe_removal(&mut self, forge: u16, kind: BoxKind) {
+        self.files.probe_removal(forge, kind);
+    }
+    pub fn take_removal(&mut self) -> Option<(u16, Result<bool, Error>)> {
+        self.files.take_removal()
+    }
     pub fn close_root(&mut self) {
         self.files.close_root();
     }
@@ -267,7 +279,8 @@ fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {
         | Error::AddressNotAvailable
         | Error::Unreachable
         | Error::TimedOut
-        | Error::TooLate => b"unexpected file error",
+        | Error::TooLate
+        | Error::Reach(_) => b"unexpected file error",
         Error::Other(code) => {
             return joined(&[
                 b"box: ",

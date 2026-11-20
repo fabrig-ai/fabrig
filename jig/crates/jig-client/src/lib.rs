@@ -21,8 +21,8 @@ pub use jig_client_domain::{
     contract,
 };
 pub use jig_client_protocol_link::{
-    Approval, ApprovalCode, ApprovalState, AuthorizeWhy, Authorized, Decided, Message, NotAsked, Record, STREAM_KEY,
-    Signing, Streamed, Taking, With,
+    Approval, ApprovalCode, ApprovalKind, ApprovalState, AskedLink, AuthorizeWhy, Authorized, Decided, Loopback,
+    Message, NotAsked, Record, STREAM_KEY, Signing, Streamed, Taking, With,
 };
 pub use limits::{Limits, Unusable, valid};
 #[cfg(test)]

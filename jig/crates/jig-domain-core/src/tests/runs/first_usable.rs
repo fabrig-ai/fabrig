@@ -163,6 +163,7 @@ fn claim(core: &mut Core, limits: &Limits) {
         core,
         limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
@@ -520,8 +521,8 @@ fn create_and_amend_refuse_an_authority_with_no_charter_model() {
             reply_to: ReplyTo::new(HOST),
             by: tasks::Party::Person(1),
             places: Box::new([]),
-            funder: None,
             operation: tasks::Amend {
+                funder: None,
                 task: TASK,
                 message: 1,
                 stop_run: false,

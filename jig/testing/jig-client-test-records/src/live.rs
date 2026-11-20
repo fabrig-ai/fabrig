@@ -49,7 +49,8 @@ pub fn current_call_record() -> w::CurrentCall {
 #[must_use]
 pub fn tasks_record() -> w::Tasks {
     let lim = limits();
-    w::Tasks::new(&lim, w::TasksParts { rows: Box::from([]), more: false }).expect("literal fixture fits")
+    w::Tasks::new(&lim, w::TasksParts { ended_mark: 0, rows: Box::from([]), more: false })
+        .expect("literal fixture fits")
 }
 #[must_use]
 pub fn owner_deployment_record() -> w::Deployment {
@@ -57,7 +58,11 @@ pub fn owner_deployment_record() -> w::Deployment {
     w::Deployment::new(
         &lim,
         w::DeploymentParts {
-            skein_bools: [false, false, false, false],
+            worker_settings: List::with_capacity(0),
+            cut: false,
+            connectors_cut: false,
+            providers_cut: false,
+            readiness_cut: false,
             providers: Box::new([]),
             key_bytes: 256,
             readiness: Box::new([]),

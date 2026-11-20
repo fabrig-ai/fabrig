@@ -9,6 +9,115 @@
 [gate.default]
 references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 1.5
+why = "The checkout world's fake-disk delivery, merge, reuse, store and simulation stories run below the real loop in their own binary."
+
+[[gate.default.reasons]]
+binary = "skein-codegen"
+test = "tests::changes_to_different_declarations_merge_line_by_line"
+cpu_s = 0.4
+why = "The acceptance family has 120 records and a long record split across methods; ten generations and three git merge-file merges check that independent declaration edits compose exactly. Landing run 1586 measured 0.266 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "skein-codegen"
+test = "tests::family_and_field_helpers_have_no_ordinals_or_long_functions"
+cpu_s = 0.1
+why = "The 120-record family and 100-field record force family and method splits so the output check can reject ordinal helper names and functions past the line bound. Landing run 1586 measured 0.050 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "temper-engine-domain-world::suite"
+test = "forge_routes::early_start::a_running_early_producer_asks_then_catches_up_with_a_squashed_dependency"
+cpu_s = 0.25
+why = "The running producer crosses two squashed landings, a fenced attempt's end and resume, and the world's public-document crash/restart oracle; landing run 1382 measured 0.206 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "tests::reds::an_admitted_landed_ask_answers_from_the_domain_without_a_commit"
+cpu_s = 0.06
+why = "The admitted wire ask needs a real completed deployment, credential restore, claimed worker run and routed host answer; landing run 1382 measured 0.047 CPU s alone. State-only cases use the domain's step fixture instead."
+
+[[gate.default.reasons]]
+binary = "temper-box-shell"
+test = "fake_backends::tests::fake_github_test_passes_ordinary_admission_without_document_forges"
+cpu_s = 0.55
+why = "The shell checks a provisioned sandbox and computes the joined start's operation count; that existing path constructs the service, and there is no narrower checked sizing constructor. Admission is parsed once for both assertions."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "setup::tests::create_tests::places_tests::owned_setup_chooses_then_keeps_one_place_and_registers_its_public_client"
+cpu_s = 0.08
+why = "The routing test keeps a chosen place, registers its public client, forgets it, and restores it in a second service. Its settle loop stops when its queues, domain backlog and commits drain."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "tests::approval::an_ask_is_answered_as_the_typed_configuration_enables_the_approval"
+cpu_s = 0.07
+why = "Default, explicitly enabled and disabled approval each pass their typed startup setting through a service and an encoded HTTP ask; all three outcomes and their decoded fields are checked."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "tests::family::deployment_reads_follow_the_box_default_and_committed_welcome_changes"
+cpu_s = 0.075
+why = "Box and deployment each start a service and read the welcome before and after committed set and reset decisions; both defaults and all six reads are part of the routing rule."
+
+[[gate.default.reasons]]
+binary = "temper-service"
+test = "startup::welcome_policy::the_template_machine_gives_the_domain_its_places"
+cpu_s = 0.2
+why = "Real init documents supply the stock and test machine places, which a domain Connect must keep in its forge record. Absent and null share one stock world; the overridden machine needs a second world."
+
+[[gate.default.reasons]]
+binary = "temper-engine-domain-world::suite"
+test = "forge_routes::landing::two_goals::two_goals_land_in_one_green_turn"
+cpu_s = 0.27
+why = "Two goals' changes, each approved by its review behind a person's latch, form one turn landing of two on one green gate run, with one fast-forward, member pulls merged at their candidates, and the landing's panel checked. Two goals forming one turn cannot be shown with fewer."
+
+[[gate.default.reasons]]
+binary = "temper-client-shell-tui"
+test = "journey::normalise::tests::an_approved_sign_in_normalises_and_replays_to_the_end"
+cpu_s = 0.14
+why = "A synthesized approval recording is normalised twice to check idempotency and replayed through the shipped terminal host to its end; landing run 1593 measured 0.110 CPU s alone."
+
+
+[[gate.default.reasons]]
+binary = "temper-engine-shell"
+test = "forge_sign_in::tests::credentials_are_private_whole_and_left_in_place_on_a_second_run"
+cpu_s = 0.21
+why = "Same-work backlog (the user, 11-18): its CPU alone swings 2.0 times on the same code (main's figures 0.068, 0.098, 0.071 s; 0.135 s at a docs-only candidate, 11-18 13:39Z), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.reasons]]
+binary = "temper-service"
+test = "startup::push_configuration::optional_push_reads_its_private_key_services_and_public_half"
+cpu_s = 0.14
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.4 times (0.038 s at the base, 0.091 s at the head, gate run 1459 of 11-18, whose change touched only temper's client crates), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-startup"
+test = "tests::fixed::the_fleet_uses_the_link_stop_bound_unless_an_override_is_larger"
+cpu_s = 0.08
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.9 times (0.018 s at the base, 0.053 s at the head, gate run 1459 of 11-18, whose change touched only temper's client crates), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.reasons]]
+binary = "temper-service"
+test = "startup::members::tests::every_row_is_a_member_its_decoder_takes"
+cpu_s = 0.11
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.0 times (0.036 s at the base, 0.073 s at the head, gate run 1465 of 11-18, whose change touched jig's domain crates and temper's domain tests), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.moves]]
+from = "jig.protocol"
+to = "jig.domain"
+cpu_s = 1.5
+why = "The scripted person front in b_scripted and the scripted client worlds retained by suite move below the joint shipping components."
+
+[[gate.default.moves]]
+from = "jig.protocol"
+to = "jig.step"
+cpu_s = 0.1
+why = "The controls binary checks client steps, view fragments and referee observations without driving a world."
+
 [gate.default.skein]
 ideal_s = 40
 
@@ -152,8 +261,50 @@ ideal_s = 30
 [gate.default.repository.checks]
 cpu_s = 72
 
+[[gate.default.moves]]
+from = "jig.simulated"
+to = "jig.step"
+cpu_s = 0.1
+why = "Store frame_limits now owns the serving-frame decoder, generation refusal words and store-row page-size check without a simulated machine."
+
+[[gate.default.moves]]
+from = "jig.protocol"
+to = "jig.domain"
+cpu_s = 5.1
+why = "The conformance suite's application-domain stories run on jig's fakes, below HTTP settings carriage."
+
+[[gate.default.moves]]
+from = "jig.protocol"
+to = "jig.step"
+cpu_s = 0.1
+why = "The conformance referee_controls drive the referee with supplied observations rather than a world."
+
+[[gate.default.moves]]
+from = "jig.simulated"
+to = "jig.domain"
+cpu_s = 50.0
+why = "The core suite's stories drive the core and its children over the store's in-memory mode, below simulated disk cuts."
+
+[[gate.default.moves]]
+from = "jig.simulated"
+to = "jig.step"
+cpu_s = 0.2
+why = "The core step binary drives referee and store controls, direct Core steps and allocation and profile bounds without a world."
+
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 2.8
+why = "The checkout world's seeded fake-disk merge and simulation stories run below the real loop in their own binary."
+
+[[gate.fuzzy.moves]]
+from = "jig.protocol"
+to = "jig.domain"
+cpu_s = 1.4
+why = "The scripted starts, truth sweeps, named regressions and memory world retained by suite move below the joint shipping components."
 
 [gate.fuzzy.skein]
 ideal_s = 120
@@ -274,6 +425,24 @@ cpu_s = 9
 
 [gate.fuzzy.hearth.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "jig.simulated"
+to = "jig.step"
+cpu_s = 0.1
+why = "Store frame_limits now owns fuzzy::frames' 512 fixture-frame decode cases over hand-supplied file replies."
+
+[[gate.fuzzy.moves]]
+from = "jig.protocol"
+to = "jig.domain"
+cpu_s = 23.2
+why = "The conformance suite's seeded crash and snapshot sweeps check the application's domain on jig's fakes."
+
+[[gate.fuzzy.moves]]
+from = "jig.simulated"
+to = "jig.domain"
+cpu_s = 34.4
+why = "The core suite's seeded stories and commit-cut sweeps drive the core and its children over the store's in-memory mode, below simulated disk operations."
 
 [browser-skein]
 cpu_suite_s = 217.5

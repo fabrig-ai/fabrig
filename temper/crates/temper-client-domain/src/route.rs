@@ -103,11 +103,11 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, returned: bool, out:
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Approve { .. }
-        | Place::Authorize { .. }
-        | Place::AuthorizeMalformed
-        | Place::Missing
-        | Place::Public(_) => {
+        Place::Root | Place::Missing => {
+            pages(root, env, crate::pages::Event::Root, out);
+            forge(root, env, forge::Event::Left, out);
+        }
+        Place::Approve { .. } | Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -129,6 +129,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         },
         crate::pages::Event::Push(_)
         | crate::pages::Event::Started
+        | crate::pages::Event::Root
         | crate::pages::Event::Left
         | crate::pages::Event::SignInKept { .. }
         | crate::pages::Event::SignInAddress { .. }
@@ -318,7 +319,8 @@ pub(crate) fn route_client(
             jig_client::Request::Told { told: value } => told(root, env, value, out),
             jig_client::Request::Approval(answer) => approval(root, env, answer, out),
             jig_client::Request::Authorized(answer) => crate::authorize::answered(root, answer, out),
-            request @ (jig_client::Request::Save { .. }
+            request @ (jig_client::Request::AskedLink(_)
+            | jig_client::Request::Save { .. }
             | jig_client::Request::Erase { .. }
             | jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }
@@ -337,6 +339,7 @@ pub(crate) fn route_unlinked(
     while let Some(request) = child.pop() {
         match request {
             jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
+            jig_client::UnlinkedRequest::AskedLink(_) => {}
             jig_client::UnlinkedRequest::Approval(answer) => approval(root, env, answer, out),
             jig_client::UnlinkedRequest::Authorized(answer) => crate::authorize::answered(root, answer, out),
             request @ (jig_client::UnlinkedRequest::ApprovalAct(_)
@@ -370,6 +373,7 @@ fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut 
             forge_ways(root, env, &told, out);
             forge_playground(root, env, &told, out);
             forge_me(root, env, &told, out);
+            forge_configure(root, env, out);
             return;
         }
         Told::Dropped { count } => {
@@ -391,6 +395,7 @@ fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut 
                 return;
             }
             if forge_me(root, env, &told, out) {
+                forge_configure(root, env, out);
                 return;
             }
             if let Some(event) = forge::told(&root.client, &env.limits, told) {
@@ -415,16 +420,19 @@ fn forge_served(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
     let consumed = forge::me::told(&mut root.forge, &root.client, told, &mut child);
-    if consumed {
-        forge::ways::configure(&mut root.forge, &mut child);
-        forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::away::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::trials::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::approvals::configure(&mut root.forge, env.limits.forge, &mut child);
-    }
     route_forge(root, env, &mut child, out);
     consumed
+}
+
+fn forge_configure(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut child = Queue::uncapped();
+    forge::ways::configure(&mut root.forge, &mut child);
+    forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::away::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::trials::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::approvals::configure(&mut root.forge, env.limits.forge, &mut child);
+    route_forge(root, env, &mut child, out);
 }
 
 fn forge_playground(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
@@ -545,9 +553,51 @@ fn playground_facts(root: &mut Domain) {
 /// Reconcile playground lifecycle after the shared client's account and forge tells.
 pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    forge::model::progress(&mut root.forge, &root.client, &mut child);
+    let page_needs_model = page_needs_model(root);
+    forge::model::progress(&mut root.forge, &root.client, page_needs_model, &mut child);
     route_forge(root, env, &mut child, out);
     playground_facts(root);
+}
+
+/// The model line's readers, including the no-project screen's setup destination
+/// (temper/docs/design/client/forge/family.md, 7).
+fn page_needs_model(root: &Domain) -> bool {
+    if crate::pages::welcome::no_project(root) {
+        return root.forge.deployment().expect("the no-project screen has the deployment").welcome
+            && crate::pages::welcome::forge_kept(root);
+    }
+    match root.pages.address() {
+        Address::Welcome { .. }
+        | Address::ConnectModel { .. }
+        | Address::NewChat { .. }
+        | Address::Chat { .. }
+        | Address::Talk { .. }
+        | Address::Task { .. } => true,
+        Address::Work { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Home { .. }
+        | Address::AllHome
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Told
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Repositories { .. }
+        | Address::Settings { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
+        | Address::Adopt { .. }
+        | Address::Team { .. } => false,
+    }
 }
 
 /// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/pages/README.md).

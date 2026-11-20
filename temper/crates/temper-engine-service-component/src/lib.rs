@@ -35,9 +35,13 @@ pub use core_wait::CoreWait;
 pub use temper_engine_domain::JournalStop;
 pub mod engine;
 pub use engine::Engine;
+pub mod limit_settings;
 mod opened;
+mod places;
 mod route;
 mod runtime;
+pub use places::PlaceIo;
+pub mod checkpoint;
 #[doc(hidden)]
 pub mod setup;
 mod start_refusal;
@@ -74,6 +78,21 @@ pub enum Stop {
         why: CommitStop,
     },
     Start(Problems),
+    /// A lowered setting cannot hold the durable work restored at this start.
+    LimitRestore {
+        name: &'static [u8],
+        kind: limit_settings::LimitKind,
+        configured: u64,
+        held: u64,
+    },
+    /// A stock-readable row is past a setting's lowered codec bound. Both
+    /// figures in `bound` are in that setting's units; `held` is the least
+    /// figure admitting the record (temper/docs/design/protocol/configuration/limit-settings.md, 3).
+    CodecRestore {
+        bound: jig_protocol_store::codec::Lowered,
+        kind: limit_settings::LimitKind,
+        row: Option<jig_protocol_store::restore::RowSite>,
+    },
     /// jig's start refused a fit at `phase` (jig jig/docs/design/domain/engine/restart.md).
     StartRefused {
         phase: Option<jig_domain_core::start::Phase>,
@@ -187,6 +206,25 @@ pub enum Note {
         forge: u16,
         note: temper_engine_domain_forge::LinkNote,
     },
+    /// A train's task make was refused (domain/landing-forming.md, 3).
+    LandingRefused {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        why: Option<jig_domain_tasks::Refusal>,
+        changes: Box<[u64]>,
+    },
+    /// Start's Link repairs (domain/landing-forming.md, 4).
+    LandingUnmade {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        changes: Box<[u64]>,
+    },
+    HoldDropped {
+        name: temper_engine_domain_forge::Name,
+        task: u64,
+    },
     /// The engine's hello refusal, suppressed until its words change (protocol/cluster.md, 3).
     HelloRefused {
         channel: u64,
@@ -252,6 +290,15 @@ pub enum Note {
     Listening {
         listener: Listening,
         addr: core::net::SocketAddr,
+    },
+    /// Figures given to the host (protocol/configuration/figures.md, 2).
+    WorkerFigures {
+        limits: u32,
+        endpoints: u32,
+        revision: u32,
+    },
+    WorkerFiguresTaken {
+        worker: Box<[u8]>,
     },
     /// An accepted opening's agreed versions (protocol/wires.md, 4).
     WorkerTold {

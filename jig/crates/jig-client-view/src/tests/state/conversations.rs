@@ -66,7 +66,7 @@ fn conversations_keep_the_owners_order_without_reading_the_ended_group() {
     }
     let watch = watched.expect("live task query watched");
     let rows = list([line(FIRST, Wall::EPOCH), line(SECOND, LATER)]);
-    deliver(&mut domain, watch, Delivery::Tasks(Box::new(Tasks { rows: rows.clone(), more: false })));
+    deliver(&mut domain, watch, Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows: rows.clone(), more: false })));
     assert_eq!(domain.conversation_rows().rows, rows);
 }
 #[test]
@@ -76,7 +76,7 @@ fn older_reads_the_ended_query_then_its_exact_opaque_continuation() {
     let mut query = crate::state::queries::conversations(PERSON, 1, Some(PROJECT));
     query.phase = Some(PhaseClass::Ended);
     query.order = QueryOrder::Ended;
-    assert_eq!(read, Read::Tasks { query, live: None, ended: None });
+    assert_eq!(read, Read::Tasks { query: query.clone(), live: None, ended: None });
     let next = Cursor::new(b"opaque next".as_slice().into(), 32).unwrap();
     let rows = list([line(FIRST, Wall::EPOCH)]);
     drive(
@@ -84,6 +84,7 @@ fn older_reads_the_ended_query_then_its_exact_opaque_continuation() {
         ReadPage {
             read: handle,
             result: ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: list([]),
                 live_after: None,
                 ended: EndedGroup::Rows { rows: rows.clone(), after: Some(next.clone()), cut: true },
@@ -129,7 +130,11 @@ fn a_kept_conversation_names_its_dependencies_without_promising_that_words_resum
     }
     let mut kept = line(FIRST, Wall::EPOCH);
     kept.waits_on = WaitsOn::Dependencies { pending: list([7]), count: 1 };
-    deliver(&mut domain, watched.unwrap(), Delivery::Tasks(Box::new(Tasks { rows: list([kept]), more: false })));
+    deliver(
+        &mut domain,
+        watched.unwrap(),
+        Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows: list([kept]), more: false })),
+    );
     let (tree, _) = crate::tests::tree::pages::build(&domain, 1, crate::tests::tree::cards::words());
     goldens.check(&tree);
 }

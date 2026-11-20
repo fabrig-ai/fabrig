@@ -2,6 +2,7 @@
 use super::*;
 use jig_domain_people::ApplicationScope;
 use skein_lib::ReplyTo;
+use temper_client_protocol_wire::v1::Record;
 use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
 
 const PARTY: u64 = 7;
@@ -112,13 +113,7 @@ fn a_new_spell_takes_the_wall_and_the_landed_count() {
             outputs(
                 &mut d,
                 Event::Restore {
-                    record: Stored::ProjectFacts(ProjectFacts {
-                        project: PROJECT,
-                        landed,
-                        last_landed: Wall::EPOCH,
-                        brief: None,
-                        running: None,
-                    }),
+                    record: Stored::ProjectFacts(ProjectFacts { project: PROJECT, landed, last_landed: Wall::EPOCH }),
                 },
             );
         }
@@ -241,7 +236,10 @@ fn classes_judge_every_call_and_keep_its_reach() {
                     patterns: Box::new([Box::from(b"src/**".as_slice())]),
                 }]),
             };
-            let size = temper_protocol_reaches::classes_record(&classes).unwrap().measure();
+            let size = temper_protocol_reaches::classes_record(&classes)
+                .unwrap()
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings");
             outputs(
                 &mut d,
                 Event::Restore {

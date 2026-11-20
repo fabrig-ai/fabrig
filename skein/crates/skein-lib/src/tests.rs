@@ -2,6 +2,9 @@
 //! driven through its operations, at and past its capacity, and each value
 //! type through its edges, one module per area of runtime/lib.md.
 
+#[global_allocator]
+static HEAP: skein_heap::Counting = skein_heap::Counting;
+
 mod base64;
 mod buffer;
 mod bytes;
@@ -9,11 +12,13 @@ mod containers;
 mod crypto_rng;
 mod digest;
 mod env;
+mod fixed;
 mod handles;
 mod held;
 mod journal;
 mod length;
 mod requests;
+mod sha1;
 mod sha256;
 mod streams;
 mod time;

@@ -40,10 +40,12 @@ pub struct Driver {
     /// How many inputs `try_step` handed back at the backlog watermark; the
     /// world offers each again later.
     pub returned: u32,
-    /// Other outputs without a durability dependency.
+    /// Other outward outputs, including the durable limit-settings word.
     pub immediate: Vec<engine::Request>,
     /// Whether the deployment's first period was sent once the root was ready.
     pub period_sent: bool,
+    /// Outputs collected, including deliveries that need no reply or commit.
+    collected: u64,
 }
 
 impl Driver {
@@ -61,7 +63,10 @@ impl Driver {
         }
     }
     /// Replace a root together with the configuration used by its restart oracle.
-    pub fn replace_root(&mut self, configuration: engine::Config) {
+    pub fn replace_root(&mut self, mut configuration: engine::Config) {
+        for worker in &mut configuration.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
         self.restart_config = crate::oracle::config::copy(&configuration);
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
@@ -69,7 +74,7 @@ impl Driver {
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
         self.broken("cold-cut fixture transfers its store to the receiving root");
-        std::mem::take(&mut self.store)
+        self.store.take_for_drop()
     }
     /// Consume a cold-cut driver without opening a replacement store for its destructor.
     pub(crate) fn into_store(mut self) -> Store {
@@ -102,14 +107,23 @@ impl Driver {
 
     /// A cold root with a story's byte budget, shared by its construction and environment.
     #[must_use]
-    pub fn with_budget(store: Store, config: engine::Config, limits: &engine::Limits, memory_bytes: u64) -> Driver {
-        let limits = engine::Limits { memory_bytes, ..*limits };
+    pub fn with_budget(
+        store: Store,
+        config: engine::Config,
+        limits: &engine::Limits,
+        transcript_memory: u64,
+    ) -> Driver {
+        let limits = engine::Limits { transcript_memory, ..*limits };
         Self::cold(store, config, &limits)
     }
 
     /// An empty deployment for stories that exercise the real first-start cut itself.
     #[must_use]
-    pub fn cold(store: Store, config: engine::Config, limits: &engine::Limits) -> Driver {
+    pub fn cold(store: Store, mut config: engine::Config, limits: &engine::Limits) -> Driver {
+        // Nominal fixture workers offer the scenario's full fleet capacity.
+        for worker in &mut config.core.defaults.workers {
+            worker.places = limits.fleet.slots;
+        }
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
         Driver {
@@ -136,6 +150,7 @@ impl Driver {
             returned: 0,
             immediate: Vec::new(),
             period_sent: false,
+            collected: 0,
         }
     }
     #[must_use]
@@ -195,8 +210,16 @@ impl Driver {
 
     #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
+        self.collected += u64::from(self.out.len());
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
+            let request = if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
+                let result = self.store.read(range);
+                self.events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+                continue;
+            } else {
+                request
+            };
             let request = if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
                 let result = self.store.read(range);
                 self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
@@ -222,6 +245,10 @@ impl Driver {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.transactions.push(writes.to_vec());
                     self.store.pending.push_back((number, writes));
+                }
+                engine::Request::Store(engine::StoreRequest::Checkpoint { token }) => {
+                    let terminal = self.store.checkpoint(token);
+                    self.events.push_back(engine::Event::Store(terminal));
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, bytes }) => {
                     self.loads.push((owner, range.clone()));
@@ -262,6 +289,10 @@ impl Driver {
                     })));
                     self.pushes.push(push);
                 }
+                engine::Request::Worker(
+                    engine::WorkerRequest::Deliver(Delivery::Providers(_)) | engine::WorkerRequest::Settings(_),
+                )
+                | engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Providers(_))) => {}
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {
                     self.delivered.push(delivery);
@@ -274,6 +305,25 @@ impl Driver {
                         &self.env.limits.forge.client,
                     );
                 }
+                engine::Request::ChoosePlace { request, kind, .. } => {
+                    let port = 3000;
+                    let place = temper_engine_domain_forge::Place {
+                        api: temper_engine_domain_forge::Address {
+                            host: b"127.0.0.1".as_slice().into(),
+                            port,
+                            tls: None,
+                        },
+                        git: format!("http://127.0.0.1:{port}").into_bytes().into_boxed_slice(),
+                        web: None,
+                    };
+                    let git_program = match kind {
+                        temper_engine_domain_forge::BoxKind::Owned => None,
+                        temper_engine_domain_forge::BoxKind::Fake => Some(b"/data/demo/bin/git".as_slice().into()),
+                    };
+                    self.events.push_back(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::PlaceChosen { request, place: Some(place), git_program },
+                    )));
+                }
                 engine::Request::AdoptAccess { forge, request, .. } => {
                     self.events.push_back(engine::Event::Forge(Box::new(
                         temper_engine_domain_forge::Event::AccessAnswered { forge, request, answer: Ok(()) },
@@ -285,6 +335,7 @@ impl Driver {
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::BoxGroup { .. }
@@ -339,11 +390,42 @@ impl Driver {
 
     /// Drive immediate work while a story deliberately keeps a fleet deadline armed.
     pub fn pump(&mut self) {
-        const STEPS: usize = 200; // The direct fixture's settlement step budget.
-        for _ in 0..STEPS {
-            self.advance(true);
-        }
+        self.drain(200);
         assert!(self.events.is_empty() && self.store.pending.is_empty(), "immediate work drained: {:?}", self.root);
+    }
+
+    /// Drain without firing timers or changing either injected clock. Even an
+    /// already due timer waits for the story's explicit `fire_at` or `settle`.
+    pub(crate) fn drain(&mut self, steps: usize) {
+        let mut quiet = 0;
+        for _ in 0..steps {
+            let commit = self.store.applied;
+            // A delivery-only pass still makes progress even without a commit.
+            let collected = self.collected;
+            self.advance(true);
+            if self.collected == collected && self.idle_since(commit) {
+                quiet += 1;
+                if quiet == 2 {
+                    return;
+                }
+            } else {
+                quiet = 0;
+            }
+        }
+    }
+
+    /// The restart oracle's immediate-work fence. Quiescent also waits for
+    /// fleet alarms; this fence leaves firing and advancing clocks to the caller.
+    pub(crate) fn idle_since(&self, commit: u64) -> bool {
+        self.root.ready()
+            && !self.root.forge_work_ready()
+            && self.root.held_bytes() == 0
+            && self.events.is_empty()
+            && self.out.is_empty()
+            && self.store.idle()
+            && self.store.held.is_empty()
+            && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
+            && self.store.applied == commit
     }
 
     /// Fire timers at an absolute simulated time; the caller drives their outputs.
@@ -443,6 +525,7 @@ impl Driver {
     pub fn sign_in(&mut self) {
         self.serial += 1;
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(self.serial)),
             identity: people::Identity {

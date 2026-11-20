@@ -44,8 +44,11 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
         (0_u8..64).map(|index| machine::Variable { name: Box::new([b'A' + index]), value: Box::new([]) }).collect();
     let meter = Meter::new();
     meter.start();
-    let mut component =
-        Component::new(&limits, machine::Environment::encode(&variables, &limits).expect("empty environment fits"));
+    let mut component = Component::new(
+        &limits,
+        machine::Environment::encode(&variables, &limits).expect("empty environment fits"),
+        Box::from(b"/usr/bin/rg".as_slice()),
+    );
     component.workspace(&workspace);
     meter.check(meter.end(), SEARCH_CEILING, &"new and workspace");
 
@@ -129,7 +132,8 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
     let checked = world.request(FromDomain::Check {
         owner: Token::new(22),
         program: run::Place { root, path: b"check-hang".as_slice().into() },
-        deadline: Time::from_nanos(10_000_000),
+        bound: skein_lib::Duration::from_nanos(10_000_000),
+        cap: Time::from_nanos(10_000_000),
         tail: 32,
     });
     assert!(matches!(checked, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
@@ -185,8 +189,11 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
         let mut down = Queue::with_capacity(2);
         let meter = Meter::new();
         meter.start();
-        let mut component =
-            Component::new(&limits, machine::Environment::encode(&variables, &limits).expect("exact byte ceiling"));
+        let mut component = Component::new(
+            &limits,
+            machine::Environment::encode(&variables, &limits).expect("exact byte ceiling"),
+            Box::from(b"/usr/bin/rg".as_slice()),
+        );
         component.workspace(&workspace);
         meter.check(meter.end(), ENVIRONMENT_CEILING, &"maximum environment encoding and retained configuration");
         for check in [false, true] {
@@ -195,7 +202,8 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
                 FromDomain::Check {
                     owner,
                     program: run::Place { root: Token::new(1), path: b"check".as_slice().into() },
-                    deadline: Time::from_nanos(100),
+                    bound: skein_lib::Duration::from_nanos(100),
+                    cap: Time::from_nanos(100),
                     tail: 0,
                 }
             } else {

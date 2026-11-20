@@ -31,18 +31,107 @@ fn a_refused_start_is_its_binarys_serve_line() {
     ];
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("fixture directories");
     std::fs::create_dir(scratch.path().join("config")).expect("configuration directory");
-    std::fs::write(directories.document(), b"{}").expect("document");
+    std::fs::write(scratch.path().join("config").join(temper_config_shell::FILE), b"engine = \"127.0.0.1:7200\"\n")
+        .expect("configuration file");
     assert_eq!(
         super::run(
             "temper-worker",
             &directories,
+            temper_config_shell::Shape::WorkerAlone,
             &[],
             super::host::adapter_tests::SERVED,
+            &skein_shell::Clock::new(),
             |_| Ok(()),
-            |_, _, ()| Err::<super::Prepared<_, ()>, _>("refused".into()),
+            |_, _, _, ()| Err::<super::Prepared<_, ()>, _>("refused".into()),
             |_, _, ()| Ok(())
         ),
         Err("temper-worker serve: refused\n".into())
+    );
+}
+
+#[test]
+fn toml_serve_maps_member_lines_and_keeps_other_problems() {
+    use std::os::unix::ffi::OsStrExt;
+    let scratch = skein_scratch::Scratch::new("serve-key-lines");
+    let args = [
+        b"--config".as_slice(),
+        scratch.path().as_os_str().as_bytes(),
+        b"--data",
+        scratch.path().as_os_str().as_bytes(),
+        b"--cache",
+        scratch.path().as_os_str().as_bytes(),
+    ]
+    .map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&args, &[], b"/").expect("directories");
+    std::fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        "# box\n\nlisten = \"127.0.0.1:7100\"\npublic = \"http://example.com\"\n",
+    )
+    .expect("box file");
+    assert_eq!(
+        super::run(
+            "temper-box",
+            &directories,
+            temper_config_shell::Shape::Standalone,
+            &[],
+            super::host::adapter_tests::SERVED,
+            &skein_shell::Clock::new(),
+            |_| Ok(()),
+            |_, _, _, ()| {
+                Err::<super::Prepared<_, ()>, _>("application.clients.public: start's words\napplication.webhooks.listener: listener words\nagents.setting: unchanged\n".into())
+            },
+            |_, _, ()| Ok(())
+        ),
+        Err(format!(
+            "temper-box serve: {}:4: public: start's words\ntemper-box serve: {}: webhooks (its default): listener words\ntemper-box serve: agents.setting: unchanged\n",
+            temper_config_shell::FILE,
+            temper_config_shell::FILE
+        ))
+    );
+}
+
+#[test]
+fn toml_serve_passes_checked_programs_beside_the_document() {
+    use std::os::unix::ffi::OsStrExt;
+    let scratch = skein_scratch::Scratch::new("serve-file-programs");
+    let args = [
+        b"--config".as_slice(),
+        scratch.path().as_os_str().as_bytes(),
+        b"--data",
+        scratch.path().as_os_str().as_bytes(),
+        b"--cache",
+        scratch.path().as_os_str().as_bytes(),
+    ]
+    .map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&args, &[], b"/").expect("directories");
+    let program = scratch.path().join("program");
+    std::fs::copy("/bin/sh", &program).expect("scratch executable");
+    std::fs::write(scratch.path().join(temper_config_shell::FILE), format!(
+        "listen = \"127.0.0.1:7100\"\n[programs]\ngit = {program:?}\nclaude = {program:?}\nforgejo = {program:?}\nrunner = {program:?}\n"
+    )).expect("box file");
+    assert_eq!(
+        super::run(
+            "temper-box",
+            &directories,
+            temper_config_shell::Shape::Standalone,
+            &[],
+            super::host::adapter_tests::SERVED,
+            &skein_shell::Clock::new(),
+            |_| Ok(()),
+            |bytes, programs, _, ()| {
+                assert_eq!(programs.git.as_deref(), Some(program.as_path()));
+                assert_eq!(programs.claude.as_deref(), Some(program.as_path()));
+                assert_eq!(programs.forgejo.as_deref(), Some(program.as_path()));
+                assert_eq!(programs.runner.as_deref(), Some(program.as_path()));
+                assert!(
+                    !bytes.windows(b"\"programs\"".len()).any(|word| word == b"\"programs\""),
+                    "file-only paths stay out of the document"
+                );
+                Err::<super::Prepared<_, ()>, _>("checked programs reached preparation".into())
+            },
+            |_, _, ()| Ok(()),
+        ),
+        Err("temper-box serve: checked programs reached preparation\n".into())
     );
 }
 

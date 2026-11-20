@@ -4,7 +4,9 @@ use super::{Layouts, Text, counting, texts};
 use crate::tests::fixtures::{self, disk::Disk};
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Store, ValueType};
 use alloc::boxed::Box;
-use jig_test_layouts::layouts::{CURRENT, FIRST, KEPT};
+use jig_test_layouts::layouts::{BUFFER_CURRENT, BUFFER_KEPT, CURRENT, FIRST, KEPT};
+use skein_codec::Record as _;
+mod shortcut;
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
@@ -86,6 +88,7 @@ fn planning_store(sets: OwnerSets) -> Store {
     let events = fixtures::run(
         &mut store,
         crate::Request::Open {
+            purpose: crate::Purpose::Serve,
             owner: skein_lib::Token::new(1),
             root: fixtures::ROOT,
             installation: fixtures::INSTALLATION,
@@ -146,8 +149,8 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     assert_eq!(super::open(&mut store, false), Ok(false));
     assert_counts(&[CURRENT], 1);
     let value = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut writer).expect("fixture row encodes");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    value.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
     let key = crate::keys::encode_own(
         &crate::keys::Own::Layout { family: Box::from(FAMILY.name), number: 0, id: 9 },
         store.limits.store.key,
@@ -219,13 +222,9 @@ fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
     let mut store = planning_store(SETS);
     // A new open starts with no serving edge, over the committed registry.
     *store.registry = Layouts::new();
-    let text = crate::registry_v1::Text::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::TextParts { text: Box::from(FIRST.as_bytes()) },
-    )
-    .expect("fixture text fits");
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure()));
-    text.encode(&mut writer).expect("fixture text encodes");
+    let text = crate::registry_v1::Text { text: Box::from(FIRST.as_bytes()) };
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    text.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture text encodes");
     let key =
         crate::keys::encode_own(&crate::keys::Own::Text(texts::digest(CURRENT.as_bytes())), store.limits.store.key)
             .expect("fixture text key");
@@ -244,6 +243,135 @@ fn assert_schemas_dropped(layouts: &Layouts) {
     assert!(!layouts.texts.is_empty(), "inspect the open before settlement drops its texts");
     for (_, text) in &layouts.texts {
         assert!(text.schema.is_none(), "plans release every schema");
+    }
+}
+
+fn buffer_value(payload: u32, items: u32, converted: bool) -> Box<[u8]> {
+    let item_bytes = items.checked_mul(if converted { 9 } else { 1 }).expect("fixture items fit");
+    let length = payload.checked_add(item_bytes).expect("fixture body fits").checked_add(10).expect("heads fit");
+    let mut value = skein_lib::Writer::new(skein_lib::usize_of(length));
+    value.put(&2_u16.to_be_bytes()).expect("version fits");
+    value.put(&payload.to_be_bytes()).expect("payload length fits");
+    for _ in 0..payload {
+        value.put(&[42]).expect("payload fits");
+    }
+    value.put(&items.to_be_bytes()).expect("item count fits");
+    for _ in 0..items {
+        value.put(&[42]).expect("item fits");
+        if converted {
+            value.put(&7_u64.to_be_bytes()).expect("default fits");
+        }
+    }
+    value.finish()
+}
+
+fn converting_store(bound: u32) -> Store {
+    let mut store = planning_store(OwnerSets {
+        sets: &[OwnerSet { families: &[KeptFamily { current: BUFFER_KEPT, ..FAMILY }], ..SET }],
+    });
+    fixtures::plant(
+        &mut store.stores,
+        &[skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: buffer_value(0, 1, false) }],
+    );
+    store.owner_sets(OwnerSets {
+        sets: &[OwnerSet { families: &[KeptFamily { current: BUFFER_CURRENT, ..FAMILY }], ..SET }],
+    });
+    store.limits.store.value = bound;
+    assert_eq!(super::open(&mut store, false), Ok(true));
+    assert!(!store.registry.resolve(b"\x02a/0").expect("registered type").plans.is_empty());
+    store
+}
+
+#[test]
+fn converting_open_defers_buffer_until_first_converted_read() {
+    let mut store = converting_store(1_000_000);
+    assert_eq!(store.layout_work.buffer.capacity(), 0);
+    let mut value = buffer_value(2990, 0, false);
+    assert_eq!(value.len(), 3000);
+    // The deployment header uses the same lazy conversion path before activation.
+    super::header(&mut store, b"\x02a/0", &mut value);
+    assert_eq!(store.layout_work.buffer.capacity(), 8192);
+    assert_eq!(value, buffer_value(2990, 0, true));
+    let held = value;
+    let buffer = store.layout_work.buffer.as_slice().as_ptr();
+    store.registry.activate();
+    let mut value = buffer_value(0, 1, false);
+    super::read(&mut store, b"\x02a/0", &mut value);
+    assert_eq!(value, buffer_value(0, 1, true));
+    assert_eq!(store.layout_work.buffer.capacity(), 8192, "a smaller read keeps the room");
+    assert_eq!(store.layout_work.buffer.as_slice().as_ptr(), buffer);
+    assert_eq!(held, buffer_value(2990, 0, true), "converted rows own their bytes across reads");
+}
+
+#[test]
+fn converted_values_grow_by_doubling_then_clamp_to_the_bound() {
+    let mut store = converting_store(50_000);
+    store.registry.activate();
+    for (items, capacity) in [(2990, 32_768), (5000, 50_000)] {
+        let mut value = buffer_value(0, items, false);
+        super::read(&mut store, b"\x02a/0", &mut value);
+        assert_eq!(store.layout_work.buffer.capacity(), capacity);
+        assert_eq!(value, buffer_value(0, items, true));
+    }
+}
+
+#[test]
+fn conversion_that_cannot_fit_at_the_bound_leaves_the_owned_row_untouched() {
+    let mut store = converting_store(20_000);
+    store.registry.activate();
+    let original = buffer_value(0, 2990, false);
+    let mut value = original.clone();
+    let pointer = value.as_ptr();
+    super::read(&mut store, b"\x02a/0", &mut value);
+    assert_eq!(store.layout_work.buffer.capacity(), 20_000);
+    assert_eq!(value.as_ptr(), pointer);
+    assert_eq!(value, original);
+    let mut value = buffer_value(0, 1, false);
+    super::read(&mut store, b"\x02a/0", &mut value);
+    assert_eq!(value, buffer_value(0, 1, true), "a failed pass does not poison the workspace");
+}
+
+#[test]
+fn initial_conversion_room_has_a_floor_and_never_exceeds_the_bound() {
+    for bound in [1000, 5000, u32::MAX] {
+        let mut store = converting_store(bound);
+        store.registry.activate();
+        let mut value = buffer_value(0, 1, false);
+        super::read(&mut store, b"\x02a/0", &mut value);
+        assert_eq!(store.layout_work.buffer.capacity(), bound.min(4096));
+        assert_eq!(value, buffer_value(0, 1, true));
+    }
+}
+
+#[test]
+fn kept_and_binary_reads_rehead_in_place_without_a_buffer() {
+    let mut store = planning_store(SETS);
+    assert_eq!(super::open(&mut store, false), Ok(false));
+    let row = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(row.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    row.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
+    let key = crate::keys::encode_own(
+        &crate::keys::Own::Layout { family: Box::from(FAMILY.name), number: 0, id: 8 },
+        store.limits.store.key,
+    )
+    .expect("alias row key");
+    fixtures::plant(
+        &mut store.stores,
+        &[
+            skein_kv::Op::Put { key, value: writer.finish() },
+            skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 8, 0, 42, 7]) },
+            skein_kv::Op::Put { key: Box::from(b"\x02a/1".as_slice()), value: Box::from([0, 2, 0, 42, 7]) },
+        ],
+    );
+    assert_eq!(super::open(&mut store, false), Ok(false));
+    assert!(store.registry.resolve(b"\x02a/0").expect("registered type").keeping.as_slice().contains(&2));
+    for id in [2, 8] {
+        let mut value: Box<[u8]> = Box::from([0, id, 0, 42, 7].as_slice());
+        let pointer = value.as_ptr();
+        super::read(&mut store, b"\x02a/0", &mut value);
+        assert_eq!(value.as_ref(), &[0, 2, 0, 42, 7]);
+        assert_eq!(value.as_ptr(), pointer);
+        assert_eq!(store.layout_work.buffer.capacity(), 0);
     }
 }
 

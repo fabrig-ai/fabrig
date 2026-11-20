@@ -200,6 +200,7 @@ fn running_at_a_wall() -> Harness {
     h.make(vec![new]);
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,
@@ -339,6 +340,7 @@ fn a_zero_pace_amendment_is_refused_without_changing_the_task() {
         let before = h.domain.task(1).unwrap().clone();
         let out = h.send(Event::Amend {
             operation: crate::Amend {
+                funder: None,
                 task: 1,
                 message: 1,
                 stop_run: false,
@@ -347,7 +349,6 @@ fn a_zero_pace_amendment_is_refused_without_changing_the_task() {
             reply_to: super::revisions::to(),
             by: Party::Person(9),
             places: Box::new([]),
-            funder: None,
         });
         assert!(out.iter().any(|request| match request {
             Request::Refused { problem, .. } => problem.why == crate::Refusal::Spec,

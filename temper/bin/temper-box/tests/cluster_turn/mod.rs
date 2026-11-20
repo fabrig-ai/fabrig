@@ -33,6 +33,9 @@ enum Cut {
 #[derive(Debug, PartialEq, Eq)]
 enum Stage {
     Start,
+    Configured,
+    ConfiguredStop,
+    ConfiguredStart,
     Created,
     Holding,
     Releasing,
@@ -56,13 +59,12 @@ fn story(name: &str, cut: Cut) -> Result<(), String> {
     cluster.deployment_binaries();
     setup::prepare(&mut cluster, root, &support::free_addresses(&[]));
     if cut == Cut::Worker {
-        let wrapper = root.join("held-git");
+        let directory = root.join("held-git");
+        fs::create_dir(&directory).expect("held git directory");
+        let wrapper = directory.join("git");
         support::write_private(&wrapper, setup::wrapper(root, &root.join("git")).as_bytes());
         fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700)).expect("executable wrapper");
-        let path = cluster.dir("w1").join("config/temper.json");
-        let mut worker = setup::read(&path);
-        worker["application"]["workers"][0]["git"] = wrapper.display().to_string().into();
-        setup::write(&path, &worker);
+        cluster.git_on_path("w1", &directory);
         support::write_private(&root.join("delivery.hold"), b"");
     }
     let key = cluster.dir("llm").join("llm.key");
@@ -164,93 +166,84 @@ impl Judge {
     fn begin(&mut self, host: &mut Root) -> Result<(), String> {
         let address = self.members.capture("forge", "address").ok_or("forge address")?;
         let settings_root = self.root.clone();
-        self.queue(
-            host,
-            vec![
-                Step::Run(Call::sign_in()),
-                Step::Run(Call::new(&["settings", "show", "--json"])),
-                Step::Run(Call::new(&["settings", "show", "policy", "1", "--json"])),
-                Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
-                Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
-                Step::Then(Box::new(move |calls| setup::settings(&settings_root, calls))),
-                Step::Run(Call::new(&[
-                    "forge",
-                    "connect",
-                    "forgejo-admin",
-                    self.admin.to_str().ok_or("admin path")?,
-                    "--api",
-                    address,
-                    "--git",
-                    &format!("http://{address}"),
-                    "--key",
-                    "turn-forge",
-                ])),
-                Step::Run(Call::new(&["forge", "list", "--until", "connected:1"])),
-                Step::Run(Call::new(&[
-                    "repository",
-                    "adopt",
-                    "--project",
-                    "1",
-                    "--forge",
-                    "1",
-                    "--owner",
-                    "fake",
-                    "--name",
-                    "widget",
-                    "--landing",
-                    "main",
-                    "--key",
-                    "turn-adopt",
-                ])),
-                Step::Run(self.api_request(
-                    "/collaborators/temper-admin",
-                    &[
-                        "--request",
-                        "PUT",
-                        "--header",
-                        "Content-Type: application/json",
-                        "--data",
-                        r#"{"permission":"admin"}"#,
-                    ],
-                )?),
-                Step::Run(Call::new(&[
-                    "account",
-                    "add-key",
-                    "1",
-                    self.key.to_str().ok_or("key path")?,
-                    "--deployment",
-                    "--key",
-                    "turn-llm",
-                ])),
-                Step::Run(Call::new(&["account", "list", "--until", "usable"])),
-                Step::Run(Call::new(&["project", "show", "1", "--json"])),
-                Step::Then(Box::new(|calls| {
-                    let project = ctl::json(calls.last().expect("project read"));
-                    let period = project["policy"]["period_spend"].as_u64().expect("project period");
-                    Call::new(&[
-                        "project",
-                        "fund",
-                        "1",
-                        &(period / 48 * 41).to_string(),
-                        "--role",
-                        "0",
-                        "--key",
-                        "turn-funds",
-                    ])
-                })),
-                Step::Run(Call::new(&[
-                    "chat",
-                    "start",
-                    "--project",
-                    "1",
-                    "--key",
-                    "turn-chat",
-                    "Add a file NOTICE to widget",
-                    "--json",
-                ])),
-            ],
-        )?;
-        self.stage = Stage::Created;
+        let landing_settings = self.members.dir("engine").join("config/landing-settings.json");
+        let workers = support::cluster::worker_adds(&self.members.dir("engine").join("settings.json"));
+        let mut steps = vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["project", "make", "Cluster turn", "--key", "turn-project"])),
+            Step::Run(Call::new(&["settings", "show", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "policy", "1", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
+            Step::Then(Box::new(move |calls| setup::settings(&settings_root, &calls[1..]))),
+        ];
+        steps.extend(workers.into_iter().map(Step::Run));
+        steps.extend([
+            Step::Run(Call::new(&[
+                "forge",
+                "connect",
+                "forgejo-admin",
+                self.admin.to_str().ok_or("admin path")?,
+                "--api",
+                address,
+                "--git",
+                &format!("http://{address}"),
+                "--key",
+                "turn-forge",
+            ])),
+            Step::Run(Call::new(&["forge", "list", "--until", "connected:1"])),
+            Step::Run(Call::new(&[
+                "repository",
+                "adopt",
+                "--project",
+                "1",
+                "--forge",
+                "1",
+                "--owner",
+                "fake",
+                "--name",
+                "widget",
+                "--landing",
+                "main",
+                "--key",
+                "turn-adopt",
+            ])),
+            Step::Run(Call::new(&["settings", "show", "--json"])),
+            Step::Then(Box::new(move |calls| {
+                ctl::settings_change(calls.last().expect("post-adoption settings"), &landing_settings, "turn-landing")
+            })),
+            Step::Run(self.api_request(
+                "/collaborators/temper-admin",
+                &[
+                    "--request",
+                    "PUT",
+                    "--header",
+                    "Content-Type: application/json",
+                    "--data",
+                    r#"{"permission":"admin"}"#,
+                ],
+            )?),
+            Step::Run(Call::new(&[
+                "account",
+                "add-key",
+                "1",
+                self.key.to_str().ok_or("key path")?,
+                "--deployment",
+                "--key",
+                "turn-llm",
+            ])),
+            Step::Run(Call::new(&["account", "list", "--until", "usable"])),
+            Step::Run(Call::new(&["project", "show", "1", "--json"])),
+            Step::Then(Box::new(|calls| {
+                let project = ctl::json(calls.last().expect("project read"));
+                let period = project["policy"]["period_spend"].as_u64().expect("project period");
+                let spend = period / 48 * 41;
+                let amount = format!("{}.{:02}", spend / 100, spend % 100);
+                Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-funds"])
+            })),
+        ]);
+        self.queue(host, steps)?;
+        self.stage = Stage::Configured;
         Ok(())
     }
     fn api(&self, suffix: &str) -> Result<Call, String> {
@@ -296,6 +289,10 @@ impl Judge {
         )
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "keep the settings start and both process cuts in one story transition table"
+    )]
     fn advance(&mut self, now: Time, hosts: &mut [Root]) -> Result<(), String> {
         self.members.act(now, hosts);
         if self.members.failed() {
@@ -305,7 +302,27 @@ impl Judge {
         let (host, _) = hosts.split_last_mut().ok_or("client root")?;
         self.tick = None;
         match self.stage {
-            Stage::Start if self.members.is_up() => self.begin(host)?,
+            Stage::Start if self.members.capture("engine", "link").is_some() => self.begin(host)?,
+            Stage::ConfiguredStop if self.members.ended("engine") => {
+                self.members.restart("engine");
+                self.stage = Stage::ConfiguredStart;
+            }
+            Stage::ConfiguredStart if self.members.is_up() => {
+                self.calls(
+                    host,
+                    vec![Call::new(&[
+                        "chat",
+                        "start",
+                        "--project",
+                        "1",
+                        "--key",
+                        "turn-chat",
+                        "Add a file NOTICE to widget",
+                        "--json",
+                    ])],
+                )?;
+                self.stage = Stage::Created;
+            }
             Stage::PanelAgain(at) => {
                 if now >= at {
                     self.panel(host)?;
@@ -345,7 +362,8 @@ impl Judge {
                     self.list(host)?;
                 }
             }
-            Stage::Created
+            Stage::Configured
+            | Stage::Created
             | Stage::List
             | Stage::Panel
             | Stage::Change
@@ -370,6 +388,9 @@ impl Judge {
                 self.completed(now, host, calls.ends())?;
             }
             Stage::Start
+            | Stage::Configured
+            | Stage::ConfiguredStop
+            | Stage::ConfiguredStart
             | Stage::Created
             | Stage::WorkerEnded
             | Stage::EngineEnded
@@ -388,8 +409,13 @@ impl Judge {
     fn completed(&mut self, now: Time, host: &mut Root, calls: &[support::Ended]) -> Result<(), String> {
         // Verification ends with raw file bytes, not a ctl document.
         let document = if self.stage == Stage::Verify { calls.first() } else { calls.last() };
-        self.last = json(document.ok_or("last document")?)?;
+        self.last = if self.stage == Stage::Configured { Value::Null } else { json(document.ok_or("last document")?)? };
         match self.stage {
+            Stage::Configured => {
+                // domain/landing-settings.md, 1.1: landing and gates take effect at the next start.
+                self.members.stop_one("engine");
+                self.stage = Stage::ConfiguredStop;
+            }
             Stage::Created => {
                 self.chat = self.last["outcome"]["done"]["document"]["created"]["first"]
                     .as_u64()
@@ -453,6 +479,8 @@ impl Judge {
                 self.tick = Some(now);
             }
             Stage::Start
+            | Stage::ConfiguredStop
+            | Stage::ConfiguredStart
             | Stage::Holding
             | Stage::Releasing
             | Stage::WorkerEnded
@@ -573,11 +601,12 @@ impl skein_world::Referee<Root> for Judge {
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
             let restarted = if self.cut == Cut::Engine { "engine" } else { "w1" };
-            if stopped.iter().filter(|life| life.name == restarted).count() != 2 {
-                return Err(format!("two lives of {restarted}"));
+            let lives = if self.cut == Cut::Engine { 3 } else { 2 };
+            if stopped.iter().filter(|life| life.name == restarted).count() != lives {
+                return Err(format!("{lives} lives of {restarted}, including the landing-settings start"));
             }
             for life in stopped {
-                let expected = if life.name == "engine" && life.life == 0 && self.cut == Cut::Engine {
+                let expected = if life.name == "engine" && life.life == 1 && self.cut == Cut::Engine {
                     Exit::Signal(9)
                 } else {
                     Exit::Code(0)

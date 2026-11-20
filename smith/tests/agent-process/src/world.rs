@@ -4,6 +4,7 @@
 //! decoded from the host's channel.
 //! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing.md, 2–5).
 use crate::fake;
+use smith_channel::Record;
 
 mod coding;
 mod peer;
@@ -108,6 +109,7 @@ impl Parent {
         };
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: b"smith".as_slice().into(),
                 args: setup.arguments(),
                 env: Box::new([]),
@@ -169,7 +171,7 @@ impl Parent {
                 .map(|frame| {
                     smith_channel::Turn::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.body))
                         .expect("told turn")
-                        .number()
+                        .number
                 })
                 .filter(|number| *number > self.acknowledged)
                 .collect();
@@ -576,6 +578,13 @@ impl skein_world::Machine for Machine {
     }
 
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if let skein_sim::Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(kernel::Error::Reach(kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if self.coding && coding::check(self, &call, answers) {
             return;
         }
@@ -795,16 +804,16 @@ impl skein_world::Referee<Proc> for Referee {
                 let fact =
                     smith_channel::Fact::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.body))
                         .map_err(|_| String::from("host's validated Fact"))?;
-                match fact.kind() {
+                match &fact.kind {
                     smith_channel::FactKind::Admitted => self.admitted_facts += 1,
                     smith_channel::FactKind::Ended => self.answer_facts += 1,
                     smith_channel::FactKind::LlmFinished => {
                         if self.full_completion
-                            && fact.count() != u64::from(crate::limits().llm.translation.client.output_items)
+                            && fact.count != u64::from(crate::limits().llm.translation.client.output_items)
                         {
                             return Err(format!(
                                 "all maximum provider parts decoded\nleft: {:?}\nright: {:?}",
-                                fact.count(),
+                                fact.count,
                                 u64::from(crate::limits().llm.translation.client.output_items)
                             ));
                         }
@@ -1000,13 +1009,7 @@ impl World {
 
     /// Put the host's live-content ask in its Start.
     pub fn ask(&mut self, text: bool, reasoning: bool, input: bool) {
-        self.live = Some(
-            smith_channel::LiveAsk::new(
-                &smith_channel::CEILINGS,
-                smith_channel::LiveAskParts { text, reasoning, input },
-            )
-            .expect("live ask"),
-        );
+        self.live = Some(smith_channel::LiveAsk { text, reasoning, input });
     }
 
     /// Decode the live records on the parent's channel.
@@ -1049,13 +1052,8 @@ impl World {
 
     /// Send this concrete message in the channel Start.
     pub fn initial_message(&mut self, name: u64, label: &[u8], text: &[u8]) {
-        self.message = Some(
-            smith_channel::Message::new(
-                &smith_channel::CEILINGS,
-                smith_channel::MessageParts { finish_requested: false, name, label: label.into(), text: text.into() },
-            )
-            .expect("selected host message fits the real channel schema"),
-        );
+        self.message =
+            Some(smith_channel::Message { finish_requested: false, name, label: label.into(), text: text.into() });
     }
 
     /// Select the event destination's capture policy before spawning.
@@ -1077,16 +1075,12 @@ impl World {
     pub fn configured_environment(&mut self) {
         self.environment = true;
         self.charter = crate::wire::edit_charter(&self.charter, |parts| {
-            let mut budget = parts.budget.clone().into_parts();
+            let mut budget = parts.budget.clone();
             budget.turns = 2;
-            parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two turns");
-            let mut tools = parts.tools.clone().into_parts();
-            tools.families = smith_charter::Families::new(
-                &smith_charter::CEILINGS,
-                smith_charter::FamiliesParts { skein_bools: [true, false, true, false] },
-            )
-            .expect("shell family");
-            parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+            parts.budget = budget;
+            let mut tools = parts.tools.clone();
+            tools.families = smith_charter::Families { inspect: true, modify: false, shell: true, agents: false };
+            parts.tools = tools;
         });
     }
 
@@ -1120,17 +1114,17 @@ impl World {
         if case == TraceCase::Parked || case == TraceCase::Refused {
             self.charter = crate::wire::edit_charter(&self.charter, |parts| {
                 if case == TraceCase::Refused {
-                    let mut main = parts.main.clone().into_parts();
+                    let mut main = parts.main.clone();
                     main.window =
                         crate::declarations(0).endpoints[0].limits.window.checked_add(1).expect("past endpoint window");
-                    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("past endpoint window");
+                    parts.main = main;
                 }
-                let mut budget = parts.budget.clone().into_parts();
+                let mut budget = parts.budget.clone();
                 budget.turns = if case == TraceCase::Parked { 4 } else { 1 };
-                parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("park budget");
-                let mut tools = parts.tools.clone().into_parts();
+                parts.budget = budget;
+                let mut tools = parts.tools.clone();
                 tools.wait = case == TraceCase::Parked;
-                parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait authority");
+                parts.tools = tools;
                 parts.waiting = Duration::ZERO;
             });
         }
@@ -1441,17 +1435,17 @@ impl World {
                     .expect("validated turn envelope");
             let turn = smith_transcript::Turn::decode(
                 &smith_transcript::CEILINGS,
-                &mut skein_lib::Reader::new(envelope.body()),
+                &mut skein_lib::Reader::new(envelope.body.as_ref()),
             )
             .expect("validated transcript");
-            for message in turn.messages() {
-                if *message.role() == smith_transcript::Role::Assistant {
-                    for block in message.blocks() {
+            for message in &turn.messages {
+                if message.role == smith_transcript::Role::Assistant {
+                    for block in &message.blocks {
                         if let smith_transcript::Block::Text(text) = block {
                             count += 1;
-                            bytes += text.text().len();
+                            bytes += text.text.as_ref().len();
                             let metadata = skein_llm::Replay::from_bytes(
-                                text.replay().as_ref().expect("text replay").bytes(),
+                                text.replay.as_ref().expect("text replay").bytes.as_ref(),
                                 &crate::limits().llm.translation.client.native().document(),
                             )
                             .expect("provider metadata");

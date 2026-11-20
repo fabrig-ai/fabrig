@@ -520,6 +520,18 @@ open is section 9.
   `system/init` within the start's deadline, or one that lacks what the
   run needs or lists a built-in tool not granted, fails the run as its
   program's, naming the program, with its detail, and no notice.
+- **A program that started without smith's tools,** a `system/init`,
+  the first or a later one (5.5), that is otherwise well formed but does
+  not list the agent's MCP server connected with its tools, fails the
+  run *untooled*: `llm::Failure::Untooled`, never retried in the
+  session, which the run answers as its own fault `Untooled`, naming the
+  program, with the detail `smith: the program started without smith's
+  tools` (domain/run.md, section 9), and no notice. It is told apart from
+  every other program failure because it says nothing of the run: the
+  program on that host came up without what the agent gave it, and its
+  host may run the task elsewhere (jig's `domain/hosts/hub.md`, 3). An
+  init that lists a built-in not granted, or lacks one, or a summary
+  program's that offers tools, stays the program's failure, as above.
 - **A program that exits** before its `result`, or whose stream does not
   decode, fails the run the same way, with its exit and its standard
   error's tail.
@@ -601,7 +613,9 @@ open is section 9.
   section 4; domain/session.md, 8.2). On a program backend the
   compaction runs as a program session of its own with no tools, and
   the window turn's messages open the program's new session as its
-  first user message.
+  first user message. Whether a host offers a window from another
+  backend at all is its own decision (domain/run.md, section 6). jig's
+  engine never does: it starts the run fresh.
 - **A conversation its host does not keep,** such as the product's
   `--ephemeral` chat, resumes its program session only while it lasts:
   no later conversation derives the same session id, so the session is

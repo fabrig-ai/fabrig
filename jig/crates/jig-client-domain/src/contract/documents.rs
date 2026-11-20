@@ -54,6 +54,17 @@ pub struct Concluded {
     pub at: Wall,
 }
 
+/// Directing words no run has recorded (client/domain/contract/documents.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct UnreadWords {
+    pub message: u64,
+    pub by: super::Requester,
+    pub at: Wall,
+    pub seen: bool,
+    pub head: Text,
+    pub bytes: u32,
+}
+
 /// A complete task document with independently moving revisions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Task {
@@ -91,12 +102,15 @@ pub struct Task {
     pub result_contract: super::TaskContractDocument,
     pub dependencies: List<super::TaskLink>,
     pub dependency_facts: List<super::Dependency>,
+    pub unread: List<UnreadWords>,
     pub references: List<super::TaskLink>,
     /// At least one task list was omitted; this does not identify which list.
     pub cut: bool,
     pub resources: List<super::ResourceLine>,
     pub budget: super::Budget,
     pub authority: super::AuthorityDocument,
+    /// Tasks left over the subtree's life, excluding itself (jig/docs/design/client/domain/contract/documents.md, 1).
+    pub tasks_left: u32,
     pub hold: Option<Box<super::ChipHold>>,
     pub proposals: List<ProposalKey>,
     pub activity: u64,
@@ -738,6 +752,7 @@ pub struct LiveDelegate {
 pub struct Tasks {
     pub rows: List<TaskLine>,
     pub more: bool,
+    pub ended_mark: u64,
 }
 
 fn byte_weight(bytes: &[u8]) -> u64 {

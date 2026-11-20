@@ -52,10 +52,16 @@ Pause, Resume and Close are `task`'s, as for any task.
   is not a milestone of the project (`task N is not a milestone of
   project P`) or one already whole (`milestone N is whole since TIME`);
   then fills template 2 as without it, its authority narrowed to what
-  the milestone has left (`../../domain/milestones.md`, section 4), and
+  the milestone has left (`../../domain/milestones.md`, section 4), its
+  tasks from the document it read, `tasks_left` less one, and
   sends a `Delegate { project, task, tasks }` with the one goal. A
   refusal at admission, a whole milestone's among them (*concluded*,
-  naming when), prints as `goal start`'s refusals do, exit 2.
+  naming when), prints as `goal start`'s refusals do, exit 2, but for
+  one lacking budget: the milestone funds the goal, not the party's
+  pool, so it names the milestone, `goal start: refused: milestone M had
+  LEFT left, NEEDED needed; give each goal in it --budget AMOUNT`, from
+  jig's `Budget { needed, left }`, a second `--as-allowed` goal after a
+  first took all among them (`../../domain/milestones.md`, section 4).
 - **`--after TASK`**, repeatable, adds each task to the goal's
   dependencies, in order, once each, `TaskRef::Task`: a goal or a person
   task, in a milestone or not. jig judges each at admission: one done
@@ -71,7 +77,14 @@ Pause, Resume and Close are `task`'s, as for any task.
 - **Its output** is `goal start`'s, `done: task N, goal`, record
   `goal_create`, whether it is in a milestone or not.
 - **`help goal start`** says each flag in a line, and in its notes that
-  a goal waiting on tasks counts its deadline from when it was made.
+  a goal waiting on tasks counts its deadline from when it was made,
+  and, after that line:
+
+  ```
+  With --milestone, --as-allowed takes all the milestone has left, so
+  a second --as-allowed goal in it is refused for its budget: give each
+  goal in a milestone --budget AMOUNT.
+  ```
 
 ## 4. Whole, list and show
 
@@ -103,7 +116,7 @@ Pause, Resume and Close are `task`'s, as for any task.
   The store's new shape, from its draft
   made by person 4, Sam · 2026-11-16T09:12Z
   goals: 7 / 8 done · 0 failed · 1 closed · 1 live
-  spent: 212 of 400
+  spent: 2.12 of 4.00
   last landing: 2026-11-16T21:38Z, S7 history in task logs (task 820)
   goals:
     813  S1 Draft the layout       done
@@ -115,7 +128,9 @@ Pause, Resume and Close are `task`'s, as for any task.
   the maker by number and member name, as a task's requester prints.
   `ended: TIME, complete` replaces `last landing`'s place after it once
   ended, with `ended` or `closed`. Its totals are the forge's
-  `Milestone`; where it answers `not_milestone` the tool prints jig's
+  `Milestone`, `spent:` the forge's spend of the milestone's budget,
+  both in ctl's amount, as `task show` prints the milestone's
+  (`results.md`, 1); where it answers `not_milestone` the tool prints jig's
   facts alone and `totals: none`. Its goals are its delegates, live and
   ended, merged in the order they joined (`../../domain/milestones.md`,
   section 7), each its number, title and state, `live`, `done`, `failed`
@@ -129,13 +144,19 @@ In the tools' step harness (`temper/crates/temper-client-tools`): each
 tool parses and prints back; `help milestone`'s golden files; `milestone
 new` filling template 8 with the gathering, its name refused past 60
 characters or on two lines, its required controls; `goal start
---milestone` sending a `Delegate` with the narrowed authority, refused
+--milestone` sending a `Delegate` with the narrowed authority, its
+tasks from the milestone's `tasks_left`, refused
 locally for a task that is not a milestone or is whole; `--after`'s
 dependencies in order; `--no-deadline` sent with none and refused under
 a deadline's bound; `milestone whole` a `Conclude`; `list` and `show`
 printing from fixtures. In the joined client world (`temper/tests/client`):
 a milestone made, two goals started in it, the second `--after` the
-first, said whole, and `milestone show` printing it.
+first, said whole, and `milestone show` printing it; and, under a
+delegation deep and wide enough that a goal in a milestone gets tasks of
+its own, two goals started in one milestone, each admitted, the second
+with an allowance one less than the first; and a milestone made
+`--as-allowed`, a goal started in it `--as-allowed`, and a second so
+refused for the milestone's budget, naming the milestone, exit 2.
 
 ## 6. Open questions
 

@@ -30,7 +30,7 @@ fn delivery_with_fresh_commit(fresh: bool, saved: git::Commit) -> Started {
 fn answer(started: &mut Started, command: Command, code: u8, stdout: &[u8]) {
     let request = started.below.out.io.pop().expect("next invocation");
     let Io::Spawn { spawn, .. } = &request else { panic!("spawn: {request:?}") };
-    assert_eq!(spawn.args, invocation::arguments(&command));
+    assert_eq!(spawn.args, invocation::arguments_at(&command, Some(b"gitdirs/7/app"), Some(b"workspaces/7/app")));
     if let Command::SnapshotFetch { .. } = command {
         let mut credential = false;
         for word in &spawn.env {
@@ -95,6 +95,12 @@ fn a_staged_merge_delivered_keeps_its_second_parent() {
     answer(&mut started, Command::WriteTree, 0, &line(head));
     answer(&mut started, Command::CommitTree { tree: head, parent: head, merging: Some(second) }, 0, &line(second));
     answer(&mut started, Command::SnapshotReset { commit: second }, 0, b"");
+    let ops = super::view::copy(&mut started, &[(b"HEAD", &line(second))], false);
+    assert!(ops.as_slice().contains(&skein_io::kernel::Op::Remove {
+        dir: skein_io::kernel::Fd::new(10),
+        name: b"MERGE_HEAD".as_slice().into(),
+        directory: false
+    }));
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: second })));
     assert!(started.below.out.io.is_empty());
 }
@@ -111,6 +117,7 @@ fn a_local_commit_is_delivered_without_replacement() {
         }
         answer(&mut started, Command::Add, 0, b"");
         answer(&mut started, Command::DiffIndex { parent: head }, 0, b"");
+        super::view::empty(&mut started);
         assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: head })));
         assert!(started.below.out.io.is_empty(), "no replacement commit or reset");
     }
@@ -132,9 +139,14 @@ fn a_second_parent_only_in_the_checkout_refuses_delivery_before_staging() {
             if committed { b"" } else { &parent_line },
         );
         remote(&mut started, head, (!committed).then_some(second), second, false);
-        let Some((_, git::Done::FailedWithOutput { fault, diagnostic })) = started.done() else { panic!("refused") };
-        assert_eq!(fault, git::Fault::Refused);
-        assert_eq!(diagnostic.output(), b"delivery second parent is not reachable from the branch's remote");
+        super::view::empty(&mut started);
+        assert_eq!(
+            started.done(),
+            Some((
+                fixtures::OWNER,
+                git::Done::ParentUnreachable { head, merging: (!committed).then_some(second), parent: second }
+            ))
+        );
         assert!(started.below.out.io.is_empty());
     }
 }
@@ -150,6 +162,7 @@ fn a_checked_delivery_after_an_unchecked_save_makes_a_fresh_equal_tree_commit() 
     answer(&mut started, Command::WriteTree, 0, &line(saved));
     answer(&mut started, Command::CommitTree { tree: saved, parent: saved, merging: None }, 0, &line(checked));
     answer(&mut started, Command::SnapshotReset { commit: checked }, 0, b"");
+    super::view::empty(&mut started);
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: checked })));
     assert_ne!(saved, checked);
     assert!(started.below.out.io.is_empty());
@@ -163,6 +176,19 @@ fn a_producers_local_commit_after_an_unchecked_save_is_kept() {
     answer(&mut started, Command::SnapshotMerge { head, second: None }, 1, b"");
     answer(&mut started, Command::Add, 0, b"");
     answer(&mut started, Command::DiffIndex { parent: head }, 0, b"");
+    super::view::empty(&mut started);
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: head })));
     assert!(started.below.out.io.is_empty(), "the producer's commit already replaces the unchecked head");
+}
+
+#[test]
+fn a_local_catch_up_reset_moves_head_with_no_checkout_or_clean() {
+    let mut started = Started::new();
+    let op = git::Op::Reset { at: fixtures::at(), commit: fixtures::COMMIT };
+    assert!(!op.is_remote());
+    started.down(Request::Io { owner: fixtures::OWNER, op, deadline: fixtures::DEADLINE, identity: None });
+    answer(&mut started, Command::SnapshotReset { commit: fixtures::COMMIT }, 0, b"");
+    super::view::empty(&mut started);
+    assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: fixtures::COMMIT })));
+    assert!(started.below.out.io.is_empty());
 }

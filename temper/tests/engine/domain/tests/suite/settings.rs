@@ -1,6 +1,8 @@
 //! Settings cross the root's journal and real store, including cold restoration.
 #[path = "settings/kinds.rs"]
 mod kinds;
+#[path = "settings/limit_settings.rs"]
+mod limit_settings;
 
 use crate::stock;
 use temper_engine_domain_world::journal_limits as journal;
@@ -25,6 +27,7 @@ const STOCK_RUN_BYTES: u32 = 32_768;
 const POLICY_CAP: u64 = 16_384;
 const PRIOR_POLICY_CAP: u64 = POLICY_CAP + 1;
 const POLICY_NUMBER: u32 = 1;
+const SAVED_POLICY_NUMBER: u32 = 33;
 const MADE_PROJECT: u32 = 2;
 const POLICY_ROLES: u32 = 2;
 // Production Small's journal/page byte authority; two >16 KiB policy rows
@@ -140,7 +143,7 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
         1,
         20,
         s::Item {
-            setting: s::Setting::Policy(POLICY_NUMBER),
+            setting: s::Setting::Policy(SAVED_POLICY_NUMBER),
             edit: s::Edit::Set(s::Value::Policy(Box::new(sized_policy(bytes)))),
         },
     );
@@ -157,7 +160,7 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
             sign_in: driver.session(),
             key: [21; 16],
             models: Box::new([]),
-            ask: people::Ask::MakeProject { name: "Saved policy".into(), policy: POLICY_NUMBER },
+            ask: people::Ask::MakeProject { name: "Saved policy".into(), policy: SAVED_POLICY_NUMBER },
         }));
         driver.settle();
         assert!(
@@ -172,7 +175,12 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
         );
         // Remove the source setting through another real decision: only the
         // project's retained copy must trigger the named narrowed restore.
-        change(&mut driver, 2, 22, s::Item { setting: s::Setting::Policy(POLICY_NUMBER), edit: s::Edit::Removed });
+        change(
+            &mut driver,
+            2,
+            22,
+            s::Item { setting: s::Setting::Policy(SAVED_POLICY_NUMBER), edit: s::Edit::Removed },
+        );
         assert_eq!(head(&driver).number, 3);
     }
     driver
@@ -205,7 +213,7 @@ fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_s
             phase: Some(core::start::Phase::LoadCore),
             failure: core::start::Failure::Settings {
                 failure: s::Failure {
-                    setting: s::Setting::Policy(POLICY_NUMBER),
+                    setting: s::Setting::Policy(SAVED_POLICY_NUMBER),
                     fault: s::Fault::Shape,
                     detail: None
                 },
@@ -276,8 +284,12 @@ fn stock_config() -> engine::Config {
 
         providers: Box::new([]),
     };
+    let workers = config.core.defaults.workers.clone();
+    let providers = config.core.defaults.providers.clone();
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
+    config.core.defaults.workers = workers;
+    config.core.defaults.providers = providers;
     config.core.connectors = Box::new([1]);
     config.core.seed_projects = Box::new([]);
     config.core.owners[0].project = people::DEPLOYMENT;
@@ -464,7 +476,7 @@ fn read_rules(driver: &mut Driver, revision: u32) -> core::reads::SettingDocumen
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(990)),
         sign_in: driver.session(),
-        read: core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None },
+        read: Box::new(core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None }),
     }));
     driver.settle();
     driver
@@ -496,6 +508,7 @@ fn a_nonowner_cannot_change_the_deployments_settings() {
     let mut driver = started(HISTORY);
     driver.delivered.clear();
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         reply_to: ReplyTo::new(Token::new(991)),
         held: None,
         identity: people::Identity {
@@ -728,7 +741,7 @@ fn owner_reviews_run_proposal(driver: &mut Driver, task: u64, proposal: u64) {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(995)),
         sign_in: driver.session(),
-        read: core::reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal },
+        read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal }),
     }));
     driver.settle();
     let mut reviewed = false;

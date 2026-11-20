@@ -22,8 +22,23 @@ temper-engine-shell.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+temper-forge-setup.workspace = true
+temper-forge-setup-shell.workspace = true
+temper-service-shell.workspace = true
+temper-config-shell.workspace = true
+temper-deployment-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
+jig-domain-core.workspace = true
+jig-protocol-store.workspace = true
+jig-protocol-config.workspace = true
+skein-lib.workspace = true
+temper-engine-service-stock.workspace = true
+temper-engine-service-vocabulary.workspace = true
+temper-github-app.workspace = true
+temper-service-core.workspace = true
 serde_json.workspace = true
 skein-scratch.workspace = true
+skein-shell.workspace = true
 temper-shell.workspace = true
 temper-protocol-store.workspace = true
 [lints.rust] # binary: tools/lints/design.md, 2.2

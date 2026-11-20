@@ -77,7 +77,7 @@ fn plan_world(control: bool) -> (World, engine::Assignment) {
 }
 
 fn plan_world_with_limits(control: bool, limits: &StoryLimits) -> (World, engine::Assignment) {
-    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, *limits);
+    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, limits.clone());
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
@@ -320,6 +320,36 @@ fn a_change_names_its_landing_branch() {
 }
 
 #[test]
+fn a_change_without_a_landing_uses_the_adopted_landing() {
+    let mut world = World::configured(true, true);
+    world.adopt_landing(b"staging");
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let engine::CallAnswer::Delegated(made) = change(&mut world, &chat, 93, None, b"Small fix") else {
+        panic!("change admitted")
+    };
+    let task = made[0].task;
+    assert!(
+        live(&world, task)
+            .spec
+            .parameters
+            .contains(&tasks::Parameter::Bytes { name: 2, value: b"staging".as_slice().into() })
+    );
+    world.until(Until::SecondAssignment);
+    let branch = stored_change(&world, task).branch.clone();
+    let producer = world.assigned[1].clone();
+    land_change(&mut world, &producer, &branch);
+    let number = stored_change(&world, task).pull.expect("change pull");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else {
+        panic!("opened pull")
+    };
+    assert_eq!(pull.base.as_ref(), b"staging");
+    assert_eq!(world.merges, 1);
+    world.close();
+}
+
+#[test]
 fn landing_goal_without_a_held_goal_branch_is_refused() {
     let (mut world, chat) = plan_world(true);
     let rows = world.store.rows.clone();
@@ -380,7 +410,12 @@ fn change_expands_the_only_repository_field_by_field() {
     );
     assert_eq!(
         row.contract,
-        tasks::Contract::Change { connector: 0, kind: 1, words: 512.min(world.env.limits.tasks.result_bytes) }
+        tasks::Contract::Change {
+            connector: 0,
+            kind: 1,
+            words: 512.min(world.env.limits.tasks.result_bytes),
+            choices: Box::new([])
+        }
     );
     assert_eq!(row.authority.tools, parent.authority.tools);
     assert_eq!(
@@ -434,7 +469,12 @@ fn change_expands_the_only_repository_field_by_field() {
     world.until(Until::SecondAssignment);
     assert!(
         world.assigned[1].run.contract
-            == tasks::Contract::Change { connector: 0, kind: 2, words: world.env.limits.tasks.result_bytes },
+            == tasks::Contract::Change {
+                connector: 0,
+                kind: 2,
+                words: world.env.limits.tasks.result_bytes,
+                choices: Box::new([])
+            },
         "the same code-2 procedure starts its producer"
     );
 }
@@ -615,12 +655,34 @@ fn change_with_one_level_left_is_refused_as_the_depth_limit() {
 }
 
 #[test]
+fn a_goal_under_the_run_cap_funds_a_change_while_its_agent_runs() {
+    let mut world = goal_branch::adopted_world();
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else {
+        panic!("goal request")
+    };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(40) };
+    let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    assert_eq!(live(&world, goal.task).numbers.budget, 40);
+    let answer = change(&mut world, &goal, 93, None, b"Small fix");
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("change admitted: {answer:?}") };
+    assert_eq!(goal.run.budget, 20);
+    assert_eq!(made.len(), 1);
+    let row = live(&world, made[0].task);
+    assert_eq!(row.requester, tasks::Party::Task(goal.task));
+    assert_eq!(row.numbers.budget, 10, "half of the twenty left after the live run's reservation");
+    assert_eq!(row.authority.budget.spend, 10);
+    assert_eq!(live(&world, goal.task).numbers.reserved, 30);
+}
+
+#[test]
 fn change_with_half_the_remainder_at_minimum_is_refused_as_funding() {
     let (mut world, chat) = configured_chat(
-        62,
+        12,
         Box::new([people::Executor::Charter(1), people::Executor::Charter(4), people::Executor::Procedure(2)]),
         11,
     );
+    assert_eq!(chat.run.budget, 6, "the run holds its six-unit reserve floor");
+    assert!(matches!(change(&mut world, &chat, 93, None, b"First fix"), engine::CallAnswer::Delegated(_)));
     let row = live(&world, chat.task);
     assert_eq!(
         (row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below) / 2,
@@ -628,7 +690,7 @@ fn change_with_half_the_remainder_at_minimum_is_refused_as_funding() {
         "fixture leaves half at the minimum"
     );
     assert!(
-        matches!(change(&mut world, &chat, 93, None, b"Small fix"), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Funding)
+        matches!(change(&mut world, &chat, 94, None, b"Small fix"), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Funding)
     );
 }
 
@@ -954,14 +1016,14 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
     assert!(text.contains("/actions/runs/1/jobs/0\n"), "{text}");
     let line = text
         .lines()
-        .find(|line| line.starts_with("read_job "))
+        .find_map(|line| line.strip_prefix("read_ci what=job "))
         .unwrap_or_else(|| panic!("resolved job attempt: {text}"));
     let fields: Vec<_> = line.split_ascii_whitespace().collect();
-    assert_eq!(fields.len(), 9, "{line}");
-    assert_eq!([fields[0], fields[1], fields[3], fields[5], fields[7]], ["read_job", "head", "run", "job", "attempt"]);
-    assert_eq!(fields[6], "1", "the API job id differs from the link's index 0");
+    assert_eq!(fields.len(), 8, "{line}");
+    assert_eq!([fields[0], fields[2], fields[4], fields[6]], ["commit", "run", "job", "attempt"]);
+    assert_eq!(fields[5], "1", "the API job id differs from the link's index 0");
     let input =
-        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[1], fields[3], fields[5], fields[7]);
     let job = named_read(&mut world, &chat, 94, b"read_job", input.as_bytes());
     assert!(
         matches!(&job, engine::CallAnswer::ForgeRead(result) if matches!(result.as_ref(), Ok(skein_forge::api::Answer::Job { .. }))),
@@ -985,8 +1047,7 @@ fn pull_repair_log() -> Box<[u8]> {
 }
 
 fn pull_request_ci_world() -> World {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut brief = small.root.brief;
     // CI reserves one fifth per failed job: retain 4 KiB plus framing.
     brief.read_bytes = 5 * 4_608;
@@ -1110,20 +1171,20 @@ fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt(
     let text = std::str::from_utf8(rendered.text()).expect("checks text");
     let line = text
         .lines()
-        .find(|line| line.starts_with("read_job "))
+        .find_map(|line| line.strip_prefix("read_ci what=job "))
         .unwrap_or_else(|| panic!("resolved attempt: {checks:?}: {text}"));
     let fields: Vec<_> = line.split_ascii_whitespace().collect();
-    assert_eq!(fields[2], digits);
-    assert_eq!(fields[4], run.id.to_string());
-    assert_ne!(fields[6], "0", "the link's index is not the job id");
+    assert_eq!(fields[1], digits);
+    assert_eq!(fields[3], run.id.to_string());
+    assert_ne!(fields[5], "0", "the link's index is not the job id");
     let input = format!(
         r#"{{"head":"{}","run":{},"job":{},"attempt":{},"max_bytes":4608}}"#,
-        fields[2], fields[4], fields[6], fields[8]
+        fields[1], fields[3], fields[5], fields[7]
     );
     let job = named_read(&mut world, &repair, 196, b"read_job", input.as_bytes());
     let rendered = temper_engine_smith::answer(&job);
     assert!(!rendered.error());
-    assert!(contains(rendered.text(), &pull_repair_log()), "read_job returns the complete diagnostic");
+    assert!(contains(rendered.text(), &pull_repair_log()), "read_ci what=job returns the complete diagnostic");
     world.close();
 }
 
@@ -1186,7 +1247,7 @@ fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
             break;
         }
     }
-    assert_eq!(world.call_errors.last().expect("host refusal").text.as_ref(), b"Forge read failed: job missing. No job attempt at head 0100000000000000000000000000000000000000, run 2, job 0, attempt 1, as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids.");
+    assert_eq!(world.call_errors.last().expect("host refusal").text.as_ref(), b"Forge read failed: job missing. No job attempt at head 0100000000000000000000000000000000000000, run 2, job 0, attempt 1, as asked. read_ci what=checks at this head names each Actions job's run, job and attempt as read_ci what=job takes them; a link's run number and its index of the job are not those ids.");
     let mut observed = false;
     while let Some(fact) = world.root.pop_fact() {
         if let engine::Fact::ReadRefused { task, attempt, tool, layer, error, job, .. } = fact {
@@ -1212,8 +1273,7 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
     const WORD_BYTES: usize = 2048;
     let mut words = vec![b'x'; WORD_BYTES];
     words[..b"Export CSV\n".len()].copy_from_slice(b"Export CSV\n");
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut world = World::configured_limits(
         true,
         true,
@@ -1255,7 +1315,7 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
     land_titled_change(world, producer, branch, b"Small fix");
 }
 
-fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+pub(super) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
     push_change(world, branch);
     let tasks::Contract::Change { connector, .. } = live(world, producer.task).contract else {
         panic!("change contract")
@@ -1269,6 +1329,10 @@ fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: 
         engine::Parts::none(),
     );
     world.send(event);
+}
+
+fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+    deliver_change(world, producer, branch, title);
     let tasks::Party::Task(change) = live(world, producer.task).requester else { panic!("change requester") };
     for _ in 0..1000 {
         if matches!(
@@ -1354,7 +1418,7 @@ fn handed_title(title: &[u8]) -> Box<[u8]> {
     let mut delegate =
         temper_engine_domain_world::fixtures::report_delegate(b"Context. The complete brief.", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128, choices: Box::new([]) };
     delegate.authority = live(&world, chat.task).authority.clone();
     delegate.authority.budget.spend = 40;
     delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };

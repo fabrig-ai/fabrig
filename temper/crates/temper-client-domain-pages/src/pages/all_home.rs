@@ -39,30 +39,30 @@ pub fn relations(panels: &[w::FollowsPanel], projects: &[MeProject]) -> Box<[Rel
     let mut boxes = List::uncapped();
     for project in projects.iter().take(usize::try_from(FOLLOWED).expect("four projects fit")) {
         for panel in panels {
-            if panel.project() != project.project {
+            if panel.project != project.project {
                 continue;
             }
-            for row in panel.follows() {
+            for row in &panel.follows {
                 boxes
                     .push(Relation::Follow {
                         project: project.project,
                         name: project.name.bytes().into(),
-                        source: row.source().into(),
+                        source: row.source.clone(),
                         line: bytes::concat(&[
-                            &forge::follows::lag(row.lag()),
+                            &forge::follows::lag(row.lag),
                             b" \xc2\xb7 ",
-                            &forge::follows::parity(row.parity().as_ref()),
+                            &forge::follows::parity(row.parity.as_ref()),
                         ]),
-                        stopped: row.stopped().clone(),
+                        stopped: row.stopped.clone(),
                     })
                     .expect("relation boxes grow");
             }
-            for row in panel.dependencies() {
+            for row in &panel.dependencies {
                 boxes
                     .push(Relation::Dependency {
                         project: project.project,
                         name: project.name.bytes().into(),
-                        dependency: forge::follows::dependency_name(row.project(), projects),
+                        dependency: forge::follows::dependency_name(row.project, projects),
                     })
                     .expect("relation boxes grow");
             }
@@ -371,21 +371,14 @@ pub fn facts(root: &dyn Root, wall: Wall) -> Facts {
     }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter == Filter::ALL && inbox.known() => {
-            let open = root.pages().needs().all(inbox, root.forge().approvals());
-            Needs::Count {
-                count: u32::try_from(open.len()).expect("inbox cards fit"),
-                cut: *inbox.cut.first().expect("needs cut")
-                    || root.forge().approvals().more() > 0
-                    || root.pages().needs().findings().cut_for(inbox.filter),
-                findings: super::findings::counted(root.pages().needs().findings(), &open),
-            }
+            root.pages().needs().counted(inbox, root.forge().approvals())
         }
         Some(_) | None => Needs::Unknown,
     };
     let mut previous = None;
     for project in &projects {
         match &project.status {
-            Status::Shown(document) => previous = previous.max(*document.previous()),
+            Status::Shown(document) => previous = previous.max(document.previous),
             Status::Unknown => {}
         }
     }
@@ -485,15 +478,15 @@ pub fn intro(facts: &Facts) -> Intro {
         match &row.status {
             Status::Unknown => {}
             Status::Shown(document) => {
-                if let Some(at) = document.previous() {
+                if let Some(at) = &document.previous {
                     last_looked = last_looked.max(Some(Wall::from_nanos(*at)));
                 }
-                if document.landed() > 0
-                    && let Some(at) = document.last_landed()
+                if document.landed > 0
+                    && let Some(at) = &document.last_landed
                 {
                     last_landed = last_landed.max(Some(Wall::from_nanos(*at)));
                 }
-                let since = document.landed().saturating_sub(document.seen());
+                let since = document.landed.saturating_sub(document.seen);
                 if since > 0 {
                     count = count.saturating_add(since);
                     projects = projects.checked_add(1).expect("project rows fit");
@@ -520,19 +513,19 @@ pub fn brief(facts: &Facts) -> Option<Brief> {
         match &row.status {
             Status::Unknown => {}
             Status::Shown(document) => {
-                if let Some(brief) = document.brief()
-                    && (brief.landed() > document.seen()
-                        || match document.previous() {
-                            Some(previous) => brief.at() > *previous,
+                if let Some(brief) = &document.brief
+                    && (brief.landed > document.seen
+                        || match &document.previous {
+                            Some(previous) => brief.at > *previous,
                             None => false,
                         })
                 {
                     let line = BriefLine {
                         project: row.project,
                         name: row.name.clone(),
-                        sentence: bytes::copy_of(first_sentence(brief.lede())),
+                        sentence: bytes::copy_of(first_sentence(&brief.lede)),
                     };
-                    joined.insert((brief.at(), row.project), line).expect("one brief per project fits");
+                    joined.insert((brief.at, row.project), line).expect("one brief per project fits");
                 }
             }
         }

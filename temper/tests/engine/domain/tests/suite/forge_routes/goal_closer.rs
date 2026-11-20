@@ -56,33 +56,7 @@ fn goal_world_with_updates(
     stall: Option<Duration>,
     attempts: u8,
 ) -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        silent_ci,
-        passes,
-        Gate::default(),
-        None,
-        StoryLimits {
-            inbox_messages: Some(16),
-            inbox_bytes: Some(16_384),
-            tier,
-            slots: Some(4),
-            tasks: Some(32),
-            tree_tasks: Some(64),
-            task_delegates: Some(16),
-            authority_batch: Some(8),
-            tasks_batch: Some(8),
-            result_bytes: Some(4096),
-            forge_commits: commits,
-            stall,
-            ..StoryLimits::default()
-        },
-    )
-    .with_close_job(close.then_some(b".temper/close".as_slice()), true)
-    .with_goal_closer()
-    .with_landing_attempts(attempts)
-    .with_landing_deployment(Box::new([
+    let landing_rules = Box::new([
         engine::LandingRule {
             sets: Box::new([]),
             connector: 0,
@@ -123,13 +97,37 @@ fn goal_world_with_updates(
             gates: Box::new([]),
             approvals: Box::new([]),
         },
-    ]));
+    ]);
+    let mut world = World::configured_limits(
+        true,
+        true,
+        silent_ci,
+        passes,
+        Gate::default(),
+        None,
+        StoryLimits {
+            inbox_messages: Some(16),
+            inbox_bytes: Some(16_384),
+            tier,
+            slots: Some(4),
+            tasks: Some(32),
+            tree_tasks: Some(64),
+            task_delegates: Some(16),
+            authority_batch: Some(8),
+            tasks_batch: Some(8),
+            result_bytes: Some(4096),
+            forge_commits: commits,
+            stall,
+            close_job: Some((close.then(|| b".temper/close".as_slice().into()), true)),
+            goal_closer: true,
+            landing_attempts: Some(attempts),
+            landing_deployment: Some(landing_rules),
+            forge_rows: commits.map(|_| 8),
+            ..StoryLimits::default()
+        },
+    );
     if stall.is_some() {
         world.tick_interval = Duration::from_millis(10);
-    }
-    if commits.is_some() {
-        let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
-        world = world.with_forge_client(client);
     }
     world.adopt();
     let mut event = protocol::hello_slots(CHANNEL, 4, Box::new([]));
@@ -358,7 +356,7 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
         let mut delegate = ordinary_delegate(world, goal, words);
         if words != b"Unrelated report" {
             delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-            delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+            delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096, choices: Box::new([]) };
             delegate.authority = live_task(world, goal.task).authority.clone();
             delegate.authority.delegation.depth -= 1;
             delegate.authority.delegation.tasks = 6;
@@ -392,6 +390,40 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
     wait_ended(world, 10);
     let last = producer_for(world, 12);
     produce(world, 12, branch, &last, b"Last", b"No left section");
+}
+
+#[test]
+fn a_closer_and_its_goal_end_at_the_landing_without_a_tier_verdict() {
+    use temper_engine_domain_world::tier_runs;
+    let options = tier_runs::Tier { wait: change::Wait::Landed, ..tier_runs::Tier::default() };
+    let (mut world, goal, branch) = goal_world_in(true, true, Some(options), false);
+    add_change(&mut world, &goal, &branch, 93, b"source", b"implemented");
+    let event = world.protocol.answer(CHANNEL, goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal made its closer", |world| {
+        live_task(world, goal.task).closer.is_some()
+    });
+    let closer = live_task(&world, goal.task).closer.unwrap();
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_close(&mut world, close, &branch, &job);
+    wait_ended(&mut world, close);
+    let tip = branch_tip(&mut world, &branch);
+    status(&mut world, tip, raw::Check::Passed);
+    let landing = wait_landing(&mut world, closer);
+    tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal ends at its landing", |world| {
+        ended(world, goal.task).is_some()
+    });
+    let change::State::Landed { merge, .. } = row(&world, landing).change.state else {
+        panic!("landed, not verifying")
+    };
+    assert!(tiers::result(&world, landing).contains("Ended at landing; after landing judges it later."));
+    assert!(closer_row(&world, closer).unwrap().done);
+    assert_eq!(result_words(&world, closer), result_words(&world, goal.task));
+    let report = String::from_utf8_lossy(result_words(&world, goal.task));
+    assert!(report.contains(std::str::from_utf8(&forge_top::commit_text(&merge)).unwrap()), "{report}");
+    assert_eq!(tier_runs::tier(&world).record.sequence, 0, "no tier verdict before goal completion");
+    assert!(!tiers::result(&world, close).contains("Ended at landing;"), "no tier follows the close change's base");
 }
 
 #[test]
@@ -456,9 +488,7 @@ fn a_closer_closes_lands_and_reports() {
         }]),
     };
     assert_eq!(result_words(&world, closer), closer::words(&expected, 4096).as_ref());
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -511,9 +541,7 @@ fn a_closer_without_a_close_job_skips_the_close_step() {
     assert!(row.close_changes.is_empty());
     assert_eq!(row.landing_changes.len(), 1);
     assert_eq!(world.jobs.len(), 0);
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -530,9 +558,7 @@ fn a_closer_of_a_goal_with_no_goal_branch_only_reports() {
     assert!(output.contains("into main\n"), "{output}");
     assert!(output.contains("The landing: none, no goal branch."), "{output}");
     assert!(output.ends_with(": unknown\n"), "{output}");
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -604,9 +630,7 @@ fn a_closers_failed_close_change_holds_it_and_its_release_retries() {
     assert_eq!(closer_row(&world, closer).expect("retry row").close_changes.as_ref(), &[close, second]);
     finish_close(&mut world, second, &branch, &job);
     wait_ended(&mut world, closer);
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1088,9 +1112,7 @@ fn a_closer_survives_restart() {
     assert_eq!(restored.close_changes, saved.close_changes);
     assert_eq!(restored.landing_changes.len(), 1);
     assert!(result_words(&world, closer).starts_with(b"Goal T"));
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1142,9 +1164,7 @@ fn a_closer_waits_for_work_and_closes_again() {
     let output = core::str::from_utf8(result_words(&world, closer)).expect("report UTF-8");
     assert!(output.contains(&format!("- T{first} Settle goal")), "{output}");
     assert!(output.contains(&format!("- T{second} Settle goal")), "{output}");
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1252,7 +1272,7 @@ fn a_goals_report_quotes_each_main_pulls_ci_selection() {
     let assigned = world.assigned.len();
     let mut delegate = ordinary_delegate(&world, &goal, b"Repair main");
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096, choices: Box::new([]) };
     delegate.authority = live_task(&world, goal.task).authority.clone();
     delegate.authority.delegation.depth -= 1;
     delegate.authority.delegation.tasks = 6;
@@ -1292,9 +1312,7 @@ fn a_goals_report_quotes_each_main_pulls_ci_selection() {
         )),
         "{output}"
     );
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1312,9 +1330,7 @@ fn a_failed_log_read_reads_unknown() {
     let words = result_words(&world, closer).into();
     finish_run(&mut world, &goal, tasks::TaskResult::Report { words });
     wait_ended(&mut world, goal.task);
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1365,9 +1381,7 @@ fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
     world.send(engine::Event::Stop);
     world.hold_ancestry_answers = false;
     world.events.extend(world.held_ancestry_answers.drain(..));
-    for _ in 0..80 {
-        world.tick();
-    }
+    world.advance_ticks(80);
     assert!(world.drained.is_none());
     assert!(world.events.is_empty(), "the final check's answer has routed while the write stays held");
     assert_eq!(closer_row(&world, task), Some(&saved), "CloserChecked steps nothing while settling");
@@ -1378,5 +1392,26 @@ fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
     world.restart_same();
     wait_ended(&mut world, task);
     assert!(closer_row(&world, task).expect("closer stepped on restart").done);
+    world.close();
+}
+
+pub(crate) fn the_operator_hold_stops_the_goal_closers_land_step() {
+    let (mut world, goal, branch) = goal_world(false, true);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    world.drain_cut();
+    let merged = world.merges;
+    world.restart_with_landing_held(true);
+    world.until(Until::Ready);
+    let closer = make_closer(&mut world, &goal, 94);
+    for _ in 0..300 {
+        world.tick();
+    }
+    let row = closer_row(&world, closer).expect("waiting closer");
+    assert!(row.landing_changes.is_empty(), "no land-step change is made under the operator hold");
+    assert_eq!(world.merges, merged);
+    world.drain_cut();
+    world.restart_with_landing_held(false);
+    wait_ended(&mut world, closer);
+    assert_eq!(closer_row(&world, closer).expect("closer").landing_changes.len(), 1);
     world.close();
 }

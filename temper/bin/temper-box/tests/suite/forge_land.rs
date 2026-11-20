@@ -382,28 +382,30 @@ fn configure_claude(paths: &[std::path::PathBuf; 3]) {
     support::forge_land::configure_live_model(
         &paths[0],
         support::forge_land::LiveModel::ClaudeCode { login: &paths[1].join("programs/claude-login") },
-        Path::new("/machine/bin/claude"),
+        Path::new("/usr/bin/true"),
     );
 }
 
 #[test]
 fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
-    use std::fs;
     // docs/help/box.md, step 1: Claude's fields over init's endpoint and model sizes.
     let (scratch, paths) = initialized_deployment("live-claude-configuration");
     let config = &paths[0];
-    let agent_before: Value =
-        serde_json::from_slice(&fs::read(config.join("agent.json")).expect("agent")).expect("JSON");
-    let before: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
+    let agent_before = temper_agent_fixtures::read(config);
+    let before: Value = serde_json::from_slice(
+        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
+    )
+    .expect("JSON");
     configure_claude(&paths);
-    let agent: Value = serde_json::from_slice(&fs::read(config.join("agent.json")).expect("agent")).expect("JSON");
-    let value: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
+    let agent = temper_agent_fixtures::read(config);
+    let value: Value = serde_json::from_slice(
+        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
+    )
+    .expect("JSON");
     assert_eq!(
         agent["programs"],
         json!({"claude_code":{
-            "path":"/machine/bin/claude", "directory":paths[1].join("programs")
+            "path":"fetched", "directory":paths[1].join("programs")
         }})
     );
     assert_eq!(
@@ -413,37 +415,42 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "connect":10000, "handshake":10000, "headers":[],
                 "limits": {
-                    "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000}},
+                    "window":1_048_576, "output":48_000, "reasoning_item":65536, "head":60000, "idle":300_000,"oversized_reasoning":"fail"}},
             agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
         ])
     );
     assert_eq!(agent["profile"], agent_before["profile"]);
     assert_eq!(agent["environment"], agent_before["environment"]);
     assert_eq!(
-        value["engine"]["llm"],
+        temper_agent_fixtures::providers::read(&paths[1]),
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
                 "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
-                "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
+                "sources":{"programs":["claude_code"]}}],
             "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
-                "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
+                "headers":[], "connect_ms":10000, "handshake_ms":10000}]
         })
     );
-    assert_eq!(value["application"], before["application"], "including init's demo");
+    let application = before["application"].clone();
+    assert_eq!(value["application"], application, "including init’s demo");
     assert_eq!(value["engine"]["limits"], before["engine"]["limits"]);
     assert_eq!(value["workers"], before["workers"]);
-    let parsed = smith_agent_shell::config::read(&config.join("agent.json")).expect("ordinary agent schema");
+    let parsed = temper_worker_shell::agent::decoded_bytes(&serde_json::to_vec(&agent).expect("agent JSON"))
+        .expect("ordinary agent schema")
+        .resolve(&mut Vec::new())
+        .expect("resolved agent");
     assert_eq!(parsed.program_endpoints.into_iter().collect::<Vec<_>>(), [2]);
     eprintln!("Claude agent largest turn: {} bytes", parsed.service.limits.channel.bodies.turn_body);
     scratch.remove();
 }
 
 #[test]
-fn stock_charters_choose_claude_before_the_demo_model() {
+fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
     let (scratch, paths) = initialized_deployment("live-claude-charters");
     configure_claude(&paths);
-    let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
+    let deployment =
+        support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
     let document = jig_protocol_config::document(
         &deployment,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
@@ -453,26 +460,34 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let engine = temper_service::startup::engine_with(
         &document,
         at,
         &jig_directories(&support::configuration::directories(&paths[0])),
+        &given,
     )
     .expect("engine schema");
-    let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let defaults = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).expect("stock");
     for charter in &defaults.charters {
-        assert_eq!(
-            (charter.policy.model.name.as_ref(), charter.policy.model.endpoint),
-            (b"claude-opus-5-5".as_slice(), 2)
-        );
+        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));
         let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
             .expect("stock charter");
-        let alternatives: Vec<_> =
+        let mut alternatives: Vec<_> =
             resolved.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
-        assert_eq!(
-            alternatives,
-            [(b"claude-sonnet-5-5".as_slice(), 2), (b"claude-fable-5-1".as_slice(), 2), (b"demo".as_slice(), 3)]
-        );
+        let mut ordinary: Vec<_> = defaults
+            .models
+            .iter()
+            .filter(|entry| entry.number != 8)
+            .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
+            .collect();
+        assert_eq!(ordinary.len(), 7);
+        alternatives.sort();
+        ordinary.sort();
+        assert_eq!(alternatives, ordinary);
     }
     scratch.remove();
 }
@@ -495,7 +510,8 @@ fn live_model_world(
 
     let (scratch, paths) = initialized_deployment(case);
     configure(&paths);
-    let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
+    let deployment =
+        support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
     let document = jig_protocol_config::document(
         &deployment,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
@@ -505,10 +521,15 @@ fn live_model_world(
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let engine = temper_service::startup::engine_with(
         &document,
         at,
         &jig_directories(&support::configuration::directories(&paths[0])),
+        &given,
     )
     .expect("engine schema");
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -537,7 +558,10 @@ fn live_model_world(
         ]);
         config.core.defaults.models.clone_from(&stock.models);
         config.core.defaults.charters = stock.charters.iter().take(2).cloned().collect();
-        let llm = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED).settings;
+        let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
+        config.core.defaults.providers = core.defaults.providers;
+        config.core.fixed_providers = core.fixed_providers;
+        let llm = core.settings;
         config.core.settings.models = llm.models;
         config.core.settings.endpoints = llm.endpoints;
         config.core.settings.llm_providers = llm.llm_providers;
@@ -705,7 +729,7 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
             json!({
                 "setting":{"kind":"charter","number":number},
                 "set":{"instructions":format!("charter {number}"),"model":model,
-                    "alternatives":[],"rest":false,"time":240_000_000_000_u64}
+                    "alternatives":[],"rest":false,"time":1}
             })
         })
     };
@@ -1737,6 +1761,16 @@ fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Val
         root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
         root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
         root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Client {
+            event: Event::Up {
+                up: Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        referee_me(),
+                    ))),
+                },
+            },
+        },
         root::Event::Call { number: 1, call, json: true, value: None },
     ]);
     for _ in 0..32 {
@@ -1764,9 +1798,6 @@ fn referee_response(
         return None;
     };
     Some(match down {
-        Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-            Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(referee_me()))) }
-        }
         Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
         Down::Read { read, .. } => Up::ReadDone {
             read,
@@ -2036,13 +2067,12 @@ fn configure_key(paths: &[std::path::PathBuf; 3]) {
 
 #[test]
 fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
-    use std::fs;
     let (scratch, paths) = initialized_deployment("live-key-configuration");
-    let path = paths[0].join("temper.json");
-    let agent_path = paths[0].join("agent.json");
-    let mut expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
-    let agent = fs::read(&agent_path).expect("init agent");
-    let provider = expected["engine"]["llm"]["providers"]
+    let path = paths[0].join(temper_config_shell::FILE);
+    let expected: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
+    let mut expected_providers = temper_agent_fixtures::providers::read(&paths[1]);
+    let agent = temper_agent_fixtures::read(&paths[0]);
+    let provider = expected_providers["providers"]
         .as_array_mut()
         .expect("providers")
         .iter_mut()
@@ -2053,9 +2083,10 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     assert!(provider.remove("keep").is_some());
     assert!(provider.remove("drop").is_some());
     configure_key(&paths);
-    let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
-    assert_eq!(configured, expected, "OpenAI, demo and both Anthropic endpoints remain as init writes them");
-    assert_eq!(fs::read(agent_path).expect("key agent"), agent, "Claude Code's program stays as init writes it");
+    let configured: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
+    assert_eq!(configured, expected, "the startup document is unchanged");
+    assert_eq!(temper_agent_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
+    assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
     scratch.remove();
     assert_live_startup("live-key-startup", configure_key);
 }
@@ -2123,8 +2154,7 @@ fn a_key_store_is_kept_without_a_held_record() {
         fs::create_dir_all(store.join(directory)).expect("synthetic deployment directory");
     }
     for file in [
-        "config/temper.json".to_owned(),
-        "config/agent.json".to_owned(),
+        format!("config/{}", temper_config_shell::FILE),
         "data/box/started/1".to_owned(),
         "data/forge-1/forgejo/app.ini".to_owned(),
         "data/forge-1/forgejo/forgejo.db".to_owned(),

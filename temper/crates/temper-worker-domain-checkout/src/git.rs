@@ -58,6 +58,8 @@ pub struct Place {
 /// names, in [`Done::Succeeded`] if it names none, or in [`Done::Failed`].
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
+    /// Move HEAD and the index to a local commit, keeping all working files. Ends Committed.
+    Reset { at: Place, commit: Commit },
     /// Best-effort check files (domain/forge/reds.md, 5.2).
     Reds { at: Place, action: Reds },
     /// Make the workspace's directory empty: rename the old tree aside
@@ -72,8 +74,9 @@ pub enum Op {
         account: Option<u64>,
         git: Option<Box<[u8]>>,
     },
-    /// Whether the directory holds a clone of remote. Local and read-only; ends Looked.
-    Look { at: Place, remote: Box<[u8]> },
+    /// Whether the worker's directory holds remote, taking on a kept work tree from its store if needed.
+    /// Local; ends Looked.
+    Look { at: Place, remote: Box<[u8]>, store: Token },
     /// Make an empty repository borrowing its store, without reaching the forge.
     Clone { at: Place, remote: Box<[u8]>, store: Token },
     /// Fetch `want` into the store and point the repository at it. Ends
@@ -82,6 +85,8 @@ pub enum Op {
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Point a repository reference at a commit already present. Ends in `Succeeded`.
     Point { at: Place, into: Into, commit: Commit },
+    /// Count and repack the store, then the repository (protocol/git.md, 4.13).
+    Pack { at: Place, store: Option<Token> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -183,6 +188,8 @@ pub enum Want {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Done {
+    /// A snapshot's second parent is no longer reached by the remote. Nothing staged.
+    ParentUnreachable { head: Commit, merging: Option<Commit>, parent: Commit },
     /// A bounded results file, removed after reading; one extra byte marks oversize.
     Results { bytes: Option<Box<[u8]>> },
     /// Complete changed-path list, bounded by the checkout's conflict/path limits.
@@ -266,6 +273,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Reset,
     Reds,
     Store,
     Look,
@@ -273,6 +281,7 @@ pub enum Kind {
     Clone,
     Fetch,
     Point,
+    Pack,
     Create,
     CheckOut,
     Merge,
@@ -287,6 +296,7 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Reset { .. } => Kind::Reset,
             Op::Reds { .. } => Kind::Reds,
             Op::Store { .. } => Kind::Store,
             Op::Make { .. } => Kind::Make,
@@ -294,6 +304,7 @@ impl Op {
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
             Op::Point { .. } => Kind::Point,
+            Op::Pack { .. } => Kind::Pack,
             Op::Create { .. } => Kind::Create,
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
@@ -317,6 +328,8 @@ impl Op {
             | Op::Merge { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
             Op::Reds { .. }
+            | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }

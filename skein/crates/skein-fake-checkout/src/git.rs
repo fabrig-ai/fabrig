@@ -227,9 +227,9 @@ pub fn check_out(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], commit
         return Err(NotFetched);
     }
     checkout.replace_tree(at, &forge.tree(commit));
-    checkout.write(&[at, b"/.git/temper-head"].concat(), &commit.to_le_bytes());
-    checkout.remove(&[at, b"/.git/temper-conflicts"].concat());
-    checkout.remove(&[at, b"/.git/MERGE_HEAD"].concat());
+    checkout.write(&[directory(checkout, at).as_slice(), b"/temper-head"].concat(), &commit.to_le_bytes());
+    checkout.remove(&[directory(checkout, at).as_slice(), b"/temper-conflicts"].concat());
+    checkout.remove(&[directory(checkout, at).as_slice(), b"/MERGE_HEAD"].concat());
     Ok(())
 }
 
@@ -276,7 +276,7 @@ fn commit_with(
         return Ok(None);
     };
     checkout.write(&object(checkout, at, commit), b"");
-    checkout.write(&[at, b"/.git/temper-head"].concat(), &commit.to_le_bytes());
+    checkout.write(&[directory(checkout, at).as_slice(), b"/temper-head"].concat(), &commit.to_le_bytes());
     Ok(Some(commit))
 }
 
@@ -311,7 +311,7 @@ pub struct Merged {
 /// mutation; malformed head bytes assert. No commit/reference moves
 /// (testing/fakes/checkout.md, section 4).
 pub fn merge(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], theirs: u64) -> Result<Merged, NotFetched> {
-    let raw = checkout.content(&[at, b"/.git/temper-head"].concat()).ok_or(NotFetched)?;
+    let raw = checkout.content(&[directory(checkout, at).as_slice(), b"/temper-head"].concat()).ok_or(NotFetched)?;
     let ours = u64::from_le_bytes(raw.try_into().expect("checkout stores an eight-byte head"));
     if !object_present(checkout, at, theirs) {
         return Err(NotFetched);
@@ -346,10 +346,13 @@ pub fn merge(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], theirs: u6
         }
     }
     checkout.replace_tree(at, &tree);
-    checkout.write(&[at, b"/.git/MERGE_HEAD"].concat(), &theirs.to_le_bytes());
-    checkout.remove(&[at, b"/.git/temper-conflicts"].concat());
+    checkout.write(&[directory(checkout, at).as_slice(), b"/MERGE_HEAD"].concat(), &theirs.to_le_bytes());
+    checkout.remove(&[directory(checkout, at).as_slice(), b"/temper-conflicts"].concat());
     for (index, path) in conflicts.iter().enumerate() {
-        checkout.write(&[at, format!("/.git/temper-conflicts/{index}").as_bytes()].concat(), path);
+        checkout.write(
+            &[directory(checkout, at).as_slice(), format!("/temper-conflicts/{index}").as_bytes()].concat(),
+            path,
+        );
     }
     Ok(Merged { conflicts })
 }
@@ -388,7 +391,7 @@ pub fn commit_merging(
         return Err(CommitFailure::NotFetched);
     }
     let files: Vec<_> = checkout
-        .tree(&[at, b"/.git/temper-conflicts"].concat())
+        .tree(&[directory(checkout, at).as_slice(), b"/temper-conflicts"].concat())
         .into_values()
         .filter(|path| checkout.content(&[at, b"/", path].concat()).is_some_and(has_markers))
         .collect();
@@ -399,9 +402,9 @@ pub fn commit_merging(
     tree.retain(|path, _| !in_git(path));
     let commit = forge.store(parent, Some(merging), false, tree, message).expect("a merge always records both parents");
     checkout.write(&object(checkout, at, commit), b"");
-    checkout.write(&[at, b"/.git/temper-head"].concat(), &commit.to_le_bytes());
-    checkout.remove(&[at, b"/.git/temper-conflicts"].concat());
-    checkout.remove(&[at, b"/.git/MERGE_HEAD"].concat());
+    checkout.write(&[directory(checkout, at).as_slice(), b"/temper-head"].concat(), &commit.to_le_bytes());
+    checkout.remove(&[directory(checkout, at).as_slice(), b"/temper-conflicts"].concat());
+    checkout.remove(&[directory(checkout, at).as_slice(), b"/MERGE_HEAD"].concat());
     Ok(commit)
 }
 
@@ -559,7 +562,17 @@ pub fn init(checkout: &mut Checkout, at: &[u8], bare: bool) {
     checkout.mkdir(&[directory.as_slice(), b"/refs/heads"].concat());
     checkout.write(&[directory.as_slice(), b"/HEAD"].concat(), b"ref: refs/heads/master\n");
 }
-fn directory(checkout: &Checkout, at: &[u8]) -> Vec<u8> {
+/// Select metadata explicitly for an invocation with a separate work tree.
+pub fn set_directory(checkout: &mut Checkout, at: &[u8], git_dir: &[u8]) {
+    checkout.git_directories.insert(at.to_vec(), git_dir.to_vec());
+}
+
+/// The invocation's metadata, otherwise the ordinary repository's directory.
+#[must_use]
+pub fn directory(checkout: &Checkout, at: &[u8]) -> Vec<u8> {
+    if let Some(directory) = checkout.git_directories.get(at) {
+        return directory.clone();
+    }
     let git = [at, b"/.git"].concat();
     if checkout.exists(&git) { git } else { at.to_vec() }
 }

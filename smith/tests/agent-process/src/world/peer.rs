@@ -130,12 +130,12 @@ pub(super) fn child_charter(bytes: &[u8]) -> Box<[u8]> {
         let mut models = skein_lib::List::with_capacity(1);
         models.push(parts.main.clone()).expect("one permitted child model");
         parts.models = models;
-        let mut tools = parts.tools.clone().into_parts();
-        let mut families = tools.families.into_parts();
-        families.skein_bools[0] = true;
-        families.skein_bools[3] = true;
-        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("child authority");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+        let mut tools = parts.tools.clone();
+        let mut families = tools.families;
+        families.inspect = true;
+        families.agents = true;
+        tools.families = families;
+        parts.tools = tools;
     })
 }
 

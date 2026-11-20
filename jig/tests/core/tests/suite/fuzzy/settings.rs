@@ -13,16 +13,18 @@ use support::*;
 #[test]
 fn a_standard_profile_s_whole_room_of_answers_stays_under_the_heap_ceiling_and_restarts() {
     // Standard's whole room holds four times Small's retained answers under the heap ceiling.
-    support::whole_room_of_answers(jig_protocol_config::Profile::Standard);
+    support::whole_room_of_answers(&jig_protocol_config::stock());
 }
 
 fn agree(world: &jig_core_world::world::World) {
     let current = world.domain.settings();
     let mut expected = std::collections::BTreeMap::new();
     let mut changes = std::collections::BTreeMap::new();
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(row))) = row {
-            match row {
+    let mut holders = std::collections::BTreeMap::<u32, u32>::new();
+    let mut held = Vec::new();
+    for row in agreement_rows(world) {
+        match row {
+            root::Record::Core(core::Record::Core(core::CoreRecord::Settings(row))) => match row {
                 settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                 settings::Record::Default { setting, default } => {
                     expected.insert(*setting, default.value.clone());
@@ -30,11 +32,31 @@ fn agree(world: &jig_core_world::world::World) {
                 settings::Record::Changed { setting, changed } => {
                     changes.insert(*setting, changed.value.clone());
                 }
-                settings::Record::Revision { .. }
+                settings::Record::Revision { history: false, revision } => held.push(revision.head.number),
+                settings::Record::Revision { history: true, .. }
                 | settings::Record::Extent { .. }
                 | settings::Record::Charter { .. }
                 | settings::Record::Proposal { .. } => {}
+            },
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task))) => {
+                assert!(
+                    world.store.rows.contains_key(&key(settings::Key::Held(task.settings.task))),
+                    "live task {} lost revision {}",
+                    task.number,
+                    task.settings.task
+                );
+                *holders.entry(task.settings.task).or_default() += 1;
+                if let Some(run) = task.settings.run {
+                    assert!(
+                        world.store.rows.contains_key(&key(settings::Key::Held(run))),
+                        "live run lost revision {run}"
+                    );
+                    if run != task.settings.task {
+                        *holders.entry(run).or_default() += 1;
+                    }
+                }
             }
+            _ => unreachable!("settings and live task ranges"),
         }
     }
     let defaults = expected.clone();
@@ -48,21 +70,21 @@ fn agree(world: &jig_core_world::world::World) {
             }
         }
     }
-    assert_eq!(current.offered().as_slice(), expected.keys().copied().collect::<Vec<_>>());
+    let offered = current.offered();
+    assert_eq!(offered.as_slice(), expected.keys().copied().collect::<Vec<_>>());
+    let catalogue: Vec<_> = offered
+        .iter()
+        .filter_map(|setting| match current.value(*setting) {
+            Some(settings::Value::Model(model)) => Some(*model.clone()),
+            _ => None,
+        })
+        .collect();
     for (setting, value) in expected {
         assert_eq!(current.value(setting), Some(&value));
         if let settings::Value::Overlay(overlay) = &value {
             let settings::Setting::Charter(number) = setting else { panic!("overlay setting") };
             let settings::Value::Charter(default) = &defaults[&setting] else { panic!("overlay default") };
             let made = settings::overlaid(default, overlay);
-            let catalogue: Vec<_> = current
-                .offered()
-                .iter()
-                .filter_map(|setting| match current.value(*setting) {
-                    Some(settings::Value::Model(model)) => Some(*model.clone()),
-                    _ => None,
-                })
-                .collect();
             let resolved = settings::charters::resolved(&made, &catalogue, &world.env().limits.core)
                 .expect("offered overlay resolves");
             assert_eq!(current.charter(number), Some(&resolved), "default with stored overlay");
@@ -78,36 +100,8 @@ fn agree(world: &jig_core_world::world::World) {
         assert_eq!(assigned.run.policy.instructions, version.policy.instructions, "run reads its revision's version");
     }
     assert_eq!(revision(world, current.newest(), false).head, *current.newest_head());
-    let mut holders = std::collections::BTreeMap::<u32, u32>::new();
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task))) = row {
-            assert!(
-                world.store.rows.contains_key(&key(settings::Key::Held(task.settings.task))),
-                "live task {} lost revision {}",
-                task.number,
-                task.settings.task
-            );
-            *holders.entry(task.settings.task).or_default() += 1;
-            if let Some(run) = task.settings.run {
-                assert!(world.store.rows.contains_key(&key(settings::Key::Held(run))), "live run lost revision {run}");
-                if run != task.settings.task {
-                    *holders.entry(run).or_default() += 1;
-                }
-            }
-        }
-    }
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Revision {
-            history: false,
-            revision,
-        }))) = row
-        {
-            assert!(
-                revision.head.number == current.newest() || holders.contains_key(&revision.head.number),
-                "held revision has no holder: {}",
-                revision.head.number
-            );
-        }
+    for number in held {
+        assert!(number == current.newest() || holders.contains_key(&number), "held revision has no holder: {number}");
     }
 }
 fn overlay_item(words: &[u8]) -> settings::Item {
@@ -120,8 +114,8 @@ fn overlay_item(words: &[u8]) -> settings::Item {
         }))),
     }
 }
-fn restart_default(world: &mut jig_core_world::world::World, rng: &mut Rng) {
-    let mut config = configuration().0;
+fn restart_default(world: &mut jig_core_world::world::World, prepared: &root::Config, rng: &mut Rng) {
+    let mut config = jig_core_world::clone_configuration(prepared);
     config.core.defaults.charters[0].policy.instructions =
         format!("Release {}", rng.below(1_000_000)).into_bytes().into_boxed_slice();
     restart(world, config);
@@ -178,6 +172,7 @@ fn draw_change(
     let item = match operation {
         0 => settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Reset },
         1 | 3 => template_edit(world, 6 + rng.below(8)),
+        4 => worker_item(step),
         5 => overlay_item(format!("overlay {seed} {step}").as_bytes()),
         _ => {
             let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
@@ -238,13 +233,14 @@ fn draw_change(
 fn random_small_settings_changes_and_stale_requests_survive_restarts() {
     let count =
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(24, |value| value.parse::<u64>().expect("seed count"));
+    let prepared = configuration();
     let mut coverage = [false; 8];
     for seed in 713..713 + count {
         eprintln!("settings replay seed {seed}");
         let reached = {
             let mut reached = [false; 8];
             let mut rng = Rng::new(seed);
-            let mut world = start(2);
+            let mut world = start_with(2, jig_core_world::clone_configuration(&prepared.0), prepared.1);
             let signed = sign_in(&mut world);
             assert_eq!(revision(&world, 1, false).head.by, settings::Decider::FirstStart);
             assert!(world.store.rows.contains_key(&key(settings::Key::Default(settings::Setting::Rules))));
@@ -289,7 +285,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
                 }
                 if rng.below(4) == 0 {
                     reached[4] = true;
-                    restart_default(&mut world, &mut rng);
+                    restart_default(&mut world, &prepared.0, &mut rng);
                     agree(&world);
                 }
             }
@@ -302,7 +298,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
                 world.domain.settings().template(1).expect("settings fixture").grace.expect("settings fixture")
                     >= Duration::from_secs(5)
             );
-            restart(&mut world, configuration().0);
+            restart(&mut world, jig_core_world::clone_configuration(&prepared.0));
             agree(&world);
             reached
         };
@@ -391,6 +387,7 @@ fn proposal_sets_agree(world: &mut jig_core_world::world::World, signed: u64) {
 fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agreement() {
     const SEEDS: u64 = 8;
     const STEPS: u8 = 32;
+    let prepared = configuration();
     let mut coverage = [false; 6];
     let count =
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(SEEDS, |value| value.parse::<u64>().expect("seed count"));
@@ -401,7 +398,7 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
         let reached = {
             let mut reached = [false; 6];
             let mut rng = Rng::new(seed);
-            let mut world = start(4);
+            let mut world = start_with(4, jig_core_world::clone_configuration(&prepared.0), prepared.1);
             let signed = sign_in(&mut world);
             for step in 0..STEPS {
                 let operation = usize::try_from(rng.below(6)).expect("six operations");
@@ -410,7 +407,10 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                 let key = 20 + step;
                 match operation {
                     0 => {
-                        let item = if rng.below(2) == 0 {
+                        let choice = rng.below(3);
+                        let item = if choice == 2 {
+                            worker_item(step)
+                        } else if choice == 0 {
                             overlay_item(format!("proposed overlay {seed} {step}").as_bytes())
                         } else {
                             template_edit(&world, 6 + rng.below(10))
@@ -460,7 +460,7 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                         change(&mut world, signed, key, against, Box::new([item]));
                     }
                     5 => {
-                        restart_default(&mut world, &mut rng);
+                        restart_default(&mut world, &prepared.0, &mut rng);
                     }
                     _ => unreachable!(),
                 }
@@ -474,4 +474,97 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
         }
     }
     assert_eq!(coverage, [true; 6]);
+}
+
+#[test]
+fn sorted_bounded_limit_overrides_pass_and_a_mutation_fails_at_its_position() {
+    use settings::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
+    let mut rng = Rng::new(71_393);
+    for _ in 0..512 {
+        let count = usize::try_from(rng.below(u64::from(OVERRIDES) + 1)).expect("bounded list");
+        let mut values = Vec::new();
+        for at in 0..count {
+            let mut name = format!("{at:03}").into_bytes();
+            let length = 3 + usize::try_from(rng.below(u64::from(OVERRIDE_NAME_BYTES) - 2)).expect("bounded name");
+            name.resize(length, b'_');
+            let reason =
+                vec![b'r'; 1 + usize::try_from(rng.below(u64::from(OVERRIDE_REASON_BYTES))).expect("bounded reason")];
+            values.push(Override {
+                name: name.into_boxed_slice(),
+                value: rng.next_u64(),
+                reason: reason.into_boxed_slice(),
+            });
+        }
+        assert_eq!(check_overrides(&values), Ok(()));
+        if count != 0 {
+            let at =
+                usize::try_from(rng.below(u64::try_from(count).expect("bounded count"))).expect("bounded position");
+            let expected = match rng.below(3) {
+                0 => {
+                    values[at].name = b"Bad".as_slice().into();
+                    OverrideFault::Name { at: u32::try_from(at).expect("position") }
+                }
+                1 if at != 0 => {
+                    values[at].name = values[at - 1].name.clone();
+                    OverrideFault::Order { at: u32::try_from(at).expect("position") }
+                }
+                _ => {
+                    values[at].reason = Box::new([0xff]);
+                    OverrideFault::Reason { at: u32::try_from(at).expect("position") }
+                }
+            };
+            assert_eq!(check_overrides(&values), Err(expected));
+        }
+    }
+}
+
+fn worker_item(digest: u8) -> settings::Item {
+    settings::Item {
+        setting: settings::Setting::Worker(1),
+        edit: settings::Edit::Set(settings::Value::Worker(Box::new(settings::WorkerSetting {
+            number: 1,
+            name: b"w1".as_slice().into(),
+            places: 1,
+            digest: Some([digest; 32]),
+            withdrawn: false,
+        }))),
+    }
+}
+
+#[test]
+fn provider_sets_withdrawals_and_returns_survive_random_restarts() {
+    let mut coverage = [false; 2];
+    for seed in 907..915 {
+        let mut rng = Rng::new(seed);
+        let mut world = start(2);
+        let mut signed = sign_in(&mut world);
+        for step in 0..8_u8 {
+            let setting = settings::Setting::Provider(4);
+            let before = world.domain.settings().value(setting).and_then(settings::Value::as_provider);
+            let removed = before.is_some_and(|value| !value.withdrawn) && rng.below(2) == 0;
+            let edit = if removed {
+                coverage[0] = true;
+                settings::Edit::Removed
+            } else {
+                coverage[1] = true;
+                let mut value = jig_test_profile::fixtures::provider_setting(4, b"local", 5);
+                value.endpoints[0].connect = Duration::from_millis(10_000 + u64::from(step));
+                settings::Edit::Set(settings::Value::Provider(Box::new(value)))
+            };
+            let against = world.domain.settings().newest();
+            changed(
+                &change(&mut world, signed, step + 40, against, Box::new([settings::Item { setting, edit }])),
+                against + 1,
+            );
+            assert_eq!(world.domain.settings().value(setting).unwrap().as_provider().unwrap().withdrawn, removed);
+            agree(&world);
+            if rng.below(3) == 0 {
+                restart(&mut world, configuration().0);
+                signed = sign_in(&mut world);
+                assert_eq!(world.domain.settings().value(setting).unwrap().as_provider().unwrap().withdrawn, removed);
+                agree(&world);
+            }
+        }
+    }
+    assert_eq!(coverage, [true; 2]);
 }

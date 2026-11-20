@@ -10,6 +10,7 @@ use crate::{
 };
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{List, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const OTHER: u32 = 2;
@@ -164,22 +165,19 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
         } = request
-            && let w::Read::Setting(setting) =
-                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("reading").read()
-            && (setting.kind() == 7 || setting.kind() == 8)
+            && let w::Read::Setting(setting) = &wire::decode_reading(&record.bytes, &w::CEILINGS).expect("reading").read
+            && (setting.kind == 7 || setting.kind == 8)
         {
-            let ways = w::ProjectWays::new(
-                &w::CEILINGS,
-                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
-            )
-            .expect("ways");
-            let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways size"));
-            ways.encode(&mut writer).expect("ways bytes");
-            let answer = w::SettingAnswer::new(
-                &w::CEILINGS,
-                w::SettingAnswerParts { value: if setting.kind() == 7 { Some(writer.finish()) } else { None } },
-            )
-            .expect("answer");
+            let ways = w::ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
+            let mut writer = Writer::new(
+                usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .expect("ways size"),
+            );
+            ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("ways bytes");
+            let answer = w::SettingAnswer {
+                revision: None,
+                value: if setting.kind == 7 { Some(writer.finish()) } else { None },
+            };
             up(
                 &mut root,
                 Up::ReadDone {
@@ -353,13 +351,17 @@ fn a_live_standing_role_alone_puts_team_in_the_rail() {
     deliver(
         &mut root,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([role])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([role])), more: false })),
     );
     let facts = rail::facts(&root, OTHER, f::env(&f::limits()).wall);
     assert_eq!(facts.members, Some(1));
     assert_eq!(facts.standing_roles, Some(1));
     assert!(rail::parts(&facts).team, "one person and a live role show Team");
-    deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false })));
+    deliver(
+        &mut root,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false })),
+    );
     assert!(!rail::parts(&rail::facts(&root, OTHER, f::env(&f::limits()).wall)).team);
     up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
     assert_eq!(rail::facts(&root, OTHER, f::env(&f::limits()).wall).standing_roles, None);

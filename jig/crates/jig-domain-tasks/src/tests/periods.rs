@@ -1,6 +1,6 @@
 //! Period inputs and their durable output records, through the child entry points.
-use super::revisions::{Harness, LIMITS, to};
-use crate::{Domain, Event, Funder, PeriodTimes, Request, Stored, step};
+use super::revisions::{Harness, LIMITS, task, to};
+use crate::{Domain, Event, Executor, Funder, Key, PeriodTimes, PersonAddress, Request, Stored, TaskResult, step};
 use skein_lib::{Queue, Wall};
 
 #[test]
@@ -63,19 +63,118 @@ fn a_closed_period_leaves_memory_and_saves_under_closed_ledger() {
     let old = Funder::Period { project: 1, period: 0 };
     let out = test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 100 });
     assert!(test.domain.funding(old).is_none());
-    assert!(!test.stored.contains_key(&crate::Key::Ledger(old)));
+    assert!(!test.stored.contains_key(&Key::Ledger(old)));
     let mut erased = false;
     for request in out {
-        if let Request::Erase { key: crate::Key::Ledger(source) } = request {
+        if let Request::Erase { key: Key::Ledger(source) } = request {
             erased |= source == old;
         }
     }
     assert!(erased);
-    let Some(Stored::ClosedLedger(row)) = test.stored.get(&crate::Key::ClosedLedger(old)) else {
+    let Some(Stored::ClosedLedger(row)) = test.stored.get(&Key::ClosedLedger(old)) else {
         panic!("the closed period is history")
     };
     assert!(row.closed);
     assert_eq!(row.funder, old);
+}
+
+fn zero_budget_person(test: &mut Harness, funder: Funder) {
+    let mut person = task(7, &[]);
+    person.executor = Executor::Person(PersonAddress::Person(10));
+    person.numbers.budget = 0;
+    person.authority.budget.spend = 0;
+    person.funder = funder;
+    test.make([person].into());
+}
+
+fn end_person(test: &mut Harness) -> Box<[Request]> {
+    let mut out = test.send(Event::AnswerPerson {
+        reply_to: to(),
+        task: 7,
+        person: 10,
+        result: TaskResult::Report { words: Box::new([1]) },
+    });
+    out.extend(test.send(Event::EffectsSettled { task: 7 }));
+    out.extend(test.send(Event::Settled { task: 7 }));
+    assert!(test.domain.task(7).is_none());
+    assert!(test.stored.contains_key(&Key::Ended(7)));
+    out.into_boxed_slice()
+}
+
+fn assert_ledger_untouched(out: &[Request], funder: Funder) {
+    for request in out {
+        if let Request::Save { record } = request {
+            assert_ne!(record.key(), Key::Ledger(funder));
+            assert_ne!(record.key(), Key::ClosedLedger(funder));
+        }
+        if let Request::Erase { key } = request {
+            assert_ne!(*key, Key::Ledger(funder));
+            assert_ne!(*key, Key::ClosedLedger(funder));
+        }
+    }
+}
+
+#[test]
+fn zero_budget_person_tasks_outlive_period_and_pool_ledgers() {
+    for old in [Funder::Period { project: 1, period: 0 }, Funder::Pool { project: 1, person: 9, period: 0 }] {
+        let mut test = Harness::new();
+        test.send(Event::CarvePool { reply_to: to(), project: 1, person: 9, period: 0, budget: 40 });
+        zero_budget_person(&mut test, old);
+        test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 100 });
+        assert!(test.domain.funding(old).is_none());
+        let closed = test.stored.get(&Key::ClosedLedger(old)).expect("closed source history").clone();
+        assert!(!test.stored.contains_key(&Key::Ledger(old)));
+        test.restart();
+        assert!(test.domain.ready());
+        assert_eq!(test.domain.task(7).expect("person still live").funder, old);
+        let current = Funder::Period { project: 1, period: 1 };
+        let before = *test.domain.funding(current).expect("current period");
+        let out = end_person(&mut test);
+        assert_ledger_untouched(&out, old);
+        assert_ledger_untouched(&out, current);
+        assert_eq!(test.domain.funding(current), Some(&before));
+        assert_eq!(test.stored.get(&Key::ClosedLedger(old)), Some(&closed));
+    }
+}
+
+#[test]
+fn a_closed_ledgers_task_posts_its_total_to_the_newest_live_project_period() {
+    let mut test = Harness::new();
+    let old = Funder::Period { project: 1, period: 0 };
+    zero_budget_person(&mut test, old);
+    test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 1000 });
+    let mut keeper = task(8, &[]);
+    keeper.funder = Funder::Period { project: 1, period: 1 };
+    test.make([keeper].into());
+    test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 2, budget: 1000 });
+    test.send(Event::OpenPeriod { reply_to: to(), project: 2, period: 9, budget: 1000 });
+    let Some(Stored::Live(person)) = test.stored.get_mut(&Key::Live(7)) else { panic!("live person record") };
+    person.numbers.spent = 3;
+    person.numbers.spent_below = 4;
+    test.restart();
+    let current = Funder::Period { project: 1, period: 2 };
+    let mut expected = *test.domain.funding(current).expect("newest live period");
+    expected.numbers.spent_below = expected.numbers.spent_below.checked_add(7).expect("test spend fits");
+    let older = Funder::Period { project: 1, period: 1 };
+    let other = Funder::Period { project: 2, period: 9 };
+    let before_older = *test.domain.funding(older).expect("older live period");
+    let before_other = *test.domain.funding(other).expect("other project's period");
+    let out = end_person(&mut test);
+    assert_ledger_untouched(&out, old);
+    assert_ledger_untouched(&out, older);
+    assert_ledger_untouched(&out, other);
+    assert_eq!(test.domain.funding(older), Some(&before_older));
+    assert_eq!(test.domain.funding(other), Some(&before_other));
+    assert_eq!(test.domain.funding(current), Some(&expected));
+    assert_eq!(test.stored.get(&Key::Ledger(current)), Some(&Stored::Ledger(expected)));
+    let mut saves = 0_u32;
+    for request in out {
+        if let Request::Save { record: Stored::Ledger(row) } = request {
+            assert_eq!(row, expected);
+            saves = saves.checked_add(1).expect("test saves fit");
+        }
+    }
+    assert_eq!(saves, 1);
 }
 
 #[test]
@@ -85,7 +184,7 @@ fn the_newest_period_stays_live_after_its_pools_close() {
     test.send(Event::CarvePool { reply_to: to(), project: 1, person: 9, period: 0, budget: 40 });
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 100 });
     assert!(test.domain.funding(pool).is_none());
-    assert!(test.stored.contains_key(&crate::Key::ClosedLedger(pool)));
+    assert!(test.stored.contains_key(&Key::ClosedLedger(pool)));
     let newest = test.domain.funding(Funder::Period { project: 1, period: 1 }).unwrap();
     assert!(!newest.closed);
     assert_eq!(newest.numbers.reserved, 0);
@@ -136,7 +235,7 @@ fn a_period_resize_admits_exactly_what_is_used() {
 #[test]
 fn an_older_period_cannot_be_resized() {
     let mut test = Harness::new();
-    test.make([super::revisions::task(1, &[])].into());
+    test.make([task(1, &[])].into());
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 100 });
     let source = Funder::Period { project: 1, period: 0 };
     let before = *test.domain.funding(source).unwrap();

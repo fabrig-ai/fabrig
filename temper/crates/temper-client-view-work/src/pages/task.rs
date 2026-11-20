@@ -489,7 +489,8 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
     b.style(look::PLAN_ROW);
     b.open(Role::Slot);
     task_link(b, chip.task, words, bindings);
-    text(b, Role::Paragraph, chip.title.bytes());
+    let title = crate::common::chat::row_title(chip.title.bytes());
+    text(b, Role::Paragraph, &title);
     b.close();
     executor(b, chip.executor, words);
     state(b, task::row_state(chip), words);
@@ -969,7 +970,17 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
     match event {
         c::Activity::Words { words, .. } => text_node(b, words.bytes()),
         c::Activity::Heard(word) | c::Activity::Notified { word, .. } => text_node(b, word.words.bytes()),
-        c::Activity::RunBegan { attempt, .. } => words.text(b, Word::RunBegan, &[Hole::Number(*attempt)]),
+        c::Activity::RunBegan { attempt, fresh, .. } => {
+            let word = match fresh {
+                None => Word::RunBegan,
+                Some(c::RunFresh::Moved) => Word::RunBeganMoved,
+                Some(c::RunFresh::Closed) => Word::RunBeganClosed,
+                Some(c::RunFresh::Cut) => Word::RunBeganCut,
+                Some(c::RunFresh::Limit) => Word::RunBeganLimit,
+                Some(c::RunFresh::Session) => Word::RunBeganSession,
+            };
+            words.text(b, word, &[Hole::Number(*attempt)]);
+        }
         c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words),
         c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
         c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),

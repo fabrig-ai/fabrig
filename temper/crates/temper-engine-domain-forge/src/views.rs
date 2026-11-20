@@ -42,7 +42,7 @@ impl Domain {
         }
         for ended in [false, true] {
             if subject == landings_subject(project, ended) {
-                return Some(Document::Landings(self.landings_view(project, ended)?));
+                return Some(Document::Landings(self.landings_view(project, ended, now)?));
             }
         }
         if subject == crate::decided_subject(project) {
@@ -155,6 +155,7 @@ impl Domain {
                 .expect("admitted members");
         }
         Some(LandingView {
+            waits: self.landing_wait(task),
             task,
             project: row.project,
             phase: row.phase.clone(),
@@ -167,6 +168,73 @@ impl Domain {
             step: landing_step(self, row),
             probe: landing_probe(self, row),
         })
+    }
+    fn landing_wait(&self, task: u64) -> Option<LandingWait> {
+        let row = self.landing.rows.get(&task)?;
+        if is_ended(&row.landing.phase) {
+            return None;
+        }
+        let mut wait = LandingWait { on: LandingWaitFor::Nothing, change: None, gate: None, run: None, landing: None };
+        if row.room.is_some() {
+            wait.on = LandingWaitFor::Room;
+            return Some(wait);
+        }
+        let Some(on) = row.waiting else { return Some(wait) };
+        let (kind, member, gate) = match on {
+            policy::Awaited::Release => (LandingWaitFor::Release, None, None),
+            policy::Awaited::Turn => (LandingWaitFor::Turn, None, None),
+            policy::Awaited::Prepare => (LandingWaitFor::Prepare, None, None),
+            policy::Awaited::Prefixes => (LandingWaitFor::Prefixes, None, None),
+            policy::Awaited::Open => (LandingWaitFor::Open, None, None),
+            policy::Awaited::Close => (LandingWaitFor::Close, None, None),
+            policy::Awaited::Merge => (LandingWaitFor::Merge, None, None),
+            policy::Awaited::Read => (LandingWaitFor::Read, None, None),
+            policy::Awaited::Ready { member } => (LandingWaitFor::Ready, Some(member), None),
+            policy::Awaited::Delete { member } => (LandingWaitFor::Delete, Some(member), None),
+            policy::Awaited::Judgement { member } => (LandingWaitFor::Judgement, Some(member), None),
+            policy::Awaited::Record { member } => (LandingWaitFor::Record, Some(member), None),
+            policy::Awaited::Ancestry { member } => (LandingWaitFor::Ancestry, Some(member), None),
+            policy::Awaited::Post { member, gate } => (LandingWaitFor::Post, Some(member), Some(gate)),
+            policy::Awaited::Run { member, gate } => (LandingWaitFor::Run, Some(member), Some(gate)),
+            policy::Awaited::Receipt { member, gate } => (LandingWaitFor::Receipt, Some(member), Some(gate)),
+        };
+        wait.on = kind;
+        if kind == LandingWaitFor::Turn {
+            wait.landing = self.turn_holder(row.landing.project);
+        }
+        if let Some(member) = member {
+            let position = member;
+            let member = row.landing.members.get(usize::from(member))?;
+            wait.change = Some(member.change);
+            if let Some(gate) = gate {
+                let repository = skein_forge::api::Repository {
+                    forge: member.repository.forge,
+                    repository: member.repository.repository,
+                };
+                let named = self.landing.gates(row.landing.project, repository).get(usize::from(gate))?;
+                wait.gate = Some(named.name.clone());
+                if kind == LandingWaitFor::Run
+                    && let Some(key) = proof_key(member.gates.get(usize::from(gate))?.proof)
+                {
+                    let key = ReceiptKey {
+                        project: row.landing.project,
+                        repository,
+                        check: Check::Gate(named.name.clone()),
+                        key,
+                    };
+                    let flight = match self.landing.flights.get(&key) {
+                        Some(flight) => Some(flight),
+                        None => self.landing.faults.get(&(task, position, gate)),
+                    };
+                    if let Some(flight) = flight
+                        && let Some(run) = &flight.run
+                    {
+                        wait.run = Some(run.number);
+                    }
+                }
+            }
+        }
+        Some(wait)
     }
     fn landing_train(&self, row: &policy::Landing) -> Option<LandingTrain> {
         if row.round.branch.is_empty() {
@@ -217,7 +285,7 @@ impl Domain {
         }
         Some(PrefixJudgement { prefix, verdict, gates: gates.into_boxed() })
     }
-    fn landings_view(&self, project: u32, ended: bool) -> Option<LandingsView> {
+    fn landings_view(&self, project: u32, ended: bool, now: skein_lib::Wall) -> Option<LandingsView> {
         let turn = self.turn_holder(project);
         let mut landings = List::with_capacity(self.landing.limits.landings);
         let mut ordered = skein_lib::Map::with_capacity(self.landing.limits.landings);
@@ -254,6 +322,8 @@ impl Domain {
             landings
                 .push(LandingLine {
                     task,
+                    step: if is_ended(&row.phase) { None } else { Some(landing_step(self, row)) },
+                    last_event: self.landing.rows.get(&task)?.last_event,
                     phase: row.phase.clone(),
                     changes: changes.into_boxed(),
                     repositories: repositories.into_boxed(),
@@ -262,7 +332,16 @@ impl Domain {
                 })
                 .ok()?;
         }
-        Some(LandingsView { project, turn, landings: landings.into_boxed() })
+        Some(LandingsView {
+            now,
+            project,
+            turn,
+            turn_since: match turn {
+                Some(task) => self.landing.rows.get(&task)?.turn_since,
+                None => None,
+            },
+            landings: landings.into_boxed(),
+        })
     }
 }
 fn round_view(d: &Domain, row: &policy::Landing) -> Option<LandingRound> {

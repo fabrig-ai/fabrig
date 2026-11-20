@@ -1,5 +1,5 @@
-//! Each generated jig codec's schema, code and golden inventory (protocol/README.md, 7).
-use skein_codegen::{generate, parse, tests_main};
+//! Each jig codec's records and pinned constructs (skein's data/codec/README.md, 6).
+use skein_codegen::{form_of, generate_as, unpinned, values};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -10,225 +10,164 @@ pub struct Family {
     pub name: &'static str,
     pub root: &'static str,
     pub codec_root: &'static str,
-    pub schemas: &'static [&'static str],
-    /// Public module containing the records in the codec crate.
-    pub records: &'static str,
+    pub text: &'static str,
     /// Record code under `codec_root`, then glue under `root`.
     pub generated: &'static [&'static str],
-    pub golden: &'static str,
-    pub fixtures: &'static [&'static str],
 }
 
 pub const FAMILIES: &[Family] = &[
     Family {
         name: "engine cursor",
+        text: jig_protocol_engine_clients::SCHEMA,
         root: "crates/jig-protocol-engine-clients",
         codec_root: "crates/jig-protocol-engine-clients-codec",
-        schemas: &["schema/cursor-v1.schema"],
-        records: "jig_protocol_engine_clients_codec::cursor_v1",
-        generated: &["src/generated/cursor_v1.rs"],
-        golden: "golden",
-        fixtures: &[],
+        generated: &["src/generated/cursor.rs"],
     },
     Family {
         name: "client",
+        text: jig_client_protocol_wire::CLIENT_SCHEMA,
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v26.schema", "schema/client-v26-part1.schema"],
-        records: "jig_client_protocol_wire::v26",
-        generated: &["src/generated/v26.rs"],
-        golden: "golden",
-        fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
+        generated: &["src/generated/client.rs"],
     },
     Family {
         name: "view records",
+        text: jig_client_view_codec::SCHEMA,
         root: "crates/jig-client-view",
         codec_root: "crates/jig-client-view-codec",
-        schemas: &["schema/records-v1.schema"],
-        records: "jig_client_view_codec::records_v1",
-        generated: &["src/generated/records_v1.rs"],
-        golden: "golden",
-        fixtures: &["rendered"],
+        generated: &["src/generated/records.rs"],
     },
     Family {
         name: "ops client",
+        text: jig_ops_client_protocol_wire::SCHEMA,
         root: "examples/ops/client-protocol-wire",
         codec_root: "examples/ops/client-protocol-wire",
-        schemas: &["schema/ops-client-v1.schema"],
-        records: "jig_ops_client_protocol_wire::v1",
-        generated: &["src/generated/v1.rs"],
-        golden: "golden",
-        fixtures: &[],
+        generated: &["src/generated/ops_client.rs"],
     },
     Family {
         name: "test client",
+        text: jig_client_test_protocol_wire::SCHEMA,
         root: "testing/jig-client-test-protocol-wire",
         codec_root: "testing/jig-client-test-protocol-wire-codec",
-        schemas: &["schema/test-client-v2.schema"],
-        records: "jig_client_test_protocol_wire_codec::v2",
-        generated: &["src/generated/v2.rs"],
-        golden: "golden",
-        fixtures: &[],
+        generated: &["src/generated/test_client.rs"],
     },
     Family {
         name: "component",
+        text: jig_protocol_store::STORE_FAMILIES[0].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
-        schemas: &["schema/component-v3.schema"],
-        records: "jig_protocol_store_families::component_v3",
-        generated: &["src/generated/component_v3.rs", "src/generated/layouts.rs"],
-        golden: "golden/component",
-        fixtures: &[],
+        generated: &["src/generated/component.rs"],
     },
     Family {
         name: "core",
+        text: jig_protocol_store::STORE_FAMILIES[3].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-core",
-        schemas: &["schema/core-v6.schema"],
-        records: "jig_protocol_store_core::core_v6",
-        generated: &["src/generated/core_v6.rs"],
-        golden: "golden/core",
-        fixtures: &[],
+        generated: &["src/generated/core.rs"],
     },
     Family {
         name: "tasks",
+        text: jig_protocol_store::STORE_FAMILIES[4].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-tasks",
-        schemas: &["schema/tasks-v13.schema"],
-        records: "jig_protocol_store_tasks::tasks_v13",
-        generated: &["src/generated/tasks_v13.rs"],
-        golden: "golden/tasks",
-        fixtures: &[],
+        generated: &["src/generated/tasks.rs"],
     },
     Family {
         name: "people",
+        text: jig_protocol_store::STORE_FAMILIES[5].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-people",
-        schemas: &["schema/people-v17.schema"],
-        records: "jig_protocol_store_people::people_v17",
-        generated: &["src/generated/people_v17.rs"],
-        golden: "golden/people",
-        fixtures: &[],
+        generated: &["src/generated/people.rs"],
     },
     Family {
         name: "registry",
+        text: jig_protocol_store::STORE_FAMILIES[2].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
-        schemas: &["schema/registry-v1.schema"],
-        records: "jig_protocol_store_families::registry_v1",
-        generated: &["src/generated/registry_v1.rs"],
-        golden: "golden/registry",
-        fixtures: &[],
+        generated: &["src/generated/registry.rs"],
     },
     Family {
         name: "openings",
+        text: jig_protocol_store::STORE_FAMILIES[1].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
-        schemas: &["schema/openings-v1.schema"],
-        records: "jig_protocol_store_families::openings_v1",
-        generated: &["src/generated/openings_v1.rs"],
-        golden: "golden/openings",
-        fixtures: &[],
+        generated: &["src/generated/openings.rs"],
     },
     Family {
         name: "notes",
+        text: jig_protocol_store::STORE_FAMILIES[6].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
-        schemas: &["schema/notes-v1.schema"],
-        records: "jig_protocol_store_families::notes_v1",
-        generated: &["src/generated/notes_v1.rs"],
-        golden: "golden/notes",
-        fixtures: &[],
+        generated: &["src/generated/notes.rs"],
     },
     Family {
         name: "accounts",
+        text: jig_protocol_store::STORE_FAMILIES[7].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
-        schemas: &["schema/accounts-v2.schema"],
-        records: "jig_protocol_store_families::accounts_v2",
-        generated: &["src/generated/accounts_v2.rs"],
-        golden: "golden/accounts",
-        fixtures: &[],
+        generated: &["src/generated/accounts.rs"],
     },
     Family {
         name: "settings",
+        text: jig_protocol_store::STORE_FAMILIES[8].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-settings",
-        schemas: &["schema/settings-v3.schema"],
-        records: "jig_protocol_store_settings::settings_v3",
-        generated: &["src/generated/settings_v3.rs"],
-        golden: "golden/settings",
-        fixtures: &[],
+        generated: &["src/generated/settings.rs"],
     },
     Family {
         name: "secrets",
+        text: jig_protocol_store::STORE_FAMILIES[9].current,
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
-        schemas: &["schema/secrets-v1.schema"],
-        records: "jig_protocol_store_families::secrets_v1",
-        generated: &["src/generated/secrets_v1.rs"],
-        golden: "golden/secrets",
-        fixtures: &[],
+        generated: &["src/generated/secrets.rs"],
     },
     Family {
         name: "test connector",
+        text: jig_test_store::SCHEMA,
         root: "testing/jig-test-store",
         codec_root: "testing/jig-test-store-codec",
-        schemas: &["schema/test-connector-v2.schema"],
-        records: "jig_test_store_codec::v2",
-        generated: &["src/generated/v2.rs"],
-        golden: "golden",
-        fixtures: &[],
+        generated: &["src/generated/test_connector.rs"],
     },
     Family {
         name: "worker wire",
+        text: jig_protocol_worker_wire::SCHEMA,
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
-        schemas: &["schema/worker-wire-v15.schema"],
-        records: "jig_protocol_worker_wire::v15",
-        generated: &["src/generated/v15.rs"],
-        golden: "golden",
-        fixtures: &[],
+        generated: &["src/generated/worker_wire.rs"],
     },
     Family {
         name: "accounts moved",
+        text: jig_protocol_accounts::SCHEMA,
         root: "crates/jig-protocol-accounts",
         codec_root: "crates/jig-protocol-accounts-codec",
-        schemas: &["schema/moved-v1.schema"],
-        records: "jig_protocol_accounts_codec::v1",
-        generated: &["src/generated/v1.rs"],
-        golden: "golden",
-        fixtures: &[],
+        generated: &["src/generated/moved.rs"],
     },
     Family {
         name: "public",
+        text: jig_client_protocol_wire::PUBLIC_SCHEMA,
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/public-v1.schema"],
-        records: "jig_client_protocol_wire::public_v1",
-        generated: &["src/generated/public_v1.rs"],
-        golden: "golden/public",
-        fixtures: &[],
+        generated: &["src/generated/public.rs"],
     },
 ];
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated codecs and goldens"
-)]
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
 pub fn check() {
     let tree = skein_scratch::paths::tree();
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world -p jig-store-codecs-world -E 'binary(drift) | test(drift::)'";
     let mut inventories: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
-    let mut targets: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
     for family in FAMILIES {
         let root = tree.join(family.root);
-        let mut source = String::new();
-        for schema in family.schemas {
-            source.push_str(&fs::read_to_string(root.join(schema)).expect("schema readable"));
+        let source = family.text;
+        let unpinned = unpinned(source).expect("schema valid");
+        assert!(unpinned.is_empty(), "{}: unpinned constructs: {unpinned:?}", family.name);
+        let schema = &values(source).schema;
+        let form = form_of(&root.join("schema"), &schema.family).expect("family form readable");
+        let output = generate_as(schema, form);
+        if family.name == "client" {
+            client_layout(&root, source, write, again);
         }
-        let output = generate(&parse(&source).expect("schema valid"));
         let codec_root = tree.join(family.codec_root);
         let code = codec_root.join(family.generated.first().expect("codec path"));
         inventories
@@ -236,58 +175,7 @@ pub fn check() {
             .or_default()
             .extend(family.generated.iter().skip(1).map(|path| root.join(path)));
         inventories.entry(codec_root.join("src/generated")).or_default().insert(code.clone());
-        let tests = codec_root.join("tests/generated");
-        let file = code.file_name().expect("record file name");
-        let module = code.file_stem().expect("record module name").to_str().expect("record module UTF-8");
-        targets.entry(tests.clone()).or_default().insert(module.to_owned());
-        inventories.entry(tests.clone()).or_default().insert(tests.join(file));
         check_text(&code, &output.records, write, again);
-        check_text(&tests.join(file), &output.tests.text(family.records), write, again);
-        let goldens = root.join(family.golden);
-        if write {
-            fs::create_dir_all(&goldens).expect("create golden directory");
-        }
-        let mut expected: BTreeSet<_> = family.fixtures.iter().map(|name| goldens.join(name)).collect();
-        for golden in output.goldens {
-            let path = goldens.join(golden.name);
-            expected.insert(path.clone());
-            if write {
-                fs::write(&path, golden.bytes).expect("write golden bytes");
-            } else {
-                assert_eq!(fs::read(&path).expect("golden committed"), golden.bytes, "{}: {again}", family.name);
-            }
-        }
-        let extras: Vec<_> = entries(&goldens).difference(&expected).cloned().collect();
-        if write {
-            for path in extras {
-                fs::remove_file(path).expect("remove golden outside the schema");
-            }
-        } else {
-            assert!(extras.is_empty(), "{}: goldens outside the schema: {extras:?}", family.name);
-        }
-    }
-    let ops_tests = tree.join("examples/ops/client-protocol-wire/tests/generated");
-    targets.get_mut(&ops_tests).expect("ops target").insert("tests".to_owned());
-    inventories
-        .get_mut(&ops_tests)
-        .expect("ops test inventory")
-        .extend([ops_tests.join("tests.rs"), ops_tests.join("tests")]);
-    inventories.insert(ops_tests.join("tests"), BTreeSet::from([ops_tests.join("tests/fixtures.rs")]));
-    for (directory, modules) in targets {
-        let modules: Vec<_> = modules.iter().map(String::as_str).collect();
-        let main = directory.join("main.rs");
-        check_text(&main, &tests_main(&modules), write, again);
-        inventories.get_mut(&directory).expect("test inventory").insert(main);
-    }
-    for root in FAMILIES.iter().map(|family| family.root).collect::<BTreeSet<_>>() {
-        if root == "crates/jig-protocol-store" {
-            let goldens: BTreeSet<_> = FAMILIES
-                .iter()
-                .filter(|family| family.root == root)
-                .map(|family| tree.join(root).join(family.golden))
-                .collect();
-            assert_eq!(entries(&tree.join(root).join("golden")), goldens, "store golden directories");
-        }
     }
     for (directory, expected) in inventories {
         assert_eq!(entries(&directory), expected, "{}: generated inventory", directory.display());
@@ -310,4 +198,26 @@ fn entries(path: &Path) -> BTreeSet<PathBuf> {
         Err(why) => panic!("{}: directory readable: {why}", path.display()),
     };
     entries.map(|entry| entry.expect("entry readable").path()).collect()
+}
+
+// Client layouts have no bridge: retain every old line and append the current one.
+fn client_layout(root: &Path, source: &str, write: bool, again: &str) {
+    use std::fmt::Write as _;
+    let schema = skein_codec::schema::parse(source.as_bytes()).expect("client schema valid");
+    let mut line = format!("{} ", schema.version());
+    for byte in schema.fingerprints().family().digest() {
+        write!(&mut line, "{byte:02x}").expect("fingerprint text");
+    }
+    line.push('\n');
+    let path = root.join("schema/jig-client-wire.layouts");
+    let mut layouts = fs::read_to_string(&path).expect("client layouts");
+    if write && !layouts.ends_with(&line) {
+        assert!(
+            !layouts.lines().any(|held| held.starts_with(&format!("{} ", schema.version()))),
+            "a committed layout is immutable"
+        );
+        layouts.push_str(&line);
+        fs::write(&path, &layouts).expect("append client layout");
+    }
+    assert!(layouts.ends_with(&line), "current client layout: {again}");
 }

@@ -14,21 +14,8 @@ use crate::client::{Client, Interrupt, Operation, Pick, Plan, Release, Repo};
 use crate::forge::{Forge, Move};
 use crate::translate;
 
-fn object_markers(disk: &Checkout) -> BTreeSet<(Vec<u8>, u64)> {
-    let mut markers = BTreeSet::new();
-    for root in [b"ws".as_slice(), b"stores"] {
-        for path in disk.tree(root).into_keys() {
-            let parts: Vec<_> = path.split(|byte| *byte == b'/').collect();
-            if let [.., objects, name] = parts.as_slice()
-                && *objects == b"objects"
-                && let Ok(name) = std::str::from_utf8(name)
-                && let Ok(commit) = name.parse::<u64>()
-            {
-                markers.insert(([root, b"/", &path].concat(), commit));
-            }
-        }
-    }
-    markers
+fn object_markers(disk: &Checkout, objects: &[u8]) -> BTreeSet<u64> {
+    disk.tree(objects).into_keys().filter_map(|name| std::str::from_utf8(&name).ok()?.parse().ok()).collect()
 }
 
 /// Who the worker is to the forge, in every spec.
@@ -227,7 +214,7 @@ pub struct Told {
     pub released: u32,
 }
 
-/// Object markers a store, clone or fetch added anywhere on the fake disk.
+/// Object markers a store, clone or fetch added to its object directory.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Transfer {
     pub kind: Kind,
@@ -667,6 +654,8 @@ impl World {
                 save: Some(saved.clone().into()),
                 git: None,
                 expected: None,
+                delivered: None,
+                pin: None,
                 landing: None,
                 name: name.clone().into(),
                 remote: remote.clone().into(),
@@ -699,6 +688,8 @@ impl World {
                     save: Some(saved.clone().into()),
                     git: None,
                     expected: None,
+                    delivered: None,
+                    pin: None,
                     landing: None,
                     name: first.clone(),
                     remote: first,
@@ -869,6 +860,7 @@ impl World {
     fn request(&mut self, request: Request) {
         self.log(&format!("checkout -> {}", describe_request(&request)));
         match request {
+            Request::DependencyLanded { .. } => panic!("merged dependency questions use the hold-level stories"),
             Request::Results { .. } | Request::ResultsEnd { .. } => {}
             Request::Held { client, hold } => {
                 let name = client.raw();
@@ -998,6 +990,9 @@ impl World {
             let repo = &client.repos[index];
             let left = &client.left[index];
             match landing {
+                Landing::CaughtUp { .. } | Landing::CaughtUpSaved { .. } | Landing::CaughtUpConflict { .. } => {
+                    panic!("catch-up uses the hold-level stories")
+                }
                 Landing::Prefixes { .. }
                 | Landing::DesignMerged { .. }
                 | Landing::DesignConflict { .. }
@@ -1169,6 +1164,8 @@ impl World {
             }
             Op::Store { .. }
             | Op::Reds { .. }
+            | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
@@ -1241,6 +1238,7 @@ impl World {
                 | Done::FailedWithOutput { .. }
                 | Done::Results { .. }
                 | Done::Paths { .. }
+                | Done::ParentUnreachable { .. }
                 | Done::Looked { .. }
                 | Done::Brings { .. }
                 | Done::IsAncestor { .. }
@@ -1292,6 +1290,8 @@ impl World {
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Reds { .. }
+            | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1304,7 +1304,7 @@ impl World {
             | Op::Merge { .. } => None,
         };
         let transfer = match &op {
-            Op::Store { remote, .. } => {
+            Op::Store { store, remote, .. } => {
                 let name = client
                     .repos
                     .iter()
@@ -1312,19 +1312,29 @@ impl World {
                     .expect("a Store names the spec's remote")
                     .name
                     .clone();
-                Some((name, op.kind(), object_markers(&self.disk)))
+                Some((name, [translate::store_path(*store).as_slice(), b"/objects"].concat()))
             }
-            Op::Clone { at, .. } | Op::Fetch { at, .. } => {
-                Some((at.repository.to_vec(), op.kind(), object_markers(&self.disk)))
+            Op::Clone { at, .. } => {
+                Some((at.repository.to_vec(), [translate::path(at).as_slice(), b"/.git/objects"].concat()))
+            }
+            Op::Fetch { at, store, .. } => {
+                Some((at.repository.to_vec(), [translate::store_path(*store).as_slice(), b"/objects"].concat()))
             }
             _ => None,
         };
-        let creates = op.kind() == Kind::Create;
+        // Each transfer can add objects only in its destination directory.
+        // Snapshot that directory, not every workspace's files and every store.
+        let transfer = transfer.map(|(repository, objects)| {
+            let before = object_markers(&self.disk, &objects);
+            (repository, objects, before)
+        });
+        let kind = op.kind();
+        let creates = kind == Kind::Create;
         self.forge.at(self.now);
         let done = translate::perform(&mut self.forge, &mut self.disk, op);
-        if let Some((repository, kind, before)) = transfer {
-            let after = object_markers(&self.disk);
-            let commits = after.difference(&before).map(|(_, commit)| *commit).collect();
+        if let Some((repository, objects, before)) = transfer {
+            let after = object_markers(&self.disk, &objects);
+            let commits = after.difference(&before).copied().collect();
             let client = *self.holds.get(&owner).expect("a hold's client");
             self.transfers.entry((client, repository)).or_default().push(Transfer { kind, commits });
         }
@@ -1367,6 +1377,7 @@ impl World {
             | Done::FailedWithOutput { .. }
             | Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -1411,6 +1422,8 @@ impl World {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
                     Kind::Reds
+                    | Kind::Reset
+                    | Kind::Pack
                     | Kind::Point
                     | Kind::Store
                     | Kind::Fetch
@@ -1531,6 +1544,7 @@ fn in_git(path: &[u8]) -> bool {
 
 fn describe_event(event: &Event) -> String {
     match event {
+        Event::DependencyLanded { hold, landed } => format!("dependency landed {} {landed}", hold.raw()),
         Event::Prepare { client, spec } => {
             format!("prepare {} {:?}", client.raw(), String::from_utf8_lossy(&spec.key))
         }
@@ -1547,6 +1561,7 @@ fn describe_event(event: &Event) -> String {
 
 fn describe_request(request: &Request) -> String {
     match request {
+        Request::DependencyLanded { client, head } => format!("dependency landed? {} {head:?}", client.raw()),
         Request::Results { client, check, repository, .. } => {
             format!("results {} {check} repository {repository}", client.raw())
         }

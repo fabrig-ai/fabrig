@@ -1,7 +1,8 @@
 # messages: status
 
-2026-11-11. Where the tree's code lags or departs from [messages.md](messages.md).
+2026-11-19. Where the tree's code lags or departs from [messages.md](messages.md).
 
+- **Not yet:** 3, *A park that wakes at once waits a pause first*: a park that leaves a waking message makes its task due at once, with no pause [in flight: change 9672].
 - **Not yet:** 6: a charter whose runs resume holding parts, read by a standing task's sessions, and every message offered to another task under it (`standing.md`, 5.4).
 - **Not yet:** 2, *Open questions stay in front of it*, and 6, *An open question is a reason*: a question read once and left open is shown to no later run and gives no run its `question` reason [in flight: change 838].
 

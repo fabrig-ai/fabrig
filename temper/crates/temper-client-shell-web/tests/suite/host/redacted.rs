@@ -1,4 +1,4 @@
-//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and 3.6–3.8 and 4).
+//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7–3.8 and 4).
 use super::{walk, written};
 use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Secret, Writer, bytes::find, sha256::digest};
@@ -39,13 +39,17 @@ fn proved(result: &Redacted) -> Box<[u8]> {
     recording
 }
 fn absent(recording: &[u8], value: &[u8]) {
+    let mut records = lines(recording).expect("html-free lines");
+    let streams = Streams::read(&records).expect("stream records");
+    absent_lines(recording, &mut records, &streams, value);
+}
+fn absent_lines(recording: &[u8], records: &mut [Line], streams: &Streams, value: &[u8]) {
     assert!(find(recording, value).is_none(), "original absent from html-free recording");
-    for mut line in lines(recording).expect("html-free lines") {
-        for (field, _) in fields_mut(&mut line) {
+    for line in records {
+        for (field, _) in fields_mut(line) {
             assert!(find(field, value).is_none(), "original absent from byte field");
         }
     }
-    let streams = Streams::read(&lines(recording).expect("html-free lines")).expect("stream records");
     for event in streams.events() {
         assert!(find(&event.record, value).is_none(), "original absent from stream record");
     }
@@ -132,7 +136,7 @@ fn check_key_walk(byte_at_a_time: bool) {
 
 #[test]
 fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
-    use temper_client_shell_web::journey::{prove, saved, typed};
+    use temper_client_shell_web::journey::{prove_lines, redact_lines, saved_lines, typed};
     let record = skein_ui_web::store::Record {
         key: jig_client::STREAM_KEY.into(),
         value: {
@@ -147,22 +151,23 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
     let walks = [walk::walked(), walk::stored_stream(record), walk::keyed(&key, false), walk::departed()];
     let mut typed_acts = 0;
     for recording in walks {
-        prove(&recording).expect("kept walk proves");
-        let output = saved(&recording);
-        prove(&output).expect("saved walk still proves");
-        let added = redact(&output, &[]).expect("saved walk redacts");
-        assert_eq!(added.originals.count(Kind::Link), 0);
-        assert_eq!(added.originals.count(Kind::Stored), 0);
         let before = lines(&recording).expect("kept lines");
-        let after = lines(&output).expect("saved lines");
+        prove_lines(before.clone()).expect("kept walk proves");
+        let mut after = saved_lines(before.clone());
+        let output = written(&after);
+        prove_lines(after.clone()).expect("saved walk still proves");
+        let (_, added, _) = redact_lines(after.clone(), &[]).expect("saved walk redacts");
+        assert_eq!(added.count(Kind::Link), 0);
+        assert_eq!(added.count(Kind::Stored), 0);
         for (before, after) in before.iter().zip(&after) {
             if typed(before) {
                 typed_acts += 1;
                 assert_eq!(after, before, "saving leaves real typed keys for add");
             }
         }
-        absent(&output, &[7; 16]);
-        absent(&output, &[8; 16]);
+        let streams = Streams::read(&after).expect("stream records");
+        absent_lines(&output, &mut after, &streams, &[7; 16]);
+        absent_lines(&output, &mut after, &streams, &[8; 16]);
     }
     assert!(typed_acts > 0, "the key walk includes a secret input");
 }
@@ -205,12 +210,20 @@ fn the_streams_name_goes() {
             let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(value)).expect("stream kept");
             assert!(kept.record() == [b'x'; 16], "saved name is placeholder");
         }
-        if let Line::Exchange { path, body, .. } = &line
-            && path.as_ref() == b"/jig/v1/watch"
-        {
-            watches += 1;
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("watch envelope");
-            assert!(open.stream() == &[b'x'; 16], "watch name is placeholder");
+        if let Line::Exchange { path, body, .. } = &line {
+            if path.as_ref() == b"/jig/v1/watch" {
+                watches += 1;
+                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("watch envelope");
+                assert!(open.stream() == &[b'x'; 16], "watch name is placeholder");
+            } else if path.as_ref() == b"/jig/v1/batch" {
+                let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch envelope");
+                for member in batch.members() {
+                    if let w::Member::Open(open) = member {
+                        watches += 1;
+                        assert_eq!(open.stream(), &[b'x'; 16], "batch watch name is placeholder");
+                    }
+                }
+            }
         }
     }
     assert!(saves > 0 && watches > 0, "saved stream and watches checked");
@@ -231,18 +244,18 @@ fn a_stored_stream_replays() {
     let recording = walk::stored_stream(record);
     let before = lines(&recording).expect("stored walk lines");
     assert!(
-        before.iter().any(|line| matches!(line, Line::Exchange { path, body, .. }
-        if path.as_ref() == b"/jig/v1/stream-gone" && find(body, &[7; 16]).is_some())),
-        "start drops stored predecessor"
+        before.iter().any(|line| matches!(line, Line::Open { path, .. }
+        if path.as_ref() == format!("/jig/v1/stream?version={}&replaces=07070707070707070707070707070707", w::VERSION).as_bytes())),
+        "start names the stored predecessor"
     );
     let result = redacted(&recording);
     let proved = proved(&result);
     absent(&proved, &[7; 16]);
     let records = lines(&proved).expect("proved stored lines");
     assert!(
-        records.iter().any(|line| matches!(line, Line::Exchange { path, body, .. }
-        if path.as_ref() == b"/jig/v1/stream-gone" && find(body, &[b'x'; 16]).is_some())),
-        "stream-gone carries placeholder"
+        records.iter().any(|line| matches!(line, Line::Open { path, .. }
+        if path.as_ref() == format!("/jig/v1/stream?version={}&replaces=78787878787878787878787878787878", w::VERSION).as_bytes())),
+        "the replacement query carries the placeholder's lowercase hex"
     );
 }
 #[test]
@@ -272,28 +285,52 @@ fn a_reshaped_value_is_stale_never_kept() {
     }
 }
 #[test]
-fn a_committed_journey_redacted_replays() {
-    let welcome = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-playground/recording");
-    let setup = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
-    for recording in [welcome.as_slice(), setup.as_slice()] {
-        let result = redacted(recording);
-        assert!(
-            scan::lines(&lines(&result.recording).expect("committed lines"), &result.originals)
-                .expect("decoded committed streams")
-                .is_none()
-        );
-        let mut replay = Replay::new(&result.recording).expect("committed replay");
-        let mut marks = 0;
-        loop {
-            match replay.next() {
-                Ok(Some(mark)) => {
-                    assert!(scan::page(&mark.page.html(), &result.originals).is_none(), "clean committed page");
-                    marks += 1;
-                }
-                Ok(None) => break,
-                Err(stale) => panic!("committed journey stale at line {}", stale.line),
-            }
-        }
-        assert!(marks > 1, "committed journey reaches its end");
+fn a_sign_in_walks_streams_read_and_write_unchanged() {
+    let recording = walk::walked();
+    let mut records = lines(&recording).expect("sign-in lines");
+    let streams = Streams::read(&records).expect("sign-in streams");
+    assert!(!streams.events().is_empty(), "host walk carries stream records");
+    streams.write(&mut records);
+    assert!(written(&records) == recording, "stream and line round trip is byte-identical");
+}
+
+#[test]
+fn a_sign_in_walk_and_its_pages_pass_the_last_scan() {
+    let recording = redacted(&walk::walked()).recording;
+    let originals = temper_client_shell_web::journey::originals(&[], &[]);
+    let mut recordings = 0;
+    let mut pages = 0;
+    let records = lines(&recording).expect("sign-in lines");
+    assert!(scan::lines(&records, &originals).expect("decoded sign-in streams").is_none(), "clean recording");
+    recordings += 1;
+    let mut replay = Replay::new(&recording).expect("sign-in replay");
+    while let Some(mark) = replay.next().expect("sign-in walk holds") {
+        assert!(scan::page(&mark.page.html(), &originals).is_none(), "clean printed page");
+        pages += 1;
     }
+    assert!(recordings > 0 && pages > 0, "recording and pages scanned");
+}
+
+#[test]
+fn a_sign_in_walk_redacted_replays() {
+    let recording = walk::walked();
+    let (records, originals, _) =
+        temper_client_shell_web::journey::redact_lines(lines(&recording).expect("sign-in lines"), &[])
+            .expect("sign-in recording redacts");
+    assert!(scan::lines(&records, &originals).expect("decoded sign-in streams").is_none());
+    let mut replay = Replay::from_lines(records).expect("sign-in replay");
+    let mut marks = 0;
+    let mut ended = false;
+    loop {
+        match replay.next() {
+            Ok(Some(mark)) => {
+                assert!(scan::page(&mark.page.html(), &originals).is_none(), "clean sign-in page");
+                marks += 1;
+                ended = mark.end;
+            }
+            Ok(None) => break,
+            Err(stale) => panic!("sign-in walk stale at line {}", stale.line),
+        }
+    }
+    assert!(marks > 1 && ended, "several sign-in marks replayed to the end");
 }

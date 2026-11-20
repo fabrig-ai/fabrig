@@ -27,11 +27,11 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
 
 - **What stays** is `engine.md`'s other members and jig's other parts:
   the directories, the listeners, the workers and their secrets' files,
-  the limits, the first owners and the sign-in providers, `machine`,
-  `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
-  providers and their endpoints (`engine.llm`), which are configuration of
-  the work too, and leave the document by a design of their own, later. Of their
-  members `temper-box init` gives each `keep` and `drop` (jig's
+  a worker alone's limits (the engine's are settings, `limit-settings.md`), the first owners and the sign-in providers, `clients`,
+  `sign_in` and `webhooks`. The LLM providers and their endpoints
+  (`engine.llm`) are jig's `provider` kind, and the playground's
+  scripted provider the box's constant (`providers.md`). Of the stock's
+  providers each has its `keep` and `drop` (jig's
   `protocol/configuration.md`, section 3): OpenAI's keep `gpt-*` and drop `*audio*`,
   `*image*`, `*realtime*`, `*search*`, `*transcribe*`, `*tts*` and the dated
   `*-20??-??-??`; Anthropic's keep `claude-*` and drop the dated `*-20??????`. The
@@ -69,13 +69,15 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
 | 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
-| 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../../domain/landing.md`, 13.1) | that project's owners |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../../domain/landing.md`, 13.1) | that project's owners |
+| 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../../domain/landing-settings.md`, 1.1), taken at the next start | that project's owners |
+| 5, a project's gates | each project | 1 | each of the project's repositories' test gates and tiers (`../../domain/landing-settings.md`, 1.1), taken at the next start | that project's owners |
 | 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none or up (`../../domain/forge/change/questions.md`, 1) | that project's owners |
 | 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
-| 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
+| 9, a charter's words | the deployment | a charter's, 1 to 64 (jig's `domain/engine/settings.md`, 1) | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
+| 21, the agents' figures | the deployment | 1 | the agents' profile figures and each endpoint's limits, an `AgentFigures` (`figures.md`, section 5), taken at each worker's next start | the deployment's owners |
+| 22, temper's limits, `temper-limits` | the deployment | 1 | a list of overrides of temper's limits, each a name, a value and a reason (`limit-settings.md`, 2.3) | the deployment's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../../client/pages/settings.md`, 2):
@@ -162,8 +164,8 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     names no path set": sets are a project's). A set the project's
     classes don't hold is no refusal: each item is judged alone, and the
     rule covers every change until the classes hold it (`engine.md`);
-  - *the forge's charter* outside 1 to jig's `tasks.charters`, or
-    removed: the forge always has all three charters, and an owner who
+  - *the forge's charter* outside 1 to 64, a charter's numbers (jig's
+    `domain/engine/settings.md`, 1), or removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
   - *a project's questions* that is not one of the three routes;
   - *a project's classes* that does not decode as a `ProjectClasses`,
@@ -171,7 +173,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     refusal's words saying which of its faults;
   - *words* of kind 9 or 10 that are empty, past their bound, not UTF-8
     or holding a control character, or of kind 9 at a number outside 1
-    to jig's `tasks.charters`; a removed or reset item of either is
+    to 64, a charter's numbers; a removed or reset item of either is
     always good;
   - *a project's ways* with a `way` neither 0 nor a template the project
     would offer after the whole decision, read by the root from the core
@@ -244,7 +246,13 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   with a role in the deployment, for any kind; or a project's, by a party
   with a role in that project, for a kind of each project's scope (2, 6,
   7, 8, 10, 12 and 13) in that scope alone. How work runs reads a project's words in
-  its `ways` read (8), which any party of the project reads.
+  its `ways` read (8), which any party of the project reads. A
+  `Setting` read's answer, `SettingAnswer { value, revision }`, names
+  the revision its value was set or removed at, read from the same
+  state as the value, as jig's `settings` document names it in that
+  setting's line (`last`), and none where it stands at its default; so
+  a client reads it again only for a newer one
+  (`../../client/pages/settings.md`, 1, *What the client holds*).
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
   revision its change was made in: what work may do is always current,
@@ -292,7 +300,10 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   setting's words (`../../draft/whole-story.execution.md`, P3e):
   - *its scope and numbers:* the deployment's, as templates are (jig's
     `protocol/configuration.md`, 3.1); its number a template's, 1 to
-    jig's `core.templates`; decided by the deployment's owners;
+    64, the stock's 1 to 32 and a deployment's own 33 to 64 (jig's
+    `domain/engine/settings.md`, 1); decided by the deployment's owners.
+    Read at a number 1 to 64 where none is held, it answers "none kept",
+    as kind 9 does at a charter's number 1 to 64;
   - *its value,* a `TemplateGoal` record in temper's codec: `design`, a
     bool, whether the template's charter designs the goal first,
     delivering the design into the goal's branch as a change the goal's
@@ -310,8 +321,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     number the settings offer no template at, or at a template no goal
     starts by, is kept and drawn nowhere;
   - *judged by the forge,* as the table's kinds are: at scope 0 alone,
-    else refused for its scope; a number 0 or past `core.templates`,
-    for its number; a value not a `TemplateGoal`, for its value; a
+    else refused for its scope; a number 0 or past 64, for its number; a value not a `TemplateGoal`, for its value; a
     removal or a reset always good;
   - *named* `template-goal`, with the template's `number`, in a settings
     file and a run's `settings`, `see` and `propose_settings`
@@ -384,7 +394,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     by the root, from the core, as kind 7's way is, an owner that is not
     of the project: a `task` not a live task of it, a `party` with no
     role in it, a `role` past jig's `authority.roles`, a `charter` 0 or
-    past jig's `tasks.charters`; the refusal names the area and the
+    past 64, a charter's numbers; the refusal names the area and the
     owner. A removal or a reset is always good;
   - *named* `project-areas` and `project-triager`, with the `project`,
     in a settings file and a run's `settings`, `see` and
@@ -397,6 +407,36 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     and the forge's `findings` subject (`../../client/forge/records.md`);
     a save of either moves the findings it concerns, and tells their new
     owners (`../../domain/areas.md`, section 5).
+- **The deployment's welcome, kind 20** (`../../draft/config.md`, 6.5;
+  `moved.md`, section 4), which was the document's `application.welcome`:
+  a kind of temper's beside the table's, owned by the forge's connector
+  and kept, read and never pinned as kind 9 is. Kinds 16 to 19 are left to
+  the configuration's other milestones, which run beside the one that
+  made it (`../../draft/config.execution.md`):
+  - *its scope and number:* the deployment's, number 1; decided by the
+    deployment's owners;
+  - *its value,* a `Welcome` record in temper's codec, `shown`, a bool:
+    whether the welcome shows (`../../client/pages/README.md`) and the
+    deployment offers the playground (`../setup/playground.md`). Its
+    bound, the kind's, is its encoding;
+  - *its default,* from how the deployment was made: shown under the box,
+    whose `temper-box internal serve` is given `--box` at every start
+    (`../setup/box.md`, 1), as a deployment `temper-box init --box` made
+    is; not shown otherwise. The root gives it with the stock's defaults
+    at each start (2), so a deployment made by `temper-box init` and
+    served by a hand-written unit shows none until an owner sets it;
+  - *judged by the forge,* as the table's kinds are: a value that does not
+    decode. A removal or a reset is always good, back to the default;
+  - *named* `welcome`, with no scope, in a settings file and a run's
+    `settings`, `see` and `propose_settings`; its value `{"shown": true}`;
+    read by any signed-in party, as the deployment's read is
+    (`../../client/forge/records.md`);
+  - *read at once* by the deployment's read, whose `welcome` is the
+    setting's current value, so a change reaches each client as any change
+    of that read does, and by `StartPlayground`, refused *not offered*
+    while the welcome isn't shown (`../setup/playground.md`). The
+    playground is configured at start whatever the welcome says, so that
+    turning it on offers the playground with no restart.
 
 ## 3. How the landing rules are enforced
 
@@ -453,6 +493,12 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   settings live in the store; read them with `temper ctl settings show`".
   `engine.md`'s `landing` and `charter`, and `Config`'s `landing` and
   `forge_charter` fields, go with them, in 5's second step.
+- **The workers are settings too** (jig's `domain/engine/workers.md`;
+  `../../draft/config.md`, 6.7): `engine.hosts.workers` is refused by
+  name, "workers are settings in the store", and no digest file is
+  read. An engine alone's owner adds each worker with `temper ctl worker
+  add` (`../../client/ctl/workers.md`); the box passes its own, `local`
+  (`../cluster.md`, 1).
 - **A seeded project names its policy by number.** jig's
   `engine.projects` stays, but temper refuses a project whose policy is
   inline, naming its path: "`engine.projects[0].policy`: name a policy,
@@ -565,7 +611,7 @@ next run.
   section of its own (`../../domain/root.md`, 6.2): the file at the
   branch's head as the forge resolves it when it gathers the section,
   one commit named in the section and kept for its whole life, read as
-  `read_file` reads one (`../../domain/forge/README.md`, section 2). With a
+  `read_forge what=file` reads one (`../../domain/forge/README.md`, section 2). With a
   heading, the part from the first Markdown heading line whose text,
   after its `#`s and one space, equals the heading byte for byte, to
   the line before the next heading of its level or above. Cut to the
@@ -611,9 +657,10 @@ repository and branch form above (2026-11-04).
 ## 7. A model with a larger output
 
 `temper-box init`'s limits hold the stock's models, each a window of 1,048,576
-tokens and an output of 8,192 (`stock.md`), as its agent's endpoints declare them. A
-deployment whose model takes a larger output (gpt-6.1-sol at effort high, output
-32,000, for one) raises its agent's endpoint and overrides its profile's turn limits, each derived
+tokens and an output of 8,192 (`stock.md`), within its agent endpoints' 48,000-token
+ceiling. A model requesting 32,000 tokens, such as gpt-6.1-sol at effort high,
+fits that ceiling. A deployment whose model takes more than the endpoint's ceiling
+raises its agent's endpoint and overrides its profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
@@ -621,9 +668,9 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every endpoint, so one set of bounds
   holds whichever model a charter names (smith's `protocol/limits.md`, 3.9).
-  `temper-box init`'s agent takes 48 calls per response, 26
+  `temper-box init`'s agent takes 48 calls per response, 32
   conversations (`stock.md`'s table) and 64 models a charter, its endpoints an
-  output of 8,192 and a `reasoning_item` of at most 65,536, and efforts
+  output of 48,000 and a `reasoning_item` of at most 65,536, and efforts
   move no figure of T, smith charging an effort's name at the charter
   codec's fixed bound; T is what smith measures for it,
   within smith's own ceiling of 33,554,432 bytes (smith's

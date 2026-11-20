@@ -3,7 +3,7 @@
 
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust test code traverses fake provider observations")]
 
-use super::fixtures::{self, DIRECTORIES, call, content, parse};
+use super::fixtures::{self, call, parse};
 use serde_json::{Value, json};
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Message, Part, Script, Turn};
@@ -128,8 +128,7 @@ fn check_results(world: &World) -> bool {
 
 #[test]
 fn stock_profile_runs_two_inspect_only_children_side_by_side() {
-    let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("init files");
-    let mut world = world(parse(content(&generated, b"agent.json")));
+    let mut world = world(temper_agent_fixtures::configuration(&parse(&temper_config_shell::init_document(false))));
     let before = world.disk().tree(b"work");
     world.run(10_000);
     let overlap = check_results(&world);

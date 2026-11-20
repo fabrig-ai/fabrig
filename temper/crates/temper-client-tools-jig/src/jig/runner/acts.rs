@@ -50,6 +50,12 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, request, out);
         return;
     }
+    if called.call.tool == rows::WITHDRAW_AT {
+        let Some(me) = me(runner, client) else { return };
+        let request = withdraw(&called.call, me);
+        prepared(runner, client, env, called, request, out);
+        return;
+    }
     if let Some(request) = immediate(&called.call, &env.limits) {
         prepared(runner, client, env, called, request, out);
         return;
@@ -91,6 +97,15 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         },
     });
     runner.acts.insert(called.call_number, Reading { called, document: None });
+}
+// client/ctl/areas.md, area 2: admission needs the maker, never the proposal read.
+fn withdraw(call: &Call, me: &c::Me) -> Prepared {
+    let Some(Value::Proposal(key)) = value(call, 0) else { unreachable!("proposal argument") };
+    if key.proposer != c::Proposer::Party(me.party.number) {
+        return Err(Failed::Fixed(b"proposal withdraw needs your party's pN/K"));
+    }
+    let project = super::reads::selected_project(value(call, 1), me).ok_or(Failed::Fixed(b"unknown project"))?;
+    Ok((Request::Ask(c::Ask::Withdraw { project, proposal: key.number }), None))
 }
 fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
     let request = match call.tool {
@@ -170,6 +185,7 @@ fn act_read(call: &Call) -> c::Read {
 #[derive(Debug)]
 pub enum Failed {
     Refused(&'static [u8]),
+    RefusedDetail(Box<[u8]>),
     Fixed(&'static [u8]),
     Detail(Box<[u8]>),
 }
@@ -718,6 +734,7 @@ pub fn prepared(
         Err(why) => {
             let printed = match why {
                 Failed::Refused(why) => render::failure(why, called.json, 2),
+                Failed::RefusedDetail(why) => render::failure(&why, called.json, 2),
                 Failed::Fixed(why) => render::failure(why, called.json, 1),
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
             };
@@ -841,6 +858,7 @@ fn send(
     let (Event::Send { request, .. } | Event::Carry { request, .. }) = &event else { unreachable!("act event") };
     let mut operation = Operation::for_call(request, render::outcome::act_tool(called.call.tool));
     operation.model_flags(&called.call);
+    operation.worker_name(&called.call);
     operation.to = to;
     operation.exported = exported;
     if called.call.tool == rows::EXPORT_AT {
@@ -853,8 +871,9 @@ fn send(
     if called.call.tool != rows::EXPORT_AT
         && called.call.tool != rows::CHANGE_SETTINGS_AT
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
+        && !(rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&called.call.tool)
     {
-        operation.retry = Some(render::outcome::retry(&called.call));
+        operation.retry = Some(render::outcome::retry(&called.call, called.json));
     }
     if called.call.tool == rows::ADD_KEY_AT
         || called.call.tool == rows::REPLACE_KEY_AT
@@ -966,6 +985,10 @@ pub(super) fn answered(
             &env.limits,
             runner.parts.expect("host vocabulary").diagnostic_prefix(),
         );
+        if sent.called.call.tool == rows::GOAL_START_AT && printed.status == 0 {
+            let text = words(&sent.called.call, 2, &env.limits).expect("sent goal has loaded TEXT");
+            render::goal_title::warn(text.bytes(), sent.called.json, &mut printed.stderr);
+        }
         if sent.called.call.tool == rows::PARTY_MAKE_AT
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
                 c::Outcome::Made { what: c::Made::Service { party } }

@@ -13,9 +13,6 @@ fn place(host: &[u8]) -> Place {
 fn fresh(under_box: bool) -> Domain {
     let mut d = setup_domain(&[], under_box);
     d.set_machine(Machine {
-        owned_person: Box::new([]),
-        owned: Some(place(b"owned.example")),
-        fake: None,
         github: place(b"github.example"),
         github_git_program: Some(b"/data/bin/github-git".as_slice().into()),
     });
@@ -28,6 +25,7 @@ fn setup(forge: Making) -> Ask {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             playground: false,
+            sample: false,
         },
     }
 }
@@ -41,7 +39,7 @@ fn admin() -> How {
     }
 }
 fn application(d: &mut Domain, number: u64, ask: Ask) -> Box<[Request]> {
-    outputs(
+    let sent = outputs(
         d,
         Event::Application {
             request: Token::new(number),
@@ -51,7 +49,20 @@ fn application(d: &mut Domain, number: u64, ask: Ask) -> Box<[Request]> {
             role: Some(PartyRole::Owner),
             carried: Some(VALUE),
         },
-    )
+    );
+    let mut out = skein_lib::List::uncapped();
+    for request in sent {
+        if let Request::ChoosePlace { request, .. } = request {
+            for value in
+                outputs(d, Event::PlaceChosen { request, place: Some(place(b"owned.example")), git_program: None })
+            {
+                out.push(value).unwrap();
+            }
+        } else {
+            out.push(request).unwrap();
+        }
+    }
+    out.into_boxed()
 }
 fn saved(out: &[Request]) -> ForgeRecord {
     out.iter()
@@ -92,11 +103,49 @@ fn set_up_new_owned_makes_a_record_and_asks_the_box() {
         first: SetUpFirst::Empty {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            playground: false
+            playground: false,
+            sample: false
         }
     }));
     outputs(&mut d, Event::SetUpAnswered { forge: 1, request: Token::new(1), answer: SetUpAnswer::SettingUp });
     assert_eq!(d.application_answer(Token::new(1)), Some(Answered::SetUp(SetUpAnswer::SettingUp)));
+}
+#[test]
+fn an_admitted_port_choice_reserves_the_forge_slot_until_its_answer() {
+    for (capacity, last) in [(1, 0), (2, u16::MAX - 1)] {
+        let mut d = fresh(true);
+        d.records = skein_lib::Map::with_capacity(capacity);
+        d.forge_number = last;
+        let out = outputs(
+            &mut d,
+            Event::Application {
+                request: Token::new(1),
+                token: Token::new(1),
+                retention: Duration::from_secs(60),
+                ask: setup(Making::New(ForgeAsk::Owned)),
+                role: Some(PartyRole::Owner),
+                carried: None,
+            },
+        );
+        assert!(out.iter().any(|r| if let Request::ChoosePlace { .. } = r { true } else { false }));
+        application(
+            &mut d,
+            2,
+            Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: How::GitHubManifest { back: None } },
+        );
+        assert_eq!(
+            d.application_answer(Token::new(2)),
+            Some(Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::Busy)))
+        );
+        let out = outputs(
+            &mut d,
+            Event::PlaceChosen { request: Token::new(1), place: Some(place(b"chosen.example")), git_program: None },
+        );
+        let record = saved(&out);
+        assert_eq!(record.mode, Mode::Owned);
+        assert_eq!(record.number, last.checked_add(1).unwrap());
+        assert_eq!(record.place, place(b"chosen.example"));
+    }
 }
 #[test]
 fn a_second_owned_set_up_is_refused() {
@@ -258,23 +307,6 @@ fn an_unoffered_machine_or_box_makes_nothing() {
     application(&mut no_box, 1, setup(Making::New(ForgeAsk::Owned)));
     assert_setup_refusal(&no_box, 1, SetUpRefusal::NotUnderTheBox);
     assert!(no_box.records.is_empty());
-    for machine in [
-        None,
-        Some(Machine {
-            owned_person: Box::new([]),
-            owned: None,
-            fake: None,
-            github: place(b"github.example"),
-            github_git_program: None,
-        }),
-    ] {
-        let mut d = setup_domain(&[], true);
-        d.machine = machine;
-        let out = application(&mut d, 1, setup(Making::New(ForgeAsk::Owned)));
-        assert_setup_refusal(&d, 1, SetUpRefusal::NotOffered);
-        assert!(d.records.is_empty());
-        assert!(!out.iter().any(|r| if let Request::Save { .. } = r { true } else { false }));
-    }
     let mut d = setup_domain(&[], true);
     application(
         &mut d,
@@ -447,6 +479,7 @@ fn playground_empty_setup_keeps_its_files_intent() {
                 org: b"playground".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 playground: true,
+                sample: false,
             },
         },
     );
@@ -454,6 +487,38 @@ fn playground_empty_setup_keeps_its_files_intent() {
     let row = d.forges().rows[0].clone();
     assert_eq!(row.starts_with, StartsWith::Repository);
     assert_eq!(row.first.unwrap().state, FirstState::Making);
+}
+
+#[test]
+fn sample_empty_setup_keeps_its_intent_and_restores_its_row() {
+    let mut d = fresh(true);
+    let out = application(
+        &mut d,
+        1,
+        Ask::SetUp {
+            forge: Making::New(ForgeAsk::Owned),
+            first: SetUpFirst::Empty {
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                playground: false,
+                sample: true,
+            },
+        },
+    );
+    let record = saved(&out);
+    assert!(empty_intent(&record).sample);
+    for restored in [false, true] {
+        if restored {
+            d = fresh(true);
+            outputs(&mut d, Event::Restore { record: Stored::Forge(record.clone()) });
+        }
+        let rows = d.forges();
+        assert_eq!(rows.rows[0].starts_with, StartsWith::Repository);
+        let first = rows.rows[0].first.as_ref().unwrap();
+        assert_eq!(first.state, FirstState::Making);
+        assert!(first.sample);
+        assert!(!first.playground);
+    }
 }
 
 fn copy_addresses(count: u32, address: &[u8]) -> Box<[Box<[u8]>]> {

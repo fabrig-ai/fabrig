@@ -4,7 +4,8 @@ use crate::{
     component::{Attempt, ExchangeKind},
 };
 use alloc::boxed::Box;
-use jig_client_protocol_wire::{VERSION, v26 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Writer};
 impl Link {
     pub(super) fn authorize(&mut self, query: Box<[u8]>, out: &mut Queue<Request>) {
@@ -14,7 +15,8 @@ impl Link {
                     out.push(Request::Authorized(Authorized::Busy));
                     return;
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::SignInApproval
                 | ExchangeKind::SignIn
                 | ExchangeKind::SignOut { .. }
@@ -23,10 +25,6 @@ impl Link {
                 | ExchangeKind::WatchOpen { .. }
                 | ExchangeKind::WatchClose { .. } => {}
             }
-        }
-        if self.in_flight() >= self.limits.exchanges() {
-            out.push(Request::Authorized(Authorized::Busy));
-            return;
         }
         let Ok(record) = w::Authorize::new(self.limits.wire(), w::AuthorizeParts { query }) else {
             out.push(Request::Authorized(Authorized::Lost));
@@ -40,6 +38,7 @@ impl Link {
             .insert(
                 exchange,
                 Attempt {
+                    parts: skein_lib::List::with_capacity(0),
                     token: exchange,
                     owner: w::Owner::Jig,
                     version: VERSION,

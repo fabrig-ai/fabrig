@@ -20,6 +20,7 @@ pub fn completes(event: &Event) -> bool {
     match event {
         Event::Store(_)
         | Event::Released(_)
+        | Event::LimitsRaised
         | Event::Resume
         | Event::Account(_)
         | Event::Setup { .. }
@@ -53,7 +54,8 @@ pub fn completes(event: &Event) -> bool {
         Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
-            forge::Event::ReadHistory { .. }
+            forge::Event::LimitsRaised
+            | forge::Event::ReadHistory { .. }
             | forge::Event::HistoryLoaded { .. }
             | forge::Event::HistoryUnloaded { .. }
             | forge::Event::Signed { .. }
@@ -133,6 +135,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
             | forge::Event::Enqueue { .. }
+            | forge::Event::EnqueueCall { .. }
+            | forge::Event::DropProjection { .. }
             | forge::Event::KeepProjection { .. }
             | forge::Event::Project { .. }
             | forge::Event::FailProjection { .. }
@@ -152,6 +156,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StartConflicted { .. }
             | forge::Event::ReviewRequested { .. }
             | forge::Event::ReviewsChanged { .. }
+            | forge::Event::RoomUnavailable { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
@@ -183,6 +188,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FollowAct { .. }
             | forge::Event::TierAct { .. }
             | forge::Event::JobHistory { .. }
+            | forge::Event::SetupPerson { .. }
+            | forge::Event::PlaceChosen { .. }
             | forge::Event::Milestone { .. }
             | forge::Event::SettleOutbox => true,
         },
@@ -197,7 +204,13 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     domain.changed();
     crate::domain::invalidate_input(domain, &event);
     match event {
-        event @ Event::Store(StoreInput::ReadLoaded { .. } | StoreInput::Switched) => {
+        event @ Event::Store(
+            StoreInput::ReadLoaded { .. }
+            | StoreInput::PartLoaded { .. }
+            | StoreInput::Switched
+            | StoreInput::Checkpointed { .. }
+            | StoreInput::CheckpointRefused { .. },
+        ) => {
             if domain.store_answers.is_empty() && domain.work.is_empty() {
                 step(domain, env, event);
             } else {
@@ -213,6 +226,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             | StoreInput::Loaded { .. }
             | StoreInput::Unloaded { .. },
         )
+        | Event::LimitsRaised
         | Event::Resume) => {
             step(domain, env, event);
             Ok(())
@@ -252,6 +266,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
                 | Event::Stop
                 | Event::Store(_)
                 | Event::Released(_)
+                | Event::LimitsRaised
                 | Event::Resume => false,
             };
             if !admitted || keeps_payload && !crate::link::room(domain) {

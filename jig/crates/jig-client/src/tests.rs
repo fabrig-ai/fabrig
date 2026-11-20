@@ -68,17 +68,15 @@ fn a_request_parked_offline_is_sent_once_me_returns() {
     c.step(Event::Stored);
     c.machine.fire(skein_lib::Time::from_nanos(100_000_000), skein_lib::Wall::EPOCH, &mut skein_lib::Queue::uncapped());
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
     c.step(Event::Stored);
-    c.stream(fixtures::frame(watch));
     assert_eq!(c.machine.link().state, Link::Live);
-    c.step(Event::Stored);
     assert_eq!(fixtures::keyed_count(c.requests()), 1);
 }
 #[test]
-fn a_read_whose_exchange_is_lost_is_answered_unreachable() {
+fn a_read_whose_exchanges_are_lost_twice_is_answered_unreachable() {
     let mut c = Client::signed_in();
     c.step(Event::Read { handle: TASK, read: Readable::Jig(contract::Read::Project { project: PROJECT }) });
+    c.step(Event::Lost { exchange: c.exchange() });
     c.step(Event::Lost { exchange: c.exchange() });
     let [Request::Told { told: Told::Page { handle, page } }] = c.requests() else {
         panic!("one terminal: {:?}", c.requests());
@@ -136,8 +134,6 @@ fn a_full_stream_reaches_the_domain_and_reopens_after_backoff() {
         assert!(opened);
         assert_eq!(c.machine.link().streams_full, Some(full));
         c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-        let watch = c.opened_watch();
-        c.stream(fixtures::frame(watch));
         assert_eq!(c.machine.link().state, Link::Live);
         assert_eq!(c.machine.link().streams_full, None);
     }
@@ -145,7 +141,7 @@ fn a_full_stream_reaches_the_domain_and_reopens_after_backoff() {
 
 #[test]
 fn the_link_view_names_a_watch_refused_busy() {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     let mut c = Client::signed_in();
     assert!(!c.machine.link().watches_full);
     c.step(Event::Watch { handle: TASK, subject: task() });
@@ -172,3 +168,4 @@ fn the_link_view_names_a_watch_refused_busy() {
 }
 
 mod approval;
+mod asked_link;

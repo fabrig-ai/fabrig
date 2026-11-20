@@ -6,7 +6,7 @@ mod tests {
     use skein_codec::Reason;
     use skein_codec_tests::lints::{CEILINGS as LINT_CEILINGS, HostTool, HostToolParts};
     use skein_codec_tests::scalars::{CEILINGS as SCALAR_CEILINGS, Flag, Scalars, ScalarsParts};
-    use skein_codec_tests::v1::{CEILINGS, Choice, Effect, Field, FieldParts, Path, Report, ReportParts};
+    use skein_codec_tests::v1::{CEILINGS, Choice, Effect, Field, Record, Report, paths};
     use skein_lib::{Duration, List, Reader, Writer};
 
     #[test]
@@ -36,22 +36,17 @@ mod tests {
     }
 
     fn report() -> Report {
-        let field = Field::new(&CEILINGS, FieldParts { name: Box::from(&b"A"[..]), value: Box::from(&[0x7f][..]) })
-            .expect("within ceilings");
+        let field = Field { name: Box::from(&b"A"[..]), value: Box::from(&[0x7f][..]) };
         let mut fields = List::with_capacity(1);
         fields.push(field).expect("room");
-        Report::new(
-            &CEILINGS,
-            ReportParts {
-                title: Box::from(&b"R"[..]),
-                fields,
-                effect: Effect::Write,
-                present: Some(true),
-                nonce: [1, 2],
-                age: Duration::from_nanos(5),
-            },
-        )
-        .expect("within ceilings")
+        Report {
+            title: Box::from(&b"R"[..]),
+            fields,
+            effect: Effect::Write,
+            present: Some(true),
+            nonce: [1, 2],
+            age: Duration::from_nanos(5),
+        }
     }
 
     const WIRE: [u8; 34] = [
@@ -69,13 +64,11 @@ mod tests {
     #[test]
     fn a_generated_record_matches_hand_written_bytes() {
         let value = report();
-        assert_eq!(value.measure(), 34);
-        let mut writer = Writer::new(34);
-        value.encode(&mut writer).expect("measured room");
-        assert_eq!(&*writer.finish(), &WIRE);
+        assert_eq!(value.measure(&CEILINGS), Ok(34));
+        assert_eq!(&*value.encode(&CEILINGS).expect("within ceilings"), &WIRE);
         let decoded = Report::decode(&CEILINGS, &mut Reader::new(&WIRE)).expect("canonical bytes");
         assert_eq!(decoded, value);
-        assert_eq!(decoded.into_parts().title.as_ref(), b"R");
+        assert_eq!(decoded.title.as_ref(), b"R");
     }
 
     #[test]
@@ -83,28 +76,28 @@ mod tests {
         let mut bad_bool = WIRE;
         *bad_bool.get_mut(23).expect("option's bool") = 2;
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&bad_bool)).expect_err("bool beyond one");
-        assert_eq!((problem.path, problem.reason), (Path::ReportPresent, Reason::Bool));
+        assert_eq!((problem.path, problem.reason), (paths::REPORT_PRESENT, Reason::Bool));
 
         let mut bad_tag = WIRE;
         *bad_tag.get_mut(21).expect("effect tag") = 2;
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&bad_tag)).expect_err("unknown enum tag");
-        assert_eq!((problem.path, problem.reason), (Path::EffectTag, Reason::Tag));
+        assert_eq!((problem.path, problem.reason), (paths::EFFECT_TAG, Reason::Tag));
 
         let mut bad_version = WIRE;
         *bad_version.get_mut(1).expect("version byte") = 2;
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&bad_version)).expect_err("wrong version");
-        assert_eq!((problem.path, problem.reason), (Path::ReportVersion, Reason::Version));
+        assert_eq!((problem.path, problem.reason), (paths::REPORT_VERSION, Reason::Version));
 
         let problem =
             Report::decode(&CEILINGS, &mut Reader::new(WIRE.get(..33).expect("short prefix"))).expect_err("short age");
-        assert_eq!((problem.path, problem.reason), (Path::ReportAge, Reason::Short));
+        assert_eq!((problem.path, problem.reason), (paths::REPORT_AGE, Reason::Short));
 
         let mut trailing = Writer::new(35);
         trailing.put(&WIRE).expect("room");
         trailing.put(&[0]).expect("room");
         let trailing = trailing.finish();
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&trailing)).expect_err("trailing byte");
-        assert_eq!((problem.path, problem.reason), (Path::ReportTail, Reason::Trailing));
+        assert_eq!((problem.path, problem.reason), (paths::REPORT_TAIL, Reason::Trailing));
     }
 
     #[test]
@@ -112,12 +105,12 @@ mod tests {
         let mut overlong = WIRE;
         *overlong.get_mut(14).expect("name length") = 5;
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&overlong)).expect_err("name beyond ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::FieldName, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_NAME, Reason::Bound));
 
         let mut invalid_utf8 = WIRE;
         *invalid_utf8.get_mut(15).expect("name byte") = 0xff;
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&invalid_utf8)).expect_err("invalid UTF-8");
-        assert_eq!((problem.path, problem.reason), (Path::FieldName, Reason::Utf8));
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_NAME, Reason::Utf8));
     }
 
     #[test]
@@ -138,18 +131,14 @@ mod tests {
     #[test]
     fn variant_with_record_payload_has_tag_then_record_bytes() {
         let choice = Choice::Report(report());
-        assert_eq!(choice.measure(), 35);
-        let mut writer = Writer::new(35);
-        choice.encode(&mut writer).expect("measured room");
-        let wire = writer.finish();
+        assert_eq!(choice.measure(&CEILINGS), Ok(35));
+        let wire = choice.encode(&CEILINGS).expect("within ceilings");
         assert_eq!(wire.first(), Some(&0));
         assert_eq!(wire.get(1..), Some(WIRE.as_slice()));
         assert_eq!(Choice::decode(&CEILINGS, &mut Reader::new(&wire)), Ok(choice));
 
         let empty = Choice::Empty;
-        let mut writer = Writer::new(1);
-        empty.encode(&mut writer).expect("one byte");
-        assert_eq!(&*writer.finish(), &[1]);
+        assert_eq!(&*empty.encode(&CEILINGS).expect("one byte"), &[1]);
     }
 
     fn optional_payload(data: Option<&[u8]>) -> skein_codec_tests::lints::OptionalPayload {
@@ -191,9 +180,15 @@ mod tests {
     }
 
     #[test]
-    fn grouped_boolean_fields_keep_their_wire_order() {
-        let parts =
-            HostToolParts { skein_bools: [true, false, true, false], max_tokens: 7, payload: Box::from(&b"x"[..]) };
+    fn named_boolean_fields_keep_their_wire_order() {
+        let parts = HostToolParts {
+            inspect: true,
+            modify: false,
+            shell: true,
+            agents: false,
+            max_tokens: 7,
+            payload: Box::from(&b"x"[..]),
+        };
         let value = HostTool::new(&LINT_CEILINGS, parts).expect("within limits");
         assert!(value.inspect());
         assert!(!value.modify());
@@ -204,6 +199,7 @@ mod tests {
         value.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), wire);
         let decoded = HostTool::decode(&LINT_CEILINGS, &mut Reader::new(&wire)).expect("canonical bytes");
-        assert_eq!(decoded.into_parts().skein_bools, [true, false, true, false]);
+        let parts = decoded.into_parts();
+        assert_eq!([parts.inspect, parts.modify, parts.shell, parts.agents], [true, false, true, false]);
     }
 }

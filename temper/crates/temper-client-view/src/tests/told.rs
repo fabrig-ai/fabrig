@@ -26,6 +26,12 @@ fn append(out: &mut Queue<Request>, mut added: Queue<Request>) {
         out.push(request);
     }
 }
+fn opened_me(root: &mut d::Domain, me: c::Me) -> Queue<Request> {
+    up(
+        root,
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+    )
+}
 fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
     let seed = f::root_at(Address::Home { project: f::PROJECT }, &f::domain_limits()).0;
     let me = seed.pages().me(seed.client()).unwrap().clone();
@@ -35,45 +41,33 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
         Event::Start { address: Address::Told, kept: List::uncapped(), with: Some(jig_client::With::Transport) },
     );
     append(&mut out, up(&mut root, Up::Served { served: true, versions: None }));
+    append(&mut out, opened_me(&mut root, me));
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         match down {
-            Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => append(
-                &mut out,
-                up(
-                    &mut root,
-                    Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))) },
-                ),
-            ),
             Down::Open { watch, subject: jig_client::Watchable::Family { record, scope, .. } }
-                if *wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() == w::Watch::Devices =>
+                if wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch == w::Watch::Devices =>
             {
                 assert_eq!(scope, c::Scope::Own);
                 let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
                 for number in 1..=count {
-                    rows.push(
-                        w::DeviceRow::new(
-                            &w::CEILINGS,
-                            w::DeviceRowParts {
-                                number,
-                                label: if number == 1 {
-                                    b"Chrome on Android".as_slice().into()
-                                } else {
-                                    b"Firefox on Linux".as_slice().into()
-                                },
-                                at: f::NOW.as_nanos(),
-                                endpoint: if number == 1 {
-                                    ENDPOINT.into()
-                                } else {
-                                    b"https://updates.push.services.mozilla.com/sub/private".as_slice().into()
-                                },
-                            },
-                        )
-                        .unwrap(),
-                    )
+                    rows.push(w::DeviceRow {
+                        number,
+                        label: if number == 1 {
+                            b"Chrome on Android".as_slice().into()
+                        } else {
+                            b"Firefox on Linux".as_slice().into()
+                        },
+                        at: f::NOW.as_nanos(),
+                        endpoint: if number == 1 {
+                            ENDPOINT.into()
+                        } else {
+                            b"https://updates.push.services.mozilla.com/sub/private".as_slice().into()
+                        },
+                    })
                     .unwrap();
                 }
-                let document = w::Devices::new(&w::CEILINGS, w::DevicesParts { rows }).unwrap();
+                let document = w::Devices { rows };
                 append(
                     &mut out,
                     up(
@@ -90,18 +84,14 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
                 );
             }
             Down::Read { read, what: jig_client::Readable::Family { record, .. } }
-                if *wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == w::Read::Deployment =>
+                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment =>
             {
-                let answer = w::DeploymentAnswer::new(
-                    &w::CEILINGS,
-                    w::DeploymentAnswerParts {
-                        welcome: false,
-                        owned: true,
-                        program_login: None,
-                        push: push.then_some([4; 65]),
-                    },
-                )
-                .unwrap();
+                let answer = w::DeploymentAnswer {
+                    welcome: false,
+                    owned: true,
+                    program_login: None,
+                    push: push.then_some([4; 65]),
+                };
                 append(
                     &mut out,
                     up(

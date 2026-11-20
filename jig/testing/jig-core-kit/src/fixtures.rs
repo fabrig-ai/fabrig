@@ -47,6 +47,7 @@ pub const CONNECTOR: u16 = 1;
 #[must_use]
 pub fn sign_in(reply_to: Token, provider: u16, subject: &[u8], login: &[u8], name: &[u8]) -> root::Event {
     root::Event::Core(core::Event::SignIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(reply_to),
         identity: people::Identity {
@@ -66,6 +67,7 @@ pub fn phase(action: &core::start::Action, expected: core::start::Phase) {
 pub fn link(core: &mut core::Core, env: &Env<core::Limits>, out: &mut Queue<core::Request>) -> core::start::Action {
     use core::start::Phase;
     phase(&core.start_done(env, Phase::LoadCore, out), Phase::LoadInbox);
+    take_workers(out);
     let mut previous = Phase::LoadInbox;
     for connector in core.connectors.clone() {
         let next = Phase::RestoreConnector { connector };
@@ -73,7 +75,19 @@ pub fn link(core: &mut core::Core, env: &Env<core::Limits>, out: &mut Queue<core
         previous = next;
     }
     phase(&core.start_done(env, previous, out), Phase::Link);
-    core.start_done(env, Phase::Link, out)
+    let action = core.start_done(env, Phase::Link, out);
+    take_workers(out);
+    action
+}
+
+/// These direct-core stories have no workers' component; its table is checked by the settings story.
+pub fn take_workers(out: &mut Queue<core::Request>) {
+    for _ in 0..out.len() {
+        let request = out.pop().expect("bounded startup outputs");
+        if !matches!(&request, core::Request::Ask { ask: core::Ask::Workers(_) | core::Ask::Providers(_), .. }) {
+            out.push(request);
+        }
+    }
 }
 
 /// Check that a settings proposal was accepted.
@@ -496,11 +510,21 @@ pub fn configure_resources(world: &mut crate::world::World) {
 pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
     let (mut configuration, mut limits) = crate::faults::plan_fixture(seed);
     limits.core.fleet.workers = 3;
-    configuration.core.worker_names = Box::new([
-        b"caller".as_slice().into(),
-        b"first job worker".as_slice().into(),
-        b"second job worker".as_slice().into(),
-    ]);
+    configuration.core.defaults.workers = [
+        Box::<[u8]>::from(b"caller".as_slice()),
+        Box::<[u8]>::from(b"first-job-worker".as_slice()),
+        Box::<[u8]>::from(b"second-job-worker".as_slice()),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, name)| jig_domain_core::settings::WorkerSetting {
+        number: u32::try_from(index + 1).expect("fixture worker count"),
+        name,
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    })
+    .collect();
     limits.core.authority.executors = 3;
     limits.core.tasks.executor_kinds = 3;
     limits.core.documents.executors = 3;

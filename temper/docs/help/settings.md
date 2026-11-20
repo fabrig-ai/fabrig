@@ -7,10 +7,10 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 Settings cover charters, templates, policies, rules, landing rules, forge
-charters, goal templates' work, charter words, and project ways, questions, classes and words. Name one
-by kind and number, or project for project settings; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
+charters, goal templates' work, charter words, providers, limits, and project ways, questions, classes and words. Name one
+by kind and number, or project for project settings; rules and limit kinds have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`, `template-goal 4`,
-`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`.
+`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`, `provider 1`.
 
 - A project's ways say whether chats can write drafts, whether Work's Goals
   and Changes filters show, and which offered template with
@@ -33,6 +33,10 @@ by kind and number, or project for project settings; rules have no number: `char
   designs first (`design`) and makes a close-out (`close_out`), both bools.
   With none kept, it plans and makes no close-out. The stock sets both false
   for template 4.
+- `limits` and `temper-limits`: deployment-wide override lists, empty by default.
+  Set the whole list, ascending by `name`, each with `value` and required `reason`.
+  Show either kind by name; inventory and revisions combine overrides by name,
+  marked with their kind. Ask temper reads and proposes both for an owner to accept.
 - A charter is how an agent's run works: `temper help charter`.
 - A template is how a new task is filled: `temper help template`.
 - A policy is what a project made from it starts with, and the rules are
@@ -55,14 +59,11 @@ all other duplicate settings, and set/remove/reset beside an overlay, are refuse
 `settings propose` takes one file. Show marks replacements and additions;
 `--json` exports the literal `overlay` beside `value`, naming no directory.
 
-The stock has charters 1, 2, 4, 5, 9, 10, 11 and 12, and templates 1
-for a chat, 2 for a goal, 4 for a draft goal, 5 for Ask temper and 6 for a
-design session. Charter 5 coordinates a draft goal. Charter 10 is a
-model's trial and is never offered. Charter 12 is the drafter: it writes a
-draft with you as a design session's document, reads code through the
-forge, and starts nothing. Its rules offer seven charter executors
-(1, 2, 4, 5, 9, 11 and 12), procedures 2, 3 and 4, merge job 3 and
-roles 0, 1 and 2.
+Stock charters: 1, 2, 4, 5, 9, 10, 11, 12. Templates: 1 chat, 2 goal,
+4 draft goal, 5 Ask temper, 6 design session. Charter 5 coordinates draft goals;
+10 is an unoffered model trial. Charter 12 drafts a design-session document
+with you, reads forge code, starts nothing. Rules offer seven charter executors
+(1, 2, 4, 5, 9, 11, 12), procedures 2-4, merge job 3 and roles 0-2.
 
 Values are JSON, as `settings show` prints. Members, types and bounds:
 `temper help settings-fields`.
@@ -73,11 +74,8 @@ continues with `see more TOKEN`. Its file reads use the same parts.
 
 ## How it changes
 
-A change holds at most one item per setting. Each item:
-
-- sets a whole value, replacing the previous value;
-- removes it from the offer, its default included;
-- resets it, erasing its change to follow its default again.
+Each change item names a setting once: set replaces its whole value;
+remove withdraws it, default included; reset erases its change to follow the default.
 
 The rules are set or reset, never removed.
 
@@ -94,28 +92,25 @@ project's owners; a change of both needs one person who owns both. A
 party with a deployment or project role proposes one for those owners
 to decide (`temper help proposal`).
 
-A start with a new binary default makes a revision if the setting follows
-its default. A stored change still wins over a changed default.
+New binary defaults make a revision at start for settings following defaults;
+stored changes still win.
 
 ## What temper guarantees
 
 - Before commit, temper checks each value's shape and bounds, each kind's
   count, and references such as a template's charter or a charter's models.
-- A refused change commits nothing. Its refusal names the item, its
-  setting and its fault. A charter document refusal also names the member,
-  the document index where applicable, and its rule. A document count past
-  the allowance says, for example, `documents: supplied 3; maximum
-  tasks.charter_documents 2`. A path or heading refusal names its byte bound;
-  a name refusal names the authority segment bound; a connector refusal says
-  that the connector must be registered. Change the named member and submit
-  the proposal again.
+- Refusals commit nothing, naming item, setting and fault; charter documents
+  also name member, index where applicable and rule. Counts say, for example,
+  `documents: supplied 3; maximum tasks.charter_documents 2`. Paths/headings
+  name their byte bound; names, the authority segment bound; connectors must
+  be registered. Change the named member and propose again.
 - An effort its model doesn't offer is refused before anything is sent,
   naming the item, the model and what it offers, where `me` shows that
   model; the engine refuses any other by the model's name.
 - A change against any other revision is refused as stale, naming the
   newest. Read again, and decide on what you read.
 - A change that alters no setting is refused as unchanged.
-- An accepted change takes effect without a restart.
+- Only providers need a restart, at the engine's next start.
 - Repeating a change's key gives its first outcome, with no second revision.
 - Each kind is read when it is used: a charter's at each run, from its
   task's revision (`temper help revision`); a template's when a task is
@@ -155,7 +150,7 @@ its default. A stored change still wins over a changed default.
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal` and
-  `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
+  `provider`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
   `project-words`, in the settings file's form. Ways, questions, classes and project
   words require `project` and take no `number`; charter words take the charter's
   `number` and no `project`. A landing rule names
@@ -215,9 +210,9 @@ For members needing a restart, read `temper help configuration`.
 - An item replaces a whole value or overlay; it never patches a stored one.
 - ctl sends values within `temper help settings-fields` bounds; the
   deployment may refuse them past its own limits.
-- Providers, listeners, workers and limits are configured at start;
-  changes need a restart. Limits must hold the stock's settings or start
-  refuses. Another model or new stock can change the limits needed.
+- Providers, listeners and workers change at restart. Limit lists record overrides;
+  they do not change figures in force. Figures must hold stock settings or start
+  refuses; another model or stock can need more.
 - Stock floors are eight charters, five templates and fourteen executor kinds
   (seven charters, three procedures, one job and three roles); your settings
   may need more.

@@ -7,13 +7,14 @@ mod server;
 mod startup;
 mod stop;
 mod worker;
+mod workers_settings;
 use crate::tests::fixtures::{engine_document, problem, with};
 use jig_protocol_config::{Path, Problem, What};
 
 #[test]
 fn the_document_names_the_files_its_caller_reads() {
     let names = crate::named(&engine_document()).expect("fixture document");
-    assert_eq!(names.len(), 4);
+    assert_eq!(names.len(), 2);
     for (name, expected) in names.iter().zip(fixtures::NAMES) {
         assert_eq!(name.as_ref(), expected);
     }
@@ -23,12 +24,12 @@ fn the_document_names_the_files_its_caller_reads() {
 fn both_jig_profiles_have_usable_store_edges() {
     // Small's settings bound adds two sets of four 16-byte parts slices and
     // eight templates with 24-byte later choices in both Template and New.
-    // Model cache lifetimes occupy eight aligned bytes in every model carrier.
+    // The settings envelope also includes each bounded provider and its endpoints.
     for (label, name, value, commit, ops) in [
-        ("small", jig_protocol_config::Profile::Small, 2_411_492, 398_743_386, 62_408),
-        ("standard", jig_protocol_config::Profile::Standard, 100_881_496, 2_023_831_962, 455_024),
+        ("small", crate::limits::small(&jig_protocol_config_fixtures::small()), 39_826_916, 398_741_298, 62_407),
+        ("standard", crate::limits::stock(&jig_protocol_config::stock()), 103_387_876, 2_023_829_874, 455_023),
     ] {
-        let limits = crate::limits::profile_limits(name);
+        let limits = name;
         let sizes = jig_protocol_store::sizes::check_commits(
             &limits.root.core,
             &jig_test_store::application(&limits.root.connector),

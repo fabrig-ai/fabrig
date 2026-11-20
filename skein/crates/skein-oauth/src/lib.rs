@@ -4,6 +4,11 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/oauth-v3.schema");
+
 pub use skein_oauth_codec::v3;
 mod common;
 mod documents;
@@ -44,8 +49,3 @@ pub const OWNER: &str = "skein";
 pub const FAMILY: &str = "skein-oauth";
 /// The declaration a kept record is.
 pub const ROOT: &str = "SavedToken";
-/// The family's layout fingerprint (data/codec/README.md, 9), checked by the drift test.
-pub const FINGERPRINT: [u8; 32] = [
-    41, 62, 146, 237, 7, 170, 232, 22, 146, 49, 19, 74, 222, 68, 228, 174, 213, 32, 183, 205, 88, 142, 62, 177, 6, 115,
-    197, 141, 117, 122, 254, 62,
-];

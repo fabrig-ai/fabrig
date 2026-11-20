@@ -10,6 +10,7 @@ use skein_lib::{Duration, List, Wall};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
 pub struct Deployment {
+    pub worker_settings: List<WorkerState>,
     pub store: StoreFill,
     pub census: Option<Box<StoreCensus>>,
     pub hosts: List<Host>,
@@ -626,4 +627,16 @@ pub struct ProgramHost {
 pub struct Figures {
     pub required: u64,
     pub offered: u64,
+}
+
+/// Every worker setting and its volatile link state (jig/docs/design/domain/engine/workers.md, 6).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerState {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub places: u32,
+    pub digest: Option<[u8; 32]>,
+    pub withdrawn: bool,
+    pub linked: bool,
+    pub since: Option<Wall>,
 }

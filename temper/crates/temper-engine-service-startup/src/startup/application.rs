@@ -1,7 +1,5 @@
 //! Machine and client settings, read strictly (temper/docs/design/protocol/configuration/engine.md).
 //! A box's sign-in is exclusive (temper/docs/design/protocol/openid-provider.md, 9).
-mod demo;
-mod landing;
 pub mod push;
 mod read;
 pub mod sign_in;
@@ -19,15 +17,13 @@ pub struct Members {
     pub sign_in: Option<sign_in::SignIn>,
     pub push: Option<push::Push>,
     pub webhooks: Option<Webhooks>,
-    pub machine: temper_forge_setup::machine::Machine,
+    pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub demo: Option<settings::Demo>,
-    pub welcome: bool,
-    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
-    /// The landing's projects in the document's order, which names a refused one's path.
-    pub landing_projects: Box<[u32]>,
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
+    /// Position kept for the worker's reader; an engine alone refuses the member.
+    pub environment: Option<u32>,
 }
 /// The optional webhook listener (protocol/configuration/engine.md).
 #[derive(Debug)]
@@ -123,61 +119,15 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
 }
-fn configured_limits(
-    document: &Document,
-    at: u32,
-    path: &Path,
-    problems: &mut Problems,
-    handed: &mut List<(Box<[u8]>, u64)>,
-) -> Option<limits::Limits> {
-    let mut object = read::object(document, at, "application-limits", path, problems)?;
-    let profile = read::text(&mut object, document, b"profile", path, problems);
-    let overrides = read::required(&mut object, document, b"overrides", path, problems);
-    read::finish(object, document, path, problems);
-    let profile = match profile.as_deref() {
-        Some(b"standard") => limits::Profile::Standard,
-        Some(b"small") | None => limits::Profile::Small,
-        Some(_) => {
-            problems.push(path.member(b"profile"), What::Profile);
-            limits::Profile::Small
-        }
-    };
-    let mut limits = limits::profile(profile);
-    let path = path.member(b"overrides");
-    if let Some(at) = overrides
-        && let Some(mut object) = read::overrides(document, at, &path, problems)
-    {
-        let end = config::read::after(document, at).ok()?;
-        for index in at..end {
-            let Some(token) = document.token(index) else { continue };
-            if token.kind != Kind::Key {
-                continue;
-            }
-            let name = document.text(token).expect("object key text");
-            let Some(value_at) = object.member(document, name) else { continue };
-            match config::read::integer(document, value_at, u64::MAX) {
-                Ok(value) => {
-                    if name == b"checkout.preparations" && value == 0 {
-                        problems.push(path.member(name), What::Jig(config::What::Because(b"0; requires at least 1")));
-                    }
-                    if limits::handed_on(name) {
-                        handed.push((bytes::copy_of(name), value)).expect("bounded overrides");
-                    }
-                    if (!limits::handed_on(name) || limits::host_setup(name))
-                        && let Err(what) = limits::apply(&mut limits, name, value)
-                    {
-                        problems.push(path.member(name), What::Override(what));
-                    }
-                }
-                Err(config::What::Bound) => problems.push(path.member(name), What::Override(limits::Refused::Range)),
-                Err(what) => problems.push(path.member(name), What::Jig(what)),
-            }
-        }
-        let mut found = config::Problems::empty();
-        object.finish(document, &path, &mut found);
-        problems.append(found, &Path::root());
+// Runtime starts and offline store readers judge the same fixed tier carriers.
+fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
+    let bound = temper_service_core::derived::STORE_LIVE_GOALS;
+    if limits.live_goals > bound {
+        problems.push(
+            super::checks::own(b"live_goals"),
+            What::Half(crate::startup::EngineWhat::StoreLiveGoals { count: u64::from(limits.live_goals), bound }),
+        );
     }
-    // Both runtime startup and offline store readers pass here before sizing the store.
     let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
     if limits.forge.changes > bound {
         problems.push(
@@ -189,52 +139,63 @@ fn configured_limits(
             }),
         );
     }
-    // Pass the resolved client capacity once, including the profile default.
-    handed
-        .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
-        .expect("bounded setup inputs");
-    Some(limits)
+    let bound = temper_engine_domain_forge::FindingSignature::IDS;
+    if limits.forge.tiers.failing_tests > bound {
+        problems.push(
+            super::checks::own(b"forge.tiers.failing_tests"),
+            What::Half(crate::startup::EngineWhat::TierFailingTests { count: limits.forge.tiers.failing_tests, bound }),
+        );
+    }
+    let ceiling = temper_protocol_store::v25::CEILINGS.landing_log_landings;
+    let bound = ceiling.saturating_sub(limits.forge.landings_kept);
+    if limits.forge.landings_pending > bound {
+        problems.push(
+            super::checks::own(b"forge.landings_pending"),
+            What::Half(crate::startup::EngineWhat::LandingPending {
+                count: limits.forge.landings_pending,
+                bound,
+                kept: limits.forge.landings_kept,
+                ceiling,
+            }),
+        );
+    }
+    let ceiling = temper_protocol_store::v25::CEILINGS.tier_posting_comments;
+    let bound = ceiling
+        .saturating_sub(limits.forge.changes)
+        .checked_div(limits.forge.landing_members)
+        .unwrap_or(0)
+        .saturating_sub(limits.forge.landings_kept);
+    if limits.forge.landings_pending > bound {
+        problems.push(
+            super::checks::own(b"forge.landings_pending"),
+            What::Half(crate::startup::EngineWhat::LandingComments {
+                count: limits.forge.landings_pending,
+                bound,
+                ceiling,
+            }),
+        );
+    }
+    let bound = temper_engine_domain_forge::FindingSignature::ID_BYTES;
+    if limits.forge.tiers.test_id_bytes > bound {
+        problems.push(
+            super::checks::own(b"forge.tiers.test_id_bytes"),
+            What::Half(crate::startup::EngineWhat::TestIdBytes { bytes: limits.forge.tiers.test_id_bytes, bound }),
+        );
+    }
 }
-fn workers(
-    document: &Document,
-    ats: Option<List<u32>>,
-    count: u32,
-    directories: &config::Directories,
-    path: &Path,
-    problems: &mut Problems,
-) -> List<Worker> {
+fn workers(document: &Document, directories: &config::Directories, problems: &mut Problems) -> List<Worker> {
+    let count = match super::member(document, 0, b"workers") {
+        Some(at) => match config::read::list(document, at, document.len()) {
+            Ok(ats) => ats.len(),
+            Err(_) => 0,
+        },
+        None => 0,
+    };
     let mut workers = List::with_capacity(count);
-    if let Some(ats) = ats {
-        for (index, at) in ats.iter().enumerate() {
-            let path = read::index(&path.member(b"workers"), index);
-            let Some(mut object) = read::object(document, *at, "application-worker", &path, problems) else { continue };
-            let root = read::text(&mut object, document, b"root", &path, problems);
-            let at = read::required(&mut object, document, b"git", &path, problems);
-            let mut git = None;
-            if let Some(at) = at {
-                let null = match document.token(at) {
-                    Some(token) => token.kind == Kind::Null,
-                    None => false,
-                };
-                if !null {
-                    match config::read::text(document, at, 1_048_576) {
-                        Ok(value) => git = Some(value),
-                        Err(what) => problems.push(path.member(b"git"), What::Jig(what)),
-                    }
-                }
-            }
-            read::finish(object, document, &path, problems);
-            if let Some(root) = root {
-                if let Some(git) = &git
-                    && !git.starts_with(b"/")
-                {
-                    problems.push(path.member(b"git"), What::Absolute);
-                }
-                if let Some(root) = joined(directories, config::Directory::Data, &root, &path.member(b"root"), problems)
-                {
-                    workers.push(Worker { root }).expect("bounded workers");
-                }
-            }
+    for _ in 0..count {
+        match directories.join(config::Directory::Data, b"workspaces") {
+            Ok(root) => workers.push(Worker { root }).expect("bounded workers"),
+            Err(what) => problems.push(Path::root().member(b"application").member(b"workers"), What::Jig(what)),
         }
     }
     workers
@@ -254,18 +215,56 @@ pub fn parse(
     directories: &config::Directories,
     problems: &mut Problems,
 ) -> Option<Members> {
+    parse_over(document, at, jig, directories, temper_service_core::derived::STOCK, problems)
+}
+pub fn parse_over(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    sources: temper_service_core::derived::Sources,
+    problems: &mut Problems,
+) -> Option<Members> {
+    let stock = limits::stock();
+    let mut bounds = match limits::base(stock.live_goals, stock.tool_payload, sources) {
+        Ok((_jig, own)) => own,
+        Err(found) => {
+            problems.push(found.path, What::Jig(found.what));
+            return None;
+        }
+    };
+    if let Some(slots) = temper_service_core::derived::slots(document) {
+        bounds.checkout.workspaces = slots;
+        bounds.git_component.operations = slots;
+    }
+    parse_with_limits(document, at, jig, directories, &bounds, problems)
+}
+/// Parse the application against a world's typed limits.
+pub fn parse_with_limits(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    bounds: &limits::Limits,
+    problems: &mut Problems,
+) -> Option<Members> {
+    tier_bounds(bounds, problems);
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, "application", &path, problems)?;
-    let mut overrides = List::with_capacity(document.len());
-    let machine_at = read::required(&mut object, document, b"machine", &path, problems);
-    let demo_at = read::required(&mut object, document, b"demo", &path, problems);
-    let limit_at = read::required(&mut object, document, b"limits", &path, problems);
-    let limits = match limit_at {
-        Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides),
-        None => None,
-    };
-    let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
-    let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
+    let overrides = List::with_capacity(0);
+    if object.member(document, b"machine").is_some() {
+        problems.push(path.member(b"machine"), What::Jig(config::What::Fixed));
+    }
+    let test_at = object.member(document, b"test");
+    if object.member(document, b"demo").is_some() {
+        problems.push(path.member(b"demo"), What::Jig(config::What::Fixed));
+    }
+    if object.member(document, b"limits").is_some() {
+        problems.push(path.member(b"limits"), What::Jig(config::What::Fixed));
+    }
+    if object.member(document, b"workers").is_some() {
+        problems.push(path.member(b"workers"), What::Jig(config::What::Fixed));
+    }
     if object.member(document, b"charter").is_some() {
         problems.push(path.member(b"charter"), What::Half(crate::startup::EngineWhat::CharterStored));
     }
@@ -278,79 +277,37 @@ pub fn parse(
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
     let push_at = object.member(document, b"push");
     let push = push::parse(document, push_at, directories, problems);
-    let landing_at = object.member(document, b"landing");
-    let welcome = match object.member(document, b"welcome") {
-        Some(at) => match config::read::boolean(document, at) {
-            Ok(value) => value,
-            Err(what) => {
-                problems.push(path.member(b"welcome"), What::Jig(what));
-                false
-            }
-        },
-        None => false,
-    };
+    if object.member(document, b"landing").is_some() {
+        problems.push(path.member(b"landing"), What::Jig(config::What::Fixed));
+    }
+    if object.member(document, b"welcome").is_some() {
+        problems.push(path.member(b"welcome"), What::Jig(config::What::Fixed));
+    }
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
+    let workers = workers(document, directories, problems);
+    let environment = if workers.is_empty() { None } else { object.member(document, b"environment") };
     read::finish(object, document, &path, problems);
-    let machine = match machine_at {
-        Some(at) => {
-            let mut found = config::Problems::empty();
-            let machine = temper_forge_setup::machine::read_config(document, at, directories, &mut found);
-            problems.append(found, &Path::root());
-            machine
-        }
-        None => None,
-    };
-    if let Some(machine) = &machine
-        && let Some(owned) = &machine.owned
-        && let Some(client) = &owned.sign_in
-    {
-        let mut found = false;
-        if let Some(provider) = &jig.clients.provider {
-            for configured in &provider.clients {
-                if configured.id == *client {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        read::form(sign_in::visible(client), path.member(b"machine").member(b"owned").member(b"sign_in"), problems);
-        if !found {
-            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
-        }
-        if sign_in.is_some() {
-            problems.push(
-                path.member(b"machine").member(b"owned").member(b"sign_in"),
-                What::Half(crate::startup::EngineWhat::BoxSignIn),
-            );
-        }
-    }
+    let mut found = config::Problems::empty();
+    let test_github = temper_forge_setup::machine::read_test(document, test_at, directories, &mut found);
+    problems.append(found, &Path::root());
     if let Some(sign_in) = &sign_in {
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }
-    let demo = demo::parse(document, demo_at, directories, problems);
-    let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
-    let landing = match landing_at {
-        Some(at) => landing::parse(document, at, jig, &bounds, problems),
-        None => Some((skein_lib::Map::with_capacity(0), Box::default())),
-    };
     if !problems.is_empty() {
         return None;
     }
-    let (landings, landing_projects) = landing?;
     Some(Members {
         clients: clients?,
         sign_in,
         push,
         webhooks,
-        machine: machine?,
-        demo,
-        welcome,
+        test_github,
+        demo: None,
         workers: workers.into_boxed(),
-        limits: limits?,
+        environment,
+        limits: *bounds,
         overrides: overrides.into_boxed(),
-        landings,
-        landing_projects,
     })
 }
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).

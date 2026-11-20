@@ -29,12 +29,15 @@ impl Recovery {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
-            | Event::AskApproval
+            | Event::AskLink
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }
             | Event::Authorize { .. }
             | Event::Reply { .. }
+            | Event::Part { .. }
+            | Event::Done { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
             | Event::StreamGone

@@ -75,6 +75,8 @@ fn result(world: &mut World, failed: bool, passed: bool) {
         failed,
         cancelled: false,
         no_change: false,
+        flake: false,
+        no_test: false,
         words: b"delegate result".as_slice().into(),
     });
 }
@@ -238,8 +240,8 @@ fn a_lost_update_pairs_by_outbox_entry_across_restarts() {
         .filter(|event| matches!(event.what, h::What::Update { .. } | h::What::Updated { .. }))
         .collect();
     assert_eq!(updates.len(), 2);
-    assert_eq!(updates[0].what, h::What::Update { style: api::UpdateStyle::Merge });
-    assert_eq!(updates[1].what, h::What::Updated { outcome: h::UpdateOutcome::Updated });
+    assert_eq!(updates[0].what, h::What::Update { style: api::UpdateStyle::Merge, forge_base: Some(base) });
+    assert_eq!(updates[1].what, h::What::Updated { outcome: h::UpdateOutcome::Updated, forge_base: Some(base) });
     assert_eq!((updates[0].operation, updates[1].operation), (20, 20));
     assert_eq!((updates[0].base, updates[1].base), (Some(base), Some(base)));
     assert_eq!(updates[1].head, Some(translate::commit(world.branch(BRANCH))));
@@ -254,6 +256,7 @@ fn a_lost_update_pairs_by_outbox_entry_across_restarts() {
 fn a_retried_update_does_not_repeat_its_start_or_settlement() {
     let mut world = queued();
     world.push_file(b"main", b"base", b"base moved");
+    let base = translate::commit(world.branch(b"main"));
     world.land_writes_late(Duration::from_secs(40));
     assert!(matches!(step(&mut world, 25), change::Decision::Effect(change::Effect::Update { .. })));
     world.answer_writes();
@@ -265,7 +268,10 @@ fn a_retried_update_does_not_repeat_its_start_or_settlement() {
         .collect();
     assert_eq!(
         updates.iter().map(|e| e.what.clone()).collect::<Vec<_>>(),
-        [h::What::Update { style: api::UpdateStyle::Merge }, h::What::Updated { outcome: h::UpdateOutcome::Updated }]
+        [
+            h::What::Update { style: api::UpdateStyle::Merge, forge_base: Some(base) },
+            h::What::Updated { outcome: h::UpdateOutcome::Updated, forge_base: Some(base) }
+        ]
     );
     assert!(updates.iter().all(|e| e.operation == 25));
     let before = effects(&world);
@@ -314,8 +320,8 @@ fn a_conflicting_update_and_its_resolution_have_distinct_intervals() {
     assert_eq!(
         events.iter().map(|e| e.what.clone()).collect::<Vec<_>>(),
         [
-            h::What::Update { style: api::UpdateStyle::Merge },
-            h::What::Updated { outcome: h::UpdateOutcome::Conflict },
+            h::What::Update { style: api::UpdateStyle::Merge, forge_base: Some(base) },
+            h::What::Updated { outcome: h::UpdateOutcome::Conflict, forge_base: None },
             h::What::Conflict { with: h::With::Branch, files: 0 },
             h::What::Asked { ask: h::Ask::Resolution, task: CHILD, gate: None },
             h::What::Answered { ask: h::Ask::Resolution, outcome: h::Answer::Pushed },

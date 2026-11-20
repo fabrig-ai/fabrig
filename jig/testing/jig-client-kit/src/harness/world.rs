@@ -627,6 +627,7 @@ impl<A: App, F: Front<A>> World<A, F> {
             Some(event) => A::step(&mut c.root, &env, event, &mut c.out),
             None => A::fire(&mut c.root, &env, &mut c.out),
         }
+        A::settle(&mut c.root, &env, &mut c.out);
         A::take(&mut c.root, &env, &mut c.out);
         let mut wires = Vec::new();
         let mut shows = Vec::new();
@@ -711,9 +712,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                 }
             }
             c.model.check(A::tree(&c.view));
-            let mut current: Vec<_> = A::tree(&c.view).nodes().iter().map(|node| node.id).collect();
-            current.sort_unstable();
-            if let Some(node) = old_nodes.into_iter().find(|node| current.binary_search(node).is_err()) {
+            if let Some(node) = old_nodes.into_iter().find(|node| !c.model.contains(*node)) {
                 self.last_removed = Some((id, node));
             }
             let mut seen = A::seen(A::tree(&c.view));

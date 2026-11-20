@@ -6,6 +6,7 @@ mod opening {
             self, APPLICATION_VERSION, OTHER_VERSION, SECRET_A, SECRET_B, SECRET_C, WORKER_A, WORKER_B, WORKER_C,
         },
     };
+    use jig_protocol_worker_wire::Record;
     use skein_lib::Duration;
     fn world() -> World {
         World::new(&fixtures::limits(), &fixtures::workers(), 1)
@@ -24,18 +25,18 @@ mod opening {
         schema: skein_channel::Schema,
     ) -> skein_fake_channel::ScriptedPeer {
         use jig_protocol_worker_wire as wire;
-        let value = wire::Credential::new(
-            &wire::CEILINGS,
-            wire::CredentialParts {
-                name: WORKER_A.into(),
-                secret: skein_lib::Secret::new(SECRET_A.into()),
-                wires,
-                output: fixtures::LIMITS.room,
-            },
-        )
-        .expect("credential");
-        let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).expect("credential length"));
-        value.encode(&mut bytes).expect("credential");
+        let value = wire::Credential {
+            opening: jig_protocol_worker_wire::Opening::Link,
+            name: WORKER_A.into(),
+            secret: skein_lib::Secret::new(SECRET_A.into()),
+            wires,
+            output: fixtures::LIMITS.room,
+        };
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(value.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"))
+                .expect("credential length"),
+        );
+        value.write(&jig_protocol_worker_wire::CEILINGS, &mut bytes).expect("credential");
         skein_fake_channel::ScriptedPeer::new(
             schema,
             skein_channel::Role::Initiator,
@@ -59,8 +60,8 @@ mod opening {
         let [Request::Opened { worker: 0, wires, .. }] = world.openings() else { panic!("one agreed statement") };
         assert_eq!(wires.len(), statement.len());
         for (agreed, stated) in wires.iter().zip(&statement) {
-            assert_eq!(agreed.name.as_bytes(), stated.name());
-            assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
+            assert_eq!(agreed.name.as_bytes(), stated.name.as_ref());
+            assert_eq!(agreed.version, stated.lowest + u16::try_from(stated.layouts.len() - 1).expect("range"));
         }
         assert!(world.root().is_empty(), "the domain has heard no hello");
     }
@@ -94,9 +95,9 @@ mod opening {
         for wire in &wires {
             stated
                 .push(Stated {
-                    name: core::str::from_utf8(wire.name()).expect("wire name").into(),
-                    lowest: wire.lowest(),
-                    layouts: List::from_boxed(wire.layouts().clone().into_boxed()),
+                    name: core::str::from_utf8(wire.name.as_ref()).expect("wire name").into(),
+                    lowest: wire.lowest,
+                    layouts: List::from_boxed(wire.layouts.clone().into_boxed()),
                 })
                 .expect("wire slot");
         }
@@ -113,11 +114,11 @@ mod opening {
     #[test]
     fn wire_mismatches_are_refused_with_the_same_words_to_the_worker_and_owner() {
         use jig_protocol_engine_workers::Request;
-        use jig_protocol_worker_wire as wire;
+
         let mut layout = fixtures::statement(APPLICATION_VERSION);
-        let mut parts = layout.get(4).expect("application wire").clone().into_parts();
+        let mut parts = layout.get(4).expect("application wire").clone();
         *parts.layouts.get_mut(0).expect("layout") = [4; 32];
-        *layout.get_mut(4).expect("application wire") = wire::Wire::new(&wire::CEILINGS, parts).expect("wire");
+        *layout.get_mut(4).expect("application wire") = parts;
         let mut missing = fixtures::statement(APPLICATION_VERSION);
         missing.truncate(4);
         let mut twice = fixtures::statement(APPLICATION_VERSION);
@@ -154,7 +155,7 @@ mod opening {
             (ENGINE + 1, SECRET_A, APPLICATION_VERSION, Some(2)),
             (18_432_634, SECRET_A, APPLICATION_VERSION, Some(2)),
             (u32::MAX, SECRET_A, APPLICATION_VERSION, Some(2)),
-            (18_432_634, b"wrong".as_slice(), APPLICATION_VERSION, Some(256)),
+            (18_432_634, b"wrong".as_slice(), APPLICATION_VERSION, Some(260)),
             (18_432_634, SECRET_A, OTHER_VERSION, Some(257)),
         ] {
             let limits = jig_protocol_engine_workers::Limits { room: ENGINE, ..fixtures::limits() };
@@ -191,11 +192,11 @@ mod opening {
         }
     }
     #[test]
-    fn a_wrong_secret_is_refused_as_unauthorized() {
+    fn a_wrong_secret_is_refused_as_not_admitted() {
         let mut world = world();
         let connection = world.connect(fixtures::worker(WORKER_A, b"wrong", APPLICATION_VERSION));
         world.run();
-        assert_eq!(refused(&world, connection), 256);
+        assert_eq!(refused(&world, connection), 260);
         assert!(world.root().is_empty());
     }
     #[test]
@@ -223,7 +224,7 @@ mod opening {
     #[test]
     fn another_version_is_refused_by_skein_as_version() {
         let mut schema = fixtures::schema();
-        let other = 9; // The previous channel is refused before reading its credential.
+        let other = 15; // The previous channel is refused before reading its credential.
         schema.versions.truncate(1);
         schema.versions.get_mut(0).expect("one version").version = other;
         let mut world = world();
@@ -237,11 +238,11 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 12..15, offered 9..9".as_slice().into())));
+        assert_eq!(world.refusal(connection), Some((1, b"speaks 16..18, offered 15..15".as_slice().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 12..15, offered 9..9");
+        assert_eq!(text.as_ref(), b"speaks 16..18, offered 15..15");
         assert!(world.root().is_empty());
     }
     #[test]

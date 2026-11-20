@@ -70,6 +70,7 @@ fn a_job_chip_keeps_its_kind_in_documents_and_refusals() {
 fn a_job_executor_filter_round_trips_the_wire() {
     let limits = fixtures::limits();
     let query = c::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(7),
         requester: None,
         root: None,
@@ -108,7 +109,10 @@ fn a_job_contract_round_trips() {
             | c::SettingValue::Charter(_)
             | c::SettingValue::Policy(_)
             | c::SettingValue::Overlay(_)
-            | c::SettingValue::Rules(_) => {}
+            | c::SettingValue::Provider(_)
+            | c::SettingValue::Worker(_)
+            | c::SettingValue::Rules(_)
+            | c::SettingValue::Limits(_) => {}
         }
     }
     let template = template.expect("template fixture");

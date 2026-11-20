@@ -212,7 +212,7 @@ fn an_account_sign_in_address_over_its_bound_is_an_encode_error() {
     assert_eq!(
         result,
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::OutcomeAccountSignInStartedAddress,
+            path: crate::people_v17::paths::OUTCOME_ACCOUNT_SIGN_IN_STARTED_ADDRESS,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -220,6 +220,7 @@ fn an_account_sign_in_address_over_its_bound_is_an_encode_error() {
 
 #[test]
 fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
+    assert_eq!(jig_protocol_store_people::people_v17::VERSION, 17);
     super::ask_round_trip(domain::Ask::ChangeSettings { against: 7, digest: [0xa5; 32], projects: Box::default() });
     people_round_trip(values::answered(domain::Outcome::SettingsChanged { revision: 8 }));
     for why in [
@@ -229,10 +230,15 @@ fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
     ] {
         people_round_trip(values::answered(domain::Outcome::Refused(why)));
     }
-    for setting in
-        [domain::Setting::Charter(1), domain::Setting::Template(2), domain::Setting::Policy(3), domain::Setting::Rules]
-    {
+    for setting in [
+        domain::Setting::Charter(1),
+        domain::Setting::Template(2),
+        domain::Setting::Policy(3),
+        domain::Setting::Rules,
+        domain::Setting::Worker(4),
+    ] {
         for fault in [
+            domain::SettingFault::Linked,
             domain::SettingFault::Shape,
             domain::SettingFault::Count,
             domain::SettingFault::Reference,
@@ -240,6 +246,8 @@ fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
             domain::SettingFault::Budget,
             domain::SettingFault::Grace,
             domain::SettingFault::Owner,
+            domain::SettingFault::Judged,
+            domain::SettingFault::Range,
         ] {
             people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::NotWellFormed {
                 at: 0,

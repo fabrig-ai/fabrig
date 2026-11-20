@@ -34,18 +34,18 @@
   among its outcomes, its `finish` offers a report and a failure, and it
   goes on after a delivery. What it delivered is on its goal branch once
   the receipt says so: no change lands it.
-- **Every host tool below,** declared in every charter, each with the
-  charter's call timeout, but `read_task`, offered only with the task's read
-  family, and those of the `settings` family, declared
-  only where the run's charter names that family in its `tools` (jig's
-  `domain/engine/executors.md`, 1) and its task's authority has it, and the
-  charter is no asking one (below): no stock charter, since charter 11 is
-  an asking charter, and a charter of a deployment's own that names the
-  family (`../../protocol/configuration/stock.md`). The delegate family's,
-  `goal`, `change` and `delegate`, are declared only where the run's
-  charter names that family in its `tools`, so that a charter that starts
-  nothing, the drafter's (`agents.md`, 4), is offered none of them; where it does, its
-  task's authority decides each call, as below.
+- **Each host tool below is declared by its family,** with the charter's
+  call timeout (`declarations.md`, 1): to a charter that isn't asking,
+  where its `tools` names the tool's family (jig's
+  `domain/engine/executors.md`, 1) and its run's authority holds it, so
+  that a charter that starts nothing, the drafter's (`agents.md`, 4), is
+  offered no `goal`, `change` or `delegate`, and only a charter of a
+  deployment's own that names the settings family is offered `settings`
+  and the configuring form of `propose_settings`
+  (`../../protocol/configuration/stock.md`); `read_docs` to every run but
+  an asking one. Its task's authority still decides each call, as below.
+  Each is declared in a short form, its whole form on the `host-tools`
+  page (`declarations.md`, 2).
 - **A charter that names the asking family is declared its own tools
   alone** (jig's `domain/authority.md`, section 3): an asking charter is
   one whose `tools` name the asking family and no family but it and
@@ -58,8 +58,8 @@
   neither `settings` nor `read_docs`, which `see` reads in their place.
   smith's `wait` is granted as for any Open run. The asking tools are
   declared to no other charter. A tool a run never calls costs every
-  request and blurs what it does, so for these charters the rule above,
-  every host tool in every charter, does not hold. Authority decides
+  request and blurs what it does, so these charters are declared no other
+  family's tools, whatever they name. Authority decides
   each call by its family as for every charter: `see`, `document` and
   `remember` by the asking family, `propose_settings` by the settings family. The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
@@ -136,7 +136,9 @@
   or a timer, and `subscribe_forge` each take one of the task's
   subscriptions, at most `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4, and `jig/docs/design/domain/tasks/README.md`, 6
   ), where the topics the core keeps for a goal
-  (`../forge/README.md`, 5.2) count too. A call past that room is refused, saying
+  (`../forge/README.md`, 5.2) count too, and so does the project's
+  findings topic the root keeps for a finding's holder, which alone is
+  admitted one past that room (`../areas.md`, section 5). A call past that room is refused, saying
   why, as jig's `domain/engine/executors.md`, 3 has every refusal do:
   `subscribe` answers "Refused: task 4 busy: it holds its most
   subscriptions (at most 4, counting the topics the engine keeps for a
@@ -144,6 +146,17 @@
   names `tasks.subscriptions` as its own room's refusals do. A
   subscription that would leave no room in the task's inbox for its news
   is refused as any call past the inbox is, naming the inbox.
+- **A batch's resource reports** (jig's `jig/docs/design/domain/tasks/holds.md`,
+  2) answer every call that makes tasks, `change` and `delegate` among
+  them, within `tasks.hold_wait`. A batch the reports' table cannot hold
+  answers "Refused: busy: the engine keeps reports of at most 256
+  resources, those live tasks and waiting batches hold, and this batch's
+  do not fit; call again once tasks have ended", 256 the refusal's
+  bound. One whose reports have not all come by then answers "Refused:
+  task 9871 unreported: no report came within tasks.hold_wait for a
+  resource held by tasks 9871 9873; nothing was made; call again",
+  9871 its first member so named and the numbers its `blocked_by`, in
+  its order, each after a space as other refusals' tasks are.
 - **A charter's room** is `room.md`'s: smith's host part's budget, the
   allowance a charter is fitted to, how its brief is cut, what a refusal
   names when the rest alone doesn't fit, and the checks at start and at
@@ -155,40 +168,158 @@
   repository's resource as it builds a change's delegate (1),
   before it decides the call, so that the call's authority is checked
   on that resource (`../routing.md`, 2) and the run never names a number.
-- **The read's own members,** beside it: `read_branch` `branch`;
-  `read_branches` `prefix`; `read_pull` `number`; `read_pull_for` `head`
-  and `base`, branch names; `read_pull_files` `number`, `head`,
-  `page` and `skip`; `read_reviews` `number`, `page` and `skip`;
-  `read_remarks` `number`, `review`, `page` and `skip`; `read_statuses` `commit` and `page`;
-  `read_checks` `commit`; `read_compare` `before` and `after`;
-  `read_file` `head`, `path` and `max_bytes`; `read_job` `head`, `run`,
-  `job`, `attempt` and `max_bytes`, exactly as `read_checks` and
-  `read_statuses` name each Actions job: the job attempt skein resolved
-  from the check's link (its run, the forge's own job id, its attempt:
-  skein's `forge/forgejo.md`, 2), never the link's index of the job in its run,
-  which the answer may show beside it but no read takes; `read_items` `since`, `page` and
-  `item_kind` (`issue` or `pull`); `read_item` `number` and `after`;
-  `read_protection` `branch`; `read_settings` none;
-  `read_collaborators` `page`; `read_permission` `user`, a forge user's
-  id. A commit or a head is its id, 40 or 64 lowercase hexadecimal
-  digits; `page` is from 1, and 1 when left out; `since` is a time in
-  nanoseconds, 0 when left out; `after` a comment's id, 0 when left
-  out; `max_bytes`, the read's limit when left out; `skip`, the rows of
-  `page` already read, 0 when left out.
+- **The forge's reads are three tools,** each taking a `what` that names
+  the read, `repository` beside it, and the union of its reads' members,
+  each member described once (`../../draft/tools-by-role.md`, 4; the split
+  in three keeps each within `declarations.md`, 3's bound):
+
+  | Tool | `what` | Required | Optional | Formerly |
+  |---|---|---|---|---|
+  | `read_forge` | `branch` | | `branch` | `read_branch` |
+  | | `branches` | `prefix` | | `read_branches` |
+  | | `compare` | `before`, `after` | | `read_compare` |
+  | | `file` | `path` | `commit` or `branch`, `max_bytes` | `read_file`, its `head` |
+  | | `protection` | | `branch` | `read_protection` |
+  | | `settings` | | | `read_settings` |
+  | | `collaborators` | | `page` | `read_collaborators` |
+  | | `permission` | `user` | | `read_permission` |
+  | `read_issues` | `items` | | `since`, `page`, `item_kind` | `read_items` |
+  | | `item` | `number` | `comment` | `read_item`, its `after` |
+  | | `pull` | `number` | | `read_pull` |
+  | | `pull_for` | `branch`, `base` | | `read_pull_for`, its `head` |
+  | | `reviews` | `number` | `page`, `skip` | `read_reviews` |
+  | | `remarks` | `number`, `review` | `page`, `skip` | `read_remarks` |
+  | | `pull_files` | `number`, `commit` | `page`, `skip` | `read_pull_files`, its `head` |
+  | `read_ci` | `checks` | `commit` | | `read_checks` |
+  | | `job` | `commit`, `run`, `job`, `attempt` | `max_bytes` | `read_job`, its `head` |
+  | | `statuses` | `commit` | `page` | `read_statuses` |
+
+  - **A member keeps one meaning** across the three: `commit` a commit's
+    id, 40 or 64 lowercase hexadecimal digits; `branch` a branch's name,
+    in `read_forge` left out or empty for the repository's default branch
+    (below), for `pull_for` the branch the pull merges from, and `base`
+    the one it merges into; `before` and `after` the earlier and later commits of a
+    comparison; `comment` a comment's id, the item's comments after it,
+    0 when left out; `number` an issue's or a pull's; `review` a review's
+    id; `user` a forge user's id; `page` from 1, 1 when left out; `skip`
+    the rows of `page` already read, 0 when left out; `since` a time in
+    nanoseconds, 0 when left out; `item_kind` `issue` or `pull`;
+    `max_bytes` the read's limit when left out.
+  - **`job`'s members** are exactly as `checks` and `statuses` name each
+    Actions job: the job attempt skein resolved from the check's link (its
+    run, the forge's own job id, its attempt: skein's `forge/forgejo.md`,
+    2), never the link's index of the job in its run, which the answer may
+    show beside it but no read takes.
+  - **The declared form says what each `what` needs,** so that a run's
+    first call is well formed without its page: the `what` member's
+    description, the one description the three declared forms carry,
+    lists each `what` that requires members, with them, in the table's
+    order; `what`s that require the same members share one entry, and a
+    `what` that requires none is left out (`declarations.md`, 2). Within
+    a member's 120 bytes, the three read:
+    - `read_forge`: `Needs: branches prefix; compare before, after; file
+      path; permission user. No branch: the default branch.`
+    - `read_issues`: `Needs: item, pull, reviews number; pull_for branch,
+      base; remarks number, review; pull_files number, commit.`
+    - `read_ci`: `Needs: checks, statuses commit; job commit, run, job,
+      attempt.`
+
+    The `Needs:` clause, up to its first full stop, is the table's
+    required members exactly, held by a step test that reads both: in an
+    entry, the `what`s come first, comma-separated, and the first space
+    not after a comma starts its members. The whole forms keep their own
+    `what` description, and the page's `what=…: requires …` lines come
+    from the table (`../../protocol/documentation.md`, 8).
+  - **A refusal at decode reads as a sentence,** to the person who sees
+    it in a step line as much as to the run, naming the tool, then the
+    read as `what=NAME`, then what is wrong, deciding nothing:
+    - a `what` missing a member it requires names every member that
+      `what` requires: `read_forge: what=file needs the member path.`,
+      `read_ci: what=job needs the members commit, run, job and
+      attempt.`, the last two joined by "and";
+    - an unknown `what`, or none, names the tool's reads without echoing
+      the call's: `read_ci: what is one of checks, job or statuses.`, the
+      last two joined by "or";
+    - `file` given both `commit` and `branch`: `read_forge: what=file
+      takes commit or branch, not both.`
+
+    A member another `what` takes is ignored, as a member no decoder
+    reads is. A member's wrong type or range is answered as any host
+    tool's is (`../routing.md`, 2).
+  - **A branch left out is the default branch.** `read_forge`'s
+    `branch`, `protection` and `file` take `branch` left out, or empty,
+    as the repository's default branch: the one its adoption keeps as the
+    forge's own, as last read (`../forge/adoption.md`, 8), which Ask
+    temper's `file` reads at too (`ask-temper.md`, 1). smith decodes it
+    as an empty name, and the root, resolving the repository's name,
+    puts the default branch's name in its place, as it puts the
+    configured read limit in place of a zero `max_bytes`, before the
+    read is admitted, so that authority and the connector see the named
+    branch. The answer is the named read's: `branch` the head commit,
+    `protection` the rule. The former names decode the same way, so a
+    `read_branch` or `read_protection` of an empty name, which the forge
+    refused, reads the default branch too. A default branch the forge
+    has moved since its last read answers as a missing branch, whose
+    refusal points to `what=settings`.
+  - **A file at a branch's head.** `file` reads at `commit` where it is
+    given, as before; otherwise at the head of `branch`, or of the
+    default branch where `branch` is left out too. smith decodes it as
+    the engine's `Tool::ReadBranchFile` (below); the root resolves the
+    repository and the branch's name as above, reads the branch, then
+    reads the file at the head that read answered, each read admitted
+    and correlated as any forge read is
+    (`../forge/keeping-up.md`, 3). The answer is `file`'s at that commit,
+    exactly: its heading names the commit it read (`PATH at COMMIT:`),
+    and its bounds, cuts and refusals are a commit read's (*File reads
+    fit the host answer's bound*, below). A branch read that fails
+    answers as `what=branch` of that branch would, its refusal and
+    guidance included (*A refused branch read says what to read
+    instead*, below), and no file is read.
+    - **The engine's shape** (`temper-engine-domain`'s `boundary.rs`,
+      beside `ReadNamed`), the contract between smith's decoder and the
+      root:
+
+      ```rust
+      /// A file at a branch's head: the branch, then the file at the head it answered.
+      /// An empty `branch` asks for the default branch; a zero `max_bytes` the configured read limit.
+      ReadBranchFile {
+          repository: Option<Box<[u8]>>,
+          branch: Box<[u8]>,
+          path: Box<[u8]>,
+          max_bytes: u32,
+      },
+      ```
+
+      `repository` and `max_bytes` mean what `ReadNamed`'s do, and
+      `path` is `file`'s as smith decodes it, a lone dot the root. A
+      named read's empty `Branch` or `Protection` branch means the
+      default branch too, said on `ReadNamed`.
+    - **A busy read,** the branch's or the file's, waits in the host's
+      bounded backoff, as any read does (`../forge/keeping-up.md`, 3),
+      and the run hears one answer: the file's, or the branch's refusal,
+      never the branch's head alone.
+  - **Each `what` is answered exactly as its former tool was:** the same
+    route, renderers, bounds and pages (`../../draft/forge-reads-targeted.md`);
+    the forms above that the former tools refused are `read_forge`'s
+    additions. The former tools' names are decoded too, each as its
+    `what`, but declared to no run (`declarations.md`, 4).
+  - **Words name a read by its tool and `what`,** as `read_forge
+    what=file`: the answers' and refusals' guidance below, the brief's cut
+    lines (`room.md`, 2) and the stock texts.
 - **A page the answer's bytes cut names how to read on.** A
-  `read_reviews`, `read_remarks` or `read_pull_files` page cut at
+  `read_issues` `reviews`, `remarks` or `pull_files` page cut at
   `forge.client.answer_bytes` (skein's `forge/README.md`, 3.2 and 3.3)
   ends with `Page cut: read on with page P, skip S.`, its own page and
   the rows read of it, so the next read loses no row; a page that ends
   uncut and has more says `More pages available.`, as today.
-- **`read_permission` names the person:** its answer is the permission,
+- **`read_forge`'s `permission` names the person:** its answer is the permission,
   the forge user's id and the login the forge names them by, as
   `Write; forge user 3, login ada` (skein's `forge/README.md`, 3.3), so that a
   run can match a name to an id; with no login from the forge, the same
-  without it. `read_collaborators` lists ids, for `read_permission` to
+  without it. `collaborators` lists ids, for `permission` to
   name.
 
-- **A compare is by names, with no contents.** `read_compare` answers
+- **A compare is by names, with no contents.** `read_forge`'s `compare` answers
   how many commits `after` has that `before` lacks and how many it lacks,
   whether `after` contains `before`, and the changed files' paths, at
   most `forge.client.rows` (8 as configured) with how many it left out
@@ -197,13 +328,13 @@
   `AFTER is A commits ahead of BEFORE and B behind it.`, then `AFTER
   contains BEFORE.` or `AFTER lacks BEFORE.`, then `Changed files: N`,
   each path it holds, and, where it holds fewer than N, `[K not listed:
-  read_pull_files lists a pull's files; read_file reads a path at each
-  commit]`. A file's contents are `read_file` at `before` and at
+  read_issues what=pull_files lists a pull's files; read_forge what=file
+  reads a path at each commit]`. A file's contents are `file` at `before` and at
   `after`, a side `Missing` where the file is absent; its description
-  says so. A `read_compare` refusal (a forge that cuts its own listing)
+  says so. A `compare` refusal (a forge that cuts its own listing)
   names its bound as any read's does, says that the commit ids were read
   and that no other id helps, since a run that isn't told retries with
-  one it made up, and directs it to `read_pull_files` or `read_file`. A
+  one it made up, and directs it to `pull_files` or `file`. A
   successful comparison whose rendered form exceeds the host answer's
   bound returns measured-size feedback with the same recovery instead of
   losing its body at the worker.
@@ -224,7 +355,7 @@
   pull-file page retains a changed-path inventory as room permits, marks
   content omitted separately from absent sides, marks omitted paths, and
   keeps whether more pages follow. Omitted paths are recovered through
-  directory reads at both commits. It directs selected `read_file` calls
+  directory reads at both commits. It directs selected `file` reads
   at the head for after and the comparison's base commit for before;
   the base commit must be resolved separately. Advancing pages alone cannot
   recover the oversized page. A file or pull-file forge size refusal, whose
@@ -234,28 +365,30 @@
   guidance above. At a host bound too small
   for the guidance, the refusal itself is cut to fit.
 - **A refused branch read says what to read instead.** Both refusals
-  are right: `read_branches` takes a nonempty prefix, an empty one
+  are right: `branches` takes a nonempty prefix, an empty one
   ending as `Error::Empty` before any request (skein's `forge/forgejo.md`,
-  section 2), and `read_branch` of a name the forge lacks is
+  section 2), and `branch` of a name the forge lacks is
   `Error::Missing`. That is so for a goal's own branch where its goal
   holds none (a chat's `goal` names none, 2), and for a run branch
-  before its first push (`../forge/branches.md`). `read_branches`'s
+  before its first push (`../forge/branches.md`). `branches`'s
   `prefix` is declared "A nonempty prefix of the names, as temper/."
   Each refusal keeps its first line, `Forge read failed: empty` or
   `Forge read failed: missing`, and goes on after a full stop:
-  - `read_branches`, `Empty`: "read_branches needs a nonempty prefix,
-    as temper/ for temper's branches. read_settings names the default
-    branch, and read_branch reads one branch by its name."
-  - `read_branch`, `Missing`: "The forge has no branch of that name in
-    this repository. read_settings names its default branch, and
-    read_branches lists the names under a prefix, as temper/. A goal's
+  - `branches`, `Empty`: "read_forge what=branches needs a nonempty
+    prefix, as temper/ for temper's branches. read_forge what=settings
+    names the default branch, and read_forge what=branch reads one branch
+    by its name."
+  - `branch`, `Missing`: "The forge has no branch of that name in
+    this repository. read_forge what=settings names its default branch,
+    and read_forge what=branches lists the names under a prefix, as
+    temper/. A goal's
     own branch is there only where its goal holds one, and a run branch
     from its first push."
-  - `read_branches`, `TooLarge`, first line `Forge read failed: too
+  - `branches`, `TooLarge`, first line `Forge read failed: too
     large`: "The names under this prefix pass forge.client.answer_bytes,
     the one bound a branch list has: name a longer prefix, as
     temper/goal/ in place of temper/, or read one branch by its name
-    with read_branch." No row bound is named, since none applies to
+    with read_forge what=branch." No row bound is named, since none applies to
     branch names (skein's `forge/README.md`, 3.7). The tool's description says
     the same in its words: the names fit forge.client.answer_bytes, and
     a longer prefix reads fewer.
@@ -266,7 +399,7 @@
   forge.client.rows (8): 22 rows.`, then how to read on, as its tool's
   description says. Each forge read's description names the bounds its
   answer meets and how to read past them: a listing by its next page, a
-  file by path within `max_bytes` (`read_file`), a pull's files by page
+  file by path within `max_bytes` (`file`), a pull's files by page
   or a path at the head or the base, a comparison by names with each
   file's contents by path, a branch list by a longer prefix. The refusal
   stays marked an error and is cut to fit the host answer's bound, as
@@ -274,8 +407,10 @@
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
-- **`decided`,** of the control family, offered as every host tool is, to
-  every task whose question would reach a person (`../forge/attention.md`, 5): `{
+- **`decided`,** of the control family, declared where its charter names
+  that family and its authority holds it (`declarations.md`, 1), so to the
+  chat's, the goal's and the standing roles' runs, whose questions reach a
+  person (`../forge/attention.md`, 5), and not to a coder's or a reviewer's: `{
   question, options, took, why, kind, paths, under }`, `options` 2 to 6
   words of the agent's, `took` an index into them, `kind` one of the eleven
   of `../forge/attention.md`, 6, `wording`, `retry`, `implementation`, `tests`,
@@ -363,6 +498,15 @@
     "number"}` and `{"act": "drop", "number", "reason"}`: "Routed
     finding P/N to task G.", "Finding P/N is in the backlog.", "Dropped
     finding P/N.";
+  - `{"act": "repair", "numbers", "words"}`, `numbers` an array of 1 to
+    16 finding numbers of the task's project, oldest first as given,
+    `words` 1 to 4,096 bytes: "Repair goal G made for findings P/N,
+    P/M." (`../red-repairs.md`, section 4);
+  - `{"act": "blame", "number", "commit", "why"}`, `commit` 40 or 64
+    hex digits, absent for none, `why` as `hand` takes it: "Moved
+    finding P/N's blame to landing COMMIT." or "Moved finding P/N's
+    blame to no landing.", COMMIT its first twelve digits
+    (`../red-repairs.md`, section 3);
   - `{"act": "list", "state", "mine"}`, both optional: the project's
     areas, a line each, `NAME (OWNER, HOLDER): WORDS`, its triager's
     line, then its findings newest first, a line each, `P/N STATE KIND
@@ -372,9 +516,12 @@
     finding show` prints it.
 
   `HOLDER` is `task N`, `party N` or `role N`, by `../areas.md`, section
-  4. Its refusals are `../areas.md`, section 7's words, marked an error,
-  and the run goes on. The writes are named and decided once, as
-  `change`; `list` and `show` are reads.
+  4. Its refusals are `../areas.md`, section 7's words, and
+  `repair`'s and `blame`'s `../red-repairs.md`, 4.2's and section 3's,
+  marked an error, and the run goes on. The writes are named and
+  decided once, as `change`; `list` and `show` are reads. `repair` and
+  `blame` came with the host tools' contract's next version; a
+  `finding` call of the version before is handed on unchanged.
 
 - **`red`,** of the delegate family, declared where `finding` is, so
   that a goal's coordinator records the failures its branch carries
@@ -394,11 +541,12 @@
   offers it.
 
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
-  each tool's JSON Schema, description and effect, written once
-  (`delegate`'s and `amend`'s schemas name every field of the spec and
-  the authority, so that a run writes them from its tools alone, and
-  both take a priority as `{priority}`, where jig's own `delegate` takes
-  a bare number, so that a run learns one shape); a
+  each tool's declared form and whole form (`declarations.md`, 2),
+  description and effect, written once (`delegate`'s and `amend`'s whole
+  forms name every field of the spec and the authority, their declared
+  forms the members a call usually sets, and both take a priority as
+  `{priority}`, where jig's own `delegate` takes a bare number, so that a
+  run learns one shape); a
   call's input decoded into the root's `Tool`, or answered at once as an
   error naming what is wrong, deciding nothing; an answer rendered as
   smith's text, marked an error or not (`../../protocol/llm.md`, section 4).
@@ -430,7 +578,7 @@
   with what it is now, and the run decides again on that.
 - **Not the engine's:** `wait`, `finish` and `deliver` (jig's
   `domain/engine/executors.md`, 3). `deliver` is a push (`README.md`, section 5).
-- **Jobs are smith's** (smith's `domain/tools.md`), not `read_job`'s,
+- **Jobs are smith's** (smith's `domain/tools.md`), not `read_ci`'s `job`,
   which reads a CI job's log. A `shell` command that runs past its
   yield goes on as a job in the agent's process, under the charter's
   `shell` (from `policy.shell`); the run reads or stops it with smith's
@@ -442,7 +590,7 @@
 ## 1. A change, in the run's words
 
 The stock chat first reads the code a repository change touches with the
-forge's `read_branch` for its head, then `read_file`. It calls `change`
+forge's `read_forge what=branch` for its head, then `what=file`. It calls `change`
 with the person's request and only what it read, never describing code
 it has not read, its words opening with a title line written for a
 person (`charter.md`, 4, *Words a person reads first*). Repository changes go through `change`, never through
@@ -476,7 +624,9 @@ any `delegate` (jig's authority, named and decided once):
 - **the delegate:** the change procedure (../forge/change/README.md, 1) with the words,
   the repository's resource and its landing branch: the one the call
   names (below), or with none the applicable held goal branch, otherwise
-  the repository's default branch; a
+  the repository's landing branch, the one its adoption names
+  (`../forge/adoption.md`, 8), which is its default branch only where
+  the adoption named that; a
   change's contract, its words bounded by the deployment's
   `tasks.result_bytes`;
 - **its authority, the run's own narrowed:** the run's grants of the
@@ -500,6 +650,19 @@ any `delegate` (jig's authority, named and decided once):
 A `delegate` refused for an executor or a grant says, too, that a
 repository change is `change`'s.
 
+**A person's report has a floor.** jig refuses a report contract bound at
+0 words addressed to a person or a role (jig's `domain/people/README.md`,
+7), and the run learns it before and after the call:
+
+- **The schema says it:** `delegate`'s `contract` description ends
+  `A person's or a role's report: words at least 1.`; its `words` keeps
+  `minimum` 0, which an agent's report and a verdict's choices still
+  take.
+- **The refusal names the bound:** a batch refused as `Refusal::Contract`
+  reads `task <N> result contract (words at most the result bound; a
+  person's or a role's report at least 1)`, whatever the tool that made
+  the batch, so that a run can mend the member it names.
+
 **What a plan decides.** Beside the words and the repository, a call
 names what a plan decides of each change, and the root still builds the
 delegate from what it knows:
@@ -515,11 +678,11 @@ delegate from what it knows:
 - **`landing`:** `"goal"`, the nearest goal branch held by the requester
   or one of its ancestors in the change's repository (../forge/branches.md, 1);
   or a branch's name in the repository. Left out, that held goal branch,
-  otherwise the repository's default branch. Ordinary child changes,
+  otherwise the repository's landing branch. Ordinary child changes,
   including calls from the goal's subtree, cannot name a destination
   outside that held branch: the whole call is refused before any delegate
   is made. `"branch": "mine"` deliberately lands the requester's held goal
-  branch whole, defaulting to the repository's default branch. `"goal"`
+  branch whole, defaulting to the repository's landing branch. `"goal"`
   with no applicable held goal branch is refused, saying so; a
   name that is not a branch's (an empty segment) is refused, naming it;
   a branch the repository lacks holds the change at its opening, the
@@ -756,26 +919,18 @@ change, and the change lands, at a goal's run more than the chat's own
   parser's errors. Default: those words, until a proposal needs the same
   kind-specific guidance. Both tools' schemas name the numbered kinds.
 
-- **A collaborator's login in `read_collaborators`** (`tools.md`). Default: ids,
-  with `read_permission` naming each.
+- **A collaborator's login in `read_forge`'s `collaborators`** (`tools.md`). Default: ids,
+  with `permission` naming each.
 
-- **`read_permission`'s login held to the settings family** (`tools.md`). It
+- **`permission`'s login held to the settings family** (`tools.md`). It
   reaches every run with the forge reads, as the forge's own answer about
   a user of a repository that run may already read; holding it would be a
   condition in `temper-engine-domain`'s render. Default: every such run.
 
-- **Which host tools a charter offers.** jig's charter carries the host
-  families its charter's `tools` names and its task's authority holds
-  (jig's `domain/engine/executors.md`, 1), each stock charter's named in
-  `../../protocol/configuration/stock.md`; temper's declares by them the
-  `settings` and delegate families alone, an asking charter its own tools
-  alone, and every other host tool in every other charter (`tools.md`), and the
-  authority refuses what it does not allow. Whether to declare only what the
-  charter names for the other families too, which the host part's budget (`room.md`, 1)
-  may force, and how a brief teaches an LLM when to delegate a task rather
-  than a sub-agent. `withdraw`, offered to a chat and refused by its
-  authority, since policy 1 gives no decide family
-  (`../../protocol/configuration/stock.md`), is one such tool.
+- **When to delegate a task rather than a sub-agent.** A run is declared
+  its charter's families' tools alone (`declarations.md`, 1); how a brief
+  teaches an LLM to choose a delegated task over a sub-agent of its own is
+  open. Default: the charters' words.
 
 - **Who may name a plan's members of `change`:** the control family
   says it (`tools.md`, 1), since a plan's maker amends, cancels and releases what
@@ -800,3 +955,10 @@ change, and the change lands, at a goal's run more than the chat's own
   guidance, without a new admission restriction; the existing live story
   runs after landing (`../../testing/live-tier.md`). A scripted call establishes
   neither model choice nor recovery.
+
+- **A branch read naming its branch** (`tools.md`, *The forge's reads
+  are three tools*): `read_forge what=branch` with no branch answers the
+  default branch's head commit alone, as every branch read answers, so a
+  run that wants the default branch's name reads `what=settings`.
+  Default: the commit alone, until runs are seen to read settings for
+  the name; naming the branch would change every branch read's answer.

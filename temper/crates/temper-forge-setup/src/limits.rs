@@ -11,8 +11,8 @@ pub const FETCH_BYTES: u64 = 268_435_456;
 pub fn fetch_bytes(value: u64) -> Result<u64, Refused> {
     if value == 0 { Err(Refused::Range) } else { Ok(value) }
 }
-/// Small-profile host admission, beside the pure plan profile returned by `small()`.
-pub mod small {
+/// Setup host admission at the stock’s four concurrent forges.
+mod admission {
     /// A copy may wait thirty minutes for its source (protocol/setup/owned.md, 9).
     pub const COPY_DEADLINE: skein_lib::Duration = skein_lib::Duration::from_secs(1800);
     // Four forges, each with one writing run and one Reachable beside it.
@@ -20,6 +20,7 @@ pub mod small {
     // A manifest return and an installation return for each of four forges.
     pub const STATES: u32 = 8;
 }
+pub use admission::COPY_DEADLINE;
 /// The engine host's setup limits (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Host {
@@ -32,13 +33,13 @@ pub struct Host {
     pub backoff: Duration,
     pub backoff_max: Duration,
 }
-/// The host reuses the existing plan profile.
+/// The host reuses the stock plan limits.
 #[must_use]
 pub fn host() -> Host {
-    let plan = small();
+    let plan = stock();
     Host {
-        runs: small::RUNS,
-        states: small::STATES,
+        runs: admission::RUNS,
+        states: admission::STATES,
         state_life: Duration::from_secs(3600),
         reachable: plan.reachable,
         repositories: plan.repositories,
@@ -54,11 +55,11 @@ impl Host {
         Limits {
             orgs: ORGS,
             reachable: self.reachable,
-            files: 2,
+            files: 3,
             file_bytes: 4096,
             repositories: self.repositories,
             deadline: self.deadline,
-            copy_deadline: small::COPY_DEADLINE,
+            copy_deadline: COPY_DEADLINE,
             backoff: self.backoff,
             backoff_max: self.backoff_max,
         }
@@ -110,19 +111,19 @@ pub enum Refused {
     Unknown,
     Range,
 }
-/// The shipped profile (forge-setup decision 5).
+/// The stock (forge-setup decision 5).
 #[must_use]
-pub fn small() -> Limits {
+pub fn stock() -> Limits {
     // Legacy command default; checked startup supplies forge.client.repositories.
     let repositories = 2;
     Limits {
         orgs: ORGS,
         reachable: 8, // Legacy command default; checked startup supplies picker.page.
-        files: 2,
+        files: 3,
         file_bytes: 4096,
         repositories,
         deadline: Duration::from_secs(120),
-        copy_deadline: small::COPY_DEADLINE,
+        copy_deadline: COPY_DEADLINE,
         backoff: Duration::from_millis(100),
         backoff_max: Duration::from_secs(5),
     }

@@ -1,6 +1,7 @@
 //! The notes family's translation both ways (protocol/store/records.md 1).
 use super::fixtures;
 use crate::codec::{accounts, component, notes};
+use crate::tasks_v13::Record;
 use jig_domain_notes as domain;
 
 const PROJECT: u32 = 1;
@@ -19,7 +20,10 @@ fn a_notes_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 2;
     assert_eq!(
         notes::decode(&bytes, &limits),
-        Err(crate::notes_v1::Problem { path: crate::notes_v1::Path::RowVersion, reason: skein_codec::Reason::Version })
+        Err(crate::notes_v1::Problem {
+            path: crate::notes_v1::paths::ROW_VERSION,
+            reason: skein_codec::Reason::Version
+        })
     );
 }
 fn notes_limits_past_the_ceilings_are_refused() {
@@ -224,12 +228,12 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     let mut label = account_fact(FactValue::Count(0));
     label.label = Box::new([b'l'; 33]);
     for (record, path) in [
-        (facts_record(repeated_account_facts(25)), crate::accounts_v2::Path::FactsFacts),
+        (facts_record(repeated_account_facts(25)), crate::accounts_v2::paths::FACTS_FACTS),
         (
             facts_record(Box::new([account_fact(FactValue::Text(Box::new([b't'; 256])))])),
-            crate::accounts_v2::Path::FactTextText,
+            crate::accounts_v2::paths::FACT_TEXT_TEXT,
         ),
-        (facts_record(Box::new([label])), crate::accounts_v2::Path::FactLabel),
+        (facts_record(Box::new([label])), crate::accounts_v2::paths::FACT_LABEL),
     ] {
         assert_eq!(
             accounts::encode(&record),
@@ -238,13 +242,13 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     }
 }
 fn a_share_past_whole_does_not_decode() {
-    use crate::accounts_v2::{Path, Problem};
+    use crate::accounts_v2::{Problem, paths};
     use jig_domain_accounts::{FactValue, FactWindow};
     for (value, path) in [
-        (FactValue::Share(10_001), Path::FactShareBasis),
+        (FactValue::Share(10_001), paths::FACT_SHARE_BASIS),
         (
             FactValue::Window(FactWindow { length: None, used: Some(10_001), resets: None, state: 1 }),
-            Path::FactWindowUsed,
+            paths::FACT_WINDOW_USED,
         ),
     ] {
         let bytes =
@@ -277,7 +281,7 @@ fn a_notes_pattern_past_its_aggregate_limit_is_refused() {
     assert_eq!(
         notes::encode(&domain::Record::Line(line), &limits),
         Err(crate::notes_v1::Problem {
-            path: crate::notes_v1::Path::PatternSegments,
+            path: crate::notes_v1::paths::PATTERN_SEGMENTS,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -316,7 +320,7 @@ fn a_decoded_pattern_past_its_aggregate_limit_is_refused() {
     assert_eq!(
         notes::decode(&bytes, &limits),
         Err(crate::notes_v1::Problem {
-            path: crate::notes_v1::Path::PatternSegments,
+            path: crate::notes_v1::paths::PATTERN_SEGMENTS,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -378,22 +382,18 @@ fn a_pool_slot_report_reads_back() {
     assert_eq!(saved_tasks(&row), Ok(row));
 }
 
-fn saved_wire<T>(
-    value: T,
-    measure: fn(&T) -> u32,
-    encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&crate::tasks_v13::Limits, &mut skein_lib::Reader<'_>) -> Result<T, crate::tasks_v13::Problem>,
-) -> T {
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(&value)));
-    encode(&value, &mut writer).expect("measured room");
-    decode(&tasks_limits(), &mut skein_lib::Reader::new(&writer.finish())).expect("within bounds")
+fn saved_wire<T: Record<Limits = crate::tasks_v13::Limits>>(value: T) -> T {
+    let limits = tasks_limits();
+    let bytes = value.encode(&limits).expect("within bounds");
+    T::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("within bounds")
 }
+
 fn saved_authority(
     value: &jig_domain_tasks::Authority,
 ) -> Result<jig_domain_tasks::Authority, crate::tasks_v13::Problem> {
-    use crate::{codec::tasks::value as translate, tasks_v13::Authority};
+    use crate::codec::tasks::value as translate;
     let value = translate::authority(value, &tasks_limits(), None)?;
-    let value = saved_wire(value, Authority::measure, Authority::encode, Authority::decode);
+    let value = saved_wire(value);
     translate::read_authority(value, &tasks_limits())
 }
 fn an_authority_with_every_grant_kind_reads_back() {
@@ -406,27 +406,27 @@ fn an_authority_without_a_deadline_reads_back() {
     assert_eq!(saved_authority(&value), Ok(value));
 }
 fn a_specification_with_every_parameter_kind_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Spec};
+    use crate::codec::tasks::value as translate;
     let value = fixtures::task_spec();
     let limits = tasks_limits();
     let encoded = translate::spec(&value, &limits).expect("within bounds");
-    let encoded = saved_wire(encoded, Spec::measure, Spec::encode, Spec::decode);
+    let encoded = saved_wire(encoded);
     assert_eq!(translate::read_spec(encoded, &limits), Ok(value));
 }
 fn each_party_kind_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Party};
+    use crate::codec::tasks::value as translate;
     for value in [
         jig_domain_tasks::Party::Task(u64::MAX),
         jig_domain_tasks::Party::Person(13),
         jig_domain_tasks::Party::Deployment { project: u32::MAX },
     ] {
         let encoded = translate::party(&value, &tasks_limits()).expect("within bounds");
-        let encoded = saved_wire(encoded, Party::measure, Party::encode, Party::decode);
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_party(encoded), value);
     }
 }
 fn each_executor_kind_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Executor};
+    use crate::codec::tasks::value as translate;
     use jig_domain_tasks::PersonAddress;
     for value in [
         jig_domain_tasks::Executor::Agent { charter: 7 },
@@ -435,12 +435,12 @@ fn each_executor_kind_reads_back() {
         jig_domain_tasks::Executor::Person(PersonAddress::Role(u32::MAX)),
     ] {
         let encoded = translate::executor(value, &tasks_limits()).expect("within bounds");
-        let encoded = saved_wire(encoded, Executor::measure, Executor::encode, Executor::decode);
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_executor(encoded), value);
     }
 }
 fn each_failure_class_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Class};
+    use crate::codec::tasks::value as translate;
     use jig_domain_tasks::Class as Domain;
     for value in [
         Domain::Transient,
@@ -451,12 +451,12 @@ fn each_failure_class_reads_back() {
         Domain::Invalid,
         Domain::Infrastructure,
     ] {
-        let encoded = saved_wire(translate::class(value), Class::measure, Class::encode, Class::decode);
+        let encoded = saved_wire(translate::class(value));
         assert_eq!(translate::read_class(encoded), value);
     }
 }
 fn each_activation_cause_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Why};
+    use crate::codec::tasks::value as translate;
     use jig_domain_tasks::{Tries, Why as Domain};
     for value in [
         Domain::Made,
@@ -470,22 +470,39 @@ fn each_activation_cause_reads_back() {
         Domain::Changed,
     ] {
         let encoded = translate::why(value, &tasks_limits()).expect("within bounds");
-        let encoded = saved_wire(encoded, Why::measure, Why::encode, Why::decode);
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_why(encoded), value);
     }
 }
 fn saved_contract(value: &jig_domain_tasks::Contract) -> Result<jig_domain_tasks::Contract, crate::tasks_v13::Problem> {
-    use crate::{codec::tasks::value as translate, tasks_v13::Contract};
+    use crate::codec::tasks::value as translate;
     let value = translate::contract(value, &tasks_limits())?;
-    let value = saved_wire(value, Contract::measure, Contract::encode, Contract::decode);
+    let value = saved_wire(value);
     translate::read_contract(value, &tasks_limits())
 }
+#[test]
+fn a_change_contract_retains_its_verdict_choice() {
+    use jig_domain_tasks::{Contract, FieldRule, Verdict};
+    let value = Contract::Change {
+        connector: 1,
+        kind: 2,
+        words: 32,
+        choices: Box::new([Verdict {
+            code: 1,
+            words: 5,
+            followups: 0,
+            fields: Box::new([FieldRule { name: b"reason".as_slice().into(), max: 2 }]),
+        }]),
+    };
+    assert_eq!(saved_contract(&value), Ok(value));
+}
+
 fn each_result_contract_kind_reads_back() {
     use jig_domain_tasks::{Contract, Part, PartKey, PartKind};
     for value in [
         fixtures::task_contract(),
         Contract::Report { words: 13 },
-        Contract::Change { connector: 2, kind: 3, words: 17 },
+        Contract::Change { connector: 2, kind: 3, words: 17, choices: Box::new([]) },
         Contract::Approval {
             state: Box::from(b"approval".as_slice()),
             part: Part { connector: 7, kind: PartKind::Effect, key: PartKey::Number(u64::MAX) },
@@ -495,7 +512,7 @@ fn each_result_contract_kind_reads_back() {
     }
 }
 fn each_connector_part_kind_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Part};
+    use crate::codec::tasks::value as translate;
     use jig_domain_tasks::{PartKey, PartKind};
     for kind in [
         PartKind::Resource,
@@ -511,7 +528,7 @@ fn each_connector_part_kind_reads_back() {
         path.push(Box::from(b"b".as_slice())).expect("room for two segments");
         let value = jig_domain_tasks::Part { connector: 2, kind, key: PartKey::Path(path) };
         let encoded = translate::part(&value, &tasks_limits()).expect("within bounds");
-        let encoded = saved_wire(encoded, Part::measure, Part::encode, Part::decode);
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_part(encoded, &tasks_limits()), Ok(value));
     }
 }
@@ -529,17 +546,17 @@ fn spec_with_bytes(bytes: usize) -> jig_domain_tasks::Spec {
     }
 }
 fn a_specification_at_its_aggregate_byte_bound_reads_back() {
-    use crate::{codec::tasks::value as translate, tasks_v13::Spec};
+    use crate::codec::tasks::value as translate;
     let value = spec_with_bytes(32);
     let encoded = translate::spec(&value, &tasks_limits()).expect("at its byte bound");
-    let encoded = saved_wire(encoded, Spec::measure, Spec::encode, Spec::decode);
+    let encoded = saved_wire(encoded);
     assert_eq!(translate::read_spec(encoded, &tasks_limits()), Ok(value));
 }
 fn a_specification_past_its_aggregate_byte_bound_is_refused() {
     use crate::codec::tasks::value as translate;
     let mut value = spec_with_bytes(32);
     value.words = Box::new([1]);
-    assert_eq!(translate::spec(&value, &tasks_limits()), Err(bound_problem(crate::tasks_v13::Path::SpecWords)));
+    assert_eq!(translate::spec(&value, &tasks_limits()), Err(bound_problem(crate::tasks_v13::paths::SPEC_WORDS)));
 }
 fn a_decoded_specification_past_its_aggregate_byte_bound_is_refused() {
     use crate::codec::tasks::value as translate;
@@ -548,7 +565,7 @@ fn a_decoded_specification_past_its_aggregate_byte_bound_is_refused() {
     let mut wider = tasks_limits();
     wider.spec_words = 33;
     let encoded = translate::spec(&value, &wider).expect("within wider limit");
-    assert_eq!(translate::read_spec(encoded, &tasks_limits()), Err(bound_problem(crate::tasks_v13::Path::SpecWords)));
+    assert_eq!(translate::read_spec(encoded, &tasks_limits()), Err(bound_problem(crate::tasks_v13::paths::SPEC_WORDS)));
 }
 fn authority_with_bytes(bytes: usize) -> jig_domain_tasks::Authority {
     let mut value = fixtures::task_authority();
@@ -581,7 +598,7 @@ fn authority_past_shared_bytes() -> jig_domain_tasks::Authority {
 fn grants_and_note_resources_past_their_shared_byte_bound_are_refused() {
     assert_eq!(
         crate::codec::tasks::value::authority(&authority_past_shared_bytes(), &tasks_limits(), None),
-        Err(bound_problem(crate::tasks_v13::Path::AuthorityGrants)),
+        Err(bound_problem(crate::tasks_v13::paths::AUTHORITY_GRANTS)),
     );
 }
 fn decoded_grants_and_note_resources_past_their_shared_byte_bound_are_refused() {
@@ -591,7 +608,7 @@ fn decoded_grants_and_note_resources_past_their_shared_byte_bound_are_refused() 
     let encoded = translate::authority(&authority_past_shared_bytes(), &wider, None).expect("within wider limit");
     assert_eq!(
         translate::read_authority(encoded, &tasks_limits()),
-        Err(bound_problem(crate::tasks_v13::Path::AuthorityGrants))
+        Err(bound_problem(crate::tasks_v13::paths::AUTHORITY_GRANTS))
     );
 }
 fn writer_with_path_bytes(bytes: usize) -> jig_domain_tasks::Stored {
@@ -610,7 +627,7 @@ fn a_writer_resource_past_its_aggregate_byte_bound_is_refused() {
             &tasks_limits(),
             &fixtures::configured_model_names(&[b"first", b"second", b"third"])
         ),
-        Err(bound_problem(crate::tasks_v13::Path::NamePath))
+        Err(bound_problem(crate::tasks_v13::paths::NAME_PATH))
     );
 }
 fn a_decoded_writer_resource_past_its_aggregate_byte_bound_is_refused() {
@@ -629,7 +646,7 @@ fn a_decoded_writer_resource_past_its_aggregate_byte_bound_is_refused() {
             &tasks_limits(),
             &fixtures::configured_model_names(&[b"first", b"second", b"third"])
         ),
-        Err(bound_problem(crate::tasks_v13::Path::NamePath))
+        Err(bound_problem(crate::tasks_v13::paths::NAME_PATH))
     );
 }
 fn a_tasks_row_of_another_version_does_not_decode() {
@@ -646,7 +663,7 @@ fn a_tasks_row_of_another_version_does_not_decode() {
             &fixtures::configured_model_names(&[b"first", b"second", b"third"])
         ),
         Err(crate::tasks_v13::Problem {
-            path: crate::tasks_v13::Path::RowVersion,
+            path: crate::tasks_v13::paths::ROW_VERSION,
             reason: skein_codec::Reason::Version
         })
     );
@@ -694,7 +711,7 @@ fn contract_past_shared_bytes() -> jig_domain_tasks::Contract {
 fn verdict_rules_past_their_aggregate_byte_bound_are_refused() {
     assert_eq!(
         crate::codec::tasks::value::contract(&contract_past_shared_bytes(), &tasks_limits()),
-        Err(bound_problem(crate::tasks_v13::Path::VerdictFields))
+        Err(bound_problem(crate::tasks_v13::paths::VERDICT_FIELDS))
     );
 }
 fn decoded_verdict_rules_past_their_aggregate_byte_bound_are_refused() {
@@ -704,7 +721,7 @@ fn decoded_verdict_rules_past_their_aggregate_byte_bound_are_refused() {
     let encoded = translate::contract(&contract_past_shared_bytes(), &wider).expect("within wider limit");
     assert_eq!(
         translate::read_contract(encoded, &tasks_limits()),
-        Err(bound_problem(crate::tasks_v13::Path::VerdictFields))
+        Err(bound_problem(crate::tasks_v13::paths::VERDICT_FIELDS))
     );
 }
 
@@ -728,9 +745,7 @@ fn people_round_trip(row: jig_domain_people::Stored) {
 fn ask_round_trip(ask: jig_domain_people::Ask) {
     let limits = people_limits();
     let value = crate::codec::people::encode_ask(&ask, &limits).expect("bounded ask");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured room");
-    let bytes = writer.finish();
+    let bytes = value.encode(&limits).expect("bounded value");
     let read = crate::people_v17::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
@@ -847,7 +862,7 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &fixtures::configured_model_names(&[])
         ),
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::IdentityKeySubject,
+            path: crate::people_v17::paths::IDENTITY_KEY_SUBJECT,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -862,7 +877,7 @@ fn a_people_row_of_another_version_does_not_decode() {
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::RowVersion,
+            path: crate::people_v17::paths::ROW_VERSION,
             reason: skein_codec::Reason::Version
         })
     );
@@ -887,6 +902,12 @@ fn a_refused_delegation_reads_back_with_its_problem() {
         fixtures::calls::problem(),
     )));
 }
+#[test]
+fn an_unreported_batch_reads_back_with_its_missing_members() {
+    let problem = jig_domain_tasks::Problem::naming(Some(9871), jig_domain_tasks::Refusal::Unreported, &[9871, 9873]);
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(problem)));
+}
+
 fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
     use jig_domain_tasks::LlmFault;
     for why in [
@@ -1266,7 +1287,7 @@ fn unrelated_tasks_rows_keep_no_model_names_or_configuration_bytes() {
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         assert_eq!(bytes, crate::codec::tasks::encode(&row, &limits, &[]).unwrap());
         let wire = crate::tasks_v13::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert!(wire.models().is_empty());
+        assert!(wire.models.is_empty());
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
     }
 }
@@ -1286,9 +1307,9 @@ fn tasks_context_contains_only_canonical_referenced_names_with_reindexed_selecto
         let row = t::Stored::PersonProposal(Box::new(proposal));
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         let wire = crate::tasks_v13::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(wire.models().len(), 2);
-        assert_eq!(wire.models().get(0).unwrap().value(), b"a");
-        assert_eq!(wire.models().get(1).unwrap().value(), b"z");
+        assert_eq!(wire.models.len(), 2);
+        assert_eq!(wire.models.get(0).unwrap().value.as_ref(), b"a");
+        assert_eq!(wire.models.get(1).unwrap().value.as_ref(), b"z");
         if let Some(same) = &same {
             assert_eq!(&bytes, same);
         } else {
@@ -1304,7 +1325,7 @@ fn tasks_context_contains_only_canonical_referenced_names_with_reindexed_selecto
         let names = fixtures::configured_model_names(&[b"z", b"unused", b"a"]);
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         let wire = crate::tasks_v13::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert!(wire.models().is_empty());
+        assert!(wire.models.is_empty());
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
     }
 }
@@ -1328,7 +1349,7 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
         let row = t::Stored::PersonProposal(Box::new(proposal));
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         let wire = crate::tasks_v13::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(wire.models().len(), if selector.is_all() { 0 } else { 64 });
+        assert_eq!(wire.models.len(), if selector.is_all() { 0 } else { 64 });
         assert!(skein_lib::length::len_u64(bytes.len()) <= crate::tasks_v13::Row::encoded_bound(&limits).unwrap());
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
         let now = Box::new([
@@ -1380,9 +1401,9 @@ fn canonical_tasks_context_reindexes_live_recurring_proposals_and_history() {
     ] {
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         let wire = crate::tasks_v13::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(wire.models().len(), 2);
-        assert_eq!(wire.models().get(0).unwrap().value(), b"a");
-        assert_eq!(wire.models().get(1).unwrap().value(), b"z");
+        assert_eq!(wire.models.len(), 2);
+        assert_eq!(wire.models.get(0).unwrap().value.as_ref(), b"a");
+        assert_eq!(wire.models.get(1).unwrap().value.as_ref(), b"z");
         let decoded = if let t::Stored::Live(task) = &row {
             let jig_domain_core_vocabulary::Record::Tasks(cold) = fixtures::cold_task(task) else { unreachable!() };
             let cold = crate::codec::tasks::encode(&cold, &limits, &names).unwrap();
@@ -1524,7 +1545,7 @@ fn a_stored_project_name_is_bounded_and_utf8() {
         writer.put(&name).expect("name");
         assert_eq!(
             wire::StoredPolicy::decode(&limits, &mut Reader::new(&writer.finish())),
-            Err(wire::Problem { path: wire::Path::StoredPolicyName, reason }),
+            Err(wire::Problem { path: wire::paths::STORED_POLICY_NAME, reason }),
         );
     }
 }
@@ -1679,25 +1700,17 @@ fn a_nothing_awaited_notice_survives_storage_with_small_caller_limits() {
 /// Application job values survive total store translations (jig/docs/design/protocol/store/records.md, 1).
 #[test]
 fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
-    use crate::{
-        codec::tasks::{activity, phase, value as translate},
-        tasks_v13 as w,
-    };
+    use crate::codec::tasks::{activity, phase, value as translate};
     use jig_domain_tasks as t;
     let limits = tasks_limits();
     for kind in [0, u32::MAX] {
         let executor = t::Executor::Job { kind };
         let encoded = translate::executor(executor, &limits).unwrap();
-        let encoded = saved_wire(encoded, w::Executor::measure, w::Executor::encode, w::Executor::decode);
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_executor(encoded), executor);
         let delegation = t::AuthorityExecutor::Job(kind);
         let encoded = translate::authority_executor(&delegation, &limits).unwrap();
-        let encoded = saved_wire(
-            encoded,
-            w::AuthorityExecutor::measure,
-            w::AuthorityExecutor::encode,
-            w::AuthorityExecutor::decode,
-        );
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_authority_executor(encoded), delegation);
     }
     for deadline in [skein_lib::Duration::ZERO, skein_lib::Duration::from_nanos(u64::MAX)] {
@@ -1709,21 +1722,21 @@ fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
             asks: false,
         };
         let encoded = translate::spec(&spec, &limits).unwrap();
-        let encoded = saved_wire(encoded, w::Spec::measure, w::Spec::encode, w::Spec::decode);
+        let encoded = saved_wire(encoded);
         assert_eq!(translate::read_spec(encoded, &limits), Ok(spec));
     }
     let contract = t::Contract::Job { bytes: limits.job_result_bytes };
     let encoded = translate::contract(&contract, &limits).unwrap();
-    let encoded = saved_wire(encoded, w::Contract::measure, w::Contract::encode, w::Contract::decode);
+    let encoded = saved_wire(encoded);
     assert_eq!(translate::read_contract(encoded, &limits), Ok(contract));
     let mut bytes = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.job_result_bytes));
     bytes.fill(0xff);
     let result = t::TaskResult::Job { bytes };
     let encoded = phase::result(&result, &limits).unwrap();
-    let encoded = saved_wire(encoded, w::TaskResult::measure, w::TaskResult::encode, w::TaskResult::decode);
+    let encoded = saved_wire(encoded);
     assert_eq!(phase::read_result(encoded, &limits), Ok(result));
     let encoded = activity::result_kind(&t::ResultKind::Job, &limits).unwrap();
-    let encoded = saved_wire(encoded, w::ResultKind::measure, w::ResultKind::encode, w::ResultKind::decode);
+    let encoded = saved_wire(encoded);
     assert_eq!(activity::read_result_kind(encoded, &limits), Ok(t::ResultKind::Job));
 }
 
@@ -1737,16 +1750,14 @@ fn job_spec_bytes_one_past_the_bound_are_refused() {
         bytes: Box::new([0xff; 33]),
         deadline: skein_lib::Duration::from_secs(7),
     }));
-    assert_eq!(translate::spec(&spec, &limits), Err(bound_problem(w::Path::JobSpecBytes)));
+    assert_eq!(translate::spec(&spec, &limits).unwrap().encode(&limits), Err(bound_problem(w::paths::JOB_SPEC_BYTES)));
     let wider = w::Limits { job_spec_bytes: 33, ..limits };
     let encoded = translate::spec(&spec, &wider).unwrap();
-    assert_eq!(translate::read_spec(encoded.clone(), &limits), Err(bound_problem(w::Path::JobSpecBytes)));
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(encoded.measure()));
-    encoded.encode(&mut writer).unwrap();
-    let bytes = writer.finish();
+    assert_eq!(translate::read_spec(encoded.clone(), &limits), Err(bound_problem(w::paths::JOB_SPEC_BYTES)));
+    let bytes = encoded.encode(&wider).unwrap();
     assert_eq!(
         w::Spec::decode(&limits, &mut skein_lib::Reader::new(&bytes)),
-        Err(bound_problem(w::Path::JobSpecBytes))
+        Err(bound_problem(w::paths::JOB_SPEC_BYTES))
     );
 }
 
@@ -1788,7 +1799,7 @@ fn a_stored_member_keeps_its_symbols() {
                 assert_eq!(
                     crate::codec::people::encode(&row, &limits, &names),
                     Err(crate::people_v17::Problem {
-                        path: crate::people_v17::Path::MemberSymbols,
+                        path: crate::people_v17::paths::MEMBER_SYMBOLS,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );
@@ -1802,7 +1813,7 @@ fn a_stored_member_keeps_its_symbols() {
                 assert_eq!(
                     crate::codec::people::decode(&bytes, &narrower, &names),
                     Err(crate::people_v17::Problem {
-                        path: crate::people_v17::Path::MemberSymbols,
+                        path: crate::people_v17::paths::MEMBER_SYMBOLS,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );
@@ -1916,15 +1927,14 @@ fn task_talks_and_their_lines_round_trip() {
 fn rows_stored_before_talk_decode_with_no_talk() {
     use crate::{codec::tasks as codec, tasks_v13 as w};
     use jig_domain_tasks as t;
-    use skein_lib::{List, Writer};
+    use skein_lib::List;
     let limits = tasks_limits();
     let original = fixtures::task_record();
-    let modern = codec::record::task_record(&original, &limits, None).unwrap().into_parts();
+    let modern = codec::record::task_record(&original, &limits, None).unwrap();
     let value = w::Value::Ended(modern.record);
-    let record = w::Row::new(&limits, w::RowParts { value, models: List::with_capacity(0) }).unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
-    assert_eq!(codec::decode(&bytes.finish(), &limits, &[]), Ok(t::Stored::Ended(Box::new(original))));
+    let record = w::Row { value, models: List::with_capacity(0) };
+    let bytes = record.encode(&limits).unwrap();
+    assert_eq!(codec::decode(&bytes, &limits, &[]), Ok(t::Stored::Ended(Box::new(original))));
 }
 
 #[test]

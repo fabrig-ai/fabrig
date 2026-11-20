@@ -4,9 +4,12 @@ use crate::{OpenRefusal, Store, Unplanned};
 use alloc::boxed::Box;
 use skein_codec::{
     layout::{Plan, Underived, Why, Workspace},
-    schema::{Schema, Span},
+    schema::Span,
 };
 use skein_lib::List;
+
+mod held;
+pub use held::{HeldLayout, judge_held_layout};
 
 fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
     let mut count = 0_u64;
@@ -73,47 +76,64 @@ fn derive(
     binary: &mut texts::Binary,
     layouts: &Layouts,
     row: &Row,
-    new: &Schema,
+    digest: super::Digest,
     ty: &crate::ValueType,
-    new_held: &[&Schema],
-) -> Result<Plan, Unplanned> {
-    let text = layouts.texts.get(row.value.text()).ok_or(Unplanned::Text)?;
+    held: &List<super::Digest>,
+) -> Result<Option<Plan>, Unplanned> {
+    let text = layouts.texts.get(&row.value.text).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
         return Err(Unplanned::Text);
     }
     let old = text.schema.as_ref().ok_or(Unplanned::Text)?;
-    let old_held = texts::schemas(layouts, row.value.held(), row.stored).ok_or(Unplanned::Text)?;
-    let variant = match row.value.variant() {
-        Some(variant) => Some(variant.as_ref()),
-        None => None,
-    };
-    let old_root = old.root(row.value.root(), variant).ok_or(Unplanned::Text)?;
+    let old_held = texts::schemas(layouts, &row.value.held, row.stored).ok_or(Unplanned::Text)?;
+    let variant = row.value.variant.as_deref();
+    let old_root = old.root(&row.value.root, variant).ok_or(Unplanned::Text)?;
+    let new = layouts.texts.get(&digest).ok_or(Unplanned::Text)?.schema.as_ref().ok_or(Unplanned::Text)?;
     let new_root = new.root(ty.root.as_bytes(), super::variant(ty.variant)).ok_or(Unplanned::Text)?;
+    let new_held = texts::schemas(layouts, held, false).ok_or(Unplanned::Text)?;
     // Check that the kept text and the row agree, rather than trusting its id.
-    let fingerprint = binary
-        .layout(layouts, *row.value.text(), row.value.root(), variant, row.value.held())
-        .ok_or(Unplanned::Text)?;
-    if fingerprint != *row.value.layout() {
+    let fingerprint =
+        binary.layout(layouts, row.value.text, &row.value.root, variant, &row.value.held).ok_or(Unplanned::Text)?;
+    if fingerprint != row.value.layout {
         return Err(Unplanned::Text);
     }
-    match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held) {
-        Ok(plan) => Ok(plan),
+    // The id or fingerprint alone cannot prove identical conversion inputs.
+    // Digest checks have validated the stored bytes, including every held text.
+    if row.value.text == digest
+        && row.value.root.as_ref() == ty.root.as_bytes()
+        && variant == super::variant(ty.variant)
+        && &row.value.held == held
+        && binary.shallow(layouts, digest, new_root.decl, held)
+    {
+        return Ok(None);
+    }
+    #[cfg(test)]
+    super::counting::plan();
+    match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held.as_slice()) {
+        Ok(plan) => Ok(Some(plan)),
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
-fn job(store: &Store, key: &RowKey, row: &Row) -> Option<&'static str> {
+fn conversion(job: &crate::Job, family: &str, number: u16) -> Option<crate::Layouts> {
+    let converts = job.converts.as_ref()?;
+    if converts.family == family && converts.value_type == number { Some(converts.from) } else { None }
+}
+fn job(store: &mut Store, key: &RowKey, row: &Row) -> Result<Option<&'static str>, OpenRefusal> {
+    let mut one = None;
     for set in store.owner_sets.sets {
         for job in set.jobs {
-            if let Some(converts) = &job.converts
-                && key.0.as_ref() == converts.family
-                && key.1 == converts.value_type
-                && row.value.layout() == &converts.from
-            {
-                return Some(job.name);
+            if let Some(from) = conversion(job, &key.0, key.1) {
+                match from {
+                    crate::Layouts::One(from) if row.value.layout == from => one = Some(job.name),
+                    crate::Layouts::Unplanned if !crate::jobs::kept::done(store, set.owner, job)? => {
+                        return Ok(Some(job.name));
+                    }
+                    crate::Layouts::One(_) | crate::Layouts::Unplanned => {}
+                }
             }
         }
     }
-    None
+    Ok(one)
 }
 /// Log layouts remain held even when the map census is empty (logs.md, 8).
 pub(super) fn history_type(family: &str, number: u16) -> bool {
@@ -170,14 +190,8 @@ pub(super) fn plans(
             continue;
         }
         let declared = declaration(store, key);
-        let written = job(store, key, row);
         let found = match declared {
-            Some((index, _)) => {
-                if let Some(name) = written {
-                    layouts.written.insert((index, key.2), name).expect("uncapped written ids");
-                }
-                Some(index)
-            }
+            Some((index, _)) => Some(index),
             None => None,
         };
         let values = if history_type(&key.0, key.1) {
@@ -203,17 +217,27 @@ pub(super) fn plans(
             let digest = binary.text(&key.0).expect("binary text");
             let held = binary.held(layouts, digest).ok_or(OpenRefusal::Failed)?;
             let readable = texts::row(layouts, key);
-            let new =
-                layouts.texts.get(&digest).ok_or(OpenRefusal::Failed)?.schema.as_ref().ok_or(OpenRefusal::Failed)?;
-            let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
+
             let row = layouts.rows.get(key).expect("held row");
             let plan = if readable.is_some() {
-                derive(binary, layouts, row, new, declaration, held.as_slice())
+                derive(binary, layouts, row, digest, declaration, &held)
             } else {
                 Err(Unplanned::Text)
             };
             match plan {
-                Ok(plan) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
+                Ok(None) => {
+                    if key.2 != binary_id {
+                        layouts
+                            .types
+                            .get_mut(index)
+                            .expect("found type")
+                            .keeping
+                            .push(key.2)
+                            .expect("uncapped keeping ids");
+                    }
+                    continue;
+                }
+                Ok(Some(plan)) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
                     let ty = layouts.types.get_mut(index).expect("found type");
                     // A binary id is reheaded before any plan is consulted, but
                     // its row still needs the text and fingerprint checks above.
@@ -239,8 +263,9 @@ pub(super) fn plans(
         }
         if let Unplanned::Underived(_) = why
             && !history_type(&key.0, key.1)
-            && job(store, key, layouts.rows.get(key).expect("held row")).is_some()
+            && let Some(name) = job(store, key, layouts.rows.get(key).expect("held row"))?
         {
+            layouts.written.insert(key.clone(), name).expect("uncapped written ids");
             continue;
         }
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });

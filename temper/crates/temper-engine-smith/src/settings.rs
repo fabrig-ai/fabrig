@@ -22,6 +22,10 @@ fn positive(value: &Value, name: &'static [u8]) -> Result<u32, Problem> {
     let n = value.small(name)?;
     if n == 0 { Err(Problem::Range(name)) } else { Ok(n) }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the read routes numbered and unnumbered settings through the same validation"
+)]
 pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem> {
     only(value, &[b"setting", b"revision", b"history", b"from"], b"settings")?;
     let from = match value.field(b"from")? {
@@ -55,6 +59,8 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"template",
             b"policy",
             b"model",
+            b"worker",
+            b"provider",
             b"landing-rule",
             b"forge-charter",
             b"charter-words",
@@ -73,6 +79,8 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"project-questions",
             b"project-classes",
             b"project-words",
+            b"project-landing",
+            b"project-gates",
             b"project-areas",
             b"project-triager",
         ] {
@@ -88,7 +96,13 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         {
             return Err(Problem::Range(b"project"));
         }
-        if kind.as_ref() == b"rules" || by_project.is_some() {
+        if kind.as_ref() == b"rules"
+            || kind.as_ref() == b"welcome"
+            || kind.as_ref() == b"limits"
+            || kind.as_ref() == b"temper-limits"
+            || kind.as_ref() == b"agents"
+            || by_project.is_some()
+        {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }
@@ -124,7 +138,10 @@ fn core_setting(setting: c::Setting) -> s::Setting {
         c::Setting::Template(value) => s::Setting::Template(value.number),
         c::Setting::Policy(value) => s::Setting::Policy(value.number),
         c::Setting::Model(value) => s::Setting::Model(value.number),
+        c::Setting::Worker(value) => s::Setting::Worker(value.number),
+        c::Setting::Provider(value) => s::Setting::Provider(value.number),
         c::Setting::Rules => s::Setting::Rules,
+        c::Setting::Limits => s::Setting::Limits,
         c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
         c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
     }
@@ -218,7 +235,7 @@ fn proposal_items(
     let items = match wire::items(wire.into_parts().items, &models(configured), &limits.settings) {
         Ok(items) => items,
         Err(why) => {
-            if why.field == jig_client_protocol_wire::v26::Path::TemplateLlm {
+            if why.field == jig_client_protocol_wire::Path::TemplateLlm {
                 return Err(Problem::Range(b"items.template.llm"));
             }
             return Err(Problem::Range(b"items"));
@@ -463,6 +480,8 @@ fn repository_rows(
         out.put(&repository.owner);
         out.put(b"/");
         out.put(&repository.name);
+        out.put(b" landing ");
+        out.put(&repository.landing);
         out.put(b"\n");
     }
     if !people.is_empty() {
@@ -652,7 +671,10 @@ fn malformed_setting(
         s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
         s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
         s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
+        s::Setting::Worker(number) => c::Setting::Worker(c::SettingNumber { number: *number }),
+        s::Setting::Provider(number) => c::Setting::Provider(c::SettingNumber { number: *number }),
         s::Setting::Rules => c::Setting::Rules,
+        s::Setting::Limits => c::Setting::Limits,
         s::Setting::Application { kind, scope, number } => {
             c::Setting::Application { kind: *kind, scope: *scope, number: *number }
         }
@@ -666,6 +688,9 @@ fn malformed_setting(
         jig_domain_people::SettingFault::Grace => c::SettingFault::Grace,
         jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
         jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
+        jig_domain_people::SettingFault::Linked => c::SettingFault::Linked,
+        jig_domain_people::SettingFault::Accounts => c::SettingFault::Accounts,
+        jig_domain_people::SettingFault::Range => c::SettingFault::Range,
     };
     settings_form::Refusal::Malformed {
         at,
@@ -709,8 +734,11 @@ pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer
                 s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
                 s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
                 s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
+                s::Setting::Worker(number) => c::Setting::Worker(c::SettingNumber { number: *number }),
+                s::Setting::Provider(number) => c::Setting::Provider(c::SettingNumber { number: *number }),
                 s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
                 s::Setting::Rules => c::Setting::Rules,
+                s::Setting::Limits => c::Setting::Limits,
                 s::Setting::Application { kind, scope, number } => c::Setting::Application { kind: *kind, scope: *scope, number: *number },
             };
             let mut measure = settings_form::Text::measure();

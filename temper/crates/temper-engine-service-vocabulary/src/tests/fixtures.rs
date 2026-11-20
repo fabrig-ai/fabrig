@@ -3,56 +3,51 @@ use skein_lib::Token;
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
-"llm": {
-"providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
-"endpoints": [{
-"name": "fake",
-"number": 1,
-"dialect": 3,
-"provider": "fake-provider",
-"address": {"socket": "127.0.0.1:7101"},
-"transport": "plaintext",
-"headers": [],
-"connect_ms": 10000,
-"handshake_ms": 10000
-}]
-},
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
-"heartbeat_ms": 10000,
-"link": true
 },
-"deployment": {"directory": "state", "seed": 7},
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
-"connectors": [1],
-"memory_bytes": 1152921504606846976,
-"projects": [{"number": 1, "policy": 1}]
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 pub const OWNER: Token = Token::new(91);
 
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
+    let jig = ENGINE_SETTINGS
+        .get_or_init(|| {
+            let mut jig = parse_engine(ENGINE);
+            let policy = jig.policies.first().unwrap();
+            assert_eq!(policy.number, 1);
+            jig.projects = Box::new([jig_protocol_config::Project {
+                number: 1,
+                name: "Project 1".into(),
+                policy: policy.policy.clone(),
+                roles: policy.roles.clone(),
+                templates: policy.templates.clone(),
+            }]);
+            for owner in &mut jig.owners {
+                owner.project = 1;
+            }
+            jig
+        })
+        .clone();
     // This typed fixture reaches the core's start; policy 1 needs 6074 bytes with the standing charter executors.
 
     let own = small_limits();
     let root = limits::engine(&jig.limits, &own).unwrap();
     let connector = *jig.connectors.first().unwrap();
     settings::Engine {
+        store_limits: None,
         kinds: crate::stock::kinds(&root, connector),
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: machine(),
+        setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
+        test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
@@ -65,7 +60,6 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        welcome: false,
         program_environment: Box::new([]),
         host_part: temper_engine_domain::room::HostPart {
             allowance: u64::MAX,
@@ -73,13 +67,13 @@ pub fn engine() -> settings::Engine {
         },
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landings: skein_lib::Map::with_capacity(0),
+        landing_held: false,
         limits: own,
     }
 }
 
 fn small_limits() -> limits::Limits {
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = limits::stock();
     own.root.journal.run_bytes = 32_768;
     own
 }
@@ -114,34 +108,34 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
     }
 }
 
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
+fn jig_limits() -> jig_protocol_config::Limits {
+    jig_limits_over(&jig_protocol_config_fixtures::small())
+}
+
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::engine(
+    let mut jig = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
+        jig_protocol_config::Defaults::PassedProviders,
+        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+        &jig_limits(),
     )
     .unwrap();
-    let own = match jig.llm.endpoints.first() {
-        Some(endpoint) => endpoint.name.as_ref() == b"fake",
-        None => false,
-    };
-    let defaults = if own {
-        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap()
-    } else {
-        crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes)
-    };
-    jig_protocol_config::pass(&mut jig, defaults).unwrap();
+    let running = temper_worker_service_fixtures::providers();
+    let mut defaults =
+        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap();
+    defaults.providers = running.clone();
+    jig_protocol_config::pass_providers(&mut jig, defaults, &running, Box::new([])).unwrap();
     jig
-}
-
-pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
 }
 
 pub fn forges() -> Box<[settings::Forge]> {
@@ -189,7 +183,12 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
 pub fn routes() -> crate::store::route::Routes {
     let (root, _, _) = store_limits();
     let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).expect("family bounds");
-    crate::store::route::Routes::new(2, &root, bounds)
+    crate::store::route::Routes::new(
+        2,
+        &root,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    )
 }
 
 #[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
@@ -206,6 +205,8 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
@@ -312,11 +313,11 @@ fn store_limits_for(
     settings: &settings::Engine,
 ) -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {
     let root = limits::engine(&settings.jig.limits, &settings.limits).expect("root limits");
-    (root, settings.jig.limits.core, settings.jig.limits.store)
+    (root, settings.jig.limits.core, jig_protocol_config::stock().store)
 }
 
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
-    crate::translate::limits(&limits::profile(limits::Profile::Small)).unwrap()
+    crate::translate::limits(&limits::stock()).unwrap()
 }
 
 pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_domain::ForgeRepository {
@@ -332,6 +333,8 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         push: Some(b"temper/task-7".as_slice().into()),
         prefixes: Box::new([]),
         landing: None,
+        delivered: None,
+        pin: None,
         identity: 1,
     }
 }

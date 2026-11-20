@@ -1,7 +1,10 @@
 //! The inbox keeps cards through refreshes (temper/docs/design/client/pages/README.md).
 mod tasks;
 pub mod whole;
-use super::Request;
+use super::{
+    Request,
+    activity::{self, Asking},
+};
 use crate::{
     Limits,
     address::{Filter, Kind},
@@ -12,9 +15,11 @@ use jig_client::{
     Client, Handle, Latest, Readable, Readout, Told, Watchable,
     contract::{self, Delivery, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadResult, ReadValue},
 };
-use skein_lib::{List, Queue, Set};
+use skein_lib::{List, Queue, Set, Time};
 pub use tasks::TaskRead;
 use whole::Whole;
+
+const ROWS: u32 = 64;
 #[derive(Clone, Debug)]
 pub struct Card {
     pub object: ObjectKey,
@@ -24,6 +29,8 @@ pub struct Card {
     pub unread: Option<contract::Count>,
     pub handle: Handle,
     pub page: Option<ReadValue>,
+    /// A refused proposal read still lets its signed-in maker withdraw by key.
+    pub withdraw_unread: bool,
     pub whole: Option<Whole>,
     pub task: Option<TaskRead>,
     pub words: Option<contract::Text>,
@@ -38,6 +45,32 @@ pub enum QuestionWords<'a> {
     Cut(&'a [u8]),
 }
 impl Card {
+    #[must_use]
+    pub fn withdrawn(&self) -> bool {
+        if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(
+            contract::Outcome::Document(contract::DocumentOutcome::Withdrawn { .. }),
+        )))) = &self.outcome
+        {
+            return true;
+        }
+        false
+    }
+    pub(crate) fn receive(&mut self, page: Readout, source: &Client) {
+        self.withdraw_unread = false;
+        match page {
+            Readout::Jig(ReadResult::Value(value)) => self.page = Some(value),
+            Readout::Jig(ReadResult::None(contract::ReadNone::Refused | contract::ReadNone::Malformed)) => {
+                self.page = None;
+                if let ObjectKey::Proposal(contract::ProposalKey { proposer: contract::Proposer::Party(maker), .. }) =
+                    self.object
+                    && let Some(me) = super::accounts::current_me(source)
+                {
+                    self.withdraw_unread = me.party.number == maker;
+                }
+            }
+            Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {}
+        }
+    }
     /// The task named by the from line; proposals deliberately name none.
     #[must_use]
     pub fn source(&self) -> Option<u64> {
@@ -101,6 +134,10 @@ pub struct Inbox {
     pub filter: Filter,
     pub entries: Handle,
     pub cards: List<Card>,
+    /// Needs' rows through the last page, bounded independently of the cards.
+    pub rows: List<contract::InboxEntry>,
+    needs_page: Option<Box<contract::InboxPage>>,
+    needs_asking: Asking,
     /// The needs read's supplied ancestry, retained for milestone bands.
     pub selection: Option<List<contract::InboxSelection>>,
     /// Incomplete source documents, for needs and updates respectively.
@@ -115,7 +152,7 @@ pub struct Inbox {
     pub next: u64,
     pub window: u32,
     pub goal: Option<TaskRead>,
-    pub milestone: Option<Box<super::milestones::Milestone>>,
+    pub milestone: Option<Box<super::milestones::MilestoneRead>>,
     long_text: u32,
 }
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
@@ -141,6 +178,9 @@ impl Inbox {
             next: first.checked_add(3).expect("inbox handles fit"),
             window: limits.client.domain.rows.min((cards / 2).max(1)),
             cards: List::with_capacity(cards),
+            rows: List::with_capacity(ROWS),
+            needs_page: None,
+            needs_asking: Asking::new(),
             selection: None,
             previous: List::with_capacity(cards),
             arrived: [None, None],
@@ -190,7 +230,7 @@ impl Inbox {
             && self.milestone.is_none()
         {
             self.milestone =
-                Some(Box::new(super::milestones::Milestone::new(task.project, task.chip.task, &mut self.next)));
+                Some(Box::new(super::milestones::MilestoneRead::new(task.project, task.chip.task, &mut self.next)));
         }
         if let Some(milestone) = &mut self.milestone {
             milestone.configure_goals(client, limits, out);
@@ -212,54 +252,143 @@ impl Inbox {
     }
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         self.arrived = [None, None];
+        self.needs_page = None;
+        self.needs_asking = Asking::new();
         if self.filter.kind == Some(Kind::Finding) {
             self.replace(out);
             self.release_previous(out);
+            self.rows.clear();
             self.answered = [true, false];
             self.cut = [false; 2];
             return;
         }
         if self.filter.project.is_some() || self.filter.goal.is_some() {
-            for (handle, group) in self.queries.into_iter().zip([InboxReadGroup::Needs, InboxReadGroup::Updates]) {
+            for group in [InboxReadGroup::Needs, InboxReadGroup::Updates] {
                 if self.filter.kind.is_some() && group == InboxReadGroup::Updates {
                     continue;
                 }
-                self.pending.insert(handle).expect("inbox query reads fit");
-                client(
-                    out,
-                    jig_client::Event::Read {
-                        handle,
-                        read: Readable::Jig(Read::Inbox {
-                            group,
-                            project: self.filter.project,
-                            kind: match self.filter.kind {
-                                Some(value) => kind(value),
-                                None => None,
-                            },
-                            goal: self.filter.goal,
-                            after: None,
-                        }),
-                    },
-                );
+                self.read_section(group, None, out);
             }
             return;
         }
-        self.replace(out);
-        self.cut = [false; 2];
+        let mut read_needs = false;
         let latest = match source.document(self.entries) {
             Some(document) => document.latest,
             None => None,
         };
         if let Some(Latest::Jig(Delivery::Inbox(inbox))) = latest {
-            self.answered = [true, self.filter.kind.is_none()];
-            self.cut = [inbox.next.is_some(); 2];
-            for rows in [&inbox.needs, &inbox.updates] {
-                for row in rows {
-                    self.add(row, out);
+            read_needs = inbox.next.is_some() && inbox.updates.is_empty();
+            if !read_needs {
+                let mut rows = List::with_capacity(ROWS);
+                let mut cut = false;
+                for row in &inbox.needs {
+                    if rows.len() == rows.capacity() {
+                        cut = true;
+                        break;
+                    }
+                    rows.push(row.clone()).expect("needs rows bounded");
                 }
+                self.arrived[0] =
+                    Some(Box::new(contract::InboxPage { rows, selection: None, before: None, after: None, cut }));
+            }
+            if self.filter.kind.is_none() {
+                self.arrived[1] = Some(Box::new(contract::InboxPage {
+                    rows: inbox.updates.clone(),
+                    selection: None,
+                    before: None,
+                    after: None,
+                    cut: inbox.next.is_some(),
+                }));
             }
         }
-        self.release_previous(out);
+        if read_needs {
+            self.read_section(InboxReadGroup::Needs, None, out);
+        } else {
+            self.apply(out);
+        }
+    }
+    pub(super) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+        if let Some(at) = self.needs_asking.next_deadline()
+            && at <= now
+        {
+            self.pending.insert(self.queries[0]).expect("inbox query reads fit");
+            self.needs_asking.fire(now, self.queries[0], out);
+        }
+    }
+    pub(super) const fn next_deadline(&self) -> Option<Time> {
+        self.needs_asking.next_deadline()
+    }
+    fn read_section(&mut self, group: InboxReadGroup, after: Option<contract::Cursor>, out: &mut Queue<Request>) {
+        let handle = match group {
+            InboxReadGroup::Needs => self.queries[0],
+            InboxReadGroup::Updates => self.queries[1],
+        };
+        self.pending.insert(handle).expect("inbox query reads fit");
+        let first_needs = group == InboxReadGroup::Needs && after.is_none();
+        let read = Read::Inbox {
+            group,
+            project: self.filter.project,
+            kind: match self.filter.kind {
+                Some(value) => kind(value),
+                None => None,
+            },
+            goal: self.filter.goal,
+            after,
+        };
+        if first_needs {
+            self.needs_asking.ask(handle, read, out);
+        } else {
+            client(out, jig_client::Event::Read { handle, read: Readable::Jig(read) });
+        }
+    }
+    /// Stage one needs chain; only its terminal answer replaces the visible rows.
+    fn needs_answer(&mut self, source: &Client, now: Time, page: Readout, out: &mut Queue<Request>) -> bool {
+        if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
+            if self.needs_page.is_none() {
+                self.needs_page = Some(Box::new(contract::InboxPage {
+                    rows: List::with_capacity(ROWS),
+                    selection: None,
+                    before: None,
+                    after: None,
+                    cut: false,
+                }));
+            }
+            let staged = self.needs_page.as_mut().expect("needs chain started");
+            if staged.selection.is_none() {
+                staged.selection.clone_from(&page.selection);
+            } else if let (Some(held), Some(selection)) = (&mut staged.selection, &page.selection) {
+                let mut joined = List::with_capacity(ROWS);
+                for row in held.iter().chain(selection.iter()) {
+                    if joined.len() < joined.capacity() {
+                        joined.push(row.clone()).expect("selection bounded");
+                    }
+                }
+                *held = joined;
+            }
+            let mut overflow = false;
+            for row in &page.rows {
+                if staged.rows.len() == staged.rows.capacity() {
+                    overflow = true;
+                    break;
+                }
+                staged.rows.push(row.clone()).expect("needs rows bounded");
+            }
+            staged.cut |= page.cut || overflow || (staged.rows.len() == ROWS && page.after.is_some());
+            if page.after.is_some() && staged.rows.len() < staged.rows.capacity() {
+                self.read_section(InboxReadGroup::Needs, page.after, out);
+                return false;
+            }
+            self.needs_asking.answered();
+        } else {
+            self.needs_page = None;
+            if activity::read_end(source, &page).transient() {
+                self.needs_asking.ended(now);
+            } else {
+                self.needs_asking.answered();
+            }
+        }
+        self.arrived[0] = self.needs_page.take();
+        true
     }
     fn release_previous(&mut self, out: &mut Queue<Request>) {
         for card in &self.previous {
@@ -277,6 +406,37 @@ impl Inbox {
         }
         self.previous.clear();
     }
+    fn withdrawn_and_gone(&self, card: &Card) -> bool {
+        if !card.withdrawn() {
+            return false;
+        }
+        for row in &self.rows {
+            if row.card_key() == card.object {
+                return false;
+            }
+        }
+        true
+    }
+    /// A watch may remove the entry before the withdrawing ask answers.
+    pub(super) fn discard_withdrawn(&mut self, out: &mut Queue<Request>) {
+        let mut removed = false;
+        for card in &self.cards {
+            removed |= self.withdrawn_and_gone(card);
+        }
+        if !removed {
+            return;
+        }
+        let mut previous = List::with_capacity(self.cards.capacity());
+        core::mem::swap(&mut self.cards, &mut previous);
+        for card in previous.into_boxed() {
+            if self.withdrawn_and_gone(&card) {
+                client(out, jig_client::Event::Unwatch { handle: card.handle });
+                self.pending.remove(&card.handle);
+            } else {
+                self.cards.push(card).expect("retained cards fit");
+            }
+        }
+    }
     fn replace(&mut self, out: &mut Queue<Request>) {
         for card in self.cards.iter_mut() {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
@@ -290,7 +450,7 @@ impl Inbox {
         core::mem::swap(&mut self.cards, &mut self.previous);
         // A send still awaiting confirmation keeps its Pending card.
         for old in &self.previous {
-            if old.key.is_some() {
+            if old.key.is_some() && !old.withdrawn() {
                 self.cards.push(old.clone()).expect("previous cards fit");
             }
         }
@@ -301,6 +461,7 @@ impl Inbox {
             if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
                 if index == 0 {
                     self.selection.clone_from(&page.selection);
+                    self.rows.clone_from(&page.rows);
                 }
                 *self.answered.get_mut(index).expect("inbox section") = true;
                 *self.cut.get_mut(index).expect("inbox section") = page.cut;
@@ -346,6 +507,16 @@ impl Inbox {
         if self.cards.len() == self.cards.capacity() {
             return;
         }
+        let section = InboxReadGroup::of(group);
+        let mut count = 0_u32;
+        for card in &self.cards {
+            if InboxReadGroup::of(card.group) == section {
+                count = count.checked_add(1).expect("bounded cards");
+            }
+        }
+        if section == InboxReadGroup::Needs && count >= self.window {
+            return;
+        }
         if let Some(filter) = self.filter.kind
             && kind(filter) != Some(group)
         {
@@ -376,6 +547,7 @@ impl Inbox {
                 unread,
                 handle,
                 page: None,
+                withdraw_unread: false,
                 whole: None,
                 task: None,
                 words: None,
@@ -389,6 +561,7 @@ impl Inbox {
                 let index = self.cards.len().checked_sub(1).expect("new card");
                 let card = self.cards.get_mut(index).expect("new card");
                 card.page = old.page.take();
+                card.withdraw_unread = old.withdraw_unread;
                 card.whole = old.whole.take();
                 card.task = old.task.take();
                 card.words = old.words.take();
@@ -402,6 +575,45 @@ impl Inbox {
         let index = self.cards.len().checked_sub(1).expect("new card");
         self.read_whole(index, out);
         self.read_task(index, out);
+    }
+    /// Read a needs row on demand, reusing the last needs card's place.
+    pub(super) fn open(&mut self, object: ObjectKey, out: &mut Queue<Request>) {
+        for card in &self.cards {
+            if card.object == object {
+                return;
+            }
+        }
+        let mut requested = None;
+        let mut last = None;
+        for row in &self.rows {
+            if row.card_key() == object {
+                requested = Some(row.clone());
+            }
+            for (index, card) in self.cards.iter().enumerate() {
+                if card.object == row.card_key() {
+                    last = Some(index);
+                }
+            }
+        }
+        let Some(row) = requested else { return };
+        if let Some(last) = last {
+            let mut previous = List::with_capacity(self.cards.capacity());
+            core::mem::swap(&mut self.cards, &mut previous);
+            for (index, card) in previous.into_boxed().into_iter().enumerate() {
+                if index == last {
+                    client(out, jig_client::Event::Unwatch { handle: card.handle });
+                    self.pending.remove(&card.handle);
+                    if let Some(whole) = &card.whole {
+                        client(out, jig_client::Event::Unwatch { handle: whole.handle });
+                    }
+                    self.previous.push(card).expect("one replaced needs card");
+                } else {
+                    self.cards.push(card).expect("kept cards fit");
+                }
+            }
+        }
+        self.add(&row, out);
+        self.release_previous(out);
     }
     fn read_task(&mut self, index: u32, out: &mut Queue<Request>) {
         let card = self.cards.get_mut(index).expect("bounded card index");
@@ -445,9 +657,16 @@ impl Inbox {
     pub const fn known(&self) -> bool {
         self.known
     }
-    pub(super) fn told(&mut self, source: &Client, told: Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(
+        &mut self,
+        source: &Client,
+        now: Time,
+        told: Told,
+        limits: &Limits,
+        out: &mut Queue<Request>,
+    ) -> bool {
         if let Some(milestone) = &mut self.milestone
-            && milestone.told(&told, limits, out)
+            && milestone.told(&told, source, limits, out)
         {
             return true;
         }
@@ -463,15 +682,28 @@ impl Inbox {
                 return true;
             }
         }
-        let changed = self.receive(source, told, out);
+        let changed = self.receive(source, now, told, out);
         self.known |= self.answered(InboxReadGroup::Needs) && self.delivered(source);
         changed
     }
-    fn receive(&mut self, source: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    fn receive(&mut self, source: &Client, now: Time, told: Told, out: &mut Queue<Request>) -> bool {
         if let Told::Changed { handle } = &told
             && *handle == self.entries
         {
             self.refresh(source, out);
+            return true;
+        }
+        if let Told::Ended { handle, .. } = &told
+            && self.queries.contains(handle)
+        {
+            self.pending.remove(handle);
+            if *handle == self.queries[0] {
+                self.needs_page = None;
+                self.needs_asking.answered();
+            }
+            if !self.pending.contains(&self.queries[0]) && !self.pending.contains(&self.queries[1]) {
+                self.apply(out);
+            }
             return true;
         }
         let Told::Page { handle, page } = told else { return false };
@@ -485,26 +717,28 @@ impl Inbox {
             }
         }
         let answered = self.pending.remove(&handle);
-        if self.queries.contains(&handle) && (self.filter.project.is_some() || self.filter.goal.is_some()) {
-            let index = usize::from(handle == self.queries[1]);
-            if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
-                *self.arrived.get_mut(index).expect("query names one section") = Some(page);
+        if self.queries.contains(&handle) {
+            if handle == self.queries[0] {
+                if !self.needs_answer(source, now, page, out) {
+                    return true;
+                }
+            } else if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
+                self.arrived[1] = Some(page);
             }
             if !self.pending.contains(&self.queries[0]) && !self.pending.contains(&self.queries[1]) {
                 self.apply(out);
             }
         } else {
-            let Readout::Jig(ReadResult::Value(value)) = page else { return answered };
             for index in 0..self.cards.len() {
                 let card = self.cards.get_mut(index).expect("bounded card index");
                 if card.handle == handle {
-                    card.page = Some(value);
+                    card.receive(page, source);
                     self.read_whole(index, out);
                     self.read_task(index, out);
                     return true;
                 }
             }
-            return false;
+            return answered;
         }
         true
     }

@@ -72,6 +72,12 @@ impl<T> Slab<T> {
         self.capacity
     }
 
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.capacity(), "a capacity never falls");
+        self.capacity = capacity;
+    }
+
     /// Entities present, retired ones included until they are reclaimed.
     #[must_use]
     pub const fn len(&self) -> u32 {
@@ -229,6 +235,14 @@ impl<'a, T> Iterator for Iter<'a, T> {
         let left = usize_of(self.left);
         (left, Some(left))
     }
+}
+
+/// A spent slot cannot be reached by cycling generations in a focused test.
+#[cfg(test)]
+pub(crate) fn with_spent_slot<T>(capacity: u32) -> Slab<T> {
+    let mut slab = Slab::with_capacity(capacity);
+    slab.slots.push(Slot::Spent);
+    slab
 }
 
 /// Additional storage for a full buffer that has room below its cap.

@@ -79,9 +79,11 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 
 ## 3. LLM providers, endpoints and models
 
-- **On the engine, jig's `engine.llm`** (jig's `protocol/configuration.md`,
-  section 3; jig's `protocol/llm.md`, sections 4 and 5): the LLM
-  providers, each with its endpoints, models and the sources it offers.
+- **On the engine, jig's `provider` settings** (jig's
+  `domain/engine/llm-providers.md`; jig's `protocol/llm.md`, sections 4
+  and 5; `configuration/providers.md`): the LLM providers, each with its
+  endpoints and the sources it offers, and the models, jig's settings
+  too.
   The engine uses the models, their prices and what each is good at,
   which its charters and the brief's catalogue carry, and the endpoints'
   names, which its charters name; its grants name an account's source.
@@ -116,8 +118,8 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   `tools` declares each with its JSON Schema, its description, its
   effect (a read or a write) and the charter's call timeout, and the
   charter carries the declarations (`llm.md`, section 5). Each of the forge's reads
-  is a tool of its own (`read_items` to `read_permission`), decoded as
-  `Tool::ReadForge`, naming the read.
+  is a `what` of `read_forge`, `read_issues` or `read_ci`, decoded as
+  `Tool::ReadNamed`, naming the read.
 - **A forge subscription selects an adoption in the task's project.**
   `subscribe_forge`'s `topic.repository` accepts `owner/name` or the
   numeric `{forge, repository}` pair. Omitted or empty names select the

@@ -42,6 +42,7 @@ pub fn component_limits() -> jig_protocol_store::Limits {
         files: 8,
         reads: 4,
         fetch: 16_777_216,
+        checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
         orphan_erases: 1,
         held: 2,
     }
@@ -62,7 +63,12 @@ fn build_component() -> Component {
     let mut component = Component { store, files: crate::Files::new(), limits };
     let root = component.files.root();
     let mut above = skein_lib::Queue::uncapped();
-    let open = jig_protocol_store::Request::Open { owner: Token::new(900), root, installation: [0; 16] };
+    let open = jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
+        owner: Token::new(900),
+        root,
+        installation: [0; 16],
+    };
     send(&mut component, open, &mut above);
     assert!(matches_opened(&mut above));
     component
@@ -88,6 +94,7 @@ pub fn send(
         store: skein_lib::Queue::uncapped(),
         secrets: skein_lib::Queue::uncapped(),
         transcripts: skein_lib::Queue::uncapped(),
+        checkpoints: skein_lib::Queue::uncapped(),
     };
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits: component.limits };
     jig_protocol_store::down(&mut component.store, &env, request, above, &mut below);
@@ -195,12 +202,15 @@ pub fn core_commit() -> jig_test_store::StoreOut {
 pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_store::Write]> {
     match request {
         jig_protocol_store::Request::Commit { writes, .. } => writes,
-        jig_protocol_store::Request::Rehearse { .. }
+        jig_protocol_store::Request::Checkpoint { .. }
+        | jig_protocol_store::Request::Rehearse { .. }
         | jig_protocol_store::Request::Back { .. }
         | jig_protocol_store::Request::Close { .. }
         | jig_protocol_store::Request::Switch { .. }
         | jig_protocol_store::Request::Site { .. }
         | jig_protocol_store::Request::Job { .. }
+        | jig_protocol_store::Request::HoldCheckpoint { .. }
+        | jig_protocol_store::Request::RemoveCheckpoint { .. }
         | jig_protocol_store::Request::Open { .. }
         | jig_protocol_store::Request::Restore { .. }
         | jig_protocol_store::Request::Load { .. }
@@ -224,6 +234,8 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         started_from: Box::new([]),
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },

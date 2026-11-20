@@ -50,7 +50,7 @@ skein-io socket
   - its API's address and transport, its record's: plaintext to a
     socket address on loopback, or TLS with its server name and the
     machine's roots; GitHub's are github.com's unless the configuration's
-    machine names a fake (../configuration/engine.md);
+    `application.test.github` names a fake (../setup/place.md, 7);
   - its access, `Some` or `None` (1): the credential, the user it must
     stand for, and a Forgejo forge's webhook secret when it has one;
   - its `log_origins`, the origins a job log's redirect may reach, its
@@ -112,9 +112,9 @@ skein-io socket
     from `git` (`../openid-provider.md`, 7);
   - its git program, the executable workers run for its repositories,
     or none for their own (../configuration/README.md, section 3): a Forgejo's as
-    its admin's `Connect` gives it, GitHub's the machine's
-    (../configuration/engine.md); a fake forge runs the machine's fake
-    `git`;
+    its admin's `Connect` gives it, GitHub's none but a test's
+    (../setup/place.md, 7); a fake forge runs `demo/bin/git` in the
+    data directory (../setup/place.md, 2);
   - whether a pasted GitHub App is another's, read-only (../setup/github.md,
     7);
   - its bot's git identity: a login, and the name and email it commits
@@ -123,7 +123,8 @@ skein-io socket
     at each `Check` done (2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (5);
   - for a first set up, its intent, and no project (../setup/owned.md, 7):
-    `Empty`'s organization, name and runner label, kept so that a restart
+    `Empty`'s organization, name, runner label and whether it is the
+    playground's copy or the sample (../setup/owned.md, 7), kept so that a restart
     before the repository is made makes it at the next connect; `Copies`'
     addresses, kept for the client to ask them at Ready and after a restart;
     or `Nothing`;
@@ -135,8 +136,8 @@ skein-io socket
 
   Nothing in it is secret: a forge's credentials are its rows in jig's
   secrets' store (below). A managed, owned or fake forge's setup entry
-  is made from the record and, for an owned or fake one, the machine's
-  part of its kind (../setup/init.md).
+  is made from the record and, for an owned or fake one, its setup file
+  (../setup/place.md, 3).
 - **Numbered next, never reused.** The forge connector gives a new
   forge the number after the last it gave, kept in its `ForgeNumber`
   row (../store.md, section 2), and never gives a number twice, since the
@@ -237,11 +238,11 @@ skein-io socket
   makes its record (1) in the act's decision, numbered next, once the
   act is admitted, so a refused act makes nothing:
   - `SetUp` of a new owned Forgejo, under the box alone and while no
-    owned forge is kept, takes the machine's owned place
-    (../configuration/engine.md), and keeps its intent, its row saying
+    owned forge is kept, chooses its place, a free port on loopback
+    (../setup/place.md, 2), and keeps its intent, its row saying
     it (../setup/owned.md, 7);
-  - `Connect` of a new GitHub forge takes the machine's GitHub place,
-    github.com's when it names none, and its git program;
+  - `Connect` of a new GitHub forge takes github.com's place, or a
+    test's fake's (../setup/place.md, 7);
   - `Connect` as a Forgejo's admin (../setup/reconcile.md, 5) takes the address,
     the remotes' base, the pages and the git program the person gives,
     its mode managed, and the first repository's intent when it names
@@ -249,8 +250,8 @@ skein-io socket
   - `Connect` with a Forgejo's bot's tokens (../setup/README.md, section 4) takes
     them as an admin's does, its mode connected, with no first
     repository;
-  - the playground's start makes its fake forge on the machine's fake
-    place (../setup/playground.md).
+  - the playground's start makes its fake forge on a place it chooses
+    (../setup/place.md, 2; ../setup/playground.md).
 
   A forge past `forge.forges` (`README.md`, section 6) is refused busy. The record is
   then handed to the routing, as a restored one is (1): its forge
@@ -279,7 +280,8 @@ skein-io socket
 - **The box's pipe** (../setup/box.md, 1), under the box alone, through the
   routing's box link (8): at `SetUp { forge }` (../../client/engine.md
   ), admitted by the root, and at the playground's start, the
-  routing writes the group's file and the link writes `start FORGE`, one
+  routing writes the forge's setup file (../setup/place.md, 3) and the
+  link writes `start FORGE`, one
   ask at a time, and refuses it "not under the box" with no pipe; it
   tells the root each `step` line, the forge setting up and at which
   step; at `started FORGE`, the forge's `TakeOver` when the handover
@@ -645,8 +647,8 @@ service's io.
   held when told set up failed (`../../domain/forge/adoption.md`, 1), including
   `BoxClosed` during setup. The producers keep their existing events;
   the FORGE row's `SetUpFailed` carries `why` and `at: option
-  FailedStep` (fetch, prepare, run or connect). The schema, generated
-  codec and goldens update in place at CLIENT_VERSION 11 before the
+  FailedStep` (fetch, prepare, run or connect). The schema and generated
+  records update in place at CLIENT_VERSION 11 before the
   first release; no store or record version changes.
 - **A removal** is the forge domain's too, at a forge's removal's
   decision and at each start while its record has not heard it done

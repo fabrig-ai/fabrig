@@ -1,6 +1,8 @@
 # configuration: status
 
-2026-11-16. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+
+
 
 
 
@@ -43,7 +45,7 @@ these paths; real-forge observation remains after-landing work
 
 `settings.md`, section 2 and `stock.md` and `reference.md` have kind 11, a goal template's work, with
 no known gap but the reference's close-out, below: the forge's
-`TemplateGoal`, judged at scope 0 and a template's number, kept,
+`TemplateGoal`, judged at scope 0 and a template's number, 1 to 64, kept,
 removed, reset and restored as kind 3 is, read by `template_goal`, with
 neither where none is held; the store's and smith's codecs; its
 declaration to jig, `limits.templates` per scope; `template-goal` in a
@@ -61,7 +63,7 @@ saved with a setting: a tier's `description`, read at the start, 1 to 120
 bytes of UTF-8 without a control character or refused at its member, and
 the reference's two tiers described; kinds 9 and 10, the forge's
 `CharterWords` and `ProjectWords`, judged by their bounds and kind 9's
-number, 1 to `tasks.charters`, kept, removed, reset and restored as kind
+number, 1 to 64, kept, removed, reset and restored as kind
 11 is, kind 10 erased with its project, kind 9 read by `charter_words`,
 both in the store's and smith's codecs; their declarations to jig, kind
 9's `per_scope` `tasks.charters`; `charter-words` and `project-words` in
@@ -180,8 +182,8 @@ it unchanged, while temper's own translation refusal counts from 1.
 `reference.md`'s delivery hook batches format roots by edition and
 configuration, runs every baseline with the private snapshot index, names
 its checks and uses the worker's landing pin for package selection and
-inherited failures. Its cache is keyed by tree and base
-(`tools/pre-pr/design.status.md`). The delivery check's tests
+inherited failures. Its cache is keyed by tree, base, the goal's reds and
+main's ledgers (`tools/pre-pr/design.md`, 7; `tools/pre-pr/design.status.md`). The delivery check's tests
 (`tools/pre-pr/design.md`, 9) exercise these rules; they do not measure a deployment under load. `README.md`, section 9's
 60-second `check_timeout` remains unchanged.
 

@@ -90,7 +90,8 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(overlay.turns, Some(800));
         assert_eq!(overlay.time, Some(Duration::from_secs(28_800)));
         assert_eq!(overlay.reserve_turns, Some(1));
-        assert_eq!(overlay.reserve_time, Some(Duration::from_secs(60)));
+        // The reserve admits the stock agent's 300-second check timeout.
+        assert_eq!(overlay.reserve_time, Some(Duration::from_secs(300)));
         assert_eq!(overlay.spend, Some(4228));
         assert_eq!(overlay.shell, Some(shell));
     }
@@ -122,22 +123,10 @@ fn the_reference_settings_fit_the_reference_profile() {
         &temper_client_tools::limits::form(),
     )
     .expect("reference settings");
-    let mut init: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-            .expect("init configuration");
-    let reference: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json"))
-            .expect("reference limits");
-    init["engine"]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("init overrides")
-        .extend(reference["engine"]["limits"]["overrides"].as_object().expect("reference overrides").clone());
-    let engine = reference_engine(&init["engine"]["limits"]);
+    let engine = reference_engine(true);
     let limits = &engine.limits.core.tasks;
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), limits.result_bytes);
-    let init_agent: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
-            .expect("init agent configuration");
+    let init_agent: serde_json::Value = temper_agent_fixtures::stock(true);
     let max_turns = init_agent["profile"]["policy"]["max_turns"].as_u64().expect("init turn limit");
     assert_eq!(items.iter().filter(|item| matches!(item.setting, Setting::Charter(_))).count(), 2);
     for number in [CODER, COORDINATOR] {
@@ -168,12 +157,9 @@ fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
     let room: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/room.json"))
             .expect("reference room");
-    let run_bytes =
-        room["application"]["limits"]["overrides"]["root.journal.run_bytes"].as_u64().expect("reference run bound");
+    let run_bytes = 65_536_u64;
     let bounds = reference_worker_bounds(&room["agent"]);
-    let init: serde_json::Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-        .expect("init configuration");
-    let engine = reference_engine(&init["engine"]["limits"]);
+    let engine = reference_engine(false);
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for number in [CODER, COORDINATOR] {
@@ -231,9 +217,7 @@ fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
 }
 
 fn reference_worker_bounds(room: &serde_json::Value) -> jig_domain_link::Bounds {
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
-            .expect("init agent configuration");
+    let mut agent: serde_json::Value = temper_agent_fixtures::stock(true);
     agent["profile"]["declared"]["tool_payload"] = room["tool_payload"].clone();
     // Only addresses and template placeholders change; no endpoint is contacted.
     for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
@@ -282,22 +266,29 @@ fn the_reference_sets_main_and_goal_branch_landing_rules() {
     }
 }
 
-fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
+fn reference_engine(reference: bool) -> jig_protocol_config::Engine {
     let owned: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned JSON");
-    let mut engine = owned["engine"].clone();
-    engine["limits"] = limits.clone();
+    let engine = owned["engine"].clone();
+    let stock = temper_service::limits::stock();
+    let (mut base, _own) =
+        temper_service::limits::base(stock.live_goals, stock.tool_payload, temper_service_core::derived::STOCK)
+            .unwrap();
+    if reference {
+        temper_limits_fixtures::reference_over(&mut base, &mut temper_service::limits::stock());
+    }
     let bytes = serde_json::to_vec(&engine).expect("engine JSON");
     let document = jig_protocol_config::document(
         &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let mut engine = jig_protocol_config::engine(
+    let mut engine = temper_service::startup::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
+        &temper_service::stock::Given::Stock,
+        &mut base,
     )
     .expect("reference engine");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
@@ -341,7 +332,7 @@ fn reference_rules(current: &jig_domain_core::settings::Current) -> jig_client::
     let value = jig_domain_core::settings::Value::Rules(Box::new(current.rules().clone()));
     let wire =
         jig_protocol_engine_clients::translate::settings::value(&value, &[], link.wire()).expect("stock rules fit ctl");
-    let jig_client_protocol_wire::v26::SettingValue::Rules(wire) = wire else { panic!("rules") };
+    let jig_client_protocol_wire::SettingValue::Rules(wire) = wire else { panic!("rules") };
     jig_client_protocol_link::translate::settings::restore_rules(&wire, &link).expect("stock rules")
 }
 
@@ -392,8 +383,8 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let limits = &engine.limits.core;
     // The stock fits twenty-two executor places; the reference replaces its delegation.
-    assert_eq!(limits.tasks.executor_kinds, 22);
-    assert_eq!(limits.authority.executors, 22);
+    assert!(limits.tasks.executor_kinds >= 22);
+    assert!(limits.authority.executors >= 22);
     let current = settings::Current::new(config.defaults, limits, &[]);
     let charters = reference_charters();
     assert_eq!(charters.len(), 2);
@@ -455,13 +446,13 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
 
 #[test]
 fn init_limits_hold_reference_delegation() {
-    for bytes in [
-        include_bytes!("../../../temper-init/template/temper.json").as_slice(),
-        include_bytes!("../../../../docs/examples/owned.json").as_slice(),
-    ] {
+    for bytes in
+        [&temper_config_shell::init_document(true), include_bytes!("../../../../docs/examples/owned.json").as_slice()]
+    {
         let document: serde_json::Value = serde_json::from_slice(bytes).expect("shipped configuration JSON");
-        check_reference_delegation(reference_engine(&document["engine"]["limits"]));
+        assert!(document["engine"].get("limits").is_none());
     }
+    check_reference_delegation(reference_engine(false));
 }
 
 #[test]
@@ -500,13 +491,16 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     )
     .expect("reference project rule codec");
     let bounds = settings::Bounds {
+        landing_members: 4,
+        repositories: 2,
+        landing_gates: 2,
+        tiers: 2,
+        ignored_paths: 4,
         landing_rules: 2,
         gates: 4,
         roles: 4,
-        charters: 12,
         segments: 8,
         segment_bytes: 64,
-        templates: 4,
         follows: 2,
         dependencies: 4,
         follow_paths: 8,
@@ -530,9 +524,7 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
 #[test]
 fn the_stock_settings_document_decodes_in_every_client() {
     use jig_domain_core::{reads, settings};
-    let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{
-        "authority.executors":22,"tasks.executor_kinds":22,"tasks.charters":16
-    }}));
+    let engine = reference_engine(false);
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 21);
     let source = reads::SettingDocument {

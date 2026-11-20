@@ -44,23 +44,18 @@ fn status(
     red: bool,
     brief: Option<w::StatusBrief>,
 ) -> Status {
-    Status::Shown(Box::new(
-        w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
-                project,
-                landed,
-                seen,
-                previous,
-                last_landed: last,
-                queued: 0,
-                red,
-                branch: b"main".as_slice().into(),
-                brief,
-            },
-        )
-        .unwrap(),
-    ))
+    Status::Shown(Box::new(w::ProjectStatus {
+        project,
+        landed,
+        seen,
+        previous,
+        last_landed: last,
+        queued: 0,
+        red,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief,
+    }))
 }
 
 fn project(number: u32, name: &str, landed: u64, seen: u64) -> Project {

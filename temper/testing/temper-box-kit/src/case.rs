@@ -58,8 +58,15 @@ impl Run {
             .iter()
             .filter_map(|(read, position)| Some((*read, self.observed_at.get(*position).copied().flatten()?)))
             .collect();
-        Observed { documents, observed_at, told: self.told.clone(), commands: Vec::new(), kit: self.kit.clone() }
-            .with_commands(&self.steps)
+        Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
+            documents,
+            observed_at,
+            told: self.told.clone(),
+            commands: Vec::new(),
+            kit: self.kit.clone(),
+        }
+        .with_commands(&self.steps)
     }
     #[must_use]
     pub fn first_placed(&self) -> &BTreeMap<u64, String> {
@@ -163,7 +170,7 @@ fn base(value: &mut Value) {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
 }
-fn process_settings(value: &mut Value) -> Value {
+fn process_settings(value: &mut temper_playground::documents::Configuration) -> Value {
     let given = temper_real_loop_world::fixtures::own_defaults(value, &value["world_settings"]);
     let temper_service::stock::Given::Own { jig: defaults, forge, .. } = given else { panic!("case defaults") };
     let mut items = temper_real_loop_world::case::defaults::items(&defaults);
@@ -179,7 +186,6 @@ fn process_settings(value: &mut Value) -> Value {
     value.as_object_mut().expect("deployment").remove("world_settings");
     // Settings and the project are established by the owner after sign-in.
     // Fixture records supply credentials without adopting a project before sign-in.
-    value["engine"]["projects"] = json!([]);
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
@@ -191,8 +197,8 @@ fn process_settings(value: &mut Value) -> Value {
         ("notes.scopes", 32),
         ("core.policy_bytes", 8192),
     ] {
-        let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
-        value["engine"]["limits"]["overrides"][name] = held.max(minimum).into();
+        let held = value.jig_value(name);
+        value.jig_over(name, held.max(minimum));
     }
     items
 }
@@ -529,9 +535,12 @@ impl Judge {
     fn configure(&mut self) -> Result<(), String> {
         let engine_dir = self.members.prepare("engine");
         let ws_dir = self.members.prepare("ws");
-        let mut value = read_document(&engine_dir.join("config/temper.json"))?;
-        let ws = read_document(&ws_dir.join("config/temper.json"))?;
-        let mut agent = read_document(&ws_dir.join("config/agent.json"))?;
+        let mut value = super::limit_settings::configuration(&engine_dir.join("config"));
+        let ws = super::start_document(
+            &ws_dir.join("config").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::WorkerAlone,
+        );
+        let mut agent = temper_agent_fixtures::at(&value, &engine_dir.join("data"));
         // With a control listener, the fake's ready line names provider then control.
         let mut addresses = self.members.capture("llm", "address").ok_or("LLM addresses")?.split_whitespace();
         let llm: SocketAddr =
@@ -550,10 +559,10 @@ impl Judge {
         if addresses.next().is_some() {
             return Err("only provider and control addresses".into());
         }
-        value["engine"]["llm"]["endpoints"][0]["address"] = json!({"socket":llm.to_string()});
+        temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
+            json!({"socket":llm.to_string()});
         agent["endpoints"][0]["address"] = llm.to_string().into();
         value["workers"] = ws["workers"].clone();
-        value["application"]["workers"] = ws["application"]["workers"].clone();
         base(&mut value);
         let forge = self
             .members
@@ -568,64 +577,55 @@ impl Judge {
         (self.fixture.configure)(&mut value, &mut agent, forge);
         self.settings = process_settings(&mut value);
         value["application"]["webhooks"] = json!({"listener":{"socket":"127.0.0.1:0"}});
-        super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
+        super::configuration::use_derived(&mut value);
         value["engine"]["hosts"]["listener"] = json!([{"socket":self.hosts.to_string()}]);
         for key in ["fleet.workers", "fleet.attempts"] {
             // tests/real-loop/src/cluster.rs: one admitted position/attempt per worker.
-            value["engine"]["limits"]["overrides"][key] = 3.into();
+            value.jig_over(key, 3);
         }
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
         // six lines also carry all stock charters in the creation offer.
-        value["engine"]["limits"]["overrides"]["documents.lines"] = 7.into();
-        value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
-        value["engine"]["hosts"]["workers"].as_array_mut().ok_or("hosts")?.truncate(self.cast.len());
+        value.jig_over("documents.lines", 7);
+        let described = super::cluster::worker_settings(&engine_dir.join("settings.json"));
         let secret = b"s2-case-fixture-secret";
-        if self.cast.len() > 1 {
-            value["engine"]["hosts"]["workers"][1]["name"] = "s1".into();
-            value["engine"]["hosts"]["workers"]
-                .as_array_mut()
-                .ok_or("hosts")?
-                .push(json!({"name":"s2","digest":"secrets/s2.digest"}));
-            let mut hash = skein_lib::sha256::Sha256::new();
-            hash.update(secret);
-            let mut digest = String::new();
-            for byte in hash.finish() {
-                use std::fmt::Write as _;
-                write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
-            }
-            super::write_private(&engine_dir.join("data/secrets/s2.digest"), digest.as_bytes());
+        for (index, name) in self.cast.iter().enumerate() {
+            let digest = if let Some(item) = described.get(index) {
+                item["set"]["digest"].clone()
+            } else {
+                let mut digest = String::new();
+                for byte in skein_lib::sha256::digest(secret) {
+                    use std::fmt::Write as _;
+                    write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
+                }
+                digest.into()
+            };
+            self.settings.as_array_mut().ok_or("case setting items")?.push(json!({
+                "setting":{"kind":"worker","number":index + 1},
+                "set":{"name":name,"places":value["workers"][0]["slots"],"digest":digest}
+            }));
         }
         for &name in &self.cast {
             let dir = if name == "ws" { ws_dir.clone() } else { self.members.prepare(name) };
-            let mut worker = read_document(&dir.join("config/temper.json"))?;
+            let path = dir.join("config").join(temper_config_shell::FILE);
+            let mut worker = super::read_file(&path, temper_config_shell::Shape::WorkerAlone);
             if name == "s2" {
-                // Copy keeps the source templates; give the new member its own paths and secret.
-                let source = self.members.dir("s1");
-                worker = serde_json::from_str(
-                    &serde_json::to_string(&worker)
-                        .map_err(|why| format!("worker: {why:?}"))?
-                        .replace(source.to_str().ok_or("source path")?, dir.to_str().ok_or("worker path")?),
-                )
-                .map_err(|why| format!("copied worker: {why:?}"))?;
-                fs::remove_file(dir.join("data/secrets/w2.secret"))
-                    .map_err(|why| format!("remove copied secret: {why:?}"))?;
-                worker["workers"][0]["secret"] = "secrets/s2.secret".into();
-                super::write_private(&dir.join("data/secrets/s2.secret"), secret);
+                // The copy has its own data directory and its own link secret.
+                super::write_private(&dir.join("data/secrets/worker.secret"), secret);
             }
-            let mut shaped = value["workers"][0].clone();
-            // Preserve this member's independent paths and secret, copying only fixture policy.
-            shaped["name"] = name.into();
-            shaped["secret"] = worker["workers"][0]["secret"].clone();
-            shaped["agent"] = worker["workers"][0]["agent"].clone();
-            worker["workers"] = json!([shaped]);
-            worker["application"]["limits"] = value["application"]["limits"].clone();
-            worker["application"]["workers"][0]["git"] = self.git.to_str().ok_or("git path")?.into();
-            write(&dir.join("config/temper.json"), &worker);
-            write(&dir.join("config/agent.json"), &agent);
+            worker.name = Some(name.into());
+            worker.engine = Some(self.hosts);
+            self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
+            super::write_file(&path, &worker, temper_config_shell::Shape::WorkerAlone);
         }
         value["workers"] = json!([]);
-        value["application"]["workers"] = json!([]);
-        write(&engine_dir.join("config/temper.json"), &value);
+
+        let path = engine_dir.join("config").join(temper_config_shell::FILE);
+        let mut file = super::read_file(&path, temper_config_shell::Shape::EngineAlone);
+        file.workers = Some(self.hosts);
+        file.webhooks = Some("127.0.0.1:0".parse().expect("webhooks"));
+        super::write_file(&path, &file, temper_config_shell::Shape::EngineAlone);
+        temper_agent_fixtures::apply(&mut value, &engine_dir.join("data"), &agent);
+        super::limit_settings::remember(&engine_dir.join("config"), &value);
         super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
         seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
 
@@ -686,12 +686,6 @@ impl Judge {
                             .and_then(Value::as_str)
                             .ok_or("before")?
                             .into()
-                    }
-                    calls::Arg::InboxAfter(n) => {
-                        let v = call_json(&self.calls[*n])?;
-                        let cursor =
-                            v.pointer("/needs/after/value").and_then(Value::as_str).ok_or("next needs page")?;
-                        format!("00{cursor}")
                     }
                 })
             })
@@ -1150,7 +1144,7 @@ fn describe(step: &calls::Step) -> String {
         Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
-        Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
+        Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
@@ -1191,7 +1185,6 @@ fn describe_argv(argv: &calls::Argv) -> String {
             calls::Arg::Delegate(call) => format!("delegate(call {call})"),
             calls::Arg::Digest(call) => format!("digest(call {call})"),
             calls::Arg::ActivityBefore(call) => format!("activity-before(call {call})"),
-            calls::Arg::InboxAfter(call) => format!("inbox-after(call {call})"),
         })
         .collect::<Vec<_>>()
         .join(" ")
@@ -1321,9 +1314,11 @@ impl Judge {
         }
         for &name in &self.cast {
             let dir = self.members.dir(name);
-            let worker = read_document(&dir.join("config/temper.json"))?;
-            let secret = worker["workers"][0]["secret"].as_str().ok_or_else(|| "link secret".to_owned())?;
-            for path in [dir.join("config/temper.json"), dir.join("config/agent.json"), dir.join("data").join(secret)] {
+            for path in [
+                dir.join("config").join(temper_config_shell::FILE),
+                dir.join("data/workspaces/agent/agent.json"),
+                dir.join("data/secrets/worker.secret"),
+            ] {
                 let bytes = fs::read(&path).map_err(|why| format!("worker input: {why:?}"))?;
                 if bytes.windows(token.len()).any(|window| window == token) {
                     return Err(format!("{name}: forge admin token in {}", path.display()));
@@ -1337,8 +1332,7 @@ impl Judge {
         use temper_real_loop_world::case;
         let workspaces = |worker| -> Result<PathBuf, String> {
             let directory = self.members.dir(worker);
-            let document = read_document(&directory.join("config/temper.json"))?;
-            let root = document["application"]["workers"][0]["root"].as_str().ok_or("worker root")?;
+            let root = "workspaces";
             Ok(directory.join("data").join(root).join("workspaces"))
         };
         if fs::read_dir(workspaces("ws")?).map_err(|why| format!("ws workspaces: {why:?}"))?.next().is_some() {

@@ -90,7 +90,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
         Event::Process(event) => agent_step(domain, env, agent::Input::Process(*event)),
         Event::Live { agent, piece } => live(domain, env, agent, piece),
         Event::Decoded { agent, start, endpoints } => agents::decoded(domain, env, agent, start, endpoints),
-        Event::Encoded { owner, encoded } => agents::encoded(domain, env, owner, encoded),
+        Event::Encoded { owner, encoded } => agents::encoded(domain, env, owner, encoded, out),
         Event::Activity { owner, activity } => {
             domain.facts_out = domain.facts_out.saturating_sub(1);
             if let Some(activity) = activity {
@@ -367,9 +367,46 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
     out.push(Request::Answer { run, attempt, answer, work, preparation });
 }
 
+/// Each fetch and check out gets an operator note before its io request
+/// (domain/worker/README.md, 4.3). Unowned operations still reach io.
+fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queue<Request>) {
+    use crate::Git;
+    use checkout::git::Op;
+
+    let (at, what) = match op {
+        Op::Fetch { at, want, into, .. } => (at, Git::Fetch { want: want.clone(), into: *into }),
+        Op::CheckOut { at, commit, .. } => (at, Git::CheckOut { commit: *commit }),
+        Op::Pack { .. }
+        | Op::Reset { .. }
+        | Op::Reds { .. }
+        | Op::Make { .. }
+        | Op::Store { .. }
+        | Op::Look { .. }
+        | Op::Clone { .. }
+        | Op::Point { .. }
+        | Op::Create { .. }
+        | Op::IsAncestor { .. }
+        | Op::Brings { .. }
+        | Op::DiffPaths { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. }
+        | Op::Push { .. } => return,
+    };
+    let Some(owner) = workspace::hold_owner(domain, hold) else { return };
+    let Some(hosting) = domain.host.hosting(owner) else { return };
+    let job = match domain.job_evidence.get(&(hosting.run, hosting.attempt)) {
+        Some(evidence) => Some((evidence.kind, domain.tooling.verb(evidence.kind))),
+        None => None,
+    };
+    out.push(Request::Git { run: hosting.run, attempt: hosting.attempt, job, repository: at.repository.clone(), what });
+}
+
 /// One of the checkout's requests: out to io, or to the host.
 fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Request, out: &mut Queue<Request>) {
     match request {
+        checkout::Request::DependencyLanded { client, head } => {
+            workspace::dependency_landed(domain, env, client, head, out);
+        }
         checkout::Request::Results { client, check, repository, bytes } => {
             crate::reds::read(domain, client, check, repository, bytes, out);
         }
@@ -379,7 +416,10 @@ fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Requ
         checkout::Request::Pushed { client, outcome } => workspace::wrote(domain, env, client, outcome, true),
         checkout::Request::Saved { client, outcome } => workspace::wrote(domain, env, client, outcome, false),
         checkout::Request::Released { client } => workspace::released(domain, env, client),
-        checkout::Request::Io { owner, op, deadline } => out.push(Request::Io { owner, op, deadline }),
+        checkout::Request::Io { owner, op, deadline } => {
+            note_git(domain, owner, &op, out);
+            out.push(Request::Io { owner, op, deadline });
+        }
         checkout::Request::Cancel { owner } => out.push(Request::CancelIo { owner }),
     }
 }

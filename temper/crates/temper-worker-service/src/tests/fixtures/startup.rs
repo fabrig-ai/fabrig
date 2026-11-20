@@ -8,13 +8,9 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{List, Secret};
 pub fn worker_alone_document() -> Box<[u8]> {
     let document = br#"{"workers":[{
-"engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
-"graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
-"programs":{"check_interval_ms":60000},
-"agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":{"workers":[{"root":"worker-root","git":"/usr/bin/git"}],"limits":{"profile":"small","overrides":{}}}}"#;
-    with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
+"engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1
+}],"application":{}}"#;
+    document.as_slice().into()
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     let json = turn_limits(path, json);
@@ -96,6 +92,9 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     }
     let turn = super::agent().limits.bodies.turn_body;
     let keys = &[
+        ("hub.accounts", 8),
+        ("hub.inbox", 8),
+        ("hub.held", 8),
         ("hub.turn_bytes", u64::from(turn)),
         ("hub.transcript_bytes", u64::from(turn.checked_add(4).unwrap()) * 4),
         ("hub.turn_queue_bytes", u64::from(turn) * 8),
@@ -117,16 +116,14 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     text.push('}');
     text.into_bytes().into_boxed_slice()
 }
-/// The owned example's worker and application limits, in the worker-only shape.
+/// The owned example's worker, with the worker-only fixture's application limits.
 #[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example as fixture data")]
 pub fn owned_worker_alone_document() -> Box<[u8]> {
     let owned = include_bytes!("../../../../../docs/examples/owned.json");
     let mut input = Vec::from(b"{\"workers\":".as_slice());
     input.extend_from_slice(&owned[member_span(owned, b"workers")]);
-    input.extend_from_slice(b",\"application\":{\"workers\":");
-    input.extend_from_slice(&owned[member_span(owned, b"application.workers")]);
-    input.extend_from_slice(b",\"limits\":");
-    input.extend_from_slice(&owned[member_span(owned, b"application.limits")]);
+    input.extend_from_slice(b",\"application\":{");
+
     input.extend_from_slice(b"}}");
     let input = with(&input, b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
     let input = with(&input, b"workers[0].name", br#""w1""#);
@@ -259,7 +256,7 @@ pub fn owned_worker_agent() -> settings::Agent {
 
 pub fn startup_agent() -> settings::Agent {
     let mut agent = super::agent();
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
+    let hub = jig_protocol_config_fixtures::small().hub;
     agent.host_limits.directories = 4;
     agent.host_limits.conflicts = 1024;
     agent.host_limits.name_bytes = 600;
@@ -286,4 +283,38 @@ pub fn files() -> settings::Files {
         entries.push((path.into(), Secret::new(value.into()))).unwrap();
     }
     settings::Files { entries }
+}
+
+/// Small settings supplied in code, independent of the worker document.
+pub fn part(input: &[u8]) -> crate::startup::WorkerPart {
+    let mut part = crate::startup::worker_part(input, &jig_protocol_config::Directories::working(), None, &[]).unwrap();
+    let mut limits = jig_protocol_config_fixtures::small();
+    for (name, value) in [
+        ("hub.slots", 1),
+        ("hub.run_calls", 1),
+        ("tasks.run_inbox", 2),
+        ("hub.turns", 1),
+        ("tasks.message_bytes", 512),
+        ("people.words", 512),
+        ("core.call_answer_bytes", 2048),
+    ] {
+        jig_protocol_config::overrides::apply(&mut limits, name.as_bytes(), value).unwrap();
+    }
+    part.worker.jig.limits = Some(limits);
+    part.limits = crate::worker_settings::Limits::shared(temper_limits_fixtures::shared());
+    let files = part.files;
+    let mut part = crate::startup::WorkerPart::in_process(
+        part.worker.jig,
+        crate::startup::worker::application::Worker {
+            root: part.worker.root,
+            git: Some(b"/usr/bin/git".as_slice().into()),
+            claude: part.claude,
+            environment: part.environment,
+        },
+        &jig_protocol_config::Directories::working(),
+        part.limits,
+    );
+    part.call_answer = temper_service_core::startup::CallAnswer::Profile;
+    part.files = files;
+    part
 }

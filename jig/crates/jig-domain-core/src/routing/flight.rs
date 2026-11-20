@@ -43,7 +43,7 @@ pub(crate) enum Internal {
     Admission,
     Deletion { project: u32 },
     Delegate,
-    Repair,
+    Repair { number: u64 },
     Acknowledge,
 }
 
@@ -166,6 +166,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::Move { reply_to, .. }
         | tasks::Event::Subscribe { reply_to, .. }
         | tasks::Event::SubscribeTopic { reply_to, .. }
+        | tasks::Event::SubscribeTopicApart { reply_to, .. }
         | tasks::Event::Unsubscribe { reply_to, .. }
         | tasks::Event::Introduce { reply_to, .. }
         | tasks::Event::Message { reply_to, .. }
@@ -181,6 +182,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::CarvePool { reply_to, .. }
         | tasks::Event::ResizePool { reply_to, .. }
         | tasks::Event::ResizePeriod { reply_to, .. }
+        | tasks::Event::RecordWords { reply_to, .. }
         | tasks::Event::Turn { reply_to, .. }
         | tasks::Event::Make { reply_to, .. }
         | tasks::Event::MakeResultFollowups { reply_to, .. }
@@ -313,7 +315,9 @@ impl Core {
     pub(crate) fn creating_flights(&self) -> u32 {
         self.count_flights(Kind::Creating)
     }
-    pub(crate) fn awaiting_resources_flights(&self) -> u32 {
+    /// Uncommitted batches waiting for connector reports (domain/tasks/holds.md, 2).
+    #[must_use]
+    pub fn awaiting_resources_flights(&self) -> u32 {
         self.count_flights(Kind::AwaitingResources)
     }
     #[cfg(test)]

@@ -11,7 +11,7 @@ use skein_lib::{Duration, Env, Queue, Wall};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{store::Store, walking};
 const CLIENT: ClientId = ClientId(0);
-pub const PROVIDER: u32 = 17;
+pub const PROVIDER: u32 = 3;
 pub const SMALL_ROWS: u32 = 2;
 #[must_use]
 pub fn fixture(seed: u64) -> (Joint, Root) {
@@ -421,14 +421,14 @@ fn goal_choice_template(config: &mut engine::Config) {
     config.core.settings.models[0].effort = Some(b"low".as_slice().into());
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
     config.core.defaults.charters[0].policy.resume = false;
-    // This fixture admits the stock milestone and its two goals.
+    // The milestone leaves its goals room to delegate work of their own.
     let kinds: Box<[jig_domain_authority::Executor]> = Box::new([
         jig_domain_authority::Executor::Charter(1),
         jig_domain_authority::Executor::Procedure(jig_client::shapes::GATHERING),
     ]);
     let policy = &mut config.core.seed_projects[0].policy.policy;
     for authority in [&mut config.core.defaults.rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
-        authority.delegation = jig_domain_authority::Delegation { kinds: kinds.clone(), tasks: 4, depth: 2 };
+        authority.delegation = jig_domain_authority::Delegation { kinds: kinds.clone(), tasks: 8, depth: 4 };
     }
     let models = config
         .core
@@ -635,13 +635,7 @@ fn fixture_root(
             git: b"https://forge.test".as_slice().into(),
             web: None,
         };
-        config.machine = Some(temper_engine_domain_forge::Machine {
-            owned_person: Box::new([]),
-            github_git_program: None,
-            owned: Some(place.clone()),
-            fake: Some(place.clone()),
-            github: place,
-        });
+        config.machine = Some(temper_engine_domain_forge::Machine { github_git_program: None, github: place });
         config.core.connectors = Box::new([fixtures::FORGE]);
         for permission in &mut config.core.seed_projects[0].policy.permissions {
             permission.connector = fixtures::FORGE;
@@ -673,7 +667,7 @@ fn fixture_root(
             engine_limits.tasks.tasks = 3;
             engine_limits.tasks.project_tasks = 3;
             engine_limits.tasks.project_goals = 3;
-            engine_limits.tasks.tree_tasks = 3;
+            engine_limits.tasks.tree_tasks = 9;
             engine_limits.tasks.delegates = 2;
             engine_limits.people.inbox_tasks = 6;
             engine_limits.authority.executors = 2;
@@ -715,6 +709,7 @@ fn fixture_root(
             // with room for the retry before their retention ends.
             engine_limits.people.requests = 12;
         }
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         (config, engine_limits)
     });
     let printed_config = lending_story.then(|| temper_engine_domain_world::oracle::config::copy(&config));
@@ -736,14 +731,8 @@ fn fixture_root(
     }
     if let WelcomeForge::Playground { running: true, .. } = forge {
         let running = true;
-        let playground = playground_answer(running).into_parts();
-        front.playground = Some(
-            temper_client_protocol_wire::v1::PlaygroundAnswer::new(
-                &temper_client_protocol_wire::v1::CEILINGS,
-                playground,
-            )
-            .expect("playground fixture"),
-        );
+        let playground = playground_answer(running);
+        front.playground = Some(playground);
     }
     if matches!(forge, WelcomeForge::Playground { printed: true, .. }) {
         front.offer_printed_link(limits);
@@ -1026,19 +1015,15 @@ pub(super) fn playground_answer(running: bool) -> temper_client_protocol_wire::v
     use temper_client_protocol_wire::v1 as w;
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    w::PlaygroundAnswer::new(
-        &w::CEILINGS,
-        w::PlaygroundAnswerParts {
-            project: Some(1),
-            forge: 2,
-            provider: PROVIDER,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::Starting },
-            cues,
-        },
-    )
-    .expect("playground fixture")
+    w::PlaygroundAnswer {
+        project: Some(1),
+        forge: 2,
+        provider: PROVIDER,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::Starting },
+        cues,
+    }
 }
 
 /// Fresh page on the same engine and person.

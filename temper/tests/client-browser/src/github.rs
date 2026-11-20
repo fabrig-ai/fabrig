@@ -30,7 +30,7 @@ pub(super) fn peer(address: SocketAddr) -> Peer {
 }
 
 pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u32) -> Peer {
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let mut config = domain_config();
     config.limits.repositories = repositories;
     config.limits.commits = repositories;
@@ -154,7 +154,7 @@ fn github_config(count: u32) -> layer::Config {
 }
 
 /// The welcome creates its first adopted repository's project under policy 1.
-pub(super) fn project_creation(value: &mut serde_json::Value, address: SocketAddr) {
+pub(super) fn project_creation(value: &mut temper_playground::documents::Configuration, address: SocketAddr) {
     // Deployment 0, configured project 1 and one new project; two funders per working project.
     // A forge branch needs eight authority segments; adoption has two ids and seven options.
     const PROJECTS: u32 = 3;
@@ -162,10 +162,10 @@ pub(super) fn project_creation(value: &mut serde_json::Value, address: SocketAdd
     const ADOPTION_PARTS: usize = 2 + 7;
     const BRANCH_SEGMENTS: u32 = 8;
 
-    value["engine"]["limits"]["overrides"]["people.projects"] = PROJECTS.into();
-    value["engine"]["limits"]["overrides"]["authority.projects"] = PROJECTS.into();
-    value["application"]["limits"]["overrides"]["forge.judge_projects"] = PROJECTS.into();
-    value["engine"]["limits"]["overrides"]["tasks.funders"] = FUNDERS.into();
+    value.jig_over("people.projects", PROJECTS);
+    value.jig_over("authority.projects", PROJECTS);
+    value.temper_over("forge.judge_projects", PROJECTS);
+    value.jig_over("tasks.funders", FUNDERS);
     // Two resource ids and seven adoption options, as adopt_repository_ask builds them.
     // The options own host, owner, repository, branch prefix, landing, and two flags.
     let fixed = core::mem::size_of::<u16>()
@@ -177,10 +177,9 @@ pub(super) fn project_creation(value: &mut serde_json::Value, address: SocketAdd
         + 2;
     let amendment_bytes =
         ADOPTION_PARTS * core::mem::size_of::<Box<[u8]>>() + fixed + format!("http://{address}").len();
-    value["engine"]["limits"]["overrides"]["people.amendment_bytes"] =
-        u32::try_from(amendment_bytes).expect("one adoption").into();
+    value.jig_over("people.amendment_bytes", u32::try_from(amendment_bytes).expect("one adoption"));
     // forge/host/owner/repository/branch, plus temper/<root>/<task>.
-    value["engine"]["limits"]["overrides"]["authority.segments"] = BRANCH_SEGMENTS.into();
+    value.jig_over("authority.segments", BRANCH_SEGMENTS);
 }
 
 // The picker and adoption both read this repository through the GitHub layer.

@@ -279,8 +279,12 @@ ones `smith exec` with the same flags would have. `check`'s own
   it needs; a program not signed in, signed in otherwise, or whose
   check failed (../protocol/programs.md, section 3); a variable unset.
   Never a value;
-- the tools' paths, `sh`, `rg` and `git`, and each program a run may
-  use, resolved;
+- the tools' paths, `sh`, `rg` and `git`, each resolved on the
+  commands' `PATH`, `rg` by the agent's own finding, so that the `rg`
+  it names is the one a run takes (../protocol/agent.md, section 2); a
+  `PATH` that holds one of them nowhere is a configuration problem,
+  `tools.<name>`, though a run would fall back to `/usr/bin/rg`; and each
+  program a run may use, resolved;
 - the commands' environment by name, and the build environment's
   warnings (`README.md`, section 4).
 

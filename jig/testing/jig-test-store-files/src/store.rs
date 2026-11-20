@@ -66,18 +66,16 @@ pub struct Store {
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
     sets: protocol::OwnerSets,
-    initial_sets: protocol::OwnerSets,
-    patches: Vec<(usize, protocol::OwnerSets)>,
     turn_text: Option<TurnText>,
     files: Files,
     disk: Option<crate::disk::Disk>,
     routes: route::Routes,
     limits: root::Limits,
     component_limits: Limits,
+    application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
     models: Box<[jig_domain_core::Model]>,
     inflight: BTreeMap<u64, Box<[root::Write]>>,
-    durable: Vec<(u64, Box<[root::Write]>)>,
     replies: Vec<Up>,
     delayed: VecDeque<Delayed>,
     hold_next: u32,
@@ -137,24 +135,55 @@ impl Store {
         sets: protocol::OwnerSets,
         on_disk: bool,
     ) -> Store {
-        let component_limits = component_limits(limits);
-        let disk =
-            if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(&component_limits)) };
-        let application = jig_test_store::application(&limits.connector);
-        let mut component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(&component_limits, application, models, disk.seeded())
+        Self::prepared(
+            limits,
+            models,
+            sets,
+            on_disk,
+            &component_limits(limits),
+            jig_test_store::application(&limits.connector),
+        )
+    }
+    // Forks keep these checked sizes: the source's configuration is immutable.
+    fn prepared(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        on_disk: bool,
+        component_limits: &Limits,
+        application: protocol::sizes::Application,
+    ) -> Store {
+        let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
+        let component = if let Some(disk) = &disk {
+            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
         } else {
             let stores = Stores {
                 store: skein_kv::Store::memory(&component_limits.store),
                 secrets: skein_kv::Store::memory(&component_limits.secrets),
             };
-            protocol::Store::over(&component_limits, application, models, stores)
+            protocol::Store::over(component_limits, application, models, stores)
         };
+        let mut store =
+            Self::over_storage(limits, models, sets, component, Files::new(), disk, component_limits, application);
+        store.open();
+        store
+    }
+    #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
+    fn over_storage(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        mut component: protocol::Store,
+        files: Files,
+        disk: Option<crate::disk::Disk>,
+        component_limits: &Limits,
+        application: protocol::sizes::Application,
+    ) -> Store {
         component.owner_sets(component_sets(sets));
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
-        routes.configure_restore(&component_limits).expect("restart page bounds fit");
-        let mut store = Store {
+        routes.configure_restore(component_limits).expect("restart page bounds fit");
+        Store {
             applied: 0,
             prefixes: BTreeMap::from([(0, BTreeMap::new())]),
             acknowledged: 0,
@@ -169,17 +198,15 @@ impl Store {
             held: VecDeque::new(),
             component: Some(component),
             sets,
-            initial_sets: sets,
-            patches: Vec::new(),
             turn_text: None,
-            files: Files::new(),
+            files,
             disk,
             routes,
             limits: *limits,
-            component_limits,
+            component_limits: *component_limits,
+            application,
             models: models.into(),
             inflight: BTreeMap::new(),
-            durable: Vec::new(),
             replies: Vec::new(),
             delayed: VecDeque::new(),
             hold_next: 0,
@@ -188,9 +215,7 @@ impl Store {
             page_delay: 0,
             pages_paused: false,
             failed: false,
-        };
-        store.open();
-        store
+        }
     }
     /// Set the shell's wire data for this and subsequent opens.
     pub fn wires(&mut self, wires: &'static [protocol::Wire]) {
@@ -291,6 +316,13 @@ impl Store {
         self.hold_next = self.hold_next.saturating_sub(1);
         self.inflight.insert(pending.number, pending.writes.clone());
         if let Some(disk) = &mut self.disk
+            && disk.sweep.iter().any(|(from, _)| *from == KillFrom::Commit(pending.number))
+        {
+            disk.operations = 0;
+            disk.mutations.clear();
+            disk.sweeping = Some(KillFrom::Commit(pending.number));
+        }
+        if let Some(disk) = &mut self.disk
             && let Some((KillFrom::Commit(number), operation)) = self.kill
             && number == pending.number
         {
@@ -303,6 +335,11 @@ impl Store {
         self.request(StoreOut::Commit { number: pending.number, writes: pending.writes });
         if let Some(disk) = &self.disk {
             self.counts.insert(pending.number, disk.operations - before);
+        }
+        if let Some(disk) = &mut self.disk
+            && matches!(disk.sweeping, Some(KillFrom::Commit(_)))
+        {
+            disk.sweeping = None;
         }
         if self.reached_kill() {
             return Ok(None);
@@ -334,7 +371,7 @@ impl Store {
     }
     pub fn crash(&mut self, seed: u64) -> Result<(), ReadbackFinding> {
         let component = self.component.take().expect("component exists");
-        let application = jig_test_store::application(&self.limits.connector);
+        let application = self.application;
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
             disk.crash(&self.component_limits, seed);
@@ -363,6 +400,11 @@ impl Store {
         {
             disk.cut = Some(operation);
         }
+        if let Some(disk) = &mut self.disk
+            && disk.sweep.iter().any(|(from, _)| *from == KillFrom::Open)
+        {
+            disk.sweeping = Some(KillFrom::Open);
+        }
         self.open();
         self.kill = None;
         if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
@@ -376,11 +418,30 @@ impl Store {
             self.rows = actual;
             self.prefixes.retain(|number, _| *number <= self.applied);
             self.submissions.retain(|number, _| *number <= self.applied);
-            self.durable = self.submissions.iter().map(|(number, writes)| (*number, writes.clone())).collect();
             self.acknowledged = self.applied;
         }
         Ok(())
     }
+    /// Fork only the selected file-operation boundaries (domain/testing.md, 4).
+    /// Unarmed stores do not split or change their operation boundaries.
+    pub fn sweep_kills(&mut self, cuts: Vec<(KillFrom, u32)>) {
+        if let Some(disk) = &mut self.disk {
+            disk.sweep = cuts;
+        } else {
+            assert!(cuts.is_empty(), "operation sweeps require a directory store");
+        }
+    }
+
+    /// Take the cut selected by this child.
+    pub fn take_forked_kill(&mut self) -> Option<(KillFrom, u32)> {
+        self.disk.as_mut().and_then(|disk| disk.fork_child.take())
+    }
+
+    /// Drain the parent's completed cuts.
+    pub fn take_passed_kills(&mut self) -> Vec<(KillFrom, u32)> {
+        self.disk.as_mut().map_or_else(Vec::new, |disk| std::mem::take(&mut disk.forked))
+    }
+
     /// Whether the disk has stopped serving operations at the selected cut.
     #[must_use]
     pub fn reached_kill(&self) -> bool {
@@ -401,26 +462,33 @@ impl Store {
     pub fn mutation_operations(&self) -> &[u32] {
         &self.disk.as_ref().expect("directory store").mutations
     }
-    /// Replay durable commits into fresh stores and a fresh filesystem.
+    /// Copy the durable image, then cold-open it without resubmitting history.
     pub fn fork(&self) -> Result<Store, ReadbackFinding> {
-        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets, self.disk.is_some());
+        let disk = self.disk.as_ref().map(|disk| disk.fork(&self.component_limits));
+        let application = self.application;
+        let component = if let Some(disk) = &disk {
+            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
+        } else {
+            let stores = self.component.as_ref().expect("component").fork_memory().expect("memory store");
+            protocol::Store::over(&self.component_limits, application, &self.models, stores)
+        };
+        let mut fresh = Self::over_storage(
+            &self.limits,
+            &self.models,
+            self.sets,
+            component,
+            self.files.fork(),
+            disk,
+            &self.component_limits,
+            self.application,
+        );
         fresh.wires(self.wires);
-        for index in 0..=self.durable.len() {
-            for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
-                fresh.owner_sets(*sets);
-                fresh.crash(0)?;
-            }
-            if let Some((number, writes)) = self.durable.get(index) {
-                if fresh.generation_pending && writes.contains(&root::Write::Wires) {
-                    fresh.ask(StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, census: None });
-                    let _answers = fresh.answers();
-                }
-                fresh.submit(*number, writes.clone(), 0);
-                assert_eq!(fresh.tick(false), Ok(Some(*number)));
-            }
-        }
-        fresh.owner_sets(self.sets);
+        fresh.rows.clone_from(&self.rows);
+        fresh.prefixes.clone_from(&self.prefixes);
+        fresh.submissions.clone_from(&self.submissions);
+        fresh.acknowledged = self.acknowledged;
         fresh.turn_text = self.turn_text;
+        fresh.open();
         fresh.page_delay = self.page_delay;
         Ok(fresh)
     }
@@ -500,20 +568,23 @@ impl Store {
         !self.delayed.is_empty() || !self.routes.idle()
     }
     fn open(&mut self) {
+        self.component.as_mut().expect("component").prepared_schemas(binary_schemas());
         let root = match &self.disk {
             Some(disk) => disk.root(),
             None => self.files.root(),
         };
         self.drive(
-            VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
+            VecDeque::from([Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(0),
+                root,
+                installation: INSTALLATION,
+            }]),
             Queue::uncapped(),
         );
         assert!(!self.failed, "durable stores reopen after their files are cut");
         if !self.rows.is_empty() && !self.reached_kill() && (self.disk.is_none() || !self.sets.sets.is_empty()) {
             self.refresh_patched_rows();
-        }
-        if self.generation_pending {
-            self.patches.push((self.durable.len(), self.sets));
         }
     }
     /// Read back the rows patching can change, including the seal's header.
@@ -542,7 +613,12 @@ impl Store {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
-        let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         loop {
             if self.reached_kill() {
                 return;
@@ -603,7 +679,6 @@ impl Store {
                 let writes = self.inflight.remove(&number).expect("commit belongs to the root");
                 apply(&mut self.rows, &writes);
                 self.applied = number;
-                self.durable.push((number, writes));
                 if self.holding {
                     self.held.push_back(number);
                 }
@@ -644,8 +719,21 @@ impl Store {
                 self.failed = true;
                 self.route(event, requests);
             }
+            Event::Job { owner, of: protocol::Owner::Jig, job, page } => {
+                let answer = protocol::jobs::page(&job, &page, self.component.as_mut().expect("component exists"));
+                requests.push_back(Request::Job { owner, answer });
+            }
             // These worlds supply sets without written sites; routing answers NoSite.
-            event @ (Event::Job { .. }
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Job {
+                of: protocol::Owner::Skein | protocol::Owner::Smith | protocol::Owner::Application,
+                ..
+            }
             | Event::Ran { .. }
             | Event::Site { .. }
             | Event::Page { .. }
@@ -712,6 +800,32 @@ const HISTORY_SETS: protocol::OwnerSets = protocol::OwnerSets {
         ..protocol::JIG_STORE_SET
     }],
 };
+// Only immutable schemas from the fixture's constant texts outlive a test.
+fn binary_schemas() -> &'static [skein_codec::schema::Schema] {
+    static SCHEMAS: std::sync::OnceLock<Vec<skein_codec::schema::Schema>> = std::sync::OnceLock::new();
+    SCHEMAS.get_or_init(|| {
+        let mut schemas = Vec::new();
+        for set in [protocol::SKEIN_SET, protocol::SMITH_SET, protocol::JIG_STORE_SET] {
+            for family in set.families {
+                if !schemas
+                    .iter()
+                    .any(|schema: &skein_codec::schema::Schema| schema.text() == family.current.as_bytes())
+                {
+                    schemas.push(skein_codec::schema::parse(family.current.as_bytes()).expect("fixture schema"));
+                }
+                if let Some(frames) = &family.frames {
+                    for text in frames.texts {
+                        if !schemas.iter().any(|schema| schema.text() == text.as_bytes()) {
+                            schemas.push(skein_codec::schema::parse(text.as_bytes()).expect("fixture frame schema"));
+                        }
+                    }
+                }
+            }
+        }
+        schemas
+    })
+}
+
 fn component_sets(sets: protocol::OwnerSets) -> protocol::OwnerSets {
     // Domain worlds exercise log storage without pricing layout planning;
     // explicit upgrade fixtures supply registered families themselves.
@@ -768,6 +882,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         files: 8,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks).expect("bounded readers"),
         fetch: 16_777_216,
+        checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
         orphan_erases: 1,
         held: 2,
     }

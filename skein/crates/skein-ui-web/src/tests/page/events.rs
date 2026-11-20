@@ -287,6 +287,46 @@ fn a_menu_opens_without_a_step() {
 }
 
 #[test]
+fn a_menu_button_patch_keeps_the_menu_open_or_closed() {
+    for open in [true, false] {
+        let (mut page, mut view) = (page(), View::new(&LIMITS));
+        let build = |builder: &mut Builder, words: &[u8], name: &[u8]| {
+            main(builder);
+            builder.open(Role::Menu);
+            builder.name(b"Stock ways");
+            builder.menu_button(words, name);
+            builder.open(Role::MenuItem);
+            builder.name(b"Item");
+            builder.bind(fixtures::binding(1));
+            builder.close();
+            builder.close();
+            end(builder);
+        };
+        page.apply(
+            &fixtures::patches(&mut view, 0, |b| build(b, b"You approve", b"Way shown: You approve")),
+            &mut Vec::new(),
+        );
+        if open {
+            page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
+        }
+        let patches = fixtures::patches(&mut view, 1, |b| build(b, b"Agents review", b"Way shown: Agents review"));
+        let mut ops = Vec::new();
+        page.apply(&patches, &mut ops);
+        assert_eq!(ops.len(), 1);
+        assert!(matches!(&ops[0], Op::Attributes { node: MENU, .. }));
+        let html = page.html();
+        assert!(html.contains(concat!(
+            "<button type=\"button\" aria-haspopup=\"menu\" aria-controls=\"skein-ui-menu-3\" ",
+            "aria-label=\"Way shown: Agents review\" aria-expanded=\"",
+        )));
+        assert!(html.contains(&format!("aria-expanded=\"{open}\">Agents review</button>")));
+        assert!(html.contains("role=\"menu\" aria-label=\"Stock ways\" id=\"skein-ui-menu-3\""));
+        assert_eq!(html.contains("hidden=\"\""), !open);
+        assert!(html.contains("<div data-node=\"4\" role=\"menuitem\">Item</div>"));
+    }
+}
+
+#[test]
 fn escape_closes_an_open_menu() {
     let (mut page, mut view) = (page(), View::new(&LIMITS));
     page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());

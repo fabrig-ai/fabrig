@@ -323,7 +323,10 @@ fn configured(seed: u64, truth: Truth, ops: OpsScript, rules: Vec<jig_client_scr
         Settings { seed, ..Settings::default() },
         Scripted::new(
             Script {
-                versions: VersionRange { first: 26, last: 26 },
+                versions: VersionRange {
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
                 truth,
                 bounds: Bounds {
                     text: 32,

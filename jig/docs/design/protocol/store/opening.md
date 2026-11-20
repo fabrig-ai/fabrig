@@ -34,7 +34,8 @@
 ## 1. Generations at open
 
 Before a map opens, the component reads the deployment's directory
-(`README.md`, section 2). Nothing is removed or made until the active generation has
+(`README.md`, section 2). Except for resolving an outstanding restore intent
+(1.1), nothing is removed or made until the active generation has
 opened and nothing refuses. The shell seeds each of the store's file
 drivers before the open, through `seed`, whose `Seeded` witness
 `on_directory` takes: io names a `Store`'s temporaries from a driver's
@@ -48,7 +49,9 @@ seeded, not that they are the three the shell serves the store with.
 io's `Lock` on the deployment's root, held as long as the process
 (skein's `runtime/io/files.md`). `Busy` refuses, `Generations::Busy`: another
 process has the deployment open, and two starts never copy, remove or
-switch beside each other.
+switch beside each other. Once locked, an outstanding `restore` intent is
+rolled forward before `active` is read, or refused `Generations::Unmatched`
+(`restoring.md`, 5).
 
 ### 1.2 `active`
 
@@ -82,7 +85,12 @@ io has no recursive removal: each directory is listed from its first
 page, each file in it removed, and listed again until it is empty (a
 removal moves what a later page would show), then removed itself,
 deepest first; then `generations/` is synced. A start never removes the
-active generation or its previous.
+active generation or its previous. Then each checkpoint temporary in
+`checkpoints/`, the same way, and `checkpoints/` synced: never a
+checkpoint (`checkpoints.md`, 7). With no intent standing, the restore's
+`transcripts.staged/`, `transcripts.aside/` and `restore.skein-<16 hex>`
+are removed too, each tree deepest first, then the top synced
+(`restoring.md`, 5).
 
 ### 1.6 `transcripts/`
 
@@ -125,6 +133,21 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   and this start has changed nothing in it. Name one again from a
   backup of `<deployment>`, or write `active` to name the generation
   under `generations/` to open, and start again."
+- `Checkpoints`: "`<deployment>` holds checkpoints but no `active` names a
+  generation, and this start has changed nothing in it. Restore
+  `<deployment>` from a backup or from one of its checkpoints, or, to
+  start afresh, move `checkpoints/` out of `<deployment>`, and start
+  again." A first start beside checkpoints (`checkpoints.md`, 7).
+
+- `Unmatched`: "`<deployment>` holds an unfinished restore whose files no
+  longer match its intent, `restore`, and this start has changed nothing
+  in it. Something outside the engine changed them: restore
+  `<deployment>` from a backup, or copy one of its checkpoints into
+  place, and start again."
+- `Unfinished`: "`<deployment>` holds a restore that has not finished,
+  and this rehearsal has changed nothing in it. Start the deployment,
+  or take a checkpoint of it, which finishes the restore, then rehearse
+  again."
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
   the baseline, the first build whose stores later builds upgrade, and this
@@ -204,7 +227,7 @@ pub enum OpenRefusal {
 }
 pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2)
 pub enum Older { Layout(Family), Directory, Unleveled, Floor, Behind, Unregistered }
-pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
+pub enum Generations { Busy, Unreadable, Unnamed, Checkpoints, Unmatched, Unfinished, Missing { generation: u64 } }
 pub enum Check { Load { key }, Private { name } }
 ```
 
@@ -499,7 +522,8 @@ impl OwnerSets {
   turn's bytes on undecoded. The names, texts and keys are `&'static`,
   the binary's own constants, never state: the only references in
   fields the component holds (skein/docs/foundation/programming-model.md,
-  10.3), read by each open's check and by each serving open, which makes
+  10.3), beside optional immutable parsed binary texts (below), read by each
+  open's check and by each serving open, which makes
   the frames' machines from them (`transcripts.md`, 6).
 - **A set is checked where it is admitted,** at every open, before the
   levels are compared, so a start at equal levels proves its sets too:
@@ -517,8 +541,16 @@ impl OwnerSets {
   `Set` with its owner, before anything is written. That each record of
   the map lies in one family's range takes a walk, which a rehearsal
   makes (5), not every open.
-- **One check per open.** An open checks its sets once, each text it
-  reads parsed for it alone. Whichever step of the open needs it first
+- **One check per open.** An open checks its sets once. By default each
+  text it reads is parsed for it alone. A shell may supply immutable parsed
+  binary schemas through `Store::prepared_schemas` before open. Admission
+  borrows a supplied schema only when its entire text equals the text being
+  checked; a missing or unmatched text is parsed by that open. These schemas
+  contain no stored data, admission verdict or layout verdict: every admission
+  and layout check still runs. jig's test store keeps only schemas derived
+  from its constant Skein, Smith and jig owner-set texts across tests, never a store or an
+  open's state; first starts and cold restarts remain real opens. The
+  component owns no cache that outlives an open. Whichever step needs the check first
   runs it: a first start before anything is written (1.2), the
   rehearsal (5), the registry's (`layouts.md`, 5) or readiness before
   the open serves. Its verdict, passed or the `Set` it refuses with its
@@ -527,7 +559,7 @@ impl OwnerSets {
   each step refuses where it did, with the same `Set`. The verdict is a
   few bytes beside the open's state, not a parsed text: dropped when the
   open settles, served (`Opened`) or refused, and whenever the shell
-  hands new sets (`Store::owner_sets`), so an open's start finds none
+  hands new sets (`Store::owner_sets`) or prepared schemas, so an open's start finds none
   and no verdict outlives the open it was made in. The jobs' check the
   open makes alone at its first step (`jobs.md`, 1), before reading the
   format row, is cheap and stays where it is.
@@ -618,12 +650,14 @@ Two operations the application's tools run with the engine stopped
 deployment's lock as a start does (1, step 1).
 
 - **A rehearsal** is a start that stops before its switch step. It
-  never writes the directory it is given, a copy of a stopped
+  refuses a directory holding `restore`, `Generations::Unfinished`, before
+  copying anything (`restoring.md`, 5). It never writes the directory it is given, a copy of a stopped
   deployment's such as a backup: it reads `active` and that
   generation's maps, copies them into a scratch deployment as that
   generation, file by file and never by links (the directory it is
   given may be a backup on another file system, and a link would
-  change its files' links), its task logs among them (`logs.md`, 7),
+  change its files' links; `Openings` links what it can, below), its
+  task logs among them (`logs.md`, 7),
   and opens the
   scratch as any start does (1 and 2), with its owner sets, the
   transcripts read where they are and never cut, and no generation
@@ -640,9 +674,46 @@ deployment's lock as a start does (1, step 1).
   last start spoke (`records.md`, 3), and the workers' openings `A` keeps since that start
   (`records.md`, 3, *The workers' openings*), from which the application
   says whether each of its workers may
-  stay; and that what follows the switch (adopting runs, reading the
+  stay; how many files it linked into the scratch and how many it
+  copied, a link the file system refused counted as a copy, with
+  `Rehearsing`; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   emptied as it ends.
+- **Its reach,** `Reach`, which the request names. `Whole` is all of the
+  above. `Openings` reads only the rows from which the application
+  judges its workers, and ends there, for a redeploy that judges them
+  again at its stop (temper's `redeploy.md`, 4.2):
+  - it locks the directory, refuses an outstanding intent and reads
+    `active` as `Whole` does;
+  - it makes that generation in the scratch as an upgrade makes `A + 1`
+    (2, step 2), but for `store/logs/` and every task log in it, which
+    no row it reads names, so that a redeploy's stop, where it runs
+    over the stop's checkpoint, makes links and small copies alone
+    (temper's `draft/checkpoints.md`, 6, step 3):
+    - **linked:** `store/`'s `snapshot` and each of its segments but
+      the newest, the newest found over every page first, by io's
+      `HardLink`;
+    - **copied,** file by file as `Whole` copies: the newest segment,
+      any other file of `store/`, and the whole of `secrets/`;
+    - **a link the file system refuses** (the scratch on another file
+      system than the directory, as a backup's may be) is that file
+      copied instead.
+
+    Nothing writes a linked file again (2, step 2), so the directory's
+    files keep their bytes; only their link counts move, while the
+    scratch holds them;
+  - it opens the scratch through the stores' recovery, and answers
+    `Rehearsing` with the wires and the openings, as `Whole` does,
+    before any check of the levels, the floor or the format;
+  - then it ends as `Close` ends a rehearsal: the scratch emptied, and
+    `Closed`. It answers no `Opened` or `OpenRefused`, decodes no record
+    and runs no plan, job or restore, and the application asks no
+    `Close` of it.
+
+  A refusal before the rows are read (the lock `Busy`, `Unfinished`,
+  `Unreadable`, a copy or a recovery failing) is answered as `Whole`'s
+  is, `OpenRefused` after `Rehearsing`, and the application closes it
+  as it closes any rehearsal.
 - **Every record decoded** in a rehearsal, after the copy and before
   the plan, whether or not a job changes its family (the
   user's words of 2026-11-11): each family of each set is walked over its
@@ -662,7 +733,8 @@ deployment's lock as a start does (1, step 1).
   an upgraded generation is active, its previous one, `A`, stays on disk
   (`README.md`, section 2), and `active` may name it again until `A + 1`'s first
   commit of its own, the first past the position its manifest names
-  (2, steps 6 and 8). It takes the lock, reads `active` and `A + 1`'s
+  (2, steps 6 and 8). It takes the lock, rolls an outstanding restore
+  intent forward first (`restoring.md`, 5), then reads `active` and `A + 1`'s
   manifest, opens `A + 1`'s store as 1 opens one (skein-kv's recovery
   alone writes), and compares its last commit with the manifest's
   position. Equal, it replaces `active` by io's durable replace,
@@ -675,11 +747,14 @@ deployment's lock as a start does (1, step 1).
   no previous generation or no manifest, it refuses, `Back { why }`,
   changing nothing: the upgraded generation has made commits of its own,
   which may have acted beyond the store, and going back is restoring a
-  backup.
+  backup. A restored generation names no predecessor in its manifest, so
+  going back refuses it `NoPrevious` (`restoring.md`, 4.4).
 
 ```rust
-Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written; `scratch` emptied, never removed
-Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
+Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach } // `directory` never written; `scratch` emptied, never removed
+pub enum Reach { Whole, Openings }                     // `Openings`: `Rehearsing`, then `Closed` unasked
+Adoption::Rehearse { scratch: Fd, reach: Reach }      // the host's adoption (`host.rs`), beside `Back` and `Checkpoint`
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>, linked: u32, copied: u32 } // before `Opened` or `OpenRefused`; files linked into the scratch and copied (`Whole` links none)
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
 pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
 pub struct OpenedWire { pub name: Box<str>, pub lowest: u16, pub layouts: Box<[[u8; 32]]> }
@@ -705,5 +780,8 @@ itself are the application's. A rehearsal's store refuses
 `Request::Switch`, though its root never asks, and its close
 (`Request::Close`; an engine's store ends with its process and has
 none) empties the scratch, `removed` saying it is empty; a rehearsal
-that crashed leaves entries there, which the next rehearsal removes
-before it copies. Its jobs answer their counts as a start's do.
+that crashed leaves entries there, which the next rehearsal given that
+scratch removes before it copies. An application that makes a new
+scratch for each rehearsal removes those left behind itself, as
+temper's does (temper's `protocol/binaries.md`, section 2). Its jobs
+answer their counts as a start's do.

@@ -142,6 +142,17 @@ pub fn render(
 ) -> engine::Event {
     rendered(to, temper_engine_smith::answer_for_tool(answer, tool, max_bytes, forge))
 }
+/// Choose forge rendering by the decoded read, including its page and job pin.
+#[must_use]
+pub fn render_read(
+    to: ReplyTo,
+    answer: &engine::CallAnswer,
+    read: &skein_forge::api::Read,
+    max_bytes: u32,
+    forge: ForgeReadBounds,
+) -> engine::Event {
+    rendered(to, temper_engine_smith::answer_for_read(answer, read, max_bytes, forge))
+}
 /// Render within the core body and receiving agent allowances, preserving the
 /// proposing task's identity. `max_bytes` excludes the settled call's tool name.
 #[must_use]

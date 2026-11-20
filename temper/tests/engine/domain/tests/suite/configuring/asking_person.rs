@@ -1,6 +1,7 @@
 //! Joined person reads (temper/docs/design/domain/agent/ask-temper.md, 1).
 use super::*;
 use serde_json::json;
+use smith_transcript::Record;
 use temper_engine_domain_world::{fixtures::report_delegate, protocol, walking};
 
 const GOAL: &[u8] = b"Add CSV export";
@@ -295,38 +296,28 @@ pub(crate) fn world() -> PersonWorld {
 
 fn transcript(text: &[u8]) -> Box<[u8]> {
     use smith_transcript::v7 as s;
-    let bounds = &s::CEILINGS;
-    let block =
-        s::Block::Text(s::Text::new(bounds, s::TextParts { text: text.into(), replay: None }).expect("turn text"));
-    let message = s::Message::new(
-        bounds,
-        s::MessageParts { role: s::Role::Assistant, blocks: skein_lib::List::from_boxed(Box::new([block])) },
-    )
-    .expect("assistant message");
-    let source = s::Turn::new(
-        bounds,
-        s::TurnParts {
-            system: None,
-            model: b"scripted".as_slice().into(),
-            effort: None,
-            kind: s::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"scripted".as_slice().into(),
-            dialect: 1,
-            place: 1,
-            usage: s::Usage::new(
-                bounds,
-                s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-            )
-            .expect("unused token counts"),
-            spent: 0,
-            jobs: 0,
-            messages: skein_lib::List::from_boxed(Box::new([message])),
-        },
-    )
-    .expect("scripted turn");
-    let mut out = skein_lib::Writer::new(usize::try_from(source.measure()).expect("bounded turn"));
-    source.encode(&mut out).expect("measured transcript");
+
+    let block = s::Block::Text(s::Text { text: text.into(), replay: None });
+    let message = s::Message { role: s::Role::Assistant, blocks: skein_lib::List::from_boxed(Box::new([block])) };
+    let source = s::Turn {
+        system: None,
+        model: b"scripted".as_slice().into(),
+        effort: None,
+        kind: s::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"scripted".as_slice().into(),
+        dialect: 1,
+        place: 1,
+        usage: s::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        spent: 0,
+        jobs: 0,
+        messages: skein_lib::List::from_boxed(Box::new([message])),
+    };
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(source.measure(&smith_transcript::CEILINGS).expect("bounded transcript"))
+            .expect("bounded turn"),
+    );
+    source.write(&smith_transcript::CEILINGS, &mut out).expect("measured transcript");
     out.finish()
 }
 
@@ -341,6 +332,8 @@ fn an_asking_chat_reads_its_project_as_its_person() {
     let elsewhere = person.elsewhere;
     let mut completion = 1;
     let mut owner_tasks = None;
+    // Every address and continuation is read-only against the same durable state.
+    let before = person.world.driver.store.rows.clone();
     for (run, line, heading, content, following) in [
         (
             &person.owner,
@@ -478,12 +471,11 @@ fn an_asking_chat_reads_its_project_as_its_person() {
         (
             &person.owner,
             "inbox".to_owned(),
-            "waiting on you in project 1, Project 1: 1 or more, oldest first; each is answered on Needs you".to_owned(),
+            "waiting on you in project 1, Project 1: 1, oldest first; each is answered on Needs you".to_owned(),
             std::str::from_utf8(QUESTION).unwrap(),
             Some("task N · me"),
         ),
     ] {
-        let before = person.world.driver.store.rows.clone();
         let mut address = line.clone();
         let mut whole = String::new();
         let mut from = 0;

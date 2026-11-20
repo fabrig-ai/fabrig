@@ -404,3 +404,155 @@ fn a_prepare_outstanding_still_waits() {
     assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
     assert_eq!(next.change, c);
 }
+
+// Both update styles use the refusal table in domain/forge/README.md, 6.
+fn stale_change(preparing: bool) -> Change {
+    if preparing {
+        preparing_change()
+    } else {
+        let mut c = change(State::Updating { from: HEAD, base: BASE, ready_since: at(0) });
+        c.updates = 1;
+        c
+    }
+}
+
+#[test]
+fn a_stale_update_replans_or_takes_its_observed_head_without_spending_updates() {
+    let h = Heard { effect: EffectResult::Stale, ..heard() };
+    for preparing in [false, true] {
+        let mut c = stale_change(preparing);
+        c.updates = LIMITS.updates;
+        for (head, contains_base) in [
+            (HEAD, Status::Passed),
+            (NEW, Status::Passed),
+            (NEW, Status::Failed),
+            (HEAD, Status::Unknown),
+            (NEW, Status::Pending),
+        ] {
+            let f = Facts { branch: Some(head), contains_base, ..facts() };
+            let next = decide(&c, &f, &h);
+            if contains_base == Status::Passed {
+                assert_eq!(next, decide(&c, &f, &heard()));
+                assert_eq!(next.change.stale, None);
+            } else if contains_base == Status::Failed {
+                assert_eq!(next.decision, Decision::Hold(Hold::BranchMoved));
+                assert_eq!(next.change.stale, None);
+            } else {
+                assert_eq!(next.decision, Decision::Wait { until: Some(at(31)) });
+                assert_eq!(next.change.stale, Some(at(1)));
+            }
+            assert_eq!(next.change.updates, c.updates);
+        }
+        let f = Facts {
+            base_read: NEW,
+            pull: Pull::Open { head: HEAD, base: NEW },
+            contains_base: Status::Failed,
+            ..facts()
+        };
+        let next = decide(&c, &f, &h);
+        let effect = if preparing {
+            Effect::Prepare { head: HEAD, main: NEW }
+        } else {
+            Effect::Update { head: HEAD, base: NEW }
+        };
+        assert_eq!(next.decision, Decision::Effect(effect));
+        let state = if preparing {
+            State::Preparing { from: HEAD, main: NEW, ready_since: at(0) }
+        } else {
+            State::Updating { from: HEAD, base: NEW, ready_since: at(0) }
+        };
+        assert_eq!(next.change.state, state);
+        assert_eq!(next.change.since, at(1));
+        assert_eq!(next.change.stale, Some(at(1)));
+        assert_eq!(next.change.updates, c.updates);
+    }
+}
+
+#[test]
+fn stale_reads_back_off_across_a_restart_until_stall_not_updates() {
+    let h = Heard { effect: EffectResult::Stale, ..heard() };
+    for preparing in [false, true] {
+        for base_read in [BASE, NEW] {
+            let mut c = stale_change(preparing);
+            c.updates = LIMITS.updates;
+            let f = Facts { base_read, contains_base: Status::Failed, ..facts() };
+            let first = decide(&c, &f, &h);
+            assert_eq!(first.decision, Decision::Wait { until: Some(at(2)) });
+            assert_eq!(first.change.stale, Some(at(1)));
+            // A restored row keeps the first refusal and the last decision.
+            c.stale = Some(at(1));
+            c.since = at(5);
+            let early = step(&c, &f, &h, at(6), &LIMITS);
+            assert_eq!(early.decision, Decision::Wait { until: Some(at(9)) });
+            assert_eq!(early.change, c);
+            let retry = step(&c, &f, &h, at(9), &LIMITS);
+            let effect = if preparing {
+                Effect::Prepare { head: HEAD, main: BASE }
+            } else {
+                Effect::Update { head: HEAD, base: BASE }
+            };
+            assert_eq!(retry.decision, Decision::Effect(effect));
+            assert_eq!(retry.change.stale, c.stale);
+            assert_eq!(retry.change.updates, c.updates);
+            assert_eq!(retry.change.since, at(9));
+            assert_eq!(step(&retry.change, &f, &h, at(10), &LIMITS).decision, Decision::Wait { until: Some(at(17)) });
+            let held = step(&retry.change, &f, &h, at(31), &LIMITS);
+            assert_eq!(held.decision, Decision::Hold(Hold::Stalled));
+            assert_eq!(held.change.stale, None);
+            assert_eq!(held.change.updates, c.updates);
+        }
+        let mut c = stale_change(preparing);
+        c.stale = Some(at(1));
+        c.since = at(100);
+        let limits = Limits { stall: Duration::from_secs(1000), ..LIMITS };
+        let f = Facts { contains_base: Status::Failed, ..facts() };
+        assert_eq!(step(&c, &f, &h, at(159), &limits).decision, Decision::Wait { until: Some(at(160)) });
+        assert!(matches!(step(&c, &f, &h, at(160), &limits).decision, Decision::Effect(_)));
+        c.since = at(0);
+        assert_eq!(decide(&c, &f, &h).decision, Decision::Wait { until: Some(at(2)) });
+    }
+}
+
+#[test]
+fn releasing_a_stale_update_counts_afresh_then_replans_without_another_count() {
+    for preparing in [false, true] {
+        let mut c = stale_change(preparing);
+        c.stale = Some(at(1));
+        c.updates = LIMITS.updates;
+        c.state = State::Held { was: Box::new(c.state), why: Hold::Stalled };
+        let lifted = released(&c, at(40));
+        assert_eq!(lifted.stale, None);
+        assert_eq!(lifted.updates, 0);
+        let f = Facts { contains_base: Status::Failed, ..facts() };
+        let resumed = step(&lifted, &f, &heard(), at(40), &LIMITS);
+        let resend = step(&resumed.change, &f, &heard(), at(41), &LIMITS);
+        assert_eq!(resend.change.updates, 1);
+        let effect = if preparing {
+            Effect::Prepare { head: HEAD, main: BASE }
+        } else {
+            Effect::Update { head: HEAD, base: BASE }
+        };
+        assert_eq!(resend.decision, Decision::Effect(effect));
+        let moved = Facts { base_read: NEW, pull: Pull::Open { head: HEAD, base: NEW }, ..f };
+        let replan = step(&resend.change, &moved, &Heard { effect: EffectResult::Stale, ..heard() }, at(42), &LIMITS);
+        assert_eq!(replan.change.updates, 1);
+        let effect = if preparing {
+            Effect::Prepare { head: HEAD, main: NEW }
+        } else {
+            Effect::Update { head: HEAD, base: NEW }
+        };
+        assert_eq!(replan.decision, Decision::Effect(effect));
+    }
+}
+
+#[test]
+fn a_preparations_conflict_uses_the_merge_job_before_a_resolution() {
+    for merge_job in [false, true] {
+        let f = Facts { merge_job, contains_base: Status::Failed, ..facts() };
+        let next = decide(&preparing_change(), &f, &Heard { effect: EffectResult::Conflict, ..heard() });
+        let delegate =
+            if merge_job { Delegate::Merge { base: BASE, from: Some(HEAD) } } else { Delegate::Resolve { base: BASE } };
+        assert_eq!(next.decision, Decision::Delegate(delegate));
+        assert_eq!(next.change.resolutions, 1);
+    }
+}

@@ -143,6 +143,8 @@ fn link(channel: Token, link: engine::Link) -> engine::Event {
 
 type DecodeAnswer = (bool, Box<[u8]>);
 
+pub type HostReply = (Box<[u8]>, bool, Box<[u8]>);
+
 /// What the world's protocol layer keeps: tool bodies by call name, ended
 /// runs' terminals by outcome bytes, and every typed answer it rendered.
 #[derive(Hash, Debug, Default)]
@@ -160,12 +162,17 @@ pub struct Protocol {
     serial: u64,
     /// Each decided call's typed answer, by its opaque call name, in render order.
     pub answers: Vec<(Box<[u8]>, engine::CallAnswer)>,
+    /// The read supplied to the host renderer, after root resolution.
+    pub read_forms: BTreeMap<Box<[u8]>, skein_forge::api::Read>,
     pub read_pages: BTreeMap<Box<[u8]>, (u32, u32)>,
     pub read_jobs: BTreeMap<Box<[u8]>, skein_forge::api::JobAttempt>,
     /// The root's render-only asking route, separate from each durable decision.
     pub asks: BTreeMap<Box<[u8]>, engine::AskHow>,
     /// Let a story cut between the durable decision and its rendered answer.
     pub defer_render: bool,
+    /// Decode and render opaque worker calls with the application's protocol adapter.
+    pub host_calls: bool,
+    pub host_replies: Vec<HostReply>,
     pub pending_renders: Vec<(ReplyTo, Box<[u8]>)>,
     /// Each account component request the root made.
     pub accounts: Vec<accounts::Request>,
@@ -292,6 +299,13 @@ impl Protocol {
                 Ok(Vec::new())
             }
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Link {
+                down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error, text }, .. },
+                ..
+            })) if self.host_calls => {
+                self.host_replies.push((call, error, text));
+                Ok(Vec::new())
+            }
+            engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Link {
                 channel,
                 down: host::LinkDown::Sources { sources: _ },
             })) => {
@@ -319,6 +333,16 @@ impl Protocol {
                             answer: core::SettledAnswer::Host { error: *error, body: body.clone() },
                         })])
                     }
+                    None if self.host_calls => Ok(vec![temper_engine_service_vocabulary::tools::decode_configured(
+                        to,
+                        task,
+                        attempt,
+                        call.contract,
+                        &call,
+                        &self.models,
+                        &self.catalogue,
+                        &[],
+                    )]),
                     None => Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(
                         engine::HostRequest::Decode { to, task, attempt, call },
                     ))))),
@@ -333,7 +357,22 @@ impl Protocol {
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {
-                    engine::HostDelivery::Render { to, name, answer, job, page, ask, .. } => {
+                    engine::HostDelivery::Render { to, name, answer, read, job, page, ask, .. } => {
+                        if let Some(read) = &read {
+                            self.read_forms.insert(name.clone(), *read.clone());
+                        }
+                        if self.host_calls {
+                            let read = read.expect("forge story renders its decoded read");
+                            let event = temper_engine_service_vocabulary::tools::render_read(
+                                to,
+                                &answer,
+                                &read,
+                                4096,
+                                temper_engine_smith::ForgeReadBounds::STOCK,
+                            );
+                            self.answers.push((name, answer));
+                            return Ok(vec![event]);
+                        }
                         if let engine::CallAnswer::Decided { .. } = &answer {
                             self.asks.insert(name.clone(), ask);
                         }
@@ -379,8 +418,10 @@ impl Protocol {
             | engine::Request::Worker(_)
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
+            | engine::Request::ChoosePlace { .. }
             | engine::Request::BoxGroup { .. }
             | engine::Request::PlaygroundActs { .. }
             | engine::Request::ResetAct { .. }

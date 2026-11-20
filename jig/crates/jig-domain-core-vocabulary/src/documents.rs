@@ -17,6 +17,7 @@ pub mod inbox_selection;
 pub mod live_delegates;
 pub mod objects;
 pub mod offers;
+pub mod parts;
 pub mod programs;
 pub mod project_note;
 pub mod settings;
@@ -33,7 +34,7 @@ pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{
     Account, AccountState, CENSUS_HEADS, CENSUS_NAME, CENSUS_PREFIX, CENSUS_ROWS, Capacity, CensusHead, CensusKeyspace,
-    Deployment, HelloRefusalLine, Host, HostRun, ProjectCapacity, RunLocation, StoreCensus, StoreFill,
+    Deployment, HelloRefusalLine, Host, HostRun, ProjectCapacity, RunLocation, StoreCensus, StoreFill, WorkerState,
 };
 pub use inbox_deployment::{Inbox, InboxEntry, InboxObject};
 pub use inbox_selection::{InboxSelection, inbox_selection_bound};
@@ -44,6 +45,7 @@ pub use objects::{
     PersonTask, Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting, ProposedTask,
     Question, ResultDoc, RetainedAction, ShownResult, SpecLine, ended_delegate_from_row,
 };
+pub use parts::{MadePart, PartAsk, PartFailure, PartInputs, PartsAsk, RowPart};
 pub use programs::{ProgramHost, ProgramLogin};
 pub use project_note::{
     Ledger, Member, Note, NoteLocation, Policy, PolicyRole, Project, ProjectResource, Recurring, Requirement,
@@ -57,7 +59,8 @@ pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery};
 pub use task_tree::{
     AuthorityLine, BudgetLine, ContractLine, Dependency, Ending, EscalationState, FoldedCount, GrantLine,
     HoldPhaseLine, NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase,
-    ProposalRef, ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow,
+    ProposalRef, ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow, UNREAD_HEAD_BYTES,
+    UnreadWords,
 };
 pub use task_wait::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
@@ -544,11 +547,17 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 }
 
 /// Bound of a document including live delegates up to `tasks.delegates`, their
-/// chip heaps, whole settings-proposal reasons and the inbox's requester selection context.
+/// chip heaps, unread heads, whole settings-proposal reasons and the inbox's requester selection context.
 #[must_use]
 pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
         .max(project_note::note_bound(limits)?)
+        .checked_add(List::<WorkerState>::price(limits.fleet.configured_workers)?)?
+        .checked_add(
+            u64::from(limits.fleet.configured_workers).checked_mul(u64::from(limits.fleet.worker_name_bytes))?,
+        )?
+        .checked_add(List::<UnreadWords>::price(limits.tasks.inbox_messages)?)?
+        .checked_add(u64::from(limits.tasks.inbox_messages).checked_mul(u64::from(UNREAD_HEAD_BYTES))?)?
         .checked_add(List::<LiveDelegate>::price(limits.tasks.delegates)?)?
         .checked_add(u64::from(limits.tasks.delegates).checked_mul(chip_phase::heap_bound(&limits.documents)?)?)?
         .checked_add(settings::document_bound(limits, kinds)?)?

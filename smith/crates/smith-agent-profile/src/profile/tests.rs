@@ -4,6 +4,7 @@ mod role;
 
 use alloc::boxed::Box;
 use skein_lib::Duration;
+use smith_transcript::Record;
 
 use super::{
     Check, Configuration, Endpoint, Layer, LimitName, Limits as DeclaredLimits, OversizedReasoning, Per, Refusal,
@@ -41,13 +42,85 @@ pub(super) fn declarations() -> Configuration {
     }
 }
 
+fn host_endpoint(number: u32, head: Duration, idle: Duration) -> smith_domain::EndpointLimits {
+    smith_domain::EndpointLimits {
+        endpoint: smith_domain::run::charter::Endpoint(number),
+        window: 1_048_576,
+        output: 32_768,
+        protocol_allowance: 0,
+        head,
+        idle,
+    }
+}
+
+#[test]
+fn no_progress_covers_the_stock_and_twice_the_tool_deadline() {
+    let mut configuration = declarations();
+    configuration.endpoints[0].limits.window = 1_048_576;
+    configuration.endpoints[0].limits.output = 32_768;
+    let endpoints = [
+        host_endpoint(0, Duration::from_secs(60), Duration::from_secs(300)),
+        host_endpoint(1, Duration::from_secs(60), Duration::from_secs(120)),
+    ];
+    for (tool_seconds, expected) in [(1200, 1205), (2400, 2405)] {
+        let mut selected = standard();
+        selected.policy.tool_deadline = Duration::from_secs(tool_seconds);
+        let limits = super::derive(&selected, &configuration).expect("standard profile derives");
+        let host = crate::host_limits(&selected, &limits, &endpoints).expect("host derives");
+        assert_eq!(host.no_progress, Duration::from_secs(expected));
+        assert!(host.no_progress >= limits.domain.session.tools.tool_deadline);
+        for endpoint in &endpoints {
+            assert!(host.no_progress >= endpoint.head.checked_add(endpoint.idle).expect("endpoint turn"));
+        }
+        assert_eq!(smith_host_domain::check(&host), Ok(()));
+        let without = crate::host_limits(&selected, &limits, &[]).expect("no endpoints");
+        assert_eq!(without.no_progress, host.no_progress);
+    }
+}
+
+#[test]
+fn no_progress_covers_an_endpoint_above_tools_and_silence_without_endpoints() {
+    let selected = standard();
+    let mut configuration = declarations();
+    configuration.endpoints[0].limits.window = 1_048_576;
+    configuration.endpoints[0].limits.output = 32_768;
+    let mut limits = super::derive(&selected, &configuration).expect("standard profile derives");
+    let endpoints = [
+        host_endpoint(0, Duration::from_secs(60), Duration::from_secs(120)),
+        host_endpoint(1, Duration::from_secs(60), Duration::from_secs(3000)),
+    ];
+    let host = crate::host_limits(&selected, &limits, &endpoints).expect("endpoint determines watchdog");
+    assert_eq!(host.no_progress, Duration::from_secs(3065));
+    assert_eq!(smith_host_domain::check(&host), Ok(()));
+    limits.file_timeout = Duration::from_secs(4000);
+    let without = crate::host_limits(&selected, &limits, &[]).expect("silence determines watchdog");
+    assert_eq!(without.silence, Duration::from_secs(4000));
+    assert_eq!(without.no_progress, Duration::from_secs(4005));
+    assert_eq!(smith_host_domain::check(&without), Ok(()));
+}
+
+#[test]
+fn an_overflowing_endpoint_turn_or_close_names_no_progress() {
+    let selected = standard();
+    let limits = super::derive(&profile(), &declarations()).expect("small profile derives");
+    for (head, idle) in [
+        (Duration::from_nanos(u64::MAX), Duration::from_nanos(1)),
+        (Duration::from_nanos(u64::MAX - 1), Duration::from_nanos(1)),
+    ] {
+        assert_eq!(
+            crate::host_limits(&selected, &limits, &[host_endpoint(0, head, idle)]),
+            Err(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "no_progress") }),
+        );
+    }
+}
+
 #[test]
 fn the_host_admits_a_thousand_conflicted_paths_within_the_channel() {
     assert_eq!(smith_channel::CEILINGS.directory_conflicts, 1024);
     let selected = profile();
     let limits = super::derive(&selected, &declarations()).expect("the profile derives");
     assert_eq!(limits.domain.run.conflicts, 1024);
-    let host = crate::host::host_limits(&selected, &limits).expect("the host derives");
+    let host = crate::host::host_limits(&selected, &limits, &[]).expect("the host derives");
     assert_eq!(host.conflicts, 1024);
 }
 
@@ -150,7 +223,7 @@ fn child_answers_follow_the_declared_piece_through_receiving_and_rendering() {
 
 #[test]
 fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
-    use smith_transcript::{Opaque, OpaqueParts};
+    use smith_transcript::Opaque;
     let selected = standard();
     let mut configuration = declarations();
     configuration.endpoints[0].limits.window = 1_048_576;
@@ -164,13 +237,12 @@ fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     let envelope = share + skein_llm::REPLAY_HEADER_BYTES;
     assert_eq!(transcript.opaque_bytes, envelope);
     let bytes = skein_lib::bytes::zeroed(usize::try_from(envelope).expect("envelope fits"));
-    let block = Opaque::new(&transcript, OpaqueParts { dialect: 1, bytes })
-        .expect("one block holds consecutive reasoning items");
-    assert_eq!(block.bytes().len(), usize::try_from(envelope).expect("envelope fits"));
+    let block = Opaque { dialect: 1, bytes };
+    assert_eq!(block.bytes.as_ref().len(), usize::try_from(envelope).expect("envelope fits"));
     let mut smaller = transcript;
     smaller.opaque_bytes -= 1;
-    let problem = Opaque::new(&smaller, block.into_parts()).expect_err("one byte beyond the bound");
-    assert_eq!(problem.path, smith_transcript::v7::Path::OpaqueBytes);
+    let problem = block.encode(&smaller).expect_err("one byte beyond the bound");
+    assert_eq!(problem.path, smith_transcript::v7::paths::OPAQUE_BYTES);
 }
 
 #[test]

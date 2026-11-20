@@ -8,12 +8,22 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-config-shell.workspace = true
+temper-engine-shell.workspace = true
+temper-engine-service.workspace = true
+temper-worker-service.workspace = true
+temper-worker-shell.workspace = true
+temper-service-core.workspace = true
+temper-client-protocol-wire.workspace = true
+temper-limits-fixtures.workspace = true
+jig-protocol-config-fixtures.workspace = true
 temper-test-env.workspace = true
 temper-service-shell.workspace = true
 temper-client-domain.workspace = true
 skein-fake-forge-http.workspace = true
 temper-playground.workspace = true
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-fake.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-core.workspace = true
@@ -72,6 +82,7 @@ skein-shell.workspace = true
 skein-tls.workspace = true
 
 [dev-dependencies]
+temper-forge-setup.workspace = true
 skein-ui.workspace = true
 skein-ui-text.workspace = true
 

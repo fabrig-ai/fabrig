@@ -1,11 +1,13 @@
 # limits: status
 
-2026-11-14. Where the tree's code lags or departs from [limits.md](limits.md).
+2026-11-18. Where the tree's code lags or departs from [limits.md](limits.md).
 
 
 
 
-- **Not yet:** "Two profiles, as jig's", a change's policy's `reruns`: no profile or override names `forge.change_policy.reruns` (`temper-service/src/limits.rs`; `limits/names.rs`).
+
+
+- **Not yet:** "One stock", a change's policy's `reruns`: no profile or override names `forge.change_policy.reruns` (`temper-service/src/limits.rs`; `limits/names.rs`).
 
 
 - **Not yet:** "Limits checked against each other at start", the checkout's capacity, whole: the start checks git's stdout rule, the agent's conflicts and the channel's parts each in its own phase, returning at the first that refuses, and jig's `saved` ceiling, 65,536, refuses `checkout.conflicts` past about 120 at 255 path bytes, named `engine.limits.work_saved_some` with no checkout setting (`temper-service/src/startup.rs`, `checked_start_with`; `startup/checks.rs`, `channel`).
@@ -19,8 +21,7 @@
 
 - **Not yet:** "A limit's refusal names it", every other step of the forge's: past its holds, entries, subscriptions, paths, names, gates, steps, watches or landing keys it refuses with the bare `Refused`, naming no limit.
 
-- **Not yet:** "Limits checked against each other at start", the store's tier rows': nothing checks `forge.changes` against them, so a value past 128 is refused as the store's map sizing past its codec or arithmetic bounds, naming no limit.
 
-- **Not yet:** "`forge.changes` bounds the changes kept at once": its bound is 128, not 1024, while the store schema's tier-row ceilings stay 257 (`../store.md`, 4).
+
 
 

@@ -2,6 +2,7 @@
 use super::*;
 use crate::tests::{adopted, domain, env, fixtures};
 use skein_lib::Wall;
+use temper_client_protocol_wire::v1::Record;
 
 const OWNER: u64 = fixtures::CHANGE;
 const SECOND: u64 = OWNER + 1;
@@ -52,12 +53,15 @@ fn changes_setup(state: change::State, second_since: Wall) -> Domain {
 }
 fn pending(task: u64) -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task,
         entry: 100,
         follow_tree: List::with_capacity(env().limits.key_entries),
         stage: StepStage::Reviews(1),
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -76,6 +80,7 @@ fn pending(task: u64) -> PendingStep {
         branch: Some(HEAD),
         branch_fresh: true,
         base_tip: Some(BASE),
+        base_read: Some(BASE),
         pull: Some(fixtures::open_pull()),
         pull_ci: true,
         ci: change::Status::Passed,
@@ -92,10 +97,37 @@ fn pending(task: u64) -> PendingStep {
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
     }
 }
 fn follower_facts(d: &Domain) -> change::Facts {
     change_facts(d, &env(), d.changes.get(&SECOND).unwrap(), &pending(SECOND), BASE)
+}
+
+#[test]
+fn change_facts_take_the_projects_held_wait_or_cleared_without_landing() {
+    use change::Wait;
+    let mut d = changes_setup(first(), SINCE);
+    assert!(d.after_landing(5).is_none());
+    assert_eq!(follower_facts(&d).wait, Wait::Cleared);
+    let value = crate::settings::ProjectLanding { wait: Wait::Landed, ..crate::settings::ProjectLanding::default() };
+    d.give_settings_defaults(Box::new([crate::settings::Stock {
+        kind: 4,
+        scope: 5,
+        number: 1,
+        value: crate::settings::SizedValue {
+            size: crate::settings::landing_record(&value)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
+            value: crate::settings::Value::Landing(value),
+        },
+    }]));
+    d.restore_landing_settings();
+    assert_eq!(d.after_landing(5).unwrap().wait, Wait::Landed);
+    assert_eq!(follower_facts(&d).wait, Wait::Landed);
+    d.repositories.get_mut(&fixtures::opening_row().repository).unwrap().project = 6;
+    assert!(d.after_landing(6).is_none());
+    assert_eq!(follower_facts(&d).wait, Wait::Cleared);
 }
 
 #[test]
@@ -244,6 +276,7 @@ enum Leave {
     AddedGate,
 }
 
+#[expect(clippy::too_many_lines, reason = "each queue exit supplies its own step facts")]
 fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
     let mut p = pending(OWNER);
     let mut out = Queue::uncapped();
@@ -262,6 +295,8 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     child: REVIEWER,
                     status: change::Status::Failed,
                     no_change: false,
+                    flake: false,
+                    no_test: false,
                     failed: true,
                     cancelled: false,
                     words: Box::from(b"review failed".as_slice()),
@@ -324,6 +359,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     Box::new([]),
                     temper_engine_domain_forge_landing::Project::DEFAULT,
                     crate::AfterLanding {
+                        wait: temper_engine_domain_forge_change::Wait::Cleared,
                         verdict: temper_engine_domain_forge_tiers::Settings {
                             retries: 2,
                             suspects: temper_engine_domain_forge_tiers::Suspects::Bisect

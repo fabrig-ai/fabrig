@@ -131,7 +131,7 @@ inbox are the views child's (../engine/views.md).
   lifetime. Creation and restoration arm both expiry conditions; timer
   scheduling translates the saved wall expiry at the current supplied
   clocks (../root.md, section 3; ../engine/views.md).
-- **Three ways of signing in are jig's own:**
+- **Four ways of signing in are jig's own:**
   - *the printed link,* on one person's machine: the clients' component
     draws a one-time secret at start, which the application's startup
     prints in a URL of its own; presenting it signs in the configured
@@ -148,7 +148,17 @@ inbox are the views child's (../engine/views.md).
     sees an ordinary sign-in of the approver's person, counted, full and
     expiring as any; an approver whose sign-in has ended is no signer,
     and the take signs no one in. Nothing of the approval reaches
-    people before the take.
+    people before the take;
+  - *an asked link:* the clients' component draws it for a person's
+    sign-in that asks, and at its sign-in asks people `Whose` the asking
+    sign-in is and signs that identity in afresh, held none, with the
+    asking sign-in's saved expiry as its cap
+    (`../../protocol/client/sign-in.md`, the asked link). The core hands
+    the cap to people with the sign-in, `until`: the sign-in made
+    expires at the earlier of its lifetime and the cap, by both clocks,
+    as any sign-in's saved expiry arms them; a cap not after people's
+    wall time signs no one in, answered refused. Every other sign-in has
+    no cap, and a held sign-in kept keeps its own expiry.
 - **A sign-in held is kept.** A person signing in by the printed link
   while presenting the credential of a sign-in of their own keeps that
   sign-in, rather than making another beside it:
@@ -179,7 +189,7 @@ inbox are the views child's (../engine/views.md).
     no longer live there, and the person signs in afresh.
 
   Only the printed link offers a held sign-in: a `Mint`, a service's
-  sign-in and an approval's take sign in afresh.
+  sign-in, an approval's take and an asked link sign in afresh.
 - **Full sign-ins say so.** The deployment holds at most
   `limits.people.sign_ins` sign-ins (`../../protocol/limits.md`
   ). A sign-in that would make one more is answered *full*,
@@ -434,10 +444,28 @@ entry naming the task or proposal it is and its project:
   query: proposals, escalations and questions are entries, not tasks.
 - **What is addressed to a role** is in the inbox of every party holding
   it, until one of them acts, when it leaves every one.
-- **Bounded:** the people child domain holds each party's entries up to a
-  limit; a client pages through the rest, loaded from the store. What
-  needs the party is counted exactly, since it is derived from live
-  tasks; updates unread are counted up to a limit.
+- **Each source keeps its own needs.** A need comes from one source: a
+  task, whose questions, escalation, person task, replies and own
+  proposal it carries, or a party's proposal. Saving a source replaces
+  only that source's needs. A party's proposal is a source of its own,
+  even where it names a task (its amendment's target, its batch's first
+  goal), so it and that task never replace each other's needs: both are
+  counted and listed, whichever is saved first. The task it names stays
+  the need's link. A proposal's need names its proposer, a task or a
+  party, beside its number, so two proposals of one number are two needs.
+  The child's `Waiting` names the source it replaces, `NeedSource::Task(n)`
+  or `NeedSource::Proposal { party, number }`, and a start restores each
+  source's needs alike.
+- **Bounded:** what needs the party is derived from live tasks, and the
+  child's census holds every live need, whatever its requester's root (a
+  goal, a chat, a standing task), so it is counted exactly and paged from
+  live state alone: a page of needs is the oldest after its cursor, taken
+  from the whole census, at most the read's window, and a continuation
+  stands while a need waits after its last, none after the last page.
+  The store holds no needs, and no page of them is read there. Updates
+  are held up to a limit, `people.inbox_entries`; a client pages through
+  the rest, loaded from the store, and updates unread are counted up to
+  that limit.
 
 ## 6. Chats
 
@@ -516,6 +544,15 @@ A task whose executor is a party, or a role (../model.md, 3.2):
   approval of a state its procedure names, or an answer in words; and,
   always, that it cannot be done, with a reason, which is a failure
   (../tasks/README.md, section 3).
+- **An answer in words has at least one byte:** a report contract bound
+  at 0 words, addressed to a party or a role, is no contract its executor
+  can produce, since every answer a person sends is longer, so the batch
+  check refuses it as `Refusal::Contract`, naming the member, and makes
+  none of its batch (../tasks/README.md, section 4). A bound of 1 up to
+  the deployment's result bound is admitted. A verdict's choices bound at
+  0 words, and a report bound at 0 for an executor that is no person, are
+  admitted as before: a choice is answered by its code, and an agent or a
+  procedure may finish with no words.
 - **An approval** is of the state as its procedure named it: bytes the
   core carries with the contract and never reads, and a part its
   connector shows the state by. The answer names the state it approves;

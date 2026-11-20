@@ -57,11 +57,16 @@ fn amend_with_places(
 ) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
-        operation: tasks::Amend { task, message, stop_run: false, amendment: Box::new(amendment(dependencies)) },
+        operation: tasks::Amend {
+            funder: None,
+            task,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment(dependencies)),
+        },
         places,
         reply_to,
         by,
-        funder: None,
     })
 }
 
@@ -123,6 +128,7 @@ fn an_amendment_keeps_a_due_agent_and_rejects_stale_preparation_and_claims() {
         matches!(response(&mut world, |reply_to| Event::Prepare { reply_to, task: 1 }), Reply::Refused(problem) if problem.why == Refusal::State)
     );
     assert!(matches!(response(&mut world, |reply_to| Event::Claim {
+            fresh: None,
             session_end: None, offered: jig_domain_tasks::Reasons::ALL, reasons: jig_domain_tasks::Reasons::FIRST,
         reply_to, task: 1, attempt: 1, resumed: false, budget: 1, account: None, writes: Box::new([]),
     }), Reply::Refused(problem) if problem.why == Refusal::State));
@@ -687,6 +693,7 @@ fn a_claim_committed_before_the_amendment_stays_live_and_its_done_finish_parks()
     assert_eq!(response(&mut world, |reply_to| Event::Prepare { reply_to, task: 1 }), Reply::Done);
     assert_eq!(
         response(&mut world, |reply_to| Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
@@ -858,11 +865,16 @@ fn remove_and_release(world: &mut World, number: u64) -> Reply {
     amendment.release = Some(world.record(number).revisions.hold);
     let message = world.record(number).last_message + 1;
     response(world, |reply_to| Event::Amend {
-        operation: tasks::Amend { task: number, message, stop_run: false, amendment: Box::new(amendment) },
+        operation: tasks::Amend {
+            funder: None,
+            task: number,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment),
+        },
         places: Box::new([]),
         reply_to,
         by: PERSON_PARTY,
-        funder: None,
     })
 }
 
@@ -886,6 +898,7 @@ fn releasing_a_waiter_reholds_on_a_failed_or_cancelled_dependency_with_a_fresh_e
         assert!(!world.activations.contains(&1));
         assert_eq!(
             response(&mut world, |reply_to| Event::Claim {
+                fresh: None,
                 session_end: None,
                 offered: jig_domain_tasks::Reasons::ALL,
                 reasons: jig_domain_tasks::Reasons::FIRST,
@@ -960,6 +973,7 @@ fn removing_operation(world: &World, release: Option<u64>) -> tasks::Operation {
     let mut amendment = amendment(&[]);
     amendment.release = release;
     tasks::Operation::Amend(tasks::Amend {
+        funder: None,
         task: 1,
         message: world.record(1).last_message + 1,
         stop_run: false,
@@ -1013,12 +1027,14 @@ fn a_compounds_amendment_release_projects_the_new_hold_revision_for_its_next_ame
             &mut world,
             vec![
                 tasks::Operation::Amend(tasks::Amend {
+                    funder: None,
                     task: 1,
                     message,
                     stop_run: false,
                     amendment: Box::new(retained)
                 }),
                 tasks::Operation::Amend(tasks::Amend {
+                    funder: None,
                     task: 1,
                     message: message + 1,
                     stop_run: false,
@@ -1041,7 +1057,7 @@ fn an_escalation_resolution_reholds_on_the_failed_dependency_with_a_fresh_escala
         reply_to,
         task: 1,
         revision,
-        by: PERSON,
+        by: tasks::EscalationDecider::Person(PERSON),
         entry: None,
         decision: tasks::EscalationDecision::Release,
     });

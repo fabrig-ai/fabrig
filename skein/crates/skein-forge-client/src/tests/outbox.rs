@@ -281,19 +281,21 @@ fn lane_order_and_cancellation_hold_while_a_capture_call_is_out() {
     assert_eq!(h.writes, 1);
 }
 #[test]
-fn a_retargeted_merge_fails_before_any_write() {
-    let mut h = Harness::new();
-    h.make(
-        1,
-        Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Style },
-        Condition::Merge { base: Box::from(&b"other"[..]) },
-    );
-    h.clock();
-    let check = h.one();
-    assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
-    h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
-    assert_eq!(h.writes, 0);
-    assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::Stale))]);
+fn a_merge_at_another_head_or_base_branch_fails_stale_before_any_write() {
+    for (head, base) in [([1; 32], b"other".as_slice()), ([3; 32], b"main".as_slice())] {
+        let mut h = Harness::new();
+        h.make(
+            1,
+            Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Style },
+            Condition::Merge { base: Box::from(base) },
+        );
+        h.clock();
+        let check = h.one();
+        assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
+        h.answer(check, Ok(Answer::Pull(pull(head))));
+        assert_eq!(h.writes, 0);
+        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::Stale))]);
+    }
 }
 #[test]
 fn recorded_merge_recovery_matches_the_merge_commit_not_just_the_head() {

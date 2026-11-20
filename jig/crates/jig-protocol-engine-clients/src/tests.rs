@@ -1,5 +1,7 @@
 #[path = "tests/asks.rs"]
 mod asks;
+#[path = "tests/batch.rs"]
+mod batch;
 #[path = "tests/fixtures.rs"]
 mod fixtures;
 
@@ -75,14 +77,24 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("mints minimum", crate::Limits { mints: 0, ..limits }, false),
         ("message_bytes minimum", crate::Limits { message_bytes: 0, ..limits }, false),
         ("exchanges minimum", crate::Limits { exchanges: 0, ..limits }, false),
+        ("reads_per_client minimum", crate::Limits { reads_per_client: 0, ..limits }, false),
+        ("openings_per_client minimum", crate::Limits { openings_per_client: 0, ..limits }, false),
         ("exchanges_per_client minimum", crate::Limits { exchanges_per_client: 0, ..limits }, false),
         ("link_span minimum", crate::Limits { link_span: skein_lib::Duration::ZERO, ..limits }, false),
         ("exchange doubling", crate::Limits { exchanges: u32::MAX, ..limits }, false),
+        (
+            "batch reply envelope",
+            crate::Limits {
+                wire: jig_client_protocol_wire::Limits { batch_reply_reply_some: 0, ..limits.wire },
+                ..limits
+            },
+            false,
+        ),
         ("issuer document", crate::Limits { identity_bytes: u32::MAX, ..limits }, false),
         (
             "signed_in_token_some",
             crate::Limits {
-                wire: jig_client_protocol_wire::v26::Limits { signed_in_token_some: 39, ..limits.wire },
+                wire: jig_client_protocol_wire::Limits { signed_in_token_some: 39, ..limits.wire },
                 ..limits
             },
             false,
@@ -90,7 +102,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "made_service_credential",
             crate::Limits {
-                wire: jig_client_protocol_wire::v26::Limits { made_service_credential: 39, ..limits.wire },
+                wire: jig_client_protocol_wire::Limits { made_service_credential: 39, ..limits.wire },
                 ..limits
             },
             false,
@@ -98,7 +110,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "link_sign_in_secret",
             crate::Limits {
-                wire: jig_client_protocol_wire::v26::Limits { link_sign_in_secret: 31, ..limits.wire },
+                wire: jig_client_protocol_wire::Limits { link_sign_in_secret: 31, ..limits.wire },
                 ..limits
             },
             false,
@@ -106,7 +118,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "approval_asked_secret",
             crate::Limits {
-                wire: jig_client_protocol_wire::v26::Limits { approval_asked_secret: 31, ..limits.wire },
+                wire: jig_client_protocol_wire::Limits { approval_asked_secret: 31, ..limits.wire },
                 ..limits
             },
             false,
@@ -114,7 +126,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "approval_sign_in_secret",
             crate::Limits {
-                wire: jig_client_protocol_wire::v26::Limits { approval_sign_in_secret: 31, ..limits.wire },
+                wire: jig_client_protocol_wire::Limits { approval_sign_in_secret: 31, ..limits.wire },
                 ..limits
             },
             false,
@@ -122,7 +134,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "keyed_value_some",
             crate::Limits {
-                wire: jig_client_protocol_wire::v26::Limits { keyed_value_some: u32::MAX, ..limits.wire },
+                wire: jig_client_protocol_wire::Limits { keyed_value_some: u32::MAX, ..limits.wire },
                 ..limits
             },
             false,

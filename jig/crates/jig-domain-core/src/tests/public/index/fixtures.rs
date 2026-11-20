@@ -160,6 +160,7 @@ pub(super) fn amend_at(
     let message = core.tasks.task(task).unwrap().last_message.checked_add(100).unwrap();
     let event = tasks::Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task,
             message,
             stop_run: false,
@@ -179,7 +180,6 @@ pub(super) fn amend_at(
         places: Box::new([]),
         reply_to: reply(),
         by: tasks::Party::Person(1),
-        funder: None,
     };
     let mut env = environment(limits);
     env.wall = wall;

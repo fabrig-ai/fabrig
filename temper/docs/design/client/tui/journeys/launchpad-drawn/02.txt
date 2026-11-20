@@ -8,7 +8,7 @@
 
 ✦ Hello from the local fake model.
 
-✦ T3 · REPORT · Choose the CSV export delimiter. · Running
+✦ Choose the CSV export delimiter. · Running
 
 
 
@@ -18,7 +18,7 @@
 
 
 
-────────────────────────── Hello / Add a CSV export to… T2 on 127.0.0.1:44625 ──
+────────────────────────── Hello / Add a CSV export to… T2 on 127.0.0.1:10001 ──
 ❯ /new
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /new   Start a new chat

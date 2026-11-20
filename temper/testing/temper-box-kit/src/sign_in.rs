@@ -5,7 +5,7 @@ use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
-use std::{fs, path::Path, sync::LazyLock};
+use std::{path::Path, sync::LazyLock};
 
 const STOPS_WITHIN: Duration = Duration::from_secs(10);
 
@@ -49,22 +49,13 @@ pub fn configuration(directory: &Path) -> oauth::Peer {
 #[must_use]
 pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     super::own_listener_files(directory);
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("init document")).expect("JSON");
-    let taken = [
-        "/application/clients/listener/socket",
-        "/application/webhooks/listener/socket",
-        "/application/demo/llm/listen/socket",
-        "/application/machine/fake/listen/socket",
-        "/application/machine/owned/listen/socket",
-    ]
-    .map(|pointer| {
-        value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
-    });
+    let file = super::read_file(&directory.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
+    let taken = [file.listen.expect("init listener"), file.webhooks.expect("init webhooks")];
+    let mut value = serde_json::json!({});
     let [listener] = super::reserve_listeners(&taken);
     let address = listener.local_addr().expect("issuer address");
     let origin = format!("http://{address}");
-    let provider = &mut value["engine"]["llm"]["providers"][0];
+    let provider = &mut temper_agent_fixtures::providers::input(&mut value)["providers"][0];
     assert_eq!(provider["number"], 1);
     let sign_in = &mut provider["sources"]["sign_in"];
     let original = sign_in["issuer"].as_str().expect("shipped issuer").to_owned();
@@ -80,16 +71,17 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     sign_in.as_object_mut().expect("registration").remove("server_name");
     sign_in.as_object_mut().expect("registration").remove("redirect_port");
     let registration = sign_in.clone();
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    value["engine"]["llm"]["endpoints"][0]["server_name"] = "skein.test".into();
-    value["engine"]["llm"]["endpoints"][0]["trust"] = serde_json::json!(directory.join("root.der"));
-    super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
-    let agent_path = directory.join("agent.json");
-    let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
+        serde_json::json!({"socket":"127.0.0.1:0"});
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["server_name"] = "skein.test".into();
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["trust"] =
+        serde_json::json!(directory.join("root.der"));
+    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
+    let mut agent = temper_agent_fixtures::read(directory);
     agent["endpoints"][0]["address"] = "127.0.0.1:0".into();
     agent["endpoints"][0]["server_name"] = "skein.test".into();
     agent["endpoints"][0]["trust_der"] = serde_json::json!(directory.join("root.der"));
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::install(directory, &agent);
     super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     issuer(listener, &registration, redirect.as_bytes())
 }
@@ -108,9 +100,9 @@ pub fn restart_issued_issuer(directory: &Path) -> oauth::Peer {
 }
 
 fn restarted_issuer(directory: &Path, issued: bool) -> oauth::Peer {
-    let value: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("patched document")).expect("JSON");
-    let mut registration = value["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
+    let mut registration = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory))["providers"]
+        [0]["sources"]["sign_in"]
+        .clone();
     if issued {
         // Known fixture identity, never a credential read from a deployment.
         registration["client"] = "issued-client".into();
@@ -137,7 +129,7 @@ pub(super) fn issuer(
     let address = listener.local_addr().expect("issuer address");
     let bytes =
         |member: &str| -> Box<[u8]> { registration[member].as_str().expect("registration member").as_bytes().into() };
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let limits = skein_fake_oauth::Limits {
         document: profile.driver.client.document,
         uri_bytes: 1024,
@@ -218,6 +210,7 @@ pub(super) fn issuer(
 
 pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
     use skein_world::end_to_end::{Binary, Command, Mode};
+    super::limit_settings::install(directory);
     // A fresh init's demo forge is prepared by box before it starts serve.
     Binary::start(
         Command {
@@ -569,8 +562,7 @@ const FIRST_REPLY_CALLS: usize = 9;
 const CONVERSATION_CALL: usize = FIRST_REPLY_CALLS + 3;
 
 fn reasoning_allowance(directory: &Path) -> u64 {
-    let agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("agent.json")).expect("initialized agent")).expect("JSON");
+    let agent = temper_agent_fixtures::read(directory);
     agent["endpoints"]
         .as_array()
         .expect("endpoints")

@@ -517,6 +517,7 @@ fn probe_check_and_abort_route_once_and_wait_for_the_matching_terminal() {
         handle,
         owner,
         run::Place { root: Token::new(9), path: b"check".as_slice().into() },
+        Duration::from_nanos(100),
         Time::from_nanos(100),
         3,
         &mut out,

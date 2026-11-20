@@ -107,8 +107,26 @@ fn stored_parts_ignore_retained_counters_and_current_rules() {
         CallPart::EscalationDecided { task: 101, revision: 1, outcome: tasks::EscalationOutcome::Released },
         CallPart::EscalationDecided { task: 1, revision: 0, outcome: tasks::EscalationOutcome::Released },
         CallPart::Sent { message: 101 },
-        CallPart::NoteWritten { name: 101, revision: 1, lines: 3, added: 2, removed: 1, first: 2 },
-        CallPart::NoteWritten { name: 1, revision: 0, lines: 3, added: 2, removed: 1, first: 2 },
+        CallPart::NoteWritten {
+            name: 101,
+            revision: 1,
+            lines: 3,
+            added: 2,
+            removed: 1,
+            first: 2,
+            recorded: Box::new([]),
+            unknown: Box::new([]),
+        },
+        CallPart::NoteWritten {
+            name: 1,
+            revision: 0,
+            lines: 3,
+            added: 2,
+            removed: 1,
+            first: 2,
+            recorded: Box::new([]),
+            unknown: Box::new([]),
+        },
         CallPart::Subscribed { subscription: 101 },
         CallPart::Delegated(Box::new([])),
         CallPart::Delegated(Box::new([crate::Made { task: 101, revision: 1, given: None }])),
@@ -505,7 +523,16 @@ fn a_written_notes_counts_fit_the_new_body() {
     for (lines, added, first, valid) in
         [(0, 0, 1, true), (1, 1, 1, true), (3, 2, 3, true), (3, 2, 4, false), (3, 4, 1, false), (0, 1, 1, false)]
     {
-        let part = CallPart::NoteWritten { name: 1, revision: 1, lines, added, removed: 9, first };
+        let part = CallPart::NoteWritten {
+            name: 1,
+            revision: 1,
+            lines,
+            added,
+            removed: 9,
+            first,
+            recorded: Box::new([]),
+            unknown: Box::new([]),
+        };
         assert_eq!(part.valid(&deployment, &limits, &limits.authority), valid);
     }
 }

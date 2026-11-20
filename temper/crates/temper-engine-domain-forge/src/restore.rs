@@ -35,12 +35,15 @@ impl Domain {
         }
         None
     }
-    fn join_changes(&mut self) {
+    pub(crate) fn join_changes(&mut self) {
         while let Some((task, _)) = self.change_hot.first() {
             let task = *task;
             let Some(cold) = self.change_cold.get(&task).cloned() else { break };
             let hot = self.change_hot.remove(&task).expect("pending change part");
-            let row = crate::ChangeRow::join(cold, hot);
+            let mut row = crate::ChangeRow::join(cold, hot);
+            if row.frozen() {
+                row.room = None;
+            }
             self.changes.insert(task, row).expect("change room checked");
         }
     }
@@ -50,6 +53,7 @@ impl Domain {
             return Err(*failure);
         }
         self.join_changes();
+        crate::landing::drop_stale_links(self);
         let result = derived(self, limits);
         if let Err(failure) = result {
             self.restore_fit = Some(Box::new(failure));
@@ -180,6 +184,11 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             }
             field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
+            field(K::Landing, RestoreSet::LandingFlakeReruns, count(row.flake_reruns.len()), u64::from(l.entries))?;
+            for rerun in &row.flake_reruns {
+                field(K::Landing, RestoreSet::LandingFlakeFindings, count(rerun.findings.len()), 64)?;
+                field(K::Landing, RestoreSet::LandingFlakeJobs, count(rerun.pending.len()), 16)?;
+            }
             for member in &row.landing.members {
                 field(K::Landing, RestoreSet::LandingGates, count(member.gates.len()), u64::from(l.gates))?;
             }
@@ -218,7 +227,12 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             Ok(())
         }
         Stored::LandingLog(row) => {
-            field(K::LandingLog, RestoreSet::LandingsKept, count(row.landings.len()), u64::from(l.landings_kept))?;
+            field(
+                K::LandingLog,
+                RestoreSet::LandingsKept,
+                count(row.landings.len()),
+                u64::from(l.landings_kept.checked_add(l.landings_pending).expect("checked landing count")),
+            )?;
             for landing in &row.landings {
                 field(
                     K::LandingLog,
@@ -227,6 +241,10 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                     u64::from(l.landing_members),
                 )?;
                 field(K::LandingLog, RestoreSet::NameBytes, count(landing.branch.len()), u64::from(l.name_bytes))?;
+                field(K::LandingLog, RestoreSet::LoggedTiers, count(landing.tiers.len()), 32)?;
+                for tier in &landing.tiers {
+                    field(K::LandingLog, RestoreSet::NameBytes, count(tier.tier.len()), 32)?;
+                }
             }
             room(
                 K::LandingLog,
@@ -313,6 +331,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.repository_makings.len(),
             d.repository_makings.capacity(),
             d.repository_makings.contains_key(&row.key),
+        ),
+        Stored::PersonBrief(row) => room(
+            K::PersonBrief,
+            Rows(K::PersonBrief),
+            d.person_briefs.len(),
+            d.person_briefs.capacity(),
+            d.person_briefs.contains_key(&(row.party, row.project)),
         ),
         Stored::ProjectFacts(row) => room(
             K::ProjectFacts,
@@ -523,7 +548,8 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::HistoryEvent(_)
+        Stored::LimitHold(_)
+        | Stored::HistoryEvent(_)
         | Stored::HistoryChange(_)
         | Stored::HistoryLanding(_)
         | Stored::HistoryLast(_)

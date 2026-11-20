@@ -30,179 +30,128 @@ fn decode_check(value: w::Check) -> d::Check {
         w::Check::Failed => d::Check::Failed,
     }
 }
-#[expect(clippy::too_many_lines, reason = "one exhaustive durable write translation")]
 pub(super) fn encode_write(value: &d::Write) -> w::Write {
     match value {
         d::Write::Dispatch { workflow, branch, inputs } => {
             let mut values = List::with_capacity(u32::try_from(inputs.len()).expect(FITS));
             for input in inputs {
-                values
-                    .push(
-                        w::DispatchInput::new(
-                            &w::CEILINGS,
-                            w::DispatchInputParts { name: input.name.clone(), value: input.value.clone() },
-                        )
-                        .expect(FITS),
-                    )
-                    .expect(FITS);
+                values.push(w::DispatchInput { name: input.name.clone(), value: input.value.clone() }).expect(FITS);
             }
-            w::Write::Dispatch(
-                w::DispatchWrite::new(
-                    &w::CEILINGS,
-                    w::DispatchWriteParts { workflow: workflow.clone(), branch: branch.clone(), inputs: values },
-                )
-                .expect(FITS),
-            )
+            w::Write::Dispatch(w::DispatchWrite { workflow: workflow.clone(), branch: branch.clone(), inputs: values })
         }
         d::Write::Rerun { attempt } => w::Write::Rerun(super::answers::encode_job_attempt(attempt)),
-        d::Write::CreateIssue { key, title, body } => w::Write::CreateIssue(
-            w::CreateIssue::new(
-                &w::CEILINGS,
-                w::CreateIssueParts { key: key.clone(), title: title.clone(), body: body.clone() },
-            )
-            .expect(FITS),
-        ),
-        d::Write::OpenPull { title, body, head, base } => w::Write::OpenPull(
-            w::OpenPull::new(
-                &w::CEILINGS,
-                w::OpenPullParts { title: title.clone(), body: body.clone(), head: head.clone(), base: base.clone() },
-            )
-            .expect(FITS),
-        ),
-        d::Write::Post { number, key, body } => w::Write::Post(
-            w::Post::new(&w::CEILINGS, w::PostParts { number: *number, key: key.clone(), body: body.clone() })
-                .expect(FITS),
-        ),
-        d::Write::Review { number, key, verdict, body } => w::Write::Review(
-            w::PostReview::new(
-                &w::CEILINGS,
-                w::PostReviewParts {
-                    number: *number,
-                    key: key.clone(),
-                    verdict: encode_verdict(*verdict),
-                    body: body.clone(),
-                },
-            )
-            .expect(FITS),
-        ),
-        d::Write::Edit { number, title, body } => w::Write::Edit(
-            w::Edit::new(&w::CEILINGS, w::EditParts { number: *number, title: title.clone(), body: body.clone() })
-                .expect(FITS),
-        ),
-        d::Write::SetReviewers { number, reviewers } => w::Write::SetReviewers(
-            w::SetReviewers::new(
-                &w::CEILINGS,
-                w::SetReviewersParts { number: *number, reviewers: encode_reviewers(reviewers) },
-            )
-            .expect(FITS),
-        ),
-        d::Write::Close { number } => {
-            w::Write::Close(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
+        d::Write::CreateIssue { key, title, body } => {
+            w::Write::CreateIssue(w::CreateIssue { key: key.clone(), title: title.clone(), body: body.clone() })
         }
-        d::Write::Reopen { number } => {
-            w::Write::Reopen(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
+        d::Write::OpenPull { title, body, head, base } => w::Write::OpenPull(w::OpenPull {
+            title: title.clone(),
+            body: body.clone(),
+            head: head.clone(),
+            base: base.clone(),
+        }),
+        d::Write::Post { number, key, body } => {
+            w::Write::Post(w::Post { number: *number, key: key.clone(), body: body.clone() })
         }
+        d::Write::Review { number, key, verdict, body } => w::Write::Review(w::PostReview {
+            number: *number,
+            key: key.clone(),
+            verdict: encode_verdict(*verdict),
+            body: body.clone(),
+        }),
+        d::Write::Edit { number, title, body } => {
+            w::Write::Edit(w::Edit { number: *number, title: title.clone(), body: body.clone() })
+        }
+        d::Write::SetReviewers { number, reviewers } => {
+            w::Write::SetReviewers(w::SetReviewers { number: *number, reviewers: encode_reviewers(reviewers) })
+        }
+        d::Write::Close { number } => w::Write::Close(w::Number { number: *number }),
+        d::Write::Reopen { number } => w::Write::Reopen(w::Number { number: *number }),
         d::Write::Merge { number, head, how } => {
             let how = match how {
                 d::MergeHow::Style => w::MergeHow::Style,
                 d::MergeHow::FastForwardOnly => w::MergeHow::FastForwardOnly,
-                d::MergeHow::Recorded { commit } => w::MergeHow::Recorded(
-                    w::RecordedMerge::new(&w::CEILINGS, w::RecordedMergeParts { commit: *commit }).expect(FITS),
-                ),
+                d::MergeHow::Recorded { commit } => w::MergeHow::Recorded(w::RecordedMerge { commit: *commit }),
             };
-            w::Write::Merge(
-                w::MergeWrite::new(&w::CEILINGS, w::MergeWriteParts { number: *number, head: *head, how }).expect(FITS),
-            )
+            w::Write::Merge(w::MergeWrite { number: *number, head: *head, how })
         }
         d::Write::Update { number, style } => {
             let style = match style {
                 d::UpdateStyle::Merge => w::UpdateStyle::Merge,
                 d::UpdateStyle::Rebase => w::UpdateStyle::Rebase,
             };
-            w::Write::Update(
-                w::UpdateWrite::new(&w::CEILINGS, w::UpdateWriteParts { number: *number, style }).expect(FITS),
-            )
+            w::Write::Update(w::UpdateWrite { number: *number, style })
         }
-        d::Write::Status { commit, context, check, description, link } => w::Write::Status(
-            w::SetStatus::new(
-                &w::CEILINGS,
-                w::SetStatusParts {
-                    commit: *commit,
-                    context: context.clone(),
-                    status: encode_check(*check),
-                    description: description.clone(),
-                    link: link.clone(),
-                },
-            )
-            .expect(FITS),
-        ),
-        d::Write::CreateBranch { branch, commit } => w::Write::CreateBranch(
-            w::CreateBranch::new(&w::CEILINGS, w::CreateBranchParts { branch: branch.clone(), commit: *commit })
-                .expect(FITS),
-        ),
-        d::Write::DeleteBranch { branch } => w::Write::DeleteBranch(
-            w::DeleteBranch::new(&w::CEILINGS, w::DeleteBranchParts { branch: branch.clone() }).expect(FITS),
-        ),
+        d::Write::Status { commit, context, check, description, link } => w::Write::Status(w::SetStatus {
+            commit: *commit,
+            context: context.clone(),
+            status: encode_check(*check),
+            description: description.clone(),
+            link: link.clone(),
+        }),
+        d::Write::CreateBranch { branch, commit } => {
+            w::Write::CreateBranch(w::CreateBranch { branch: branch.clone(), commit: *commit })
+        }
+        d::Write::DeleteBranch { branch } => w::Write::DeleteBranch(w::DeleteBranch { branch: branch.clone() }),
     }
 }
 pub(super) fn decode_write(value: w::Write) -> d::Write {
     match value {
         w::Write::Dispatch(value) => {
-            let w::DispatchWriteParts { workflow, branch, inputs } = value.into_parts();
+            let w::DispatchWrite { workflow, branch, inputs } = value;
             let mut values = List::with_capacity(inputs.len());
             for input in inputs.into_boxed() {
-                let w::DispatchInputParts { name, value } = input.into_parts();
+                let w::DispatchInput { name, value } = input;
                 values.push(d::Input { name, value }).expect(FITS);
             }
             d::Write::Dispatch { workflow, branch, inputs: values.into_boxed() }
         }
         w::Write::Rerun(value) => d::Write::Rerun { attempt: super::answers::decode_job_attempt(value) },
         w::Write::CreateIssue(value) => {
-            let w::CreateIssueParts { key, title, body } = value.into_parts();
+            let w::CreateIssue { key, title, body } = value;
             d::Write::CreateIssue { key, title, body }
         }
         w::Write::OpenPull(value) => {
-            let w::OpenPullParts { title, body, head, base } = value.into_parts();
+            let w::OpenPull { title, body, head, base } = value;
             d::Write::OpenPull { title, body, head, base }
         }
         w::Write::Post(value) => {
-            let w::PostParts { number, key, body } = value.into_parts();
+            let w::Post { number, key, body } = value;
             d::Write::Post { number, key, body }
         }
         w::Write::Review(value) => {
-            let w::PostReviewParts { number, key, verdict, body } = value.into_parts();
+            let w::PostReview { number, key, verdict, body } = value;
             d::Write::Review { number, key, verdict: decode_verdict(verdict), body }
         }
         w::Write::Edit(value) => {
-            let w::EditParts { number, title, body } = value.into_parts();
+            let w::Edit { number, title, body } = value;
             d::Write::Edit { number, title, body }
         }
         w::Write::SetReviewers(value) => {
-            let w::SetReviewersParts { number, reviewers } = value.into_parts();
+            let w::SetReviewers { number, reviewers } = value;
             d::Write::SetReviewers { number, reviewers: reviewers.into_boxed() }
         }
         w::Write::Close(value) => {
-            let w::NumberParts { number } = value.into_parts();
+            let w::Number { number } = value;
             d::Write::Close { number }
         }
         w::Write::Reopen(value) => {
-            let w::NumberParts { number } = value.into_parts();
+            let w::Number { number } = value;
             d::Write::Reopen { number }
         }
         w::Write::Merge(value) => {
-            let w::MergeWriteParts { number, head, how } = value.into_parts();
+            let w::MergeWrite { number, head, how } = value;
             d::Write::Merge {
                 number,
                 head,
                 how: match how {
                     w::MergeHow::Style => d::MergeHow::Style,
                     w::MergeHow::FastForwardOnly => d::MergeHow::FastForwardOnly,
-                    w::MergeHow::Recorded(value) => d::MergeHow::Recorded { commit: value.into_parts().commit },
+                    w::MergeHow::Recorded(value) => d::MergeHow::Recorded { commit: value.commit },
                 },
             }
         }
         w::Write::Update(value) => {
-            let w::UpdateWriteParts { number, style } = value.into_parts();
+            let w::UpdateWrite { number, style } = value;
             d::Write::Update {
                 number,
                 style: match style {
@@ -212,15 +161,15 @@ pub(super) fn decode_write(value: w::Write) -> d::Write {
             }
         }
         w::Write::Status(value) => {
-            let w::SetStatusParts { commit, context, status, description, link } = value.into_parts();
+            let w::SetStatus { commit, context, status, description, link } = value;
             d::Write::Status { commit, context, check: decode_check(status), description, link }
         }
         w::Write::CreateBranch(value) => {
-            let w::CreateBranchParts { branch, commit } = value.into_parts();
+            let w::CreateBranch { branch, commit } = value;
             d::Write::CreateBranch { branch, commit }
         }
         w::Write::DeleteBranch(value) => {
-            let w::DeleteBranchParts { branch } = value.into_parts();
+            let w::DeleteBranch { branch } = value;
             d::Write::DeleteBranch { branch }
         }
     }
@@ -238,36 +187,29 @@ pub(crate) fn encode_error(value: d::Error) -> w::Error {
         d::Error::NotInstalled => w::Error::NotInstalled,
         d::Error::NotConnected | d::Error::Unavailable => w::Error::Unavailable,
         d::Error::Timeout => w::Error::Timeout,
-        d::Error::RateLimited { after } => {
-            w::Error::RateLimited(w::RateLimited::new(&w::CEILINGS, w::RateLimitedParts { after }).expect(FITS))
-        }
+        d::Error::RateLimited { after } => w::Error::RateLimited(w::RateLimited { after }),
         d::Error::Forbidden => w::Error::Forbidden,
         d::Error::Missing => w::Error::Missing,
         d::Error::MissingJob => w::Error::MissingJob,
-        d::Error::TooLarge(value) => w::Error::TooLarge(
-            w::Excess::new(
-                &w::CEILINGS,
-                w::ExcessParts {
-                    bound: match value.bound {
-                        d::Bound::OpBytes => w::Bound::OpBytes,
-                        d::Bound::AnswerBytes => w::Bound::AnswerBytes,
-                        d::Bound::Rows => w::Bound::Rows,
-                        d::Bound::Forge => w::Bound::Forge,
-                        d::Bound::Unnamed => w::Bound::Unnamed,
-                    },
-                    limit: value.limit,
-                    size: value.size,
-                    exact: value.exact,
-                },
-            )
-            .expect(FITS),
-        ),
+        d::Error::TooLarge(value) => w::Error::TooLarge(w::Excess {
+            bound: match value.bound {
+                d::Bound::OpBytes => w::Bound::OpBytes,
+                d::Bound::AnswerBytes => w::Bound::AnswerBytes,
+                d::Bound::Rows => w::Bound::Rows,
+                d::Bound::Forge => w::Bound::Forge,
+                d::Bound::Unnamed => w::Bound::Unnamed,
+            },
+            limit: value.limit,
+            size: value.size,
+            exact: value.exact,
+        }),
         d::Error::Empty => w::Error::Empty,
         d::Error::Full => w::Error::Full,
         d::Error::Exists => w::Error::Exists,
         d::Error::NothingToMerge => w::Error::NothingToMerge,
         d::Error::Closed => w::Error::Closed,
         d::Error::Stale => w::Error::Stale,
+        d::Error::BaseMoved { base } => w::Error::BaseMoved(w::BaseMoved { base }),
         d::Error::Conflict => w::Error::Conflict,
         d::Error::Protected => w::Error::Protected,
         d::Error::Refused => w::Error::Refused,
@@ -280,21 +222,21 @@ pub(super) fn decode_error(value: w::Error) -> d::Error {
         w::Error::NotInstalled => d::Error::NotInstalled,
         w::Error::Unavailable => d::Error::Unavailable,
         w::Error::Timeout => d::Error::Timeout,
-        w::Error::RateLimited(value) => d::Error::RateLimited { after: value.after() },
+        w::Error::RateLimited(value) => d::Error::RateLimited { after: value.after },
         w::Error::Forbidden => d::Error::Forbidden,
         w::Error::Missing => d::Error::Missing,
         w::Error::MissingJob => d::Error::MissingJob,
         w::Error::TooLarge(value) => d::Error::TooLarge(d::Excess {
-            bound: match value.bound() {
+            bound: match value.bound {
                 w::Bound::OpBytes => d::Bound::OpBytes,
                 w::Bound::AnswerBytes => d::Bound::AnswerBytes,
                 w::Bound::Rows => d::Bound::Rows,
                 w::Bound::Forge => d::Bound::Forge,
                 w::Bound::Unnamed => d::Bound::Unnamed,
             },
-            limit: value.limit(),
-            size: value.size(),
-            exact: value.exact(),
+            limit: value.limit,
+            size: value.size,
+            exact: value.exact,
         }),
         w::Error::Empty => d::Error::Empty,
         w::Error::Full => d::Error::Full,
@@ -302,6 +244,7 @@ pub(super) fn decode_error(value: w::Error) -> d::Error {
         w::Error::NothingToMerge => d::Error::NothingToMerge,
         w::Error::Closed => d::Error::Closed,
         w::Error::Stale => d::Error::Stale,
+        w::Error::BaseMoved(value) => d::Error::BaseMoved { base: value.base },
         w::Error::Conflict => d::Error::Conflict,
         w::Error::Protected => d::Error::Protected,
         w::Error::Refused => d::Error::Refused,
@@ -311,53 +254,35 @@ pub(super) fn decode_error(value: w::Error) -> d::Error {
 }
 fn encode_made(value: skein_forge_client::Made) -> w::Made {
     match value {
-        skein_forge_client::Made::Created(number) => {
-            w::Made::Created(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
-        skein_forge_client::Made::Commented(number) => {
-            w::Made::Commented(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
-        skein_forge_client::Made::Reviewed(number) => {
-            w::Made::Reviewed(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
-        skein_forge_client::Made::Merged(commit) => {
-            w::Made::Merged(w::Commit::new(&w::CEILINGS, w::CommitParts { commit }).expect(FITS))
-        }
-        skein_forge_client::Made::Updated(commit) => {
-            w::Made::Updated(w::Commit::new(&w::CEILINGS, w::CommitParts { commit }).expect(FITS))
-        }
-        skein_forge_client::Made::Branch(commit) => {
-            w::Made::Branch(w::Commit::new(&w::CEILINGS, w::CommitParts { commit }).expect(FITS))
-        }
+        skein_forge_client::Made::Created(number) => w::Made::Created(w::Number { number }),
+        skein_forge_client::Made::Commented(number) => w::Made::Commented(w::Number { number }),
+        skein_forge_client::Made::Reviewed(number) => w::Made::Reviewed(w::Number { number }),
+        skein_forge_client::Made::Merged(commit) => w::Made::Merged(w::Commit { commit }),
+        skein_forge_client::Made::Updated(commit) => w::Made::Updated(w::Commit { commit }),
+        skein_forge_client::Made::Branch(commit) => w::Made::Branch(w::Commit { commit }),
         skein_forge_client::Made::Set => w::Made::Set,
     }
 }
 fn decode_made(value: w::Made) -> skein_forge_client::Made {
     match value {
-        w::Made::Created(value) => skein_forge_client::Made::Created(value.into_parts().number),
-        w::Made::Commented(value) => skein_forge_client::Made::Commented(value.into_parts().number),
-        w::Made::Reviewed(value) => skein_forge_client::Made::Reviewed(value.into_parts().number),
-        w::Made::Merged(value) => skein_forge_client::Made::Merged(value.into_parts().commit),
-        w::Made::Updated(value) => skein_forge_client::Made::Updated(value.into_parts().commit),
-        w::Made::Branch(value) => skein_forge_client::Made::Branch(value.into_parts().commit),
+        w::Made::Created(value) => skein_forge_client::Made::Created(value.number),
+        w::Made::Commented(value) => skein_forge_client::Made::Commented(value.number),
+        w::Made::Reviewed(value) => skein_forge_client::Made::Reviewed(value.number),
+        w::Made::Merged(value) => skein_forge_client::Made::Merged(value.commit),
+        w::Made::Updated(value) => skein_forge_client::Made::Updated(value.commit),
+        w::Made::Branch(value) => skein_forge_client::Made::Branch(value.commit),
         w::Made::Set => skein_forge_client::Made::Set,
     }
 }
 pub(super) fn encode_outcome(value: skein_forge_client::Outcome) -> w::Outcome {
     match value {
-        skein_forge_client::Outcome::Made { made, found } => w::Outcome::Made(
-            w::OutcomeMade::new(&w::CEILINGS, w::OutcomeMadeParts { made: encode_made(made), found }).expect(FITS),
-        ),
-        skein_forge_client::Outcome::Failed(error) => w::Outcome::Failed(
-            w::ErrorValue::new(&w::CEILINGS, w::ErrorValueParts { error: encode_error(error) }).expect(FITS),
-        ),
-        skein_forge_client::Outcome::Raced { made, why } => w::Outcome::Raced(
-            w::OutcomeRaced::new(
-                &w::CEILINGS,
-                w::OutcomeRacedParts { made: encode_made(made), why: encode_error(why) },
-            )
-            .expect(FITS),
-        ),
+        skein_forge_client::Outcome::Made { made, found } => {
+            w::Outcome::Made(w::OutcomeMade { made: encode_made(made), found })
+        }
+        skein_forge_client::Outcome::Failed(error) => w::Outcome::Failed(w::ErrorValue { error: encode_error(error) }),
+        skein_forge_client::Outcome::Raced { made, why } => {
+            w::Outcome::Raced(w::OutcomeRaced { made: encode_made(made), why: encode_error(why) })
+        }
         skein_forge_client::Outcome::Queued => w::Outcome::Queued,
         skein_forge_client::Outcome::Uncertain => w::Outcome::Uncertain,
         skein_forge_client::Outcome::Held => w::Outcome::Held,
@@ -367,12 +292,12 @@ pub(super) fn encode_outcome(value: skein_forge_client::Outcome) -> w::Outcome {
 pub(super) fn decode_outcome(value: w::Outcome) -> skein_forge_client::Outcome {
     match value {
         w::Outcome::Made(value) => {
-            let w::OutcomeMadeParts { made, found } = value.into_parts();
+            let w::OutcomeMade { made, found } = value;
             skein_forge_client::Outcome::Made { made: decode_made(made), found }
         }
-        w::Outcome::Failed(error) => skein_forge_client::Outcome::Failed(decode_error(error.into_parts().error)),
+        w::Outcome::Failed(error) => skein_forge_client::Outcome::Failed(decode_error(error.error)),
         w::Outcome::Raced(value) => {
-            let w::OutcomeRacedParts { made, why } = value.into_parts();
+            let w::OutcomeRaced { made, why } = value;
             skein_forge_client::Outcome::Raced { made: decode_made(made), why: decode_error(why) }
         }
         w::Outcome::Queued => skein_forge_client::Outcome::Queued,
@@ -410,24 +335,20 @@ fn decode_provenance(value: w::Provenance) -> d::Provenance {
 }
 pub(super) fn encode_summary(value: &d::Summary) -> w::Summary {
     let d::Summary { labels, number, kind, state, author, key, title, body, updated } = value;
-    w::Summary::new(
-        &w::CEILINGS,
-        w::SummaryParts {
-            labels: super::names::encode_piece(labels),
-            number: *number,
-            kind: encode_kind(*kind),
-            state: super::topics::encode_state(*state),
-            author: *author,
-            key: key.clone(),
-            title: title.clone(),
-            body: body.clone(),
-            updated: updated.as_nanos(),
-        },
-    )
-    .expect(FITS)
+    w::Summary {
+        labels: super::names::encode_piece(labels),
+        number: *number,
+        kind: encode_kind(*kind),
+        state: super::topics::encode_state(*state),
+        author: *author,
+        key: key.clone(),
+        title: title.clone(),
+        body: body.clone(),
+        updated: updated.as_nanos(),
+    }
 }
 pub(super) fn decode_summary(value: w::Summary, bounds: &super::Bounds) -> Result<d::Summary, super::Undecodable> {
-    let w::SummaryParts { labels, number, kind, state, author, key, title, body, updated } = value.into_parts();
+    let w::Summary { labels, number, kind, state, author, key, title, body, updated } = value;
     Ok(d::Summary {
         labels: super::names::decode_contexts(&labels, bounds)?,
         number,
@@ -442,22 +363,18 @@ pub(super) fn decode_summary(value: w::Summary, bounds: &super::Bounds) -> Resul
 }
 pub(super) fn encode_comment(value: &d::Comment) -> w::Comment {
     let d::Comment { id, provenance, author, created, revision, key, body } = value;
-    w::Comment::new(
-        &w::CEILINGS,
-        w::CommentParts {
-            id: *id,
-            provenance: encode_provenance(*provenance),
-            author: *author,
-            created: created.as_nanos(),
-            revision: *revision,
-            key: key.clone(),
-            body: body.clone(),
-        },
-    )
-    .expect(FITS)
+    w::Comment {
+        id: *id,
+        provenance: encode_provenance(*provenance),
+        author: *author,
+        created: created.as_nanos(),
+        revision: *revision,
+        key: key.clone(),
+        body: body.clone(),
+    }
 }
 pub(super) fn decode_comment(value: w::Comment) -> d::Comment {
-    let w::CommentParts { id, provenance, author, created, revision, key, body } = value.into_parts();
+    let w::Comment { id, provenance, author, created, revision, key, body } = value;
     d::Comment {
         id,
         provenance: decode_provenance(provenance),
@@ -470,26 +387,21 @@ pub(super) fn decode_comment(value: w::Comment) -> d::Comment {
 }
 pub(super) fn encode_review(value: &d::Review) -> w::Review {
     let d::Review { id, provenance, revision, author, verdict, commit, key, body, at, official } = value;
-    w::Review::new(
-        &w::CEILINGS,
-        w::ReviewParts {
-            id: *id,
-            provenance: encode_provenance(*provenance),
-            revision: *revision,
-            author: *author,
-            verdict: encode_verdict(*verdict),
-            commit: *commit,
-            key: key.clone(),
-            body: body.clone(),
-            at: at.as_nanos(),
-            official: *official,
-        },
-    )
-    .expect(FITS)
+    w::Review {
+        id: *id,
+        provenance: encode_provenance(*provenance),
+        revision: *revision,
+        author: *author,
+        verdict: encode_verdict(*verdict),
+        commit: *commit,
+        key: key.clone(),
+        body: body.clone(),
+        at: at.as_nanos(),
+        official: *official,
+    }
 }
 pub(super) fn decode_review(value: w::Review) -> d::Review {
-    let w::ReviewParts { id, provenance, revision, author, verdict, commit, key, body, at, official } =
-        value.into_parts();
+    let w::Review { id, provenance, revision, author, verdict, commit, key, body, at, official } = value;
     d::Review {
         id,
         provenance: decode_provenance(provenance),
@@ -506,24 +418,20 @@ pub(super) fn decode_review(value: w::Review) -> d::Review {
 
 pub(super) fn encode_status(value: &d::Status) -> w::Status {
     let d::Status { at, context, check, description, url, job } = value;
-    w::Status::new(
-        &w::CEILINGS,
-        w::StatusParts {
-            at: at.as_nanos(),
-            context: context.clone(),
-            verdict: encode_check(*check),
-            description: description.clone(),
-            url: url.clone(),
-            job: match job {
-                Some(value) => Some(super::answers::encode_job_attempt(value)),
-                None => None,
-            },
+    w::Status {
+        at: at.as_nanos(),
+        context: context.clone(),
+        verdict: encode_check(*check),
+        description: description.clone(),
+        url: url.clone(),
+        job: match job {
+            Some(value) => Some(super::answers::encode_job_attempt(value)),
+            None => None,
         },
-    )
-    .expect(FITS)
+    }
 }
 pub(super) fn decode_status(value: w::Status) -> d::Status {
-    let w::StatusParts { at, context, verdict, description, url, job } = value.into_parts();
+    let w::Status { at, context, verdict, description, url, job } = value;
     d::Status {
         at: skein_lib::Time::from_nanos(at),
         context,
@@ -538,34 +446,25 @@ pub(super) fn decode_status(value: w::Status) -> d::Status {
 }
 pub(super) fn encode_remark(value: &d::Remark) -> w::Remark {
     let d::Remark { id, author, path, line, body } = value;
-    w::Remark::new(
-        &w::CEILINGS,
-        w::RemarkParts { id: *id, author: *author, path: path.clone(), line: *line, body: body.clone() },
-    )
-    .expect(FITS)
+    w::Remark { id: *id, author: *author, path: path.clone(), line: *line, body: body.clone() }
 }
 pub(super) fn decode_remark(value: w::Remark) -> d::Remark {
-    let w::RemarkParts { id, author, path, line, body } = value.into_parts();
+    let w::Remark { id, author, path, line, body } = value;
     d::Remark { id, author, path, line, body }
 }
 pub(super) fn encode_file(value: &d::File) -> w::File {
     let d::File { path, before, after } = value;
-    w::File::new(&w::CEILINGS, w::FileParts { path: path.clone(), before: before.clone(), after: after.clone() })
-        .expect(FITS)
+    w::File { path: path.clone(), before: before.clone(), after: after.clone() }
 }
 pub(super) fn decode_file(value: w::File) -> d::File {
-    let w::FileParts { path, before, after } = value.into_parts();
+    let w::File { path, before, after } = value;
     d::File { path, before, after }
 }
 pub(super) fn encode_collaborator(value: &d::Collaborator) -> w::Collaborator {
     let d::Collaborator { user, permission } = value;
-    w::Collaborator::new(
-        &w::CEILINGS,
-        w::CollaboratorParts { user: *user, permission: super::answers::encode_permission(*permission) },
-    )
-    .expect(FITS)
+    w::Collaborator { user: *user, permission: super::answers::encode_permission(*permission) }
 }
 pub(super) fn decode_collaborator(value: w::Collaborator) -> d::Collaborator {
-    let w::CollaboratorParts { user, permission } = value.into_parts();
+    let w::Collaborator { user, permission } = value;
     d::Collaborator { user, permission: super::answers::decode_permission(permission) }
 }

@@ -74,6 +74,8 @@ fn verdict(world: &mut World, passed: bool) {
         failed: false,
         cancelled: false,
         no_change: false,
+        flake: false,
+        no_test: false,
         words: b"reviewed the prefix".as_slice().into(),
     });
 }

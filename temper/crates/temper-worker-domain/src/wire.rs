@@ -40,11 +40,17 @@ pub enum Verdict {
 pub enum Ask {
     Reds,
     Results(CheckResults),
+    /// A started dependency's landing (temper/docs/design/domain/worker/checkouts.md, Its ask).
+    Landed {
+        head: [u8; 32],
+    },
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Answer {
     Kept,
+    Landed,
+    Unlanded,
     Reds { reds: Box<[Red]> },
 }
 
@@ -145,6 +151,8 @@ pub enum Access {
         push: Box<[u8]>,
         expected: Option<[u8; 32]>,
         landing: Option<Box<[u8]>>,
+        delivered: Option<[u8; 32]>,
+        pin: Option<[u8; 32]>,
     },
     ReadOnly,
     /// Ordered branches that a prepare may create, and no others.

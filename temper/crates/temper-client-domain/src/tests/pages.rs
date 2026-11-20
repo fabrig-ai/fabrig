@@ -56,6 +56,14 @@ fn the_pages_watch_me_from_start_under_their_own_asker() {
             subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
         }))
     );
+    assert!(out.is_empty(), "the frame's accounts watch waits for the hello");
+    pages::step(
+        &mut pages,
+        &fixtures::env(&fixtures::limits()),
+        root.client(),
+        Event::Link { link: Link::Live },
+        &mut out,
+    );
     assert_eq!(
         out.pop(),
         Some(Request::Client(jig_client::Event::Watch {
@@ -555,4 +563,111 @@ fn routed_requests_reach_the_root_before_returning() {
     assert_eq!(root.tab, root.pages().sign_in_key());
     assert_eq!(out.pop(), Some(crate::Request::Tab { tab: crate::Tab::Open { provider: 9 } }));
     assert!(out.is_empty());
+}
+
+#[test]
+fn the_root_and_a_missing_path_wait_for_me_then_replace_with_home() {
+    use crate::{Place, Request as R};
+    use jig_client::contract as c;
+    use skein_lib::{List, Token};
+    for path in [b"/".as_slice(), b"/nowhere"] {
+        for projects in [0, 1, 2] {
+            let limits = fixtures::limits();
+            let env = fixtures::env(&limits);
+            let mut root = crate::unlinked(&limits, fixtures::SEED);
+            let mut out = Queue::uncapped();
+            crate::step(
+                &mut root,
+                &env,
+                crate::Event::Start { address: Address::AllHome, kept: List::uncapped(), with: None },
+                &mut out,
+            );
+            crate::step(&mut root, &env, crate::Event::Went { place: crate::address::parse(path) }, &mut out);
+            crate::step(
+                &mut root,
+                &env,
+                crate::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::uncapped() } },
+                &mut out,
+            );
+            crate::step(
+                &mut root,
+                &env,
+                crate::Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } },
+                &mut out,
+            );
+            crate::step(
+                &mut root,
+                &env,
+                crate::Event::Client {
+                    event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+                },
+                &mut out,
+            );
+            assert!(root.pages().root_pending());
+            assert_eq!(root.pages().address(), &Address::AllHome);
+            for request in &out {
+                if let R::Show { .. } = request {
+                    panic!("root must wait for me");
+                }
+            }
+            out.clear();
+            let mut me = fixtures::chats::me();
+            let project = me.projects.get(0).unwrap().clone();
+            me.projects = List::with_capacity(2);
+            for n in 0..projects {
+                let mut project = project.clone();
+                project.project = 7 + n;
+                me.projects.push(project).unwrap();
+            }
+            crate::step(
+                &mut root,
+                &env,
+                crate::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Watched {
+                            watch: Token::new(0),
+                            event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                        },
+                    },
+                },
+                &mut out,
+            );
+            let address = if projects == 1 { Address::Home { project: 7 } } else { Address::AllHome };
+            let mut shows = List::uncapped();
+            for request in &out {
+                if let R::Show { .. } = request {
+                    shows.push(request).unwrap();
+                }
+            }
+            assert_eq!(shows.as_slice(), [&R::Show { address, replace: true }], "{path:?}, {projects}");
+            assert!(!root.pages().root_pending());
+            assert_eq!(root.pages().address(), &Address::AllHome);
+            assert_eq!(crate::address::parse(path), if path == b"/" { Place::Root } else { Place::Missing });
+        }
+    }
+}
+
+#[test]
+fn moving_elsewhere_cancels_the_pending_root() {
+    let limits = fixtures::limits();
+    let mut root = crate::unlinked(&limits, fixtures::SEED);
+    let watch = fixtures::start(&mut root, skein_lib::List::uncapped());
+    let mut out = Queue::uncapped();
+    crate::step(&mut root, &fixtures::env(&limits), crate::Event::Went { place: crate::Place::Root }, &mut out);
+    assert!(root.pages().root_pending());
+    crate::step(
+        &mut root,
+        &fixtures::env(&limits),
+        crate::Event::Went { place: crate::Place::Address(Address::Accounts) },
+        &mut out,
+    );
+    out.clear();
+    fixtures::confirm(&mut root, watch, fixtures::PARTY, &mut out);
+    assert!(!root.pages().root_pending());
+    for request in &out {
+        if let crate::Request::Show { .. } = request {
+            panic!("moving away cancels root resolution");
+        }
+    }
+    assert_eq!(root.pages().address(), &Address::Accounts);
 }

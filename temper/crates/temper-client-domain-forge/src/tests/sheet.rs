@@ -7,6 +7,7 @@ use super::*;
 use crate::{forge, tests::fixtures};
 use forge::forges::{Account, Adoption, Installation, Offer, StartsWith};
 use skein_lib::Env;
+use temper_client_protocol_wire::v1::Record;
 
 const PROJECT: u32 = 7;
 const GITHUB: u16 = 2;
@@ -71,8 +72,8 @@ fn act(side: &mut Side, act: Act) -> Queue<Request> {
     out
 }
 fn reached(id: u64, name: &[u8], private: bool) -> w::Reached {
-    let owner = w::Account::new(&w::CEILINGS, w::AccountParts { id: 3, login: b"acme".as_slice().into() }).unwrap();
-    w::Reached::new(&w::CEILINGS, w::ReachedParts { id, owner, name: name.into(), private }).unwrap()
+    let owner = w::Account { id: 3, login: b"acme".as_slice().into() };
+    w::Reached { id, owner, name: name.into(), private }
 }
 fn page(first: u32, count: u32, more: bool) -> w::Page {
     let mut rows = List::with_capacity(PAGE);
@@ -81,7 +82,7 @@ fn page(first: u32, count: u32, more: bool) -> w::Page {
         let name = bytes::concat(&[b"repo-", number.as_bytes()]);
         rows.push(reached(u64::from(id), &name, false)).unwrap();
     }
-    w::Page::new(&w::CEILINGS, w::PageParts { rows, more }).unwrap()
+    w::Page { rows, more }
 }
 fn reading(side: &Side) -> Token {
     match side.sheet().unwrap().reading {
@@ -99,7 +100,7 @@ fn sent(out: &Queue<Request>) -> w::Request {
     for request in out {
         if let Request::Send { ask: jig_client::Ask::Family { record, .. }, .. } = request {
             let mut reader = skein_lib::Reader::new(&record.bytes);
-            return w::Requesting::decode(&w::CEILINGS, &mut reader).unwrap().into_parts().request;
+            return w::Requesting::decode(&w::CEILINGS, &mut reader).unwrap().request;
         }
     }
     panic!("no send")
@@ -119,6 +120,7 @@ fn pending(side: &Side) -> Token {
 }
 fn adopted_answer() -> forge::Answer {
     forge::Answer::Adopted(forge::Adopted {
+        landing: b"main".as_slice().into(),
         forge: GITHUB,
         repository: 1,
         owner: b"acme".as_slice().into(),
@@ -147,7 +149,7 @@ fn opening_chooses_forges_and_leaving_drops_the_answer() {
     assert_eq!((sheet.forge, sheet.installation, sheet.target), (Some(GITHUB), Some(INSTALLATION), Some(FORGEJO)));
     assert!({
         let w::Request::Reachable(read) = sent(&out) else { panic!("reachable") };
-        read.forge() == GITHUB && *read.installation() == Some(INSTALLATION) && read.page() == 1
+        read.forge == GITHUB && read.installation == Some(INSTALLATION) && read.page == 1
     });
     let key = reading(&side);
     forge::step(&mut side, &env(), forge::Event::Left, &mut Queue::uncapped());
@@ -166,20 +168,20 @@ fn scrolling_reads_one_page_and_search_finishes_213_rows() {
     let out = act(&mut side, Act::NearEnd);
     assert!({
         let w::Request::Reachable(read) = sent(&out) else { panic!("reachable") };
-        read.page() == 2
+        read.page == 2
     });
     act(&mut side, Act::Find(b"REPO-213".as_slice().into()));
     let out = answer(&mut side, page(101, PAGE, true));
     assert!({
         let w::Request::Reachable(read) = sent(&out) else { panic!("reachable") };
-        read.page() == 3
+        read.page == 3
     });
     assert_eq!(count(side.sheet().unwrap(), &side.forges), Count::Searching(200));
     assert!(answer(&mut side, page(201, 13, false)).is_empty());
     let sheet = side.sheet().unwrap();
     assert_eq!(sheet.rows.len(), TOTAL);
     assert_eq!(count(sheet, &side.forges), Count::Found { found: 1, of: TOTAL });
-    assert_eq!(shown(sheet, PROJECT, &side.forges).get(0).unwrap().row.id(), 213);
+    assert_eq!(shown(sheet, PROJECT, &side.forges).get(0).unwrap().row.id, 213);
 }
 
 #[test]
@@ -405,7 +407,7 @@ fn plural_adoptions_send_one_at_a_time_without_home() {
     let out = act(&mut side, Act::Send);
     assert!({
         let w::Request::Adopt(adopt) = sent(&out) else { panic!("adopt") };
-        !adopt.home() && adopt.name() == b"repo-1"
+        !adopt.home && adopt.name.as_ref() == b"repo-1"
     });
     assert!(act(&mut side, Act::Send).is_empty());
     let mut out = Queue::uncapped();
@@ -413,7 +415,7 @@ fn plural_adoptions_send_one_at_a_time_without_home() {
     adopted(&mut side, request, &adopted_answer(), env().limits, &mut out);
     assert!({
         let w::Request::Adopt(adopt) = sent(&out) else { panic!("adopt") };
-        !adopt.home() && adopt.name() == b"repo-2"
+        !adopt.home && adopt.name.as_ref() == b"repo-2"
     });
     assert_eq!(side.sheet().unwrap().picks.len(), 1);
     let request = pending(&side);
@@ -470,7 +472,7 @@ fn copies_send_in_project_scope_with_home_only_first() {
     }));
     assert!({
         let w::Request::MakeRepository(make) = sent(&out) else { panic!("make") };
-        w::MakeRepository::into(&make).as_ref().unwrap().home() && make.name() == b"one"
+        make.into.as_ref().unwrap().home && make.name.as_ref() == b"one"
     });
     let request = pending(&side);
     let mut out = Queue::uncapped();
@@ -478,7 +480,7 @@ fn copies_send_in_project_scope_with_home_only_first() {
     assert_eq!(side.sheet().unwrap().addresses.text.as_ref(), b"acme/two");
     assert!({
         let w::Request::MakeRepository(make) = sent(&out) else { panic!("make") };
-        !w::MakeRepository::into(&make).as_ref().unwrap().home() && make.name() == b"two"
+        !make.into.as_ref().unwrap().home && make.name.as_ref() == b"two"
     });
     let request = pending(&side);
     let mut out = Queue::uncapped();
@@ -522,10 +524,10 @@ fn empty_making_has_the_name_and_existing_projects_get_no_home() {
     let out = act(&mut side, Act::Send);
     assert!({
         let w::Request::MakeRepository(make) = sent(&out) else { panic!("make") };
-        make.org() == b"work"
-            && make.name() == b"new"
-            && !w::MakeRepository::into(&make).as_ref().unwrap().home()
-            && make.from() == &w::MakeFrom::Empty
+        make.org.as_ref() == b"work"
+            && make.name.as_ref() == b"new"
+            && !make.into.as_ref().unwrap().home
+            && make.from == w::MakeFrom::Empty
     });
 }
 
@@ -563,23 +565,15 @@ fn failed_making(from: Option<&[u8]>, reason: w::MakeFailure) -> super::super::m
         org: b"acme".as_slice().into(),
         name: b"again".as_slice().into(),
         from: match from {
-            Some(address) => {
-                w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap())
-            }
+            Some(address) => w::MakeFrom::Copy(w::MakeCopy { address: address.into() }),
             None => w::MakeFrom::Empty,
         },
-        into: Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: PROJECT, home: false }).unwrap()),
-        state: w::MakingState::Failed(
-            w::MakingFailed::new(
-                &w::CEILINGS,
-                w::MakingFailedParts {
-                    step: w::MakeStep::Repository,
-                    reason,
-                    words: b"the forge refused".as_slice().into(),
-                },
-            )
-            .unwrap(),
-        ),
+        into: Some(w::MakeInto { project: PROJECT, home: false }),
+        state: w::MakingState::Failed(w::MakingFailed {
+            step: w::MakeStep::Repository,
+            reason,
+            words: b"the forge refused".as_slice().into(),
+        }),
     }
 }
 fn with_failed(from: Option<&[u8]>, reason: w::MakeFailure) -> Side {
@@ -630,7 +624,7 @@ fn copy_again_reuses_the_failed_copys_listed_name() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(reached(11, b"again", false)).unwrap();
-    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    answer(&mut side, w::Page { rows, more: false });
     let sheet = side.sheet().unwrap();
     assert_eq!(
         lines(sheet, &side.forges).as_slice(),
@@ -651,7 +645,7 @@ fn copy_again_does_not_free_a_taken_name() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(reached(11, b"again", false)).unwrap();
-    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    answer(&mut side, w::Page { rows, more: false });
     let sheet = side.sheet().unwrap();
     assert_eq!(
         lines(sheet, &side.forges).as_slice(),
@@ -672,7 +666,7 @@ fn copy_again_does_not_free_another_sources_name() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(reached(11, b"again", false)).unwrap();
-    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    answer(&mut side, w::Page { rows, more: false });
     act(&mut side, Act::Addresses(b"https://other.example/acme/again".as_slice().into()));
     let sheet = side.sheet().unwrap();
     assert_eq!(
@@ -694,7 +688,7 @@ fn copy_again_compares_normalised_sources() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(reached(11, b"again", false)).unwrap();
-    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    answer(&mut side, w::Page { rows, more: false });
     act(&mut side, Act::Addresses(b"https://source.example/acme/again".as_slice().into()));
     let sheet = side.sheet().unwrap();
     assert_eq!(
@@ -734,8 +728,7 @@ fn copy_again_does_not_free_an_adopted_name() {
 }
 #[test]
 fn copy_again_does_not_free_an_in_flight_name() {
-    let made =
-        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 11, branch: b"main".as_slice().into() }).unwrap();
+    let made = w::MakingMade { id: 11, branch: b"main".as_slice().into() };
     for state in [
         w::MakingState::Waiting,
         w::MakingState::Making,
@@ -782,7 +775,7 @@ fn adopt_again_picks_the_taken_name_after_reading() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(reached(11, b"again", false)).unwrap();
-    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    answer(&mut side, w::Page { rows, more: false });
     let sheet = side.sheet().unwrap();
     assert_eq!((sheet.source, sheet.forge), (Source::Forge, Some(FORGEJO)));
     assert_eq!(
@@ -799,8 +792,11 @@ fn dismiss_uses_the_rows_project_and_waits_for_the_watch() {
     let dismiss = Act::Dismiss { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() };
     let out = act(&mut side, dismiss.clone());
     let w::Request::DismissMaking(request) = sent(&out) else { panic!("dismiss making") };
-    assert_eq!((request.forge(), request.org(), request.name()), (FORGEJO, b"acme".as_slice(), b"again".as_slice()));
-    assert_eq!(request.into_parts().into, Some(PROJECT));
+    assert_eq!(
+        (request.forge, request.org.as_ref(), request.name.as_ref()),
+        (FORGEJO, b"acme".as_slice(), b"again".as_slice())
+    );
+    assert_eq!(request.into, Some(PROJECT));
     let (key, scope) = out
         .iter()
         .find_map(|request| match request {
@@ -829,7 +825,7 @@ fn a_dismissal_refusal_stays_with_its_row_after_leaving() {
     let mut side = with_failed(None, w::MakeFailure::Other);
     act(&mut side, Act::Dismiss { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() });
     let token = dismissal(&side, FORGEJO, b"acme", b"again").unwrap().pending.unwrap();
-    let refused = w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: w::MakeRefusal::NotOwner }).unwrap();
+    let refused = w::MakeRefused { why: w::MakeRefusal::NotOwner };
     dismissal_answer(&mut side, token, w::Outcome::MakeRefused(refused));
     assert_eq!(
         dismissal(&side, FORGEJO, b"acme", b"again").unwrap().words.as_deref(),
@@ -841,7 +837,7 @@ fn dismissal_answer(side: &mut Side, token: Token, outcome: w::Outcome) {
     let outcome = jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+        bytes: wire::answer(&w::Answer { outcome }),
     }));
     let client = jig_client::Client::new(&fixtures::limits().client, fixtures::SEED).unwrap();
     told(

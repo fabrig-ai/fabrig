@@ -1,4 +1,37 @@
 #[test]
+fn fixed_start_seeds_use_independent_repeatable_draws_and_keep_box_secrets() {
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("canonical start");
+    let make = || {
+        super::seeds_from(
+            &start,
+            Some(skein_lib::Secret::new(Box::new([11; 32]))),
+            Some(skein_lib::Secret::new(Box::new([12; 32]))),
+        )
+    };
+    let seeds = make();
+    let again = make();
+    assert_eq!(seeds.seed, 7);
+    assert_eq!(again.seed, seeds.seed);
+    let mut crypto = [0; 32];
+    let mut deployment = [0; 32];
+    let mut installation = [0; 32];
+    start.draw(1, &mut crypto);
+    start.draw(2, &mut deployment);
+    start.draw(3, &mut installation);
+    assert_eq!(seeds.crypto.expose(), crypto);
+    assert_eq!(seeds.deployment, deployment[..16]);
+    assert_eq!(seeds.installation, installation[..16]);
+    assert_eq!(again.crypto.expose(), seeds.crypto.expose());
+    assert_eq!(again.deployment, seeds.deployment);
+    assert_eq!(again.installation, seeds.installation);
+    assert_ne!(seeds.deployment, seeds.installation);
+    assert_ne!(&seeds.crypto.expose()[..16], seeds.deployment);
+    assert_ne!(&seeds.crypto.expose()[..16], seeds.installation);
+    assert_eq!(seeds.link_secret.expect("box link").expose(), &[11; 32]);
+    assert_eq!(seeds.local_secret.expect("box local").expose(), &[12; 32]);
+}
+
+#[test]
 fn github_defaults_are_unresolved_in_resolution_order() {
     let roots = super::trust(None).expect("machine roots");
     let runtime = super::github_runtime(None, &roots).expect("unresolved default");
@@ -17,28 +50,33 @@ fn github_defaults_are_unresolved_in_resolution_order() {
 }
 
 #[test]
-fn github_machine_names_wait_and_machine_sockets_are_used_without_log_origins() {
-    let roots = super::trust(None).expect("machine trust roots");
-    let mut machine = temper_forge_setup::machine::GitHubMachine {
-        git: None,
-        api: jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())),
-        tls: false,
-        remote: b"http://127.0.0.1:3001".as_slice().into(),
-        web: b"http://127.0.0.1:3001".as_slice().into(),
-    };
-    let fake = super::github_runtime(Some(&machine), &roots).expect("machine socket");
+fn github_test_names_wait_and_test_sockets_are_used_without_log_origins() {
+    let document = jig_protocol_config::document(
+        br#"{"github":{"api":{"socket":"127.0.0.1:3001"},"transport":"plaintext","remote":"http://127.0.0.1:3001","web":"http://127.0.0.1:3001","git":"bin/git"}}"#,
+        &jig_protocol_config::DocumentLimits { bytes: 4096, tokens: 128, depth: 8 },
+    ).expect("test member");
+    let mut problems = jig_protocol_config::Problems::empty();
+    let mut test_github = temper_forge_setup::machine::read_test(
+        &document,
+        Some(0),
+        &jig_protocol_config::Directories::working(),
+        &mut problems,
+    )
+    .expect("test GitHub");
+    assert!(problems.is_empty());
+    let super::Runtimes { github: fake, .. } = super::runtimes(Some(&test_github)).expect("test socket");
     assert!(fake.log_origins.is_empty());
     assert_eq!(fake.address, ([127, 0, 0, 1], 3001).into());
     assert!(matches!(fake.transport, skein_forge_connection::settings::Transport::Plaintext { .. }));
-    machine.api = jig_protocol_config::Address::Host { name: b"machine.github.test".as_slice().into(), port: 8443 };
-    machine.tls = true;
-    let named = super::github_runtime(Some(&machine), &roots).expect("machine name waits");
+    test_github.api = jig_protocol_config::Address::Host { name: b"github.example.test".as_slice().into(), port: 8443 };
+    test_github.tls = true;
+    let super::Runtimes { github: named, .. } = super::runtimes(Some(&test_github)).expect("test name waits");
     assert_eq!(named.address, temper_engine_service::forge::HELD_ADDRESS);
     assert!(named.log_origins.is_empty());
     let skein_forge_connection::settings::Transport::Tls { server_name, .. } = named.transport else {
-        panic!("TLS machine")
+        panic!("TLS test peer")
     };
-    assert_eq!(server_name, skein_tls::Name::new("machine.github.test").unwrap());
+    assert_eq!(server_name, skein_tls::Name::new("github.example.test").unwrap());
 }
 
 #[test]
@@ -59,14 +97,22 @@ fn accounts_runtime_holds_unresolved_hosts() {
         };
         Some(([192, 0, 2, last], port).into())
     }
-    let document = config::document(
-        include_bytes!("../../../../docs/examples/owned.json"),
-        &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+    let file = temper_config_shell::File {
+        workers: Some("127.0.0.1:7200".parse().expect("workers listener")),
+        ..temper_config_shell::File::default()
+    };
+    let start = temper_config_shell::parse(
+        &temper_config_shell::render(&file, temper_config_shell::Shape::EngineAlone),
+        temper_config_shell::Shape::EngineAlone,
+        &temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false },
     )
-    .expect("owned document");
+    .expect("engine file")
+    .document;
+    let document = config::document(&start, &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 })
+        .expect("owned document");
     let at = super::member(&document, 0, b"engine");
-    let mut engine = config::engine(&document, at, &config::Directories::working(), config::Defaults::Passed)
-        .expect("engine fixture");
+    let mut engine =
+        temper_engine_service::startup::engine(&document, at, &config::Directories::working()).expect("engine fixture");
     let provider =
         engine.llm.providers.iter_mut().find(|provider| provider.sign_in.is_some()).expect("sign-in provider");
     let number = provider.number;
@@ -135,21 +181,21 @@ fn accounts_runtime_holds_unresolved_hosts() {
 }
 
 #[test]
-fn an_engine_start_refuses_workers_before_opening_their_files() {
-    let (directories, _) = temper_shell::directories::resolve(
-        &[b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from),
-        &[],
-        b"/",
-    )
-    .expect("fixture directories");
-    for bytes in [b"{}".as_slice(), include_bytes!("../../../../docs/examples/owned.json").as_slice()] {
-        let mut owned = Vec::new();
-        let why = super::prepare("temper-engine", &[], b"/", &directories, bytes, &mut owned)
-            .err()
-            .expect("engine refuses a worker");
-        assert_eq!(why, "temper.json names a worker, and temper-engine runs none");
-        assert!(owned.is_empty(), "refusal opens no startup descriptors");
-    }
+fn an_engine_start_refuses_a_workers_file_before_opening_its_files() {
+    use temper_config_shell::{FILE, File, Shape};
+    let scratch = skein_scratch::Scratch::new("engine-worker-file");
+    let directories = crate::test_configuration::directories(scratch.path());
+    let file = File { engine: Some("127.0.0.1:7200".parse().expect("engine address")), ..File::default() };
+    std::fs::write(scratch.path().join(FILE), temper_config_shell::render(&file, Shape::WorkerAlone))
+        .expect("worker file");
+    let why = super::prepare_in("temper-engine", &[], b"/", &directories).err().expect("engine refuses a worker");
+    assert_eq!(
+        why,
+        format!(
+            "temper-engine serve: {FILE}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: {FILE}: workers: required in temper-engine's file\n"
+        )
+    );
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("scratch").count(), 1, "only the supplied file remains");
 }
 
 #[test]
@@ -162,7 +208,7 @@ fn before_root_records_only_when_requested_and_refuses_a_headless_bundle() {
     let mut required: Box<[jig_protocol_config::File]> = Box::new([]);
     let mut asked: Box<[jig_protocol_config::File]> = Box::new([]);
     let configured = scratch.path().as_os_str().as_bytes();
-    let limits = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).clients;
+    let limits = temper_limits_fixtures::small().clients;
     let mut tags = Vec::new();
     for record in [false, true] {
         let inputs = super::before_root(

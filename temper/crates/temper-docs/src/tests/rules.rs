@@ -115,10 +115,11 @@ fn task_help_says_what_taken_by_and_waiting_on_print() {
 fn configuration_help_gives_the_merge_commands_contract() {
     let page = find(b"configuration").expect("configuration page").text;
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
-    let (members, contract) = text.split_once("## The merge command").expect("merge command section");
-    let row = members.split_once("- `merge_job`:").expect("merge_job row").1;
-    let row = row.split(" - `").next().expect("merge_job line");
-    assert!(row.contains("see The merge command, below."), "merge_job must point to its contract");
+    let (_, contract) = text.split_once("## The merge command").expect("merge command section");
+    let settings = find(b"settings-fields").expect("settings fields").text;
+    let row = settings.split_once("- merge_job:").expect("merge_job row").1;
+    let row = row.lines().next().expect("merge_job line");
+    assert!(row.contains("merge command in configuration"), "merge_job must point to its contract");
     for instruction in [
         "`TEMPER_JOB`",
         "`request.json`",
@@ -217,7 +218,7 @@ fn capacity_help_names_members_and_dependencies() {
         let text = find(name).expect("capacity help page").text;
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for words in [
-            "engine.limits.overrides",
+            "`limits` setting",
             "tasks.tasks",
             "tasks.project_tasks",
             "tasks.tree_tasks",
@@ -484,7 +485,7 @@ fn deployment_explains_tool_payload_and_its_dependencies() {
     let text = find(b"deployment").expect("deployment help").text;
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     for requirement in [
-        "profile.declared.tool_payload",
+        "declared.tool_payload",
         "per piece",
         "4,487",
         "10,662",

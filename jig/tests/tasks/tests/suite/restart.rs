@@ -105,6 +105,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
@@ -125,6 +126,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
@@ -153,6 +155,7 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
     w.claim(1, 4);
     let reply_to = w.to();
     w.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
@@ -318,7 +321,11 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
         Escalation::Waiting { revision: 4, holder: EscalationHolder::Task(2), entry, since },
         Escalation::Waiting { revision: 4, holder: EscalationHolder::Person(1), entry, since },
         Escalation::Waiting { revision: 4, holder: EscalationHolder::Role { project: 1, role: 0 }, entry, since },
-        Escalation::Rejected { revision: 4, by: 1, reason: b"no".as_slice().into() },
+        Escalation::Rejected {
+            revision: 4,
+            by: jig_domain_tasks::EscalationDecider::Person(1),
+            reason: b"no".as_slice().into(),
+        },
     ];
     for state in states {
         for elapsed in [false, true] {
@@ -506,7 +513,7 @@ fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
             apply: |row| {
                 row.escalation = jig_domain_tasks::Escalation::Rejected {
                     revision: 1,
-                    by: 1,
+                    by: jig_domain_tasks::EscalationDecider::Person(1),
                     reason: vec![b'x'; skein_lib::length::usize_of(LIMITS.result_bytes + 1)].into_boxed_slice(),
                 }
             },
@@ -833,6 +840,7 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
     let call = reply_to.into_token().raw();
     source.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task: 2,
             message: 1,
             stop_run: false,
@@ -852,7 +860,6 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         places: Box::new([place]),
         by: Party::Person(1),
-        funder: None,
     });
     assert_eq!(source.replies[&call], Reply::Done);
     assert_eq!(source.record(2).dependencies.as_ref(), [1]);

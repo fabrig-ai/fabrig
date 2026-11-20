@@ -72,7 +72,7 @@ fn named<'a>(files: &'a [(PathBuf, Vec<u8>)], suffix: &str) -> &'a [u8] {
 
 fn accepted(world: &World) {
     assert!(
-        matches!(world.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&world.answer().expect("answer").result, RunResult::Accepted(_)),
         "{:?}: {}",
         world.answer(),
         String::from_utf8_lossy(&world.errors())
@@ -128,24 +128,18 @@ fn a_run_s_start_file_says_what_it_was_given() {
     let scratch = Scratch::new("request-dump-start");
     let directory = scratch.path().join("dumps");
     let charter = wire::edit_charter(&policy(), |parts| {
-        let mut tools = parts.tools.clone().into_parts();
-        let mut families = tools.families.into_parts();
-        families.skein_bools[0] = true;
-        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("valid dump fixture");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("valid dump fixture");
+        let mut tools = parts.tools.clone();
+        let mut families = tools.families;
+        families.inspect = true;
+        tools.families = families;
+        parts.tools = tools;
         parts.brief = skein_lib::List::with_capacity(1);
         parts
             .brief
-            .push(
-                smith_charter::Section::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::SectionParts {
-                        title: b"Context".as_slice().into(),
-                        body: b"literal brief".as_slice().into(),
-                    },
-                )
-                .expect("valid dump fixture"),
-            )
+            .push(smith_charter::Section {
+                title: b"Context".as_slice().into(),
+                body: b"literal brief".as_slice().into(),
+            })
             .expect("valid dump fixture");
         parts.models = skein_lib::List::with_capacity(1);
         parts.models.push(parts.main.clone()).expect("valid dump fixture");
@@ -239,20 +233,14 @@ fn a_claude_code_run_keeps_what_it_was_given() {
         parts.brief = skein_lib::List::with_capacity(1);
         parts
             .brief
-            .push(
-                smith_charter::Section::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::SectionParts {
-                        title: b"Request".as_slice().into(),
-                        body: b"Dump prompt proof.".as_slice().into(),
-                    },
-                )
-                .expect("valid dump fixture"),
-            )
+            .push(smith_charter::Section {
+                title: b"Request".as_slice().into(),
+                body: b"Dump prompt proof.".as_slice().into(),
+            })
             .expect("valid dump fixture");
-        let mut main = parts.main.clone().into_parts();
+        let mut main = parts.main.clone();
         main.effort = Some(b"high".as_slice().into());
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("valid dump fixture");
+        parts.main = main;
     });
     let story = Story {
         turns: vec![Turn::new(vec![Step::Outcome {
@@ -262,7 +250,7 @@ fn a_claude_code_run_keeps_what_it_was_given() {
     };
     let run = program_world::run_dumping(&story, &charter, directory.clone(), BOUND);
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)),
         "{:?}: {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)

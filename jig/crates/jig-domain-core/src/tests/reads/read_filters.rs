@@ -183,6 +183,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
@@ -213,7 +214,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
     assert_eq!(core.tasks.task(1).unwrap().replies.len(), 1, "the reply has an owner-issued activity position");
     let mut out = Queue::uncapped();
     let kinds = [
-        people::EntryKind::Proposal { number: 1 },
+        people::EntryKind::Proposal { proposer: Proposer::Task(1), number: 1 },
         people::EntryKind::Escalation { revision: 1 },
         people::EntryKind::Question { message: 1 },
         people::EntryKind::PersonTask,
@@ -234,7 +235,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
-        people::Event::Waiting { task: 1, entries: entries.into_boxed() },
+        people::Event::Waiting { source: people::NeedSource::Task(1), entries: entries.into_boxed() },
         &mut out,
     );
     core.people.remember_result(
@@ -263,7 +264,10 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
                     from,
                 },
             );
-            let Held::Read { answer: crate::reads::Answer::Page(page), .. } = held else { break };
+            let Held::Read { answer: crate::reads::Answer::Page(page), .. } = held else {
+                assert!(group.updates(), "needs never load a store page");
+                break;
+            };
             for row in &page.rows {
                 let crate::reads::PageRow::Inbox(entry) = row else { panic!("inbox row") };
                 found.push(entry.object).unwrap();
@@ -271,7 +275,11 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
             from = page.next;
             match &from {
                 Some(crate::reads::Cursor::Live { .. }) => {}
-                Some(crate::reads::Cursor::Store { .. }) | None => break,
+                Some(crate::reads::Cursor::Store { .. }) => {
+                    assert!(group.updates(), "needs end without a store continuation");
+                    break;
+                }
+                None => break,
             }
         }
         assert_eq!(found.into_boxed().as_ref(), [expected], "{group:?} selects its exact owner kind");

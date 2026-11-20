@@ -248,6 +248,9 @@ const OWN_SEEN: u64 = 2;
 const OWN_NEXT_SEEN: u64 = 3;
 const OTHER_SEEN: u64 = 4;
 
+fn status_brief(sentence: &[u8]) -> forge::Brief {
+    forge::Brief { sentence: sentence.into(), lede: Box::new([]), at: OWN_LATEST, landed: LANDED, findings: None }
+}
 fn status_driver() -> Driver {
     let mut driver = driver();
     let party = driver
@@ -264,12 +267,20 @@ fn status_driver() -> Driver {
         .expect("the signed-in watcher has a party");
     let other_party = party.checked_add(1).expect("a second fixture party fits");
     let rows = [
-        forge::Stored::ProjectFacts(forge::ProjectFacts {
+        forge::Stored::ProjectFacts(forge::ProjectFacts { project: 1, landed: LANDED, last_landed: OWN_LATEST }),
+        forge::Stored::PersonBrief(forge::PersonBrief {
+            party,
             project: 1,
-            landed: LANDED,
-            last_landed: OWN_LATEST,
-            brief: None,
+            brief: Some(status_brief(b"Your brief")),
             running: None,
+            unpaid: Some(OWN_LATEST),
+        }),
+        forge::Stored::PersonBrief(forge::PersonBrief {
+            party: other_party,
+            project: 1,
+            brief: Some(status_brief(b"Their brief")),
+            running: None,
+            unpaid: None,
         }),
         forge::Stored::Looked(forge::Looked {
             party,
@@ -328,7 +339,8 @@ fn a_status_document_is_the_watchers_own() {
             project: 1,
             landed: LANDED,
             last_landed: Some(OWN_LATEST),
-            brief: None,
+            brief: Some(status_brief(b"Your brief")),
+            unpaid: true,
             previous: Some(OWN_PREVIOUS),
             seen: OWN_SEEN,
             queued: 0,
@@ -404,6 +416,7 @@ fn panel_sign_in(driver: &mut Driver, identity: u64) -> (u64, u64) {
     driver.serial += 1;
     let reply = Token::new(driver.serial);
     driver.send(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(reply),
         identity: jig_domain_people::Identity {
@@ -786,8 +799,8 @@ fn history_is_project_private_survives_change_eviction_and_adds_nothing_public()
             )
             .expect("encoded history");
             let page = wire::decode_history_answer(&bytes, &wire::v1::CEILINGS).expect("wire history");
-            let wire::v1::HistoryReply::Page(page) = page.result() else { panic!("wire page") };
-            assert_eq!(page.events().len(), 1);
+            let wire::v1::HistoryReply::Page(page) = &page.result else { panic!("wire page") };
+            assert_eq!(page.events.len(), 1);
         } else {
             assert_eq!(
                 *answer,

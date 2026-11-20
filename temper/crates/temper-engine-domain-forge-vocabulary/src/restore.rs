@@ -20,9 +20,13 @@ pub enum RestoreSet {
     LandingFlights,
     LandingMembers,
     LandingsKept,
+    LoggedTiers,
     LandingGates,
     LandingAsks,
     LandingEntries,
+    LandingFlakeReruns,
+    LandingFlakeFindings,
+    LandingFlakeJobs,
     NameBytes,
     ContextProjects,
 }

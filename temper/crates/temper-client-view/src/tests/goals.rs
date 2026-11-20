@@ -117,6 +117,7 @@ impl Page {
         self.up(jig_client::Up::Watched {
             watch: self.watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
                 rows: List::from_boxed(lines.into()),
                 more,
             }))),
@@ -127,6 +128,7 @@ impl Page {
         self.answer(
             read,
             c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::uncapped(),
                 live_after: None,
                 ended: c::EndedGroup::Rows {
@@ -222,7 +224,10 @@ fn an_unanswered_goals_page_claims_no_empty() {
             assert!(skein_lib::bytes::find(&main, name).is_none());
         }
         for node in view.tree().nodes() {
-            assert_ne!(node.role, Role::Heading { level: 1 });
+            if node.role == (Role::Heading { level: 1 }) {
+                assert!(node.name.is_none());
+                assert!(node.text.is_empty());
+            }
         }
     }
 }
@@ -230,6 +235,16 @@ fn an_unanswered_goals_page_claims_no_empty() {
 #[test]
 fn a_lost_ended_read_keeps_the_ended_rows() {
     let mut page = Page::new();
+    let needs = page.read(false);
+    page.up(jig_client::Up::ReadDone {
+        read: needs,
+        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    });
+    let needs = page.read(false);
+    page.up(jig_client::Up::ReadDone {
+        read: needs,
+        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    });
     let ended = page_line(RUNNING_TASK, State::Closed);
     page.live(&[], false);
     page.ended(core::slice::from_ref(&ended), false);
@@ -241,5 +256,46 @@ fn a_lost_ended_read_keeps_the_ended_rows() {
     });
     for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
         assert!(skein_lib::bytes::find(&fixtures::main_text(view.tree()), ended.chip.title.bytes()).is_some());
+    }
+}
+
+#[test]
+fn busy_goal_rows_keep_their_headline_and_waiting_state_in_both_shells() {
+    let mut page = Page::new();
+    let needs = page.read(false);
+    page.answer(
+        needs,
+        c::ReadValue::Inbox(Box::new(c::InboxPage {
+            selection: Some(List::from_boxed(Box::new([c::InboxSelection {
+                cursor: c::InboxCursor::Number { number: 1 },
+                goals: List::from_boxed(Box::new([RUNNING_TASK])),
+            }]))),
+            rows: List::uncapped(),
+            before: None,
+            after: None,
+            cut: false,
+        })),
+    );
+    page.ended(&[], false);
+    let mut row = page_line(RUNNING_TASK, State::Running);
+    row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+        Some((b"K3 lands the codec's shape", fixtures::NOW)),
+        None,
+    )]));
+    page.live(core::slice::from_ref(&row), false);
+    row.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    page.live(core::slice::from_ref(&row), false);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        let text = fixtures::main_text(view.tree());
+        assert!(skein_lib::bytes::find(&text, b"K3 lands the codec's shape").is_some());
+        assert!(skein_lib::bytes::find(&text, b"needs you").is_some());
+        assert!(skein_lib::bytes::find(&text, b"tasks done.").is_none());
+    }
+    row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(None, None)]));
+    page.live(&[row], false);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        let text = fixtures::main_text(view.tree());
+        assert!(skein_lib::bytes::find(&text, b"K3 lands the codec's shape").is_none());
+        assert!(skein_lib::bytes::find(&text, b"tasks done.").is_some());
     }
 }

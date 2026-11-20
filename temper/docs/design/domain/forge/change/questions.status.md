@@ -1,6 +1,6 @@
 # questions: status
 
-2026-11-15. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-17. Where the tree's code lags or departs from [questions.md](questions.md).
 
 
 - **Not yet:** 1, *Its requester's words and amendments*: a change
@@ -22,6 +22,9 @@
   flight: change 6068].
 - **Not yet:** 1, *Passed up*: the question's label names no answer form
   [in flight: change 839].
+- **Not yet:** 1, *Who pushed it*: a change keeps no `last_checked_by`,
+  and no delegate's item names its own delivery [in flight: change
+  7044].
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
@@ -106,6 +109,6 @@
   words at a step take a change's repair and resolution beside its producing
   task, where the request names the producing task alone, because all three run
   under the one charter and each would pay the same turn
-  (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
+  (`temper-engine-domain-forge-vocabulary/src/relay_route.rs`, `asking_delegate`).
 
 - **Not yet:** 2: an `approvals` row's size, the forge's part's, narrowed by the root's [in flight: change 534].

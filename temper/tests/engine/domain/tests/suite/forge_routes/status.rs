@@ -8,10 +8,29 @@ const PROJECT: u32 = 1;
 const SENTENCE: &[u8] = b"The widget fix has landed.";
 const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the branch is ready.";
 
+#[path = "status/shared.rs"]
+mod shared;
+
 fn status_world(allowed: bool, funded: bool) -> World {
     status_world_with_spec(allowed, funded, None)
 }
 fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) -> World {
+    status_world_with_sessions(allowed, funded, spec_bytes, Duration::from_secs(7200))
+}
+fn status_world_with_sessions(allowed: bool, funded: bool, spec_bytes: Option<u32>, lifetime: Duration) -> World {
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    if let Some(bytes) = spec_bytes {
+        limits.tasks.spec_bytes = bytes;
+    }
+    limits.people.sign_in_lifetime = lifetime;
+    configured_status_world(allowed, funded, &limits)
+}
+fn status_world_with_limits(allowed: bool, funded: bool, mut limits: engine::Limits) -> World {
+    // The same signed-in person returns for the next sitting.
+    limits.people.sign_in_lifetime = Duration::from_secs(7200);
+    configured_status_world(allowed, funded, &limits)
+}
+fn configured_status_world(allowed: bool, funded: bool, limits: &engine::Limits) -> World {
     let model = walking::models()[0].clone();
     let llm = jig_protocol_config::Llm {
         models: (Box::new([model.clone()]))
@@ -33,12 +52,6 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
         endpoints: Box::new([]),
         providers: Box::new([]),
     };
-    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
-    // The same signed-in person returns for the next sitting.
-    limits.people.sign_in_lifetime = Duration::from_secs(7200);
-    if let Some(bytes) = spec_bytes {
-        limits.tasks.spec_bytes = bytes;
-    }
     let mut defaults = temper_engine_service_stock::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     // Scripted workers use the same small run bounds as the other forge stories.
     for charter in &mut defaults.charters {
@@ -47,10 +60,8 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
         charter.number = number;
     }
     if !funded {
-        let policy = &mut defaults.policies.get_mut(&1).expect("stock project policy").policy;
-        policy.period_spend = policy.roles[0].period_spend;
-        // This world's calendar opens its period from the rules' spend.
-        defaults.rules.period_spend = policy.period_spend;
+        // The chat reserves the looking owner's entire pool, not the period.
+        defaults.policies.get_mut(&1).expect("stock project policy").policy.roles[0].period_spend = 400;
     }
     // The reference's policy may withhold this charter; the procedure still gets made.
     if !allowed {
@@ -77,10 +88,10 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
                 .collect();
         }
     }
-    World::configured_stock_limits(&defaults, &model, &limits)
+    World::configured_stock_limits(&defaults, &model, limits)
 }
 fn settle(world: &mut World) {
-    world.until(Until::Ready);
+    world.oracle_settle();
     assert!(world.store.pending.is_empty());
 }
 fn look_request(world: &mut World, number: u8) {
@@ -122,6 +133,18 @@ fn facts(world: &World) -> &forge_top::ProjectFacts {
         },
         other => panic!("durable project facts: {other:?}"),
     }
+}
+fn person_brief(world: &World, party: u64) -> &forge_top::PersonBrief {
+    let Some(Record::Forge { row }) =
+        world.store.rows.get(&Key::Forge(forge_top::Key::PersonBrief { party, project: PROJECT }))
+    else {
+        panic!("durable person's brief")
+    };
+    let forge_top::Stored::PersonBrief(row) = row.as_ref() else { panic!("person brief row") };
+    row
+}
+fn own_brief(world: &World) -> &forge_top::PersonBrief {
+    person_brief(world, 1)
 }
 fn next_sitting(world: &mut World, number: u8) {
     world.env.now = world.env.now.saturating_add(forge_top::SITTING);
@@ -165,12 +188,21 @@ fn land_and_look(world: &mut World, requester: &engine::Assignment) {
     next_sitting(world, 171);
 }
 fn land(world: &mut World, requester: &engine::Assignment) {
-    let change = super::questions::make_change(world, requester, 93, engine::ChangeQuestions::None);
+    assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
+    land_numbered(world, requester, 93, 1);
+}
+fn land_numbered(world: &mut World, requester: &engine::Assignment, number: u64, landed: u64) {
+    let change = super::questions::make_change(world, requester, number, engine::ChangeQuestions::None);
     let producer = super::questions::next_producer(world, change);
     let branch = super::questions::row(world, change).branch.clone();
-    assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"widget fixed", 1)
+    let raw::Answer::Commit(base) =
+        world.external(1, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
+    else {
+        panic!("landing head")
+    };
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
+    let body = format!("widget fixed {number}");
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", body.as_bytes(), 1)
         .expect("producer pushed");
     let reviewer_index = world.assigned.len();
     answer(
@@ -207,12 +239,19 @@ fn land(world: &mut World, requester: &engine::Assignment) {
     for _ in 0..200 {
         world.tick();
         if world.store.rows.contains_key(&Key::Forge(forge_top::Key::ProjectFacts { project: PROJECT }))
+            && facts(world).landed == landed
             && world.store.pending.is_empty()
         {
             break;
         }
     }
-    assert_eq!(facts(world).landed, 1);
+    assert_eq!(
+        facts(world).landed,
+        landed,
+        "change={:?}; replies={:?}",
+        super::questions::row(world, change),
+        world.call_errors
+    );
 }
 fn run(world: &World) -> engine::Assignment {
     world
@@ -245,21 +284,41 @@ fn answer(world: &mut World, run: &engine::Assignment, result: tasks::TaskResult
     world.send(event);
 }
 fn finish(world: &mut World, run: &engine::Assignment) {
+    let party = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::PersonBrief(row)
+                    if row
+                        .running
+                        .as_ref()
+                        .and_then(|running| running.task)
+                        .is_some_and(|task| live_task(world, task).delegates.contains(&run.task)) =>
+                {
+                    Some(row.party)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("run's person brief");
     answer(world, run, tasks::TaskResult::Report { words: REPORT.into() });
     for _ in 0..200 {
         world.tick();
-        if facts(world).running.is_none() && world.store.pending.is_empty() {
+        if person_brief(world, party).running.is_none() && world.store.pending.is_empty() {
             return;
         }
     }
     panic!("status report heard; facts={:?}; task={:?}", facts(world), live_task(world, run.task).phase);
 }
 fn assert_brief(world: &mut World) {
-    let brief = facts(world).brief.as_ref().expect("saved status brief");
+    let brief = own_brief(world).brief.as_ref().expect("saved status brief");
     assert_eq!(brief.sentence.as_ref(), SENTENCE);
     assert_eq!(brief.lede.as_ref(), b"The review passed and the branch is ready.");
     assert_eq!(brief.landed, 1);
-    assert_eq!(facts(world).running, None);
+    assert_eq!(own_brief(world).running, None);
     let expected = brief.clone();
     let document =
         world.oracle_document(world.signed_in.expect("owner session"), PROJECT, forge_top::status_subject(PROJECT));
@@ -281,6 +340,9 @@ fn a_stock_project_with_its_owners_pool_open_writes_its_brief() {
     let numbers = ledger.numbers;
     land_and_look(&mut world, &requester);
     let agent = run(&world);
+    let tasks::Party::Task(procedure) = live_task(&world, agent.task).requester else { panic!("status procedure") };
+    assert_eq!(live_task(&world, procedure).funder, tasks::Funder::Pool { project: PROJECT, person: 1, period: 1 });
+    assert_eq!(world.root.tasks().payer(agent.task), Some(tasks::Payer::Party(1)));
     finish(&mut world, &agent);
     assert_brief(&mut world);
     assert_eq!(numbers.reserved, POOL_SPEND, "the owner's open pool reserves eighty chats");
@@ -300,7 +362,7 @@ fn a_look_after_a_landing_runs_the_agent_and_saves_its_brief() {
     assert_eq!(live_task(&world, parent).executor, tasks::Executor::Procedure { connector: 1, code: 5 });
     let words = core::str::from_utf8(&live_task(&world, agent.task).spec.words).expect("status words are UTF-8");
     assert!(words.contains("Small fix"));
-    assert!(words.contains("Make the widget fix: 0 of 1 delegates done"), "{words}");
+    assert!(words.contains("Make the widget fix: 0 of 1 parts done"), "{words}");
     assert!(!words.contains("Milestones:"));
     assert!(!words.contains("Standing roles:"));
     assert!(words.len() <= usize::try_from(world.env.limits.tasks.spec_bytes).expect("spec bound fits usize"));
@@ -350,6 +412,12 @@ fn restart_status_world(world: &mut World) {
 }
 
 fn standing_role(world: &mut World, key: u8) -> u64 {
+    let assignment = start_standing_role(world, key);
+    park_chat(world, &assignment);
+    assignment.task
+}
+
+fn start_standing_role(world: &mut World, key: u8) -> engine::Assignment {
     let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Watch the tests") else {
         panic!("role defaults")
     };
@@ -358,11 +426,40 @@ fn standing_role(world: &mut World, key: u8) -> u64 {
     role.tracked = None;
     role.flags.conversation = false;
     role.flags.ended_by = people::EndedBy::Standing;
-    // Ten parked roles fit beside the owner's 400-unit goal in its 500-unit pool.
-    role.budget = people::Budget::AsAllowed { cap: Some(8) };
-    let assignment = assigned_chat(world, key, people::Ask::Create { project, batch });
-    park_chat(world, &assignment);
-    assignment.task
+    // Sixteen funds the same eight-unit run after keeping half for delegates.
+    role.budget = people::Budget::AsAllowed { cap: Some(16) };
+    assigned_chat(world, key, people::Ask::Create { project, batch })
+}
+
+fn person_question(world: &mut World, requester: &engine::Assignment, call: u64) -> u64 {
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"May I continue?", Box::new([]));
+    delegate.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    delegate.authority.tools = tasks::Tools(0);
+    delegate.authority.budget.spend = 1;
+    let engine::CallAnswer::Delegated(made) =
+        world.scripted_call(requester, call, engine::Tool::Delegate { batch: Box::new([delegate]) })
+    else {
+        panic!("person question delegated")
+    };
+    made[0].task
+}
+
+fn answer_person_question(world: &mut World, task: u64, key: u8) {
+    let revision = live_task(world, task).revisions.person;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [key; 16],
+        ask: people::Ask::AnswerPerson {
+            project: PROJECT,
+            task,
+            revision,
+            result: people::PersonResult::Report { words: b"Go ahead.".as_slice().into() },
+        },
+    }));
+    settle(world);
+    assert!(goal_landing::ended(world, task).is_some(), "person question answered");
 }
 
 fn seed_note(world: &mut World, name: u64, role: u64, description: &[u8], body: &[u8]) {
@@ -393,6 +490,61 @@ fn status_words(world: &World) -> &str {
 }
 
 #[test]
+fn a_goals_status_line_counts_its_open_person_questions() {
+    let (mut world, requester) = opened_chat(true, true);
+    person_question(&mut world, &requester, 100);
+    let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Land the other fix") else {
+        panic!("landing chat")
+    };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
+    let landing = assigned_chat(&mut world, 110, people::Ask::Create { project, batch });
+    land_and_look(&mut world, &landing);
+    let words = status_words(&world);
+    assert!(words.contains("Make the widget fix: 0 of 1 parts done, 1 question open to a person\n"), "{words}");
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    world.close();
+}
+
+#[test]
+fn a_roles_status_counts_live_person_questions_not_its_unchanged_now() {
+    const NOW: &[u8] = b"Waiting on my person's answers.";
+    let (mut world, requester) = roles_world();
+    let role = start_standing_role(&mut world, 110);
+    assert_eq!(role.task, 41);
+    let first = person_question(&mut world, &role, 100);
+    let second = person_question(&mut world, &role, 101);
+    park_chat(&mut world, &role);
+    seed_note(&mut world, 1, role.task, b"now", NOW);
+    restart_status_world(&mut world);
+    land_and_look(&mut world, &requester);
+    let words = status_words(&world);
+    assert!(
+        words.ends_with("Standing roles:\nRole 41, 2 questions open to a person:\nWaiting on my person's answers.\n"),
+        "{words}"
+    );
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    answer_person_question(&mut world, first, 120);
+    answer_person_question(&mut world, second, 121);
+    let resumed = world.assigned.iter().rev().find(|run| run.task == role.task).expect("role heard answers").clone();
+    park_chat(&mut world, &resumed);
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(3601));
+    world.env.wall = Wall::from_nanos(world.env.now.as_nanos());
+    // The fake credential provider renews the forge grant across clock jumps.
+    world.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
+    land_numbered(&mut world, &requester, 94, 2);
+    looked(&mut world, 172);
+    let words = status_words(&world);
+    assert!(words.ends_with("Standing roles:\nRole 41:\nWaiting on my person's answers.\n"), "{words}");
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    // Let the live branch watch hear the second landing before the restart oracle.
+    super::goal_branch::observe_goal_branch(&mut world, b"main");
+    world.close();
+}
+
+#[test]
 fn the_status_words_carry_each_standing_roles_now_after_the_goals() {
     const NOW: &[u8] = b"Repairing the flaky test.\nWaiting for change 52.";
     let (mut world, requester) = roles_world();
@@ -405,7 +557,7 @@ fn the_status_words_carry_each_standing_roles_now_after_the_goals() {
     land_and_look(&mut world, &requester);
     let words = status_words(&world);
     assert!(words.ends_with(
-        "Make the widget fix: 0 of 1 delegates done\nOpen findings: none\nStanding roles:\nRole 41:\nRepairing the flaky test.\nWaiting for change 52.\nRole 42:\nno Now yet\n"
+        "Make the widget fix: 0 of 1 parts done\nOpen findings: none\nStanding roles:\nRole 41:\nRepairing the flaky test.\nWaiting for change 52.\nRole 42:\nno Now yet\n"
     ), "{words}");
     let agent = run(&world);
     finish(&mut world, &agent);
@@ -511,7 +663,7 @@ fn status_words_trim_roles_from_the_end_before_the_goals() {
     assert_eq!(words.len(), usize::try_from(BOUND).expect("spec bound"));
     assert!(words.contains("Small fix"), "{words}");
     assert!(
-        words.contains("Make the widget fix: 0 of 1 delegates done\nOpen findings: none\nStanding roles:\nRole 41:\n"),
+        words.contains("Make the widget fix: 0 of 1 parts done\nOpen findings: none\nStanding roles:\nRole 41:\n"),
         "{words}"
     );
     assert!(!words.contains("Role 42:"));
@@ -594,7 +746,7 @@ fn its_words_name_the_people_who_signed_after_the_goals() {
         let agent = run(&world);
         let words = core::str::from_utf8(&live_task(&world, agent.task).spec.words).expect("status words are UTF-8");
         let (_, after_goals) = words.split_once("Live goals:\n").expect("root adds goals");
-        assert!(after_goals.starts_with("Make the widget fix: 1 of 1 delegates done\n"), "{words}");
+        assert!(after_goals.starts_with("Make the widget fix: 1 of 1 parts done\n"), "{words}");
         if has_signers {
             assert!(
                 after_goals.ends_with(
@@ -653,6 +805,8 @@ fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
                     reason: None,
                     signature: None,
                     seen: None,
+                    blame: None,
+                    cleared: None,
                 })),
             });
         }
@@ -660,7 +814,7 @@ fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
         restart_status_world(&mut world);
         next_sitting(&mut world, 171);
         let words = status_words(&world);
-        assert!(words.contains("Make the widget fix: 1 of 1 delegates done\nPeople who signed:\n- person 4: no longer a member\nOpen findings: 3\n- qa: 3 high\nHigh ones, newest first:\n"), "{words}");
+        assert!(words.contains("Make the widget fix: 1 of 1 parts done\nPeople who signed:\n- person 4: no longer a member\nOpen findings: 3\n- qa: 3 high\nHigh ones, newest first:\n"), "{words}");
         match bound {
             None => {
                 assert!(
@@ -778,7 +932,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
     let mut search = ended_milestone(200, b"Search", minute(21, 40), forge_top::MilestoneOutcome::Complete);
     search.last_landing = Some(forge_top::MilestoneLanding { at: minute(21, 40), goal: 198, change: 199 });
     let old = ended_milestone(201, b"Old", minute(19, 59), forge_top::MilestoneOutcome::Complete);
-    let mut facts = facts(&world).clone();
+    let mut facts = forge_top::PersonBrief { party: 1, project: PROJECT, brief: None, running: None, unpaid: None };
     facts.brief = Some(forge_top::Brief {
         sentence: b"Earlier brief".as_slice().into(),
         lede: Box::new([]),
@@ -796,7 +950,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
         }),
         milestone_row(search),
         milestone_row(old),
-        Record::Forge { row: Box::new(forge_top::Stored::ProjectFacts(facts)) },
+        Record::Forge { row: Box::new(forge_top::Stored::PersonBrief(facts)) },
     ]);
     for record in world.store.rows.values() {
         if let Record::Forge { row } = record
@@ -827,7 +981,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
     world.env.wall = minute(22, 0);
     looked(&mut world, 171);
     let words = status_words(&world);
-    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 delegates done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z\nPeople who signed:\n- person 4: no longer a member\nOpen findings: none\nStanding roles:\n"), "{words}");
+    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 parts done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z\nPeople who signed:\n- person 4: no longer a member\nOpen findings: none\nStanding roles:\n"), "{words}");
     assert!(!words.contains("Old"), "{words}");
     assert!(words.ends_with(&format!("Role {role}:\nno Now yet\n")), "{words}");
     let agent = run(&world);
@@ -938,8 +1092,8 @@ fn its_task_is_unlisted_and_asks_nobody() {
 #[test]
 fn a_refused_run_lets_the_next_sitting_try() {
     let mut world = ready(false);
-    assert!(facts(&world).running.is_none());
-    assert!(facts(&world).brief.is_none());
+    assert!(own_brief(&world).running.is_none());
+    assert!(own_brief(&world).brief.is_none());
     assert!(world.assigned.iter().all(|run| run.charter != 9));
     let before = world
         .store
@@ -964,9 +1118,115 @@ fn a_refused_run_lets_the_next_sitting_try() {
         })
         .count();
     assert_eq!(after, 2);
-    assert!(facts(&world).running.is_none());
+    assert!(own_brief(&world).running.is_none());
     world.close();
 }
+#[test]
+fn a_project_task_limit_refusal_lets_the_next_sitting_try() {
+    admission_refusal_retries(true);
+}
+
+#[test]
+fn a_live_task_limit_refusal_lets_the_next_sitting_try() {
+    admission_refusal_retries(false);
+}
+
+fn admission_refusal_retries(project_limit: bool) {
+    const TASKS: u32 = 6;
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    assert!(limits.tasks.tasks > TASKS);
+    assert!(limits.tasks.project_tasks > TASKS);
+    if project_limit {
+        limits.tasks.project_tasks = TASKS;
+    } else {
+        limits.tasks.tasks = TASKS;
+        limits.tasks.exemptions = limits.tasks.exemptions.min(TASKS);
+        limits.people.operations = limits.people.operations.min(TASKS);
+    }
+    let (mut world, requester) = opened_chat_in(status_world_with_limits(true, true, limits));
+    land(&mut world, &requester);
+    settle(&mut world);
+    let mut fillers = Vec::new();
+    for key in 180..186 {
+        let live = world
+            .store
+            .rows
+            .values()
+            .filter(|record| {
+                matches!(record,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+            if row.project == PROJECT)
+            })
+            .count();
+        if live == usize::try_from(TASKS).expect("fixture task bound fits usize") {
+            break;
+        }
+        let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Keep a place until the next sitting")
+        else {
+            panic!("filler task template")
+        };
+        let filler = &mut batch[0];
+        filler.executor = people::TaskExecutor::Person(people::PersonAddress::Role(0));
+        filler.flags.conversation = false;
+        filler.budget = people::Budget::Named;
+        filler.authority.spend = 32;
+        filler.authority.delegation = people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+        world.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.signed_in.expect("owner session"),
+            key: [key; 16],
+            ask: people::Ask::Create { project, batch },
+        }));
+        settle(&mut world);
+        let task = world.store.header().tasks;
+        assert_eq!(live_task(&world, task).executor, tasks::Executor::Person(tasks::PersonAddress::Role(0)));
+        fillers.push(task);
+    }
+    assert!(fillers.len() >= 2, "two places can return to the status procedure and its delegate");
+    assert_eq!(
+        world
+            .store
+            .rows
+            .values()
+            .filter(|record| matches!(record, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_)))))
+            .count(),
+        usize::try_from(TASKS).expect("fixture task bound fits usize")
+    );
+
+    next_sitting(&mut world, 171);
+    assert_eq!(own_brief(&world).running, None);
+    assert_eq!(own_brief(&world).brief, None);
+    assert!(world.assigned.iter().all(|run| run.charter != 9));
+    assert!(world.store.rows.values().all(|record| !matches!(record,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
+        if row.executor == (tasks::Executor::Procedure { connector: 1, code: 5 }))));
+
+    // Return two places without changing either admission bound.
+    for (at, task) in fillers.into_iter().take(2).enumerate() {
+        let key = 190_u8 + u8::try_from(at).expect("two filler cancellations");
+        world.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.signed_in.expect("owner session"),
+            key: [key; 16],
+            ask: people::Ask::Cancel {
+                project: PROJECT,
+                task,
+                reason: b"Make room for status".as_slice().into(),
+                grace: None,
+            },
+        }));
+        settle(&mut world);
+    }
+    next_sitting(&mut world, 172);
+    let agent = run(&world);
+    assert_eq!(agent.charter, 9);
+    finish(&mut world, &agent);
+    assert_brief(&mut world);
+    world.close();
+}
+
 #[test]
 fn a_restart_mid_run_still_saves_the_brief() {
     let mut world = ready(true);
@@ -989,8 +1249,15 @@ fn a_restart_mid_run_still_saves_the_brief() {
 #[test]
 fn no_unreserved_spend_refuses_the_run_without_a_task() {
     let mut world = ready_with(true, false);
-    assert_eq!(facts(&world).running, None);
-    assert_eq!(facts(&world).brief, None);
+    assert_eq!(own_brief(&world).running, None);
+    assert_eq!(own_brief(&world).brief, None);
+    assert!(own_brief(&world).unpaid.is_some());
+    let pool = world
+        .root
+        .tasks()
+        .funding(tasks::Funder::Pool { project: PROJECT, person: 1, period: 1 })
+        .expect("owner's open pool");
+    assert_eq!(pool.numbers.budget, pool.numbers.reserved + pool.numbers.spent + pool.numbers.spent_below);
     assert!(world.store.rows.values().all(|record| !matches!(record,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
         if matches!(row.executor, tasks::Executor::Person(_)))));
@@ -1012,12 +1279,12 @@ fn failed_and_empty_reports_clear_the_run_and_save_nothing() {
         answer(&mut world, &agent, result);
         for _ in 0..200 {
             world.tick();
-            if facts(&world).running.is_none() && world.store.pending.is_empty() {
+            if own_brief(&world).running.is_none() && world.store.pending.is_empty() {
                 break;
             }
         }
-        assert_eq!(facts(&world).running, None);
-        assert_eq!(facts(&world).brief, None);
+        assert_eq!(own_brief(&world).running, None);
+        assert_eq!(own_brief(&world).brief, None);
         world.close();
     }
 }

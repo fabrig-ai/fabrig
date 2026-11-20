@@ -97,6 +97,11 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -109,6 +114,7 @@ fn landing(d: &mut Domain) {
                     members: Box::new([member]),
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
@@ -816,6 +822,46 @@ fn step_reads_its_own_diff_after_reviews_and_requires_complete_endpoints() {
             assert_eq!(d.change_touched(CHANGE), Touched::UNKNOWN);
         }
     }
+}
+
+#[test]
+fn a_busy_paths_read_finishes_the_gather_without_paths() {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut d = queued_fixture();
+    let mut required = rule();
+    required.sets = Box::new([1]);
+    required.enforce = false;
+    keep(&mut d, 5, 1, required);
+    fixtures::step_change(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+    fixtures::finish_open(&mut d);
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
+    for owner in 1_u64..u64::from(CLIENT.pending) {
+        outputs(
+            &mut d,
+            Event::Client(skein_forge_client::Event::Read {
+                owner: Token::new(8000_u64.saturating_add(owner)),
+                repository: REPO,
+                read: Read::Settings,
+            }),
+        );
+    }
+    assert_eq!(domain::read_session::client_refusals(&mut d), 0);
+    let requests =
+        fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+    assert_eq!(domain::read_session::client_refusals(&mut d), 1, "paths refused at admission");
+    assert!(d.steps.is_empty(), "paths are optional: {requests:?}");
+    assert_eq!(d.change_touched(CHANGE), Touched::UNKNOWN);
+    let mut decided = false;
+    for request in &requests {
+        if let Request::ChangeDecision { .. } = request {
+            decided = true;
+        }
+    }
+    assert!(decided, "the refused paths still complete the step");
 }
 
 #[test]

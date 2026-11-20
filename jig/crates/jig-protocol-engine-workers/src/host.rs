@@ -1,6 +1,6 @@
 //! Accepted streams and the workers' component (jig/docs/design/protocol/channel/README.md, 9.2).
 //! The owner's pull and listener lifecycle (jig/docs/design/protocol/service.md, 11.3).
-use crate::{Component, Event, Limits, Loss, Request, Worker};
+use crate::{Component, Event, Limits, Loss, Request};
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::Grant;
@@ -26,14 +26,48 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
-    Told { worker: Box<[u8]>, version: u16, wait: Option<Duration> },
-    Opened { worker: Box<[u8]>, wires: List<Agreed>, statement: crate::Statement },
-    Refused { worker: Option<Box<[u8]>>, reason: u16, text: Box<[u8]> },
-    Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
-    Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
-    Lost { channel: Token },
-    Unsent { worker: Box<[u8]>, channel: Token, unsent: crate::Unsent },
-    Ended { worker: Option<Box<[u8]>>, channel: Option<Token>, why: Loss },
+    Told {
+        worker: Box<[u8]>,
+        version: u16,
+        wait: Option<Duration>,
+    },
+    /// The engine logs `worker NAME took its figures` (protocol/channel/figures.md, 3).
+    FiguresTaken {
+        worker: Box<[u8]>,
+    },
+    Opened {
+        worker: Box<[u8]>,
+        wires: List<Agreed>,
+        statement: crate::Statement,
+    },
+    Refused {
+        worker: Option<Box<[u8]>>,
+        reason: u16,
+        text: Box<[u8]>,
+    },
+    Hello {
+        channel: Token,
+        worker: u32,
+        hello: jig_domain_link::Hello,
+    },
+    Up {
+        channel: Token,
+        up: hub::LinkUp,
+        parts: Box<[Part]>,
+    },
+    Lost {
+        channel: Token,
+    },
+    Unsent {
+        worker: Box<[u8]>,
+        channel: Token,
+        unsent: crate::Unsent,
+    },
+    Ended {
+        worker: Option<Box<[u8]>>,
+        channel: Option<Token>,
+        why: Loss,
+    },
 }
 
 /// What became of an event `up` was given.
@@ -88,23 +122,36 @@ pub fn invalid(what: What) -> Problems {
 impl Workers {
     pub fn new(
         config: &config::Engine,
-        files: &config::Files,
         tokens: Tokens,
         application: jig_protocol_worker_wire::Application,
         limits: &Limits,
     ) -> Result<Self, Problems> {
-        let mut workers = List::with_capacity(limits.names);
-        for worker in &config.hosts.workers {
-            let digest = match config::digest(files.contents(&worker.digest).ok_or(invalid(What::Unreadable))?) {
-                Ok(digest) => digest,
-                Err(what) => return Err(invalid(what)),
-            };
-            workers.push(Worker { name: worker.name.clone(), digest }).or(Err(invalid(What::Bound)))?;
-        }
+        Self::build(config, tokens, application, limits, None)
+    }
+    /// Constructs a fresh host with the immutable full channel table prepared for these limits.
+    pub fn with_schema(
+        config: &config::Engine,
+        tokens: Tokens,
+        application: jig_protocol_worker_wire::Application,
+        limits: &Limits,
+        schema: skein_channel::Schema,
+    ) -> Result<Self, Problems> {
+        Self::build(config, tokens, application, limits, Some(schema))
+    }
+    fn build(
+        config: &config::Engine,
+        tokens: Tokens,
+        application: jig_protocol_worker_wire::Application,
+        limits: &Limits,
+        schema: Option<skein_channel::Schema>,
+    ) -> Result<Self, Problems> {
         let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).ok_or(invalid(What::Bound))?;
-        let (schema, spoken) = jig_protocol_worker_wire::schema_and_spoken(&codec).or(Err(invalid(What::Bound)))?;
-        let component = Component::with_schema(limits, workers.into_boxed(), spoken, application, schema)
-            .or(Err(invalid(What::Bound)))?;
+        let (schema, spoken) = match schema {
+            Some(schema) => (schema, jig_protocol_worker_wire::spoken()),
+            None => jig_protocol_worker_wire::schema_and_spoken(&codec).or(Err(invalid(What::Bound)))?,
+        };
+        let component =
+            Component::with_schema(limits, Box::new([]), spoken, application, schema).or(Err(invalid(What::Bound)))?;
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;
         if count == 0 || count > config.limits.io.sockets {
             return Err(invalid(What::Bound));
@@ -193,7 +240,11 @@ impl Workers {
                     self.io.push(io::Request::Reject { socket });
                     self.out.push(Request::Ended { connection, worker: None, channel: None, why: Loss::NoRoom });
                 } else {
-                    self.down(now, Event::Accepted { connection });
+                    let in_process = match self.listener_address(Some(owner)) {
+                        Some(io::Addr::InProcess(_)) => true,
+                        Some(io::Addr::Ip(_)) | None => false,
+                    };
+                    self.down(now, Event::Accepted { connection, in_process });
                 }
             }
             io::Event::Stream { up, .. } => {
@@ -260,49 +311,40 @@ impl Workers {
             }
             Request::Opened { worker, wires, statement } => {
                 return Some(Output::Opened {
-                    worker: self
-                        .component
-                        .workers
-                        .get(skein_lib::usize_of(worker))
-                        .expect("configured worker")
-                        .name
-                        .clone(),
+                    worker: skein_lib::bytes::copy_of(
+                        self.component.worker_name(worker).expect("authenticated worker name"),
+                    ),
                     wires,
                     statement,
                 });
             }
             Request::Refused { worker, reason, text } => {
                 let worker = match worker {
-                    Some(index) => Some(
-                        self.component.workers.get(skein_lib::usize_of(index)).expect("configured worker").name.clone(),
-                    ),
+                    Some(index) => Some(skein_lib::bytes::copy_of(
+                        self.component.worker_name(index).expect("authenticated worker name"),
+                    )),
                     None => None,
                 };
                 return Some(Output::Refused { worker, reason, text });
+            }
+            Request::FiguresTaken { worker } => {
+                let worker =
+                    self.component.workers.get(skein_lib::usize_of(worker)).expect("configured worker").name.clone();
+                return Some(Output::FiguresTaken { worker });
             }
             Request::Hello { channel, worker, hello } => return Some(Output::Hello { channel, worker, hello }),
             Request::Up { channel, up, parts } => return Some(Output::Up { channel, up, parts }),
             Request::Lost { channel } => return Some(Output::Lost { channel }),
             Request::Unsent { worker, channel, unsent } => {
-                let worker = self
-                    .component
-                    .workers
-                    .get(skein_lib::length::usize_of(worker))
-                    .expect("authenticated worker")
-                    .name
-                    .clone();
+                let worker =
+                    skein_lib::bytes::copy_of(self.component.worker_name(worker).expect("authenticated worker name"));
                 return Some(Output::Unsent { worker, channel, unsent });
             }
             Request::Ended { worker, channel, why, .. } => {
                 let worker = match worker {
-                    Some(worker) => Some(
-                        self.component
-                            .workers
-                            .get(skein_lib::length::usize_of(worker))
-                            .expect("authenticated worker")
-                            .name
-                            .clone(),
-                    ),
+                    Some(worker) => Some(skein_lib::bytes::copy_of(
+                        self.component.worker_name(worker).expect("authenticated worker name"),
+                    )),
                     None => None,
                 };
                 return Some(Output::Ended { worker, channel, why });

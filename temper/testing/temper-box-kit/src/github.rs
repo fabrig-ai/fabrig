@@ -26,6 +26,7 @@ const EDIT: &[u8] = b"Changed by temper.\n";
 pub fn settings_setup(client: &Path, following: Vec<ctl::Call>) -> Vec<ctl::Step> {
     use ctl::{Call, Step};
     let file = client.join("settings.json");
+    let workers = cluster::worker_settings(&client.parent().expect("story directory").join("engine/settings.json"));
     let mut steps = vec![
         Step::Run(Call::sign_in()),
         Step::Run(Call::new(&["settings", "show", "--json"])),
@@ -44,6 +45,7 @@ pub fn settings_setup(client: &Path, following: Vec<ctl::Call>) -> Vec<ctl::Step
             ]});
             let rules = client_landing_items(&file);
             change["items"].as_array_mut().expect("GitHub settings").extend(rules);
+            change["items"].as_array_mut().expect("GitHub settings").extend(workers);
             fs::write(&file, serde_json::to_vec(&change).expect("GitHub settings JSON")).expect("settings FILE");
             ctl::settings_change(&calls[1], &file, "github-settings")
         })),
@@ -72,7 +74,7 @@ pub fn restart() {
         .expect("uninstalled fixture");
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
-    let engine = description.dir("engine").join("config/temper.json");
+    let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
     std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
         .expect("worker's fake git");
     let (mut members, hosts) = description.members();
@@ -171,18 +173,14 @@ impl Judge {
                 return Err("Must: no seeded forge records".to_owned());
             }
             self.members.prepare("engine");
-            let mut document: Value =
-                serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
-                    .map_err(|_| "engine JSON".to_owned())?;
-            // Restart retains the worker's files. Reserve its engine endpoint,
-            // as the clients' endpoint is reserved for the App's setup URL.
-            document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
-            fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
-                .map_err(|_| "fixed workers listener".to_owned())?;
+            let mut file = super::read_file(&self.engine, temper_config_shell::Shape::EngineAlone);
+            // Keep the endpoint across the engine's restart.
+            file.workers = Some(self.workers);
+            super::write_file(&self.engine, &file, temper_config_shell::Shape::EngineAlone);
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
             self.members.act(now, hosts);
-        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
+        } else if matches!(self.stage, Stage::Worker) && self.members.capture("engine", "link").is_some() {
             self.mark("engine and worker ready");
             self.begin(host)?;
         } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
@@ -255,30 +253,20 @@ impl Judge {
     }
     fn begin(&mut self, host: &mut cluster::Root) -> Result<(), String> {
         use ctl::Call;
-        let engine: Value = serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine document".to_owned())?)
-            .map_err(|_| "engine JSON".to_owned())?;
+        let engine: Value = super::start_document(&self.engine, temper_config_shell::Shape::EngineAlone);
         if engine["workers"] != serde_json::json!([]) {
             return Err("engine alone".to_owned());
         }
-        if engine["application"]["workers"] != serde_json::json!([]) {
+        if engine["application"].get("workers").is_some() {
             return Err(format!(
                 "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
                 engine["application"]["workers"],
                 serde_json::json!([])
             ));
         }
-        let workers = engine["engine"]["hosts"]["workers"].as_array().ok_or_else(|| "worker positions".to_owned())?;
-        if workers.len() != 1 {
-            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", workers.len(), 1));
-        }
-        if workers[0]["name"] != "w1" {
-            return Err(format!(
-                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                workers[0]["name"], "w1"
-            ));
-        }
-        if self.members.linked("w1") != 1 {
-            return Err("the sole worker linked".to_owned());
+        let workers = cluster::worker_settings(&self.members.dir("engine").join("settings.json"));
+        if workers.len() != 1 || workers[0]["set"]["name"] != "w1" {
+            return Err("one w1 worker setting".into());
         }
         self.queue_steps(
             host,

@@ -58,6 +58,11 @@ impl View {
             revision: None,
         }
     }
+    /// Recover the phrasebook when discarding this view, for a fresh tree with the same words.
+    #[must_use]
+    pub fn into_words(self) -> Words {
+        self.forge_words
+    }
     /// Revision of the last completed view build; absent before its first build.
     #[must_use]
     pub const fn revision(&self) -> Option<u64> {
@@ -345,7 +350,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     } else if let temper_client_domain::Address::Models { project } = root.pages().address() {
         crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
-        crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+        crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Told = root.pages().address() {
         crate::pages::told::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
     } else if let temper_client_domain::Address::Remembered = root.pages().address() {
@@ -405,6 +410,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             rail_project,
             view.limits.tree.text_per_node,
+            &mut times,
         );
     } else if let temper_client_domain::Address::ConnectForge { forge } = root.pages().address() {
         forge::connect::main(

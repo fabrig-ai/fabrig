@@ -82,14 +82,14 @@ fn put(base: &Document, parent: &str, name: &str, value: &[u8]) -> Document {
 }
 
 fn engine(document: &Document, defaults: Defaults) -> Problems {
-    match crate::engine(document, 0, &Directories::working(), defaults) {
+    match crate::engine(document, 0, &Directories::working(), defaults, &crate::Fixed::NONE) {
         Ok(_) => Problems::empty(),
         Err(problems) => problems,
     }
 }
 
 fn worker(document: &Document) -> Problems {
-    match crate::worker(document, 0, &Directories::working()) {
+    match crate::worker(document, 0, &Directories::working(), &crate::FixedWorker::NONE) {
         Ok(_) => Problems::empty(),
         Err(problems) => problems,
     }
@@ -145,7 +145,7 @@ fn expanded_engine() -> Document {
     let mut base = document(fixtures::ENGINE_SMALL);
     let direct = document(
         br#"{
-        "name":"anthropic-api","number":4,"dialect":3,"provider":"fake-provider",
+        "name":"anthropic-api","number":4,"dialect":3,"provider":"Fake",
         "address":{"socket":"127.0.0.1:7101"},"transport":"plaintext",
         "headers":[],"connect_ms":10000,"handshake_ms":10000
     }"#,
@@ -312,7 +312,12 @@ fn every_row_is_a_member_its_decoder_takes() {
         }
     }
     for row in &members::MEMBERS {
-        assert!(seen.contains(&(row.shape, row.name)), "row missing a decoder example: {}.{}", row.shape, row.name);
+        assert!(
+            row.gone.is_some() || seen.contains(&(row.shape, row.name)),
+            "row missing a decoder example: {}.{}",
+            row.shape,
+            row.name
+        );
     }
 }
 

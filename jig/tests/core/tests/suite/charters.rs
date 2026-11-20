@@ -214,6 +214,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
         core::EndpointFacts { direct: Box::new([]), providers: Box::new([]), number: 1, dialect: 3, program: None },
         core::EndpointFacts { direct: Box::new([]), providers: Box::new([]), number: 2, dialect: 3, program: None },
     ]);
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     let mut world = World::new(Setup { seed: 151, configuration: Some(config), limits, ..Setup::default() });
     let chat = world.assigned.as_ref().expect("chat").task;
     world.grant_account(2);

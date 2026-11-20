@@ -92,6 +92,9 @@ fn row(domain: &Domain, number: u32) -> Option<&CatalogueModel> {
             | Value::Template(_)
             | Value::Policy(_)
             | Value::Rules(_)
+            | Value::Limits(_)
+            | Value::Provider(_)
+            | Value::Worker(_)
             | Value::Application(_),
         )
         | None => None,

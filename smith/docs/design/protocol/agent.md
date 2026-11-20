@@ -77,6 +77,19 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   leaves them. A path with a `.git` part, in any case, is refused before io
   is asked (domain/tools.md, section 4). The directory itself is `.` at io
   for every operation.
+- **`rg` is found once, at startup,** on the commands' `PATH` (section
+  4), as `smith check` finds it (`../shell/commands.md`, section 4): the
+  first directory of that `PATH` holding an executable file named `rg`,
+  a relative directory skipped, since a listing or a search runs in no
+  directory of the commands'. The agent runs that file for every listing
+  and search. Where the commands' environment has no `PATH`, or none of
+  its directories holds `rg`, it is `/usr/bin/rg`, so a configuration
+  that names no `PATH` runs as before. A listing or search still sees an
+  empty environment: the `PATH` says where `rg` is, never what it sees.
+  Finding it reads the file system alone and runs nothing; a file that
+  is not there by a listing's time fails that listing or search as a
+  spawn that fails. The configuration names no `rg`, so no generator of
+  it changes, and no format moves.
 - **A version** is a digest of a file's content. Comparing it again before
   a store catches a change made meanwhile, by another session or anything
   else.

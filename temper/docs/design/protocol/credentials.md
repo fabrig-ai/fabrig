@@ -273,8 +273,8 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
   bundle of another version, "pasted with another version of temper:
   paste it again".
   It lives until its run ends. The codec's own form, not a layout of
-  temper's own bytes, so that the bundle has a schema's bounds, goldens
-  and version check, its items the records' own (decided 2026-11-03).
+  temper's own bytes, so that the bundle has a schema's bounds, built-value
+  round trips and version check, its items the records' own (decided 2026-11-03).
 - **The core** keeps the number and the digest in the connect's own
   record, no secret, and checks the person's role, the forge's kind and
   mode, and that no run holds the forge. Refused, it answers so, and
@@ -714,7 +714,8 @@ sources in its holder's order. temper configures the LLM providers
   every credential a placeholder its fake issued; no test calls
   github.com or uses a real credential. Live calls are skein's opt-in
   conformance's alone.
-- **The codecs,** in step tests with golden bytes and fuzzing: the
+- **The codecs,** with records drift, pinned constructs, built-value round
+  trips and fuzzing (skein's `data/codec/README.md`, 6): the
   records' numbers and each item's value, the pasted bundle, and the git
   identity's value of each kind; an unknown version refused, and each
   item's bytes that skein's decoder refuses (an id of 0, `Accepted` out

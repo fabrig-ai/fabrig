@@ -3,21 +3,46 @@ mod approval;
 mod fixtures;
 mod link_sign_in;
 mod task_refusal;
+mod unread;
 mod versions;
 use crate::*;
 use skein_lib::Reader;
 
 /// A version is its schema's family line (protocol/client/README.md, section 6).
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
-    let client =
-        concat!(include_str!("../schema/client-v26.schema"), include_str!("../schema/client-v26-part1.schema"));
-    let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
-    assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
-    let public =
-        skein_codec::schema::parse(include_str!("../schema/public-v1.schema").as_bytes()).expect("public schema");
-    assert_eq!(PUBLIC_VERSION, public.version(), "jig-public-wire PUBLIC_VERSION must equal its family version");
+    let client = &skein_codegen::values(CLIENT_SCHEMA).schema;
+    assert_eq!(VERSION, u32::from(client.version), "jig-client-wire VERSION must equal its family version");
+    let public = &skein_codegen::values(PUBLIC_SCHEMA).schema;
+    assert_eq!(PUBLIC_VERSION, public.version, "jig-public-wire PUBLIC_VERSION must equal its family version");
+}
+
+/// A kept record holds the largest request (protocol/client/README.md, 7).
+#[test]
+fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
+    let widest = TableEntry::encoded_bound(&CEILINGS).expect("representable table entry");
+    assert!(u64::from(CEILINGS.kept_record) >= widest, "Kept must hold TableEntry's widest encoding");
+    let table = TableEntry::new(
+        &CEILINGS,
+        TableEntryParts {
+            asker: u32::MAX,
+            number: u64::MAX,
+            key: [255; 16],
+            scope: u64::MAX,
+            first_sent: Some(u64::MAX),
+            owner: Owner::Family(Family::new(&CEILINGS, FamilyParts { number: u16::MAX }).expect("family")),
+            version: u32::MAX,
+            request: fixtures::bytes(CEILINGS.table_entry_request),
+        },
+    )
+    .expect("ceiling table entry");
+    assert_eq!(u64::from(table.measure()), widest);
+    let record = fixtures::encoded(&table, TableEntry::measure, TableEntry::encode);
+    let kept = Kept::new(&CEILINGS, KeptParts { store_version: 1, record }).expect("ceiling entry fits Kept");
+    let bytes = fixtures::encoded(&kept, Kept::measure, Kept::encode);
+    let decoded = Kept::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("kept round trip");
+    assert_eq!(decoded, kept);
+    assert_eq!(TableEntry::decode(&CEILINGS, &mut Reader::new(decoded.record())), Ok(table));
 }
 
 fn a_keyed_request_past_its_bound_is_refused_naming_it() {
@@ -56,6 +81,74 @@ fn each_answer_kind_round_trips_unchanged() {
         let bytes = fixtures::encoded(&answer, KeyedAnswer::measure, KeyedAnswer::encode);
         assert_eq!(KeyedAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
+}
+
+#[test]
+fn a_batch_round_trips_its_read_open_and_close() {
+    let limits = fixtures::stream_limits();
+    let close = WatchClose::new(&limits, WatchCloseParts { stream: [7; 16], watch: 23 }).expect("closing watch");
+    let mut members = skein_lib::List::with_capacity(3);
+    for member in [
+        Member::Read(fixtures::stream_owned(&limits)),
+        Member::Open(fixtures::open_tree(&limits)),
+        Member::Close(close),
+    ] {
+        members.push(member).expect("three members");
+    }
+    let batch = Batch::new(&limits, BatchParts { members }).expect("mixed batch");
+    let bytes = fixtures::encoded(&batch, Batch::measure, Batch::encode);
+    assert_eq!(Batch::decode(&limits, &mut Reader::new(&bytes)), Ok(batch));
+}
+
+#[test]
+fn batch_replies_preserve_the_member_and_optional_answer() {
+    let limits = fixtures::stream_limits();
+    for reply in [
+        None,
+        Some(fixtures::encoded(
+            &ReadAnswer::Value(fixtures::stream_owned(&limits)),
+            ReadAnswer::measure,
+            ReadAnswer::encode,
+        )),
+        Some(fixtures::encoded(&OpenAnswer::Admitted, OpenAnswer::measure, OpenAnswer::encode)),
+        Some(fixtures::encoded(&CloseAnswer::Closed, CloseAnswer::measure, CloseAnswer::encode)),
+    ] {
+        let reply = BatchReply::new(&limits, BatchReplyParts { member: 2, reply }).expect("member's optional answer");
+        let bytes = fixtures::encoded(&reply, BatchReply::measure, BatchReply::encode);
+        assert_eq!(BatchReply::decode(&limits, &mut Reader::new(&bytes)), Ok(reply));
+    }
+}
+
+#[test]
+fn a_batch_accepts_64_members_and_refuses_65() {
+    let limits = fixtures::limits();
+    let close = WatchClose::new(&limits, WatchCloseParts { stream: [7; 16], watch: 23 }).expect("closing watch");
+    for count in [64, 65] {
+        let members = fixtures::repeated(Member::Close(close.clone()), count);
+        let bytes = fixtures::encoded_batch_members(&members);
+        let decoded = Batch::decode(&limits, &mut Reader::new(&bytes));
+        if count == 64 {
+            let batch = Batch::new(&limits, BatchParts { members }).expect("64 members fit");
+            assert_eq!(decoded, Ok(batch));
+        } else {
+            let expected = Err(Problem { path: Path::BatchMembers, reason: skein_codec::Reason::Bound });
+            assert_eq!(decoded, expected);
+            assert_eq!(Batch::new(&limits, BatchParts { members }), expected);
+        }
+    }
+}
+
+#[test]
+fn a_batch_reply_can_hold_the_largest_members_answer() {
+    let largest = [
+        ReadAnswer::encoded_bound(&CEILINGS).expect("read answer bound"),
+        OpenAnswer::encoded_bound(&CEILINGS).expect("open answer bound"),
+        CloseAnswer::encoded_bound(&CEILINGS).expect("close answer bound"),
+    ]
+    .into_iter()
+    .max()
+    .expect("three member answer kinds");
+    assert!(u64::from(CEILINGS.batch_reply_reply_some) >= largest, "a batch must carry an answer at its ceiling");
 }
 
 fn a_bearer_token_past_its_bound_is_refused() {

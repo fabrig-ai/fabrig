@@ -8,10 +8,9 @@ const ROWS: &[(u32, u32)] = &[(1, 1), (2, 2)];
 #[test]
 fn configured_document_rows_reach_the_cores_limits() {
     for &(rows, expected) in ROWS {
-        let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+        let mut jig = jig_protocol_config_fixtures::small();
         jig.core.documents.rows = rows;
-        let own =
-            temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+        let own = temper_limits_fixtures::small();
         let configured = temper_engine_service_vocabulary::limits::engine(&jig, &own).expect("configured root bounds");
         let mut limits = walking::limits();
         limits.documents = configured.documents;
@@ -32,7 +31,7 @@ fn configured_document_rows_reach_the_cores_limits() {
         driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(DOCUMENT_READ),
             sign_in: driver.session(),
-            read: Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: None },
+            read: Box::new(Read::Tasks { query: jig_test_profile::fixtures::own_tasks(), live: None, ended: None }),
         }));
         advance(&mut driver);
         let document = driver.delivered.iter().find_map(|delivery| {

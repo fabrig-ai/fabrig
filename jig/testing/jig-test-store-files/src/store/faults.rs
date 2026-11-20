@@ -54,6 +54,7 @@ impl Store {
                         at: position,
                         direction: skein_kv::Direction::Forward,
                         max: limits.page.bytes,
+                        rows: u32::MAX,
                     },
                     &mut above,
                     &mut below,
@@ -120,7 +121,12 @@ impl Store {
         self.component = Some(component);
         let root = self.files.root();
         self.drive(
-            VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
+            VecDeque::from([Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(0),
+                root,
+                installation: INSTALLATION,
+            }]),
             Queue::uncapped(),
         );
     }

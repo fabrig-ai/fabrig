@@ -114,6 +114,7 @@ pub struct Scripted {
     ledger: Ledger<Token, ()>,
     parties: BTreeMap<ClientId, u64>,
     hellos: std::collections::BTreeSet<ClientId>,
+    stream_again: BTreeMap<ClientId, Time>,
     shell: Vec<(ClientId, Event)>,
     lose_sign_out: bool,
     routes: BTreeMap<Token, Route>,
@@ -126,7 +127,7 @@ pub struct Scripted {
     page_watch: Option<Token>,
     link: Vec<Observed>,
     recovery: Option<Time>,
-    pending_sign_ins: Vec<u64>,
+    pending_sign_ins: Vec<ClientId>,
     pending_faults: Vec<FrontFault>,
     chat_report: Option<Box<[u8]>>,
     project_facts: bool,
@@ -228,19 +229,40 @@ impl Scripted {
     pub fn lose_next_sign_out(&mut self) {
         self.lose_sign_out = true;
     }
-    fn hello_events(&mut self) -> Vec<(ClientId, Event)> {
-        std::mem::take(&mut self.hellos)
-            .into_iter()
-            .map(|client| {
-                (
-                    client,
-                    crate::test::up(jig_client::Up::Served {
-                        served: self.engine.versions().contains(26),
-                        versions: None,
-                    }),
-                )
-            })
-            .collect()
+    fn open_me(&mut self, client: ClientId, now: Time) {
+        let party = self.parties[&client];
+        if !self.engine.versions().contains(jig_client_protocol_wire::VERSION) {
+            return;
+        }
+        if !self.engine.truth().sign_ins.contains_key(&party) {
+            self.shell.push((client, crate::test::up(jig_client::Up::SignedOut)));
+            return;
+        }
+        if self.routes.iter().any(|(token, route)| {
+            self.watch_routes.contains(token)
+                && matches!(route, Route::Jig(owner, local) if *owner == client && *local == Token::new(0))
+        }) {
+            return;
+        }
+        let watch = self.transport(client, Token::new(0), false, true);
+        self.watch_routes.insert(watch);
+        self.engine.open(now, party, watch, Subject::Me).expect("stream me fits");
+    }
+    fn hello_events(&mut self, now: Time) -> Vec<(ClientId, Event)> {
+        let mut events = Vec::new();
+        for client in std::mem::take(&mut self.hellos) {
+            if self.engine.truth().sign_ins.contains_key(&self.parties[&client]) {
+                self.open_me(client, now);
+            }
+            events.push((
+                client,
+                crate::test::up(jig_client::Up::Served {
+                    served: self.engine.versions().contains(jig_client_protocol_wire::VERSION),
+                    versions: None,
+                }),
+            ));
+        }
+        events
     }
     /// Installs a checked story and its application documents.
     #[must_use]
@@ -256,6 +278,7 @@ impl Scripted {
             engine: engine::Engine::with_application(script, seed, family).expect("script keeps contract"),
             parties: BTreeMap::new(),
             hellos: std::collections::BTreeSet::new(),
+            stream_again: BTreeMap::new(),
             shell: Vec::new(),
             lose_sign_out: false,
             routes: BTreeMap::new(),
@@ -314,15 +337,8 @@ impl Scripted {
         if self.recovery.is_some_and(|at| at <= now) {
             self.recovery = None;
             self.link.push(Observed::Reachable { live: true });
-            for party in std::mem::take(&mut self.pending_sign_ins) {
-                self.engine
-                    .act(now, wall, engine::Change::SignIn { sign_in: party, party })
-                    .expect("recovered sign in fits");
-                for (client, owner) in &self.parties {
-                    if *owner == party {
-                        self.shell.push((*client, crate::test::up(jig_client::Up::SignedIn)));
-                    }
-                }
+            for client in std::mem::take(&mut self.pending_sign_ins) {
+                self.sign_in(client, now, wall);
             }
             for fault in std::mem::take(&mut self.pending_faults) {
                 self.fault(now, fault);
@@ -523,14 +539,20 @@ impl Front<Test> for Scripted {
 
     fn poll(&mut self, now: Time, wall: Wall) -> Vec<(ClientId, Event)> {
         self.recover(now, wall);
-        let mut events = self.hello_events();
+        let mut events = self.hello_events(now);
+        let due: Vec<_> = self.stream_again.iter().filter_map(|(client, at)| (*at <= now).then_some(*client)).collect();
+        for client in due {
+            self.stream_again.remove(&client);
+            self.open_me(client, now);
+        }
         events.append(&mut self.shell);
-        events.extend(self.engine.poll(now).into_iter().filter_map(|up| self.callback(up)).collect::<Vec<_>>());
+        events.extend(self.engine.poll(now).into_iter().filter_map(|up| self.callback(now, up)).collect::<Vec<_>>());
+        events.append(&mut self.shell);
         events
     }
     fn next_due(&self) -> Option<Time> {
         if self.hellos.is_empty() && self.shell.is_empty() {
-            self.recovery.or_else(|| self.engine.next_due())
+            self.recovery.into_iter().chain(self.engine.next_due()).chain(self.stream_again.values().copied()).min()
         } else {
             Some(Time::ZERO)
         }
@@ -667,13 +689,14 @@ impl Front<Test> for Scripted {
     fn sign_in(&mut self, client: ClientId, now: Time, wall: Wall) {
         let party = self.parties[&client];
         if self.recovery.is_some_and(|at| now < at) {
-            if !self.pending_sign_ins.contains(&party) {
-                self.pending_sign_ins.push(party);
+            if !self.pending_sign_ins.contains(&client) {
+                self.pending_sign_ins.push(client);
             }
             return;
         }
         self.engine.act(now, wall, engine::Change::SignIn { sign_in: party, party }).expect("sign in fits");
         self.shell.push((client, crate::test::up(jig_client::Up::SignedIn)));
+        self.hellos.insert(client);
     }
 }
 
@@ -781,7 +804,14 @@ impl Scripted {
             self.shell.push((client, crate::test::up(jig_client::Up::SignedOut)));
         }
     }
-    fn callback(&mut self, up: Up<Family>) -> Option<(ClientId, Event)> {
+    fn me_ended(&mut self, client: ClientId, local: Token, now: Time, up: &Up<Family>) {
+        if local == Token::new(0)
+            && matches!(up, Up::Ended { why, .. } if *why != WatchEnd::SignedOut && *why != WatchEnd::NotServed)
+        {
+            self.stream_again.insert(client, now.saturating_add(crate::test::limits().client.domain.backoff.first));
+        }
+    }
+    fn callback(&mut self, now: Time, up: Up<Family>) -> Option<(ClientId, Event)> {
         let token = match &up {
             Up::Answer { attempt, .. } | Up::ApplicationAnswer { attempt, .. } => *attempt,
             Up::Read { token, .. }
@@ -810,6 +840,7 @@ impl Scripted {
             Route::Jig(c, t) | Route::First(c, t) => (c, t),
         };
         self.sign_out_receipt(client, &up);
+        self.me_ended(client, local, now, &up);
         let event = match up {
             Up::Answer { attempt: _, envelope: e, answer } => crate::test::up(jig_client::Up::Answer {
                 attempt: local,

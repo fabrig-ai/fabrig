@@ -323,7 +323,7 @@ fn new_task(
 fn contract(value: &people::Contract) -> tasks::Contract {
     match value {
         people::Contract::Change { connector, kind, words } => {
-            tasks::Contract::Change { connector: *connector, kind: *kind, words: *words }
+            tasks::Contract::Change { connector: *connector, kind: *kind, words: *words, choices: Box::new([]) }
         }
         people::Contract::Report { words } => tasks::Contract::Report { words: *words },
         people::Contract::Verdict { choices } => {
@@ -493,7 +493,7 @@ fn delegates_for(ask: &authority::PersonAsk) -> &[authority::Delegate] {
         authority::PersonRequest::Create(batch) | authority::PersonRequest::Delegate { tasks: batch, .. } => batch,
         authority::PersonRequest::Allot(_)
         | authority::PersonRequest::Accept(_)
-        | authority::PersonRequest::Amend(_)
+        | authority::PersonRequest::Amend { .. }
         | authority::PersonRequest::Move(_)
         | authority::PersonRequest::Cancel
         | authority::PersonRequest::Release

@@ -77,6 +77,7 @@ pub(crate) fn call(
                 Read::Escalation(_)
                 | Read::Proposal(_)
                 | Read::TaskProposal { .. }
+                | Read::Parts(_)
                 | Read::Ended(_)
                 | Read::Transcript { .. }
                 | Read::InputCheck(_)
@@ -240,6 +241,7 @@ fn write(domain: &mut Domain, read: &DocumentRead, entry: Option<notes::Entry>) 
                 author: notes::Author::Task { task: 0, attempt: 0 },
             },
             recalled,
+            records: Box::new([]),
         },
     }));
     Ok(())

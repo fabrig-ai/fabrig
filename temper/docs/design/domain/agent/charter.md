@@ -130,7 +130,7 @@ smith's (smith's `domain/run.md`, 7.1):
 |---|---|
 | a report: words, bounded | a report, and a failure, within the same bound |
 | a verdict from a closed list, each with the fields it requires and the follow-up tasks it may propose | a verdict for each choice, named by its number, with its fields and its words' bound; follow-ups as items, of the kinds of task the verdict may propose; a failure of at most 1,024 bytes |
-| a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
+| a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a verdict for each of its choices, named by its number (a landing repair's flake, `../forge/change/repairs.md`); a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
 A change's `body` holds the producer's report, what its brief asks it to
@@ -153,8 +153,18 @@ with `field=result` gives the producer's report whole, in pieces. A document's
 card shows what `documents.text_bytes` holds, marked as cut.
 
 The `no_change` verdict becomes jig's successful `NoChange` result. It
-retains the explanation, supplies no resource or landing, and ends the
-change without a hold or escalation. The requester receives that result.
+retains the explanation and supplies no resource or landing. A
+producer's ends its change without a hold or escalation, and the
+requester receives that result. A repair's or a resolution's is its
+change's to read (`../forge/change/repairs.md`): a CI repair's checks
+its head again (*A CI repair that changes nothing checks its head
+again*), and a landing's, a gate's, a review's or a resolution's holds
+the change, as a failed repair does. So a repair that delivered
+finishes as a change, in a later run as in the one that delivered
+(`README.md`, 5), never as `no_change`.
+A change contract's choice becomes jig's successful `Verdict` result with
+its code, and, like `no_change`, is refused where the run settled a
+change.
 
 A change's result names the resource the worker's push and the forge
 settled, never one from the LLM's fields. Its explicit `title` and `body`
@@ -227,40 +237,77 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   charter 5 row).
 - **Words a person reads first are written for them**
   (`../../draft/home-for-a-person.md`, 4). Home, Work and Needs you
-  show three things an agent writes before the thing's own page. Each
+  show four things an agent writes before the thing's own page. Each
   is the agent's own field, with no second text beside it for the
   person (that draft's section 10 keeps the question open), so the
   stock charters' words have it written for both:
   - **A goal's or a change's title,** its words' first line (`tools.md`,
-    1 and 2): at most 60 characters naming the work for a person, the
-    rest of the words on the lines below it. Charter 1's instructions,
-    for a goal and for the person's chat, and charters 13 to 16's shared
-    sections, which start goals and changes, say: "Open the words of
-    each goal and change you start with a title line: at most 60
-    characters naming the work for a person, as Store shape S7 ·
-    history in task logs; the rest follows on the lines below."
-    Charter 5's specs keep their own title line of at most 30
-    characters (`../../../charters/stock/goal.md`). `temper ctl goal
-    start`'s help says it of its words (`../../client/ctl/areas.md`,
-    area 2).
+    1 and 2): at most 60 characters naming the work for a person in
+    plain words, with no draft or milestone codes and no internal names,
+    the rest of the words on the lines below it. Charter 1's
+    instructions, for a goal and for the person's chat, and charters 13
+    to 16's shared sections, which start goals and changes, say: "Open
+    the words of each goal and change you start with a title line: at
+    most 60 characters naming the work in plain words, with no draft
+    codes or internal names, as Store shape · history in task logs; the
+    rest follows on the lines below." Charter 5's specs keep their own
+    title line of at most 30 characters, whose sentence says it too:
+    "plain words saying what it does, at most 30 characters, no
+    Markdown, codes or internal names ("Cancel a landed change's runs")"
+    (`../../../charters/stock/goal.md`). `temper ctl goal
+    start`'s help says it of its words, with the example "Store shape:
+    history in task logs" (`../../client/ctl/areas.md`, area 2).
   - **A decision's words,** `decided`'s (`tools.md`): every charter that
     decides says, beside its call: "Write the question in one sentence,
     the situation as a person reads it, and each option in one line."
-    They are charter 1's Asking paragraph and the shared sections of
+    They are charter 1's Asking paragraph, the shared sections of
     charters 13 to 16, the standing role's, the triager's, the prover's
-    and the porter's, as the draft lists them; charter 5's *Asking your
-    requester* doesn't repeat it, keeping its brief within the receiving
-    bounds (`../../protocol/configuration/stock.md`'s charter 5 row). So the option `took` names reads as one line.
+    and the porter's, as the draft lists them, and charter 5's *Asking
+    your requester* (`../../../charters/stock/goal.md`), whose line,
+    after the sentence that calls `decided`, says where the rest goes:
+    "Write its question in one sentence, the situation as a person reads
+    it, and each option in one line; commits, figures and task or pull
+    numbers go in its why." So the option `took` names reads as one line.
   - **A goal's report headline** (`agents.md`, 3, *A goal's report*):
-    charter 1's goal paragraph says the headline is one line for the
-    person saying "where the goal stands, naming no task, change or pull
-    request by number, as "5 of its 7 changes landed; the other 2 are
-    building."". Charter 5's report note (its `goal` file) says it in the
-    draft's shorter words, with no task, change or pull numbers and the
-    same example, and its designer's last words leave the headline to
-    that note, keeping its brief within the receiving bounds. A
-    count is a person's; a number they would have to look up is the
-    body's.
+    one line for a person saying plainly, in the work's own terms, what
+    the goal has done and what's left. It names no task, change or pull
+    request by number, no draft or milestone code (P1, R1), no branch
+    (g), and none of the words of how goals run: change, cut, wave,
+    delivery, landing, repair, spec. A count is a person's; a number
+    they would have to look up is the body's, and so is the plan's
+    vocabulary. Charter 5's report note (its `goal` file) says "a
+    one-line headline for a person of what's done and what's left, in
+    the work's own terms, with no task, change or pull numbers, codes
+    (P1), branch (g) or words of how goals run (change, cut, wave,
+    delivery, landing, repair, spec): "Three of the four parts are done;
+    the page part is still being built."", and its designer's last words leave the headline to that
+    note, keeping its brief within the receiving bounds. Charter 1's
+    goal paragraph says it in fewer words: "a one-line headline for the
+    person saying, in the work's own terms, what the goal has done and
+    what's left, naming no task, change or pull request by number, no
+    draft code or branch, and none of the words of how goals run, as
+    "Most of it is in; the last two parts are being built."". Each
+    replaces the sentence it had, so each charter's first wake keeps
+    its room (section 1). Charter 5's brief is the largest the room
+    admits, so its `goal` file gives up what its tools or other lines
+    already say: *Tools' edges* drops `decided`'s byte bounds, which
+    the tool declares; *A change* drops its list of wakes, which "in any
+    wake until the goal lands" covers; the spec's `## Goal` drops "Test
+    names, fixtures and remaining cases are the implementer's.", which
+    `## Steps`' "The rest is the implementer's." covers. The file ends
+    no longer than it was.
+  - **A project's brief,** charter 9's, the lines at the top of Home
+    (`../forge/attention.md`, 3): one sentence of at most 25 words on
+    what landed, then at most two plain sentences, 70 words in all, so
+    the 200- and 600-byte fits that save it never cut it mid-word. It
+    names work by what it does, a goal by its milestone where it has
+    one, with no codes from titles (K3), no wire or protocol versions,
+    and none of the words of how goals run, "delegates" among them. It
+    says someone is waited on only where its facts show a question open
+    now: a goal's and a role's line count the questions they have open
+    to a person, so a role's Now still saying it waits on its person,
+    once they have answered, is not repeated. Its instructions,
+    `status.txt`, are quoted whole there, and replace the ones they had.
   - **A bound of the words, not of the code:** nothing refuses, cuts or
     checks a title, a question or a headline for it, and the client's
     own cut draws a longer one (`../../draft/home-for-a-person.md`, 3).
@@ -279,8 +326,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 - **Budget:** the run's turns, spend and time, with its reserve of turns
   and time for finishing (smith's `domain/budget.md`, 1), from its
   charter in configuration, at the task's revision; its spend is what
-  its task has left, capped per run, reserved at its claim, in the
-  deployment's unit (jig's `domain/hosts/charters.md`).
+  its task has left, half of it where the task may start a delegate, so
+  that a goal's changes are funded while its agent runs, capped per run,
+  reserved at its claim, in the deployment's unit (jig's
+  `domain/authority.md`, section 7, and `domain/hosts/charters.md`).
 - **Models:** the main session's and those its sub-agents may use, each
   with its endpoint, window, output and prices (`../../protocol/llm.md`,
   section 3): the task's LLM choice among those its charter allows,

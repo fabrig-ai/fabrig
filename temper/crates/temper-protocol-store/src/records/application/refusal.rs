@@ -24,235 +24,197 @@ pub(super) fn decode_failure_class(value: w::FailureClass) -> p::FailureClass {
         w::FailureClass::Infrastructure => p::FailureClass::Infrastructure,
     }
 }
-pub(super) fn encode_hold_reason(value: &p::HoldReason, l: &w::Limits) -> Result<w::HoldReason, w::Problem> {
-    Ok(match value {
-        p::HoldReason::Exceeded(value) => w::HoldReason::Exceeded(w::Exceeded::new(
-            l,
-            w::ExceededParts { bound: encode_bound(value.bound), value: value.value },
-        )?),
-        p::HoldReason::Failures { class } => w::HoldReason::Failures(w::HoldReasonFailures::new(
-            l,
-            w::HoldReasonFailuresParts { class: encode_failure_class(*class, l) },
-        )?),
+pub(super) fn encode_hold_reason(value: &p::HoldReason, l: &w::Limits) -> w::HoldReason {
+    match value {
+        p::HoldReason::Exceeded(value) => {
+            w::HoldReason::Exceeded(w::Exceeded { bound: encode_bound(value.bound), value: value.value })
+        }
+        p::HoldReason::Failures { class } => {
+            w::HoldReason::Failures(w::HoldReasonFailures { class: encode_failure_class(*class, l) })
+        }
         p::HoldReason::Circle => w::HoldReason::Circle,
         p::HoldReason::Stalled => w::HoldReason::Stalled,
-        p::HoldReason::Dependency { task } => {
-            w::HoldReason::Dependency(w::HoldReasonDependency::new(l, w::HoldReasonDependencyParts { task: *task })?)
-        }
+        p::HoldReason::Dependency { task } => w::HoldReason::Dependency(w::HoldReasonDependency { task: *task }),
         p::HoldReason::Stopped => w::HoldReason::Stopped,
-        p::HoldReason::Placed { hold } => {
-            w::HoldReason::Placed(w::HoldReasonPlaced::new(l, w::HoldReasonPlacedParts { hold: *hold })?)
-        }
+        p::HoldReason::Placed { hold } => w::HoldReason::Placed(w::HoldReasonPlaced { hold: *hold }),
         p::HoldReason::Drift => w::HoldReason::Drift,
         p::HoldReason::Effects => w::HoldReason::Effects,
         p::HoldReason::EffectFailed => w::HoldReason::EffectFailed,
-        p::HoldReason::Uncertain { entry } => {
-            w::HoldReason::Uncertain(w::HoldReasonUncertain::new(l, w::HoldReasonUncertainParts { entry: *entry })?)
-        }
+        p::HoldReason::Uncertain { entry } => w::HoldReason::Uncertain(w::HoldReasonUncertain { entry: *entry }),
         p::HoldReason::Budget => w::HoldReason::Budget,
         p::HoldReason::Deadline => w::HoldReason::Deadline,
         p::HoldReason::HoldsWaited => w::HoldReason::HoldsWaited,
         p::HoldReason::ResourceUnavailable => w::HoldReason::ResourceUnavailable,
         p::HoldReason::ResourceAccess => w::HoldReason::ResourceAccess,
-        p::HoldReason::PoolLost { pool } => {
-            w::HoldReason::PoolLost(w::HoldReasonPoolLost::new(l, w::HoldReasonPoolLostParts { pool: *pool })?)
-        }
+        p::HoldReason::PoolLost { pool } => w::HoldReason::PoolLost(w::HoldReasonPoolLost { pool: *pool }),
         p::HoldReason::Procedure => w::HoldReason::Procedure,
-    })
+    }
 }
 pub(super) fn decode_hold_reason(value: w::HoldReason) -> p::HoldReason {
     match value {
         w::HoldReason::Exceeded(value) => {
-            p::HoldReason::Exceeded(p::Exceeded { bound: decode_bound(value.bound().clone()), value: value.value() })
+            p::HoldReason::Exceeded(p::Exceeded { bound: decode_bound(value.bound), value: value.value })
         }
-        w::HoldReason::Failures(value) => {
-            p::HoldReason::Failures { class: decode_failure_class(value.class().clone()) }
-        }
+        w::HoldReason::Failures(value) => p::HoldReason::Failures { class: decode_failure_class(value.class) },
         w::HoldReason::Circle => p::HoldReason::Circle,
         w::HoldReason::Stalled => p::HoldReason::Stalled,
-        w::HoldReason::Dependency(value) => p::HoldReason::Dependency { task: value.task() },
+        w::HoldReason::Dependency(value) => p::HoldReason::Dependency { task: value.task },
         w::HoldReason::Stopped => p::HoldReason::Stopped,
-        w::HoldReason::Placed(value) => p::HoldReason::Placed { hold: value.hold() },
+        w::HoldReason::Placed(value) => p::HoldReason::Placed { hold: value.hold },
         w::HoldReason::Drift => p::HoldReason::Drift,
         w::HoldReason::Effects => p::HoldReason::Effects,
         w::HoldReason::EffectFailed => p::HoldReason::EffectFailed,
-        w::HoldReason::Uncertain(value) => p::HoldReason::Uncertain { entry: value.entry() },
+        w::HoldReason::Uncertain(value) => p::HoldReason::Uncertain { entry: value.entry },
         w::HoldReason::Budget => p::HoldReason::Budget,
         w::HoldReason::Deadline => p::HoldReason::Deadline,
         w::HoldReason::HoldsWaited => p::HoldReason::HoldsWaited,
         w::HoldReason::ResourceUnavailable => p::HoldReason::ResourceUnavailable,
         w::HoldReason::ResourceAccess => p::HoldReason::ResourceAccess,
-        w::HoldReason::PoolLost(value) => p::HoldReason::PoolLost { pool: value.pool() },
+        w::HoldReason::PoolLost(value) => p::HoldReason::PoolLost { pool: value.pool },
         w::HoldReason::Procedure => p::HoldReason::Procedure,
     }
 }
-pub(super) fn encode_moved(value: &p::Moved, l: &w::Limits) -> Result<w::Moved, w::Problem> {
-    Ok(match value {
-        p::Moved::PlacedHold { revision } => {
-            w::Moved::PlacedHold(w::MovedPlacedHold::new(l, w::MovedPlacedHoldParts { revision: *revision })?)
+pub(super) fn encode_moved(value: &p::Moved, l: &w::Limits) -> w::Moved {
+    match value {
+        p::Moved::PlacedHold { revision } => w::Moved::PlacedHold(w::MovedPlacedHold { revision: *revision }),
+        p::Moved::Hold { revision, reason } => {
+            w::Moved::Hold(w::MovedHold { revision: *revision, reason: encode_hold_reason(reason, l) })
         }
-        p::Moved::Hold { revision, reason } => w::Moved::Hold(w::MovedHold::new(
-            l,
-            w::MovedHoldParts { revision: *revision, reason: encode_hold_reason(reason, l)? },
-        )?),
-        p::Moved::Spec { revision } => w::Moved::Spec(w::MovedSpec::new(l, w::MovedSpecParts { revision: *revision })?),
-        p::Moved::Person { revision } => {
-            w::Moved::Person(w::MovedPerson::new(l, w::MovedPersonParts { revision: *revision })?)
-        }
-        p::Moved::Note { revision } => w::Moved::Note(w::MovedNote::new(l, w::MovedNoteParts { revision: *revision })?),
-    })
+        p::Moved::Spec { revision } => w::Moved::Spec(w::MovedSpec { revision: *revision }),
+        p::Moved::Person { revision } => w::Moved::Person(w::MovedPerson { revision: *revision }),
+        p::Moved::Note { revision } => w::Moved::Note(w::MovedNote { revision: *revision }),
+    }
 }
 pub(super) fn decode_moved(value: w::Moved) -> p::Moved {
     match value {
-        w::Moved::PlacedHold(value) => p::Moved::PlacedHold { revision: value.revision() },
-        w::Moved::Hold(value) => {
-            p::Moved::Hold { revision: value.revision(), reason: decode_hold_reason(value.reason().clone()) }
-        }
-        w::Moved::Spec(value) => p::Moved::Spec { revision: value.revision() },
-        w::Moved::Person(value) => p::Moved::Person { revision: value.revision() },
-        w::Moved::Note(value) => p::Moved::Note { revision: value.revision() },
+        w::Moved::PlacedHold(value) => p::Moved::PlacedHold { revision: value.revision },
+        w::Moved::Hold(value) => p::Moved::Hold { revision: value.revision, reason: decode_hold_reason(value.reason) },
+        w::Moved::Spec(value) => p::Moved::Spec { revision: value.revision },
+        w::Moved::Person(value) => p::Moved::Person { revision: value.revision },
+        w::Moved::Note(value) => p::Moved::Note { revision: value.revision },
     }
 }
-pub(super) fn encode_party(value: &p::Party, l: &w::Limits) -> Result<w::Party, w::Problem> {
-    Ok(match value {
-        p::Party::Person(value) => w::Party::Person(w::PartyPerson::new(l, w::PartyPersonParts { value: *value })?),
-        p::Party::Task(value) => w::Party::Task(w::PartyTask::new(l, w::PartyTaskParts { value: *value })?),
-        p::Party::Deployment { project } => {
-            w::Party::Deployment(w::PartyDeployment::new(l, w::PartyDeploymentParts { project: *project })?)
-        }
-    })
+pub(super) fn encode_party(value: &p::Party, _l: &w::Limits) -> w::Party {
+    match value {
+        p::Party::Person(value) => w::Party::Person(w::PartyPerson { value: *value }),
+        p::Party::Task(value) => w::Party::Task(w::PartyTask { value: *value }),
+        p::Party::Deployment { project } => w::Party::Deployment(w::PartyDeployment { project: *project }),
+    }
 }
 pub(super) fn decode_party(value: w::Party) -> p::Party {
     match value {
-        w::Party::Person(value) => p::Party::Person(value.value()),
-        w::Party::Task(value) => p::Party::Task(value.value()),
-        w::Party::Deployment(value) => p::Party::Deployment { project: value.project() },
+        w::Party::Person(value) => p::Party::Person(value.value),
+        w::Party::Task(value) => p::Party::Task(value.value),
+        w::Party::Deployment(value) => p::Party::Deployment { project: value.project },
     }
 }
-pub(super) fn encode_ending(value: &p::Ending, l: &w::Limits) -> Result<w::Ending, w::Problem> {
-    Ok(match value {
+pub(super) fn encode_ending(value: &p::Ending, l: &w::Limits) -> w::Ending {
+    match value {
         p::Ending::Done => w::Ending::Done,
         p::Ending::Failed => w::Ending::Failed,
-        p::Ending::Cancelled { by, at } => w::Ending::Cancelled(w::EndingCancelled::new(
-            l,
-            w::EndingCancelledParts { by: encode_party(by, l)?, at: at.as_nanos() },
-        )?),
-        p::Ending::Decided { by, at } => {
-            w::Ending::Decided(w::EndingDecided::new(l, w::EndingDecidedParts { by: *by, at: at.as_nanos() })?)
+        p::Ending::Cancelled { by, at } => {
+            w::Ending::Cancelled(w::EndingCancelled { by: encode_party(by, l), at: at.as_nanos() })
         }
+        p::Ending::Decided { by, at } => w::Ending::Decided(w::EndingDecided { by: *by, at: at.as_nanos() }),
         p::Ending::Deleted => w::Ending::Deleted,
-    })
+    }
 }
 pub(super) fn decode_ending(value: w::Ending) -> p::Ending {
     match value {
         w::Ending::Done => p::Ending::Done,
         w::Ending::Failed => p::Ending::Failed,
         w::Ending::Cancelled(value) => {
-            p::Ending::Cancelled { by: decode_party(value.by().clone()), at: Wall::from_nanos(value.at()) }
+            p::Ending::Cancelled { by: decode_party(value.by), at: Wall::from_nanos(value.at) }
         }
-        w::Ending::Decided(value) => p::Ending::Decided { by: value.by(), at: Wall::from_nanos(value.at()) },
+        w::Ending::Decided(value) => p::Ending::Decided { by: value.by, at: Wall::from_nanos(value.at) },
         w::Ending::Deleted => p::Ending::Deleted,
     }
 }
-pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> Result<w::Lack, w::Problem> {
-    Ok(match value {
-        p::Lack::Ceiling { holder, dimension, value, asked } => w::Lack::Ceiling(w::LackCeiling::new(
-            l,
-            w::LackCeilingParts {
-                holder: encode_ceiling_holder(*holder, l)?,
-                dimension: encode_ceiling_dimension(*dimension),
-                value: *value,
-                asked: *asked,
-            },
-        )?),
+pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> w::Lack {
+    match value {
+        p::Lack::Ceiling { holder, dimension, value, asked } => w::Lack::Ceiling(w::LackCeiling {
+            holder: encode_ceiling_holder(*holder, l),
+            dimension: encode_ceiling_dimension(*dimension),
+            value: *value,
+            asked: *asked,
+        }),
         p::Lack::HoldOwner { hold, owner } => {
             let owner = match owner {
-                p::HoldOwner::Party { person } => {
-                    w::HoldOwner::Party(w::HoldOwnerParty::new(l, w::HoldOwnerPartyParts { person: *person })?)
-                }
-                p::HoldOwner::Task { task } => {
-                    w::HoldOwner::Task(w::HoldOwnerTask::new(l, w::HoldOwnerTaskParts { task: *task })?)
-                }
+                p::HoldOwner::Party { person } => w::HoldOwner::Party(w::HoldOwnerParty { person: *person }),
+                p::HoldOwner::Task { task } => w::HoldOwner::Task(w::HoldOwnerTask { task: *task }),
             };
-            w::Lack::HoldOwner(w::LackHoldOwner::new(l, w::LackHoldOwnerParts { hold: *hold, owner })?)
+            w::Lack::HoldOwner(w::LackHoldOwner { hold: *hold, owner })
         }
         p::Lack::Approver => w::Lack::Approver,
-        p::Lack::Budget { needs, left } => {
-            w::Lack::Budget(w::LackBudget::new(l, w::LackBudgetParts { needs: *needs, left: *left })?)
-        }
-        p::Lack::Grant { kind } => w::Lack::Grant(w::LackGrant::new(l, w::LackGrantParts { kind: *kind })?),
+        p::Lack::Budget { needs, left } => w::Lack::Budget(w::LackBudget { needs: *needs, left: *left }),
+        p::Lack::Grant { kind } => w::Lack::Grant(w::LackGrant { kind: *kind }),
         p::Lack::Funding => w::Lack::Funding,
-        p::Lack::TaskKind { executor } => w::Lack::TaskKind(w::LackTaskKind::new(
-            l,
-            w::LackTaskKindParts {
-                executor: match executor {
-                    Some(executor) => Some(encode_executor(*executor, l)?),
-                    None => None,
-                },
+        p::Lack::TaskKind { executor } => w::Lack::TaskKind(w::LackTaskKind {
+            executor: match executor {
+                Some(executor) => Some(encode_executor(*executor, l)),
+                None => None,
             },
-        )?),
-        p::Lack::Depth { most } => w::Lack::Depth(w::LackDepth::new(l, w::LackDepthParts { most: *most })?),
+        }),
+        p::Lack::Depth { most } => w::Lack::Depth(w::LackDepth { most: *most }),
         p::Lack::Deadline => w::Lack::Deadline,
-        p::Lack::Tasks { left } => w::Lack::Tasks(w::LackTasks::new(l, w::LackTasksParts { left: *left })?),
+        p::Lack::Tasks { left } => w::Lack::Tasks(w::LackTasks { left: *left }),
         p::Lack::Tool => w::Lack::Tool,
         p::Lack::Scope => w::Lack::Scope,
         p::Lack::Reference => w::Lack::Reference,
         p::Lack::ResourceAccess => w::Lack::ResourceAccess,
         p::Lack::ResourceUnavailable => w::Lack::ResourceUnavailable,
         p::Lack::Shape => w::Lack::Shape,
-        p::Lack::Again { required } => w::Lack::Again(w::LackAgain::new(l, w::LackAgainParts { required: *required })?),
+        p::Lack::Again { required } => w::Lack::Again(w::LackAgain { required: *required }),
         p::Lack::Account => w::Lack::Account,
         p::Lack::Writer => w::Lack::Writer,
         p::Lack::Required { connector, kind } => {
-            w::Lack::Required(w::LackRequired::new(l, w::LackRequiredParts { connector: *connector, kind: *kind })?)
+            w::Lack::Required(w::LackRequired { connector: *connector, kind: *kind })
         }
-        p::Lack::Failed { connector, kind } => {
-            w::Lack::Failed(w::LackFailed::new(l, w::LackFailedParts { connector: *connector, kind: *kind })?)
-        }
+        p::Lack::Failed { connector, kind } => w::Lack::Failed(w::LackFailed { connector: *connector, kind: *kind }),
         p::Lack::Unguarded { connector, kind } => {
-            w::Lack::Unguarded(w::LackUnguarded::new(l, w::LackUnguardedParts { connector: *connector, kind: *kind })?)
+            w::Lack::Unguarded(w::LackUnguarded { connector: *connector, kind: *kind })
         }
         p::Lack::Models => w::Lack::Models,
-    })
+    }
 }
 pub(super) fn decode_lack(value: w::Lack) -> p::Lack {
     match value {
         w::Lack::HoldOwner(value) => p::Lack::HoldOwner {
-            hold: value.hold(),
-            owner: match value.owner() {
-                w::HoldOwner::Party(owner) => p::HoldOwner::Party { person: owner.person() },
-                w::HoldOwner::Task(owner) => p::HoldOwner::Task { task: owner.task() },
+            hold: value.hold,
+            owner: match value.owner {
+                w::HoldOwner::Party(owner) => p::HoldOwner::Party { person: owner.person },
+                w::HoldOwner::Task(owner) => p::HoldOwner::Task { task: owner.task },
             },
         },
         w::Lack::Ceiling(row) => p::Lack::Ceiling {
-            holder: decode_ceiling_holder(row.holder()),
-            dimension: decode_ceiling_dimension(row.dimension()),
-            value: *row.value(),
-            asked: *row.asked(),
+            holder: decode_ceiling_holder(&row.holder),
+            dimension: decode_ceiling_dimension(&row.dimension),
+            value: row.value,
+            asked: row.asked,
         },
         w::Lack::Approver => p::Lack::Approver,
-        w::Lack::Budget(value) => p::Lack::Budget { needs: value.needs(), left: value.left() },
-        w::Lack::Grant(value) => p::Lack::Grant { kind: value.kind() },
+        w::Lack::Budget(value) => p::Lack::Budget { needs: value.needs, left: value.left },
+        w::Lack::Grant(value) => p::Lack::Grant { kind: value.kind },
         w::Lack::Funding => p::Lack::Funding,
-        w::Lack::TaskKind(value) => match value.into_parts().executor {
+        w::Lack::TaskKind(value) => match value.executor {
             Some(executor) => p::Lack::TaskKind { executor: Some(decode_executor(executor)) },
             None => p::Lack::TaskKind { executor: None },
         },
-        w::Lack::Depth(value) => p::Lack::Depth { most: value.most() },
+        w::Lack::Depth(value) => p::Lack::Depth { most: value.most },
         w::Lack::Deadline => p::Lack::Deadline,
-        w::Lack::Tasks(value) => p::Lack::Tasks { left: value.left() },
+        w::Lack::Tasks(value) => p::Lack::Tasks { left: value.left },
         w::Lack::Tool => p::Lack::Tool,
         w::Lack::Scope => p::Lack::Scope,
         w::Lack::Reference => p::Lack::Reference,
         w::Lack::ResourceAccess => p::Lack::ResourceAccess,
         w::Lack::ResourceUnavailable => p::Lack::ResourceUnavailable,
         w::Lack::Shape => p::Lack::Shape,
-        w::Lack::Again(value) => p::Lack::Again { required: value.required() },
+        w::Lack::Again(value) => p::Lack::Again { required: value.required },
         w::Lack::Account => p::Lack::Account,
         w::Lack::Writer => p::Lack::Writer,
-        w::Lack::Required(value) => p::Lack::Required { connector: value.connector(), kind: value.kind() },
-        w::Lack::Failed(value) => p::Lack::Failed { connector: value.connector(), kind: value.kind() },
-        w::Lack::Unguarded(value) => p::Lack::Unguarded { connector: value.connector(), kind: value.kind() },
+        w::Lack::Required(value) => p::Lack::Required { connector: value.connector, kind: value.kind },
+        w::Lack::Failed(value) => p::Lack::Failed { connector: value.connector, kind: value.kind },
+        w::Lack::Unguarded(value) => p::Lack::Unguarded { connector: value.connector, kind: value.kind },
         w::Lack::Models => p::Lack::Models,
     }
 }
@@ -366,7 +328,7 @@ pub(super) fn decode_limit_kind(value: w::LimitKind) -> p::LimitKind {
 )]
 pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
-        p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded::new(l, w::RefusalConcludedParts { at: at.as_nanos() })?),
+        p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
         p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-store"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
         p::Refusal::Stale { .. }
@@ -377,15 +339,13 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         | p::Refusal::LiveTasks { .. }
         // Only finishing an account sign-in emits SignInRedirect.
         | p::Refusal::SignInRedirect { .. } => {
-            return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });
+            return Err(w::Problem { path: w::paths::REFUSAL_TAG, reason: skein_codec::Reason::Bound });
         }
         p::Refusal::NoTerminal => w::Refusal::NoTerminal,
         p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
         p::Refusal::NotLending => w::Refusal::NotLending,
         p::Refusal::NameTaken => w::Refusal::NameTaken,
-        p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount::new(
-            l,
-            w::RefusalAccountParts {
+        p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount {
                 account: *account,
                 why: match why {
                     p::AccountWhy::Unknown => w::AccountWhy::Unknown,
@@ -393,11 +353,8 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
                     p::AccountWhy::Uses => w::AccountWhy::Uses,
                     p::AccountWhy::Limited => w::AccountWhy::Limited,
                 },
-            },
-        )?),
-        p::Refusal::NotWellFormed { at, why } => w::Refusal::NotWellFormed(w::RefusalNotWellFormed::new(
-            l,
-            w::RefusalNotWellFormedParts {
+            }),
+        p::Refusal::NotWellFormed { at, why } => w::Refusal::NotWellFormed(w::RefusalNotWellFormed {
                 at: *at,
                 why: match why {
                     // Forge application values contain no settings for the core to check.
@@ -405,12 +362,10 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
                     // Only a settings change can leave the effective settings unchanged.
                     | p::Malformed::SettingsUnchanged
                     | p::Malformed::Running => {
-                        return Err(w::Problem { path: w::Path::MalformedTag, reason: skein_codec::Reason::Bound });
+                        return Err(w::Problem { path: w::paths::MALFORMED_TAG, reason: skein_codec::Reason::Bound });
                     }
                     p::Malformed::ProposedAsAllowed => w::Malformed::ProposedAsAllowed,
-                    p::Malformed::Name(rule) => w::Malformed::Name(w::MalformedName::new(
-                        l,
-                        w::MalformedNameParts {
+                    p::Malformed::Name(rule) => w::Malformed::Name(w::MalformedName {
                             rule: match rule {
                                 p::NameRule::Empty => w::NameRule::Empty,
                                 p::NameRule::Long => w::NameRule::Long,
@@ -418,69 +373,52 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
                                 p::NameRule::Space => w::NameRule::Space,
                                 p::NameRule::Digits => w::NameRule::Digits,
                             },
-                        },
-                    )?),
+                        }),
                     p::Malformed::Cycle => w::Malformed::Cycle,
                     p::Malformed::AsAllowedTwice => w::Malformed::AsAllowedTwice,
                     p::Malformed::Conversation => w::Malformed::Conversation,
                     p::Malformed::EndedBy => w::Malformed::EndedBy,
                 },
-            },
-        )?),
-        p::Refusal::Role { held } => w::Refusal::Role(w::RefusalRole::new(
-            l,
-            w::RefusalRoleParts {
+            }),
+        p::Refusal::Role { held } => w::Refusal::Role(w::RefusalRole {
                 held: match held {
-                    Some(value) => Some(encode_role(*value, l)?),
+                    Some(value) => Some(encode_role(*value, l)),
                     None => None,
                 },
-            },
-        )?),
-        p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority::new(
-            l,
-            w::RefusalAuthorityParts {
-                lacking: encode_lack(lacking, l)?,
+            }),
+        p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority {
+                lacking: encode_lack(lacking, l),
                 proposable: match proposable {
                     None => None,
                     Some(p::Accepter::Nobody) => Some(w::Accepter::Nobody),
                     Some(p::Accepter::Role(role)) => {
-                        Some(w::Accepter::Role(w::AccepterRole::new(l, w::AccepterRoleParts { role: *role })?))
+                        Some(w::Accepter::Role(w::AccepterRole { role: *role }))
                     }
                 },
-            },
-        )?),
+            }),
         p::Refusal::Limit { which } => {
-            w::Refusal::Limit(w::RefusalLimit::new(l, w::RefusalLimitParts { which: encode_limit_kind(*which, l) })?)
+            w::Refusal::Limit(w::RefusalLimit { which: encode_limit_kind(*which, l) })
         }
         p::Refusal::Moved { now } => {
-            w::Refusal::Moved(w::RefusalMoved::new(l, w::RefusalMovedParts { now: encode_moved(now, l)? })?)
+            w::Refusal::Moved(w::RefusalMoved { now: encode_moved(now, l) })
         }
         p::Refusal::Ended { how } => {
-            w::Refusal::Ended(w::RefusalEnded::new(l, w::RefusalEndedParts { how: encode_ending(how, l)? })?)
+            w::Refusal::Ended(w::RefusalEnded { how: encode_ending(how, l) })
         }
-        p::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle::new(
-            l,
-            w::RefusalCircleParts {
-                tasks: numbers(tasks, l.refusal_circle_tasks, w::Path::RefusalCircleTasks)?,
+        p::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle {
+                tasks: numbers(tasks, l.refusal_circle_tasks, w::paths::REFUSAL_CIRCLE_TASKS)?,
                 cut: *cut,
-            },
-        )?),
-        p::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency::new(
-            l,
-            w::RefusalDependencyParts {
+            }),
+        p::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency {
                 dependency: *dependency,
                 how: match how {
                     p::DependencyStatus::Done => w::DependencyStatus::Done,
                     p::DependencyStatus::Failed => w::DependencyStatus::Failed,
                     p::DependencyStatus::Cancelled => w::DependencyStatus::Cancelled,
                 },
-            },
-        )?),
-        p::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept::new(
-            l,
-            w::RefusalKeptParts { pending: numbers(pending, l.refusal_kept_pending, w::Path::RefusalKeptPending)? },
-        )?),
-        p::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken::new(l, w::RefusalTakenParts { by: *by })?),
+            }),
+        p::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept { pending: numbers(pending, l.refusal_kept_pending, w::paths::REFUSAL_KEPT_PENDING)? }),
+        p::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken { by: *by }),
         p::Refusal::NoEscalationHolder => w::Refusal::NoEscalationHolder,
         p::Refusal::NotWaiting => w::Refusal::NotWaiting,
         p::Refusal::NoFurther => w::Refusal::NoFurther,
@@ -490,11 +428,9 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         p::Refusal::Provider => w::Refusal::Provider,
         p::Refusal::KeyConflict => w::Refusal::KeyConflict,
         p::Refusal::Llm { model, why } => {
-            w::Refusal::Llm(w::RefusalLlm::new(l, w::RefusalLlmParts { model: *model, why: encode_llm_why(*why) })?)
+            w::Refusal::Llm(w::RefusalLlm { model: *model, why: encode_llm_why(*why) })
         }
-        p::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove::new(
-            l,
-            w::RefusalAccountMoveParts {
+        p::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove {
                 why: match why {
                     p::AccountMoveWhy::NotSignedIn => w::AccountMoveWhy::NotSignedIn,
                     p::AccountMoveWhy::NotOurs => w::AccountMoveWhy::NotOurs,
@@ -502,14 +438,13 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
                     p::AccountMoveWhy::Cancelled => w::AccountMoveWhy::Cancelled,
                     p::AccountMoveWhy::Moving => w::AccountMoveWhy::Moving,
                 },
-            },
-        )?),
+            }),
     })
 }
 pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
     match value {
         // Forge application records cannot contain a settings decision's stale revision.
-        w::Refusal::Concluded(v) => p::Refusal::Concluded { at: Wall::from_nanos(v.at()) },
+        w::Refusal::Concluded(v) => p::Refusal::Concluded { at: Wall::from_nanos(v.at) },
         w::Refusal::Stale(_) => unreachable!("forge applications cannot store a stale settings refusal"),
         w::Refusal::Forgotten(_) => unreachable!("forge applications cannot store a forgotten settings refusal"),
         // Forge application requests never enter settings' held-revision admission.
@@ -522,8 +457,8 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
         w::Refusal::NotLending => p::Refusal::NotLending,
         w::Refusal::NameTaken => p::Refusal::NameTaken,
         w::Refusal::Account(value) => p::Refusal::Account {
-            account: value.account(),
-            why: match value.why() {
+            account: value.account,
+            why: match value.why {
                 w::AccountWhy::Unknown => p::AccountWhy::Unknown,
                 w::AccountWhy::Provider => p::AccountWhy::Provider,
                 w::AccountWhy::Uses => p::AccountWhy::Uses,
@@ -531,15 +466,15 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
             },
         },
         w::Refusal::NotWellFormed(value) => p::Refusal::NotWellFormed {
-            at: value.at(),
-            why: match value.why() {
+            at: value.at,
+            why: match value.why {
                 // Forge application values contain no settings, in either direction.
                 w::Malformed::Settings(_) => unreachable!("forge applications cannot store malformed settings"),
                 // An application request cannot be an unchanged settings change.
                 w::Malformed::SettingsUnchanged => unreachable!("forge applications cannot store unchanged settings"),
                 w::Malformed::Running => unreachable!("forge applications cannot store a settings running choice"),
                 w::Malformed::ProposedAsAllowed => p::Malformed::ProposedAsAllowed,
-                w::Malformed::Name(value) => p::Malformed::Name(match value.rule() {
+                w::Malformed::Name(value) => p::Malformed::Name(match value.rule {
                     w::NameRule::Empty => p::NameRule::Empty,
                     w::NameRule::Long => p::NameRule::Long,
                     w::NameRule::Control => p::NameRule::Control,
@@ -553,7 +488,7 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
             },
         },
         w::Refusal::Role(value) => p::Refusal::Role {
-            held: match value.into_parts().held {
+            held: match value.held {
                 Some(value) => {
                     let result = decode_role(value);
                     Some(result)
@@ -562,30 +497,30 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
             },
         },
         w::Refusal::Authority(value) => p::Refusal::Authority {
-            lacking: decode_lack(value.lacking().clone()),
-            proposable: match value.proposable() {
+            lacking: decode_lack(value.lacking),
+            proposable: match value.proposable {
                 None => None,
                 Some(w::Accepter::Nobody) => Some(p::Accepter::Nobody),
-                Some(w::Accepter::Role(role)) => Some(p::Accepter::Role(role.role())),
+                Some(w::Accepter::Role(role)) => Some(p::Accepter::Role(role.role)),
             },
         },
-        w::Refusal::Limit(value) => p::Refusal::Limit { which: decode_limit_kind(value.which().clone()) },
-        w::Refusal::Moved(value) => p::Refusal::Moved { now: decode_moved(value.now().clone()) },
-        w::Refusal::Ended(value) => p::Refusal::Ended { how: decode_ending(value.how().clone()) },
+        w::Refusal::Limit(value) => p::Refusal::Limit { which: decode_limit_kind(value.which) },
+        w::Refusal::Moved(value) => p::Refusal::Moved { now: decode_moved(value.now) },
+        w::Refusal::Ended(value) => p::Refusal::Ended { how: decode_ending(value.how) },
         w::Refusal::Circle(value) => {
-            let w::RefusalCircleParts { tasks, cut } = value.into_parts();
+            let w::RefusalCircle { tasks, cut } = value;
             p::Refusal::Circle { tasks: tasks.into_boxed(), cut }
         }
         w::Refusal::Dependency(value) => p::Refusal::Dependency {
-            dependency: value.dependency(),
-            how: match value.how() {
+            dependency: value.dependency,
+            how: match value.how {
                 w::DependencyStatus::Done => p::DependencyStatus::Done,
                 w::DependencyStatus::Failed => p::DependencyStatus::Failed,
                 w::DependencyStatus::Cancelled => p::DependencyStatus::Cancelled,
             },
         },
-        w::Refusal::Kept(value) => p::Refusal::Kept { pending: value.into_parts().pending.into_boxed() },
-        w::Refusal::Taken(value) => p::Refusal::Taken { by: value.by() },
+        w::Refusal::Kept(value) => p::Refusal::Kept { pending: value.pending.into_boxed() },
+        w::Refusal::Taken(value) => p::Refusal::Taken { by: value.by },
         w::Refusal::NoEscalationHolder => p::Refusal::NoEscalationHolder,
         w::Refusal::NotWaiting => p::Refusal::NotWaiting,
         w::Refusal::NoFurther => p::Refusal::NoFurther,
@@ -595,11 +530,11 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
         w::Refusal::Provider => p::Refusal::Provider,
         w::Refusal::KeyConflict => p::Refusal::KeyConflict,
         w::Refusal::Llm(value) => {
-            let w::RefusalLlmParts { model, why } = value.into_parts();
+            let w::RefusalLlm { model, why } = value;
             p::Refusal::Llm { model, why: decode_llm_why(why) }
         }
         w::Refusal::AccountMove(value) => p::Refusal::AccountMove {
-            why: match value.why() {
+            why: match value.why {
                 w::AccountMoveWhy::NotSignedIn => p::AccountMoveWhy::NotSignedIn,
                 w::AccountMoveWhy::NotOurs => p::AccountMoveWhy::NotOurs,
                 w::AccountMoveWhy::Held => p::AccountMoveWhy::Held,
@@ -610,14 +545,14 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
     }
 }
 
-fn encode_role(v: p::Role, l: &w::Limits) -> Result<w::Role, w::Problem> {
-    Ok(match v {
+fn encode_role(v: p::Role, _l: &w::Limits) -> w::Role {
+    match v {
         p::Role::Owner => w::Role::Owner,
         p::Role::Maintainer => w::Role::Maintainer,
         p::Role::Member => w::Role::Member,
         p::Role::Observer => w::Role::Observer,
-        p::Role::Policy { role } => w::Role::Policy(w::RolePolicy::new(l, w::RolePolicyParts { role })?),
-    })
+        p::Role::Policy { role } => w::Role::Policy(w::RolePolicy { role }),
+    }
 }
 fn decode_role(v: w::Role) -> p::Role {
     match v {
@@ -625,55 +560,46 @@ fn decode_role(v: w::Role) -> p::Role {
         w::Role::Maintainer => p::Role::Maintainer,
         w::Role::Member => p::Role::Member,
         w::Role::Observer => p::Role::Observer,
-        w::Role::Policy(v) => p::Role::Policy { role: v.role() },
+        w::Role::Policy(v) => p::Role::Policy { role: v.role },
     }
 }
 
-fn encode_executor(value: p::TaskExecutor, limits: &w::Limits) -> Result<w::TaskExecutor, w::Problem> {
-    Ok(match value {
-        p::TaskExecutor::Agent { charter } => {
-            w::TaskExecutor::Agent(w::TaskExecutorAgent::new(limits, w::TaskExecutorAgentParts { charter })?)
+fn encode_executor(value: p::TaskExecutor, limits: &w::Limits) -> w::TaskExecutor {
+    match value {
+        p::TaskExecutor::Agent { charter } => w::TaskExecutor::Agent(w::TaskExecutorAgent { charter }),
+        p::TaskExecutor::Procedure { connector, code } => {
+            w::TaskExecutor::Procedure(w::TaskExecutorProcedure { connector, code })
         }
-        p::TaskExecutor::Procedure { connector, code } => w::TaskExecutor::Procedure(w::TaskExecutorProcedure::new(
-            limits,
-            w::TaskExecutorProcedureParts { connector, code },
-        )?),
-        p::TaskExecutor::Person(address) => w::TaskExecutor::Person(w::TaskExecutorPerson::new(
-            limits,
-            w::TaskExecutorPersonParts { address: encode_person_address(&address, limits)? },
-        )?),
-    })
+        p::TaskExecutor::Person(address) => {
+            w::TaskExecutor::Person(w::TaskExecutorPerson { address: encode_person_address(&address, limits) })
+        }
+    }
 }
 fn decode_executor(value: w::TaskExecutor) -> p::TaskExecutor {
     match value {
-        w::TaskExecutor::Agent(value) => p::TaskExecutor::Agent { charter: value.into_parts().charter },
+        w::TaskExecutor::Agent(value) => p::TaskExecutor::Agent { charter: value.charter },
         w::TaskExecutor::Procedure(value) => {
-            let w::TaskExecutorProcedureParts { connector, code } = value.into_parts();
+            let w::TaskExecutorProcedure { connector, code } = value;
             p::TaskExecutor::Procedure { connector, code }
         }
-        w::TaskExecutor::Person(value) => p::TaskExecutor::Person(decode_person_address(value.into_parts().address)),
+        w::TaskExecutor::Person(value) => p::TaskExecutor::Person(decode_person_address(value.address)),
     }
 }
 
-fn encode_person_address(value: &p::PersonAddress, limits: &w::Limits) -> Result<w::PersonAddress, w::Problem> {
-    Ok(match value {
-        p::PersonAddress::Person(value) => w::PersonAddress::Person(w::PersonAddressPerson::new(
-            limits,
-            w::PersonAddressPersonParts { value: *value },
-        )?),
-        p::PersonAddress::Role(value) => {
-            w::PersonAddress::Role(w::PersonAddressRole::new(limits, w::PersonAddressRoleParts { value: *value })?)
-        }
-    })
+fn encode_person_address(value: &p::PersonAddress, _limits: &w::Limits) -> w::PersonAddress {
+    match value {
+        p::PersonAddress::Person(value) => w::PersonAddress::Person(w::PersonAddressPerson { value: *value }),
+        p::PersonAddress::Role(value) => w::PersonAddress::Role(w::PersonAddressRole { value: *value }),
+    }
 }
 fn decode_person_address(value: w::PersonAddress) -> p::PersonAddress {
     match value {
         w::PersonAddress::Person(value) => {
-            let w::PersonAddressPersonParts { value } = value.into_parts();
+            let w::PersonAddressPerson { value } = value;
             p::PersonAddress::Person(value)
         }
         w::PersonAddress::Role(value) => {
-            let w::PersonAddressRoleParts { value } = value.into_parts();
+            let w::PersonAddressRole { value } = value;
             p::PersonAddress::Role(value)
         }
     }
@@ -741,20 +667,18 @@ const fn decode_bound(value: w::Bound) -> p::Bound {
     }
 }
 
-fn encode_ceiling_holder(value: p::CeilingHolder, limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
-    Ok(match value {
+fn encode_ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> w::CeilingHolder {
+    match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,
-        p::CeilingHolder::Role(role) => {
-            w::CeilingHolder::Role(w::CeilingRole::new(limits, w::CeilingRoleParts { role })?)
-        }
-    })
+        p::CeilingHolder::Role(role) => w::CeilingHolder::Role(w::CeilingRole { role }),
+    }
 }
 fn decode_ceiling_holder(value: &w::CeilingHolder) -> p::CeilingHolder {
     match value {
         w::CeilingHolder::Rules => p::CeilingHolder::Rules,
         w::CeilingHolder::Policy => p::CeilingHolder::Policy,
-        w::CeilingHolder::Role(row) => p::CeilingHolder::Role(row.role()),
+        w::CeilingHolder::Role(row) => p::CeilingHolder::Role(row.role),
     }
 }
 fn encode_ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {

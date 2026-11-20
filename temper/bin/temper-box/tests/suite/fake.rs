@@ -419,6 +419,7 @@ fn refused_start() {
         }
         for name in row.files {
             fs::write(dir.join(name), b"existing").expect("existing output");
+            fs::set_permissions(dir.join(name), fs::Permissions::from_mode(0o600)).expect("private retained output");
         }
         let mut command = command(row.kind, &doc);
         if let Some(path) = row.observations {
@@ -449,8 +450,9 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
     command
 }
 fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let mut config = support::configuration::check_document(directory);
-    support::configuration::fake_entry(&mut config["application"]["machine"]["fake"], listen);
+    let config = support::configuration::check_document(directory);
+    let setup = serde_json::json!({"kind":"fake","listen":{"socket":listen},"remote":format!("http://{listen}"),"git":"demo/bin/git"});
+    support::configuration::setup(directory, 1, setup);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
     config
@@ -489,10 +491,10 @@ fn refused_deployment_start(root: &Path) {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("private");
-        let mut config = forge_setup(&dir, "127.0.0.1:9");
+        forge_setup(&dir, "127.0.0.1:9");
         match mode {
-            "owned" => support::owned::document(
-                &mut config,
+            "owned" => support::owned::setup(
+                &dir,
                 &support::owned::Names {
                     forgejo: Path::new("/usr/bin/false"),
                     runner: None,
@@ -504,9 +506,13 @@ fn refused_deployment_start(root: &Path) {
             "fake" => {}
             _ => unreachable!("fixture mode"),
         }
-        document(&dir.join("temper.json"), &config);
+        support::write_file(
+            &dir.join(temper_config_shell::FILE),
+            &support::configuration::file(),
+            temper_config_shell::Shape::Standalone,
+        );
         if let Some(token) = token {
-            fs::create_dir(dir.join("playground-1")).expect("token directory");
+            fs::create_dir_all(dir.join("playground-1")).expect("token directory");
             fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
             support::write_private(&dir.join("playground-1/admin_token"), token);
         }
@@ -537,17 +543,8 @@ fn refused_deployment_start(root: &Path) {
         assert_eq!(snapshot(&dir), before, "{name}: refused startup leaves directories unchanged");
     }
     let bound = usize::try_from(temper_fake::demo::KEY_FILE_BYTES).expect("key file bound");
-    for (name, kind, demo, file, mode, extra, reason, names_file) in [
-        (
-            "llm_null",
-            "llm",
-            false,
-            None,
-            0o600,
-            false,
-            "application.demo is null: the deployment has no demo".to_owned(),
-            false,
-        ),
+    for (name, kind, has_document, file, mode, extra, reason, names_file) in [
+        ("llm_no_document", "llm", false, None, 0o600, false, "absent".to_owned(), true),
         ("llm_absent", "llm", true, None, 0o600, false, "absent".to_owned(), true),
         (
             "llm_public",
@@ -565,11 +562,13 @@ fn refused_deployment_start(root: &Path) {
     ] {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
-        let mut config = support::configuration::demo_document(&dir, "127.0.0.1:8370");
-        if !demo {
-            config["application"]["demo"] = Value::Null;
+        if has_document {
+            support::write_file(
+                &dir.join(temper_config_shell::FILE),
+                &support::configuration::file(),
+                temper_config_shell::Shape::Standalone,
+            );
         }
-        document(&dir.join("temper.json"), &config);
         let path = dir.join("demo/llm.key");
         if let Some(file) = file {
             fs::create_dir(dir.join("demo")).expect("key directory");
@@ -952,7 +951,12 @@ fn forge_run() {
 
 fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>) {
     let listen = support::free_addresses::<1>(&[])[0];
-    document(&directory.join("temper.json"), &forge_setup(directory, &listen.to_string()));
+    forge_setup(directory, &listen.to_string());
+    support::write_file(
+        &directory.join(temper_config_shell::FILE),
+        &support::configuration::file(),
+        temper_config_shell::Shape::Standalone,
+    );
     let prepared = support::owned::prepare(directory, 1);
     assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));
     let path = directory.join("playground-1/admin_token");
@@ -972,15 +976,16 @@ fn llm_run() {
         let doc = dir.join("llm.json");
         document(&doc, &llm_document(dir, tls));
         let (run, key_path, key) = if demo {
-            let listen = support::free_addresses::<1>(&[])[0];
-            let config = support::configuration::demo_document(dir, &listen.to_string());
-            document(&dir.join("temper.json"), &config);
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("box's held scripted listener");
+            let listen = listener.local_addr().expect("chosen scripted address");
             fs::create_dir(dir.join("demo")).expect("demo directory");
             let path = dir.join("demo/llm.key");
             let key = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_vec();
             support::write_private(&path, &[key.as_slice(), b"\n"].concat());
-            let run = Running::command(deployment_command("llm", dir), None).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on application.demo.llm.listen");
+            let mut command = crate::listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+            command.args(["fake", "llm"]).args(support::configuration::flags(dir));
+            let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
+            assert_eq!(run.address, listen, "ready on the box's inherited scripted listener");
             (run, path, key)
         } else {
             let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
@@ -993,7 +998,7 @@ fn llm_run() {
         let before = snapshot(dir);
         let auth = format!("Bearer {}", std::str::from_utf8(&key).expect("valid fixture"));
         for (credential, status, text) in [
-            (&*auth, b"HTTP/1.1 200".as_slice(), "hello from QA"),
+            (&*auth, b"HTTP/1.1 200".as_slice(), if demo { "I am the scripted model" } else { "hello from QA" }),
             ("Bearer wrong", b"HTTP/1.1 401", "invalid_api_key"),
         ] {
             let response = if tls {
@@ -1048,7 +1053,11 @@ fn llm_run() {
                 &serde_json::to_vec(&other).expect("valid fixture"),
             );
             assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains("hello from QA"));
+            assert!(String::from_utf8_lossy(&response).contains(if demo {
+                "I am the scripted model"
+            } else {
+                "hello from QA"
+            }));
         }
         let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
         other["instructions"] = json!("");
@@ -1063,7 +1072,11 @@ fn llm_run() {
                 &serde_json::to_vec(&other).expect("valid fixture"),
             );
             assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains("fallback"));
+            assert!(String::from_utf8_lossy(&response).contains(if demo {
+                "I am the scripted model"
+            } else {
+                "fallback"
+            }));
         }
         run.stop();
         assert_eq!(snapshot(dir), before, "{name}: files and modes retained after stop");
@@ -1079,13 +1092,11 @@ fn ready_write_failure_stops_and_keeps_outputs() {
     let scratch = support::Scratch::new("fake_ready_failure");
     let doc = scratch.path().join("llm.json");
     document(&doc, &llm_document(scratch.path(), false));
-    let output = command("llm", &doc)
-        .args(["--ready", ""])
-        .stdout(fs::OpenOptions::new().write(true).open("/dev/full").expect("valid fixture"))
-        .output()
-        .expect("valid fixture");
+    let (reader, writer) = std::io::pipe().expect("ready pipe");
+    drop(reader);
+    let output = command("llm", &doc).args(["--ready", ""]).stdout(writer).output().expect("valid fixture");
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper fake llm: stdout: No space left on device (os error 28)\n");
+    assert_eq!(output.stderr, b"temper fake llm: stdout: Broken pipe (os error 32)\n");
     assert!(scratch.path().join("key").exists());
     scratch.remove();
 }
@@ -1224,14 +1235,14 @@ fn git_run() {
     let format = || GitStep { stdout: "sha1\n", ..git_step(GitCommand::Format, None, "work/pool") };
     let init = || {
         git_step(
-            GitCommand::Clone { directory: b"widget".as_slice().into(), format: invocation::Format::Sha1 },
+            GitCommand::Clone { directory: b"widget".as_slice().into(), format: invocation::Format::Sha1, bare: false },
             None,
             "work",
         )
     };
     let origin = || GitStep {
         edit: Some((".git/objects/info/alternates", b"../../../pool/objects\n")),
-        ..git_step(GitCommand::Remote { remote: Box::new([]) }, None, "work/widget")
+        ..git_step(GitCommand::Remote { remote: Box::new([]), format: invocation::Format::Sha1 }, None, "work/widget")
     };
     let check_out = || git_step(GitCommand::CheckOut { commit: object(BASE) }, Some(Kind::CheckOut), "work/widget");
     let mut files: Vec<_> = temper_fake::forge::FILES
@@ -1444,7 +1455,7 @@ fn git_run() {
             match &mut step.command {
                 GitCommand::SnapshotFetch { remote: url, .. }
                 | GitCommand::Store { remote: url, .. }
-                | GitCommand::Remote { remote: url }
+                | GitCommand::Remote { remote: url, .. }
                 | GitCommand::Push { remote: url, .. } => {
                     *url = remote.as_bytes().into();
                 }
@@ -1455,6 +1466,8 @@ fn git_run() {
                 | GitCommand::SnapshotReset { .. }
                 | GitCommand::Version
                 | GitCommand::Clone { .. }
+                | GitCommand::CountObjects { .. }
+                | GitCommand::Repack { .. }
                 | GitCommand::Format
                 | GitCommand::UpdateRef { .. }
                 | GitCommand::Fetch { .. }
@@ -1463,6 +1476,7 @@ fn git_run() {
                 | GitCommand::Clean
                 | GitCommand::Merge { .. }
                 | GitCommand::Unmerged
+                | GitCommand::UpdateIndex { .. }
                 | GitCommand::Add
                 | GitCommand::DiffPaths { .. }
                 | GitCommand::DiffIndex { .. }
@@ -1551,14 +1565,21 @@ fn check_run() {
     let scratch = support::Scratch::startup("fake-check-run");
     let directory = scratch.path();
     let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper-box"));
-    support::write_private(&directory.join("agent.json"), &agent);
     support::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    document(&directory.join("temper.json"), &support::configuration::check_document(directory));
+    let data = directory.join("data");
+    fs::create_dir(&data).expect("fixture data");
+    let mut value = support::configuration::check_document(directory);
+    temper_agent_fixtures::apply(&mut value, &data, &serde_json::from_slice(&agent).expect("agent JSON"));
+    support::write_file(
+        &directory.join(temper_config_shell::FILE),
+        &support::configuration::file(),
+        temper_config_shell::Shape::Standalone,
+    );
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");
-    let data = directory.join("data");
     let cache = directory.join("cache");
+    let entries_before = fs::read_dir(&data).expect("fixture entries").count();
     let ended = Command::new(skein_scratch::paths::binary("temper-box"))
         .env_clear()
         .args(["fake", "forge", "check", "--config"])
@@ -1577,12 +1598,17 @@ fn check_run() {
     assert_eq!(
         ended.stderr,
         format!(
-            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper fake forge check: opening {}: errno 2\n",
+            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper-box fake forge check: opening {}: errno 2\n",
             store.display()
         )
         .as_bytes()
     );
-    assert!(!data.exists());
+    assert_eq!(
+        fs::read_dir(&data).expect("fixture data").count(),
+        entries_before,
+        "the check creates no data resources"
+    );
+    assert!(data.join("agents.setting").is_file());
     assert!(!cache.exists());
     scratch.remove();
 }

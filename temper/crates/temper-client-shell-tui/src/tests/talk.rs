@@ -1,5 +1,6 @@
 //! Talk commands and leaving through the shipped host (client/tui/pages/talk.md, 1).
 use super::*;
+use smith_transcript::Record;
 use temper_client_view::shared;
 
 const ROLE: u64 = 7;
@@ -28,9 +29,8 @@ fn roles_fixture() -> (Host, Duties) {
     let (mut host, _, mut duties) = signed_host(true);
     let mut watched = None;
     for _ in 0..host.env.limits.client.domain.watches {
-        for request in &duties.asked {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+        for open in all_openings(&duties) {
+            {
                 if open.subject().owner() != &w::Owner::Jig {
                     continue;
                 }
@@ -59,7 +59,9 @@ fn roles_fixture() -> (Host, Duties) {
     let line = w::TaskLine::new(&w::CEILINGS, line).unwrap();
     let mut writer = Writer::new(usize::try_from(line.measure()).unwrap());
     line.encode(&mut writer).unwrap();
-    let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).unwrap();
+    let tasks =
+        w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
+            .unwrap();
     let arrived = delivery(&mut host, watched.expect("roles watch"), &w::DeliveryValue::Tasks(tasks));
     duties.asked.extend(admit(&mut host, arrived).asked);
     (host, duties)
@@ -152,16 +154,17 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     };
     if choices {
         use smith_transcript as s;
-        let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
-        let text = s::Block::Text(s::Text::new(&s::CEILINGS, s::TextParts { text: "Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes().into(), replay: None }).unwrap());
-        turn.messages = List::from_boxed(Box::new([s::Message::new(
-            &s::CEILINGS,
-            s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
-        )
-        .unwrap()]));
-        let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
-        let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
-        turn.encode(&mut writer).unwrap();
+        let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
+        let text = s::Block::Text(s::Text { text: "Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes().into(), replay: None });
+        turn.messages = List::from_boxed(Box::new([s::Message {
+            role: s::Role::Assistant,
+            blocks: List::from_boxed(Box::new([text])),
+        }]));
+        let turn = turn;
+        let mut writer = Writer::new(
+            usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+        );
+        turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
         rows.push(records::turn_line(3, 0, 1, &writer.finish()));
     }
     if proposed {
@@ -195,7 +198,7 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
         read_reply(&mut host, read, &w::ReadValue::Activity(w::ActivityPage::new(&w::CEILINGS, page).unwrap())).asked,
     );
     duties.asked.retain(
-        |request| matches!(request, Request::Exchange { exchange, message: Message::Read(_), .. } if *exchange != read),
+        |request| matches!(request, Request::Exchange { exchange, message: Message::Read(_), .. } if *exchange != read.exchange),
     );
     history.asked.extend(admit(&mut host, duties).asked);
     host.clocks(host.env.now, Wall::from_nanos(9 * MINUTE));
@@ -328,44 +331,31 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
 fn telling_on_a_roles_talk_files_in_its_area() {
     use temper_client_protocol_wire::{self as wire, v1 as f};
     let (mut host, duties) = talk_setup(true, false, false, false);
-    let watched = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+    let watched = all_openings(&duties)
+        .into_iter()
+        .find_map(|open| {
             if open.subject().owner() == &w::Owner::Jig {
                 return None;
             }
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
             let reading = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
-            matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch())
+            matches!(&reading.watch, f::Watch::Findings(subject) if subject.project == 3).then_some(open.watch())
         })
         .expect("the talk's project reads findings");
-    let task = f::Holder::Task(f::HolderTask::new(&f::CEILINGS, f::HolderTaskParts { number: ROLE }).unwrap());
-    let document = f::Findings::new(
-        &f::CEILINGS,
-        f::FindingsParts {
-            project: 3,
-            rows: List::with_capacity(0),
-            areas: List::from_boxed(Box::new([f::AreaRow::new(
-                &f::CEILINGS,
-                f::AreaRowParts {
-                    name: b"ports".as_slice().into(),
-                    words: b"Porting".as_slice().into(),
-                    owner: f::AreaOwner::Task(
-                        f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap(),
-                    ),
-                    holder: Some(task.clone()),
-                },
-            )
-            .unwrap()])),
-            triager: None,
-            holder: task,
-            cut: false,
-        },
-    )
-    .unwrap();
+    let task = f::Holder::Task(f::HolderTask { number: ROLE });
+    let document = f::Findings {
+        project: 3,
+        rows: List::with_capacity(0),
+        areas: List::from_boxed(Box::new([f::AreaRow {
+            name: b"ports".as_slice().into(),
+            words: b"Porting".as_slice().into(),
+            owner: f::AreaOwner::Task(f::AreaTask { number: ROLE }),
+            holder: Some(task.clone()),
+        }])),
+        triager: None,
+        holder: task,
+        cut: false,
+    };
     let document = w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {
@@ -383,6 +373,6 @@ fn telling_on_a_roles_talk_files_in_its_area() {
     }));
     admit(&mut host, duties);
     let (_, file) = super::tell::send(&mut host, b"/tell The port is stuck").expect("one filing");
-    assert_eq!(file.area().as_deref(), Some(b"ports".as_slice()));
-    assert_eq!(file.body(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
+    assert_eq!(file.area.as_deref(), Some(b"ports".as_slice()));
+    assert_eq!(file.body.as_ref(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
 }

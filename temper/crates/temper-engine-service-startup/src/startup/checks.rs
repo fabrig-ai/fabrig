@@ -4,8 +4,9 @@ use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_protocol_config::{self as config, Path};
+use jig_protocol_store::tasks_v13::Record;
 use skein_io::Addr;
-use skein_lib::{Decimal, Duration, List, Map, Writer};
+use skein_lib::{Decimal, Duration, List, Writer};
 use temper_engine_domain as domain;
 pub use temper_engine_service_vocabulary::startup::checks::*;
 use temper_protocol_worker_wire as payload;
@@ -31,17 +32,21 @@ pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mu
 /// The binary's stock fits before any listener opens (protocol/configuration/stock.md).
 /// The caller selects `Given::Stock`; worlds size their own defaults.
 pub fn stock(engine: &config::Engine, problems: &mut Problems) {
-    if engine.defaults == config::Defaults::Passed
+    if engine.defaults != config::Defaults::Document
         && let Err(floor) = crate::stock::floors(
             &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
             &engine.limits,
         )
     {
-        problems.push(
-            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
-            What::Half(crate::startup::EngineWhat::Stock(floor)),
-        );
+        stock_floor(floor, problems);
     }
+}
+/// Publish a floor measured while parsing the same defaults passed to jig.
+pub fn stock_floor(floor: crate::stock::Floor, problems: &mut Problems) {
+    problems.push(
+        Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
+        What::Half(crate::startup::EngineWhat::Stock(floor)),
+    );
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
@@ -92,22 +97,8 @@ fn engine_alone(engine: &config::Engine, workers: &[config::Worker], problems: &
             problems.push(at(index, hosts.member(b"listener")), What::Half(crate::startup::EngineWhat::EngineAlone));
         }
     }
-    if engine.hosts.workers.is_empty() {
-        problems.push(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
-    }
-    for (index, worker) in engine.hosts.workers.iter().enumerate() {
-        for previous in engine.hosts.workers.iter().take(index) {
-            if previous.digest == worker.digest {
-                problems.push(
-                    at(index, hosts.member(b"workers")).member(b"digest"),
-                    What::Half(crate::startup::EngineWhat::EngineAlone),
-                );
-                break;
-            }
-        }
-    }
 }
-/// Standalone's requirements on jig's parts, including absolute agent paths.
+/// Standalone's requirements on jig's parts, on jig's parts.
 pub fn standalone(
     engine: &config::Engine,
     clients: &super::application::Clients,
@@ -124,9 +115,6 @@ pub fn standalone(
                 What::Half(crate::startup::EngineWhat::Loopback),
             );
         }
-    }
-    if engine.connectors.as_ref() != [1] {
-        problems.push(root.member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors));
     }
 }
 
@@ -256,19 +244,19 @@ pub fn limits(limits: &limits::Limits, _: &limits::GitComponent, problems: &mut 
 }
 /// The longest routed remote: base, two separators, owner, name and `.git`.
 #[must_use]
-pub fn longest_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
-    Some(machine_remote(machine, name_bytes)?.max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)))
+pub fn longest_remote(
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
+    name_bytes: u32,
+) -> Option<u64> {
+    Some(machine_remote(test_github, name_bytes)?.max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)))
 }
 #[must_use]
-pub fn machine_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
-    let mut base = skein_lib::len_u64(crate::system::GITHUB_REMOTE.len());
-    if let Some(owned) = &machine.owned {
-        base = base.max(skein_lib::len_u64(owned.remote.len()));
-    }
-    if let Some(fake) = &machine.fake {
-        base = base.max(skein_lib::len_u64(fake.remote.len()));
-    }
-    if let Some(github) = &machine.github {
+pub fn machine_remote(
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
+    name_bytes: u32,
+) -> Option<u64> {
+    let mut base = skein_lib::len_u64(b"http://127.0.0.1:65535".len());
+    if let Some(github) = test_github {
         base = base.max(skein_lib::len_u64(github.remote.len()));
     }
     remote(base, name_bytes)
@@ -335,14 +323,12 @@ fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> O
 pub fn channel(
     engine: Option<&payload::Bounds>,
     worker: Option<&payload::Bounds>,
-    machine: Option<&temper_forge_setup::machine::Machine>,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
     limits: &limits::Limits,
     problems: &mut Problems,
 ) {
-    if engine.is_some()
-        && let Some(machine) = machine
-    {
-        names(machine_remote(machine, limits.forge.name_bytes), limits, problems);
+    if engine.is_some() {
+        names(machine_remote(test_github, limits.forge.name_bytes), limits, problems);
     }
     // Both sides carry checkout repositories; forge watches need no directories.
     let repository_shape = match (engine, worker) {
@@ -424,7 +410,7 @@ pub fn turns(
                 problems,
                 engine_path.member(b"hub.outcome_bytes"),
                 engine.hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                b"the agent's outcome (agents setting declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
@@ -462,14 +448,14 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.outcome_bytes"),
-                worker.limits.hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
+                b"the agent's outcome (agents setting declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
                 problems,
                 path.member(b"hub.turn_bytes"),
-                worker.limits.hub.turn_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes,
                 b"the agent's largest turn",
                 Some(turn),
             );
@@ -489,7 +475,7 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.transcript_bytes"),
-                worker.limits.hub.transcript_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.transcript_bytes,
                 b"the engine's resume window",
                 window,
             );
@@ -510,14 +496,6 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     }
     index
 }
-fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding> {
-    let mut landings = Map::with_capacity(engine.landings.capacity());
-    for (&project, landing) in &engine.landings {
-        landings.insert(project, landing.clone()).expect("the same capacity");
-    }
-    landings
-}
-
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 5).
 #[expect(clippy::too_many_lines, reason = "root admission checks each landing bound before construction")]
@@ -535,25 +513,6 @@ pub fn root(
             What::Past { bytes: u64::from(limits.forge.landing_members), bound: 5 },
         );
     }
-    let landings = landing_config(engine);
-    let mut turn = false;
-    for (_, project) in &landings {
-        turn |= project.by == domain::Way::Turn;
-    }
-    if turn {
-        if limits.authority.writes < limits.forge.landing_members {
-            against(problems, b"forge.landing_members", b"authority.writes");
-        }
-        if limits.forge.resources_per_task <= limits.forge.landing_members {
-            against(problems, b"forge.resources_per_task", b"forge.landing_members + 1");
-        }
-        if limits.forge.holds < limits.forge.landings.saturating_mul(limits.forge.landing_members) {
-            against(problems, b"forge.holds", b"forge.landings * forge.landing_members");
-        }
-        if limits.tasks.holdings < limits.forge.landing_members {
-            against(problems, b"forge.landing_members", b"tasks.holdings");
-        }
-    }
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     core.kinds.clone_from(&engine.kinds);
     let config = domain::Config {
@@ -561,12 +520,12 @@ pub fn root(
         kinds_stock: engine.kinds_stock.clone(),
         ways_stock: engine.ways_stock.clone(),
         period_span: engine.period_span,
-        playground: crate::system::playground_config(engine.demo.as_ref(), true, engine.limits.setup.deadline),
+        playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
         core,
-        landings,
+        landing_held: false,
         forge,
         identities,
-        machine: Some(crate::system::machine_config(&engine.machine)),
+        machine: Some(crate::system::machine_config(engine.test_github.as_ref())),
         forges: Box::new([]),
         under_box: false,
     };
@@ -651,20 +610,19 @@ pub fn root(
         problems.push(path, what);
     }
 }
-/// Endpoint names, and every charter model, agree with the agent.
-pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Problems) {
-    for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
-        let mut agrees = false;
-        for name in &agent.endpoints {
-            agrees |= name.as_ref() == endpoint.name.as_ref();
-        }
-        if !agrees {
-            problems.push(
-                at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")),
-                What::Half(crate::startup::EngineWhat::Agent),
-            );
-        }
+/// Workers' figures carry at most 64 endpoints (protocol/configuration/figures.md, 2).
+pub fn figures(engine: &config::Engine, problems: &mut Problems) {
+    let count = u32::try_from(engine.llm.endpoints.len()).expect("document bounds endpoints");
+    if count > temper_engine_service_vocabulary::figures::ENDPOINTS {
+        problems.push(
+            Path::root().member(b"providers.setting"),
+            What::Half(crate::startup::EngineWhat::FigureEndpoints { count }),
+        );
     }
+}
+
+/// Each configured program adapter is offered by the agent.
+pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Problems) {
     for (index, provider) in engine.llm.providers.iter().enumerate() {
         for (offered, name) in provider.programs.iter().enumerate() {
             let mut declared = false;
@@ -675,7 +633,7 @@ pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Proble
                 problems.push(
                     at(
                         offered,
-                        at(index, Path::root().member(b"engine").member(b"llm").member(b"providers"))
+                        at(index, Path::root().member(b"providers.setting").member(b"providers"))
                             .member(b"sources")
                             .member(b"programs"),
                     ),

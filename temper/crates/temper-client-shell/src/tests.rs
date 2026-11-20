@@ -1,10 +1,14 @@
 use super::{CLIENT, tui_argument};
 
 #[test]
-fn the_bare_form_takes_one_loopback_address() {
+fn the_bare_form_takes_one_engine_origin() {
     for (words, expected) in [
         (vec![], Ok(None)),
         (vec!["http://127.0.0.1:8367"], Ok(Some(b"http://127.0.0.1:8367".as_slice()))),
+        (vec!["https://dev.fabrig.ai"], Ok(Some(b"https://dev.fabrig.ai".as_slice()))),
+        (vec!["http://dev.fabrig.ai"], Err((2, "temper: http:// reaches an engine on this machine alone: use https://NAME\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["https://127.0.0.1"], Err((2, "temper: https:// needs the deployment's name\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["https://dev.fabrig.ai/x"], Err((2, "temper: not an address: https://dev.fabrig.ai/x\nusage: temper [ADDRESS]\n".into()))),
         (vec!["frob"], Err((2, "temper: not an address: frob\nusage: temper [ADDRESS]\n".into()))),
         (vec!["http://127.0.0.1:8367", "extra"], Err((2, "temper: invalid arguments\nusage: temper [ADDRESS]\n".into()))),
         (vec!["http://192.0.2.1:8367"], Err((2, "temper: the engine's address must be on loopback\nusage: temper [ADDRESS]\n".into()))),
@@ -48,6 +52,21 @@ fn the_tui_refusals_explain_the_terminal_and_sign_in() {
     assert_eq!(terminal_refusal(CLIENT.binary, false), "temper: no command; temper --help lists them\n");
     assert_eq!(terminal_refusal(CLIENT.binary, true), Refused::NotATerminal.line(CLIENT.binary));
 }
+#[test]
+fn fixed_start_is_declared_only_by_the_bare_tui() {
+    for (reach, declared) in [(skein_shell::Reach::Words(&[]), true), (skein_shell::Reach::Words(&["box"]), false)] {
+        let command = CLIENT.commands.iter().find(|command| command.reach == reach).expect("TUI command");
+        let fixed = command.variables.iter().find(|variable| variable.name == "TEMPER_INTERNAL_FIXED_START");
+        assert_eq!(fixed.is_some(), declared);
+        if let Some(fixed) = fixed {
+            assert_eq!(*fixed, &temper_shell::environment::INTERNAL_FIXED_START);
+            assert_eq!(fixed.set, skein_shell::Set::Internal);
+            assert_eq!(fixed.way, skein_shell::Way::Reads);
+            assert_eq!(fixed.form, "SECONDS,SEED");
+        }
+    }
+}
+
 #[test]
 fn tui_recording_variable_is_internal_and_read() {
     for reach in [skein_shell::Reach::Words(&[]), skein_shell::Reach::Words(&["box"])] {

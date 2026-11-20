@@ -186,6 +186,8 @@ impl Workspace {
                 push: repository.push.clone(),
                 prefixes: Box::new([]),
                 expected: None,
+                delivered: None,
+                pin: None,
                 landing: repository.landing.clone(),
                 identity: 0,
                 account: None,

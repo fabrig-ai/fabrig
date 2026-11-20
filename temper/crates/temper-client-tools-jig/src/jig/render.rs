@@ -2,6 +2,7 @@
 mod activity;
 pub mod acts;
 pub mod document;
+pub(super) mod goal_title;
 pub mod holds;
 pub mod lists;
 mod notes;
@@ -419,6 +420,16 @@ pub(crate) fn reads(
             {
                 return failure(b"unknown revision", reading.called.json, 2);
             }
+            Readout::Family { .. } if reading.called.call.tool == crate::jig::rows::SETTINGS_AT && *local == 3 => {
+                let query = crate::jig::runner::application::Query::Setting(contract::Setting::Application {
+                    kind: 22,
+                    scope: 0,
+                    number: 1,
+                });
+                if vocabulary.application_answer(query, page).is_none() {
+                    return failure(b"malformed limits setting", reading.called.json, 1);
+                }
+            }
             Readout::Jig(ReadResult::Value(value)) => {
                 if let ReadValue::TaskText(page) = value
                     && !task_source::fits(page, limits)
@@ -524,7 +535,7 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
         | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
-        | (crate::jig::rows::DEPLOYMENT_CENSUS_AT, 1, ReadValue::Deployment(_))
+        | (crate::jig::rows::DEPLOYMENT_CENSUS_AT | crate::jig::rows::WORKER_LIST_AT, 1, ReadValue::Deployment(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
@@ -533,9 +544,17 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (4 | 5, 1, ReadValue::Activity(_))
         | (6, 1, ReadValue::Turn(_))
         | (crate::jig::rows::SETTINGS_AT, 1, ReadValue::Settings(_))
+        | (crate::jig::rows::SETTINGS_AT, 2, ReadValue::Setting(_))
         | (crate::jig::rows::SETTING_AT, 1, ReadValue::Setting(_))
         | (crate::jig::rows::REVISION_AT, 1, ReadValue::Revision(_))
         | (crate::jig::rows::REVISIONS_AT, 1, ReadValue::Revisions(_)) => Ok(()),
+        (crate::jig::rows::SETTINGS_AT, 9..=24, ReadValue::Setting(document))
+            if crate::jig::runner::providers::all(call)
+                && let contract::Setting::Provider(number) = document.setting
+                && number.number.checked_add(8) == Some(local) =>
+        {
+            Ok(())
+        }
         (3, 1, ReadValue::Ended(value)) if ended_task(value).is_some() => Ok(()),
         (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Ended(value))
             if ended_proposal(value).is_some() && proposal_matches_call(value, call) =>
@@ -629,4 +648,15 @@ fn plain_task(reading: &crate::jig::runner::reads::Reading) -> bool {
         && reading.pages.len() == 1
         && reading.documents.is_empty()
         && reading.specification.is_none()
+}
+
+/// Print ctl's amount: a hundred spend units, with two decimals.
+pub fn amount(value: u64, out: &mut Text) {
+    let fraction = value.checked_rem(100).expect("nonzero divisor");
+    out.number(value.checked_div(100).expect("nonzero divisor"));
+    out.put(b".");
+    if fraction < 10 {
+        out.put(b"0");
+    }
+    out.number(fraction);
 }

@@ -1,0 +1,25 @@
+[package]
+name = "temper-limits-fixtures"
+description = "Small limit figures for temper tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-protocol-config.workspace = true
+temper-service-core.workspace = true
+temper-engine-service-vocabulary.workspace = true
+temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
+temper-engine-domain-forge-issues.workspace = true
+temper-forge-setup.workspace = true
+temper-box-machine.workspace = true
+skein-forge-client.workspace = true
+skein-forge-setup.workspace = true
+skein-lib.workspace = true
+
+[lints]
+workspace = true

@@ -741,6 +741,37 @@ fn program_address(welcome: bool) -> Address {
     if welcome { Address::Welcome { step: Step::Model { way } } } else { Address::ConnectModel { way } }
 }
 #[test]
+fn the_program_environment_is_read_in_the_live_step_without_me() {
+    use jig_client::{Down, Link, Readable, Told, UnlinkedRequest};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    for welcome in [false, true] {
+        let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+        fixtures::start(&mut root, skein_lib::List::uncapped());
+        let address = program_address(welcome);
+        event(&mut root, Event::Went { place: crate::Place::Address(address) });
+        assert!(root.pages().me(root.client()).is_none());
+        for (link, expected) in [(Link::Starting, 0), (Link::Live, 1), (Link::Live, 0)] {
+            let mut out = Queue::uncapped();
+            crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), Told::Link { link }, &mut out);
+            let mut count = 0_u32;
+            for request in &out {
+                if let crate::Request::Unlinked {
+                    request:
+                        UnlinkedRequest::Down { down: Down::Read { what: Readable::Family { scope, record, .. }, .. } },
+                } = request
+                    && record.family == wire::FORGE
+                    && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::ProgramEnvironment
+                {
+                    assert_eq!(*scope, c::Scope::Deployment);
+                    count += 1;
+                }
+            }
+            assert_eq!(count, expected, "{link:?}, welcome={welcome}");
+        }
+    }
+}
+
+#[test]
 fn a_programs_way_reads_the_environment_once() {
     use jig_client::{Event as C, Link, Readable};
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -757,7 +788,7 @@ fn a_programs_way_reads_the_environment_once() {
         assert_eq!(scope, c::Scope::Deployment);
         assert_eq!(window, c::Window { rows: 0, after: None });
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        assert_eq!(wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(), &w::Read::ProgramEnvironment);
+        assert_eq!(&wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read, &w::Read::ProgramEnvironment);
         assert!(out.is_empty());
         assert!(environment_read(&mut page, &address, Link::Live, &mut serial).is_empty());
     }
@@ -900,9 +931,7 @@ fn an_empty_environment_answer_confirms_the_default_directories() {
     assert!(!page.program_environment_answered());
     let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
     let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
-    let answer =
-        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: Box::new([]) })
-            .unwrap();
+    let answer = w::ProgramEnvironmentAnswer { environment: Box::new([]) };
     assert!(page.environment_told(&Told::Page {
         handle,
         page: Readout::Family { family: wire::FORGE, record: Some(wire::program_environment_answer(&answer)) },

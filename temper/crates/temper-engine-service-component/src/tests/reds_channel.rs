@@ -59,7 +59,13 @@ impl Channel {
         }
         let engine = engine::Component::new(
             &limits,
-            Box::new([engine::Worker { name: b"reader".as_slice().into(), digest: skein_io::digest::digest(secret) }]),
+            Box::new([engine::Worker {
+                number: 1,
+                name: b"reader".as_slice().into(),
+                places: 1,
+                digest: Some(skein_lib::sha256::digest(secret)),
+                withdrawn: false,
+            }]),
             jig_protocol_worker_wire::spoken(),
             application,
         )
@@ -68,6 +74,7 @@ impl Channel {
             &worker_limits,
             jig_protocol_worker_wire::spoken(),
             worker::Credential {
+                opening: jig_protocol_worker_wire::Opening::Link,
                 name: b"reader".as_slice().into(),
                 secret: Secret::new(secret.into()),
                 application: payload::application(&v1::CEILINGS).unwrap(),
@@ -96,7 +103,11 @@ impl Channel {
                 bounds: fixtures::worker_agent().bounds,
             }),
         };
-        channel.engine.down(Time::ZERO, engine::Event::Accepted { connection: CONNECTION }, &mut channel.engine_out);
+        channel.engine.down(
+            Time::ZERO,
+            engine::Event::Accepted { connection: CONNECTION, in_process: false },
+            &mut channel.engine_out,
+        );
         channel.worker.fire(Time::ZERO, &mut channel.worker_out);
         channel.settle();
         if version == payload::wire::VERSION {
@@ -138,6 +149,7 @@ impl Channel {
                     | engine::Request::Abort { .. }
                     | engine::Request::Lost { .. }
                     | engine::Request::Ended { .. }
+                    | engine::Request::FiguresTaken { .. }
                     | engine::Request::Told { .. }
                     | engine::Request::Closed) => panic!("engine channel: {other:?}"),
                 }
@@ -186,6 +198,7 @@ impl Channel {
                     | worker::Request::Value { .. }
                     | worker::Request::Close { .. }
                     | worker::Request::Abort { .. }
+                    | worker::Request::Figures { .. }
                     | worker::Request::Fact { .. }) => panic!("worker channel: {other:?}"),
                 }
             }
@@ -234,6 +247,7 @@ fn exchange(
             reds::seed_reds(&mut service, run.task);
             false
         }
+        temper_worker_domain::wire::Ask::Landed { .. } => false,
         temper_worker_domain::wire::Ask::Results(_) => {
             reds::seed_check_change(&mut service, run.task);
             true

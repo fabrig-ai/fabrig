@@ -444,8 +444,11 @@ impl World {
         limits: fn(&mut engine::Limits),
     ) -> Self {
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
-            let (config, mut bounds) = configured_parts(config(seed), repository);
+            let (mut config, mut bounds) = configured_parts(config(seed), repository);
             limits(&mut bounds);
+            for worker in &mut config.core.defaults.workers {
+                worker.places = bounds.fleet.slots;
+            }
             (config, bounds)
         });
         let forge = repository_forge(seed);
@@ -732,6 +735,7 @@ impl World {
     fn party_request(&mut self, request: parties::Up) {
         let event = match request {
             parties::Up::SignIn { to, provider, subject } => engine::Event::Party(engine::PartyInput::SignedIn {
+                until: None,
                 held: None,
                 reply_to: ReplyTo::new(Token::new(to)),
                 identity: people::Identity {
@@ -788,6 +792,41 @@ impl World {
         self.root_events.push_back(event);
     }
 
+    fn store_request(&mut self, request: engine::StoreRequest) {
+        match request {
+            engine::StoreRequest::Catalogue { .. } => {}
+            engine::StoreRequest::Checkpoint { token } => {
+                let answer = self.store.checkpoint(token);
+                self.root_events.push_back(engine::Event::Store(answer));
+            }
+            engine::StoreRequest::Switch => {
+                let answer = self.store.switch();
+                self.root_events.push_back(engine::Event::Store(answer));
+            }
+            engine::StoreRequest::Commit { number, writes } => {
+                let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
+                self.store.submit(number, writes, delay);
+            }
+            engine::StoreRequest::PartRead { waiter, range } => {
+                let result = self.store.read(range);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+            }
+            engine::StoreRequest::Read { load, range } => {
+                let result = self.store.read(range);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+            }
+            engine::StoreRequest::Load { owner, range, after, most, .. } => {
+                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
+                    owner,
+                    rows,
+                    next,
+                    texts,
+                }));
+            }
+        }
+    }
+
     /// One root output: the protocol layer's hand-outs first, then the
     /// store, the forge, and deliveries to the worker and the party.
     fn root_request(&mut self, request: engine::Request) {
@@ -806,30 +845,10 @@ impl World {
                 }
             }
             engine::Request::Drained => self.absence.drained = true,
-            engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+            engine::Request::Worker(engine::WorkerRequest::Settings(_))
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
-            engine::Request::Store(engine::StoreRequest::Switch) => {
-                let answer = self.store.switch();
-                self.root_events.push_back(engine::Event::Store(answer));
-            }
-            engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
-                let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
-                self.store.submit(number, writes, delay);
-            }
-            engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                let result = self.store.read(range);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
-            }
-            engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
-                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                    owner,
-                    rows,
-                    next,
-                    texts,
-                }));
-            }
+            engine::Request::Store(request) => self.store_request(request),
             engine::Request::Forge { call, repository, op } => self.forge(call, repository, &op),
             engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
             | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
@@ -864,8 +883,10 @@ impl World {
                 engine::PartyRequest::SignInRefused { .. } | engine::PartyRequest::WatchRefused { .. },
             )
             | engine::Request::Account(_)
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
+            | engine::Request::ChoosePlace { .. }
             | engine::Request::BoxGroup { .. }
             | engine::Request::PlaygroundActs { .. }
             | engine::Request::ResetAct { .. }
@@ -913,7 +934,7 @@ impl World {
                 }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, read, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -922,6 +943,7 @@ impl World {
                             self.env.limits.call_answer_bytes,
                             key.task,
                             self.worker_env.limits.reply_bytes,
+                            read.as_deref(),
                             job,
                             page,
                             ask,
@@ -993,8 +1015,10 @@ impl World {
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
             | engine::Request::Account(_)
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
+            | engine::Request::ChoosePlace { .. }
             | engine::Request::BoxGroup { .. }
             | engine::Request::PlaygroundActs { .. }
             | engine::Request::ResetAct { .. }
@@ -1149,7 +1173,7 @@ impl World {
                 self.worker_events.push_back(worker::Event::Resend { run, attempt, turn });
             }
             // A live notice to the requester, with no reply right.
-            Delivery::Result { .. } => {}
+            Delivery::Providers(..) | Delivery::WorkerFigures { .. } | Delivery::Result { .. } => {}
             Delivery::WatchEnded { watcher, .. } if self.absence.enabled => {
                 assert_eq!(watcher, RUN_WATCH);
             }
@@ -1178,10 +1202,12 @@ impl World {
             | Delivery::Relay { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Start(_)
             | Delivery::NotesLoad { .. }
@@ -1363,7 +1389,7 @@ impl World {
                 self.worker_events.push_back(worker::Event::RedsAsk { owner, check, bytes });
             }
             worker::Request::RedsAnswer { owner, check, bytes } => {
-                let own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+                let own = temper_service_core::limits::stock();
                 let limits = temper_worker_service::worker_settings::payload_limits(
                     &temper_worker_service::worker_settings::Limits::shared(own),
                 )
@@ -1427,11 +1453,11 @@ impl World {
             worker::Request::Abandon => panic!("the worker must settle without abandoning its runs"),
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
-                let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
+                let start = worker_protocol::decode_with_dialect(run, *start, &self.worker_env.limits.agent, 3);
                 self.worker_events.push_back(worker::Event::Decoded { agent, start, endpoints: Box::new([]) });
             }
             worker::Request::Encode { owner, value } => {
-                let encoded = worker_protocol::encode(value);
+                let encoded = worker_protocol::encode_with_dialect(value, 3);
                 self.worker_events.push_back(worker::Event::Encoded { owner, encoded });
             }
             worker::Request::Fact { owner, body } => {
@@ -1450,7 +1476,9 @@ impl World {
                 let _moves = self.forge.moves();
             }
             // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
-            worker::Request::Unprepared { .. }
+            worker::Request::Git { .. }
+            | worker::Request::AgentStopped { .. }
+            | worker::Request::Unprepared { .. }
             | worker::Request::ResultsIgnored { .. }
             | worker::Request::CancelIo { .. } => {}
         }
@@ -1688,6 +1716,8 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
         Op::Reds { .. }
+        | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }

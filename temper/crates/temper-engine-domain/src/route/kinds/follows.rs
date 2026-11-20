@@ -1,7 +1,9 @@
 //! Cross-domain checks of kind 12 (temper/docs/design/domain/forge/follows.md, 2).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::Domain;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List};
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge::{
     Role,
     settings::{self, FollowOwner},
@@ -13,18 +15,19 @@ pub(super) fn defaults(domain: &Domain, edit: &mut settings::Edit) {
     if follow.source.branch.is_empty()
         && let Some(source) = domain.forge.repository(follow.source.repository)
     {
-        follow.source.branch.clone_from(&source.settings.default_branch);
+        follow.source.branch.clone_from(&source.landing);
     }
     if follow.target.branch.is_empty()
         && let Some(target) = domain.forge.repository(follow.target.repository)
     {
-        follow.target.branch.clone_from(&target.settings.default_branch);
+        follow.target.branch.clone_from(&target.landing);
     }
     if follow.producer.as_deref() == Some(b"") {
         follow.producer = None;
     }
     if let Some(record) = settings::follow_record(follow) {
-        value.size = record.measure();
+        value.size =
+            record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted follow within ceilings");
     }
 }
 

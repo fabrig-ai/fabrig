@@ -402,7 +402,10 @@ fn referee_cli_returns_the_verdict_without_rewriting_the_record() {
     let mut hosts = Deployment::new(d.clone());
     empty(&mut hosts);
     for (record, expected) in [(record(1), 0), (record(0), 1)] {
-        let mut bytes = serde_json::to_vec_pretty(&record).unwrap();
+        let mut value = serde_json::to_value(&record).unwrap();
+        value.as_object_mut().unwrap().remove("checkpoint").unwrap();
+        value.as_object_mut().unwrap().remove("verdict").unwrap();
+        let mut bytes = serde_json::to_vec_pretty(&value).unwrap();
         bytes.push(b'\n');
         std::fs::write(&path, &bytes).unwrap();
         assert_eq!(

@@ -29,7 +29,7 @@ pub fn printed_link() -> Box<[u8]> {
 
 fn link_url(secret: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
-    let prefix = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=";
+    let prefix = b"http://127.0.0.1:8367/sign-in?secret=";
     let encoded = base64::encoded_len(Alphabet::Url, 32).expect("printed secret size");
     let mut out = skein_lib::Writer::new(prefix.len() + usize::try_from(encoded).expect("short encoding"));
     out.put(prefix).expect("measured prefix");
@@ -56,6 +56,9 @@ pub struct Joint {
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub deployment: (bool, bool),
     pub program_environment: Box<[u8]>,
+    /// The service-only Limits read, scripted at this domain world's boundary.
+    pub limit_pages: VecDeque<temper_client_protocol_wire::v1::LimitsAnswer>,
+    pub settings_changes: Vec<jig_client::contract::ChangeSettings>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
     pub playground_ends: Vec<skein_lib::RequestKey>,
@@ -199,6 +202,21 @@ pub fn engine_limits() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
+pub(crate) fn reading_engine_limits() -> engine::Limits {
+    turn_engine_limits(1_048_576, 2_097_152, Some(2))
+}
+fn turn_engine_limits(bytes: u32, read_bytes: u64, rows: Option<u32>) -> engine::Limits {
+    let mut limits = engine_limits();
+    limits.journal.transcript_bytes = bytes;
+    limits.loads.bytes = bytes;
+    limits.loads.reply_bytes = bytes;
+    limits.loads.transcript_bytes = bytes;
+    limits.loads.read_bytes = read_bytes;
+    if let Some(rows) = rows {
+        limits.documents.rows = rows;
+    }
+    limits
+}
 // First-run client worlds cover the seeded project, a new project and its owner.
 const FIRST_RUN_WRITES: u32 = 2120;
 
@@ -318,7 +336,7 @@ impl Joint {
         // The delegated batch and dependency-bearing task row fit whole.
         // This watch-only world keeps short report tasks, not forge delegates.
         engine_limits.tasks.spec_bytes = temper_client_protocol_wire::CUE_BYTES;
-        engine_limits.journal.transcript_bytes = 9_528;
+        engine_limits.journal.transcript_bytes = 9_536;
         engine_limits.fleet.slots = tasks;
         engine_limits.fleet.attempts = tasks * 2;
         let mut front =
@@ -615,15 +633,31 @@ impl Joint {
         self.component.as_browser(client);
     }
 
-    pub fn ask_approval(&mut self, client: ClientId) -> (jig_client::ApprovalCode, Wall) {
-        self.component.ask_approval(client);
+    /// The transport's way and source for this client's exchanges; absent is listener, unknown.
+    pub fn exchange_from(
+        &mut self,
+        client: ClientId,
+        via: jig_protocol_engine_clients::Via,
+        source: Option<std::net::IpAddr>,
+    ) {
+        self.component.exchange_from(client, via, source);
+    }
+
+    pub fn ask_approval(
+        &mut self,
+        client: ClientId,
+        port: Option<u16>,
+        via: jig_protocol_engine_clients::Via,
+        source: Option<std::net::IpAddr>,
+    ) -> (jig_client::ApprovalCode, Wall) {
+        self.component.ask_approval(client, port, via, source);
         self.pump_component();
         self.component.asked(client).expect("the component answered asked")
     }
 
-    pub fn take_approval(&mut self, client: ClientId) {
+    pub fn take_approval(&mut self, client: ClientId, grant: Option<skein_lib::Secret>) {
         self.taking.remove(&client);
-        self.component.take_approval(client);
+        self.component.take_approval(client, grant);
         self.pump_component();
     }
 
@@ -747,9 +781,14 @@ impl Joint {
             if let Some(sign_in) = self.transport.sign_in(who) {
                 self.component.sign_out(who, sign_in);
                 self.pump_component();
+                self.drain();
             }
             self.detach(who);
         }
+        let mut transport = Transport::new(self.transport.served());
+        transport.models.clone_from(&self.transport.models);
+        transport.providers.clone_from(&self.transport.providers);
+        self.transport = transport;
         self.component = crate::component::Composition::with_printed_link(
             config,
             limits.client.domain,
@@ -792,6 +831,7 @@ impl Joint {
                 }
                 jig_client::Request::CloseStream
                 | jig_client::Request::Told { .. }
+                | jig_client::Request::AskedLink(_)
                 | jig_client::Request::Approval(_)
                 | jig_client::Request::Authorized(_)
                 | jig_client::Request::ServiceCredential { .. } => {}
@@ -1041,9 +1081,7 @@ impl Joint {
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
-        let profile =
-            temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-                .root;
+        let profile = temper_limits_fixtures::small().root;
         Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
@@ -1059,18 +1097,18 @@ impl Joint {
     /// A whole-turn engine with two activity rows per page.
     #[must_use]
     pub fn with_reading_pages(seed: u64, limits: &client::Limits) -> Self {
-        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152, Some(2))
+        let engine_limits = reading_engine_limits();
+        Self::with_engine(
+            seed,
+            limits,
+            Store::with_limits(&engine_limits),
+            [walking::config(seed), walking::config(seed)],
+            &engine_limits,
+            1,
+        )
     }
     fn with_turn_bytes(seed: u64, limits: &client::Limits, bytes: u32, read_bytes: u64, rows: Option<u32>) -> Self {
-        let mut engine_limits = engine_limits();
-        engine_limits.journal.transcript_bytes = bytes;
-        engine_limits.loads.bytes = bytes;
-        engine_limits.loads.reply_bytes = bytes;
-        engine_limits.loads.transcript_bytes = bytes;
-        engine_limits.loads.read_bytes = read_bytes;
-        if let Some(rows) = rows {
-            engine_limits.documents.rows = rows;
-        }
+        let engine_limits = turn_engine_limits(bytes, read_bytes, rows);
         Self::with_engine(
             seed,
             limits,
@@ -1457,10 +1495,12 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its optional session, talk, question watermark and open attempt.
+            // The deep task row includes its session, talk and question watermark;
+            // the attempt, kept-words box and words watermark add inline carriers.
             let opening =
-                u32::try_from(size_of::<Option<jig_domain_tasks::OpenAttempt>>()).expect("inline attempt bytes");
-            limits.journal.transcript_bytes = 8288_u32.checked_add(opening).expect("deep row allowance").max(32768);
+                u32::try_from(size_of::<(Option<jig_domain_tasks::OpenAttempt>, Box<[jig_domain_tasks::Word]>, u64)>())
+                    .expect("inline attempt and words bytes");
+            limits.journal.transcript_bytes = 8296_u32.checked_add(opening).expect("deep row allowance").max(32768);
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1486,7 +1526,7 @@ impl Joint {
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
                 limits.journal.transcript_bytes =
-                    8296_u32.checked_add(opening).expect("settings row allowance").max(32768);
+                    8304_u32.checked_add(opening).expect("settings row allowance").max(32768);
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
@@ -1627,6 +1667,8 @@ impl Joint {
             playground: None,
             deployment: (true, true),
             program_environment: Box::new([]),
+            limit_pages: VecDeque::new(),
+            settings_changes: Vec::new(),
             hold_playground_end: false,
             held_playground_end: Vec::new(),
             playground_ends: Vec::new(),
@@ -1734,6 +1776,7 @@ impl Joint {
         self.next_limits = Some(limits);
     }
     fn hello(&mut self, who: ClientId) {
+        self.component.open_stream(who);
         self.callbacks.push((
             who,
             translate::callback(jig_client_test_domain::Event::Client {
@@ -1793,59 +1836,36 @@ impl Joint {
             return false;
         }
         let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
-        let w::Request::Reachable(read) = request.request() else { return false };
-        self.reachable_reads.push((read.forge(), *read.installation(), read.page()));
+        let w::Request::Reachable(read) = &request.request else { return false };
+        self.reachable_reads.push((read.forge, read.installation, read.page));
         let mut rows = skein_lib::List::with_capacity(if self.reachable_pages { 10 } else { 2 });
-        if self.reachable_pages && read.page() == 1 {
+        if self.reachable_pages && read.page == 1 {
             for id in 100..108 {
-                rows.push(
-                    w::Reached::new(
-                        &w::CEILINGS,
-                        w::ReachedParts {
-                            id,
-                            owner: w::Account::new(
-                                &w::CEILINGS,
-                                w::AccountParts { id: 1, login: b"noise".as_slice().into() },
-                            )
-                            .expect("owner"),
-                            name: skein_lib::Decimal::of(id).as_bytes().into(),
-                            private: false,
-                        },
-                    )
-                    .expect("row"),
-                )
+                rows.push(w::Reached {
+                    id,
+                    owner: w::Account { id: 1, login: b"noise".as_slice().into() },
+                    name: skein_lib::Decimal::of(id).as_bytes().into(),
+                    private: false,
+                })
                 .expect("page");
             }
         }
         for (page, id, name) in [(1, 7, b"shop".as_slice()), (2, 8, b"second".as_slice())] {
-            if self.reachable_pages && read.page() != page {
+            if self.reachable_pages && read.page != page {
                 continue;
             }
             if self.reachable_empty {
                 break;
             }
-            rows.push(
-                w::Reached::new(
-                    &w::CEILINGS,
-                    w::ReachedParts {
-                        id,
-                        owner: w::Account::new(
-                            &w::CEILINGS,
-                            w::AccountParts { id: 1, login: b"acme".as_slice().into() },
-                        )
-                        .expect("fixed owner"),
-                        name: name.into(),
-                        private: id == 8,
-                    },
-                )
-                .expect("fixed row"),
-            )
+            rows.push(w::Reached {
+                id,
+                owner: w::Account { id: 1, login: b"acme".as_slice().into() },
+                name: name.into(),
+                private: id == 8,
+            })
             .expect("fixed page");
         }
-        let outcome = w::Outcome::Page(
-            w::Page::new(&w::CEILINGS, w::PageParts { rows, more: self.reachable_pages && read.page() < 3 })
-                .expect("fixed page"),
-        );
+        let outcome = w::Outcome::Page(w::Page { rows, more: self.reachable_pages && read.page < 3 });
         self.callbacks.push((
             who,
             RootEvent::Client {
@@ -1857,9 +1877,7 @@ impl Joint {
                         answer: Some(jig_client::Answered::Family(jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::answer(
-                                &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).expect("fixed answer"),
-                            ),
+                            bytes: wire::answer(&w::Answer { outcome }),
                         })),
                     },
                 },
@@ -1879,10 +1897,10 @@ impl Joint {
         {
             use temper_client_protocol_wire::{self as wire, v1 as w};
             let decoded = wire::decode_requesting(&record.bytes, &w::CEILINGS);
-            let ending = decoded.as_ref().is_some_and(|request| *request.request() == w::Request::EndPlayground);
+            let ending = decoded.as_ref().is_some_and(|request| request.request == w::Request::EndPlayground);
             if record.family == wire::FORGE
                 && decoded.is_some_and(|request| {
-                    matches!(request.request(), w::Request::StartPlayground | w::Request::EndPlayground)
+                    matches!(&request.request, w::Request::StartPlayground | w::Request::EndPlayground)
                 })
             {
                 let outcome = if ending {
@@ -1896,10 +1914,9 @@ impl Joint {
                     self.playground_outcomes.pop_front().unwrap_or(w::Outcome::Running)
                 };
                 if outcome == w::Outcome::Running {
-                    let mut parts =
-                        self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true)).into_parts();
+                    let mut parts = self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true));
                     parts.state = w::PlaygroundState::Running;
-                    self.playground = Some(w::PlaygroundAnswer::new(&w::CEILINGS, parts).expect("playground fixture"));
+                    self.playground = Some(parts);
                 }
                 self.callbacks.push((
                     who,
@@ -1912,10 +1929,7 @@ impl Joint {
                                 answer: Some(jig_client::Answered::Family(jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::answer(
-                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome })
-                                            .expect("scripted start answer"),
-                                    ),
+                                    bytes: wire::answer(&w::Answer { outcome }),
                                 })),
                             },
                         },
@@ -2024,6 +2038,7 @@ impl Joint {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the world scripts service-only reads together")]
     fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -2033,15 +2048,11 @@ impl Joint {
         } = request
         {
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Deployment)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::Deployment)
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let (welcome, owned) = self.deployment;
-                let answer = w::DeploymentAnswer::new(
-                    &w::CEILINGS,
-                    w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
-                )
-                .expect("deployment answer");
+                let answer = w::DeploymentAnswer { push: None, welcome, owned, program_login: None };
                 self.callbacks.push((
                     who,
                     RootEvent::Client {
@@ -2060,14 +2071,10 @@ impl Joint {
                 return true;
             }
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                let answer = w::ProgramEnvironmentAnswer::new(
-                    &w::CEILINGS,
-                    w::ProgramEnvironmentAnswerParts { environment: self.program_environment.clone() },
-                )
-                .expect("program environment");
+                let answer = w::ProgramEnvironmentAnswer { environment: self.program_environment.clone() };
                 self.callbacks.push((
                     who,
                     RootEvent::Client {
@@ -2085,8 +2092,29 @@ impl Joint {
                 ));
                 return true;
             }
+            if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                .is_some_and(|reading| matches!(&reading.read, temper_client_protocol_wire::v1::Read::Limits(_)))
+            {
+                let answer = self.limit_pages.pop_front();
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Family {
+                                    family: temper_client_protocol_wire::FORGE,
+                                    record: answer.as_ref().map(temper_client_protocol_wire::limits_answer),
+                                },
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
             if !temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Playground)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::Playground)
             {
                 return false;
             }
@@ -2186,6 +2214,16 @@ impl Joint {
         {
             self.playground_removals.push(*key);
         }
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                },
+        } = &request
+            && let jig_client::contract::Ask::ChangeSettings(change) = ask.as_ref()
+        {
+            self.settings_changes.push(change.clone());
+        }
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;
         }
@@ -2258,53 +2296,43 @@ impl Joint {
         use temper_client_protocol_wire::{self as wire, v1 as w};
         let Some(playground) = playground else { return };
         let Some(rows) = wire::decode_forges(bytes, &w::CEILINGS) else { return };
-        let rows = rows.into_parts();
+
         let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
             // A change story can use the engine's fake stand as its playground forge.
-            if row.number() != playground.forge() {
+            if row.number != playground.forge {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *playground.state() == w::PlaygroundState::Running {
-            w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 2, login: b"playground".as_slice().into() })
-                    .expect("fake connection"),
-            )
+        let connection = if playground.state == w::PlaygroundState::Running {
+            w::Connection::Connected(w::Connected { id: 2, login: b"playground".as_slice().into() })
         } else {
             w::Connection::NotConnected
         };
         forges
-            .push(
-                w::ForgeRow::new(
-                    &w::CEILINGS,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        makings: skein_lib::List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: playground.forge(),
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Fake,
-                        connection,
-                        offer: w::Offer::NotOffered,
-                        first: None,
-                        installations: skein_lib::List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: skein_lib::List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .expect("scripted playground forge"),
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: skein_lib::List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: playground.forge,
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Fake,
+                connection,
+                offer: w::Offer::NotOffered,
+                first: None,
+                installations: skein_lib::List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: skein_lib::List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .expect("playground row fits");
-        *bytes =
-            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked }).expect("scripted forges"));
+        *bytes = wire::forges(&w::Forges { forges, linked });
     }
     // Runtime records have no host-supplied version or password until the setup host reports them.
     fn host_forges(event: &mut RootEvent) {
@@ -2315,20 +2343,21 @@ impl Joint {
             return;
         };
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
-        let rows = rows.into_parts();
+
         let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
-            let mut parts = row.into_parts();
-            if parts.owned.as_ref().is_some_and(|owned| {
-                owned.forgejo().is_empty() && owned.runner().is_none() && owned.password().is_empty()
-            }) {
+            let mut parts = row;
+            if parts
+                .owned
+                .as_ref()
+                .is_some_and(|owned| owned.forgejo.is_empty() && owned.runner.is_none() && owned.password.is_empty())
+            {
                 parts.owned = None;
             }
-            forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("host forge row")).expect("bounded forge rows");
+            forges.push(parts).expect("bounded forge rows");
         }
-        record.bytes =
-            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked }).expect("host forges"));
+        record.bytes = wire::forges(&w::Forges { forges, linked });
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         Self::host_forges(&mut event);
@@ -2626,6 +2655,10 @@ impl Front<Temper> for Joint {
         // A story can establish the person's membership before opening its Home.
         if self.transport.clients().contains(&who) {
             assert_eq!(self.transport.party(who), party, "the fixture-bound person");
+            if self.transport.sign_in(who).is_some() && self.component.refresh(who) {
+                self.transport.detach(who);
+                self.callbacks.retain(|(client, _)| *client != who);
+            }
             return;
         }
         assert_eq!(party, self.caller, "the configured caller");

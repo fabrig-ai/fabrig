@@ -3,15 +3,19 @@ use crate::{
     Event, Kept, Limits, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings,
     exchange::Exchange,
     routes::{self, Route},
-    sign_in::{self, Link, Past, Pending, Slot, Waiting, Which},
+    sign_in::{self, Link, LinkKind, Past, Pending, Reservation, Slot, Waiting, Which},
 };
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
 #[path = "approval.rs"]
 mod approval;
+#[path = "asked_link.rs"]
+mod asked_link;
+#[path = "batch.rs"]
+mod batch;
 #[path = "closing.rs"]
 mod closing;
 #[path = "mint.rs"]
@@ -40,11 +44,14 @@ pub struct Component {
     settings: Settings,
     provider: provider::State,
     approval: approval::State,
+    asked: asked_link::State,
     rng: CryptoRng,
     printed: Slot,
     local: Slot,
-    past_links: Queue<(skein_lib::Secret, Past, Which)>,
+    past_links: Queue<(skein_lib::Secret, Past, LinkKind)>,
     connections: Map<Token, Exchange>,
+    batches: Map<Token, batch::Batch>,
+    members: Map<Token, batch::Member>,
     pending: Pending,
     streams: Map<Token, crate::stream::Stream>,
     next: u64,
@@ -115,24 +122,25 @@ impl Component {
         }
         let public = public::State::new(&settings, env)?;
         let rng = CryptoRng::new(&settings.seed, settings.stream).ok_or(Unusable::Seed)?;
+        // Two sets of calls: the admitted work and callers checking credentials; each can carry 64 members.
+        let pending_capacity = env.limits.exchanges.checked_mul(130).expect("checked pending capacity");
         let mut value = Self {
             public,
             provider: provider::State::new(&env.limits),
             approval: approval::State::new(),
+            asked: asked_link::State::new(env.limits.exchanges),
             settings,
             rng,
             printed: Slot::new(),
             local: Slot::new(),
             past_links: Queue::with_capacity(sign_in::PAST_LINKS),
             connections: Map::with_capacity(env.limits.exchanges),
+            batches: Map::with_capacity(env.limits.exchanges.checked_mul(2).expect("checked batch capacity")),
+            members: Map::with_capacity(pending_capacity),
             pending: Pending {
                 mints: Map::with_capacity(env.limits.mints),
-                exchanges: Map::with_capacity(
-                    env.limits.exchanges.checked_add(env.limits.exchanges).expect("checked pending capacity"),
-                ),
-                carried: Map::with_capacity(
-                    env.limits.exchanges.checked_add(env.limits.exchanges).expect("checked pending capacity"),
-                ),
+                exchanges: Map::with_capacity(pending_capacity),
+                carried: Map::with_capacity(env.limits.exchanges.checked_mul(2).expect("checked carried capacity")),
             },
             streams: Map::with_capacity(env.limits.streams),
             next: 1,
@@ -173,14 +181,16 @@ impl Component {
         }
     }
     fn remember_link(&mut self, which: Which, link: Link, past: Past) {
+        self.remember_digest(LinkKind::Startup(which), sign_in::digest(link.secret.expose()), past);
+    }
+    fn remember_digest(&mut self, kind: LinkKind, digest: skein_lib::Secret, past: Past) {
         if self.past_links.room() == 0 {
             self.past_links.pop();
         }
-        let digest = sign_in::digest(link.secret.expose());
-        self.past_links.push((digest, past, which));
+        self.past_links.push((digest, past, kind));
     }
     // Why a secret is not live, and which link it belonged to.
-    fn link_answer(&self, secret: &[u8]) -> (Box<[u8]>, Option<Which>) {
+    fn link_answer(&self, secret: &[u8]) -> (Box<[u8]>, Option<LinkKind>) {
         if self.settings.link.is_none() {
             return (routes::refused(), None);
         }
@@ -218,26 +228,34 @@ impl Component {
                 any = true;
             }
         }
-        any
+        self.expire_asked(now) || any
     }
-    fn take_reservation(&mut self, exchange: Token) -> Option<(Which, Link)> {
+    fn take_reservation(&mut self, exchange: Token) -> Option<Reservation> {
         for which in [Which::Printed, Which::Local] {
             if let Some((reserved, _)) = &self.slot(which).spending
                 && *reserved == exchange
             {
                 let (_, link) = self.slot_mut(which).spending.take().expect("matching reservation");
-                return Some((which, link));
+                return Some(Reservation::Startup(which, link));
             }
         }
-        None
+        match self.asked.take(exchange) {
+            Some(link) => Some(Reservation::Asked(link)),
+            None => None,
+        }
     }
-    fn spend_link(&mut self, spent: Option<(Which, Link)>, env: &Env<Limits>, out: &mut Queue<Request>) {
-        if let Some((which, link)) = spent {
-            self.remember_link(which, link, Past::Used);
-            if which == Which::Local && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
-            {
-                self.fresh_link(Which::Local, env, out);
+    fn spend_link(&mut self, spent: Option<Reservation>, env: &Env<Limits>, out: &mut Queue<Request>) {
+        match spent {
+            Some(Reservation::Startup(which, link)) => {
+                self.remember_link(which, link, Past::Used);
+                if which == Which::Local
+                    && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
+                {
+                    self.fresh_link(Which::Local, env, out);
+                }
             }
+            Some(Reservation::Asked(link)) => self.remember_digest(LinkKind::Asked, link.digest, Past::Used),
+            None => {}
         }
     }
     pub fn down(&mut self, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
@@ -260,9 +278,7 @@ impl Component {
                 let exchange = to.into_token();
                 self.pending.exchanges.remove(&exchange);
                 self.unused(exchange, out);
-                if let Some(owner) = self.owner(exchange) {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
-                }
+                self.response(exchange, crate::Reply::NotARecord);
             }
             Event::SignInEnded { sign_in } => self.ended(env, sign_in, out),
             Event::Application(crate::FromApplication::Answered { to, family, record }) => {
@@ -302,6 +318,10 @@ impl Component {
             }
             Event::Application(crate::FromApplication::Delivery { watcher, family, record }) => {
                 self.application_delivery(env, watcher, family, record, out);
+            }
+            Event::ProviderClient { reply, change } => {
+                let result = self.provider_client(env, change);
+                out.push(Request::Application(crate::ToApplication::ProviderClientChanged { reply, result }));
             }
             Event::Redeem { exchange, authorization, content_type, body } => {
                 let answer = self.redeem(env, authorization.as_ref(), content_type.as_deref(), body.expose());
@@ -359,7 +379,9 @@ impl Component {
                     ready = Some(*exchange);
                     break;
                 }
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -378,7 +400,9 @@ impl Component {
         }
         if let Some(exchange) = ready {
             match self.pending.exchanges.remove(&exchange).expect("ready exchange") {
-                Waiting::Checked { sign_in, body, route } => match route {
+                Waiting::Checked { sign_in, expires, body, route } => match route {
+                    Route::Batch => self.batch_start(env, exchange, sign_in, out),
+                    Route::LinkAsk => self.asked_checked(env, exchange, sign_in, expires, &body, out),
                     Route::Read => self.read(env, exchange, sign_in, &body, out),
                     Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => {
                         self.watch_route(env, exchange, sign_in, route, &body, out);
@@ -391,7 +415,9 @@ impl Component {
                     }
                     Route::ApprovalAsk | Route::ApprovalTake | Route::Link | Route::Service => {}
                 },
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -407,6 +433,9 @@ impl Component {
                 | Waiting::Ask { .. }
                 | Waiting::Carry { .. } => {}
             }
+            return true;
+        }
+        if self.batch_up(out) {
             return true;
         }
         let mut selected = None;
@@ -440,12 +469,17 @@ impl Component {
     }
     fn transport(&mut self, env: &Env<Limits>, message: crate::FromTransport, out: &mut Queue<Request>) {
         match message {
-            crate::FromTransport::Exchange { exchange, credential, browser, message } => {
+            crate::FromTransport::Exchange { exchange, credential, browser, via, source, message } => {
                 let (route, body) = routes::message(message);
-                self.receive(env, exchange, (credential, browser), route, body, out);
+                self.receive(env, (exchange, via, source), (credential, browser), route, body, out);
             }
-            crate::FromTransport::StreamOpen { stream, credential } => {
-                self.receive(env, stream, (credential, false), Route::Stream, Box::new([]), out);
+            crate::FromTransport::StreamOpen { stream, credential, version, replaces } => {
+                let body: Box<[u8]> = match replaces {
+                    Some(name) => Box::from(name),
+                    None => Box::new([]),
+                };
+                self.receive(env, (stream, crate::Via::Listener, None), (credential, false), Route::Stream, body, out);
+                self.connections.get_mut(&stream).expect("received stream").version = version;
             }
             crate::FromTransport::StreamTaken { stream } => {
                 if let Some(stream) = self.streams.get_mut(&stream)
@@ -464,7 +498,9 @@ impl Component {
     }
     fn gone(&mut self, owner: Token) {
         self.public.gone(owner);
-        self.connections.remove(&owner);
+        if let Some(connection) = self.connections.remove(&owner) {
+            self.batch_gone(connection.name);
+        }
         if let Some(value) = self.streams.get_mut(&owner) {
             value.phase = crate::stream::Phase::Closing;
             value.closed_connection = true;
@@ -473,14 +509,23 @@ impl Component {
     fn receive(
         &mut self,
         env: &Env<Limits>,
-        owner: Token,
+        transport: (Token, crate::Via, Option<::core::net::IpAddr>),
         authentication: (Option<skein_lib::Secret>, bool),
         route: Route,
         body: Box<[u8]>,
         out: &mut Queue<Request>,
     ) {
+        let (owner, via, source) = transport;
         let exchange = self.name();
         let mut connection = Exchange::new(exchange, route == Route::Stream);
+        connection.via = via;
+        connection.source = source;
+        if route == Route::Batch && !self.batch_decode(env, exchange, &body) {
+            connection.respond(crate::Reply::NotARecord);
+            self.connections.insert(owner, connection).expect("transport bounds active exchanges");
+            return;
+        }
+        let body = if route == Route::Batch { Box::new([]) } else { body };
         self.body(env, &mut connection, route, body, authentication, out);
         self.connections.insert(owner, connection).expect("transport bounds active exchanges");
     }
@@ -519,6 +564,9 @@ impl Component {
             return;
         }
         match route {
+            Route::LinkAsk if self.settings.link.is_none() || credential.is_none() => {
+                connection.respond(crate::Reply::Record(routes::link_ask_answer(w::LinkAskAnswer::Refused)));
+            }
             Route::ApprovalAsk if self.settings.approval => self.approval_ask(env, connection, &body),
             Route::ApprovalTake if self.settings.approval => self.approval_take(env, connection, &body, out),
             Route::ApprovalAsk => {
@@ -540,6 +588,9 @@ impl Component {
                 };
                 let digest = sign_in::digest(record.secret().expose());
                 self.expire_links(env.now);
+                if self.asked_sign_in(env, connection, &digest, out) {
+                    return;
+                }
                 let mut live = None;
                 let mut reserved = false;
                 for which in [Which::Printed, Which::Local] {
@@ -559,7 +610,7 @@ impl Component {
                 }
                 let Some(which) = live else {
                     let (answer, past) = self.link_answer(record.secret().expose());
-                    if past != Some(Which::Local) {
+                    if past != Some(LinkKind::Startup(Which::Local)) && past != Some(LinkKind::Asked) {
                         self.fresh_link(Which::Printed, env, out);
                     }
                     self.fresh_link(Which::Local, env, out);
@@ -584,20 +635,24 @@ impl Component {
                     self.link_sign_in(exchange, None, out);
                 }
             }
-            Route::ApprovalRead
+            Route::LinkAsk
+            | Route::ApprovalRead
             | Route::ApprovalDecide
             | Route::Authorize
             | Route::Service
             | Route::SignOut
             | Route::Request
             | Route::Read
+            | Route::Batch
             | Route::Watch
             | Route::Unwatch
             | Route::Gone
             | Route::Stream => {
                 let Some((sign_in, digest)) = sign_in::credential(credential.as_ref()) else {
                     let answer = routes::unauthenticated(route, &env.limits.wire);
-                    if route == Route::Stream {
+                    if route == Route::Batch {
+                        self.batch_denied(exchange);
+                    } else if route == Route::Stream {
                         connection.ended = Some(crate::Ended::SignedOut);
                     } else {
                         connection.respond(crate::Reply::Record(answer));
@@ -620,6 +675,7 @@ impl Component {
     pub(super) fn link_sign_in(&mut self, exchange: Token, held: Option<u64>, out: &mut Queue<Request>) {
         self.pending.exchanges.insert(exchange, Waiting::Core { held }).expect("admitted link slot");
         out.push(Request::Core(Box::new(core::Event::SignIn {
+            until: None,
             reply_to: ReplyTo::new(exchange),
             identity: self.settings.link.as_ref().expect("link enabled").clone(),
             held,
@@ -633,6 +689,8 @@ impl Component {
             return;
         };
         match waiting {
+            Waiting::LinkAskWhose { sign_in, cap } => self.link_ask_whose(env, exchange, sign_in, cap, reply),
+            Waiting::AskedWhose { cap } => self.asked_whose(env, exchange, cap, reply, out),
             Waiting::SignOut { sign_in, committed } => match reply {
                 people::Reply::SignedOut => {
                     self.pending
@@ -732,7 +790,9 @@ impl Component {
                 let answer = crate::translate::answers::moving_out(account, number, record, &env.limits.wire);
                 self.answer(exchange, answer);
             }
-            Waiting::ApprovalWhose { .. }
+            Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
+            | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
@@ -781,7 +841,9 @@ impl Component {
                 };
                 self.answer(exchange, answer);
             }
-            Waiting::ApprovalWhose { .. }
+            Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
+            | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
@@ -823,6 +885,10 @@ impl Component {
         }
     }
     fn owner(&self, exchange: Token) -> Option<Token> {
+        let exchange = match self.members.get(&exchange) {
+            Some(member) => member.batch,
+            None => exchange,
+        };
         for (owner, connection) in &self.connections {
             if connection.name == exchange && !connection.closing {
                 return Some(*owner);
@@ -831,11 +897,13 @@ impl Component {
         None
     }
     fn respond(&mut self, exchange: Token, body: Box<[u8]>) {
-        if let Some(owner) = self.owner(exchange) {
-            self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(body));
-        }
+        self.response(exchange, crate::Reply::Record(body));
     }
     fn denied(&mut self, env: &Env<Limits>, exchange: Token, route: Route) {
+        if route == Route::Batch {
+            self.batch_denied(exchange);
+            return;
+        }
         if let Some(owner) = self.owner(exchange) {
             let connection = self.connections.get_mut(&owner).expect("exchange owner");
             if route == Route::Stream {
@@ -847,9 +915,19 @@ impl Component {
     }
     fn admitted(&self) -> u32 {
         let mut count = 0_u32;
-        for (_, waiting) in &self.pending.exchanges {
+        for (_, batch) in &self.batches {
+            if batch.admitted {
+                count = count.saturating_add(1);
+            }
+        }
+        for (exchange, waiting) in &self.pending.exchanges {
+            if self.members.contains_key(exchange) {
+                continue;
+            }
             match waiting {
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -881,6 +959,12 @@ impl Component {
                 });
             }
         }
+        if let Some(deadline) = self.asked.next_deadline() {
+            next = Some(match next {
+                Some(next) => next.min(deadline),
+                None => deadline,
+            });
+        }
         if let Some(deadline) = self.approval.next_deadline() {
             next = Some(match next {
                 Some(next) => next.min(deadline),
@@ -888,7 +972,7 @@ impl Component {
             });
         }
         for (_, stream) in &self.streams {
-            if !stream.closing() && !stream.waiting {
+            if !stream.closing() && stream.opened && !stream.waiting {
                 next = Some(match next {
                     Some(next) => next.min(stream.deadline),
                     None => stream.deadline,
@@ -904,7 +988,7 @@ impl Component {
         }
         let mut due = None;
         for (owner, stream) in &self.streams {
-            if !stream.closing() && !stream.waiting && stream.deadline <= env.now {
+            if !stream.closing() && stream.opened && !stream.waiting && stream.deadline <= env.now {
                 due = Some(*owner);
                 break;
             }

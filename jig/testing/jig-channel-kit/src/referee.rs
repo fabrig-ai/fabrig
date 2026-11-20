@@ -5,6 +5,7 @@ use crate::{
 };
 use jig_domain_core as core;
 use jig_fake_parties as parties;
+use jig_protocol_worker_wire::Record;
 use skein_lib::Time;
 use std::{cell::RefCell, rc::Rc};
 /// When `observe_roots` formats a host's roots. A root's state can newly hold
@@ -260,15 +261,15 @@ fn presented(worker: &crate::processes::Wire, procs: &[Proc], key: bool) -> Resu
     use jig_protocol_worker_wire::{GrantValue, Scheme};
     let assignment = assignment(worker)?;
     let (grant, value) = assignment
-        .grants()
+        .grants
         .iter()
-        .find_map(|grant| match grant.value() {
+        .find_map(|grant| match &grant.value {
             GrantValue::Credential(value) => Some((grant, value)),
             GrantValue::Application(_) | GrantValue::Program(_) => None,
         })
         .ok_or("assignment holds the account's credential")?;
     {
-        let (observed_value, wanted) = (value.scheme(), &(Scheme::Key));
+        let (observed_value, wanted) = ((&value.scheme), &(Scheme::Key));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
@@ -299,7 +300,7 @@ fn presented(worker: &crate::processes::Wire, procs: &[Proc], key: bool) -> Resu
     }) {
         return Err(String::from("the provider matched the granted credential in its scheme"));
     }
-    Ok((grant.generation(), value.bytes().expose().into()))
+    Ok((grant.generation, value.bytes.expose().into()))
 }
 
 /// The key's generation 3 reached the live attempt's connection before its answer.
@@ -309,38 +310,37 @@ fn key_replaced(worker: &crate::processes::Wire) -> Result<(), String> {
     let (fd, granted) = worker
         .granted
         .iter()
-        .find(|(_, frame)| frame.grant().generation() == 3)
+        .find(|(_, frame)| frame.grant.generation == 3)
         .ok_or("generation 3 granted on the live attempt's connection (0x0187)")?;
     {
-        let (observed_value, wanted) =
-            (&(granted.task(), granted.attempt()), &(assignment.task(), assignment.attempt()));
+        let (observed_value, wanted) = (&(granted.task, granted.attempt), &(assignment.task, assignment.attempt));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
     {
-        let (observed_value, wanted) = (&(worker.placements.get(&(granted.task(), granted.attempt()))), &(Some(fd)));
+        let (observed_value, wanted) = (&(worker.placements.get(&(granted.task, granted.attempt))), &(Some(fd)));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
     {
-        let (observed_value, wanted) = (&(granted.grant().number()), &(0));
+        let (observed_value, wanted) = (&(granted.grant.number), &(0));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
-    let GrantValue::Credential(value) = granted.grant().value() else {
+    let GrantValue::Credential(value) = &granted.grant.value else {
         return Err(String::from("the account's grant is a credential"));
     };
     {
-        let (observed_value, wanted) = (value.scheme(), &(Scheme::Key));
+        let (observed_value, wanted) = ((&value.scheme), &(Scheme::Key));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
     {
-        let (observed_value, wanted) = (&(value.bytes().expose()), &(crate::fixtures::NEXT_KEY));
+        let (observed_value, wanted) = (&(value.bytes.expose()), &(crate::fixtures::NEXT_KEY));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
@@ -357,21 +357,21 @@ fn application_generation(worker: &crate::processes::Wire) -> Result<(), String>
     use jig_protocol_worker_wire::GrantValue;
     let assignment = assignment(worker)?;
     let (initial, secret) = assignment
-        .grants()
+        .grants
         .iter()
-        .find_map(|grant| match grant.value() {
-            GrantValue::Application(value) => Some((grant, value.secret())),
+        .find_map(|grant| match &grant.value {
+            GrantValue::Application(value) => Some((grant, (&value.secret))),
             GrantValue::Credential(_) | GrantValue::Program(_) => None,
         })
         .ok_or("assignment holds the application credential")?;
     {
-        let (observed_value, wanted) = (&(initial.number()), &(1));
+        let (observed_value, wanted) = (&(initial.number), &(1));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
     {
-        let (observed_value, wanted) = (&(initial.generation()), &(1));
+        let (observed_value, wanted) = (&(initial.generation), &(1));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
@@ -385,26 +385,25 @@ fn application_generation(worker: &crate::processes::Wire) -> Result<(), String>
     let (fd, granted, secret) = worker
         .granted
         .iter()
-        .find_map(|(fd, frame)| match frame.grant().value() {
-            GrantValue::Application(value) if frame.grant().generation() == 2 => Some((fd, frame, value.secret())),
+        .find_map(|(fd, frame)| match &frame.grant.value {
+            GrantValue::Application(value) if frame.grant.generation == 2 => Some((fd, frame, (&value.secret))),
             GrantValue::Application(_) | GrantValue::Credential(_) | GrantValue::Program(_) => None,
         })
         .ok_or("generation 2 Application grant received on the live attempt's connection (0x0187)")?;
     {
-        let (observed_value, wanted) =
-            (&(granted.task(), granted.attempt()), &(assignment.task(), assignment.attempt()));
+        let (observed_value, wanted) = (&(granted.task, granted.attempt), &(assignment.task, assignment.attempt));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
     {
-        let (observed_value, wanted) = (&(worker.placements.get(&(granted.task(), granted.attempt()))), &(Some(fd)));
+        let (observed_value, wanted) = (&(worker.placements.get(&(granted.task, granted.attempt))), &(Some(fd)));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
     {
-        let (observed_value, wanted) = (&(granted.grant().number()), &(1));
+        let (observed_value, wanted) = (&(granted.grant.number), &(1));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
@@ -415,7 +414,7 @@ fn application_generation(worker: &crate::processes::Wire) -> Result<(), String>
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
-    if granted.grant().valid() <= skein_lib::Duration::ZERO {
+    if granted.grant.valid <= skein_lib::Duration::ZERO {
         return Err(String::from("assertion failed: granted.grant().valid() > skein_lib::Duration::ZERO"));
     }
     let grant = worker.frames.iter().position(|(_, kind, _)| *kind == 0x0187).ok_or("granted frame")?;
@@ -798,12 +797,21 @@ impl Referee {
                 .find_map(|proc| if let Proc::Probe(peer) = proc { Some(peer) } else { None })
                 .ok_or("probe")?;
             let expected = match case {
-                crate::stories::Opening::Secret => Some(256),
+                crate::stories::Opening::Figures => None,
+                crate::stories::Opening::Secret => Some(260),
                 crate::stories::Opening::Wires => Some(257),
                 crate::stories::Opening::Version => Some(1),
                 crate::stories::Opening::Terms => Some(2),
                 crate::stories::Opening::Family | crate::stories::Opening::Garbage => Some(3),
             };
+            if matches!(case, crate::stories::Opening::Figures) {
+                self.passed = probe.figures_taken();
+                let engine =
+                    procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e) } else { None }).ok_or("engine")?;
+                if engine.wire.admitted_hellos != 0 {
+                    return Err("figures open no fleet channel".into());
+                }
+            }
             if let Some(reason) = probe.refused {
                 {
                     let (observed_value, wanted) = (&(Some(reason)), &(expected));
@@ -843,21 +851,21 @@ impl Referee {
                     let kept =
                         jig_protocol_worker_wire::TurnKept::decode(&jig_protocol_worker_wire::CEILINGS, &mut reader)
                             .map_err(|why| format!("kept turn: {why:?}"))?;
-                    self.rules.turn_acknowledged(kept.task(), kept.attempt(), kept.number());
+                    self.rules.turn_acknowledged(kept.task, kept.attempt, kept.number);
                 }
                 0x0182 => {
                     let reply =
                         jig_protocol_worker_wire::Relayed::decode(&jig_protocol_worker_wire::CEILINGS, &mut reader)
                             .map_err(|why| format!("relayed call: {why:?}"))?;
-                    if matches!(reply.answer(), jig_protocol_worker_wire::RelayAnswer::Text(_)) {
-                        self.rules.call_answered(reply.task(), reply.attempt(), reply.name());
+                    if matches!(&reply.answer, jig_protocol_worker_wire::RelayAnswer::Text(_)) {
+                        self.rules.call_answered(reply.task, reply.attempt, reply.name.as_ref());
                     }
                 }
                 0x0185 => {
                     let ack =
                         jig_protocol_worker_wire::Acknowledge::decode(&jig_protocol_worker_wire::CEILINGS, &mut reader)
                             .map_err(|why| format!("answer ack: {why:?}"))?;
-                    self.rules.acknowledged(ack.task(), ack.attempt());
+                    self.rules.acknowledged(ack.task, ack.attempt);
                 }
                 _ => {}
             }
@@ -916,7 +924,7 @@ impl Referee {
                     &mut skein_lib::Reader::new(bytes),
                 )
                 .map_err(|why| format!("inbound message: {why:?}"))?;
-                self.rules.sent(message.task(), message.attempt(), message.name());
+                self.rules.sent(message.task, message.attempt, message.name);
             }
             if *kind == 0x0103 {
                 let answer = jig_protocol_worker_wire::Answer::decode(
@@ -924,11 +932,11 @@ impl Referee {
                     &mut skein_lib::Reader::new(bytes),
                 )
                 .map_err(|why| format!("worker answer: {why:?}"))?;
-                if matches!(answer.ending(), jig_protocol_worker_wire::Ending::Refused(_)) {
+                if matches!(&answer.ending, jig_protocol_worker_wire::Ending::Refused(_)) {
                     if matches!(self.story, crate::stories::Story::Window) {
-                        return Err(format!("the compaction fixture must admit its start: {:?}", answer.ending()));
+                        return Err(format!("the compaction fixture must admit its start: {:?}", answer.ending));
                     }
-                    self.rules.refused(answer.task(), answer.attempt());
+                    self.rules.refused(answer.task, answer.attempt);
                 }
             }
             if *kind == 0x0102 {
@@ -937,7 +945,7 @@ impl Referee {
                     &mut skein_lib::Reader::new(bytes),
                 )
                 .map_err(|why| format!("call: {why:?}"))?;
-                self.rules.called(call.task(), call.attempt(), call.name());
+                self.rules.called(call.task, call.attempt, call.name.as_ref());
             }
             if *kind == 0x0180 {
                 let assignment = jig_protocol_worker_wire::Assignment::decode(
@@ -945,9 +953,9 @@ impl Referee {
                     &mut skein_lib::Reader::new(bytes),
                 )
                 .map_err(|why| format!("assignment: {why:?}"))?;
-                self.rules.placed(assignment.task(), assignment.attempt(), *at);
-                for message in assignment.messages() {
-                    self.rules.sent(assignment.task(), assignment.attempt(), message.name());
+                self.rules.placed(assignment.task, assignment.attempt, *at);
+                for message in &assignment.messages {
+                    self.rules.sent(assignment.task, assignment.attempt, message.name);
                 }
             }
         }
@@ -1173,17 +1181,18 @@ impl Referee {
                             ));
                         }
                     }
-                    host.service = jig_test_service::startup(
-                        &if matches!(self.story, crate::stories::Story::Providers) {
-                            crate::fixtures::providers_document()
-                        } else {
-                            crate::fixtures::engine_document()
-                        },
+                    host.service = if matches!(self.story, crate::stories::Story::Providers) {
+                        crate::processes::providers_prepared()
+                    } else {
+                        crate::processes::engine_prepared()
+                    }
+                    .startup_with_workers(
                         &crate::fixtures::files(false),
                         None,
                         &crate::fixtures::seeds(),
                         None,
                         None,
+                        crate::fixtures::workers(),
                     )
                     .map_err(|why| format!("restart after drained: {why:?}"))?;
                     let root = host.restart_root.take().ok_or("independent directory for the drained restart")?;
@@ -1251,20 +1260,20 @@ fn transcript_recovered(worker: &crate::processes::Wire, store: &Store) -> Resul
     }
     let fresh = assignments.last().ok_or("fresh retry")?;
     {
-        let (observed_value, wanted) = (&(fresh.task(), fresh.attempt()), &(1, 3));
+        let (observed_value, wanted) = (&(fresh.task, fresh.attempt), &(1, 3));
         if observed_value != wanted {
             return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
         }
     }
-    if !fresh.transcript().is_empty() {
+    if !fresh.transcript.as_ref().is_empty() {
         return Err(String::from("the retry resumes nothing"));
     }
     let message = fresh
-        .messages()
+        .messages
         .iter()
-        .find(|message| message.words() == b"Continue now")
+        .find(|message| message.words.as_ref() == b"Continue now")
         .ok_or("the refused resume retains the pending person's message")?;
-    if !turns(store).iter().any(|turn| turn.attempt == 3 && turn.read == Some(message.name())) {
+    if !turns(store).iter().any(|turn| turn.attempt == 3 && turn.read == Some(message.name)) {
         return Err(String::from("the fresh agent takes the pending person's message"));
     }
     if !terminal(store, 1, 2, crate::stories::Story::InvalidTranscript) {

@@ -27,6 +27,89 @@ pub fn pending_proposal() -> d::Proposal {
         funding,
     }
 }
+pub fn pending_amendment() -> d::Proposal {
+    let mut proposal = pending_proposal();
+    let task = task_with_hold();
+    let before = d::AmendmentState {
+        addressed: Some(t::PersonAddress::Person(11)),
+        taken_by: Some(11),
+        instructions: Some(d::Text { bytes: b"before instructions".as_slice().into(), cut: false }),
+        spec: task.spec,
+        authority: authority(),
+        wake: task.wake,
+        dependencies: List::from_boxed(Box::new([43])),
+        cut: false,
+    };
+    let mut after = before.clone();
+    after.authority.ceiling.spend = 71;
+    after.addressed = Some(t::PersonAddress::Role(5));
+    after.taken_by = None;
+    proposal.action = d::ProposalAction::Amend {
+        task: d::TaskLink::Stored { number: 37, status: None },
+        addressed: Some(t::AddressChange { revision: 47, address: t::PersonAddress::Role(5) }),
+        before: Box::new(before),
+        after: Box::new(after),
+        reason: d::Text { bytes: b"widen authority".as_slice().into(), cut: false },
+        release: Some(53),
+    };
+    proposal
+}
+
+pub fn proposed_task() -> d::ProposedTask {
+    let task = task_with_hold();
+    d::ProposedTask {
+        number: 37,
+        deadline: t::Deadline::Named,
+        executor: task.executor,
+        spec: task.spec,
+        contract: d::ContractLine::Report { words: 59 },
+        authority: task.authority,
+        budget: 61,
+        funder: t::Funder::Task(17),
+        dependencies: List::from_boxed(Box::new([43])),
+        resources: List::with_capacity(0),
+        wake: task.wake,
+        priority: Some(3),
+        cut: false,
+    }
+}
+
+pub fn person_goal() -> t::New {
+    t::New {
+        label: 0,
+        flags: t::Flags::PLAIN,
+        number: 37,
+        project: 7,
+        deadline: t::Deadline::Named,
+        executor: t::Executor::Person(t::PersonAddress::Person(11)),
+        llm: None,
+        spec: t::Spec {
+            job: None,
+            asks: false,
+            words: b"a goal".as_slice().into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
+        contract: t::Contract::Report { words: 59 },
+        authority: t::Authority {
+            models: t::Models::ALL,
+            tools: t::Tools(7),
+            grants: Box::new([]),
+            delegation: t::Delegation { kinds: Box::new([]), tasks: 7, depth: 7 },
+            budget: t::Budget { spend: 61, deadline: None },
+            notes: t::Scopes(7),
+            note_resources: Box::new([]),
+        },
+        numbers: t::Numbers { budget: 61, spent: 0, spent_below: 0, reserved: 0 },
+        funder: t::Funder::Task(17),
+        dependencies: Box::new([43]),
+        holdings: Box::new([]),
+        wake: super::wake(),
+        recurring: None,
+        tracked: Some(3),
+    }
+}
+
 pub fn failed_result() -> d::ResultDoc {
     d::ResultDoc {
         acts: List::with_capacity(0),

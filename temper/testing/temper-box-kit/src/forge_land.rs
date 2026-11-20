@@ -8,8 +8,10 @@ use skein_lib::Duration;
 use skein_world::{Referee, real};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
+mod failure;
 pub mod rung;
 mod survivors;
+pub use failure::{keep_box_data, run_failure_lines};
 
 /// forge-setup's first repository goes into project 1, the first made
 /// (temper/docs/design/client/ctl/areas.md): work/hello is project 1's.
@@ -896,8 +898,7 @@ pub fn assert_cached_binary_unchanged(cached: &std::path::Path, source: &std::pa
 
 /// Init's shipped charters on the process story's three roots. The model
 /// choice changes only ordinary provider and program configuration.
-#[must_use]
-pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::SocketAddr {
+pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
     initialize(paths);
     super::own_listener_files(&paths[0]);
     if let LiveModel::ClaudeCode { .. } = model {
@@ -916,15 +917,9 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
     if let LiveModel::AnthropicKey { .. } = model {
         configure_live_model(&paths[0], model, std::path::Path::new(""));
     }
-    let path = paths[0].join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
-    super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    value["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("owned listen")
-        .parse()
-        .expect("socket")
+    let mut value = super::limit_settings::configuration(&paths[0]);
+    value.jig_over("accounts.sign_in_deadline_ms", 600_000);
+    super::limit_settings::remember(&paths[0], &value);
 }
 
 /// Select the launcher's store and admit it before starting any process; a
@@ -1046,7 +1041,7 @@ pub fn printed_command(args: &[String]) -> Vec<String> {
 /// A unique marker for this live sitting, carried into its README and notice.
 #[must_use]
 pub fn live_tag() -> String {
-    let minute = std::process::Command::new("/usr/bin/date")
+    let minute = std::process::Command::new("/bin/date")
         .args(["-u", "+%Y-%m-%dT%H:%MZ"])
         .env_clear()
         .output()
@@ -1085,8 +1080,7 @@ pub fn reserve_live_store(path: &std::path::Path) -> Result<bool, String> {
         ("cache", true),
         ("data/deployment", true),
         ("data/forge-1/forgejo", true),
-        ("config/temper.json", false),
-        ("config/agent.json", false),
+        (&format!("config/{}", temper_config_shell::FILE), false),
         ("data/box/started/1", false),
         ("data/forge-1/forgejo/app.ini", false),
         ("data/forge-1/forgejo/forgejo.db", false),
@@ -1545,18 +1539,23 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
 /// Keep the live `OpenAI` provider and demo; the owner selects the model after startup.
 pub fn retain_live_model(path: &std::path::Path, name: &str) {
     assert_eq!(name, LiveModel::ChatGpt { account: None }.name());
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
+    let root = path.parent().expect("configuration directory");
+    let data = temper_agent_fixtures::data(root);
+    let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
     for table in ["providers", "endpoints"] {
-        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+        temper_agent_fixtures::providers::input(&mut value)[table]
+            .as_array_mut()
+            .expect("LLM table")
+            .retain(|row| row["name"] != "anthropic");
     }
-    super::write_private(path, &serde_json::to_vec(&value).expect("deployment JSON"));
+    temper_agent_fixtures::providers::keep(&mut value, &data);
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
     if let LiveModel::AnthropicKey { .. } = model {
-        let path = config.join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        let provider = value["engine"]["llm"]["providers"]
+        let data = temper_agent_fixtures::data(config);
+        let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
+        let provider = temper_agent_fixtures::providers::input(&mut value)["providers"]
             .as_array_mut()
             .expect("providers")
             .iter_mut()
@@ -1566,14 +1565,13 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
             .expect("provider");
         provider.remove("keep");
         provider.remove("drop");
-        super::write_private(&path, &serde_json::to_vec(&value).expect("key configuration"));
+        temper_agent_fixtures::providers::keep(&mut value, &data);
         return;
     }
     let LiveModel::ClaudeCode { login } = model else { return };
-    let path = config.join("temper.json");
-    let agent_path = config.join("agent.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
+    let data = temper_agent_fixtures::data(config);
+    let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
+    let mut agent = temper_agent_fixtures::read(config);
     let mut endpoint = agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
@@ -1588,7 +1586,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["program"] = "claude_code".into();
     endpoint["address"] = "api.anthropic.com:443".into();
     endpoint["server_name"] = "api.anthropic.com".into();
-    let mut route = value["engine"]["llm"]["endpoints"]
+    let mut route = temper_agent_fixtures::providers::input(&mut value)["endpoints"]
         .as_array()
         .expect("engine endpoints")
         .iter()
@@ -1604,7 +1602,8 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "sources":{"programs":["claude_code"]}
     });
     for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
-        let entries = value["engine"]["llm"][table].as_array_mut().expect("init LLM table");
+        let entries =
+            temper_agent_fixtures::providers::input(&mut value)[table].as_array_mut().expect("init LLM table");
         entries
             .retain(|entry| entry[field] != "openai" && entry[field] != "anthropic" && entry[field] != "anthropic-api");
         entries.insert(0, replacement);
@@ -1620,8 +1619,8 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     agent["programs"]["claude_code"] = serde_json::json!({
         "path":executable, "directory":login.parent().expect("held login parent")
     });
-    super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
+    temper_agent_fixtures::providers::keep(&mut value, &data);
+    temper_agent_fixtures::install(config, &agent);
 }
 
 /// A settings change a fresh sitting applies, and its `settings apply`'s key.
@@ -1676,7 +1675,6 @@ pub fn live_settings(
         charter_value["model"] = value["model"].clone();
         charter_value["alternatives"] = serde_json::json!([]);
         charter_value["rest"] = false.into();
-        charter_value["time"] = 240_000_000_000_u64.into();
         items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
     }
     changes.push(LiveChange { key: "live-settings", file: serde_json::json!({"items":items}) });
@@ -2051,24 +2049,23 @@ impl LiveJudge<'_> {
         Ok(())
     }
     fn setup(&mut self, now: skein_lib::Time, calls: &super::ctl::Calls) -> Result<(), String> {
+        let owned = super::first_repository::check_owned_forge(self.plan.client)?;
+        let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let address = if let Some(address) = self.address {
             address
         } else {
-            // first_repository::live's configuration socket read, without
-            // its started-record or transcript reads on a kept deployment.
-            let document: serde_json::Value = serde_json::from_slice(
-                &fs::read(self.plan.paths[0].join("temper.json")).map_err(|error| error.to_string())?,
+            let setup: serde_json::Value = serde_json::from_slice(
+                &fs::read(self.plan.paths[1].join(format!("forge-{number}/setup")))
+                    .map_err(|error| error.to_string())?,
             )
             .map_err(|error| error.to_string())?;
-            document["application"]["machine"]["owned"]["listen"]["socket"]
+            setup["listen"]["socket"]
                 .as_str()
                 .ok_or("forge address missing")?
                 .parse()
                 .map_err(|_| "forge socket invalid")?
         };
         self.address = Some(address);
-        let owned = super::first_repository::check_owned_forge(self.plan.client)?;
-        let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let token = oracle_token(self.plan.paths, self.plan.first, number)?;
         self.setup_project(calls, address, &token, u16::try_from(number).map_err(|_| "forge number invalid")?)?;
         self.token = Some(token);
@@ -2793,6 +2790,7 @@ pub fn run_live_counted(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
+    super::limit_settings::install_paths(plan.paths);
     plan.install_return_hook(&skein_scratch::paths::binary("temper-box"))?;
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(

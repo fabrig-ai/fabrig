@@ -12,10 +12,10 @@ pub mod record;
 pub mod state;
 mod summary;
 pub mod value;
-use crate::tasks_v13 as wire;
+use crate::tasks_v13::{self as wire, Record};
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
@@ -39,6 +39,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     verdict_fields: 0,
     approval_state: 0,
     choices_choices: 0,
+    change_contract_choices: 0,
     llm_choice_subagents: 0,
     llm_later_subagents: 0,
     authority_segment_bytes: 0,
@@ -197,6 +198,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         verdict_fields: rules,
         approval_state: domain.result_bytes,
         choices_choices: domain.contract_choices,
+        change_contract_choices: domain.contract_choices,
         llm_choice_subagents: domain::MODELS,
         llm_later_subagents: domain::MODELS,
         authority_segment_bytes: domain.authority_bytes,
@@ -279,7 +281,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         task_interests_delegates: domain.delegates,
         task_interests_result_followups: domain.batch,
         task_interests_references: domain.references,
-        task_interests_subscriptions: domain.subscriptions,
+        task_interests_subscriptions: domain.subscriptions.checked_add(1)?,
         task_interests_inbox: domain.inbox_messages.checked_add(2)?,
         task_interests_saved: domain.saved_resources,
     };
@@ -296,31 +298,25 @@ pub fn encode(
     let (models, moved) = models::encode(row, names, limits)?;
     let value = match row {
         domain::Stored::PlacedHold(row) => wire::Value::PlacedHold(placed::encode(row, limits)?),
-        domain::Stored::Ledger(row) => wire::Value::Ledger(value::funding(row, limits)?),
-        domain::Stored::ClosedLedger(row) => wire::Value::ClosedLedger(value::funding(row, limits)?),
+        domain::Stored::Ledger(row) => wire::Value::Ledger(value::funding(row, limits)),
+        domain::Stored::ClosedLedger(row) => wire::Value::ClosedLedger(value::funding(row, limits)),
         domain::Stored::Writer(domain::WriterSlot { number, resource, writer, lost }) => {
             let writer = match writer {
                 domain::Writer::Run { task, attempt } => {
-                    wire::Writer::Run(wire::Run::new(limits, wire::RunParts { task: *task, attempt: *attempt })?)
+                    wire::Writer::Run(wire::Run { task: *task, attempt: *attempt })
                 }
-                domain::Writer::Effect { entry } => {
-                    wire::Writer::Effect(wire::Effect::new(limits, wire::EffectParts { entry: *entry })?)
-                }
+                domain::Writer::Effect { entry } => wire::Writer::Effect(wire::Effect { entry: *entry }),
             };
-            wire::Value::Writer(wire::WriterSlot::new(
-                limits,
-                wire::WriterSlotParts {
-                    number: *number,
-                    resource: value::name(resource, limits)?,
-                    writer,
-                    lost: *lost,
-                },
-            )?)
+            wire::Value::Writer(wire::WriterSlot {
+                number: *number,
+                resource: value::name(resource, limits)?,
+                writer,
+                lost: *lost,
+            })
         }
-        domain::Stored::Pool(domain::PoolSlots { number, pool, slots }) => wire::Value::Pool(wire::PoolSlots::new(
-            limits,
-            wire::PoolSlotsParts { number: *number, pool: value::name(pool, limits)?, slots: *slots },
-        )?),
+        domain::Stored::Pool(domain::PoolSlots { number, pool, slots }) => {
+            wire::Value::Pool(wire::PoolSlots { number: *number, pool: value::name(pool, limits)?, slots: *slots })
+        }
         domain::Stored::History(row) => wire::Value::History(Box::new(proposals::history(row, limits, Some(&moved))?)),
         domain::Stored::Attempt(row) => wire::Value::Attempt(lifecycle::attempt(row, limits)?),
         domain::Stored::Hold(row) => wire::Value::Hold(lifecycle::hold(row, limits)?),
@@ -344,12 +340,10 @@ pub fn encode(
         domain::Stored::Ended(row) => wire::Value::EndedTalk(record::task_record(row, limits, Some(&moved))?),
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
         domain::Stored::Summary(row) => wire::Value::Summary(Box::new(summary::encode(row, limits)?)),
-        domain::Stored::Retention(row) => wire::Value::Retention(summary::retention(*row, limits)?),
+        domain::Stored::Retention(row) => wire::Value::Retention(summary::retention(*row, limits)),
     };
-    let row = wire::Row::new(limits, wire::RowParts { value, models })?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut writer).expect("measured room");
-    Ok(writer.finish())
+    let row = wire::Row { value, models };
+    row.encode(limits)
 }
 
 /// Decode one tasks row, refusing another version or trailing bytes.
@@ -358,12 +352,12 @@ pub fn decode(
     limits: &wire::Limits,
     names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<domain::Stored, wire::Problem> {
-    let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    let wire::Row { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?;
     let mut row = match value {
         wire::Value::Summary(row) => domain::Stored::Summary(Box::new(summary::decode(*row)?)),
         wire::Value::Retention(row) => domain::Stored::Retention(summary::read_retention(row)),
         wire::Value::LiveHot(_) | wire::Value::LiveCold(_) => {
-            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+            return Err(wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound });
         }
         wire::Value::EndedTalk(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),
@@ -388,13 +382,13 @@ pub fn decode(
         }
         wire::Value::ClosedLedger(value) => domain::Stored::ClosedLedger(value::read_funding(value)),
         wire::Value::Writer(value) => {
-            let wire::WriterSlotParts { number, resource, writer, lost } = value.into_parts();
+            let wire::WriterSlot { number, resource, writer, lost } = value;
             let writer = match writer {
                 wire::Writer::Run(value) => {
-                    let wire::RunParts { task, attempt } = value.into_parts();
+                    let wire::Run { task, attempt } = value;
                     domain::Writer::Run { task, attempt }
                 }
-                wire::Writer::Effect(value) => domain::Writer::Effect { entry: value.into_parts().entry },
+                wire::Writer::Effect(value) => domain::Writer::Effect { entry: value.entry },
             };
             domain::Stored::Writer(domain::WriterSlot {
                 number,
@@ -404,7 +398,7 @@ pub fn decode(
             })
         }
         wire::Value::Pool(value) => {
-            let wire::PoolSlotsParts { number, pool, slots } = value.into_parts();
+            let wire::PoolSlots { number, pool, slots } = value;
             domain::Stored::Pool(domain::PoolSlots { number, pool: value::read_name(pool, limits)?, slots })
         }
     };
@@ -419,7 +413,7 @@ pub fn decode_cold(
     limits: &wire::Limits,
     names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<domain::Stored, wire::Problem> {
-    let wire::RowParts { value: part, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    let wire::Row { value: part, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?;
     let cold = match part {
         wire::Value::LiveCold(cold) => cold,
         wire::Value::Summary(_)
@@ -445,10 +439,10 @@ pub fn decode_cold(
         | wire::Value::PlacedHold(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveHot(_) => {
-            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+            return Err(wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound });
         }
     };
-    let wire::LiveColdParts { spec, contract, authority, instructions } = cold.into_parts();
+    let wire::LiveCold { spec, contract, authority, instructions } = cold;
     let mut row = domain::Stored::LiveCold {
         number,
         spec: Box::new(value::read_spec(spec, limits)?),
@@ -466,8 +460,7 @@ pub fn decode_live(
     limits: &wire::Limits,
     names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<domain::Stored, wire::Problem> {
-    let wire::RowParts { value: part, models: hot_names } =
-        wire::Row::decode(limits, &mut Reader::new(hot))?.into_parts();
+    let wire::Row { value: part, models: hot_names } = wire::Row::decode(limits, &mut Reader::new(hot))?;
     let hot = match part {
         wire::Value::LiveHot(hot) => hot,
         wire::Value::Summary(_)
@@ -493,11 +486,10 @@ pub fn decode_live(
         | wire::Value::PlacedHold(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveCold(_) => {
-            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+            return Err(wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound });
         }
     };
-    let wire::RowParts { value: part, models: cold_names } =
-        wire::Row::decode(limits, &mut Reader::new(cold))?.into_parts();
+    let wire::Row { value: part, models: cold_names } = wire::Row::decode(limits, &mut Reader::new(cold))?;
     let cold = match part {
         wire::Value::LiveCold(cold) => cold,
         wire::Value::Summary(_)
@@ -523,7 +515,7 @@ pub fn decode_live(
         | wire::Value::PlacedHold(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveHot(_) => {
-            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+            return Err(wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound });
         }
     };
     let record = record::read_task_record(record::join(hot, cold, limits)?, limits)?;

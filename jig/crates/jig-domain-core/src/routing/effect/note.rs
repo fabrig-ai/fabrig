@@ -2,7 +2,7 @@
 //! (`domain/engine/README.md`, section 4.4; `domain/people/acts.md`, section 1).
 
 use crate::{
-    CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, Write,
+    CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, RoutedCall, Write,
     routing::{
         NoteBrief, NoteRoute, Work,
         party::dispatch::{Party, Routed},
@@ -15,7 +15,7 @@ use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, List, Queue, ReplyTo};
 
 pub(crate) fn route_notes(
     core: &mut Core,
@@ -84,16 +84,31 @@ pub(crate) fn tag_notes(
             notes::Request::Save { record } => {
                 match &record {
                     notes::Record::Entry(entry) => crate::routing::run::now::written(core, work, entry),
-                    notes::Record::Line(_) => {}
+                    notes::Record::Line(line) => crate::routing::view::part_marks::note(core, &line.scope),
                 }
                 out.push(Request::Write(Write::Save(Record::Notes(record))));
             }
-            notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
+            notes::Request::Erase { key } => {
+                if let notes::Key::Line { scope, .. } = &key {
+                    crate::routing::view::part_marks::note(core, scope);
+                }
+                out.push(Request::Write(Write::Erase(Key::Notes(key))));
+            }
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
             }
             notes::Request::Written { owner, name, revision, change } => match core.take_note(owner) {
-                Some(NoteRoute::Call { to, key }) => {
+                Some(NoteRoute::Call { to, key, records }) => {
+                    if !records.is_empty() {
+                        let token =
+                            core.fly_call(to.into_token(), RoutedCall::RecordNote { key, name, revision, change });
+                        work.push(Work::Event(Event::Tasks(tasks::Event::RecordWords {
+                            reply_to: ReplyTo::new(token),
+                            task: key.task,
+                            messages: records,
+                        })));
+                        continue;
+                    }
                     call_decision(
                         core,
                         &mut out,
@@ -106,6 +121,8 @@ pub(crate) fn tag_notes(
                             added: change.added,
                             removed: change.removed,
                             first: change.first,
+                            recorded: Box::new([]),
+                            unknown: Box::new([]),
                         },
                     );
                 }
@@ -128,7 +145,7 @@ pub(crate) fn tag_notes(
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Call { to, key }) => {
+                Some(NoteRoute::Call { to, key, .. }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteDeleted { name });
                 }
                 Some(
@@ -142,7 +159,7 @@ pub(crate) fn tag_notes(
                 None => {}
             },
             notes::Request::Recalled { owner, entries, more } => match core.take_note(owner) {
-                Some(NoteRoute::Call { to, key }) => {
+                Some(NoteRoute::Call { to, key, .. }) => {
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
                 }
@@ -171,7 +188,7 @@ pub(crate) fn tag_notes(
                 None => out.push(Request::Now(Box::new(Now::NotesIndexed { owner, lines, more }))),
             },
             notes::Request::Refused { owner, why } => match core.take_note(owner) {
-                Some(NoteRoute::Call { to, key }) => match why {
+                Some(NoteRoute::Call { to, key, .. }) => match why {
                     notes::Refusal::Busy => {
                         let _pending = core.pending_calls.remove(&key);
                         out.push(Request::Now(Box::new(Now::NoteBusy { to, key })));

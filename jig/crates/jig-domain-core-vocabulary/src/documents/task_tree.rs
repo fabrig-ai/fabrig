@@ -130,7 +130,7 @@ pub enum EscalationState {
     /// An identified holder may decide it.
     Waiting { holder: tasks::EscalationHolder, entry: u64, since: Wall },
     /// Decided to leave it held.
-    Rejected { by: u64, reason: Text },
+    Rejected { by: tasks::EscalationDecider, reason: Text },
 }
 
 /// A hold's reason, revision and prior lifecycle, with its escalation.
@@ -219,6 +219,21 @@ pub struct TaskSettings {
     pub newest: u32,
 }
 
+/// Maximum UTF-8 prefix of directing words in a task document
+/// (client/domain/contract/documents.md, 1).
+pub const UNREAD_HEAD_BYTES: u32 = 256;
+
+/// Directing words no run has recorded (client/domain/contract/documents.md, 1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct UnreadWords {
+    pub message: u64,
+    pub by: tasks::Party,
+    pub at: Wall,
+    pub seen: bool,
+    pub head: Text,
+    pub bytes: u32,
+}
+
 /// A task page's header, overview, funding, authority and current held decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Task {
@@ -266,6 +281,7 @@ pub struct Task {
     pub inputs: List<TaskLink>,
     pub dependencies: List<TaskLink>,
     pub dependency_facts: List<Dependency>,
+    pub unread: List<UnreadWords>,
     pub references: List<TaskLink>,
     pub subscriptions: List<tasks::Subscription>,
     pub wake: tasks::WakePolicy,
@@ -273,6 +289,8 @@ pub struct Task {
     pub result: Option<Ending>,
     pub budget: BudgetLine,
     pub authority: AuthorityLine,
+    /// Tasks left over the subtree's life, excluding itself (jig/docs/design/client/domain/contract/documents.md, 1).
+    pub tasks_left: u32,
     pub hold: Option<HoldPhaseLine>,
     pub proposals: List<ProposalRef>,
     /// At least one list omitted rows; individual text values state their cuts.

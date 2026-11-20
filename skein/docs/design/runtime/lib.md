@@ -130,11 +130,23 @@ clock saturates; at the end of it, equal uses still fall to the least key.
 
 `List::from_boxed` makes a list of owned items, its capacity their count,
 and `List::into_boxed` moves them into a box of exactly their number.
+`List::allocated(capacity)` allocates its storage once, at its capacity,
+and never grows: a decoder's list, whose count has passed its limit and
+what is left (`skein/docs/design/data/codec/README.md`, 4).
 `List::swap_remove` takes one item out, the last taking its place, and
 `List::iter_mut` hands each item to change in place.
 
 **`Queue::clear(&mut self)`** drops every item, keeping the capacity and
 the grown buffer: refilling to the previous length allocates nothing.
+
+**`raise(&mut self, capacity: u32)`** on `Queue`, `List`, `Map`, `Set`,
+`Lru`, `Slab` and `Deadlines` raises the container's capacity to `capacity` in place,
+allocating nothing: what it holds stays, storage still grows by the
+shared rule as it fills, and a slab's spent slots stay spent and its
+handles valid. A capacity below the current one is a bug, asserted, as
+a capacity never falls; an equal one changes nothing. It is how a
+limit's raise reaches a table already made (temper's
+`protocol/configuration/limit-settings.md`, 5).
 
 **`Stack::clear(&mut self)`** drops every item, keeping the capacity and
 the grown buffer: refilling to the previous depth allocates nothing.
@@ -309,8 +321,15 @@ if entry.key.as_ref() == name { Some(entry) } else { None }
   buffer.
   The byte search (`bytes::find`, `find_from`, `count`) runs in linear
   time and allocates nothing. `bytes::is_utf8` says whether bytes are UTF-8,
-  and `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
-  below a byte count: the one place skein and its users check text.
+  `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
+  below a byte count, and `bytes::utf8_replaced(bytes: &[u8]) -> Box<[u8]>`
+  makes any bytes text of the same length: each byte that is not part of
+  a UTF-8 character (`core::str::from_utf8`'s reading, a sequence cut
+  short included) becomes `?`, and UTF-8 comes back unchanged. These are
+  the one place skein and its users check text. Keeping the length keeps
+  every bound the bytes already met, so a step that must send bytes it
+  cannot vouch for as text (a repository's file, a job's log) sends them
+  so rather than being refused whole.
 - **`bytes::decimal(digits: &[u8]) -> Option<u64>`** reads `1*DIGIT` as a
   `u64`, or returns `None` for no digits, a byte other than an ASCII digit,
   or a number past `u64::MAX`; leading zeros are read as zeros.
@@ -341,6 +360,13 @@ if entry.key.as_ref() == name { Some(entry) } else { None }
   over in the ring's own buffer, and `clear` keeps the capacity.
 - **`Decimal`** holds the decimal digits of a count, for a step that
   writes a number as text without formatting: measure it, then put it.
+- **`bytes::ip_text(ip: IpAddr) -> Box<[u8]>`** writes an address as
+  text without formatting, byte for byte as core's `IpAddr` prints it:
+  an IPv4 address in dotted decimal, an IPv6 one in RFC 5952's text
+  (lowercase hex, the longest run of two or more zero groups, the first
+  of equals, as `::`, an IPv4-mapped one as `::ffff:a.b.c.d`). It
+  leaves a mapped address as given: the caller reads one as its IPv4
+  first where it means to.
 - **`Secret`** holds a secret's owned bytes: a credential, a token, a
   key. Its `Debug` shows its length only, never its bytes, so a record
   that holds one prints, logs and traces without it (../data/codec/README.md, section 3).
@@ -427,6 +453,30 @@ and keep no copy of their own.
   the bytes differ, for comparing a signature, a state or a token with
   the one expected. `skein-oauth`'s comparison of a returned state uses
   it and keeps no copy.
+
+### 6.3 SHA-1
+
+`lib::sha1` is SHA-1 (FIPS 180-4), for naming bytes as git names an
+object in a SHA-1 repository: a blob's id is SHA-1 over `blob `, the
+length in decimal, a NUL byte, then the bytes. It is never for a
+security purpose: SHA-1 is broken for collisions, and nothing checks a
+signature, a token or a state with it.
+
+- **Streaming, as SHA-256's.** `Sha1::new()`, then `update(&[u8])` with
+  each piece as it arrives, cut anywhere, then `finish(self) -> [u8; 20]`;
+  `sha1::digest(&[u8]) -> [u8; 20]` is the one-shot form. The digest is
+  its 20 bytes in the standard's order, as `sha1sum` and git print them in
+  hex.
+- **No heap, no copy.** The state is five words, one 64-byte block and
+  the count of bytes hashed; `update` compresses whole blocks from the
+  caller's slice and copies only the part of a block a piece leaves.
+- **`Clone`,** with a `Debug` that shows the count of bytes hashed, not
+  the state. The standard's bound, 2^64 − 1 bits, is asserted.
+- **No HMAC and no comparison** of its own: a step that needs either
+  takes SHA-256's (6.2).
+- **Its users.** temper's engine, naming a file of a pull request by its
+  blob id where the repository is SHA-1 (temper's
+  `domain/forge/change/repairs.md`, a resolution's pull section).
 
 ## 7. Streams
 
@@ -668,6 +718,36 @@ cannot manufacture independent room.
   since a copy would yield its bytes again: its owner lends it by `&mut`,
   and a component that keeps a generator of its own is made one, from the
   seed, on a stream of its own.
+- **`FixedStart`** is the instant and seed a process starts from when a
+  tool walks it on fixed time, so that two walks read the same times and
+  draw the same values: `pub struct FixedStart { pub wall: Wall, pub
+  seed: u64 }`. Its text is the wall's whole seconds since the epoch in
+  decimal, a comma and the seed in decimal, `1767690000,7`, with no sign,
+  space or other byte and no leading zero but in `0` itself;
+  `FixedStart::read(text: &[u8]) -> Option<FixedStart>` reads it, and
+  refuses a number past its type, the seconds past `Wall` once made
+  nanoseconds. `FixedStart::NOW: Time` is one hour, 3,600 seconds: the
+  monotonic reading every process on a fixed start starts at.
+  `draw(&self, stream: u64, out: &mut [u8])` fills `out` from a
+  `CryptoRng` keyed by the seed's eight little-endian bytes and 24 zero
+  bytes, on `stream`: what the process would have drawn from the kernel
+  at its start, a cryptographic seed or an identifier, one stream for
+  each. Its draws are known to anyone who knows the start, so nothing
+  that guards a real account starts from one.
+- **`FixedClock`** is the clock of a process on a fixed start, over the
+  host's monotonic readings, `native`, that its caller gives: it reads
+  the start's `NOW` and wall, and moves only to the deadlines it is asked
+  for, so that a process's time is its own timers'. `FixedClock::new(start:
+  &FixedStart, native: Time) -> FixedClock`; `until(&mut self, deadline:
+  Option<Time>, native: Time) -> Option<Time>` keeps the deadline asked
+  and gives the native instant to wait until for it: `native` plus the
+  deadline less the clock's reading, saturating, the instant given when
+  that deadline was first asked if it is asked again unchanged, and
+  `None` for none, which forgets it; `read(&mut self, native: Time) ->
+  (Time, Wall)` moves the clock to the deadline asked once `native` has
+  reached its instant, then gives the clock's reading and its wall, the
+  start's wall plus the span from `NOW`. It never moves back, and a
+  deadline at or before its reading leaves it where it is.
 
 ## 9. The environment
 
@@ -735,7 +815,7 @@ price depends on both. An input moved into a step is accounted for as
 out (an item taken, a delivery, a list moved into a box) is no longer
 the container's, and the meter takes it off.
 
-- **A slab, a queue, a list, a stack and an intake** grow as they fill;
+- **A slab, a queue, a list, a stack and an intake** grow as they fill (an allocated list excepted);
   capped queues and intakes grow exactly, never past their cap. The
   counting allocator checks each byte price against what is allocated,
   and scenarios hold measured peaks under named ceilings with headroom

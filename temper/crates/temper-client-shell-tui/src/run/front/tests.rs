@@ -7,7 +7,7 @@ const OUT: Token = Token::new(11);
 const ERR: Token = Token::new(12);
 const HANDED: Token = Token::new(13);
 const LINES: Token = Token::new(14);
-const URL: &[u8] = b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const URL: &[u8] = b"http://[::1]:9400/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 fn child() -> Child {
     Child::new(Front {
@@ -158,7 +158,7 @@ fn a_handed_link_waits_for_its_end_and_gives_the_engine_its_authority() {
         assert!(matches!(child.reports.pop(), Some(Report::Stage(BoxStage::Running))));
         let Some(Report::Link { engine, address, link }) = child.reports.pop() else { panic!("handed link") };
         assert_eq!(engine, io::Addr::Ip("[::1]:9400".parse().expect("link address")));
-        assert_eq!(address.as_ref(), b"[::1]:9400");
+        assert_eq!(address.authority().as_ref(), b"[::1]:9400");
         assert_eq!(link.expose(), url);
     }
 }

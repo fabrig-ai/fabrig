@@ -1,13 +1,19 @@
 //! A registry and job upgrade at the build's levels (temper/docs/design/draft/store-floor.md, 4.4).
 pub mod check;
-mod maps;
+pub(crate) mod maps;
 pub mod rehearsal;
 pub mod story;
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
 use std::{collections::BTreeSet, path::Path};
 
-/// A pending production job upgrades the second build without moving any owner's level.
+/// Pending production jobs upgrade the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
+pub(super) const JOBS: [&str; 6] =
+    ["escalation-deciders", "test-ids-landing", "test-ids-receipt", "test-ids-tier", "test-ids-verification", JOB];
+pub(super) fn job_owner(name: &str) -> Owner {
+    if name == "escalation-deciders" { Owner::Jig } else { Owner::Application }
+}
 pub(super) const CURRENT_SETS: OwnerSets = temper_engine_service::store::OWNER_SETS;
 
 thread_local! { static FIRST_SETS: OwnerSets = first_build(); }
@@ -23,18 +29,21 @@ fn first_build() -> OwnerSets {
                 .sets
                 .iter()
                 .map(|set| {
-                    if set.owner != Owner::Application {
-                        return *set;
-                    }
-                    jig_protocol_store::OwnerSet {
+                    let set = jig_protocol_store::OwnerSet {
                         jobs: Box::leak(
                             set.jobs
                                 .iter()
                                 .copied()
-                                .filter(|job| job.name != JOB)
+                                .filter(|job| !JOBS.contains(&job.name))
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
+                        ..*set
+                    };
+                    if set.owner != Owner::Application {
+                        return set;
+                    }
+                    jig_protocol_store::OwnerSet {
                         families: Box::leak(
                             set.families
                                 .iter()
@@ -58,7 +67,7 @@ fn first_build() -> OwnerSets {
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
-                        ..*set
+                        ..set
                     }
                 })
                 .collect::<Vec<_>>()
@@ -74,7 +83,6 @@ pub fn golden_ranges(directory: &Path) {
     let maps = maps::Maps::read(&mut disk);
     let reserved = [
         (keys::encode_own(&keys::Own::Format, 64).expect("format key"), "format"),
-        (keys::encode_own(&keys::Own::Layouts, 64).expect("layouts key"), "layouts"),
         (keys::encode_own(&keys::Own::Wires, 64).expect("wires key"), "wires"),
         (keys::encode_own(&keys::Own::Floor, 64).expect("floor key"), "floor"),
         (keys::installation(64).expect("installation key"), "installation"),
@@ -106,7 +114,9 @@ pub fn golden_ranges(directory: &Path) {
                 .then(|| reserved.iter().find(|(reserved, _)| reserved.as_ref() == key.as_slice()))
                 .flatten();
             let component = (map == KeptMap::Store).then(|| keys::decode_own(key)).flatten();
-            if map == KeptMap::Store && key.starts_with(&[0, 9]) {
+            if map == KeptMap::Store && key.as_slice() == [0, 3] {
+                assert!(families.is_empty(), "reserved unread key {key:02x?} in {families:?}");
+            } else if map == KeptMap::Store && key.starts_with(&[0, 9]) {
                 assert!(families.is_empty(), "reserved log extent {key:02x?} in {families:?}");
                 assert_eq!(key.len(), 10, "extent's log number");
                 let _: [u8; 8] = value.as_slice().try_into().expect("extent's length");
@@ -128,16 +138,13 @@ pub fn golden_ranges(directory: &Path) {
                     "format" => {
                         codec::component::Format::decode(value).expect("format at its own key");
                     }
-                    "layouts" => {
-                        codec::component::Layouts::decode(value).expect("layouts at their own key");
-                    }
                     "floor" => {
                         let floor = jig_protocol_store::component_v3::Floor::decode(
                             &jig_protocol_store::component_v3::CEILINGS,
                             &mut skein_lib::Reader::new(value),
                         )
                         .expect("floor at its own key");
-                        assert_eq!(floor.number(), 1);
+                        assert_eq!(floor.number, 1);
                     }
                     "wires" => {
                         jig_protocol_store::component_v3::Wires::decode(
@@ -209,7 +216,7 @@ fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
     }
 }
 
-/// Only the unused receipt layout is registered and retired; the pending job ends once.
+/// The unused receipt layout is replaced and the live change's no-test layout added; each pending job ends once.
 fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
@@ -237,22 +244,51 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     let (new_key, new) = layout(after);
     let schema = skein_codec::schema::parse(family.current.as_bytes()).expect("production text");
     let root = schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).expect("receipt root");
-    assert_eq!(*new.layout(), schema.layout(root, &[]).expect("receipt fingerprint").digest());
-    assert_ne!(old.layout(), new.layout(), "second build registers a new layout");
+    assert_eq!(new.layout, schema.layout(root, &[]).expect("receipt fingerprint").digest());
+    assert_ne!(old.layout, new.layout, "second build registers a new layout");
     assert!(!after.store.contains_key(&old_key), "unused earlier layout retired");
     assert!(!before.store.contains_key(&new_key), "production layout not yet registered");
-    let text_key = keys::encode_own(&keys::Own::Text(*new.text()), 1024).expect("text key");
+    let text_key = keys::encode_own(&keys::Own::Text(new.text), 1024).expect("text key");
     let text =
         wire::Text::decode(&wire::CEILINGS, &mut Reader::new(after.store.get(text_key.as_ref()).expect("new text")))
             .expect("registry text");
-    assert_eq!(text.text(), family.current.as_bytes());
+    assert_eq!(text.text.as_ref(), family.current.as_bytes());
     assert!(!before.store.contains_key(text_key.as_ref()), "second build brings production text");
-    let job_key =
-        keys::encode_own(&keys::Own::Job { owner: Owner::Application, name: JOB.into() }, 1024).expect("job key");
-    assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves the job pending");
-    let job =
-        wire::Job::decode(&wire::CEILINGS, &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")))
-            .expect("done job");
-    assert!(job.ended() > 0, "job end committed");
-    BTreeSet::from([old_key, new_key, text_key.into_vec(), job_key.into_vec()])
+    let mut changed = BTreeSet::from([old_key, new_key, text_key.into_vec()]);
+    let hot = family.types.iter().find(|ty| ty.variant == Some("change_hot")).expect("change hot type");
+    let root = schema.root(hot.root.as_bytes(), hot.variant.map(str::as_bytes)).expect("change hot root");
+    let digest = schema.layout(root, &[]).expect("change hot fingerprint").digest();
+    let already = before.store.iter().any(|(key, value)| {
+        matches!(keys::decode_own(key), Some(keys::Own::Layout { family: ref name, number, .. })
+            if name.as_ref() == family.name && number == hot.number)
+            && wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("old change hot layout").layout
+                == digest
+    });
+    let mut added = 0;
+    for (key, value) in &after.store {
+        if matches!(keys::decode_own(key), Some(keys::Own::Layout { family: ref name, number, .. })
+            if name.as_ref() == family.name && number == hot.number)
+            && !before.store.contains_key(key)
+        {
+            let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("change hot layout");
+            assert_eq!(layout.layout, digest);
+            assert_eq!(layout.text, new.text, "both new layouts name the production text");
+            changed.insert(key.clone());
+            added += 1;
+        }
+    }
+    assert_eq!(added, u32::from(!already), "add the no-test layout only where it is not already registered");
+    for name in JOBS {
+        let job_key =
+            keys::encode_own(&keys::Own::Job { owner: job_owner(name), name: name.into() }, 1024).expect("job key");
+        assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves {name} pending");
+        let job = wire::Job::decode(
+            &wire::CEILINGS,
+            &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")),
+        )
+        .expect("done job");
+        assert!(job.ended > 0, "job end committed");
+        changed.insert(job_key.into_vec());
+    }
+    changed
 }

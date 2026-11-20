@@ -137,10 +137,10 @@ impl Throwaway {
     fn start_bare_with_webhooks(scratch: &Scratch, webhooks: Option<SocketAddr>) -> Self {
         let address = owned::tier_configuration(scratch.path());
         if let Some(webhooks) = webhooks {
-            let path = scratch.path().join("temper.json");
-            let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-            config["application"]["webhooks"]["listener"]["socket"] = webhooks.to_string().into();
-            write_private(&path, &serde_json::to_vec(&config).expect("webhooks configuration"));
+            let path = scratch.path().join(temper_config_shell::FILE);
+            let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+            file.webhooks = Some(webhooks);
+            super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
         }
         let running = owned::start(scratch.path());
         let pid = running.id();
@@ -151,12 +151,9 @@ impl Throwaway {
         let mut runner = owned::run(scratch.path(), "runner");
         runner.declared();
         stage("runner", began);
-        let config: Value =
-            serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration"))
-                .expect("JSON");
-        let webhooks = config["application"]["webhooks"]["listener"]["socket"]
-            .as_str()
-            .map(|address| address.parse().expect("webhooks address"));
+        let webhooks =
+            super::read_file(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+                .webhooks;
         Self {
             instance,
             pid,
@@ -353,15 +350,21 @@ pub fn seed(directory: &Path, instance: &mut Instance) {
 /// temper/docs/design/protocol/forge/engine.md, 1; jig's start owns the initial store mark.
 pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     use skein_world::end_to_end::{Binary, Command, Mode};
-    let path = config.join("temper.json");
+    let path = config.join(temper_config_shell::FILE);
     let original = fs::read(&path).expect("bootstrap configuration");
-    let mut document: Value = serde_json::from_slice(&original).expect("bootstrap JSON");
-    // A delivery story keeps this listener bound in the enclosing test.
-    document["application"]["webhooks"] = Value::Null;
-    write_private(&path, &serde_json::to_vec(&document).expect("bootstrap JSON"));
+    let (shape, binary) = if super::read_file_shape(&path) == temper_config_shell::Shape::EngineAlone {
+        (temper_config_shell::Shape::EngineAlone, "temper-engine")
+    } else {
+        (temper_config_shell::Shape::Standalone, "temper-box")
+    };
+    let mut file = super::read_file(&path, shape);
+    // A delivery story keeps its listener bound in the enclosing test.
+    file.webhooks = Some("127.0.0.1:0".parse().expect("bootstrap webhooks"));
+    super::write_file(&path, &file, shape);
+    super::limit_settings::install_paths(&[config.into(), data.into(), cache.into()]);
     let binary = Binary::start(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::binary("temper-box").with_file_name(binary),
             arguments: vec![
                 "serve".into(),
                 "--config".into(),
@@ -388,42 +391,38 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     );
 }
 
-pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
+pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_playground::documents::Configuration) {
     let Forge::Throwaway { api, forgejo, .. } = forge else { return };
     let mut owned = owned::Owned::beside(*api);
     owned.forgejo_binary = forgejo.into();
     owned::producer_landing_settings(directory, 2);
-    let path = directory.join("temper.json");
-    if let Ok(bytes) = fs::read(&path) {
-        let previous: Value = serde_json::from_slice(&bytes).expect("previous configuration");
-        for (name, listener) in [("clients", &mut owned.clients), ("webhooks", &mut owned.webhooks)] {
-            if let Some(address) = previous["application"][name]["listener"]["socket"].as_str() {
-                *listener = address.parse().expect("listener address");
-            }
+    let path = directory.join(temper_config_shell::FILE);
+    if path.exists() {
+        let previous = super::read_file(&path, temper_config_shell::Shape::Standalone);
+        if let Some(address) = previous.listen {
+            owned.clients = address;
+        }
+        if let Some(address) = previous.webhooks {
+            owned.webhooks = address;
         }
     }
-    let limits = value["application"]["limits"].take();
     value["application"] = owned::application(&owned);
-    value["application"]["limits"] = limits;
-    value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
-    let path = directory.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(&fs::read(&path).expect("agent configuration")).expect("agent JSON");
+    value.temper_over("root.brief.gather_ms", BRIEF_GATHER_MS);
+    let mut agent =
+        serde_json::from_slice(&super::configuration::documents(directory, "/fixture/temper").0).expect("agent JSON");
     temper_real_loop_world::settings::stage_policies(value);
     landing::configure(value, &mut agent, *api);
     value.as_object_mut().expect("deployment").remove("world_settings");
-    for seed in value["engine"]["projects"].as_array_mut().expect("seeds") {
-        seed["policy"] = 1.into();
-    }
     super::configuration::use_stock(value);
     // Nine slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
+    value.jig_over("tasks.charters", 16);
+    value.jig_over("core.templates", 7);
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
-    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
+    value.jig_over("tasks.authority_grants", 16);
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
+    value.jig_over("documents.lines", 12);
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(value, directory, &agent);
 }
 
 #[must_use]
@@ -452,7 +451,13 @@ pub(super) fn native_scripts(
         panic!("delegate call")
     };
     let mut delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
-    delegate["batch"][0]["authority"]["budget"]["spend"] = json!(100_000);
+    let models = temper_service::stock::models(&jig_protocol_config::Llm {
+        providers: Box::new([]),
+        endpoints: Box::new([]),
+        models: Box::new([]),
+    });
+    let stock = temper_service::stock::with_models(models, 10_660);
+    delegate["batch"][0]["authority"]["budget"]["spend"] = json!(stock.rules.maximum_run_spend * 2);
     *arguments = serde_json::to_vec(&delegate).expect("funded delegate JSON").into_boxed_slice();
     let mut initial = super::chat_script(answer);
     initial.cue = b"Hello".as_slice().into();
@@ -484,7 +489,9 @@ pub mod tests {
         assert_eq!(name.as_ref(), b"delegate");
         let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
         let (_, deployment) = super::super::configuration::documents(scratch.path(), "/fixture/temper");
-        let deployment = serde_json::from_slice(&deployment).expect("deployment JSON");
+        let deployment = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&deployment).expect("deployment JSON"),
+        );
         let engine = temper_real_loop_world::settings::configuration(&deployment);
         let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         let spend = delegate["batch"][0]["authority"]["budget"]["spend"].as_u64().expect("change spend");

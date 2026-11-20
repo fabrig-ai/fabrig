@@ -61,7 +61,14 @@
     amendment's, so that a client says the bound before it sends; and the retention of the
     engine's answers (`requests.md`, 1). It carries no version: the stream's hello does
     (`README.md`, section 6);
-  - *a task:* its header, overview, budget and authority; its fields
+  - *a task:* its header, overview, budget and authority; what its
+    delegation's tasks have left, `tasks_left: u32`: its authority's
+    tasks less the tasks its subtree has made over its life, itself not
+    counted, never below zero, the number a delegate's tasks and one more
+    must fit at admission (`../../../domain/authority.md`, 5 and 8.1), as
+    its budget's `left` is what its spend has left, so that a client
+    narrows a delegate it makes beneath the task, a party's `Delegate`
+    (`requests.md`, 2), to what fits; its fields
     (`requests.md`, 2): tracked and priority, label, flags, when it was made
     (`made`, its record's `created_at`), last activity, and what it
     waits on; the LLM choice its next run takes, what it was given or, given
@@ -75,7 +82,10 @@
     optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
-    (unknown stays unknown), or a credential or host wait. `Task.run_wait`
+    (unknown stays unknown), or, `Untooled { worker }`, for a source whose
+    program started without its tools on that worker, the worker's setting
+    number, every other place for it taken or none
+    (`../../../domain/engine/fleet.md`), or a credential or host wait. `Task.run_wait`
     also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why,
     figures }`, the fleet's latest observed allowed-kind refusal,
     suppressed by any admitted connected non-draining allowed-kind host;
@@ -97,13 +107,26 @@
     `HelloRefusal` vocabulary; the canonical deployment translation keeps
     the shortfall context limits. These are derived document facts, never
     a new hold or stored state. A task line carries no run wait. Its hold
-    and its escalation if held; its dependencies, each a task's number
+    and its escalation if held, one left held naming who left it so by
+    number alone, a task's or a person's (whether it shows the kind is
+    `../../../domain/tasks/proposals.md`'s open question); its
+    dependencies, each a task's number
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
     (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who
     concluded it and when, `concluded: Option<Concluded>`, none while
     delegates may join (`../../../domain/tasks/gatherings.md`, section
-    3); the proposals waiting in its subtree; how
+    3); the proposals waiting in its subtree; its unread words,
+    `unread: List<UnreadWords>`, oldest first, at most
+    `tasks.inbox_messages`: each words message from a person, or from
+    its requester where that is a task, that no run has recorded, still
+    in its inbox (`seen: false`) or kept unrecorded past a run's read
+    (`seen: true`, `../../../domain/tasks/messages.md`, 2), as
+    `UnreadWords { message: u64, by: Requester, at: Wall, seen: bool,
+    head: Text, bytes: u32 }`, `head` its words cut at a character's
+    edge to `UNREAD_HEAD_BYTES`, 256, and `bytes` their whole length, so
+    that a party sees what waits to be recorded without the document
+    carrying every message whole (its activity holds them whole); how
     far its activity has committed; for an agent task, `Task.settings:
     Option<TaskSettings>`, `TaskSettings { task: u32, run: Option<u32>,
     newest: u32 }`: the settings revision it records, its live run's
@@ -161,7 +184,18 @@
     2). A retained task-origin proposal keeps its original reason, at the
     live reason's bound, and its decision state; one of settings also keeps
     its items and `projects`, so a client can draw it after a reload while
-    its record is retained;
+    its record is retained. Every proposal the domain makes has its form
+    here, whoever made it and whatever its action: a party's pending
+    amendment is whole as a task's is, its target and the amendment's
+    state before and after (`ProposalActionAmend`), read, listed and decided
+    alike by its maker and by whoever may decide it. A party's retained
+    proposal is its `PersonProposal` with its decision record while it is
+    a batch of one goal, accepted or rejected; any other, an amendment in
+    any state, a withdrawn one or a batch of more goals, is a retained
+    proposal (`ProposalHistory`) under the party's key, as a party's
+    proposal of settings is, its proposer the party's number, its action
+    and state a task-origin one's. Neither form moves the client wire's
+    version;
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a line of a change
     to a proposal of the task's names that proposal's number and says whether
@@ -180,6 +214,9 @@
     period, with the current period and when it began
     (`../../../domain/authority.md`, section 7);
   - *the deployment:* hosts, each with its program sources' logins;
+    the workers' settings, withdrawn ones included, each linked or not
+    and since when (`worker_settings`,
+    `../../../domain/engine/workers.md`, 6);
     the deployment's LLM accounts, as the party's own are (below), with
     the runs using each and the tasks waiting on each; capacity; the
     store's fill against its mark, and its census (`census`), the last
@@ -366,10 +403,13 @@ usable and settled fields beside the rows.
     deployment's rules;
   - *amending,* in a task's document: within, the whole authority the
     party may give alone (their role's, its budget no more than their
-    pool has left, its tasks no more than the task has left), the budget
-    they may add to the task, and the grants they hold, listed; and,
-    past that, the policy's ceiling, its budget no more than their pool
-    has left;
+    role's spend nor than what they can fund: their pool's left, plus
+    the task's budget where their pool funds it already, or plus what
+    the task has spent where it doesn't, `../../../domain/authority.md`,
+    8.4; its tasks no more than the task has left), the budget they may
+    add to the task (that budget less the task's), and the grants they
+    hold, listed; and, past that, the policy's ceiling, its budget not
+    bounded by their pool, since a proposal's accepter funds it;
   - *beyond the first bound:* proposable, to the roles the project's
     policy names for that kind of proposal, in their order; or, where it
     names none, refused as lacking authority, saying that no proposal

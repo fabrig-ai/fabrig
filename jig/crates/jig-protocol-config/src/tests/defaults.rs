@@ -5,7 +5,7 @@ use skein_lib::bytes;
 
 pub(super) fn parse(bytes: &[u8], mode: Defaults) -> Result<Engine, crate::Problems> {
     let document = crate::document(bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
-    crate::engine(&document, 0, &crate::Directories::working(), mode)
+    crate::engine(&document, 0, &crate::Directories::working(), mode, &crate::Fixed::NONE)
 }
 pub(super) fn without_defaults(bytes: &[u8]) -> Box<[u8]> {
     let mut document = Box::from(bytes);
@@ -220,13 +220,8 @@ fn a_resolved_charter_of_64_models_fits_run_bytes() {
     charter.policy.model = models[0].clone();
     charter.policy.alternatives = models[1..].into();
     let bytes = jig_domain_core_vocabulary::policy_owned_bytes(&charter.policy).unwrap();
-    let standard = crate::profile(crate::Profile::Standard);
+    let standard = crate::stock();
     assert_eq!(standard.core.settings.alternatives, 63);
-    assert_eq!(crate::profile(crate::Profile::Small).core.settings.alternatives, 63);
-    assert_eq!(jig_client_protocol_wire::v26::CEILINGS.charter_alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::CEILINGS.charter_alternatives, 63);
     assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
-    assert!(
-        bytes > u64::from(crate::profile(crate::Profile::Small).core.run_bytes),
-        "small leaves models out when its byte bound is reached"
-    );
 }

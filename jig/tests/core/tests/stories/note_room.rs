@@ -10,7 +10,7 @@ fn a_documents_whole_body_reads_back() {
     const BODY_BYTES: usize = 65_536;
     // A box's generic document text can be smaller than a note body.
     const BOX_TEXT_BYTES: u32 = 128;
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
+    let standard = jig_protocol_config::stock().core;
     let body = vec![b'x'; BODY_BYTES];
     let description = vec![b't'; standard.notes.description_bytes.try_into().expect("description size")];
     // Standard and a box's smaller generic text bound both carry the note whole.
@@ -37,6 +37,7 @@ fn a_documents_whole_body_reads_back() {
                     author: notes::Author::Task { task: key.task, attempt: key.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         );
         let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2
@@ -70,7 +71,7 @@ fn a_documents_whole_body_reads_back() {
 #[test]
 fn a_note_built_in_parts_is_recalled_and_read_whole() {
     const PART_BYTES: usize = 8192;
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
+    let standard = jig_protocol_config::stock().core;
     let mut setup = note_setup(130);
     setup.limits.core.call_records = 4;
     setup.limits.core.notes.body_bytes = standard.notes.body_bytes;
@@ -92,12 +93,13 @@ fn a_note_built_in_parts_is_recalled_and_read_whole() {
             author: notes::Author::Task { task: 0, attempt: 0 },
         };
         let call = if revision == 1 {
-            core::NamedAction::Note { entry, recalled: None }
+            core::NamedAction::Note { entry, recalled: None, records: Box::new([]) }
         } else {
             core::NamedAction::NoteLines {
                 entry,
                 recalled: revision - 1,
                 range: notes::LineRange { first: revision, remove: 0, join: false },
+                records: Box::new([]),
             }
         };
         action(&mut world, revision, call);

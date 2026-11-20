@@ -5,6 +5,84 @@ use skein_lib::{Env, Queue};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 
+#[test]
+fn a_release_room_ask_takes_a_fresh_number_unless_cleanup_is_held() {
+    use crate::{Work, route::forge_route::tasks};
+    for held in [false, true] {
+        let (mut domain, env, context) = change_start_fixture();
+        let task = context.task;
+        let mut record = domain.core.tasks.task(task).unwrap().clone();
+        let closing = tasks::Closing {
+            stage: tasks::Stage::Releases,
+            ending: tasks::Ending::Failed { reason: b"failed".as_slice().into() },
+        };
+        record.phase = if held {
+            tasks::Phase::Held { was: tasks::Was::Closing(closing), why: tasks::Hold::EffectFailed, source: None }
+        } else {
+            tasks::Phase::Closing(closing)
+        };
+        domain.core.tasks =
+            crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
+            &mut Queue::uncapped(),
+        );
+        let mut out = Queue::uncapped();
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore {
+                record: forge::Stored::Release(forge::ReleaseRow {
+                    task,
+                    root: task,
+                    ending: forge::ReleaseEnding::Failed,
+                    close_pull: None,
+                    comment: None,
+                    pending: None,
+                    failed: false,
+                    effects_settled: true,
+                    releasing: true,
+                    room: Some(1),
+                }),
+            },
+            &mut out,
+        );
+        for event in [
+            forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+            forge::Event::ReadAfresh,
+            forge::Event::SettleOutbox,
+        ] {
+            forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
+        }
+        assert!(domain.forge.room_asked(task));
+        let mut asked = false;
+        while let Some(request) = out.pop() {
+            if request == (forge::Request::ContinueRelease { task }) {
+                asked = true;
+            }
+        }
+        assert!(asked);
+        out.push(forge::Request::ContinueRelease { task });
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        super::super::outputs(&mut domain, &env, &mut decision, &mut out);
+        if held {
+            let Some(Work::Forge(forge::Event::RoomUnavailable { task: owner })) = domain.work.pop() else {
+                panic!("a held cleanup returns its room without taking an entry number");
+            };
+            assert_eq!(owner, task);
+        } else {
+            let Some(Work::Forge(forge::Event::ContinueRelease { task: owner, entry })) = domain.work.pop() else {
+                panic!("an unheld closing task receives its fresh cleanup turn");
+            };
+            assert_eq!(owner, task);
+            assert!(entry > 0);
+        }
+        assert!(domain.work.is_empty());
+    }
+}
+
 const FIRST: u64 = 100;
 const KEPT: u32 = 128;
 
@@ -153,6 +231,7 @@ fn unname_keeps_live_or_releasing_changes_and_only_names_an_absent_change() {
                 &env.with(env.limits.forge),
                 forge::Event::Restore {
                     record: forge::Stored::Release(forge::ReleaseRow {
+                        room: None,
                         task: 7,
                         root: 7,
                         ending: forge::ReleaseEnding::Done,
@@ -288,18 +367,20 @@ fn failed_registration_queues_only_the_named_refusal_without_a_hold_or_step() {
     let Some(crate::Work::ForgeSettings(mut out)) = domain.work.pop() else {
         panic!("registration is answered before any hold or step is queued")
     };
+    let Some(forge::Request::ResourceRefused { task, operation, resource: Some(resource), cause }) = out.pop() else {
+        panic!("named registration refusal")
+    };
+    assert_eq!(task, context.task);
+    assert_eq!(operation, b"register change");
+    assert_eq!((resource.forge, resource.repository), (1, 1));
+    let forge::What::Branch(_) = resource.what else { panic!("refused branch is named") };
     assert_eq!(
-        out.pop(),
-        Some(forge::Request::ResourceRefused {
-            task: context.task,
-            operation: b"register change",
-            resource: Some(forge::Name { forge: 1, repository: 1, what: forge::What::Repository }),
-            cause: forge::RefusalCause::Limit {
-                member: "forge.changes",
-                configured: u64::from(KEPT),
-                needed: u64::from(KEPT) + 1,
-            },
-        })
+        cause,
+        forge::RefusalCause::Limit {
+            member: "forge.changes",
+            configured: u64::from(KEPT),
+            needed: u64::from(KEPT) + 1
+        }
     );
     assert!(out.is_empty());
     assert!(domain.work.is_empty(), "a refused registration queues no names, hold or step");
@@ -326,7 +407,7 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
         panic!("the new change is held")
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("forge hold words") };
-    assert!(skein_lib::bytes::find(words, b"forge.changes = 128; required usage 129; reduce the named work or raise this limit in the deployment configuration, restart, then release").is_some(), "{words:?}");
+    assert!(skein_lib::bytes::find(words, b"forge.changes is 128, and this needs 129: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.").is_some(), "{words:?}");
     let mut row = domain.forge.change(FIRST).unwrap().clone();
     row.goal = Some(999);
     forge::step(

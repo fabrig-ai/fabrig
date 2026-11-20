@@ -8,6 +8,7 @@ use temper_client_domain::{
     forge::dismissed::{self, PersonFact},
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{
     app::{Root, Temper},
@@ -69,7 +70,10 @@ impl Story {
             Temper::step(
                 &mut probe.root,
                 &story.env,
-                Event::Went { place: temper_client_domain::Place::Missing }.into(),
+                Event::Went {
+                    place: temper_client_domain::Place::Public(temper_client_domain::address::Public::Projects),
+                }
+                .into(),
                 &mut probe.out,
             );
             for handle in
@@ -194,7 +198,7 @@ impl Story {
         };
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
         let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).expect("forge answer");
-        assert_eq!(answer.outcome(), &w::Outcome::Dismissed);
+        assert_eq!(&answer.outcome, &w::Outcome::Dismissed);
         let key = self.probes[who.0].sent.expect("sent dismissal");
         assert!(self.probes[who.0].root.person().client().pending(key).is_none(), "answer retires the pending");
     }
@@ -264,11 +268,11 @@ fn a_second_dismissal_is_answered_as_the_first() {
             panic!("second device's facts delivered")
         };
         let document = wire::decode_dismissals(&record.bytes, &w::CEILINGS).expect("dismissal document");
-        assert_eq!(document.dismissed().len(), 2);
-        let facts = document.dismissed().iter().collect::<Vec<_>>();
+        assert_eq!(document.dismissed.len(), 2);
+        let facts = document.dismissed.iter().collect::<Vec<_>>();
         let w::PersonFact::KeepAsking(value) = facts[1] else { panic!("keep asking fact") };
         assert_eq!(
-            (value.project(), value.subject(), value.at()),
+            (value.project, &value.subject, value.at),
             (
                 PROJECT,
                 &temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
@@ -282,28 +286,14 @@ fn a_second_dismissal_is_answered_as_the_first() {
 }
 
 fn keep_asking_request(at: u64) -> jig_client::Ask {
-    let what = w::PersonFact::KeepAsking(
-        w::KeepAsking::new(
-            &w::CEILINGS,
-            w::KeepAskingParts {
-                project: PROJECT,
-                subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
-                    temper_protocol_reaches::Kind::Tests,
-                )),
-                at,
-            },
-        )
-        .expect("fixture fits wire bounds"),
-    );
-    let record = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::Dismiss(
-                w::Dismiss::new(&w::CEILINGS, w::DismissParts { what }).expect("fixture fits wire bounds"),
-            ),
-        },
-    )
-    .expect("fixture fits wire bounds");
+    let what = w::PersonFact::KeepAsking(w::KeepAsking {
+        project: PROJECT,
+        subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
+            temper_protocol_reaches::Kind::Tests,
+        )),
+        at,
+    });
+    let record = w::Requesting { request: w::Request::Dismiss(w::Dismiss { what }) };
     jig_client::Ask::Family {
         scope: c::Scope::Project(PROJECT),
         record: jig_client::Family {

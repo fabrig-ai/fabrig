@@ -71,13 +71,14 @@ pub struct Component {
     processes: Map<Token, Process>,
     routes: Map<Token, Token>,
     environment: crate::Environment,
+    rg: Box<[u8]>,
     closing: bool,
 }
 
 impl Component {
-    /// Construct with fixed capacity before any request is admitted.
+    /// Construct with fixed capacity and the startup-resolved rg executable before admitting requests.
     #[must_use]
-    pub fn new(limits: &Limits, environment: crate::Environment) -> Component {
+    pub fn new(limits: &Limits, environment: crate::Environment, rg: Box<[u8]>) -> Component {
         assert!(environment.fits(limits), "configured environment fits its machine byte cap");
         Component {
             roots: List::with_capacity(limits.roots),
@@ -86,6 +87,7 @@ impl Component {
             processes: Map::with_capacity(limits.processes),
             routes: Map::with_capacity(limits.processes.checked_mul(2).expect("pipe route count fits")),
             environment,
+            rg,
             closing: false,
         }
     }
@@ -176,8 +178,9 @@ impl Component {
                     to_domain.push(ToDomain::Probed { owner, executable: false });
                 }
             }
-            FromDomain::Check { owner, program, deadline, tail } => {
+            FromDomain::Check { owner, program, bound, cap, tail } => {
                 self.vacant(owner);
+                let deadline = env.now.saturating_add(bound).min(cap);
                 if env.now >= deadline {
                     to_domain.push(ToDomain::Checked {
                         owner,
@@ -187,12 +190,19 @@ impl Component {
                 }
                 let admissible = crate::files::check(&self.roots, &env.limits, program.root, &program.path, false);
                 match admissible {
-                    Ok(()) => {
-                        match crate::process::check(owner, program, &self.environment, tail, deadline, &env.limits) {
-                            Some((process, request)) => self.start_process(owner, process, request, below, to_domain),
-                            None => failed_check(owner, to_domain),
-                        }
-                    }
+                    Ok(()) => match crate::process::check(
+                        env.now,
+                        owner,
+                        program,
+                        &self.environment,
+                        tail,
+                        bound,
+                        cap,
+                        &env.limits,
+                    ) {
+                        Some((process, request)) => self.start_process(owner, process, request, below, to_domain),
+                        None => failed_check(owner, to_domain),
+                    },
                     Err(_) => failed_check(owner, to_domain),
                 }
             }
@@ -269,6 +279,7 @@ impl Component {
                         max_bytes,
                         deadline,
                         &self.environment,
+                        &self.rg,
                         &env.limits,
                     ),
                     to_domain,
@@ -315,6 +326,7 @@ impl Component {
                         bytes,
                         deadline,
                         &self.environment,
+                        &self.rg,
                         &env.limits,
                     ),
                     to_domain,
@@ -465,7 +477,7 @@ impl Component {
         let owner = *self.routes.get(&pipe).expect("pipe event has a live route");
         let process = self.processes.get_mut(&owner).expect("pipe route has admitted process");
         match event {
-            io::Event::Stream { up, .. } => crate::process::stream(process, pipe, up, below),
+            io::Event::Stream { up, .. } => crate::process::stream(process, now, pipe, up, below),
             io::Event::Closed { .. } => {
                 process.pipe_closed(pipe);
                 self.routes.remove(&pipe).expect("closed pipe has a live route");

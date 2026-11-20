@@ -133,6 +133,7 @@ impl Worker {
                 self.io.push(io::Request::Spawn {
                     owner: token,
                     spawn: io::kernel::Spawn {
+                        reach: None,
                         program: joined(&[&self.path, b"/", &program]),
                         args: arguments.into_boxed(),
                         env: environment.into_boxed(),
@@ -372,6 +373,7 @@ impl Process {
                     io::Error::TimedOut => b"TimedOut",
                     io::Error::Reset => b"Reset",
                     io::Error::Busy => b"Busy",
+                    io::Error::Reach(_) => b"Reach",
                     io::Error::Other => b"Other",
                 });
                 if self.exit.is_none() {

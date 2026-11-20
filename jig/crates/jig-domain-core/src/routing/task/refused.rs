@@ -61,6 +61,7 @@ pub(crate) fn refused(
     out: &mut Queue<Request>,
 ) {
     let token = reply_to.into_token();
+    core.tasks.unpin_reports(token);
     if let Some(flight) = core.land_task(token) {
         refuse_flight(core, env, token, flight, problem, pending, out);
         return;
@@ -130,9 +131,12 @@ fn refuse_flight(
         Flight::Internal(Internal::Deletion { project }) => {
             crate::admission::deletion::compound_done(core, project);
         }
-        Flight::Internal(Internal::Repair) => {
+        Flight::Internal(Internal::Repair { number }) => {
             for &connector in core.connectors.as_ref() {
-                out.push(Request::Ask { connector, ask: Ask::RepairRefused { repair: problem.task } });
+                out.push(Request::Ask {
+                    connector,
+                    ask: Ask::RepairRefused { repair: problem.task, number, why: problem.why },
+                });
             }
         }
         Flight::Internal(Internal::Delegate | Internal::Acknowledge) => {
@@ -185,7 +189,10 @@ fn call_refused(
         });
     }
     let (key, part) = match route {
-        RoutedCall::Message(key) | RoutedCall::Introduce(key) => (key, CallPart::MessageRefused(problem)),
+        RoutedCall::Message(key)
+        | RoutedCall::Introduce(key)
+        | RoutedCall::MarkRead(key)
+        | RoutedCall::RecordNote { key, .. } => (key, CallPart::MessageRefused(problem)),
         RoutedCall::Control { key, target, .. } => {
             let part = if let tasks::Refusal::HoldOwner { hold } = problem.why {
                 let row = core.tasks.placed_hold(hold).expect("owner refusal names retained hold");

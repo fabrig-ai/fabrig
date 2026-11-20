@@ -29,7 +29,7 @@ pub fn slot(step: &w::Step) -> Slots {
         | w::Step::First
         | w::Step::Updating
         | w::Step::Resolving => 4,
-        w::Step::Repairing(repair) => match repair.reason() {
+        w::Step::Repairing(repair) => match &repair.reason {
             w::Reason::Ci => 2,
             w::Reason::Gate(_) | w::Reason::Review => 3,
             w::Reason::Semantic | w::Reason::Landing(_) => 4,
@@ -71,9 +71,9 @@ pub struct Queue<'a> {
 pub fn queue(step: &w::Step) -> Option<Queue<'_>> {
     match step {
         w::Step::Queued(q) => Some(Queue {
-            place: q.place(),
-            ahead: q.ahead().as_slice(),
-            unnamed: q.place().saturating_sub(1).saturating_sub(q.ahead().len()),
+            place: q.place,
+            ahead: q.ahead.as_slice(),
+            unnamed: q.place.saturating_sub(1).saturating_sub(q.ahead.len()),
         }),
         w::Step::First => Some(Queue { place: 1, ahead: &[], unnamed: 0 }),
         w::Step::Ready(_)
@@ -111,9 +111,9 @@ pub const fn ordinal_word(n: u32, bar: bool) -> W {
 }
 #[must_use]
 pub fn line(panel: &w::ChangePanel) -> Said {
-    let word = match panel.step() {
+    let word = match &panel.step {
         w::Step::Ended => W::EndedLine,
-        w::Step::Ready(ready) => match ready.landing() {
+        w::Step::Ready(ready) => match &ready.landing {
             Some(task) => return (W::ReadyLine, Box::new([Hole::Number(*task)])),
             None => W::ReadyAloneLine,
         },
@@ -127,34 +127,34 @@ pub fn line(panel: &w::ChangePanel) -> Said {
         w::Step::Gating => W::GateLine,
         w::Step::Queued(q) => {
             return (
-                ordinal_word(q.place(), false),
-                Box::new([Hole::Number(u64::from(q.place())), Hole::Name(copy_of(panel.landing()))]),
+                ordinal_word(q.place, false),
+                Box::new([Hole::Number(u64::from(q.place)), Hole::Name(copy_of(&panel.landing))]),
             );
         }
         w::Step::First => return landing_line(W::FirstLine, panel),
         w::Step::Updating => return landing_line(W::UpdateLine, panel),
         w::Step::Resolving => return landing_line(W::ResolveLine, panel),
-        w::Step::Repairing(repair) => match repair.reason() {
+        w::Step::Repairing(repair) => match &repair.reason {
             w::Reason::Ci => W::RepairCi,
-            w::Reason::Gate(gate) => return (W::RepairGate, Box::new([Hole::Number(gate.gate())])),
+            w::Reason::Gate(gate) => return (W::RepairGate, Box::new([Hole::Number(gate.gate)])),
             w::Reason::Semantic => W::RepairSemantic,
             w::Reason::Review => W::RepairReview,
-            w::Reason::Landing(gate) => return (W::RepairLanding, Box::new([Hole::Number(gate.gate())])),
+            w::Reason::Landing(gate) => return (W::RepairLanding, Box::new([Hole::Number(gate.gate)])),
         },
         w::Step::Landing => W::LandingLine,
-        w::Step::Landed(landed) => return merged_line(W::LandedLine, landed.merge()),
-        w::Step::Verifying(value) => return merged_line(W::VerifyingLine, value.merge()),
-        w::Step::Red(value) => return merged_line(W::RedLine, value.merge()),
+        w::Step::Landed(landed) => return merged_line(W::LandedLine, &landed.merge),
+        w::Step::Verifying(value) => return merged_line(W::VerifyingLine, &value.merge),
+        w::Step::Red(value) => return merged_line(W::RedLine, &value.merge),
         w::Step::Cleared(value) => {
-            return merged_line(if value.uncleared() { W::UnclearedLine } else { W::ClearedLine }, value.merge());
+            return merged_line(if value.uncleared { W::UnclearedLine } else { W::ClearedLine }, &value.merge);
         }
     };
     (word, Box::new([]))
 }
 fn taking_line(panel: &w::ChangePanel) -> Said {
-    let Some(source) = panel.source() else { return (W::Taking, Box::new([])) };
-    let branch = Hole::Name(copy_of(source.branch()));
-    match source.kept() {
+    let Some(source) = &panel.source else { return (W::Taking, Box::new([])) };
+    let branch = Hole::Name(copy_of(&source.branch));
+    match &source.kept {
         Some(kept) => (W::TakingKept, Box::new([branch, Hole::Name(source_commit(kept))])),
         None => (W::TakingBranch, Box::new([branch])),
     }
@@ -178,7 +178,7 @@ pub fn source_commit(commit: &[u8; 32]) -> Box<[u8]> {
     digits.into_boxed()
 }
 fn landing_line(word: W, panel: &w::ChangePanel) -> Said {
-    (word, Box::new([Hole::Name(copy_of(panel.landing()))]))
+    (word, Box::new([Hole::Name(copy_of(&panel.landing))]))
 }
 #[must_use]
 pub fn held_step(step: &w::Step) -> W {
@@ -203,7 +203,7 @@ pub fn held_step(step: &w::Step) -> W {
         w::Step::Verifying(_) => W::HeldVerifying,
         w::Step::Red(_) => W::HeldRed,
         w::Step::Cleared(value) => {
-            if value.uncleared() {
+            if value.uncleared {
                 W::HeldUncleared
             } else {
                 W::HeldCleared
@@ -224,6 +224,8 @@ pub const fn hold(hold: &w::Hold) -> W {
         w::Hold::Closed => W::Closed,
         w::Hold::Retargeted => W::Retargeted,
         w::Hold::Failed => W::FailedHold,
+        w::Hold::Flake => W::FlakeHold,
+        w::Hold::NoTest => W::NoTestHold,
         w::Hold::Rejected => W::Rejected,
         w::Hold::Authority(_) => W::AuthorityHold,
     }
@@ -236,7 +238,7 @@ pub struct Gate {
 }
 #[must_use]
 pub fn gate(gate: &w::Gate) -> Gate {
-    let name = match (gate.kind(), gate.blocks()) {
+    let name = match (&gate.kind, gate.blocks) {
         (w::GateKind::Review, true) => W::ReviewBlocking,
         (w::GateKind::Review, false) => W::ReviewAdvisory,
         (w::GateKind::Approval, true) => W::ApprovalBlocking,
@@ -244,13 +246,13 @@ pub fn gate(gate: &w::Gate) -> Gate {
         (w::GateKind::Check, true) => W::CheckBlocking,
         (w::GateKind::Check, false) => W::CheckAdvisory,
     };
-    let verdict = match gate.verdict() {
+    let verdict = match &gate.verdict {
         w::Verdict::None => W::NotYet,
         w::Verdict::Pending => W::Waiting,
         w::Verdict::Approved => W::Approved,
         w::Verdict::Changes => W::Changes,
     };
-    Gate { name, number: gate.number(), verdict }
+    Gate { name, number: gate.number, verdict }
 }
 /// A page owns only the panel for its own subject.
 #[must_use]
@@ -284,23 +286,23 @@ pub const fn unavailable(state: &panel::State) -> Option<W> {
 impl<'a> Change<'a> {
     #[must_use]
     pub fn forge(self) -> u16 {
-        self.panel.forge()
+        self.panel.forge
     }
 
     #[must_use]
     pub fn slots(self) -> Slots {
-        slot(self.panel.step())
+        slot(&self.panel.step)
     }
     #[must_use]
     pub fn queue(self) -> Option<Queue<'a>> {
-        queue(self.panel.step())
+        queue(&self.panel.step)
     }
     #[must_use]
     pub fn tiers(self) -> &'a [Box<[u8]>] {
-        match self.panel.step() {
-            w::Step::Verifying(value) => value.tiers().as_slice(),
-            w::Step::Red(value) => value.tiers().as_slice(),
-            w::Step::Cleared(value) => value.tiers().as_slice(),
+        match &self.panel.step {
+            w::Step::Verifying(value) => value.tiers.as_slice(),
+            w::Step::Red(value) => value.tiers.as_slice(),
+            w::Step::Cleared(value) => value.tiers.as_slice(),
             w::Step::Ready(_)
             | w::Step::Preparing(_)
             | w::Step::Taking
@@ -325,34 +327,41 @@ impl<'a> Change<'a> {
         line(self.panel)
     }
     #[must_use]
+    pub fn wait(self) -> Option<W> {
+        match &self.panel.wait {
+            Some(w::ChangeWait::OutboxRoom) => Some(W::OutboxRoom),
+            None => None,
+        }
+    }
+    #[must_use]
     pub fn hold(self) -> Option<(W, W, Box<[Hole]>)> {
-        let cause = self.panel.hold().as_ref()?;
+        let cause = self.panel.hold.as_ref()?;
         let holes: Box<[Hole]> = if let w::Hold::Authority(value) = cause {
-            Box::new([Hole::Name(copy_of(value.reason()))])
+            Box::new([Hole::Name(copy_of(&value.reason))])
         } else {
             Box::new([])
         };
-        Some((held_step(self.panel.step()), hold(cause), holes))
+        Some((held_step(&self.panel.step), hold(cause), holes))
     }
     #[must_use]
     pub fn way(self) -> W {
-        match self.panel.way() {
+        match &self.panel.way {
             w::Way::Queue => W::WayQueue,
             w::Way::Turn => W::WayTurn,
         }
     }
     #[must_use]
     pub fn landing(self) -> Option<u64> {
-        *self.panel.in_landing()
+        self.panel.in_landing
     }
     #[must_use]
     pub fn runs(self) -> Option<u64> {
-        *self.panel.runs()
+        self.panel.runs
     }
     #[must_use]
     pub fn pull(self) -> Said {
-        match self.panel.pull() {
-            Some(pull) => (W::Pull, Box::new([Hole::Number(pull.number())])),
+        match &self.panel.pull {
+            Some(pull) => (W::Pull, Box::new([Hole::Number(pull.number)])),
             None => (W::NoPull, Box::new([])),
         }
     }
@@ -361,26 +370,26 @@ impl<'a> Change<'a> {
         (
             W::Repository,
             Box::new([
-                Hole::Name(words::full_name(self.panel.owner(), self.panel.name())),
-                Hole::Name(copy_of(self.panel.branch())),
-                Hole::Name(copy_of(self.panel.landing())),
+                Hole::Name(words::full_name(&self.panel.owner, &self.panel.name)),
+                Hole::Name(copy_of(&self.panel.branch)),
+                Hole::Name(copy_of(&self.panel.landing)),
             ]),
         )
     }
     #[must_use]
     pub fn address(self) -> Option<&'a [u8]> {
-        let address = self.panel.pull().as_ref()?.address();
+        let address = &self.panel.pull.as_ref()?.address;
         if address.is_empty() { None } else { Some(address) }
     }
     /// Distinguish CI the rules do not ask for from its observed verdict
     /// and from terminal evidence absent after restart (domain/forge/change/README.md, 5).
     #[must_use]
     pub fn ci(self) -> W {
-        if !self.panel.ci_required() {
+        if !self.panel.ci_required {
             return W::NotRequired;
         }
-        match self.panel.ci() {
-            w::Ci::Unknown => match self.panel.step() {
+        match &self.panel.ci {
+            w::Ci::Unknown => match &self.panel.step {
                 w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) | w::Step::Ended => {
                     W::NotRead
                 }
@@ -407,20 +416,20 @@ impl<'a> Change<'a> {
     }
     #[must_use]
     pub fn gates(self) -> u32 {
-        self.panel.gates().len()
+        self.panel.gates.len()
     }
     #[must_use]
     pub fn gate(self, index: u32) -> Option<Gate> {
-        Some(gate(self.panel.gates().get(index)?))
+        Some(gate(self.panel.gates.get(index)?))
     }
     #[must_use]
     pub fn bounds(self) -> [Said; 3] {
         let mut result: [Said; 3] =
             [(W::Repairs, Box::new([])), (W::Resolutions, Box::new([])), (W::Updates, Box::new([]))];
         for ((_, holes), used) in
-            result.iter_mut().zip([self.panel.repairs(), self.panel.resolutions(), self.panel.updates()])
+            result.iter_mut().zip([&self.panel.repairs, &self.panel.resolutions, &self.panel.updates])
         {
-            *holes = Box::new([Hole::Number(u64::from(used.used())), Hole::Number(u64::from(used.limit()))]);
+            *holes = Box::new([Hole::Number(u64::from(used.used)), Hole::Number(u64::from(used.limit))]);
         }
         result
     }

@@ -90,37 +90,26 @@ fn contract(value: tasks::Contract) -> Option<Contract> {
             change: None,
         },
         tasks::Contract::Verdict { choices } => {
-            let mut verdicts = List::with_capacity(u32::try_from(choices.len()).expect("verdict choices"));
-            for choice in choices {
-                let mut fields = List::with_capacity(u32::try_from(choice.fields.len()).ok()?);
-                for field in choice.fields {
-                    fields.push(FieldRule { name: field.name, max: field.max.min(CONTRACT_TEXT_MAX) }).ok()?;
-                }
-                verdicts
-                    .push(VerdictRule {
-                        name: Box::from(Decimal::of(u64::from(choice.code)).as_bytes()),
-                        text_max: choice.words.min(CONTRACT_TEXT_MAX),
-                        fields: fields.into_boxed(),
-                        items: Items { min: 0, max: 0, kinds: Box::new([]) },
-                    })
-                    .expect("one verdict rule");
-            }
+            let verdicts = verdict_rules(choices, None)?;
             Contract {
                 report: None,
                 failure: Some(TextRule { max: CONTRACT_TEXT_MAX, fields: Box::new([]) }),
-                verdicts: verdicts.into_boxed(),
+                verdicts,
                 change: None,
             }
         }
-        tasks::Contract::Change { words, .. } => Contract {
+        tasks::Contract::Change { words, choices, .. } => Contract {
             report: None,
             failure: Some(TextRule { max: words.min(CONTRACT_TEXT_MAX), fields: Box::new([]) }),
-            verdicts: Box::new([VerdictRule {
-                name: Box::from(&b"no_change"[..]),
-                text_max: words.min(CONTRACT_TEXT_MAX),
-                fields: Box::new([]),
-                items: Items { min: 0, max: 0, kinds: Box::new([]) },
-            }]),
+            verdicts: verdict_rules(
+                choices,
+                Some(VerdictRule {
+                    name: Box::from(&b"no_change"[..]),
+                    text_max: words.min(CONTRACT_TEXT_MAX),
+                    fields: Box::new([]),
+                    items: Items { min: 0, max: 0, kinds: Box::new([]) },
+                }),
+            )?,
             change: Some(ChangeRule {
                 checks_must_pass: CONTRACT_CHECKS_MUST_PASS,
                 fields: Box::new([
@@ -130,4 +119,27 @@ fn contract(value: tasks::Contract) -> Option<Contract> {
             }),
         },
     })
+}
+
+fn verdict_rules(choices: Box<[tasks::Verdict]>, first: Option<VerdictRule>) -> Option<Box<[VerdictRule]>> {
+    let count = u32::try_from(choices.len()).ok()?.checked_add(u32::from(first.is_some()))?;
+    let mut verdicts = List::with_capacity(count);
+    if let Some(rule) = first {
+        verdicts.push(rule).expect("room for first verdict");
+    }
+    for choice in choices {
+        let mut fields = List::with_capacity(u32::try_from(choice.fields.len()).ok()?);
+        for field in choice.fields {
+            fields.push(FieldRule { name: field.name, max: field.max.min(CONTRACT_TEXT_MAX) }).ok()?;
+        }
+        verdicts
+            .push(VerdictRule {
+                name: Box::from(Decimal::of(u64::from(choice.code)).as_bytes()),
+                text_max: choice.words.min(CONTRACT_TEXT_MAX),
+                fields: fields.into_boxed(),
+                items: Items { min: 0, max: 0, kinds: Box::new([]) },
+            })
+            .expect("one verdict rule per choice");
+    }
+    Some(verdicts.into_boxed())
 }

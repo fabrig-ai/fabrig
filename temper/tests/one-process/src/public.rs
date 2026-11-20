@@ -21,7 +21,7 @@ thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
 // The forge's largest public record is PublicLandings; two reservations fit, three do not.
 pub(super) const PUBLIC_ANSWER_BYTES: u32 = 67_405;
 pub(super) const PUBLIC_BYTES: u32 = PUBLIC_ANSWER_BYTES * 2 + 1;
-pub(crate) fn configure(value: &mut serde_json::Value) {
+pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if !ACTIVE.with(Cell::get) {
         return;
     }
@@ -58,29 +58,22 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
             ("people.amendment_bytes", 2048),
             ("tasks.authority_bytes", 256),
         ] {
-            value["engine"]["limits"]["overrides"][name] = count.into();
+            value.jig_over(name, count);
         }
     }
-    value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
+    value.temper_over("forge.judge_projects", 3);
     // Workflow discovery can share the fixture's four foreground logical-call slots.
-    value["application"]["limits"]["overrides"]["forge.client.pending"] = 5.into();
-    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
+    value.temper_over("forge.client.pending", 5);
+    value.temper_over("forge.client.op_bytes", 4096);
+    value.temper_over("checkout.message_bytes", 4098);
     // Merge setup and workflow discovery fit one forge rate window before visitor reads.
-    value["application"]["limits"]["overrides"]["forge.client.rate"] = 1000.into();
-    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
-    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
-    for worker in value["workers"].as_array_mut().expect("workers") {
-        worker["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
-        worker["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
-        worker["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.spec_bytes"] = 16_384.into();
-        worker["limits"]["overrides"]["tasks.result_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.inbox_bytes"] = 32_768.into();
-    }
+    value.temper_over("forge.client.rate", 1000);
+    value.jig_over("core.call_answer_bytes", 4098);
+    value.jig_over("hub.outcome_bytes", 4098);
+    value.jig_over("hub.event_bytes", 4096);
     value["application"]["clients"]["public"] = "https://one.example".into();
-    value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
+    value["world_settings"]["settings"] =
+        serde_json::json!({"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn"}}]});
     for (name, count) in [
         ("clients.public.reads", 4),
         ("clients_http.public_calls", 4),
@@ -102,7 +95,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("tasks.message_bytes", 4096),
         ("tasks.inbox_bytes", 32_768),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, u64::from(count));
     }
     temper_playground::documents::turn_bounds::apply(value, service::agent_settings().limits.bodies.turn_body);
     previous::configure(value);

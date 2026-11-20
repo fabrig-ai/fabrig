@@ -1,4 +1,5 @@
 use super::*;
+use smith_transcript::Record;
 pub const READ_CURSOR: &[u8] = &[255; 48];
 pub fn history_read() -> c::Read {
     c::Read::History { task: 7, subtree: true, after: Some(raw_cursor(READ_CURSOR)) }
@@ -22,10 +23,13 @@ pub const READ: Token = Token::new(29);
 impl Harness {
     pub fn read(&mut self, what: Readable) -> Token {
         self.link.step(Time::ZERO, Event::Read { read: READ, what }, &mut self.out);
+        self.link.settle(&mut self.out);
         match self.out.iter().last().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -39,6 +43,7 @@ impl Harness {
             | Request::Dropped
             | Request::Signing { .. }
             | Request::ServiceCredential { .. }
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Authorized(_)
             | Request::StreamsFull { .. }
@@ -65,9 +70,11 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Read { read, result } if *read == READ => return Some(result),
-                Request::Read { .. }
+                Request::ReadAgain { .. }
+                | Request::Read { .. }
                 | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -81,6 +88,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -94,9 +102,11 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Read { read, .. } if *read == READ => count = count.saturating_add(1),
-                Request::Read { .. }
+                Request::ReadAgain { .. }
+                | Request::Read { .. }
                 | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -110,6 +120,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -120,6 +131,20 @@ impl Harness {
     }
     pub fn read_malformed(&self) {
         assert_eq!(self.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed))));
+    }
+    pub fn retry_lost_read(&mut self) -> Token {
+        let mut retry = None;
+        for request in &self.out {
+            if let Request::ReadAgain { read, what } = request {
+                assert!(retry.replace((*read, what.clone())).is_none());
+            }
+        }
+        let (read, what) = retry.expect("a current read may be retried once");
+        self.clear();
+        self.link.step(Time::ZERO, Event::ReadAgain { read, what }, &mut self.out);
+        self.link.settle(&mut self.out);
+        let Some(Request::Exchange { exchange, .. }) = self.out.iter().last() else { panic!("retried read exchange") };
+        *exchange
     }
     pub fn read_unreachable(&self) {
         assert_eq!(self.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));
@@ -251,28 +276,23 @@ fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue
 fn whole_call_turn_case() -> (w::ReadValue, c::ReadValue) {
     use smith_transcript::v7 as smith;
     const INPUT: &[u8] = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefEND-OF-INPUT";
-    let mut source = smith_transcript::decode_archived(&smith::CEILINGS, FULL_TURN).unwrap().into_parts();
+    let mut source = smith_transcript::decode_archived(&smith::CEILINGS, &full_turn()).unwrap();
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks
-        .push(smith::Block::Call(
-            smith::Call::new(
-                &smith::CEILINGS,
-                smith::CallParts {
-                    id: Box::from(b"call".as_slice()),
-                    name: Box::from(b"tool".as_slice()),
-                    input: Box::from(INPUT),
-                    replay: None,
-                },
-            )
-            .unwrap(),
-        ))
+        .push(smith::Block::Call(smith::Call {
+            id: Box::from(b"call".as_slice()),
+            name: Box::from(b"tool".as_slice()),
+            input: Box::from(INPUT),
+            replay: None,
+        }))
         .unwrap();
-    let mut message = source.messages.get(0).unwrap().clone().into_parts();
+    let mut message = source.messages.get(0).unwrap().clone();
     message.blocks = blocks;
-    *source.messages.get_mut(0).unwrap() = smith::Message::new(&smith::CEILINGS, message).unwrap();
-    let source = smith::Turn::new(&smith::CEILINGS, source).unwrap();
-    let mut writer = Writer::new(usize::try_from(source.measure()).unwrap());
-    source.encode(&mut writer).unwrap();
+    *source.messages.get_mut(0).unwrap() = message;
+    let source = source;
+    let mut writer =
+        Writer::new(usize::try_from(source.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap());
+    source.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     let wire = w::ReadValue::Turn(single_turn_record(&writer.finish()));
 
     let mut expected = expected_single_turn();

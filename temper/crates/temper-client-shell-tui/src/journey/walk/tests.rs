@@ -91,7 +91,7 @@ impl World {
             plain: false,
             version: Box::default(),
             boxed: false,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             front: false,
             local: false,
             note: None,
@@ -142,6 +142,7 @@ fn exchange(duties: &Duties, approval_ask: bool) -> Token {
             | Request::Erase { .. }
             | Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => None,
         })

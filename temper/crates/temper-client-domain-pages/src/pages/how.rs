@@ -112,7 +112,7 @@ pub fn parts(facts: &Facts) -> Parts {
     if path == Path::Shown && !facts.rules.is_empty() {
         let mut review = false;
         for row in &facts.rules {
-            review |= !row.review().is_empty();
+            review |= !row.review.is_empty();
         }
         rules = Some(Rules { add: facts.asking, review });
     }
@@ -149,8 +149,8 @@ pub fn facts(root: &dyn Root, project: u32) -> Facts {
             State::Loading => Read::Reading,
             State::Ended => Read::Ended,
             State::Shown(panel) => {
-                path_rules = panel.rules().rows().clone();
-                Read::Shown { current: *panel.current() }
+                path_rules = panel.rules.rows.clone();
+                Read::Shown { current: panel.current }
             }
         };
     }
@@ -168,7 +168,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Facts {
     let roles = if pages.address() == &(Address::Settings { project }) {
         match pages.roles() {
             Some(roles) => match roles.read() {
-                super::roles::Read::Drawn(w::View::Roles(view)) => !view.roles().is_empty(),
+                super::roles::Read::Drawn(w::View::Roles(view)) => !view.roles.is_empty(),
                 super::roles::Read::Reading
                 | super::roles::Read::Unreadable
                 | super::roles::Read::Drawn(
@@ -386,51 +386,51 @@ pub fn follows(
 ) -> Landed {
     let mut follows = List::uncapped();
     if let Some(panel) = panel {
-        for row in panel.follows() {
-            let setting = row.setting();
-            let owner = follow_owner(setting.owner(), members, reader, roles);
-            let code_starts = match setting.start() {
+        for row in &panel.follows {
+            let setting = &row.setting;
+            let owner = follow_owner(&setting.owner, members, reader, roles);
+            let code_starts = match &setting.start {
                 w::FollowStart::Code => true,
                 w::FollowStart::Owner => false,
             };
             follows
                 .push(Follow {
-                    source: row.source().into(),
-                    source_branch: row.source_branch().into(),
-                    target: row.target().into(),
-                    target_branch: row.target_branch().into(),
-                    paths: setting.source().paths().clone().into_boxed(),
+                    source: row.source.clone(),
+                    source_branch: row.source_branch.clone(),
+                    target: row.target.clone(),
+                    target_branch: row.target_branch.clone(),
+                    paths: setting.source.paths.clone().into_boxed(),
                     owner,
                     code_starts,
-                    workflow: setting.verification().workflow().into(),
-                    lag: row.lag(),
-                    parity: crate::forge::follows::parity(row.parity().as_ref()),
-                    stopped: row.stopped().clone(),
+                    workflow: setting.verification.workflow.clone(),
+                    lag: row.lag,
+                    parity: crate::forge::follows::parity(row.parity.as_ref()),
+                    stopped: row.stopped.clone(),
                 })
                 .expect("boxes grow");
         }
     }
     let mut tiers = List::uncapped();
     if let Some(path) = path {
-        for stop in path.stops() {
-            if stop.step() == &w::PathStep::Verify
-                && let w::Opens::Tier(_) = stop.opens()
+        for stop in &path.stops {
+            if stop.step == w::PathStep::Verify
+                && let w::Opens::Tier(_) = &stop.opens
             {
                 let mut checks = None;
-                for fact in stop.card().facts() {
-                    if fact.label() == b"Checks" {
-                        checks = Some(fact.value().into());
+                for fact in &stop.card.facts {
+                    if fact.label.as_ref() == b"Checks" {
+                        checks = Some(fact.value.clone());
                         break;
                     }
                 }
-                tiers.push(Tier { name: stop.card().name().into(), checks }).expect("tiers grow");
+                tiers.push(Tier { name: stop.card.name.clone(), checks }).expect("tiers grow");
             }
         }
     }
     let tiers = if tiers.is_empty() {
         None
     } else {
-        Some(Tiers { branch: path.expect("tiers came from a path").branch().into(), tiers: tiers.into_boxed() })
+        Some(Tiers { branch: path.expect("tiers came from a path").branch.clone(), tiers: tiers.into_boxed() })
     };
     Landed { follows: follows.into_boxed(), tiers }
 }
@@ -441,14 +441,14 @@ fn follow_owner(
     roles: &[Standing],
 ) -> Owner {
     let owner = match owner {
-        w::FollowOwner::Person(person) => person.person(),
+        w::FollowOwner::Person(person) => person.person,
         w::FollowOwner::Task(task) => {
             for role in roles {
-                if role.number == task.task() {
+                if role.number == task.task {
                     return Owner::Named(role.title.clone());
                 }
             }
-            return Owner::Named(skein_lib::bytes::concat(&[b"task ", skein_lib::Decimal::of(task.task()).as_bytes()]));
+            return Owner::Named(skein_lib::bytes::concat(&[b"task ", skein_lib::Decimal::of(task.task).as_bytes()]));
         }
     };
     if owner == reader {
@@ -510,6 +510,7 @@ impl Open {
         }
         let standing = handle(next);
         let query = c::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(project),
             label: Some(3),
             order: c::QueryOrder::Number,

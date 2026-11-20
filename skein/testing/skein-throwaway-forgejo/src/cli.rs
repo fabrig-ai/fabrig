@@ -4,7 +4,7 @@ use std::{
     fs::{self, File},
     io::Read,
     net::TcpListener,
-    os::unix::fs::{MetadataExt, PermissionsExt},
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -108,11 +108,8 @@ pub(crate) fn random() -> Result<String, Failure> {
     Ok(hex)
 }
 fn run_user() -> Result<String, Failure> {
-    let uid = fs::metadata("/proc/self")?.uid().to_string();
-    let passwd = fs::read_to_string("/etc/passwd")?;
-    let user = passwd.lines().find(|line| line.split(':').nth(2) == Some(uid.as_str()));
-    let missing = || Failure::Io("process uid is absent from /etc/passwd".into());
-    user.and_then(|line| line.split(':').next()).map(str::to_owned).ok_or_else(missing)
+    let login = skein_shell::login(skein_shell::effective_user()).map_err(Failure::Io)?;
+    String::from_utf8(login.into_vec()).map_err(|_| Failure::Io("login is not UTF-8".into()))
 }
 fn prepare(path: &Path) -> Result<PathBuf, Failure> {
     let refuse = |why: &str| Failure::Scratch { path: path.into(), why: why.into() };
@@ -129,4 +126,13 @@ fn prepare(path: &Path) -> Result<PathBuf, Failure> {
         return Err(refuse("scratch is not empty"));
     }
     Ok(absolute)
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    #[test]
+    fn run_user_matches_the_effective_users_passwd_login() {
+        let expected = skein_shell::login_passwd(skein_shell::effective_user()).expect("effective user's passwd login");
+        assert_eq!(super::run_user().expect("run user").as_bytes(), expected.as_ref());
+    }
 }

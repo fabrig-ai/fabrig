@@ -35,8 +35,8 @@ impl Git {
                 root,
                 prefix: crate::tokens::git(0).ok_or(problem(b"git", What::Bound))?,
                 serial: seed,
-                largest_read: worker.jig.limits.io.intake,
-                largest_room: worker.jig.limits.io.output,
+                largest_read: worker.jig.limits.as_ref().expect("checked worker limits").io.intake,
+                largest_room: worker.jig.limits.as_ref().expect("checked worker limits").io.output,
             },
         ) {
             Ok(component) => component,
@@ -85,6 +85,8 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::Commit { identity, .. }
         | git::Op::Push { identity, .. } => Some(*identity),
         git::Op::Reds { .. }
+        | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
         | git::Op::Make { .. }
@@ -123,6 +125,8 @@ pub(crate) fn pick(
             }));
         }
         git::Op::Reds { .. }
+        | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
         | git::Op::Make { .. }

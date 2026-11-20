@@ -140,7 +140,15 @@ fn adopt_pair_workflows(
 
 #[test]
 fn another_projects_writer_is_a_read_only_checkout_and_its_landings_are_heard() {
-    let mut world = World::configured(true, true).with_second_project();
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { second_project: true, ..StoryLimits::default() },
+    );
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world.sign_in();
     adopt_source_and_target(&mut world);
@@ -180,9 +188,7 @@ fn another_projects_writer_is_a_read_only_checkout_and_its_landings_are_heard() 
     );
     world.send(event);
     world.until(Until::Subscribed);
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     let before = news_count(&world, reader.task);
     assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/source", b"main", b"file", b"changed", 1).is_ok());
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {

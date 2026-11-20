@@ -1,4 +1,6 @@
 //! The deployment and document forms' files and peer loop (protocol/setup/playground.md).
+//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
@@ -24,6 +26,15 @@ use temper_fake::{
     demo, forge, limits, llm, oauth,
 };
 
+const FIXED_START: Setting = Setting {
+    name: "fixed-start",
+    value: "SECONDS,SEED",
+    about: "Start this peer from this fixed instant and seed: SECONDS,SEED.",
+    fallback: Fallback::Text(""),
+    set: skein_shell::Set::Internal,
+    twin: None,
+    notes: "",
+};
 pub const LLM_SETTINGS: Settings = Settings {
     tool: "temper",
     about: "Configure the fake LLM.",
@@ -73,6 +84,7 @@ pub const LLM_SETTINGS: Settings = Settings {
             twin: None,
             notes: "Requires --document.",
         },
+        FIXED_START,
     ],
 };
 pub const FORGE_SETTINGS: Settings = Settings {
@@ -124,6 +136,7 @@ pub const FORGE_SETTINGS: Settings = Settings {
             twin: None,
             notes: "A present file must be this user's private single-link regular file. A refused image leaves it unchanged.",
         },
+        FIXED_START,
     ],
 };
 pub const OAUTH_SETTINGS: Settings = Settings {
@@ -157,6 +170,7 @@ pub const OAUTH_SETTINGS: Settings = Settings {
             twin: None,
             notes: "",
         },
+        FIXED_START,
     ],
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -186,6 +200,7 @@ pub struct Arguments {
     pub source: Source,
     pub ready: Option<Box<[u8]>>,
     pub seed: u64,
+    pub fixed_start: Option<skein_shell::FixedStart>,
     pub observations: Option<PathBuf>,
     pub state: Option<PathBuf>,
     pub scripts: Option<PathBuf>,
@@ -258,6 +273,8 @@ pub(crate) fn configure(
         }
         Source::Document(super::path(&resolved.value(0).bytes).to_path_buf())
     };
+    let start = resolved.value(if kind == Kind::Oauth { 3 } else { 5 });
+    let fixed_start = if start.origin == Origin::Default { None } else { Some(crate::fixed_start(&start.bytes)?) };
     let seed = &resolved.value(2).bytes;
     let seed = std::str::from_utf8(seed)
         .ok()
@@ -286,7 +303,7 @@ pub(crate) fn configure(
         None
     };
     Ok(super::Command::Fake {
-        arguments: Arguments { kind, source, ready, seed, observations, state, scripts, strict },
+        arguments: Arguments { kind, source, ready, seed, fixed_start, observations, state, scripts, strict },
     })
 }
 
@@ -334,7 +351,8 @@ pub fn run(arguments: &Arguments) -> Result<u8, String> {
             return Err(super::prefixed(command, &why));
         }
     };
-    let exit = skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut host);
+    let clock = arguments.fixed_start.as_ref().map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed);
+    let exit = skein_shell::drive(&mut kernel, &clock, &mut host);
     if exit == Exit::Code(0)
         && host.stopped
         && !host.failed
@@ -431,42 +449,8 @@ fn read_document(path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
     skein_shell::read_file(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
 }
 /// The box's group selects its machine kind (temper/docs/design/protocol/setup/box.md, 1).
-fn forge_entry(
-    bytes: &[u8],
-    directories: &super::Directories,
-    forge: u16,
-) -> Result<temper_forge_setup::setup::Entry, String> {
-    use jig_protocol_config as config;
-    use temper_forge_setup::{machine, problem};
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .map_err(|why| format!("{why:?}"))?;
-    let application = config::read::Object::new(&document, 0)
-        .map_err(|why| format!("{why:?}"))?
-        .member(&document, b"application")
-        .ok_or("the document has no application")?;
-    let at = config::read::Object::new(&document, application)
-        .expect("checked application")
-        .member(&document, b"machine")
-        .ok_or("application.machine: missing member")?;
-    let mut problems = problem::Problems::empty();
-    let machine = machine::read(
-        &document,
-        at,
-        &temper_forge_setup::limits::small(),
-        &jig_directories(directories),
-        &mut problems,
-    );
-    if !problems.is_empty() {
-        return Err(String::from_utf8_lossy(&problem::lines(&problems)).into_owned());
-    }
-    let machine = machine.ok_or("application.machine: invalid form")?;
-    let path = super::path(&directories.data).join(super::path(&machine::group_path(forge)));
-    let group = skein_shell::read_file(&path, 64).map_err(|why| format!("{}: {why:?}", path.display()))?;
-    let kind = machine::parse_group_file(&group).ok_or_else(|| format!("{}: invalid group kind", path.display()))?;
-    machine::entry(&machine, forge, kind, &jig_directories(directories)).ok_or("the machine has no entry for it".into())
+fn forge_entry(directories: &super::Directories, forge: u16) -> Result<temper_forge_setup::setup::Entry, String> {
+    super::forge::entry(directories, forge)
 }
 fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(forge::Document, [u8; 40]), String> {
     match source {
@@ -482,8 +466,7 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
             Ok((document, token))
         }
         Source::Setup { directories, forge } => {
-            let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
-            let entry = forge_entry(&bytes, directories, *forge)?;
+            let entry = forge_entry(directories, *forge)?;
             let fake = match &entry.mode {
                 temper_forge_setup::setup::Mode::Fake(fake) => fake,
                 temper_forge_setup::setup::Mode::Owned(_) => return Err("it is owned, not fake".into()),
@@ -503,7 +486,15 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
     }
 }
 
+#[cfg(test)]
 fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm::Configuration, String> {
+    llm_configuration_at(arguments, created, crate::scripted::PREFERRED)
+}
+fn llm_configuration_at(
+    arguments: &Arguments,
+    created: &mut Created,
+    address: std::net::SocketAddr,
+) -> Result<llm::Configuration, String> {
     let seed = arguments.seed;
     Ok(match &arguments.source {
         Source::Document(path) => {
@@ -525,9 +516,17 @@ fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm
             llm::configuration(&document, &key, seed)
         }
         Source::Demo { directories } => {
-            let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
-            let deployment = super::setup::check(&bytes, &jig_directories(directories))?;
-            let demo = deployment.demo.ok_or("application.demo is null: the deployment has no demo")?;
+            let fixed = temper_service::stock::scripted(address);
+            let mut running = jig_protocol_config::Llm {
+                providers: Box::new([fixed.provider]),
+                endpoints: fixed.endpoints,
+                models: Box::new([]),
+            };
+            running.models = temper_service::stock::models(&running);
+            let dirs = jig_directories(directories);
+            let demo = demo::read(&demo::Facts { llm: &running, listeners: &[], directories: &dirs })
+                .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?
+                .expect("the box's scripted provider");
             let path = super::path(demo.llm().key());
             let file = skein_shell::read_private_file(path, demo::KEY_FILE_BYTES, skein_shell::effective_user())
                 .map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
@@ -543,7 +542,8 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
     let mut control_address = None;
     let (mut peer, shared, observations, writer, buffer) = match arguments.kind {
         Kind::Llm => {
-            let configuration = llm_configuration(arguments, created)?;
+            let address = listeners.first().map_or(crate::scripted::PREFERRED, |(_, address)| *address);
+            let configuration = llm_configuration_at(arguments, created, address)?;
             control_address = configuration.control;
             let observations = arguments
                 .observations

@@ -118,8 +118,11 @@ fn live(store: &mut Store, number: u64, hot: &[u8], source: &RowSite) -> Result<
     let cold = crate::open::get(store, Token::new(0), cold_key)
         .or(Err(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone())))?
         .ok_or(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone()))?;
-    let record = codec::tasks::decode_live(hot, &cold, &store.codec_limits.tasks, &store.names)
-        .or(Err(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone())))?;
+    let Ok(record) = codec::tasks::decode_live(hot, &cold, &store.codec_limits.tasks, &store.names) else {
+        let key = Key::Tasks(tasks::Key::Live(number));
+        let why = value_failure(store, &key, hot, Some(&cold));
+        return Err(Failure::at(Cause::Decode(why), source.clone()));
+    };
     if record.key() != tasks::Key::Live(number) {
         return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), source.clone()));
     }
@@ -129,8 +132,18 @@ fn live(store: &mut Store, number: u64, hot: &[u8], source: &RowSite) -> Result<
     Ok((Row::Jig(Record::Tasks(record)), size))
 }
 
+fn value_failure(store: &Store, key: &Key, value: &[u8], cold: Option<&[u8]>) -> DecodeFailure {
+    let Some(stock) = &store.stock_core else { return DecodeFailure::Value };
+    match codec::lowering(key, value, cold, &store.limits.core, stock, &store.names) {
+        Some(lowered) => DecodeFailure::Lowered(lowered),
+        None => DecodeFailure::Value,
+    }
+}
+
 fn decode_value(store: &Store, key: &Key, value: &[u8]) -> Result<Record, DecodeFailure> {
-    let record = codec::decode(key, value, &store.codec_limits, &store.names).ok_or(DecodeFailure::Value)?;
+    let Some(record) = codec::decode(key, value, &store.codec_limits, &store.names) else {
+        return Err(value_failure(store, key, value, None));
+    };
     if record.key() != *key {
         return Err(DecodeFailure::KeyValueDisagree);
     }
@@ -204,6 +217,8 @@ pub(crate) fn joined(event: Option<skein_kv::Event>) -> Result<Option<Box<[u8]>>
             | skein_kv::Event::LogRead { .. }
             | skein_kv::Event::LogUnread { .. }
             | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. },
         ) => Err(JoinFailure::UnexpectedTerminal),

@@ -10,7 +10,7 @@ use core::mem::{align_of, size_of};
 
 use crate::btree;
 
-/// An ordered set that holds at most a capacity fixed when it is made.
+/// An ordered set that holds at most its capacity.
 ///
 /// Inserting a new key into a full set hands it back; inserting one already
 /// present always works. Like a [`Map`](crate::Map), it allocates tree nodes
@@ -38,6 +38,12 @@ impl<K: Ord> Set<K> {
     #[must_use]
     pub const fn capacity(&self) -> u32 {
         self.capacity
+    }
+
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.capacity(), "a capacity never falls");
+        self.capacity = capacity;
     }
 
     #[must_use]

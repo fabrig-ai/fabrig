@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v26 as wire;
+use jig_client_protocol_wire as wire;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
 use temper_engine_service::Engine;
@@ -152,9 +152,7 @@ impl Peer {
         skein_lib::bytes::find(&self.wire.received, b"text/event-stream").is_some()
     }
 }
-pub fn address() -> io::Addr {
-    io::Addr::Ip((::core::net::Ipv4Addr::LOCALHOST, 7100).into())
-}
+pub use temper_service_link_fixtures::address;
 pub fn link_body(engine: &Engine, link: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let at = skein_lib::bytes::find(link, b"secret=").unwrap().checked_add(7).unwrap();

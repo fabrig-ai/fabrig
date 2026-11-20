@@ -156,6 +156,10 @@ impl World {
         for forge in [FORGE, OTHER, AUTOMATIC] {
             world.connection(forge, forge::Connection::NotSetUp);
         }
+        world.client(client::Event::StartUnlinked { kept: List::with_capacity(0) });
+        world.client(client::Event::SignIn { with: client::With::Transport });
+        world.client(client::Event::Up { up: world.transport.hello() });
+        world.settle();
         world.component.sign_in(
             CLIENT,
             people::Identity {
@@ -164,10 +168,6 @@ impl World {
                 name: b"Person".as_slice().into(),
             },
         );
-        world.settle();
-        world.client(client::Event::StartUnlinked { kept: List::with_capacity(0) });
-        world.client(client::Event::SignIn { with: client::With::Transport });
-        world.client(client::Event::Up { up: world.transport.hello() });
         world.settle();
         world
     }
@@ -459,6 +459,7 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
         row(&world, FORGE).first,
         Some(d::First {
             playground: false,
+            sample: false,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state: d::FirstState::Making,

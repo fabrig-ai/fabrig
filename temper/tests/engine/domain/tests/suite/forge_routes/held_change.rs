@@ -76,9 +76,7 @@ fn a_change_held_for_effects_before_its_producer_asks_its_producer_once_released
     assert!(change_row(&world, task).delegate.is_none());
     assert_eq!(delegate_count(&world, task), 0);
     world.send(first_read);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Effects, .. }));
     assert!(change_row(&world, task).delegate.is_none());
     assert_eq!(delegate_count(&world, task), 0, "returning reads cannot make a producer while held");
@@ -149,9 +147,7 @@ fn a_lagging_pull_head_waits_without_drift_then_goes_on_at_the_branch_head() {
             break;
         }
     }
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     if let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase {
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
         panic!("unexpected hold: {}", core::str::from_utf8(words).expect("hold UTF-8"));
@@ -159,9 +155,7 @@ fn a_lagging_pull_head_waits_without_drift_then_goes_on_at_the_branch_head() {
     assert_eq!(change_row(&world, task).change.state, State::Opening { requested: true });
     assert_eq!(change_row(&world, task).change.last_head, Some(translate::commit(head)));
     let since = change_row(&world, task).change.since;
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     assert_eq!(change_row(&world, task).change.since, since, "waiting counts the opening stall");
     world.lagging_pull_head = None;
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
@@ -201,9 +195,7 @@ fn a_chat_tells_its_person_why_its_change_holds_before_waiting() {
     let read = resumed.messages.iter().map(|word| word.number).max();
     world.send(protocol::turn(CHANNEL, resumed.task, resumed.attempt, 1, 0, read, reply.as_bytes()));
     park_after_turn(&mut world, &resumed, read, 1);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, chat.task).phase, tasks::Phase::Active(tasks::Active::Idle)));
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: resumed.attempt, turn: 1 })
@@ -213,4 +205,130 @@ fn a_chat_tells_its_person_why_its_change_holds_before_waiting() {
     let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
     assert_eq!(turn.transcript.as_ref(), reply.as_bytes());
     assert!(turn.transcript.windows(REASON.len()).any(|bytes| bytes == REASON));
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one story fills six entries with eight changes, then drains the wait without a release"
+)]
+fn eight_changes_open_through_a_six_entry_outbox_without_a_persons_release() {
+    const CHANGES: usize = 8;
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits {
+            slots: Some(8),
+            tasks: Some(24),
+            authority_batch: Some(8),
+            tasks_batch: Some(8),
+            task_delegates: Some(8),
+            tree_tasks: Some(24),
+            inbox_messages: Some(16),
+            forge_branches: Some(16),
+            forge_entries: Some(6),
+            forge_holds: Some(24),
+            forge_pending: Some(16),
+            forge_calls: Some(4),
+            forge_rate: Some(1000),
+            ..StoryLimits::default()
+        },
+    );
+    world.fake_env.limits.latency_min = Duration::ZERO;
+    world.fake_env.limits.latency_max = Duration::ZERO;
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, 8, Box::new([])));
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(1000) };
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let event = world.protocol.call(
+        CHANNEL,
+        chat.task,
+        chat.attempt,
+        93,
+        engine::Call {
+            completion: 93,
+            position: 1,
+            tool: engine::Tool::Change {
+                changes: vec![engine::ChangeCall::words(b"Independent fix".as_slice().into(), None); CHANGES]
+                    .into_boxed_slice(),
+            },
+        },
+    );
+    world.send(event);
+    world.until(Until::Delegated);
+    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else {
+        panic!("eight changes admitted: {:?}", world.answers)
+    };
+    let changes: Vec<_> = made.iter().map(|member| member.task).collect();
+    assert_eq!(changes.len(), CHANGES);
+    let parked = world.protocol.answer(CHANNEL, chat.task, chat.attempt, 5, tasks::End::Parked, engine::Parts::none());
+    world.send(parked);
+    let producers: Vec<_> = changes.iter().map(|task| super::reviews::producer_for(&mut world, *task)).collect();
+    world.hold_write_answers = Some(HoldWrite::All);
+    for (task, producer) in changes.iter().zip(&producers) {
+        let branch = change_row(&world, *task).branch;
+        super::reviews::produce(&mut world, producer, &branch);
+        world.fake.reclaim();
+    }
+    for _ in 0..1000 {
+        world.tick();
+        if changes.iter().filter(|task| world.store.change_hot(**task).expect("durable change").room.is_some()).count()
+            == 2
+        {
+            break;
+        }
+    }
+    assert_eq!(
+        changes.iter().filter(|task| world.store.change_hot(**task).expect("durable change").room.is_some()).count(),
+        2,
+        "six entries are kept and two changes wait: {:?}; writes {:?}",
+        changes
+            .iter()
+            .map(|task| (task, change_row(&world, *task).change.state, live_task(&world, *task).phase.clone()))
+            .collect::<Vec<_>>(),
+        world.writes
+    );
+    for task in &changes {
+        assert!(!matches!(live_task(&world, *task).phase, tasks::Phase::Held { .. }));
+    }
+    world.release_write_answers();
+    world.tick_interval = Duration::from_millis(10);
+    for _ in 0..1000 {
+        world.tick();
+        for task in &changes {
+            assert!(
+                !matches!(live_task(&world, *task).phase, tasks::Phase::Held { .. }),
+                "change {task} held: {:?}; row {:?}",
+                live_task(&world, *task).phase,
+                change_row(&world, *task).change.state
+            );
+        }
+        if changes.iter().all(|task| {
+            let row = world.store.change_hot(*task).expect("durable change");
+            row.pull.is_some() && row.room.is_none()
+        }) {
+            break;
+        }
+    }
+    let pulls: std::collections::BTreeSet<_> = changes
+        .iter()
+        .map(|task| {
+            let row = world.store.change_hot(*task).expect("durable change");
+            assert_eq!(row.room, None);
+            row.pull.unwrap_or_else(|| {
+                panic!(
+                    "change {task}: {:?}, task {:?}, writes {:?}",
+                    row.change.state,
+                    live_task(&world, *task).phase,
+                    world.writes
+                )
+            })
+        })
+        .collect();
+    assert_eq!(pulls.len(), CHANGES, "one distinct pull per change");
 }

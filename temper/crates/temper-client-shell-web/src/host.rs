@@ -2,10 +2,9 @@
 use crate::{limits, records};
 use jig_client_protocol_http::Heard as Above;
 use jig_client_shell_web::adapter::{Asked, Heard};
-use skein_lib::{Env, List, Queue, Secret, Time, Token, Wall};
+use skein_lib::{Env, List, Queue, Secret, Time, Wall};
 use skein_ui::{Act, NodeId, Patch};
 use skein_ui_web::{Look, mapping::Primary, page::Page};
-use std::collections::BTreeMap;
 use temper_client_domain::{
     self as root, Address, Event, Place, Request,
     address::{Filter, parse, print},
@@ -67,9 +66,10 @@ pub struct Host {
     out: Queue<Request>,
     patches: Queue<Patch>,
     address: Address,
+    root_pending: bool,
     mapping: jig_client_protocol_http::Mapping,
     stream: jig_client_protocol_http::Stream,
-    tickets: BTreeMap<u32, Token>,
+    tickets: jig_client_shell_web::adapter::Exchanges,
     next: u32,
     navigate: Option<Box<[u8]>>,
     replace: Option<Box<[u8]>>,
@@ -90,8 +90,7 @@ impl Host {
         zone_minutes: i32,
         ways: view::sign_in::Ways,
     ) -> Self {
-        assert!(limits::valid(&client), "web capacities are checked");
-        let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
+        let (bounds, words) = limits::checked(&client).expect("web capacities are checked");
         let mut root = root::new(&client, seed);
         root.set_zone_minutes(zone_minutes);
         Self {
@@ -101,10 +100,11 @@ impl Host {
             env: Env { now, wall, limits: client },
             out: Queue::uncapped(),
             patches: Queue::with_capacity(bounds.tree.patches),
-            address: Address::Inbox { filter: Filter::ALL },
+            address: Address::AllHome,
+            root_pending: false,
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
             stream: jig_client_protocol_http::Stream::new(&limits::stream().expect("stream bounds")),
-            tickets: BTreeMap::new(),
+            tickets: jig_client_shell_web::adapter::Exchanges::default(),
             next: 0,
             show: None,
             copy: None,
@@ -162,7 +162,12 @@ impl Host {
     }
     // The page a path names; a path that prints otherwise is replaced by the printed one.
     fn opened(&mut self, path: &[u8]) -> Address {
+        self.root_pending = false;
         let address = match parse(path) {
+            Place::Root | Place::Missing => {
+                self.root_pending = true;
+                return Address::AllHome;
+            }
             Place::Approve { code } => {
                 let printed = root::address::print_approve(code);
                 if *printed != *path {
@@ -172,7 +177,7 @@ impl Host {
             }
             Place::Authorize { .. } | Place::AuthorizeMalformed => return self.address.clone(),
             Place::Address(address) => address,
-            Place::Missing | Place::Public(_) => Address::Inbox { filter: Filter::ALL },
+            Place::Public(_) => Address::Inbox { filter: Filter::ALL },
         };
         let printed = print(&address);
         if *printed != *path {
@@ -254,7 +259,17 @@ impl Host {
         self.view.tree()
     }
     fn event(&mut self, event: Event) {
+        let had_approval_code = match self.root.approval() {
+            Some(page) => page.code().is_some(),
+            None => false,
+        };
         root::step(&mut self.root, &self.env, event, &mut self.out);
+        if had_approval_code
+            && let Some(page) = self.root.approval()
+            && page.code().is_none()
+        {
+            self.show = Some((root::address::print_approve(None), true));
+        }
     }
     fn client(&mut self, event: jig_client::Event) {
         self.event(Event::Client { event });
@@ -279,16 +294,11 @@ impl Host {
     fn heard(&mut self, heard: Heard) {
         let mut above = Queue::uncapped();
         match heard {
-            Heard::Answered { exchange, status, body, headers: _ } => {
-                if let Some(token) = self.tickets.remove(&exchange) {
-                    above.push(jig_client_protocol_http::answered(token, status, body));
-                }
-            }
-            Heard::Failed { exchange } => {
-                if let Some(exchange) = self.tickets.remove(&exchange) {
-                    above.push(Above::Lost { exchange });
-                }
-            }
+            report @ (Heard::Answered { exchange, .. }
+            | Heard::Begun { exchange, .. }
+            | Heard::Part { exchange, .. }
+            | Heard::Done { exchange }
+            | Heard::Failed { exchange }) => self.tickets.heard(exchange, report, &mut above),
             Heard::StreamOpened => self.stream.opened(200, &mut above),
             Heard::StreamRefused { status } => self.stream.opened(status, &mut above),
             Heard::Piece { bytes } => self.stream.body(&bytes, &mut above),
@@ -299,6 +309,8 @@ impl Host {
         while let Some(heard) = above.pop() {
             self.client(match heard {
                 Above::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
+                Above::Part { exchange, message } => jig_client::Event::Part { exchange, message },
+                Above::Done { exchange } => jig_client::Event::Done { exchange },
                 Above::Lost { exchange } => jig_client::Event::Lost { exchange },
                 Above::Streamed { message } => jig_client::Event::Streamed { message },
                 Above::StreamGone => jig_client::Event::StreamGone,
@@ -314,6 +326,9 @@ impl Host {
                 Heard::NotStored { .. } => refused = true,
                 Heard::Stored { .. } => {}
                 report @ (Heard::Answered { .. }
+                | Heard::Begun { .. }
+                | Heard::Part { .. }
+                | Heard::Done { .. }
                 | Heard::Failed { .. }
                 | Heard::StreamOpened
                 | Heard::StreamRefused { .. }
@@ -359,11 +374,12 @@ impl Host {
                     self.carry(request, &mut asked);
                 }
                 Request::Show { address, replace } => {
-                    if address != self.address || self.root.authorization().is_some() {
+                    if address != self.address || self.root_pending || self.root.authorization().is_some() {
                         let path = print(&address);
-                        if path != print(&self.address) || self.root.authorization().is_some() {
+                        if path != print(&self.address) || self.root_pending || self.root.authorization().is_some() {
                             self.show = Some((path, replace));
                         }
+                        self.root_pending = false;
                         self.address = address.clone();
                         self.event(Event::Went { place: Place::Address(address) });
                     }
@@ -378,6 +394,13 @@ impl Host {
                 Request::SignOut => self.client(jig_client::Event::SignOut),
                 Request::Unlinked { .. } | Request::Dropped { .. } | Request::Fact { .. } => {}
             }
+        }
+        root::settle(&mut self.root, &self.env, &mut self.out);
+        while let Some(request) = self.out.pop() {
+            let Request::Client { request } = request else {
+                unreachable!("settling only hands out client transport");
+            };
+            self.carry(request, &mut asked);
         }
         root::take(&mut self.root, &self.env, &mut self.out);
         (asked, writes, tab)
@@ -401,19 +424,22 @@ impl Host {
             }
             jig_client::Request::Exchange { exchange, credential, message } => {
                 self.next = self.next.checked_add(1).expect("fetch tickets fit");
-                self.tickets.insert(self.next, exchange);
+                let batch = matches!(message, jig_client::Message::Batch(_));
+                let frame_limits = limits::stream().expect("batch bounds");
+                self.tickets.insert(self.next, exchange, batch.then_some(&frame_limits));
                 asked.push(Asked::Exchange {
                     id: self.next,
                     call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
                     bound: limits::BODY_BYTES,
+                    pieces: batch.then_some(frame_limits.chunk),
                     cache: skein_ui_web::fetch::Cache::Browser,
                     keep: &[],
                 });
             }
-            jig_client::Request::OpenStream { credential } => {
+            jig_client::Request::OpenStream { credential, version, replaces } => {
                 self.stream = jig_client_protocol_http::Stream::new(&limits::stream().expect("stream bounds"));
                 asked.push(Asked::OpenStream {
-                    call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref()),
+                    call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref(), version, replaces),
                     piece: limits::PIECE,
                 });
             }

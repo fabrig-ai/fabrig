@@ -16,13 +16,19 @@ pub fn check_with(
     directories: &config::Directories,
     given: &temper_service::stock::Given,
 ) -> Result<Deployment, String> {
-    let named = temper_service::startup::named_with(bytes, directories, given)
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .expect("named checked document");
+    check_over(bytes, directories, given, None)
+}
+pub fn check_over(
+    bytes: &[u8],
+    directories: &config::Directories,
+    given: &temper_service::stock::Given,
+    limits: Option<(&config::Limits, &temper_service::limits::Limits)>,
+) -> Result<Deployment, String> {
+    let named = match limits {
+        Some((jig, own)) => temper_service::startup::named_with_limits(bytes, directories, given, jig, own),
+        None => temper_service::startup::named_with(bytes, directories, given),
+    }
+    .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
     let mut listeners = match &named.clients {
         config::Address::Addr(a) => a.socket().into_iter().collect::<Vec<_>>(),
         config::Address::Host { .. } => Vec::new(),
@@ -33,30 +39,24 @@ pub fn check_with(
     {
         listeners.push(socket);
     }
-    let application = member(&document, 0, b"application");
-    let setup_overrides: Vec<_> =
-        named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect();
+    let setup_overrides: Vec<_> = match limits {
+        Some((_jig, own)) => temper_service::limits::NAMES
+            .iter()
+            .filter(|row| {
+                row.name.starts_with("setup.")
+                    && !matches!(row.name, "setup.runs" | "setup.states" | "setup.state_life_ms")
+            })
+            .map(|row| (Box::from(row.name.as_bytes()), (row.value)(own)))
+            .collect(),
+        None => named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect(),
+    };
     let (setup_limits, fetch_bytes) = temper_forge_setup::check::limits(&setup_overrides)
         .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
     let checked =
         Checked { limits: setup_limits, fetch_bytes, setup: temper_forge_setup::Setup { entries: Box::new([]) } };
     let mut problems = temper_service::startup::Problems::empty();
-    let machine = &named.machine;
-    for (listen, listener) in [
-        (machine.owned.as_ref().map(|owned| owned.listen), temper_service::startup::Listener::Owned(0)),
-        (machine.fake.as_ref().map(|fake| fake.listen), temper_service::startup::Listener::Fake(0)),
-    ] {
-        if let Some(listen) = listen {
-            temper_service::startup::redirect_ports(&named.redirects, Some(listen.port()), listener, &mut problems);
-            if listeners.contains(&listen) {
-                return Err("application.machine: listener must be unique".into());
-            }
-            listeners.push(listen);
-        }
-    }
     let facts = temper_fake::demo::Facts { llm: &named.llm, listeners: &listeners, directories };
-    let demo = temper_fake::demo::read(&document, member(&document, application, b"demo"), &facts)
-        .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let demo = temper_fake::demo::read(&facts).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     if let Some(demo) = &demo {
         temper_service::startup::redirect_ports(
             &named.redirects,
@@ -71,13 +71,29 @@ pub fn check_with(
     let limits = box_limits(&named.overrides)?;
     Ok(Deployment { named, checked, limits, demo })
 }
+/// The box's playground facts, never read from a document member.
+pub(crate) fn playground(demo: &temper_fake::demo::Demo) -> temper_service::settings::Demo {
+    let scripts = temper_fake::demo::scripts().expect("the embedded scripts were checked");
+    temper_service::settings::Demo {
+        provider: demo.provider(),
+        key_file: demo.llm().key().into(),
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: scripts.asked.into_vec().into_iter().map(|script| script.cue).collect(),
+    }
+}
 pub fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
-    check_with(bytes, directories, &temper_service::stock::Given::Stock)
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]),
+    );
+    check_with(bytes, directories, &given)
 }
 
 fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limits::Limits, String> {
     use temper_box_machine::limits::{self, Refused};
-    let mut limits = limits::small();
+    let mut limits = limits::stock();
     let mut problems = Vec::new();
     let prefix = "application.limits.overrides.";
     for (name, value) in overrides.iter().filter(|(name, _)| name.starts_with(b"box.")) {
@@ -99,13 +115,6 @@ fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limi
         problems.push(format!("{prefix}{name}: {reason}"));
     }
     if problems.is_empty() { Ok(limits) } else { Err(problems.join("\n")) }
-}
-
-fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
-    jig_protocol_config::read::Object::new(document, at)
-        .expect("checked object")
-        .member(document, name)
-        .expect("checked member")
 }
 
 /// Give the shared forge commands the engine member of this shell's checked document.

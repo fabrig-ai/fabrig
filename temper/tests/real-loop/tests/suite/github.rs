@@ -16,6 +16,8 @@ const UMBRA: usize = 6;
 const CHAT: usize = 8;
 const PROCEDURE: u64 = 2;
 const DELIVERED: usize = 11;
+// The manifest flow retains the small profile's 16 KiB decoded document room.
+const MANIFEST_BODY_BYTES: u32 = 16_384;
 fn installed(body: &[u8]) {
     let said = b"temper has the installation; you may close this tab.";
     assert!(skein_lib::bytes::find(body, said).is_some(), "the setup page says so");
@@ -26,6 +28,10 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     let mut fixture = github::fixture();
     fixture.connected = false;
     fixture.manifest = true;
+    // This flow carries an App manifest, beyond the fixture's small operation's marker.
+    fixture.configure = |document, _, _| {
+        document.temper_over("forge_component.body_bytes", MANIFEST_BODY_BYTES);
+    };
     fixture.unaccepted_after_install = true;
     fixture.keep_heads = true;
     let ran = run_github(fixture, |at| llm::cued(scripts(at)), steps);
@@ -73,7 +79,7 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     assert_eq!(
         coders_new_commits(&files),
         [branch.head],
-        "the pushed head is the coder's one newly created local commit"
+        "the pushed head is the worker's one new commit of the coder's files"
     );
 }
 
@@ -167,11 +173,14 @@ fn scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]
     scripts.into_boxed_slice()
 }
 
-// Fetched objects live in the store. Numeric objects in a checkout are the
-// commits its coder made locally, not the metadata in objects/info.
+// Fetched objects live in the store. Numeric objects in the worker's git
+// directory are commits made from the coder's files, not objects/info metadata.
 fn coders_new_commits(files: &[std::path::PathBuf]) -> Vec<u64> {
     let mut created = Vec::new();
-    for path in files.iter().filter(|path| path.ends_with(".git/temper-head")) {
+    for path in files
+        .iter()
+        .filter(|path| path.ends_with("temper-head") && path.components().any(|part| part.as_os_str() == "gitdirs"))
+    {
         let objects = path.parent().expect("git directory").join("objects");
         let mut local = Vec::new();
         for object in std::fs::read_dir(objects).expect("local objects") {

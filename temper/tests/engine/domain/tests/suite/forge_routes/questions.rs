@@ -37,6 +37,16 @@ pub(super) fn plan_world_with_gate(
     timing: &StoryLimits,
     silent_ci: bool,
 ) -> (World, engine::Assignment) {
+    plan_world_with_pull_room(bound, gate, timing, silent_ci, None)
+}
+
+fn plan_world_with_pull_room(
+    bound: Option<u32>,
+    gate: Gate,
+    timing: &StoryLimits,
+    silent_ci: bool,
+    pull_room: Option<u32>,
+) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -44,10 +54,18 @@ pub(super) fn plan_world_with_gate(
         1000,
         gate,
         None,
-        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*timing },
+        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..timing.clone() },
     );
     // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 2048;
+    if let Some(bytes) = pull_room {
+        world.env.limits.brief.budgets.pull = bytes;
+        world.env.limits.brief.read_bytes = world.env.limits.brief.read_bytes.max(bytes);
+        world.env.limits.brief.brief_bytes += bytes;
+        world.env.limits.forge.brief_bytes = world.env.limits.forge.brief_bytes.max(world.env.limits.brief.read_bytes);
+        world.env.limits.journal.result_bytes =
+            world.env.limits.journal.result_bytes.max(world.env.limits.brief.brief_bytes);
+    }
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
     world.adopt();
@@ -307,33 +325,25 @@ fn a_question_open_past_the_stall_holds_nothing() {
     park_after_turn(&mut world, &producer, None, 0);
     let before_question = row(&world, change).change.since;
     world.env.now = world.env.now.saturating_add(stall.saturating_add(stall));
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(!row(&world, change).questions.open.is_empty());
     let answering_at = world.env.wall;
     answer(&mut world, &requester, change, CALL + 1);
     wait_answer(&mut world, producer.task, change);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     let since = row(&world, change).change.since;
     assert!(since >= answering_at);
     assert!(since > before_question);
     let deadline = since.as_nanos().saturating_add(stall.as_nanos());
     // Leave a minute before the deadline, beyond these ticks' twenty seconds.
     world.env.now = Time::from_nanos(deadline - Duration::from_secs(60).as_nanos());
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(row(&world, change).change.since >= since);
     world.env.now = Time::from_nanos(deadline);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
@@ -377,6 +387,104 @@ fn a_producers_question_goes_up_and_the_answer_comes_down() {
             .iter()
             .any(|word| word.kind == tasks::MessageKind::Answer { question } && word.words.as_ref() == ANSWER)
     );
+}
+
+/// A binary pull file must not make either resolution assignment unsendable.
+#[test]
+fn a_resolution_with_a_non_text_file_encodes_before_and_after_a_question() {
+    // Keep the named line whole, beyond the ordinary relay fixture's tiny room.
+    let (mut world, requester) =
+        plan_world_with_pull_room(None, Gate::default(), &StoryLimits::default(), false, Some(1024));
+    let change = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
+    let producer = next_producer(&mut world, change);
+    world.until(Until::Ready);
+    temper_engine_domain_world::kinds::produce(&mut world, change, &producer);
+    let branch = row(&world, change).branch.clone();
+    let landing = row(&world, change).base.clone();
+    let previous = world.fake.branch(b"org/repo", &branch).expect("producer head");
+    let base = world.fake.branch(b"org/repo", &landing).expect("base head");
+    let head = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        previous,
+        base,
+        Box::new([
+            raw::File { path: b"file".as_slice().into(), content: b"small fix".as_slice().into() },
+            raw::File { path: b"store/log-1".as_slice().into(), content: b"\xff\xfe\x00\x01".as_slice().into() },
+        ]),
+        b"Produce a binary store",
+    )
+    .expect("producer commits the binary file");
+    assert_eq!(
+        world.external(2, raw::Op::Git(raw::Git::Push { branch, commit: head, expected: Some(previous) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &landing, b"file", b"base moved", 1)
+        .expect("base conflicts with the producer");
+    let resolution = super::reviews::next_assignment(&mut world, 3);
+    assert!(
+        matches!(row(&world, change).delegate, Some((task, temper_engine_domain_forge_change::Delegate::Resolve { .. })) if task == resolution.task)
+    );
+    encode_resolution_assignment(&resolution);
+    let question = ask(&mut world, &resolution, change);
+    park_after_turn(&mut world, &resolution, None, 0);
+    answer(&mut world, &requester, change, CALL + 1);
+    let resumed = super::reviews::next_assignment(&mut world, 4);
+    assert_eq!(resumed.task, resolution.task);
+    assert!(resumed.attempt > resolution.attempt);
+    assert!(resumed.messages.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }));
+    encode_resolution_assignment(&resumed);
+    let pull = resumed
+        .sections
+        .iter()
+        .find_map(|section| {
+            if section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Pull)
+                && let engine::BriefBody::Text(words) = &section.body
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .expect("resumed pull section");
+    assert!(contains(pull, b"File: store/log-1\n[not carried, not text: absent before, blob addec90a42e64feca765d123e18e4603ed982925 after; read it from the repository]\n"), "{}", String::from_utf8_lossy(pull));
+    assert!(!contains(pull, b"\xff\xfe\x00\x01"));
+    world.close();
+}
+
+fn encode_resolution_assignment(run: &engine::Assignment) {
+    use temper_engine_service_vocabulary::{assignment, forges::Forges, settings, values::Values};
+    let mut forges = Forges::with_capacity(1);
+    assert!(forges.insert(settings::Forge {
+        log_origins: None,
+        mode: forge_top::Mode::Connected,
+        number: forge_world::REPO.forge,
+        kind: settings::Kind::Forgejo,
+        api: jig_protocol_config::Address::Host { name: b"forge.test".as_slice().into(), port: 80 },
+        transport: settings::Transport::Plaintext,
+        git: b"http://forge.test".as_slice().into(),
+        git_program: None,
+        web: None,
+        app_read_only: false,
+        user: 1,
+        identity: 1,
+    }));
+    let mut entries = skein_lib::List::with_capacity(1);
+    entries
+        .push(smith_protocol_channel::Endpoint {
+            name: Box::new([]),
+            number: run.run.policy.model.endpoint,
+            dialect: run.run.policy.model.dialect,
+        })
+        .expect("one endpoint");
+    let encoding = assignment::Encoding {
+        limits: temper_protocol_worker_wire::v1::CEILINGS,
+        endpoints: smith_protocol_channel::Endpoints::new(entries),
+        deployment: [0; 16],
+        charter_bytes: 65_536,
+    };
+    assignment::down(run.clone(), &forges, &encoding, &Values::new(0, 0), CHANNEL, Time::ZERO)
+        .expect("production resolution assignment encodes");
 }
 
 /// temper/docs/design/domain/agent/README.md, 5: an unchecked push is the next brief's head.
@@ -581,9 +689,7 @@ fn the_change_merges_nothing_while_its_question_is_up() {
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"agreed fix", 1)
         .expect("producer pushed");
     super::delegates::fixtures::answer_producer(&mut world, &producer);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(world.merges, 0);
     assert_eq!(live_task(&world, change).questions.len(), 1);
 }
@@ -761,9 +867,7 @@ fn an_asker_that_ends_drops_its_question() {
     answer(&mut world, &requester, change, CALL + 2);
     let revision = live_task(&world, change).revisions.hold;
     call(&mut world, &requester, CALL + 3, engine::Tool::Release { target: change, revision, again: None });
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(row(&world, change).questions.open.is_empty());
     assert!(live_task(&world, change).questions.is_empty());
     let words: Vec<_> = replies(&world, requester.task, change)
@@ -830,9 +934,7 @@ fn a_resolution_that_ends_with_a_relayed_question_still_holds_its_change() {
     answer(&mut world, &requester, change, CALL + 2);
     let revision = live_task(&world, change).revisions.hold;
     call(&mut world, &requester, CALL + 3, engine::Tool::Release { target: change, revision, again: None });
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(row(&world, change).questions.open.is_empty());
     assert!(live_task(&world, change).questions.is_empty());
     let expected = format!(
@@ -951,9 +1053,7 @@ fn existing_sibling_question() -> AddedDependency {
 }
 
 fn assert_answer_held(world: &mut World, change: u64, producer: &engine::Assignment, dependency: u64) {
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(
         row(world, change).questions.open.first().map(|question| question.stands.clone()),
         Some(Stands::Held { answer: ANSWER.into() })
@@ -1141,9 +1241,7 @@ fn finish_early_pair(
 ) {
     super::early_start::push(world, producer, head, b"dependent");
     super::delegates::fixtures::answer_producer(world, producer);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_pending_dependency(world, change, dependency);
     super::delegates::fixtures::answer_producer(world, upstream);
     both_land(world, change, dependency);
@@ -1162,9 +1260,7 @@ fn an_early_producers_answer_arrives_while_its_dependency_is_pending() {
         key: [99; 16],
         ask: people::Ask::Say { project: 1, task: producer.task, words: b"Please continue".as_slice().into() },
     }));
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(live_task(&world, producer.task).last_activity > activity);
     assert_eq!(world.assigned.iter().filter(|run| run.task == producer.task).count(), attempts);
     assert_eq!(live_task(&world, producer.task).questions[0].number, question);
@@ -1377,9 +1473,7 @@ fn a_retried_step_relays_the_question_once() {
     }
     assert!(cut, "lose the acknowledgement of the atomic relay step");
     world.restart(true, true);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).questions.open.len(), 1);
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
     let words = replies(&world, requester.task, change);

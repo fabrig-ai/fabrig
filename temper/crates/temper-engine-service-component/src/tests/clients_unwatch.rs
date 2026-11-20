@@ -1,5 +1,5 @@
 use super::fixtures;
-use jig_client_protocol_wire::v26 as wire;
+use jig_client_protocol_wire as wire;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{Env, List, Queue, Reader, Secret, Time, Token, Wall, Writer};
 
@@ -90,6 +90,8 @@ impl Stand {
     }
     fn exchange(&mut self, exchange: Token, message: kit::Message) {
         self.down(kit::Event::Transport(kit::FromTransport::Exchange {
+            via: jig_protocol_engine_clients::Via::Listener,
+            source: None,
             browser: false,
             exchange,
             credential: Some(self.credential.clone()),
@@ -99,7 +101,9 @@ impl Stand {
     }
     fn stream(&mut self) -> [u8; 16] {
         self.down(kit::Event::Transport(kit::FromTransport::StreamOpen {
+            version: None,
             stream: STREAM,
+            replaces: None,
             credential: Some(self.credential.clone()),
         }));
         self.authenticate();

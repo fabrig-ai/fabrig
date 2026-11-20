@@ -239,6 +239,11 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
     }
 }
 
+/// The shell's commit size check (protocol/store/README.md, 5).
+pub fn check_commits(limits: &Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
+    sizes::check_commits(&limits.core, &APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
+}
+
 #[must_use]
 pub fn limits() -> Limits {
     let commits = sizes::Commits { in_flight: 2, writes: 2000 };
@@ -262,6 +267,8 @@ pub fn limits() -> Limits {
         logs: 16,
         deadline: Duration::from_secs(1),
     };
+    map.value = map.value.max(sizes::settings_value(&CORE_LIMITS).expect("settings history room"));
+    map.page.bytes = map.page.bytes.max(map.key.checked_add(map.value).expect("largest map row"));
     let sizes =
         sizes::check_commits(&CORE_LIMITS, &APPLICATION, &commits, &map, 1).expect("scripted record bounds fit");
     map.key = sizes.key;
@@ -282,6 +289,7 @@ pub fn limits() -> Limits {
         files: 2,
         reads: 4,
         fetch: 16_777_216,
+        checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
         orphan_erases: 1,
         held: 2,
     }
@@ -319,6 +327,8 @@ pub fn live_task(number: u64) -> core::Record {
         started_from: Box::new([]),
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
@@ -426,6 +436,7 @@ pub fn run_proof(task: u64) -> core::Record {
         task,
         attempt: 1,
         conversation: 1,
+        endpoint: None,
         credentials: Box::new([]),
         window: Some(core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
         crossed: false,

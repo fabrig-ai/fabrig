@@ -3,6 +3,7 @@ use super::goal_branch::{branch_tip, goal_request};
 use super::light_rules::change_row;
 use super::*;
 use temper_engine_domain_forge_change as change;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000;
@@ -77,7 +78,7 @@ fn make_change(
 ) -> u64 {
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Settle goal 7's status.", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256, choices: Box::new([]) };
     delegate.authority = live_task(world, goal.task).authority.clone();
     delegate.authority.delegation.depth = delegate.authority.delegation.depth.saturating_sub(1);
     delegate.authority.delegation.tasks = 6;
@@ -133,8 +134,8 @@ fn a_close_change_runs_the_close_job_at_a_branch_at_its_landing_branchs_tip() {
     assert_eq!(job.deadline, Duration::from_secs(600));
     assert_eq!(live_task(&world, job.run.raw()).requester, tasks::Party::Task(task));
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(decoded.command(), b"repo/.temper/close");
-    assert_eq!(decoded.request(), REQUEST);
+    assert_eq!(decoded.command.as_ref(), b"repo/.temper/close");
+    assert_eq!(decoded.request.as_ref(), REQUEST);
     assert_eq!(change_row(&world, task).close.as_deref(), Some(REQUEST));
     let workspace = job.workspace.as_ref().expect("writable workspace");
     assert_eq!(workspace.workstream, task);

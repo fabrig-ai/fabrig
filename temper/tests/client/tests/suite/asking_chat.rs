@@ -450,6 +450,7 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
     let driver = &mut world.front().engine;
     let reply = skein_lib::ReplyTo::new(skein_lib::Token::new(2003));
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2003)),
         identity: people::Identity {

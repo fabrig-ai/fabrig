@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 /// Jig's raw authorization query ceiling, shared with its wire codec.
-pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v26::CEILINGS.authorize_query;
+pub const QUERY_BYTES: u32 = jig_client_protocol_wire::CEILINGS.authorize_query;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Address {
     Inbox { filter: Filter },
@@ -112,6 +112,8 @@ pub enum Kind {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
+    /// The root whose query sets no inbox filter field; Home by the person's projects (client/web/README.md, 2.3).
+    Root,
     Address(Address),
     /// The approval page (client/pages/README.md, The approval page): a code, or none to type one.
     Approve {
@@ -127,7 +129,7 @@ pub enum Place {
     Public(Public),
 }
 
-/// The page's path (client/web/README.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
+/// The page's path (client/web/README.md, 2.3): `/needs`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
 /// `/projects/<project>/team`, `/projects/<project>/work`, `/deployment/members`, `/deployment/limits`, `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one closed address match prints each path and its query")]
@@ -278,7 +280,8 @@ pub fn parse(path: &[u8]) -> Place {
     let path = route;
     let path = path.strip_suffix(b"/").unwrap_or(path);
     if path.is_empty() {
-        return Place::Address(Address::Inbox { filter: parse_filter(fields) });
+        let filter = parse_filter(fields);
+        return if filter == Filter::ALL { Place::Root } else { Place::Address(Address::Inbox { filter }) };
     }
     let Some(path) = path.strip_prefix(b"/") else {
         return Place::Missing;
@@ -289,6 +292,7 @@ pub fn parse(path: &[u8]) -> Place {
     let (name, rest) = segment(path);
     let (number, tail) = segment(rest);
     let address = match (name, number, tail) {
+        (b"needs", b"", b"") => Address::Inbox { filter: parse_filter(fields) },
         (b"terminal", b"", b"") => return Place::Approve { code: approve_code(fields) },
         (b"forges", b"", b"") => Address::Forges,
         (b"forges", b"connect", b"") => Address::ConnectForge { forge: forge_choice(fields) },
@@ -487,7 +491,7 @@ fn print_filter(filter: Filter) -> Box<[u8]> {
         (b"kind=".as_slice(), kind, filter.kind.is_some()),
         (b"goal=".as_slice(), goal.as_bytes(), filter.goal.is_some()),
     ];
-    let mut size = 1_usize;
+    let mut size = b"/needs".len();
     for (name, value, set) in fields {
         if set {
             size = size.checked_add(1).expect("query fits usize");
@@ -496,7 +500,7 @@ fn print_filter(filter: Filter) -> Box<[u8]> {
         }
     }
     let mut path = Writer::new(size);
-    path.put(b"/").expect("root fits");
+    path.put(b"/needs").expect("inbox path fits");
     let mut separator = b"?";
     for (name, value, set) in fields {
         if set {

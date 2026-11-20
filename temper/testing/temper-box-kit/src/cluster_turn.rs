@@ -25,21 +25,24 @@ pub fn write(path: &Path, value: &Value) {
 }
 
 /// Render once, retaining these documents across both kinds of restart.
-pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::SocketAddr; 5]) {
+pub fn prepare(
+    cluster: &mut Cluster,
+    root: &Path,
+    addresses: &[std::net::SocketAddr; 5],
+) -> temper_playground::documents::Configuration {
     for (name, address) in ["clients", "workers", "webhooks", "forge", "llm"].iter().zip(addresses) {
         cluster.bind(&format!("story.{name}"), &address.to_string());
     }
     cluster.bind("proc.forge.ready.address", &addresses[3].to_string());
     cluster.bind("proc.llm.ready.address", &addresses[4].to_string());
+    // Source reads and preparation use the engine's git, found on PATH (config.md, 6.5).
+    cluster.git_on_path("engine", root);
     for name in ["engine", "w1"] {
         cluster.prepare(name);
     }
-    let engine_path = cluster.dir("engine").join("config/temper.json");
-    let worker_path = cluster.dir("w1").join("config/temper.json");
-    let agent_path = cluster.dir("w1").join("config/agent.json");
-    let mut engine = read(&engine_path);
-    let mut worker = read(&worker_path);
-    let mut agent = read(&agent_path);
+
+    let mut engine = support::limit_settings::configuration(&cluster.dir("engine").join("config"));
+    let mut agent = temper_agent_fixtures::at(&engine, &cluster.dir("engine").join("data"));
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
     // its spec and result fit. The worker and the agent must carry that result.
     let prepare = temper_service::limits::prepare_bound();
@@ -48,22 +51,29 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
         ("tasks.message_bytes", prepare.result),
         ("tasks.result_bytes", prepare.result),
     ] {
-        engine["engine"]["limits"]["overrides"][name] = bytes.into();
+        engine.jig_over(name, bytes);
     }
+    engine.jig_over("people.words", 512);
+    engine.jig_over("tasks.run_inbox", 8);
+    engine.jig_over("tasks.inbox_bytes", prepare.result * 8);
     let payload = prepare.result + 2; // the result and its JSON string quotes
     agent["profile"]["declared"]["tool_payload"] = payload.into();
-    engine["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
-    engine["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
-    worker["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    worker["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
-    worker["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
-    worker["application"]["limits"]["overrides"]["checkout.message_bytes"] = payload.into();
+    engine.jig_over("hub.outcome_bytes", payload);
+    engine.temper_over("forge.client.op_bytes", prepare.result);
+    engine.temper_over("tool_payload", payload);
+    engine.jig_over("hub.event_bytes", prepare.result);
+    engine.temper_over("checkout.message_bytes", payload);
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     support::configuration::turn_bounds::apply(&mut engine, turn);
-    support::configuration::turn_bounds::apply(&mut worker, turn);
-    write(&engine_path, &engine);
-    write(&worker_path, &worker);
-    write(&agent_path, &agent);
+    write(
+        &cluster.dir("engine").join("config/landing-settings.json"),
+        &json!({"items":[
+            {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":1}},
+            {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true,"base":true}],"tiers":[]}]}}
+        ]}),
+    );
+    temper_agent_fixtures::apply(&mut engine, &cluster.dir("engine").join("data"), &agent);
+    support::limit_settings::remember(&cluster.dir("engine").join("config"), &engine);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
     // Two runs fund production and leave room for its scripted turns after the reserve.
     let configured = temper_real_loop_world::settings::configuration(&engine);
@@ -72,6 +82,8 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     for name in ["forge", "llm"] {
         cluster.prepare(name);
     }
+    // The operator installs the LLM's trust root before the engine's first start.
+    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
     // The person uses the fake's fixed fixture identity, through a private
     // header file rather than a credential in curl's argument vector.
     let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);
@@ -79,6 +91,7 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
         &root.join("person.header"),
         format!("Authorization: token {}\n", std::str::from_utf8(&token).expect("fixture token")).as_bytes(),
     );
+    engine
 }
 
 /// Leave seven forty-eighths of the period for landing tasks, not the owner's pool.
@@ -99,6 +112,7 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
                 .expect("owner role");
             owner["period_spend"] = (period / 48 * 41).into();
         } else {
+            support::provider_setup::use_provider(&mut value, 1);
             value["documents"] = json!([]);
             value["hosts"] = "workers".into();
         }
@@ -109,6 +123,8 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
     items.push(json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
         "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
         "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}));
+    let providers = temper_agent_fixtures::providers::read(&root.join("engine/data"));
+    items.extend(support::provider_setup::items(&providers));
     let path = root.join("turn-settings.json");
     write(&path, &json!({"items":items}));
     ctl::settings_change(&calls[1], &path, "turn-settings")

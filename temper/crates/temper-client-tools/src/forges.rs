@@ -380,7 +380,7 @@ impl Forges {
         self.json = json;
     }
     pub(crate) fn next_deadline(&self) -> Option<Time> {
-        let mut next = None;
+        let mut next = lifecycle::next_deadline(self);
         for watch in self.watches.values() {
             if let Some(deadline) = watch.deadline {
                 next = Some(match next {
@@ -394,7 +394,8 @@ impl Forges {
 }
 pub(crate) fn owns(call: &jig::call::Call) -> bool {
     let name = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name;
-    name == READ.name
+    crate::checkpoint::owns(call)
+        || name == READ.name
         || name == SET_UP.name
         || name == DEMO_START.name
         || name == REMOVE.name
@@ -617,11 +618,10 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     }
     let Some(limits) = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge) else { return };
     let Some(request) = temper_client_protocol_wire::decode_requesting(&record.bytes, &limits) else { return };
-    let intent = match request.into_parts().request {
+    let intent = match request.request {
         temper_client_protocol_wire::v1::Request::SetUp(request) => {
-            let request = request.into_parts();
             let first = match request.first {
-                temper_client_protocol_wire::v1::SetUpFirst::Empty(first) => first.into_parts(),
+                temper_client_protocol_wire::v1::SetUpFirst::Empty(first) => first,
                 temper_client_protocol_wire::v1::SetUpFirst::Copies(_)
                 | temper_client_protocol_wire::v1::SetUpFirst::Nothing => return,
             };
@@ -642,6 +642,7 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         | temper_client_protocol_wire::v1::Request::HandFinding(_)
         | temper_client_protocol_wire::v1::Request::TriageFinding(_)
         | temper_client_protocol_wire::v1::Request::SetDraft(_)
+        | temper_client_protocol_wire::v1::Request::Checkpoint
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::DismissMaking(_)
@@ -772,6 +773,7 @@ fn complete(state: &mut Forges, handle: Handle, printed: jig::Printed, out: &mut
     finish(watch.called, printed, out);
 }
 pub(crate) fn fire(state: &mut Forges, client: &Client, env: &Env<Limits>, out: &mut Queue<Out>) {
+    lifecycle::fire(state, env, out);
     let mut next = None;
     for _ in 0..state.watches.len() {
         let entry = match next {
@@ -1517,38 +1519,26 @@ fn first_json(first: &First, out: &mut Encoder) {
 fn making_number(making: &temper_client_protocol_wire::v1::Making) -> u16 {
     use temper_client_protocol_wire::v1::Making;
     match making {
-        Making::Kept(kept) => kept.forge(),
+        Making::Kept(kept) => kept.forge,
         Making::New(_) => 0,
     }
 }
 fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
     use temper_client_protocol_wire::v1 as w;
-    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let forge = if intent.forge == 0 {
-        w::Making::New(w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Owned }).ok()?)
+        w::Making::New(w::NewForge { forge: w::ForgeAsk::Owned })
     } else {
-        w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge: intent.forge }).ok()?)
+        w::Making::Kept(w::Kept { forge: intent.forge })
     };
-    let request = w::Request::SetUp(
-        w::SetUp::new(
-            &bounds,
-            w::SetUpParts {
-                forge,
-                first: w::SetUpFirst::Empty(
-                    w::FirstEmpty::new(
-                        &bounds,
-                        w::FirstEmptyParts {
-                            org: intent.org.clone(),
-                            repository: intent.repository.clone(),
-                            playground: intent.playground,
-                        },
-                    )
-                    .ok()?,
-                ),
-            },
-        )
-        .ok()?,
-    );
+    let request = w::Request::SetUp(w::SetUp {
+        forge,
+        first: w::SetUpFirst::Empty(w::FirstEmpty {
+            org: intent.org.clone(),
+            repository: intent.repository.clone(),
+            playground: intent.playground,
+            sample: false,
+        }),
+    });
     lifecycle::ask(request, limits)
 }
 
@@ -1566,6 +1556,7 @@ fn resolve_forge(intent: &mut Intent, call: &jig::call::Call, rows: &[Row]) {
                 && first.org == intent.org
                 && first.repository == intent.repository
                 && first.playground == intent.playground
+                && !first.sample
             {
                 intent.forge = row.number;
                 break;

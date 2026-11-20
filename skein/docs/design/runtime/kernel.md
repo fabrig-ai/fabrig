@@ -320,7 +320,8 @@ documentation, with each operation's errors; the decisions behind it:
   existing file or directory), `Directory` (an existing directory: a
   root, or one to list), `Create` (a new file, exclusively, to write) or
   `Write` (an existing regular file, to read and write, never created),
-  each with a form that refuses a symbolic link, as `Read`'s does.
+  each with a form that refuses a symbolic link, as `Read`'s does: on
+  macOS, every link but the system's own (readiness.md, 5).
   Each is one well-defined case for the simulator and the suite to hold,
   and more come when a user pulls them.
 - **Cutting a file** is `Truncate` on a descriptor opened to write
@@ -482,8 +483,11 @@ documentation, with each operation's errors; the decisions behind it:
   `posix_spawn` makes it (readiness.md, 5): the records are the same. `Spawn` is synchronous: glibc's
   `pidfd_spawn`, with the group set in its attributes, and the cgroup if
   the spawn names one. `Spawn` carries io/processes.md 3's fields, each io token
-  its descriptor; one that asks for ids or containment starts the helper
-  (6.6). A `Null` entry is an open of `/dev/null`, read and write, at
+  its descriptor; one that asks for ids, containment or a reach
+  (io/processes.md, 6) starts the helper (6.6). A spawn whose reach the
+  backend cannot enforce fails `Reach(Unenforced)` before anything is
+  spawned, or once the helper has said why, and never runs with less:
+  macOS fails every one, `Unsupported`. A `Null` entry is an open of `/dev/null`, read and write, at
   its child descriptor in the file actions (`posix_spawn_file_actions_addopen`),
   on Linux and macOS; the simulator gives the child a descriptor that
   reads its end and takes every write. Its Debug prints each env entry's
@@ -730,14 +734,19 @@ documentation, with each operation's errors; the decisions behind it:
   A cgroup that still holds a process answers `Busy`, and what was
   removed stays removed.
 
-**The helper.** A `Spawn` that asks for ids or containment (io/processes.md, 3)
-starts the helper as the child, and the helper starts the command. The
-helper is the service's own executable, `/proc/self/exe`, with a marker
-argument, which `main` hands first to `skein-contain`, a crate of the
-shell's (shell.md, 6.4): one file to ship, and no version between the
-service and its helper to skew. A spawn that asks for neither is
-`pidfd_spawn` alone, into its cgroup (`POSIX_SPAWN_SETCGROUP`) if it
-names one.
+**The helper.** A `Spawn` that asks for ids, containment (io/processes.md, 3)
+or a reach (io/processes.md, 6) starts the helper as the child, and the
+helper starts the command. The helper is the service's own executable,
+`/proc/self/exe`, with a marker argument, which `main` hands first to
+the shell's `skein_shell::helper::dispatch` (shell.md, 6.4): one file to
+ship, and no version between the service and its helper to skew. A
+backend's `Kernel::set_helper(&mut self, executable: Box<[u8]>)` names
+another executable whose `main` does the same, as a test binary, whose
+`main` is its harness's, names a fixture of its suite. A spawn that asks
+for none of them is `pidfd_spawn` alone, into its cgroup
+(`POSIX_SPAWN_SETCGROUP`) if it names one. A reach alone is set up as
+*A reach alone* below says; ids and containment as the rest of this
+section does.
 
 - **Its descriptors.** The backend spawns the helper as any child, in
   its group and its cgroup, the pipes and given roots at their numbers,
@@ -846,6 +855,79 @@ answers `Spawned`, and the child's exit is by that signal (io/processes.md, 3).
 The command runs with the capabilities its ids have in the namespace,
 with no seccomp filter (io/README.md, 7), and with no terminal.
 
+**A reach alone.** A spawn whose only setup is its reach
+(io/processes.md, 6), with neither ids nor containment, starts the
+helper built for Landlock and `no_new_privs` alone. The backend builds
+the domain in the service, where a failure is its own to answer; the
+helper only takes it on, and the backend answers the spawn once the
+helper has executed the command or said why not. Linux's ring and its
+readiness backend share it, as they share the rest of a spawn.
+
+1. **The ABI.** The backend reads the kernel's Landlock ABI once, at its
+   first reach (`landlock_create_ruleset` with
+   `LANDLOCK_CREATE_RULESET_VERSION`): `ENOSYS` is `Absent`,
+   `EOPNOTSUPP` is `Disabled`, and an ABI below the reach's `abi` fails
+   the spawn, `Abi { found, needs }`.
+2. **The domain.** It creates a ruleset that handles every file-system
+   right of ABI 6 and scopes signals and abstract Unix sockets
+   (`LANDLOCK_SCOPE_SIGNAL`, `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`), and
+   no network right. For each rule in order, it opens the rule's path
+   beneath its root (`openat2`, `O_PATH | O_CLOEXEC`, `RESOLVE_BENEATH
+   | RESOLVE_NO_MAGICLINKS`, the root itself for an empty path), adds it
+   (`LANDLOCK_RULE_PATH_BENEATH`) with its rights, or with those of them
+   a file can have where it opened no directory, skipping it where none
+   remain, and closes it. A rule that fails, opened or added, fails the
+   spawn, `Rule { index, errno }`, and nothing is spawned.
+3. **The spec,** written whole into a pipe before the spawn: the
+   command's program, its arguments, its environment, and the child
+   descriptors its table names, each entry its length (four bytes) and
+   its bytes. io's bound on the command (io/processes.md, 6) keeps it
+   within a pipe's 64 KiB, so the write never waits.
+4. **The spawn.** `pidfd_spawn` of the helper, in its group, at the
+   spawn's directory, with the pipes and given descriptors at their
+   numbers as any spawn has them, and above them three of its own: the
+   spec's read end, the report's write end and the ruleset. Its
+   arguments are the marker and those three numbers; its environment is
+   empty, so nothing of the command's environment acts on the helper
+   before it is restricted, and none of it reaches a command line, which
+   any user may read.
+5. **H,** the helper, reads the spec whole and closes it; sets
+   `no_new_privs` (`PR_SET_NO_NEW_PRIVS`); restricts itself
+   (`landlock_restrict_self` with the ruleset) and closes the ruleset;
+   closes every descriptor but 0, 1, 2, those the spec names and the
+   report (`close_range` over each gap); writes `Restricted` on the
+   report; marks the report close-on-exec; and executes the command
+   (`execve`, the spec's program as a spawn without a reach names it,
+   with the spec's environment). A step that fails writes one record,
+   its stage (`Restrict` for the first four, `Command` for the
+   `execve`) and the error number, and exits 127.
+6. **The backend reads the report to its end,** and answers:
+   `Restricted` then end of file is `Spawned`, with no `report`, which
+   the backend has read; `Restricted` then a `Command` record is the
+   error a spawn without a reach answers for that `execve`, the helper
+   reaped; a `Restrict` record is `Reach(Restrict { errno })`, the
+   helper reaped; end of file with no record is `Reach(Helper)`: the
+   executable never ran the helper's dispatch, which a `main` that does
+   not hand it the marker first leaves. The backend waits for the
+   report as glibc's `pidfd_spawn` waits for the helper's `exec`: the
+   helper's start, a few system calls and an `execve`, so a reached
+   spawn holds the loop that long.
+
+The command so starts in the domain from its first instruction, with
+nothing open but what the spawn named, and every process it starts
+inherits the domain and `no_new_privs`. A restricted service that spawns
+with a reach of its own stacks a second domain beneath the one it is in,
+which Landlock allows a process with `no_new_privs`.
+
+**The startup check** (shell.md, 6.4) is the same spawn with no command:
+a reach at ABI 6 with no rule, and a spec whose program is empty, which
+io never admits for a spawn (`Restricted` then exit 0 is the helper's
+whole answer). `Kernel::can_restrict(&mut self) -> Result<(),
+Unenforced>` builds the domain, spawns the helper, reads its report,
+waits for its exit and answers: `Ok` where the helper restricted itself
+and exited 0, the `Unenforced` met otherwise. macOS answers
+`Unsupported` at once.
+
 ## 7. Broken invariants
 
 Some mistakes io never makes, so a backend may assume they never happen:
@@ -884,172 +966,20 @@ submit.
 
 ## 8. Testing
 
-The conformance suite is the contract's executable form
-(../../foundation/testing-strategy.md, 5). It is a crate of its own,
-`testing/skein-conformance`, over a small backend interface (open a
-process, submit, reap, enter, let time pass), and runs against the
-simulator (`tests/conformance/sim`) and against each backend on the real
-kernel (`tests/conformance/real`: the ring, and the readiness backend
-through epoll on Linux and kqueue on macOS), each of which implements the
-interface for its backend.
-
-- **Each scenario is a scripted sequence of records** that returns what it
-  saw, and its check names the rule of the contract behind each
-  assertion. An answer that waits on the peer's reset or acknowledgement
-  is retried until it changes.
-- **A driver checks every completion on the way:** valid for its
-  operation, one per submission, the record handed back with its buffer
-  in the same `Box`, and every descriptor closed at the end.
-- **On the simulator,** each scenario runs over calm seeds and seeds of
-  every fault loopback can show: a few of chaos in the focused suite, many
-  in the fuzzy one (../../foundation/testing-strategy.md, 8). Every outcome a race allows
-  must appear over the fuzzy suite's seeds, and a calm world must pair
-  each race as the ring does.
-- **What is Linux's is said so.** An answer that Linux gives and the
-  contract does not promise (the order of two refusals, an error number
-  another system answers otherwise) is checked as Linux's, by name, on
-  Linux, and every backend is held to what the contract promises; none
-  is loosened silently. The readiness backend on macOS meets every
-  scenario through kqueue (readiness.md, 5).
-- **On the ring,** each scenario runs once, and fails, saying so, if
-  io_uring is not usable. **On the readiness backend,** forced on Linux
-  (readiness.md, 1), each runs once too, and a check that only the ring
-  can meet says so: a cancel of a file's operation, made at submit, is
-  always too late there.
-- What no record can observe (close-on-exec, `TCP_NODELAY`, the modes of
-  new files) is not checked; `SO_REUSEADDR` and `IPV6_V6ONLY` are, by
-  their effects.
-- **Files beneath a root of the scenario's own.** Each scenario on files
-  lays out its root from a tree in the suite's own vocabulary (files,
-  directories, symbolic links, each with its mode): on the ring, a scratch
-  directory made per scenario beneath the system's temporary directory,
-  with a directory beside it for a link to lead out to, and removed with
-  the backend; in the simulator, the minimal fake machine (../testing/README.md, 4).
-  The scenarios: a file made, written at offsets over itself and past its
-  end, synced, read back and stated; a `0o000` file and directory of the
-  scenario's own user that `Read` is denied and `PathNoFollow` opens and
-  stats (on the ring, the denial is checked only without
-  `CAP_DAC_OVERRIDE`, which skips it), and a link it opens as a link; renames over a file, across
-  directories, of a file over a directory and the other way, over a full
-  and an empty directory, beneath itself, over itself, and the idiom that
-  replaces a file whole; removals of files, directories, a link and a file
-  open; new directories, and one removed while open; listings whole, one
-  entry at a time, and cut short by long names; a root beneath a root;
-  forty-four paths that leave their root, stay beneath it, or name a FIFO,
-  which opens as no file; locks: a directory locked through one open,
-  `Busy` through a second open of it, locked again through the first,
-  and taken through the second once the first is closed; and what the
-  owner may not do. Each names every error its operations can be made to
-  answer on a healthy scratch directory, and, where two could answer, the
-  one Linux checks first: a removed directory before a name's length, a
-  final `/` before the last name on a create, both directories of a
-  `Rename` before its source, its source before its target, a name
-  looked up before its directory is written; a no-replace rename, once
-  both directories are searched and the source is found, checks for a
-  taken target before ancestor, same-inode and write-permission checks.
-  The driver checks that every path, name and buffer comes back in its
-  `Box`, written only where the count says.
-- **What only the simulator shows:** a disk beyond a healthy one (no
-  space, a filesystem gone read-only, an I/O error) is the simulator's
-  own tests' (../testing/simulator.md, 6), and an `Open` past the descriptor limit a
-  scenario on the simulator only: lowering a process's limit on the real
-  kernel takes `unsafe` outside the ring adapter, or a child process, and
-  neither is allowed. A `Cancel` of a file's `Read` runs on
-  both: the ring stops it or comes too late, from one run to the next,
-  and requires a pairing the simulator draws; the simulator's `hung`
-  fault, a filesystem gone away, adds the `Read` that waits for good,
-  which no scratch directory shows, and every pairing must appear over
-  the fuzzy seeds. `EMLINK` (`TooManyLinks` on a `Rename`, a
-  `MakeDirectory` or a `HardLink`) neither backend provokes. A `Rename` across
-  filesystems (`Other(EXDEV)`) is the ring's own test, between the
-  temporary directory and `/dev/shm` where they are two mounts. Short
-  reads and writes are an outcome the simulator draws and the ring never
-  gives on a regular file: the fuzzy suite asserts both counts appear over its
-  seeds, and a calm world counts every byte, as the ring does.
-- **Appending.** A scenario opens a file to append as the shell does, in
-  its own root: `Append`s land at the end in order, after bytes another
-  descriptor appended between them, and a file that was not empty keeps
-  what it held; a short `Append` is continued from its count; a `Cancel`
-  stops one or comes too late, as for a `Write`. The suite's tree gains a
-  second name for a file (a hard link), so that `Stat` answers two links
-  for it, one for the rest, and the owner every scenario's files have.
-- **A tree's metadata,** on both backends, in the scenario's own root,
-  whose tree gains FIFOs, modes with setuid, setgid and sticky, and
-  `user.` attributes: `StatEntry` of each kind it lays out, a link
-  stated as a link, its inode, device and links those `Stat` answers
-  through an open, its group the scenario's, and `changed` moving on
-  after a `SetMode`, never back; `ReadLink` of a link, whole, and
-  `NotALink` of a file; `MakeLink` to a target out of the root, which
-  `ReadLink` reads back as written and an `Open` through it refuses with
-  `Escape`; `HardLink` of a file and of a link, each counted in its
-  links, and `Exists`; `SetMode` with setuid, setgid and sticky, read
-  back, and `NotSupported` on a link; `SetOwner` to the scenario's own
-  user and group, the only ones a run without `CAP_CHOWN` may give, and
-  `Permission` for another's, checked only without it; a `user.`
-  attribute set, listed, read, replaced and removed, then `NoAttribute`;
-  a value of 65,536 bytes; `Permission` for a `user.` attribute on a
-  link. On the ring, the scratch directory's filesystem keeps `user.`
-  attributes (tmpfs and ext4 do); a scenario that finds it does not
-  fails, saying so.
-- **The filesystem,** on both backends: `FilesystemStatus` of the root
-  answers a kind, and an available space no larger than its size;
-  `SyncFilesystem` answers `Nothing`; and where the kind is not btrfs,
-  each subvolume record answers `NotSupported`.
-- **btrfs, on the ring alone,** in the directory `SKEIN_BTRFS_SCRATCH`
-  names, on a btrfs filesystem mounted `user_subvol_rm_allowed`, where
-  the run may write; without it, each such scenario is skipped by name,
-  saying so. A subvolume made, a file written in it, a snapshot of it
-  whose parent UUID is its UUID, made read-only (a write in it then fails
-  `ReadOnly`) and writable again; the scratch subvolume's children, both
-  among them, and each one's path; `from` past the first child's tree,
-  which leaves it out; both destroyed, and `NotFound` after. The
-  simulator has no btrfs: the minimal fake machine answers these records
-  `NotSupported` (../testing/README.md, 4), and a service's own fake machine that
-  models btrfs holds itself to these scenarios (
-  `hearth/docs/design/testing/fake-machine.md`, 3).
-- **Processes,** with the fixture program of both backends (echo its
-  input, exit with a status, never exit): pipes through chosen
-  descriptors, an exit status kept, a `Wait` that waits while the child
-  lives, a signal, a kill. To these the groups add: the fixture starting
-  a child of its own in its group and exiting; a `Wait` that observes the
-  exit, then a signal to the group, which ends the grandchild and its
-  hold on a pipe; then the reaping `Wait`. Usage, in a process that has
-  reaped no child before: the children's part zero, still zero after the
-  observing `Wait`, and with a peak above zero after the reap; and the
-  process's own CPU and peak never falling between two reads.
-- **Cgroups,** on both backends, beneath a cgroup the run may write: on
-  the ring, the one `SKEIN_CGROUP_SCRATCH` names, or else a delegated
-  one above the run's own, found as the end-to-end kit finds it
-  (../examples.md, 6); without one, each scenario is skipped by name, saying
-  so. A cgroup made, with limits, counted, removed; one made twice
-  (`Exists`); a limit without its controller; controllers refused while
-  the cgroup holds a process; the run's fixture spawned into one, with a
-  grandchild that leaves its group (`setsid`) and stays in the cgroup; a
-  terminate that reaches both; `Populated` true, `CgroupChanged` pending,
-  then a kill, after which it completes and `Populated` is false, with
-  the first child exited but unreaped; a removal refused while populated,
-  then deepest first once empty.
-- **Contained trees, on the ring alone,** where the run's user has
-  subordinate ids and `newuidmap`; else skipped by name, saying so. Ids
-  alone, read back by the fixture (run as root, or skipped). A tree in a
-  user namespace whose maps name subordinate ids only, whose own user
-  and group then read as the overflow ids, and one whose maps name the
-  run's own group, where `setgroups` is denied; each stage failed in turn
-  and reported as it; a view whose git directory is read-only inside a
-  writable bind, the write refused; a bind whose path was swapped for a
-  link, which fails the view; `/proc` showing the tree's processes alone;
-  loopback alone; the hostname; a double fork contained, and killed with
-  the cgroup; a polite signal relayed to the command, and the command's
-  exit status and its death by a signal, each relayed to the first
-  process, and a signal sent before the relay was ready still relayed;
-  a bind beneath a directory only the service's user may search; a
-  service run with `no_new_privs` refused the maps that need
-  `newuidmap`.
+The contract's executable form is the conformance suite, which holds
+every backend and the simulator to this document, scenario by scenario:
+[`../testing/conformance.md`](../testing/conformance.md), a document of
+its own since it outgrew this one's size.
 
 ## 9. Open questions
 
 - **Fixed files** change what an `Fd` names: a slot in the ring's table
   instead of a descriptor. Decide when it has been measured.
+- **Root's links on Linux** (6.1): whether Linux's no-follow opens and
+  startup reads pass the system's own links as macOS's do
+  (readiness.md, 5), such as `/var/run -> /run`. Default: no; Linux's
+  refuse every link (`RESOLVE_NO_SYMLINKS`), and its temporary and home
+  directories lie through none.
 
 ## 10. Not built yet
 

@@ -19,6 +19,10 @@ const SIBLING_MERGES: u32 = 1;
 const WAIT_TICKS: u32 = 20; // Two simulated seconds give the delegate time to claim the busy slot.
 
 fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
+    running_goal_with(false)
+}
+
+pub(super) fn running_goal_with(turn: bool) -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -26,7 +30,15 @@ fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
         STEPS,
         Gate::default(),
         None,
-        StoryLimits { slots: Some(WORKER_SLOTS), result_bytes: Some(RESULT_BYTES), ..StoryLimits::default() },
+        StoryLimits {
+            turn,
+            slots: Some(WORKER_SLOTS),
+            result_bytes: Some(RESULT_BYTES),
+            stall: turn.then_some(Duration::from_secs(3600)),
+            // Two goal trains, their producer branches and their round branches can coexist.
+            forge_branches: turn.then_some(8),
+            ..StoryLimits::default()
+        },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         sets: Box::new([]),
@@ -43,8 +55,19 @@ fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
         gates: Box::new([]),
         approvals: Box::new([]),
     }]));
+    if turn {
+        // A held train, its waiter and a second goal train keep their own resources.
+        let mut client = world.env.limits.forge.client;
+        client.resources = 12;
+        client.write_attempts = 2;
+        world = world.with_forge_client(client).with_forge_holds(12);
+    }
     world.adopt();
-    world.send(protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([])));
+    world.send(if turn {
+        super::landing::hello_prepare(WORKER_SLOTS)
+    } else {
+        protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([]))
+    });
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let goal = assigned_chat(&mut world, GOAL_REQUEST, people::Ask::Create { project, batch });
@@ -190,9 +213,7 @@ fn design_first_waits_for_confirmed_landing_before_coding() {
     let (base, head, design) = pending_design_delivery(&mut world, &goal, &branch);
     let changes = change_keys(&world);
     let assigned = world.assigned.len();
-    for _ in 0..WAIT_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(WAIT_TICKS);
     assert!(ended(&world, design).is_none(), "a pushed delivery is not a confirmed landing");
     assert_eq!(branch_tip(&mut world, &branch), base);
     assert_eq!(change_keys(&world), changes, "the scripted lead waits without dispatching coding");
@@ -282,7 +303,7 @@ fn push_branch(run: &engine::Assignment) -> Box<[u8]> {
     run.workspace.repositories[0].push.clone().expect("goal delivery destination")
 }
 
-fn deliver(world: &mut World, run: &engine::Assignment, base: u64, file: &[u8]) -> u64 {
+pub(super) fn deliver(world: &mut World, run: &engine::Assignment, base: u64, file: &[u8]) -> u64 {
     let head = early_start::push(world, run, base, file);
     world.tick();
     status(world, head, raw::Check::Pending);
@@ -445,9 +466,7 @@ fn a_goals_run_branch_is_not_watched_after_claim_or_restart() {
         assert!(forge_hold(&world, &r).is_some(), "the unused run branch remains held");
         assert!(!kept_branch(&world, &r), "a workspace claim must not keep r");
         assert!(kept_branch(&world, &branch), "g remains watched");
-        for _ in 0..STEPS {
-            world.tick();
-        }
+        world.advance_ticks(STEPS);
         assert_eq!(branch_reads(&world, &r), 0, "no run-branch reads, restart={restart}");
         assert!(branch_reads(&world, &branch) > 0);
     }

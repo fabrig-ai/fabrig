@@ -4,7 +4,7 @@ The checkout child domain is the worker's workspace capability (jig's
 `domain/hosts/README.md`, section 6): it owns the workspaces on the worker's
 disk. Its vocabulary is typed git and file operations (make a workspace,
 make a store, clone, fetch, point a reference, check out, merge, commit,
-push), which the protocol layer
+push, pack), which the protocol layer
 runs as contained processes and whose output it parses.
 
 - **A cache, keyed by workstream.** The runs of one piece of work (a
@@ -56,9 +56,70 @@ runs as contained processes and whose output it parses.
   made again for a fault: git writes each object whole, under its name, so
   a git killed in a store leaves at most the references it was writing,
   which are its workspace's alone and set aside when that workspace is
-  made again. A checkout's own `.git`, which its run may write, is still
-  never another workstream's, and no fetch of history runs in it: only a
-  check out's or a merge's fetch of file contents.
+  made again. A checkout's git directories are never another
+  workstream's, and no fetch of history runs in either: only a check
+  out's or a merge's fetch of file contents, into the worker's.
+- **Two git directories** (`../../draft/confinement.md`, 6.3). Each
+  repository of a checkout has the worker's own git directory, outside
+  the workspace (`../../protocol/git.md`, section 2), and the run's, the
+  `.git` its work tree holds.
+  - **The worker's** is named, with the work tree, by every git operation
+    of the worker's, which never finds either from where it runs and
+    reads the work tree as files (`../../protocol/git.md`, section 3). Its
+    configuration, hooks and references are the worker's alone, so
+    nothing a run writes in its `.git` reaches the worker's git: not a
+    filter or merge driver, a hook path or an alias, not a `.git` file
+    naming another directory, not a moved reference.
+  - **The run's** is the run's to write: its index, references and
+    configuration. Its objects are borrowed, read-only, from the worker's
+    directory's and, through them, the store's. The worker never reads
+    it, but for the one file a check writes for it (`../forge/reds.md`,
+    5.5), read as bytes; it writes into it, after each operation that
+    moves its own, a view of its HEAD, index, merge and pins, so a run's
+    git, its checks among them, works as with one directory: clean at the
+    start, a merge in progress shown, `refs/temper/landing` the pin
+    (`../../protocol/git.md`, 4.13). A run that breaks its `.git` has it
+    made again by the next such operation.
+  - **A delivery commits the work tree's files** on the worker's HEAD and
+    merge (*Push commits what the run checked*, below), so a commit or a
+    merge a run made itself reaches the branch as its files alone.
+  - **A checkout made with one directory**, before the worker kept two,
+    is set aside at the worker's start with every workspace
+    (`../../protocol/git.md`, section 2); where a deployment keeps its
+    workspaces across a restart (`checkouts.status.md`), the first hold
+    gives it a worker's directory made afresh from its store, and its
+    `.git` becomes the run's, never read, nothing in it trusted, so
+    nothing in it cleaned.
+  - **What it does not close:** a run's command can still write the
+    worker's directory or a store itself, as the worker's user, until
+    confinement's fence keeps it out (`../../draft/confinement.md`, 5.2).
+- **Kept packed.** Each fetch into a store, and each check out's or
+  merge's fetch of contents into the worker's git directory of a checkout,
+  leaves a pack, and the worker's git runs no maintenance of its own
+  (`../../protocol/git.md`,
+  section 3). So the cache counts, for each store, the fetches asked into
+  it, and for each workspace's repository, the check outs and merges asked
+  in it, each since the last `Pack` that named it, from 0 when it is made
+  and at the worker's start. A store is due at 25, and so is a
+  repository: half the 50 packs past which a `Pack` repacks
+  (`../../protocol/git.md`, 4.14), so a place holds about 75 packs at
+  most between two counts. A prepare, a run's or a job's, that would end
+  ready asks first, in the spec's order, one `Pack` for each repository
+  whose store or itself is due, naming the store only where it is due.
+  Its repository is its own workspace's, which no job uses while it
+  prepares. Its store other workspaces' jobs may be reading, which git
+  allows: a repack puts its new pack in place before it deletes the old
+  ones, and a reader that misses a pack looks again and finds the new one
+  (the user, 2026-11-19); the git component keeps any other repack or
+  fetch out of the store meanwhile (`../../protocol/git.md`, 4.14). A
+  `Pack`'s end, whatever it is, sets the counts of the places it named
+  back to 0.
+  Nothing else asks a `Pack`: a push, a save, a catch-up and a verifying
+  fetch run while the hold's job uses its checkout, though their fetches,
+  check outs and merges count. A `Pack`'s fault fails nothing and spoils
+  nothing, since git replaces packs whole: the prepare ends ready as it
+  would have without it. An abort or a release cancels it as any
+  operation.
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.
@@ -118,8 +179,9 @@ runs as contained processes and whose output it parses.
   branch the start fetched, pointed at that fetch's commit: every start of a
   change's producer, a saved or resumed one's included, and a goal's later
   run. That tip is frozen for the hold: no later operation of the hold
-  moves the reference, so the project's checks take the same base at every
-  delivery and at finish (`tools/pre-pr/design.md`, section 2). A missing
+  moves the reference but a catch-up, which fetches it afresh (*A landed
+  dependency's catch-up*, below), so the project's checks take the same base at every
+  delivery and at finish until then (`tools/pre-pr/design.md`, section 2). A missing
   landing branch fails preparation. The next hold fetches it afresh, so
   the landing tip may move between attempts; a pin a cached checkout kept
   from an earlier hold is overwritten, never read. The pin changes neither
@@ -133,22 +195,45 @@ runs as contained processes and whose output it parses.
   repairs, whatever its start (its branch, or saved work); for a resolution
   or a merge job, the branch's head the base is merged into. Where the push
   branch does not exist yet (a chat's first run), its start's commit is
-  pinned. So a repair's checks select what its own edits changed against the
-  head it repairs, never against the branch the change lands on: a repair of
-  a goal's landing into main checks its own edits, not the goal's
-  (`tools/pre-pr/design.md`, section 2), and no pin a cached checkout kept
-  from an earlier hold is read. The pin is frozen for the hold as a landing
-  branch's is. A read-only repository delivers nothing and runs no check, and
-  its reference is left as it is. The item still names no landing branch,
-  so nothing else of it changes: it is never taken for a goal's design
-  delivery (`../agent/README.md`, section 5), and its start, push and expected
-  head are as before.
+  pinned. So a repair the change asks for itself checks what its own edits
+  changed against the head it repairs, never against the branch the change
+  lands on: a CI repair of a goal's landing into main checks its own edits,
+  not the goal's (`tools/pre-pr/design.md`, section 2), and no pin a cached
+  checkout kept from an earlier hold is read. A repair asked by a landing
+  names a pin instead (*A named pin*, below). The pin is frozen for the hold
+  as a landing branch's is. A read-only repository delivers nothing and runs
+  no check, and its reference is left as it is. The item still names no
+  landing branch, so nothing else of it changes: it is never taken for a
+  goal's design delivery (`../agent/README.md`, section 5), and its start,
+  push and expected head are as before.
+- **A named pin.** A writable item may name a pin, a commit by its full
+  object id, and then names no landing branch. The engine names one on the
+  item of a repair asked by a landing alone: the base that landing's round
+  used, its failed receipt's (`../forge/change/repairs.md`, *A landing's
+  repair*). Prepare fetches the push branch's head as for the replaced
+  head's pin, the one fetch serving its baseline and, where it is the
+  start's branch, its start, and points `refs/temper/landing` at the pin in
+  place of that head: a `Point` (`../../protocol/git.md`, 4.12) where this
+  prepare already fetched that commit, otherwise one fetch of it into
+  `Into::Landing` (`../../protocol/git.md`, 4.3), its want the commit. A
+  pin the remote lacks fails preparation as a missing commit; it never
+  falls back to the replaced head. So a landing's repair is judged as that
+  landing judged its change: its diff, its figures and its tests against
+  the base the landing used, whatever the change's head and however old
+  its source (`tools/pre-pr/design.md`, section 2). The pin is frozen for
+  the hold as every pin is, and changes nothing else of the item: its
+  start, push, expected head, own delivery, ownership and drift admission
+  are a repair's as before. An item naming both a pin and a landing branch
+  is refused at the worker's entrance as an invalid start that names it
+  (`README.md`, 4.1).
 - **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
-  each writable repository with a pin, under its git directory: prepare
+  each writable repository with a pin, under the run's git directory, at
+  `.git/temper` (`../../protocol/git.md`, 4.13): prepare
   removes `temper/reds` and writes `temper/reds-wait`; a check's start
   removes `temper/reds`, and, once the engine answers, the checkout finds
-  the check's base and each red's ancestry with git
-  (`git merge-base`, `git merge-base --is-ancestor`) and writes
+  the check's base and each red's ancestry with git, in the worker's
+  directory, whose HEAD and pin the run's view holds too
+  (`git merge-base`, `git merge-base --is-ancestor`), and writes
   `temper/reds` through `temper/reds.tmp` and a rename; a check's end
   removes it. These are the checkout's typed operations, run as its
   others are, one at a time; a failed one writes no file and fails
@@ -217,15 +302,17 @@ runs as contained processes and whose output it parses.
   with nothing else writing to the checkout (smith's `domain/run.md`,
   8.1); the worker commits exactly that tree and pushes the commit, with
   the run's title and body. Delivery reads the checkout's current HEAD and
-  merge state: an in-progress merge records HEAD and MERGE_HEAD as its two
+  merge state, the worker's (*Two git directories*): an in-progress merge records HEAD and MERGE_HEAD as its two
   parents, even when its resolution is already staged. A committed merge
   keeps its ancestry. When the delivered tree is HEAD's tree and no merge
   is in progress and HEAD is not this hold's unchecked saved commit, the
-  worker delivers that commit unchanged, retaining the producer's message and identity. Edits beyond a local commit build on that
+  worker delivers that commit unchanged, retaining its message and identity. Edits beyond a local commit build on that
   commit. A second parent, in progress or at HEAD, must be reachable from a
   branch or tag on the delivery branch's remote; otherwise delivery refuses,
   saying that its second parent is not reachable from that remote, before
-  staging or committing. A new delivery commit becomes the checkout's HEAD
+  staging or committing; a head of a base with heads merged in whose
+  dependency has landed is caught up with instead (*A landed dependency's
+  catch-up*, below). A new delivery commit becomes the checkout's HEAD
   and clears its completed merge state (../../protocol/git.md, 4.7).
   A push is a fast-forward and never forced: if
   the branch moved incompatibly with the run's commit, the push fails and
@@ -263,8 +350,87 @@ runs as contained processes and whose output it parses.
   so a save's commit is never what the hold's next delivery or saved work
   names. An unchecked save uses the same checkout snapshot as a checked delivery:
   staged merges keep both parents, a matching local commit is kept, and a
-  new commit advances HEAD. Only the checked delivery runs the checks. A
+  new commit advances HEAD. Its second parent is checked, and a landed
+  dependency's head caught up with, as a delivery's is. Only the checked delivery runs the checks. A
   checked delivery's landing clears the record.
+- **A landed dependency's catch-up.** A producer that started early
+  works on a base with heads merged in: its HEAD is the last of those
+  merges, with the last head as its second parent. Once that head's
+  dependency lands, the landing squashes it and its branch is deleted
+  (`../forge/change/questions.md`, 1, *A running producer catches up*),
+  so no reference on the remote reaches the head, and the delivery's
+  check of its second parent ends `ParentUnreachable { head, merging,
+  parent }` (`../../protocol/git.md`, 4.7). The hold then catches up,
+  in a delivery and a save alike; this is the one reconciliation a hold
+  makes with its landing branch:
+  - **When.** The repository's start is a base with heads merged in and
+    `parent` is one of its heads. Any other unreachable parent is
+    refused as before, with the same words, and nothing is asked.
+  - **It asks.** The hold asks its client whether that head's
+    dependency has landed, `Request::DependencyLanded { client, head }`,
+    and waits, with no operation in flight, for exactly one
+    `Event::DependencyLanded { hold, landed }`. The worker asks the
+    engine (*Its ask*, below) and answers `landed: true` for the
+    engine's `landed` alone; `unlanded`, a refused ask, an answer that
+    doesn't decode and none within `checkout.reds_read_ms`, the bound of
+    the worker's other read of the engine (`../forge/reds.md`, 5.3), are
+    `false`. An abort, a release or a cut while it waits ends the push
+    as one with nothing in flight does: that repository and those after
+    it aborted, nothing committed or pushed.
+  - **Not landed:** refused as before, the fault `Refused` with
+    `delivery second parent is not reachable from the branch's remote`,
+    nothing staged, committed or pushed.
+  - **Landed: the work kept.** The working tree is committed locally on
+    the `head` the delivery read, with the `merging` it found in progress
+    as its second parent, the push's own title and body, and a
+    delivery's staging (`../../protocol/git.md`, 4.7); a tree equal to
+    `head`'s commits nothing. That commit, or `head`, becomes the
+    checkout's HEAD with every working file as it was, ignored files and
+    hidden logs included. Nothing is pushed yet.
+  - **The pin moved.** The landing branch, the start's branch, is
+    fetched afresh into `refs/temper/landing` (`../../protocol/git.md`,
+    4.3): the one move of the pin a hold makes, explicit, so the checks
+    that follow take the tip just caught up with as their base, and the
+    goal's reds are read against it (`../forge/reds.md`, 5.2).
+  - **The merge, work first.** That tip is merged into the work as a
+    producer's merge start merges its base (*A merge in progress*,
+    above): a clean merge is committed at once with two parents, the
+    work first and the tip second, the repository's identity as its
+    author and the title `Merge <branch>`, and checked out, clearing its
+    state; a conflict is left in progress, the tip its MERGE_HEAD and its
+    files named, for the run to settle as at any catch-up. A tip the work
+    already contains is no merge. The tip is on its branch, so the next
+    delivery's second parent is reachable, and its push carries the
+    work, the dependency's head beneath it, to the change's branch as a
+    fast-forward.
+  - **What the run is told.** A delivery pushes nothing, since its
+    checks ran on the tree before the merge: it is answered `CaughtUp {
+    tip }`, which the run reads as refused, with no path, `a dependency
+    you started from landed; its landing branch is merged into your
+    checkout: deliver again`, so its next delivery checks the merged
+    tree. A save, which runs no check, goes on as a save does from the
+    merge, its push recorded as any save's is (above), and is answered
+    `CaughtUpSaved { commit, tip }` once it lands: a save's receipt for
+    `commit`, adding `, merging the landing tip <tip> first`, `<tip>` as
+    a receipt spells a commit. A conflict, in either, is answered
+    `CaughtUpConflict { files }`, which the run reads as refused at its
+    first file, `a dependency you started from landed; settle the files
+    in conflict with its landing branch and deliver again`; a save of
+    that tree is refused for its markers until they are settled, as any
+    merge's is.
+  - **Its ask.** An application's ask on jig's channel, as the reds'
+    is (`../forge/reds.md`, 5.4), the run's task and attempt beside it,
+    one at a time per hold. `temper-worker-wire`'s `Ask` gains `landed`,
+    `Head { head }`, `head` a full object id in 32 bytes as the items
+    carry a merged head (`../../protocol/channel.md`, 4); its `Answer`
+    gains `landed` and `unlanded`, which carry nothing. The family moves
+    by one, from 9 to 10, its floor kept, with its kept text and patch
+    (`../../protocol/wires.md`, 3.1). A worker of the previous version
+    never asks, so it refuses as before; a worker of this version
+    meeting an engine of the previous one can't send `landed` up, so it
+    closes at the statement, `Ask` among the parts a worker sends whole,
+    and the engine goes first, as for the report (`../forge/reds.md`,
+    5.6).
 - **Each repository lands on its own.** Pushing several is not atomic:
   the run is told done only if every repository with a change landed it,
   moved if a branch cannot take the commit as a fast-forward, and nothing
@@ -282,6 +448,43 @@ runs as contained processes and whose output it parses.
   A push the forge refused (permissions, a
   protected branch, a hook) is a landing of its own, which a retry will
   not change.
+- **A task's own delivery outlives its hold**
+  (`../../draft/delivered-across-runs.md`, 2). A run that delivered and
+  then parked ends its hold, and its next run's hold starts with nothing
+  of its own pushed, at the head that run delivered. So the assignment
+  names, for each writable repository, the task's own delivery,
+  `delivered` (`README.md`, 4.1; `../../protocol/channel.md`, 4): the
+  head of this task's last checked push to that push branch, as the
+  engine recorded it (`../forge/change/questions.md`, 1, *A checked
+  head*), or none.
+  - **Its evidence.** The hold takes `delivered` as this task's work only
+    where the push branch's head fetched at prepare is that head and the
+    checkout starts on it: a start from the push branch, a producer's
+    merge start whose branch already contains its base among them, since
+    it goes on as a start from that branch does (*A merge in progress*,
+    above). Anywhere else it is no evidence, and nothing of it is read. A
+    clean tree alone is never evidence.
+  - **A checked push with nothing new pushes it again.** For a `deliver`
+    or a `finish` with a change, a repository with that evidence and
+    nothing new since the start is this task's delivered work, not
+    unchanged: the worker pushes its head again, requiring the remote to
+    equal the assignment's expected head, or the fetched start when none
+    was supplied, as for existing producer work (above). Only a
+    successful or verified push returns its landing, `Landed` at that
+    head, which is then this hold's last push, so a later `deliver` or
+    `finish` with nothing new is that landing again, as within one hold.
+    A branch that moved since prepare fails the push as moved.
+  - **Everything else as before.** With no `delivered`, or one the
+    fetched head is not (the branch moved past the task's delivery, or
+    holds another party's head), a clean tree is unchanged and a pushed
+    head the branch cannot take is moved. A `save` with nothing new
+    stays unchanged, and saved starts keep their own guarded first push
+    (*Saved work*, below). For an inherited producer the evidence comes
+    first: a head it does not cover goes to the landing tip's comparison
+    above, unchanged.
+  - **Nothing of it is kept on the worker.** Each hold reads its
+    assignment's `delivered` afresh, so a restart of the worker, or a
+    run placed on another, changes nothing.
 - **Pushes are never cancelled.** A push in flight runs to its end, which
   its deadline bounds, so one that lands is reported landed; one that
   ended ambiguously (out of time, broken, the forge lost on the way) is
@@ -444,6 +647,13 @@ wire carries, keeps its first 4,096, where the fields are.
   (jig's `domain/connectors.md`, 3.3), such a rewind is drift the forge
   looks for after the push (../forge/change/README.md, 3). Naming the head prepare saw
   needs a decision for a branch that did not exist then.
+- **A save as the task's own delivery** (*A task's own delivery outlives
+  its hold*): only a checked push is a task's own delivery, since the
+  engine's record is the change's last checked head and a save's tree
+  ran no check. A run that saved on its push branch after its last
+  delivery parks with a branch head no evidence covers, and its next
+  run's clean finish is nothing, as before. Default: so (2026-11-17);
+  counting a save would deliver an unchecked tree as checked.
 - **Code graph:** indexing a checkout for codebase-memory-mcp as part of
   preparing it, and keeping that index with the cache.
 - **Which queued preparation goes first.** Queued prepares are admitted in
@@ -454,14 +664,10 @@ wire carries, keeps its first 4,096, where the fields are.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.
-- **A store's upkeep.** Each fetch leaves what it received in the store as
-  git wrote it, a pack or loose objects, and nothing repacks or prunes
-  them, so a store grows across the worker's starts, since stores outlive a
-  restart; and a store whose remote no prepare names since the start stays
-  on disk, since the cache sets aside only the stores it knows. Default:
-  none, and an operator who wants the space removes `stores` with the
-  worker stopped; a repack that keeps every object a checkout may borrow,
-  reachable or not, if a deployment shows a store's size or lookups.
+- **A store's upkeep.** Nothing prunes a store, and one whose remote no
+  prepare names since the start stays on disk, since the cache sets aside
+  only the stores it knows. Default: none, and an operator who wants the
+  space removes `stores` with the worker stopped.
 - **A store damaged past its references.** A corrupt pack would break
   every prepare of its repository until its store is removed by hand,
   with the worker stopped, since stores outlive a restart: nothing seen
@@ -474,7 +680,7 @@ wire carries, keeps its first 4,096, where the fields are.
   Sharing would mix their objects in one store, which every fetch still
   names by its own remote. Default: unchecked.
 - **File contents fetched once per checkout.** A check out's or a merge's
-  lazy fetch writes into its checkout's own `.git`, not the store, so two
+  lazy fetch writes into its checkout's worker's directory, not the store, so two
   checkouts of one repository each fetch the contents they check out, and a
   checkout made again from an empty directory fetches them again. Measured
   on one deployment's forge, a blob-less store's clone took 2.3 s and 50 MB
@@ -482,6 +688,13 @@ wire carries, keeps its first 4,096, where the fields are.
   store that keeps the contents its checkouts fetched, if a deployment
   shows the repeated fetches. A store made full before stores were
   blob-less stays whole, its later fetches blob-less.
+- **An earlier head lost.** A delivery checks HEAD's second parent
+  alone (`../../protocol/git.md`, 4.7), so of a start with several heads
+  merged in only the last is checked and caught up with (*A landed
+  dependency's catch-up*); an earlier head whose dependency landed or
+  was cancelled goes up beneath the push, as it did. Default: so; a
+  check of every head the start merged, if a deployment shows a push
+  carrying a cancelled dependency's work.
 - **The delivery's second-parent fetch** (`../../protocol/git.md`, 4.7) still
   asks the forge for every branch and tag, into the checkout: with the store
   borrowed, git sends only those branches' commits neither holds. Default:
@@ -490,8 +703,8 @@ wire carries, keeps its first 4,096, where the fields are.
   so a new one starts from an empty directory and every file is new to a
   build, though its history is the store's. Keyed by repository, it could
   keep a working tree across workstreams and a
-  restart once contained trees keep a run out of the git directory
-  (`../../protocol/git.md`, section 10), perhaps with no switch. With that goes
+  restart once confinement keeps a run's commands out of the worker's git
+  directory (`../../protocol/git-later.md`, section 1), perhaps with no switch. With that goes
   which workspace a workstream takes: the departure in `checkouts.status.md`
   considers only the least recently used, and after a restart only the one a
   first hold takes, since nothing says which workstream held which. So a

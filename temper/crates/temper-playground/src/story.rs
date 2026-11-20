@@ -15,7 +15,7 @@ use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 pub struct Start {
     pub seed: u64,
     pub wall: Wall,
-    pub deployment: Box<[u8]>,
+    pub deployment: documents::Configuration,
     pub fakes: Fakes,
     pub links: Links,
 }
@@ -24,13 +24,15 @@ pub struct Fakes {
     pub llm: skein_fake_peers::llm::Peer,
     pub forge: temper_fake_git::Typed,
     pub peer: skein_fake_peers::forge::Peer,
+    /// Only a walk opts into the box's auto-grant sign-in issuer.
+    pub issuer: Option<temper_fake::oauth::Document>,
 }
 impl Fakes {
     /// Build the composition's default Forgejo peer beside its git transport.
     #[must_use]
     pub fn new(llm: skein_fake_peers::llm::Peer, forge: temper_fake_git::Typed, seed: u64) -> Self {
         let peer = fakes::forge_peer(&forge, seed);
-        Self { llm, forge, peer }
+        Self { llm, forge, peer, issuer: None }
     }
 }
 /// Who consumes the service's sign-in links.
@@ -43,12 +45,9 @@ pub enum Links {
 /// Lay a story's fake disk before its first start: the machine's
 /// files, then every handover its deployment names
 /// (temper/docs/design/playground.md, 4).
-pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: u64) {
+pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &documents::Configuration, seed: u64) {
     machine::setup(disk);
-    let document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment JSON");
-    if let Some(key) = document.pointer("/application/demo/llm/key").and_then(serde_json::Value::as_str) {
-        machine::lay_handover(disk, key.as_bytes(), documents::KEY);
-    }
+    let document = deployment;
     if let Some(setup) = document["setup"].as_array() {
         for entry in setup {
             if let Some(directory) = entry["directory"].as_str() {
@@ -56,14 +55,12 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: 
             }
         }
     }
-    if !document["application"]["demo"].is_null() {
+    if document["world_settings"]["playground"] == true {
         use temper_forge_setup::{
             machine::BoxKind,
             place::{File, Place},
         };
         let directories = jig_protocol_config::Directories::working();
-        let named = temper_service::startup::named_with(deployment, &directories, &documents::given(&document))
-            .expect("deployment's machine");
         let last = document["setup"]
             .as_array()
             .into_iter()
@@ -72,8 +69,10 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: 
             .max()
             .unwrap_or(0);
         let number = u16::try_from(last + 1).expect("playground forge number");
-        let entry = temper_forge_setup::machine::entry(&named.machine, number, BoxKind::Fake, &directories)
-            .expect("playground's fake machine");
+        let setup =
+            temper_forge_setup::setup_file::chosen(BoxKind::Fake, deployment.forge.port(), b"ada", false, &directories)
+                .expect("world fake setup");
+        let entry = setup.entry(number, &directories).expect("fake setup entry");
         let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
         machine::lay_handover(disk, &path, &crate::stories::admin_token(seed));
     }
@@ -88,13 +87,19 @@ pub fn world(start: Start) -> World<Process<()>, Machine> {
 /// Make a harness-free world with a meter installed before admitting any process.
 #[must_use]
 pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
+    world_with::<(), N>(start, meter)
+}
+
+/// Make the composition with the caller's harness, preserving process order.
+#[must_use]
+pub fn world_with<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process<H>, Machine, N> {
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     prepare(&mut disk, &deployment, seed);
-    let document: serde_json::Value = serde_json::from_slice(&deployment).expect("deployment JSON");
+    let document = deployment.clone();
     let machine = Machine::new(disk);
     let parameters = programs::Parameters {
-        deployment,
+        deployment: deployment.into(),
         seed,
         links,
         forge: fakes.forge,
@@ -105,11 +110,11 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     config.wall = wall;
     config.trace = skein_sim::Trace::Off;
     let mut world = World::new(seed, config).with_machine(machine).with_meter(meter);
-    for (program, roots) in programs::programs::<()>() {
+    for (program, roots) in programs::programs::<H>() {
         world.host_roots(program, roots);
     }
     programs::with(parameters, || {
-        world.spawn_restartable(programs::service_roots(), programs::service::<()>);
+        world.spawn_restartable(programs::service_roots(), programs::service::<H>);
     });
     let printer = world.printer(b"temper serve", Stream::Output);
     let (_, _, processes) = world.parts();
@@ -124,13 +129,21 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     });
     let at = world.spawn(|| Process::Visitor(Box::new(Visitor::new(&documents::visitor(&document)))));
     assert_eq!(at, VISITOR, "the visitor follows the service and its two fake peers");
+    if let Some(document) = fakes.issuer {
+        world.spawn_signals(|signal| {
+            Process::Issuer(Box::new(crate::machine::SignalHost::new(
+                programs::Issuer::new(&document, seed),
+                Some(signal),
+            )))
+        });
+    }
     world
 }
 
 /// The playground's git reaches the live peer that issues its bot's credential.
 #[must_use]
 pub fn route(document: &serde_json::Value) -> Option<skein_fake_forge_http::git::Limits> {
-    (!document["application"]["demo"].is_null()).then(|| temper_fake::forge::git_limits().git())
+    (document["world_settings"]["playground"] == true).then(|| temper_fake::forge::git_limits().git())
 }
 
 /// The visitor follows the service and its two fake peers.
@@ -178,7 +191,13 @@ pub const SLICE_STEPS: u32 = 256;
 /// A story's world in skein's slices, its visitor reached, at 1× from `browser`.
 #[must_use]
 pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, Machine> {
-    Slices::new(world(start), reach(), budget, browser)
+    slices_with::<()>(start, budget, browser)
+}
+
+/// The caller's harness on the composition's slices, with the same visitor and pace.
+#[must_use]
+pub fn slices_with<H: Harness>(start: Start, budget: u32, browser: Time) -> Slices<Process<H>, Machine> {
+    Slices::new(world_with::<H, Bare>(start, Bare), reach(), budget, browser)
 }
 
 /// Make slices from a worker start message; an unknown story has no world.

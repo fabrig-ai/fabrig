@@ -29,7 +29,7 @@ A goal waiting on the agent:
 ```
 task 41 · goal · Running · shop · priority 2
 asked: Add a /health endpoint that reports the store's state
-requester: you · spent 120 of 500 · deadline 2026-10-24 17:00 UTC
+requester: you · spent 1.20 of 5.00 · deadline 2026-10-24 17:00 UTC
 instructions: Answer on port 8080 unless the store's file names another one, and keep the /hea… (412 bytes; --json prints them whole)
 waiting on: you: question 3 of task 44 · 1 waiting
 plan: 4 live (2 running, 1 waiting, 1 held below)
@@ -40,9 +40,27 @@ acts:
 digest: task 7c1e09a2b44f0d13
 ```
 
-- **Spend in the deployment's units,** as `me`, the settings and the
-  stock state budgets (`../../protocol/configuration/stock.md`): a task's
-  spent and budget print as those numbers, never scaled.
+- **Spend in one amount, ctl's,** wherever the text prints spend or
+  argv reads it: a hundred of the deployment's spend units, printed
+  with its two decimals, so `task show`'s `spent 1.20 of 5.00` is 120
+  of 500 spend units. Every line that prints a spend takes it: a task's
+  spent and budget, `milestone show`'s totals, `me`'s pools and
+  creating bounds, `project show`'s periods and pools, `project fund`'s
+  answer, `role list`'s left, an offered act's bounds, a run's spend
+  shortfall, a refusal's left, needed and spend ceiling, and a command
+  line the text prints with an AMOUNT, `propose instead:`'s among them.
+  An AMOUNT argv reads is the same amount (`areas.md`, area 2): digits,
+  then at most a point and one or two digits, `130`, `1.25`, `0.5`.
+  Anything else, a third decimal among them, or spend units past jig's
+  integer, is usage, exit 1, nothing sent, naming the argument:
+  `goal start: --budget AMOUNT takes an amount with at most two
+  decimals, as 130 or 1.25; temper ctl help goal start`. Help names the
+  type in the same words, `--budget AMOUNT: an amount with at most two
+  decimals, as 130 or 1.25`, with no bound. JSON keeps jig's integers,
+  spend units (2); so do a settings document, as `settings show` prints
+  it and `settings apply` reads it, and a model's prices, per their
+  tokens, as the stock state's budgets are
+  (`../../protocol/configuration/stock.md`).
 - **A duration in whole seconds,** `N seconds`, a remainder below a
   second dropped, never scaled to minutes, hours or days: the form help
   prints a bound in (`at most 3600 seconds`). `me`'s retention prints
@@ -81,6 +99,25 @@ digest: task 7c1e09a2b44f0d13
   `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
   gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
   carry no next-run wait, keep their word.
+- **`unread:`** follows `waiting on:` where the task's document lists
+  unread words (jig's `client/domain/contract/documents.md`, section 1),
+  and is left out where it lists none: words a person, or a requesting
+  task, sent that no run of the task has recorded (jig's
+  `domain/tasks/messages.md`, 2). Its line counts them, and one line
+  each follows, indented two spaces, oldest first: `message M`, `from`
+  and the sender as `requester:` prints a requester (`you` for the
+  party's own words), its wall in the text's form, `seen` where a run
+  has read it and `not yet seen` where it still waits in the inbox, then
+  `: ` and its head, each control byte written as a space; a head
+  shorter than the words ends `… (B bytes; task activity TASK prints
+  them whole)`:
+
+  ```
+  unread: 2, oldest first; no run has recorded them
+    message 77 · from you · 2026-11-18 10:02 UTC · seen: Also add a /ready endpoint beside /health.
+    message 80 · from you · 2026-11-18 11:40 UTC · not yet seen: And keep the old route for… (1204 bytes; task activity 41 prints them whole)
+  ```
+
 - **A move** concerns who requests a task, not what it waits on: `acts:` and
   `--json` offer it on a task waiting for an account as on any other. On a
   task whose requester is already the party it isn't offered (jig's
@@ -307,7 +344,10 @@ may change with them.
   its `dependencies` as links, and beside them its `dependency_facts`,
   one object per dependency, `number`, `pending`, `added` (`null`, or
   `at`, a wall in nanoseconds, and `by`, the requester as `requester`
-  prints it), `keeps` and `status`.
+  prints it), `keeps` and `status`; its `unread`, an array, oldest
+  first, empty for none, each object `message`, `by` (the requester as
+  `requester` prints it), `at` (a wall in nanoseconds), `seen`, `head`
+  and `bytes` (1, *`unread:`*).
 - **`deployment census`** prints one object, `{"census": …}`: `null`
   before the store's first report, else the census whole, its fields
   named as jig's document names them (`commit`, `since`, `keyspaces`,
@@ -322,7 +362,9 @@ may change with them.
   every form with every argument, result, keyedness and notes.
 - **`--call`'s arguments** are named as the table names them: `proposal
   decide`'s are `proposal`, and `task decide`'s `task` and `hold`, then
-  `outcome` and `reason`.
+  `outcome` and `reason`. An AMOUNT among them is a JSON integer of
+  spend units, as JSON prints spend: `{"budget": 13000}` is argv's
+  `--budget 130`, and `help --json` names its type `amount`.
 - **The `kept:` lines,** under `--json`, are one JSON object a line on
   stderr: `operation` and `outcome`, as the act's; another party's,
   `party` and `unsent`; the dropped, `dropped`.

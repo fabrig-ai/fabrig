@@ -21,7 +21,8 @@ const SEED: u64 = 1;
 type Contents = Vec<(Box<[u8]>, Kind, u32, Box<[u8]>)>;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seen {
-    Create { name: Box<[u8]> },
+    Create { name: Box<[u8]>, mode: u32 },
+    ReadOpen { name: Box<[u8]> },
     Read { max: u32 },
     Write { bytes: u32 },
     SyncFile,
@@ -40,7 +41,8 @@ pub enum Seen {
 }
 fn seen(request: &file::Request) -> Seen {
     match request {
-        file::Request::CreateNoFollow { name, .. } => Seen::Create { name: name.clone() },
+        file::Request::CreateNoFollow { name, mode, .. } => Seen::Create { name: name.clone(), mode: *mode },
+        file::Request::OpenReadNoFollow { name, .. } => Seen::ReadOpen { name: name.clone() },
         file::Request::ReadAt { max, .. } => Seen::Read { max: *max },
         file::Request::WriteAt { bytes, .. } => {
             Seen::Write { bytes: u32::try_from(bytes.len()).expect("bounded write") }
@@ -63,7 +65,6 @@ fn seen(request: &file::Request) -> Seen {
         file::Request::Close { .. } => Seen::Close,
         file::Request::Create { .. }
         | file::Request::OpenRead { .. }
-        | file::Request::OpenReadNoFollow { .. }
         | file::Request::OpenWrite { .. }
         | file::Request::OpenWriteNoFollow { .. }
         | file::Request::Scan { .. }
@@ -79,7 +80,7 @@ pub struct Disk {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
+    io: [FileIo; 4],
     file_limits: FileLimits,
     seeded: crate::Seeded,
     cut: Option<u32>,
@@ -87,6 +88,7 @@ pub struct Disk {
     starts: u64,
     requests: Vec<(usize, Seen)>,
     link_error: Option<skein_io::kernel::Error>,
+    link_once: Option<(Box<[u8]>, skein_io::kernel::Error)>,
 }
 pub fn file_limits() -> FileLimits {
     let skein_kv::Limits { chunk: read, deadline: timeout, .. } = store_limits().store;
@@ -98,7 +100,7 @@ pub fn file_limits() -> FileLimits {
         timeout,
     }
 }
-fn drivers(fd: skein_io::kernel::Fd, limits: &FileLimits) -> [FileIo; 3] {
+fn drivers(fd: skein_io::kernel::Fd, limits: &FileLimits) -> [FileIo; 4] {
     core::array::from_fn(|_| {
         let mut io = FileIo::with_limits(limits).with_effective_user(0);
         assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
@@ -116,8 +118,8 @@ impl Disk {
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
         let mut io = drivers(fd, &file_limits);
-        let [store, secrets, transcripts] = &mut io;
-        let seeded = crate::seed([store, secrets, transcripts], SEED);
+        let [store, secrets, transcripts, checkpoints] = &mut io;
+        let seeded = crate::seed([store, secrets, transcripts, checkpoints], SEED);
         Disk {
             machine,
             handle,
@@ -132,6 +134,7 @@ impl Disk {
             starts: 0,
             requests: Vec::new(),
             link_error: None,
+            link_once: None,
         }
     }
     pub fn root(&self) -> Root {
@@ -161,17 +164,44 @@ impl Disk {
         Store::on_directory(&limits, APPLICATION, &[], self.seeded)
     }
     pub fn open(&mut self, store: &mut Store) -> Box<[Event]> {
-        self.request(store, Request::Open { owner: Token::new(1), root: self.root, installation: INSTALLATION })
+        self.request(
+            store,
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: self.root,
+                installation: INSTALLATION,
+            },
+        )
     }
     pub fn request(&mut self, store: &mut Store, request: Request) -> Box<[Event]> {
         let mut above = Queue::with_capacity(QUEUE);
         let mut below = below();
         crate::down(store, &env(), request, &mut above, &mut below);
+        self.settle(store, above, below)
+    }
+    pub fn restore(
+        &mut self,
+        store: &mut Store,
+        owner: Token,
+        source: crate::CheckpointName,
+        draw: [u8; 16],
+    ) -> Box<[Event]> {
+        let mut above = Queue::with_capacity(QUEUE);
+        let mut below = below();
+        // Restore owns and closes its deployment descriptor on the adopted lanes.
+        let handle = self.machine.open(self.handle, b".", How::Directory).expect("restore root");
+        let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        let root = self.adopt_root(fd);
+        crate::restoring::begin(store, &env(), owner, root, source, draw, &mut above, &mut below);
+        self.settle(store, above, below)
+    }
+    fn settle(&mut self, store: &mut Store, mut above: Queue<Event>, mut below: Below) -> Box<[Event]> {
         for _ in 0_u32..10_000 {
             crate::fire(store, &env(), &mut above, &mut below);
             let drove = self.drive_one(&mut below, |io, below| crate::up(store, &env(), io, &mut above, below));
             let cut = self.cut.is_some_and(|cut| self.operations >= cut);
-            if !drove && (cut || !crate::upgrade::phase::ready(store)) {
+            if !drove && (cut || !store.work_pending()) {
                 break;
             }
         }
@@ -195,7 +225,8 @@ impl Disk {
             .pop()
             .map(|r| (0, r))
             .or_else(|| below.secrets.pop().map(|r| (1, r)))
-            .or_else(|| below.transcripts.pop().map(|r| (2, r)));
+            .or_else(|| below.transcripts.pop().map(|r| (2, r)))
+            .or_else(|| below.checkpoints.pop().map(|r| (3, r)));
         let Some((driver, request)) = next else {
             return false;
         };
@@ -205,6 +236,7 @@ impl Disk {
             0 => Io::Store(arrived),
             1 => Io::Secrets(arrived),
             2 => Io::Transcripts(arrived),
+            3 => Io::Checkpoints(arrived),
             _ => unreachable!(),
         };
         deliver(io, below);
@@ -212,11 +244,18 @@ impl Disk {
     }
     pub fn file(&mut self, driver: usize, request: file::Request) -> Arrived {
         self.requests.push((driver, seen(&request)));
-        if let (Some(error), file::Request::HardLink { owner, .. }) = (self.link_error, &request) {
-            return Arrived {
-                event: file::Event::Failed { owner: *owner, error, committed: false, residue: None },
-                fd: None,
+        if let file::Request::HardLink { owner, from, .. } = &request {
+            let error = if self.link_once.as_ref().is_some_and(|(name, _)| name == from) {
+                self.link_once.take().map(|(_, error)| error)
+            } else {
+                self.link_error
             };
+            if let Some(error) = error {
+                return Arrived {
+                    event: file::Event::Failed { owner: *owner, error, committed: false, residue: None },
+                    fd: None,
+                };
+            }
         }
         let io = &mut self.io[driver];
         assert!(io.takes());
@@ -248,15 +287,18 @@ impl Disk {
     pub fn scratch_root(&mut self) -> Root {
         let handle = self.machine.lay(&[]);
         let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        self.adopt_root(fd)
+    }
+    fn adopt_root(&mut self, fd: skein_io::kernel::Fd) -> Root {
         let mut token = None;
         for io in &mut self.io {
-            let found = io.adopt_root(fd).expect("scratch root fits");
+            let found = io.adopt_root(fd).expect("additional root fits");
             if let Some(token) = token {
                 assert_eq!(found, token);
             }
             token = Some(found);
         }
-        Root { token: token.expect("three drivers"), fd }
+        Root { token: token.expect("file drivers"), fd }
     }
     /// Another descriptor of the same deployment, with its own driver token.
     pub fn second_root(&mut self) -> Root {
@@ -274,6 +316,24 @@ impl Disk {
     pub fn requests(&self) -> &[(usize, Seen)] {
         &self.requests
     }
+    /// Names requested for links, including any refused by the file system.
+    pub fn linked(&self) -> Vec<Box<[u8]>> {
+        let mut linked: Vec<_> = self
+            .requests()
+            .iter()
+            .filter_map(|(driver, request)| {
+                if let Seen::Link { from, to } = request {
+                    assert_eq!(*driver, 2, "generation copy uses the transcripts driver");
+                    assert_eq!(from, to);
+                    Some(from.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        linked.sort();
+        linked
+    }
     pub fn crash(&mut self, seed: u64) {
         self.machine.crash(seed);
         self.handle = self.machine.reopen_root(0);
@@ -283,15 +343,20 @@ impl Disk {
         self.root = Root { token: Token::new(1), fd };
         self.starts += 1;
         self.io = drivers(fd, &self.file_limits);
-        let [store, secrets, transcripts] = &mut self.io;
-        self.seeded =
-            crate::seed([store, secrets, transcripts], seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts));
+        let [store, secrets, transcripts, checkpoints] = &mut self.io;
+        self.seeded = crate::seed(
+            [store, secrets, transcripts, checkpoints],
+            seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts),
+        );
         self.cut = None;
         self.operations = 0;
         self.requests.clear();
     }
     pub fn refuse_links(&mut self, error: skein_io::kernel::Error) {
         self.link_error = Some(error);
+    }
+    pub fn refuse_link_once(&mut self, name: &[u8], error: skein_io::kernel::Error) {
+        self.link_once = Some((Box::from(name), error));
     }
     pub fn links(&mut self, path: &[u8]) -> u32 {
         let file = self.machine.open(self.handle, path, How::PathNoFollow).expect("path stands");

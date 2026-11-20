@@ -3,10 +3,9 @@ use crate::{ENGINE, forge, serve};
 use skein_io::kernel::Exit;
 use skein_shell::{Command, Reach, Reached, Table};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
-use temper_engine_service::startup::{Shape, nearest};
 use temper_shell::{
     commands::Row,
-    directories::{self, Directories, EnvironmentEntry},
+    directories::{self, EnvironmentEntry},
     table,
 };
 
@@ -69,7 +68,17 @@ fn dispatch(
     let refused = |why: &str| (2, table::refused(&ENGINE, command, why));
     match command.reach {
         Reach::Words(["help"]) => {
-            print!("{}", table::help(&ENGINE, arguments)?);
+            if let [page] = arguments
+                && page.as_ref() == b"config"
+            {
+                print!(
+                    "{}",
+                    std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::EngineAlone))
+                        .expect("help UTF-8")
+                );
+            } else {
+                print!("{}", table::help(&ENGINE, arguments)?);
+            }
             Ok(0)
         }
         Reach::Words(["versions"]) => {
@@ -79,17 +88,28 @@ fn dispatch(
             print!("{}", versions());
             Ok(0)
         }
-        Reach::Words(["upgrade", mode @ ("--check" | "--back")]) => {
+        Reach::Words(["upgrade", mode @ ("--check" | "--workers" | "--back")]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine upgrade: {why}\n")))?;
-            let (directories, request) = crate::upgrade::configure(
-                *mode == "--check",
-                arguments,
-                &captured.environment,
-                working.as_os_str().as_bytes(),
-            )
-            .map_err(|why| refused(&why))?;
-            refuse_document(command, &directories).map_err(|why| (1, why))?;
+            let (directories, request) =
+                crate::upgrade::configure(mode, arguments, &captured.environment, working.as_os_str().as_bytes())
+                    .map_err(|why| refused(&why))?;
             crate::upgrade::run(ENGINE.binary, &directories, &request, commit).map_err(|why| (1, why))
+        }
+        Reach::Words(["checkpoint"]) => {
+            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine checkpoint: {why}\n")))?;
+            let working = working.as_os_str().as_bytes();
+            let (directories, request) =
+                crate::checkpoint::configure(arguments, &captured.environment, working).map_err(|why| refused(&why))?;
+            crate::checkpoint::run(ENGINE.binary, &directories, &request, &captured.environment, working, commit)
+                .map_err(|why| (1, why))
+        }
+        Reach::Words(["restore"]) => {
+            let working =
+                captured.working.as_ref().map_err(|why| (1, format!("{} restore: {why}\n", ENGINE.binary)))?;
+            let (directories, name) =
+                crate::restore::configure(arguments, &captured.environment, working.as_os_str().as_bytes())
+                    .map_err(|why| refused(&why))?;
+            crate::restore::run(ENGINE.binary, &directories, name, commit).map_err(|why| (1, why))
         }
         Reach::Words(["serve"]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
@@ -97,7 +117,6 @@ fn dispatch(
                 directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
                     .map_err(|why| refused(&why.to_string()))?;
             let record = recording(&rest).ok_or_else(|| refused("invalid arguments"))?;
-            refuse_document(command, &directories).map_err(|why| (1, why))?;
             Ok(
                 match serve::run(
                     ENGINE.binary,
@@ -136,30 +155,7 @@ fn run_forge(command: &Command, row: &Row, arguments: &[Box<[u8]>], captured: &C
         captured.working.as_ref().map_err(|why| (1, format!("temper-engine {}: {why}\n", row.words.join(" "))))?;
     let configured = forge::configure(row, arguments, &captured.environment, working.as_os_str().as_bytes())
         .map_err(|why| (2, table::refused(&ENGINE, command, &why)))?;
-    match &configured {
-        forge::Command::Forge { directories, .. } => {
-            if forge::reads_document(row) {
-                refuse_document(command, directories).map_err(|why| (1, why))?;
-            }
-        }
-        forge::Command::ForgeChild { .. } => {}
-    }
     forge::command(ENGINE.binary, configured).map_err(|why| (1, why))
-}
-
-/// Refuse another binary's nearest shape before the service's document checks (protocol/binaries.md, 2).
-fn refuse_document(command: &Command, directories: &Directories) -> Result<(), String> {
-    let Ok(bytes) = directories.read() else { return Ok(()) };
-    let why = match nearest(&bytes) {
-        Some(Shape::WorkerAlone) => "a worker alone; temper-worker serve runs it",
-        Some(Shape::Standalone) => "an engine and its worker in one process; temper-box serve runs it",
-        Some(Shape::EngineAlone) | None => return Ok(()),
-    };
-    let words = match command.reach {
-        Reach::Words(words) => words.join(" "),
-        Reach::RunAs(name) => name.into(),
-    };
-    Err(format!("{} {words}: temper.json holds {why}\n", ENGINE.binary))
 }
 
 /// The store's patch levels and versions, then its worker wires (protocol/binaries.md, 2),
@@ -214,22 +210,62 @@ fn recording(arguments: &[Box<[u8]>]) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn engine_commands_refuse_the_former_file_by_name() {
+        use temper_config_shell::{FILE, FORMER};
+        let scratch = skein_scratch::Scratch::new("engine-former-file");
+        let arguments = [
+            b"--config".as_slice(),
+            std::os::unix::ffi::OsStrExt::as_bytes(scratch.path().as_os_str()),
+            b"--data",
+            std::os::unix::ffi::OsStrExt::as_bytes(scratch.path().as_os_str()),
+            b"--cache",
+            std::os::unix::ffi::OsStrExt::as_bytes(scratch.path().as_os_str()),
+        ]
+        .map(Box::from);
+        let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+        std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        for present in [false, true] {
+            if present {
+                std::fs::write(scratch.path().join(FILE), b"invalid TOML").expect("current file");
+            }
+            for (words, command) in [
+                (&["serve"][..], "serve"),
+                (&["upgrade", "--check", "/unused"][..], "upgrade"),
+                (&["upgrade", "--workers", "/unused"][..], "upgrade"),
+                (&["upgrade", "--back"][..], "upgrade"),
+                (&["checkpoint"][..], "checkpoint"),
+                (&["restore", "00000000000000000012-00000000000000ff"][..], "restore"),
+            ] {
+                let mut arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
+                arguments.extend(directories.flags());
+                let capture = super::Capture {
+                    run_as: b"temper-engine".as_slice().into(),
+                    arguments: arguments.into(),
+                    environment: Box::new([]),
+                    working: Ok(scratch.path().into()),
+                };
+                assert_eq!(
+                    super::run(&capture, "test", "test"),
+                    Err((
+                        1,
+                        format!(
+                            "temper-engine {command}: {FORMER}: moved: the configuration is {FILE}; write it from temper-engine help config, then remove {FORMER}\n"
+                        )
+                    ))
+                );
+            }
+        }
+    }
+
+    #[test]
     fn versions_print_each_wire_range_then_its_layout() {
         use std::fmt::Write;
         let text = super::versions();
         eprintln!("{text}");
         let mut lines = text.lines().skip_while(|line| !line.starts_with("wire "));
         let wires = temper_engine_service::wires();
-        assert_eq!(wires.len(), 6);
-        for (wire, (name, lowest, highest)) in wires.iter().zip([
-            ("jig-worker-wire", 12, 15),
-            ("smith-pieces", 1, 1),
-            ("smith-charter", 4, 5),
-            ("smith-transcript", 7, 7),
-            ("temper-worker-wire", 5, 9),
-            ("temper-host-tools", 1, 3),
-        ]) {
-            assert_eq!((wire.name, wire.lowest, wire.highest()), (name, lowest, highest));
+        for wire in &wires {
+            let (name, lowest, highest) = (wire.name, wire.lowest, wire.highest());
             assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
             for version in lowest..=highest {
                 let layout = lines.next().expect("one layout follows for each spoken version");
@@ -243,6 +279,26 @@ mod tests {
             }
         }
         assert_eq!(lines.next(), None);
+    }
+
+    #[test]
+    fn restore_bad_names_are_usage_errors_before_reading_configuration() {
+        for arguments in [vec!["restore"], vec!["restore", "12-ff"]] {
+            let capture = super::Capture {
+                run_as: b"temper-engine".as_slice().into(),
+                arguments: arguments.iter().map(|word| Box::from(word.as_bytes())).collect(),
+                environment: Box::new([(Box::from(b"HOME".as_slice()), Box::from(b"/unused".as_slice()))]),
+                working: Ok("/unused".into()),
+            };
+            assert_eq!(
+                super::run(&capture, "test", "test"),
+                Err((
+                    2,
+                    "temper-engine restore: invalid arguments\nusage: temper-engine restore NAME [DIRECTORIES]\n"
+                        .into()
+                ))
+            );
+        }
     }
 
     #[test]

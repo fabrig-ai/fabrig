@@ -100,7 +100,11 @@ fn working() -> World {
 }
 
 fn working_for(requester: bool) -> World {
-    let mut world = World::new(862, LIMITS);
+    working_with_limits(requester, &LIMITS)
+}
+
+fn working_with_limits(requester: bool, limits: &tasks::Limits) -> World {
+    let mut world = World::new(862, *limits);
     if requester {
         let mut root = task(100, &[]);
         root.authority.budget.spend = 2_000;
@@ -298,7 +302,7 @@ fn a_live_closer_survives_restart() {
 
 #[test]
 fn a_closer_that_fails_spends_a_run_try_and_is_made_again() {
-    let mut world = parked_closer();
+    let mut world = park_after_work(working_with_limits(false, &tasks::Limits { result_bytes: 256, ..LIMITS }));
     let mut previous = 0;
     for failure in 1..=world.env.limits.retries.run.retries + 1 {
         let closer = live_closer(&world);
@@ -309,7 +313,7 @@ fn a_closer_that_fails_spends_a_run_try_and_is_made_again() {
                 &mut world,
                 closer,
                 tasks::ProcedureDecision::new(tasks::ProcedureEnd::Result(tasks::TaskResult::Failure {
-                    reason: b"retry".as_slice().into(),
+                    reason: b"boom".as_slice().into(),
                 }))
             ),
             Reply::Done
@@ -323,7 +327,12 @@ fn a_closer_that_fails_spends_a_run_try_and_is_made_again() {
                 tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Failed { .. }, .. })
             ));
             world.settle(TASK);
-            assert!(matches!(world.results[&TASK], tasks::Ending::Failed { .. }));
+            let words = format!("Its closer failed, past its {} run tries: boom", world.env.limits.retries.run.retries);
+            assert_eq!(world.results[&TASK], tasks::Ending::Failed { reason: words.as_bytes().into() });
+            let tasks::Stored::Summary(summary) = &world.records[&tasks::Key::Summary(TASK)] else {
+                panic!("task summary")
+            };
+            assert_eq!(summary.reason.as_ref(), words.as_bytes());
             break;
         }
         assert_eq!(world.record(TASK).phase, tasks::Phase::Active(tasks::Active::Due));
@@ -523,9 +532,9 @@ fn resize(world: &mut World, task: u64, spend: u64, message: u64) {
         jig_tasks_world::response(world, |reply_to| tasks::Event::Amend {
             reply_to,
             by: jig_tasks_world::PERSON_PARTY,
-            funder: None,
             places: Box::new([]),
             operation: tasks::Amend {
+                funder: None,
                 task,
                 message,
                 stop_run: false,

@@ -29,7 +29,7 @@ mod tests {
         let mut tags = BTreeMap::<String, BTreeSet<u8>>::new();
         let mut shown = BTreeMap::<String, String>::new();
         for family in families() {
-            let schema = skein_codegen::parse(family.text).expect("valid schema");
+            let schema = skein_codegen::values(family.text).schema.clone();
             let names = schema
                 .declarations
                 .iter()
@@ -45,13 +45,13 @@ mod tests {
                 family.name
             );
             for root in family.roots {
-                let key = format!("{}.{}", family.name, root.name);
+                let key = format!("{}.v{}.{}", family.name, schema.version, root.name);
                 for round in 0..DRAWS {
                     let seed = seed(family.name, root.name, round);
                     let bytes = draw(&schema, root.name, &mut Rng::new(seed));
                     let context = format!("{key}, seed {seed:#018x}, bytes {bytes:?}");
                     let (debug, encoded) = match (root.decode)(&bytes) {
-                        Decoded::Value { debug, bytes } => Ok((debug, bytes)),
+                        Decoded::Value { debug, bytes, .. } => Ok((debug, bytes)),
                         Decoded::Problem { path, reason } => Err(format!("{context}: {path}: {reason:?}")),
                     }
                     .expect("draw decodes by the generated code");
@@ -69,7 +69,7 @@ mod tests {
         let schema = skein_codegen::parse(include_str!("../../schema/every-v1.schema")).expect("every schema");
         for declaration in &schema.declarations {
             if let Declaration::Enum(enumeration) = declaration {
-                let key = format!("every.{}", enumeration.name);
+                let key = format!("every.v1.{}", enumeration.name);
                 let reached = tags.get(&key).expect("enum root drawn");
                 let expected = (0..enumeration.variants.len())
                     .map(|tag| u8::try_from(tag).expect("tag fits"))
@@ -91,7 +91,7 @@ mod tests {
                 ][..],
             ),
         ] {
-            let key = format!("every.{root}");
+            let key = format!("every.v1.{root}");
             let debug = shown.get(&key).expect("fixture root drawn");
             for arm in arms {
                 assert!(debug.contains(arm), "option arm reached: {key}: {arm}\n{debug}");

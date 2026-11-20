@@ -127,6 +127,15 @@ fn route_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::Parts(ask) => {
+            if let Some(pending) = &mut domain.scripted_parts {
+                pending.push((number, ask));
+            } else {
+                let parts = crate::parts::make(&ask);
+                work.push(Work::Core(core::Event::Parts { connector: number, token: ask.token, parts }));
+            }
+        }
+
         core::Ask::ReleaseProject { project } => {
             if let Some(releases) = &mut domain.scripted_project_releases {
                 releases.push((number, project));
@@ -194,7 +203,7 @@ fn route_ask(
         core::Ask::Effect(ask) => route_effect_ask(domain, number, ask, work),
         core::Ask::TaskHoldings { request, project, spec, .. } => {
             let holdings = specification_holdings(domain, env, number, project, &spec, work);
-            work.push(Work::Core(core::Event::Holdings { refused: None, request, connector: number, holdings }));
+            holdings_event(domain, core::Event::Holdings { refused: None, request, connector: number, holdings }, work);
         }
         core::Ask::DelegateHoldings { request, members, .. } => {
             let mut holdings: List<Box<[tasks::Holding]>> =
@@ -206,12 +215,16 @@ fn route_ask(
                     None => valid = false,
                 }
             }
-            work.push(Work::Core(core::Event::DelegateHoldings {
-                refused: None,
-                request,
-                connector: number,
-                holdings: if valid { Some(holdings.into_boxed()) } else { None },
-            }));
+            holdings_event(
+                domain,
+                core::Event::DelegateHoldings {
+                    refused: None,
+                    request,
+                    connector: number,
+                    holdings: if valid { Some(holdings.into_boxed()) } else { None },
+                },
+                work,
+            );
         }
         core::Ask::ProcedureHoldings { task, step, members } => {
             let mut holdings: List<Box<[tasks::Holding]>> =
@@ -223,13 +236,17 @@ fn route_ask(
                     None => valid = false,
                 }
             }
-            work.push(Work::Core(core::Event::ProcedureHoldings {
-                refused: None,
-                task,
-                step,
-                connector: number,
-                holdings: if valid { Some(holdings.into_boxed()) } else { None },
-            }));
+            holdings_event(
+                domain,
+                core::Event::ProcedureHoldings {
+                    refused: None,
+                    task,
+                    step,
+                    connector: number,
+                    holdings: if valid { Some(holdings.into_boxed()) } else { None },
+                },
+                work,
+            );
         }
         core::Ask::StartProcedure { context, step } => {
             let code = match context.executor {
@@ -328,6 +345,7 @@ fn route_ask(
         core::Ask::UnsubscriptionDone { request, key } => {
             crate::topics::unsubscribed(domain, number, request, key, work);
         }
+        core::Ask::Workers(workers) => domain.now.push(crate::Request::Workers(workers)),
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
             let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
@@ -342,7 +360,8 @@ fn route_ask(
             domain.now.push(crate::Request::StoreCatalogue { names: names.into_boxed() });
             domain.now.push(crate::Request::ClientsCatalogue { models });
         }
-        core::Ask::DropSubscription { .. }
+        core::Ask::Providers(_)
+        | core::Ask::DropSubscription { .. }
         | core::Ask::ForgetProjection { .. }
         | core::Ask::Hold { .. }
         | core::Ask::RepairRefused { .. }
@@ -352,6 +371,13 @@ fn route_ask(
 
 /// Translate the connector's one-based resource IDs. Kinds one and two are
 /// respectively exclusive and pooled in this testing application's charter.
+fn holdings_event(domain: &mut Domain, event: core::Event, work: &mut Queue<Work>) {
+    match &mut domain.scripted_holdings {
+        Some(pending) => pending.push(event),
+        None => work.push(Work::Core(event)),
+    }
+}
+
 fn specification_holdings(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -379,12 +405,16 @@ fn specification_holdings(
                     };
                     let hold = report_hold(domain, number, &described.path, described.hold);
                     let name = tasks::Name { connector: number, path: name(described.path.clone()).segments };
-                    work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-                        project,
-                        name: name.clone(),
-                        role,
-                        hold,
-                    })));
+                    holdings_event(
+                        domain,
+                        core::Event::EffectConnector(core::effects::connector::Event::Resource {
+                            project,
+                            name: name.clone(),
+                            role,
+                            hold,
+                        }),
+                        work,
+                    );
                     let holding = match described.hold {
                         connector::Hold::Exclusive { .. } => Some(tasks::Holding::Write { resource: name, kind: 1 }),
                         connector::Hold::Pooled { .. } => Some(tasks::Holding::Slot { pool: name, kind: 2 }),

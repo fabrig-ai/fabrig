@@ -1,14 +1,19 @@
 # The reference's settings
 
-`settings.json`, `limits.json`, `room.json`, `landing.json` and `project.json` are the
+`settings.json`, `room.json`, `landing.json` and `project.json` are the
 reference's profile (`../../design/protocol/configuration/reference.md`), applied
 over the stock as `temper help configure` says. They stay out of the binary:
 what a deployment runs until an owner applies them is the stock, and the
 Ask temper chat derives the reference from its description
 (`../../design/draft/configuring.md`, 8.1). What follows stays out of it too.
 
-Before the first start, merge `limits.json` over the generated deployment document,
-retaining its other members and overrides.
+The engine's and application's limit figures are `limits` and `temper-limits`
+settings over the stock, not deployment-document members
+(`../../design/protocol/configuration/limit-settings.md`, 2 and 8). The
+reference's in-process checks supply them typed through
+`temper-limits-fixtures::reference_over`; the document fragment `limits.json`
+is not part of this profile. A change's question bound,
+`forge.change_policy.questions`, remains 4, a separate box prerequisite.
 
 ## The merge job's programs
 
@@ -28,30 +33,30 @@ workspace root, its repository under its own name; `request.json` and
 
 The reference takes a payload of 63,740 bytes and output of 48,000 tokens,
 the fallback in `../../design/protocol/configuration/settings.md`, 7. Its agent's
-measured largest turn is 18,431,842 bytes; `limits.json` and `room.json`
-carry the bounds derived from that turn and payload.
+measured largest turn is 18,431,842 bytes. The stock derives its carriers
+from that turn and payload; `room.json` holds only the agent's and worker's
+figures, not engine or application overrides.
 
-Set the agent, the engine, every worker and the application before the first start,
-retaining the document's other application members and overrides. Run these
-in the deployment's configuration directory, with the reference's `room.json`:
+At the stock first start, before starting work, apply the deployment’s `agents`
+setting as an owner. Retain its other figures, set `declared.tool_payload` to
+`room.json`’s `agent.tool_payload`, and each endpoint’s and the fallback’s `output`
+to `agent.output`. `temper ctl DIR settings show agents --json` reads the whole
+current value; `temper help settings` explains applying a whole setting value.
+The box keeps its accepted bytes in the data directory’s `agents.setting`.
 
-```sh
-jq --slurpfile room room.json '.profile.declared.tool_payload = $room[0].agent.tool_payload | .endpoints[].limits.output = $room[0].agent.output' agent.json > agent.next.json
-mv agent.next.json agent.json
-jq --slurpfile room room.json '.engine.limits.overrides["io.output"] = $room[0].worker.limits.overrides["io.output"] | (.workers[] |= (. * $room[0].worker)) | .application = (.application * $room[0].application)' temper.json > temper.next.json
-mv temper.next.json temper.json
-```
+
+Restart on the same directories. The generated and pinned agent configuration
+now takes the accepted setting and the engine limits settings.
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
-policy and parts among it. The box's bound and the reference room's override
+policy and parts among it. The stock's bound and the reference's typed figure
 are both 65,536 bytes, admitting the charters its overlays make over the stock. A charter's `turns`, its `time` and the run's
 spend must fit the bounds a worker advertises, or no host takes its tasks
 (`../../../../jig/crates/jig-domain-fleet/src/needs.rs`, `charter_shortfall`
 and `shortfall`).
 
 Apply `settings.json` after that start, in the order below. Its charter models
-require the reference agent's output allowance; a stock agent's smaller
-allowance cannot host them. No charter's spend, period or time changes.
+require the reference agent's output allowance, also the stock's 48,000. No charter's spend, period or time changes.
 
 ## Authority for the reference charters
 
@@ -102,7 +107,7 @@ the drafter's charter 12 and the standing role's charter 13, which the reference
 work never starts, and retired charter 6, keeping each kind once.
 The reference holds fifteen executor places,
 within jig standard's `authority.executors` and `tasks.executor_kinds` of 18.
-No executor override is needed in `limits.json`. Apply the overlays first, offering these families.
+No executor override is needed in the limit settings. Apply the overlays first, offering these families.
 Size tasks, depth and spend (temper help budget).
 
 Policy 1 affects future projects. Existing projects need project-policy.

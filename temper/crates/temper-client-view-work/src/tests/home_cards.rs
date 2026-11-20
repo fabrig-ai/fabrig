@@ -77,6 +77,138 @@ fn text(nodes: &[skein_ui::Node]) -> String {
 }
 
 #[test]
+fn home_cards_and_shared_need_lines_cut_titles_before_their_prefixes() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut held = f::needs::held(Some(c::HoldCategory::Stalled));
+    held.task.chip.title = f::needs::words(&long);
+    let mut milestone = held.task.chip.clone();
+    milestone.task = 700;
+    milestone.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    let mut goal = held.task.chip.clone();
+    goal.task = 701;
+    held.task.requester = c::Requester::Task(701);
+    held.task.lineage_chips = skein_lib::List::from_boxed(Box::new([milestone, goal]));
+    let root = f::needs::kinds(&[(
+        c::ObjectKey::Escalation(held.task.chip.task),
+        c::Read::Escalation { task: held.task.chip.task },
+        c::ReadValue::Escalation(Box::new(held)),
+    )]);
+    let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+    let need = Need::Card(card);
+    let mut approval = f::needs::approval_row();
+    approval.title = long.as_bytes().into();
+    for w in [f::browser_words(), f::words()] {
+        let (tree, _) = draw(&root, &[need], false, &w);
+        let from = styled_nodes(&tree, look::NEED_FROM);
+        assert!(text(from).starts_with(&format!("{cut} › {cut} › {cut} · ")));
+        let links: Vec<_> = from.iter().filter(|n| n.role == Role::Link).collect();
+        assert_eq!(links.len(), 3);
+        assert!(links.iter().all(|n| n.name.as_deref() == Some(cut.as_bytes())));
+        assert_eq!(text(styled_nodes(&tree, look::ASK_QUESTION)), "The Ready page waits for this decision.");
+        assert_eq!(crate::shared::need_line(&need, &w).words.as_ref(), format!("{cut}: {cut}").as_bytes());
+        let open = [d::pages::findings::Need::Existing(need); 4];
+        let (tree, _) = draw_all(&root, &open, &w);
+        assert!(text(styled_nodes(&tree, look::HOME_MORE)).contains(&cut));
+        assert!(!text(tree.nodes()).contains(&long));
+        let (tree, _) = draw(&root, &[Need::Approval(&approval)], false, &w);
+        assert!(text(styled_nodes(&tree, look::ASK_QUESTION)).starts_with(&format!("Approve {cut} on ")));
+        assert!(
+            styled_nodes(&tree, look::NEED_FROM)
+                .iter()
+                .any(|n| n.role == Role::Link && n.name.as_deref() == Some(cut.as_bytes()))
+        );
+    }
+}
+
+#[test]
+fn home_held_cards_say_why_and_person_cards_name_the_title_only_in_from() {
+    let mut held = f::needs::held(Some(c::HoldCategory::EffectFailed));
+    held.task.chip.title = f::needs::words("Release the runner");
+    held.task.hold.as_mut().unwrap().words = Some(f::needs::words(
+        "forge could not release this task's resources; task release 6978 --hold 1; or task cancel 6978 REASON",
+    ));
+    let person = f::needs::person();
+    let root = f::needs::kinds(&[
+        (
+            c::ObjectKey::Escalation(held.task.chip.task),
+            c::Read::Escalation { task: held.task.chip.task },
+            c::ReadValue::Escalation(Box::new(held)),
+        ),
+        (
+            c::ObjectKey::PersonTask(person.task.task),
+            c::Read::PersonTask { task: person.task.task },
+            c::ReadValue::PersonTask(Box::new(person)),
+        ),
+    ]);
+    let cards = root.pages().inbox().unwrap().cards.as_slice();
+    let needs = [Need::Card(&cards[0]), Need::Card(&cards[1])];
+    for w in [f::browser_words(), f::words()] {
+        let (tree, _) = draw(&root, &needs, false, &w);
+        let parts: Vec<_> = tree
+            .nodes()
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.styles.as_slice().contains(&look::NEED_CARD))
+            .map(|(at, _)| super::inbox::subtree(&tree, at))
+            .collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(text(styled_nodes(&tree, look::ASK_QUESTION)), "Forge could not release this task's resources.");
+        assert!(!parts[1].iter().any(|n| n.styles.as_slice().contains(&look::ASK_QUESTION)));
+        for (part, title) in parts.iter().zip(["Release the runner", "Review the plan"]) {
+            assert_eq!(text(part).matches(title).count(), 1);
+            for hidden in ["Hold revision", "task release", "task cancel", "Parameter"] {
+                assert!(!text(part).contains(hidden));
+            }
+        }
+        for (need, title) in needs.iter().zip(["Release the runner", "Review the plan"]) {
+            let (more, _) = draw_all(&root, &[d::pages::findings::Need::Existing(*need); 4], &w);
+            assert!(text(styled_nodes(&more, look::HOME_MORE)).contains(title));
+            assert!(core::str::from_utf8(&crate::shared::need_line(need, &w).words).unwrap().contains(title));
+        }
+    }
+}
+
+#[test]
+fn decided_rows_cut_task_and_milestone_titles_not_the_question() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let row = d::pages::decided::DecisionLine {
+        project: f::PROJECT,
+        number: 1,
+        task: 9,
+        title: Some(long.as_bytes().into()),
+        milestone: Some(long.as_bytes().into()),
+        at: f::NOW,
+        question: long.as_bytes().into(),
+        took: b"Do it".as_slice().into(),
+        why: Box::default(),
+        overturned: false,
+        state: d::pages::decided::DecisionTask::Unknown,
+        reach: None,
+    };
+    for w in [f::browser_words(), f::words()] {
+        let mut builder = Builder::new(&f::tree_limits());
+        let mut bindings = Bindings::new(256);
+        crate::pages::decided::decision(
+            &mut builder,
+            None,
+            &w,
+            &mut bindings,
+            &row,
+            &mut Times::new(f::NOW),
+            None,
+            false,
+        );
+        let tree = builder.finish();
+        let drawn = text(tree.nodes());
+        assert!(drawn.starts_with(&format!("{cut} › {cut} · ")));
+        assert!(drawn.contains(&long));
+    }
+}
+
+#[test]
 fn group_card_keeps_its_findings_context_choices_and_scope() {
     let bugs = f::groups::bugs();
     let root = f::groups::fixture(&[f::groups::QUESTION], &bugs, &[], false);
@@ -109,7 +241,7 @@ fn group_card_keeps_its_findings_context_choices_and_scope() {
             assert!(!rows.iter().any(|n| n.role == Role::Link || n.binding.is_some()));
             let rows_text = text(rows);
             let mut last = 0;
-            for title in bugs.iter().map(|row| core::str::from_utf8(row.title()).unwrap()) {
+            for title in bugs.iter().map(|row| core::str::from_utf8(&row.title).unwrap()) {
                 let at = rows_text.find(title).unwrap();
                 assert!(at >= last);
                 last = at;
@@ -487,44 +619,31 @@ fn finding_root_with(count: u32, kind: temper_client_protocol_wire::v1::FindingK
                 jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
         } = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
+            && let w::Watch::Findings(subject) = &watching.watch
         {
-            let holder =
-                w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
+            let holder = w::Holder::Party(w::HolderParty { number: 1 });
             let rows = (1..=count)
-                .map(|number| {
-                    w::FindingRow::new(
-                        &w::CEILINGS,
-                        w::FindingRowParts {
-                            number,
-                            at: 0,
-                            kind: kind.clone(),
-                            severity: w::Severity::High,
-                            area: if split_area && number == 2 { Some(b"store".as_slice().into()) } else { None },
-                            state: w::FindingState::New,
-                            title: b"T".as_slice().into(),
-                            holder: holder.clone(),
-                            why: Some(b"Your area owns the view".as_slice().into()),
-                            hander: Some(w::Filer::Task(
-                                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap(),
-                            )),
-                        },
-                    )
-                    .unwrap()
+                .map(|number| w::FindingRow {
+                    number,
+                    at: 0,
+                    kind: kind.clone(),
+                    severity: w::Severity::High,
+                    area: if split_area && number == 2 { Some(b"store".as_slice().into()) } else { None },
+                    state: w::FindingState::New,
+                    title: b"T".as_slice().into(),
+                    holder: holder.clone(),
+                    why: Some(b"Your area owns the view".as_slice().into()),
+                    hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
                 })
                 .collect::<Vec<_>>();
-            let document = w::Findings::new(
-                &w::CEILINGS,
-                w::FindingsParts {
-                    project: subject.project(),
-                    rows: List::from_boxed(rows.into_boxed_slice()),
-                    areas: List::with_capacity(0),
-                    triager: None,
-                    holder,
-                    cut: false,
-                },
-            )
-            .unwrap();
+            let document = w::Findings {
+                project: subject.project,
+                rows: List::from_boxed(rows.into_boxed_slice()),
+                areas: List::with_capacity(0),
+                triager: None,
+                holder,
+                cut: false,
+            };
             f::root_event(
                 &mut root,
                 d::Event::Client {
@@ -791,8 +910,8 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
         } = request
             && let Some(watching) =
                 temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-            && let temper_client_protocol_wire::v1::Watch::Decided(subject) = watching.watch()
-            && subject.project() == f::SECOND_PROJECT
+            && let temper_client_protocol_wire::v1::Watch::Decided(subject) = &watching.watch
+            && subject.project == f::SECOND_PROJECT
         {
             f::needs::deliver_asked_for(&mut cross, *watch, f::SECOND_PROJECT, Some(reach));
         }

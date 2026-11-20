@@ -21,7 +21,7 @@ pub fn one_process() -> SystemStand {
 }
 pub fn one_process_under_box(under_box: bool) -> SystemStand {
     let mut settings = super::worker_settings();
-    settings.jig.limits.core.tasks.run_inbox = 2;
+    settings.jig.limits.as_mut().expect("checked worker limits").core.tasks.run_inbox = 2;
     let agent = super::worker_agent();
     let limits = super::worker_limits();
     let worker = Worker::new(
@@ -33,7 +33,7 @@ pub fn one_process_under_box(under_box: bool) -> SystemStand {
             wires: None,
             root: Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: super::pinned_agent(&settings.jig.agent),
+            agent: super::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -131,7 +131,7 @@ impl Kernel {
     }
     #[expect(
         clippy::too_many_lines,
-        reason = "the service fixture routes layout for workspaces, stores, making and home"
+        reason = "the service fixture routes layout for workspaces, gitdirs, stores, making and home"
     )]
     pub fn answer(&mut self, service: &mut Service) {
         for _ in 0..service.submissions().len() {
@@ -154,6 +154,7 @@ impl Kernel {
                     assert!(
                         path.as_ref() == b"trash"
                             || path.as_ref() == b"workspaces"
+                            || path.as_ref() == b"gitdirs"
                             || path.as_ref() == b"stores"
                             || path.as_ref() == b"making",
                         "layout opens {path:?}"
@@ -163,7 +164,10 @@ impl Kernel {
                 }
                 Op::Rename { from, .. } => {
                     assert!(
-                        from.as_ref() == b"workspaces" || from.as_ref() == b"home" || from.as_ref() == b"making",
+                        from.as_ref() == b"workspaces"
+                            || from.as_ref() == b"gitdirs"
+                            || from.as_ref() == b"home"
+                            || from.as_ref() == b"making",
                         "layout moves {from:?}"
                     );
                     self.files = self.files.checked_add(1).unwrap();

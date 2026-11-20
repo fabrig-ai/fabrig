@@ -6,31 +6,28 @@ use jig_domain_link::{
     Bounds, CountKind, EndpointBound, Form, Hello, Hosting, JobBound, JobKind, Login, LoginMethod, LoginState,
     Operation, Phase, Scheme, SignOutResult, SourceFailure, SourceName, valid_program_endpoints,
 };
-use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::{self as wire, Record};
 use skein_lib::{List, Reader, Token};
 pub(crate) fn hello(record: wire::Hello) -> Option<Hello> {
-    let fields = record.into_parts();
-    let bounds = fields.bounds.into_parts();
+    let fields = record;
+    let bounds = fields.bounds;
     if !valid_program_endpoints(bounds.program_endpoints.as_slice()) {
         return None;
     }
     let mut endpoints = List::with_capacity(bounds.endpoints.len());
     for model in bounds.endpoints.into_boxed() {
-        let model = model.into_parts();
         endpoints
             .push(EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output })
             .expect("one slot per decoded model");
     }
     let mut hosting = List::with_capacity(fields.hosting.len());
     for run in fields.hosting.into_boxed() {
-        let run = run.into_parts();
         hosting
             .push(Hosting { run: Token::new(run.task), attempt: Token::new(run.attempt), phase: phase(run.phase) })
             .expect("one slot per decoded run");
     }
     let mut jobs = List::with_capacity(fields.jobs.len());
     for job in fields.jobs.into_boxed() {
-        let job = job.into_parts();
         jobs.push(JobBound { kind: JobKind(job.kind), spec: job.spec, result: job.result, deadline: job.deadline })
             .expect("one slot per decoded job kind");
     }
@@ -80,7 +77,7 @@ pub(crate) enum Up {
     Limited(wire::Limited),
     AccountRefused(wire::AccountRefused),
 }
-pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v15::Limits) -> Option<Up> {
+pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v18::Limits) -> Option<Up> {
     let mut found = None;
     for rule in wire::KINDS {
         if rule.kind == kind {
@@ -98,10 +95,9 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v15::Limits) -> Opti
         }
         wire::Kind::ListRead => Some(Up::ListRead(wire::ListRead::decode(limits, reader).ok()?)),
         wire::Kind::Logins => {
-            let record = wire::Logins::decode(limits, reader).ok()?.into_parts();
+            let record = wire::Logins::decode(limits, reader).ok()?;
             let mut rows = List::<Login>::with_capacity(record.logins.len());
             for row in record.logins.into_boxed() {
-                let row = row.into_parts();
                 let name = SourceName::new(&row.name)?;
                 for old in &rows {
                     if old.name == name {
@@ -113,12 +109,11 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v15::Limits) -> Opti
             Some(Up::Source(host::LinkUp::Logins { logins: rows.into_boxed() }))
         }
         wire::Kind::SignedOut => {
-            let record = wire::SignedOut::decode(limits, reader).ok()?.into_parts();
+            let record = wire::SignedOut::decode(limits, reader).ok()?;
             let name = SourceName::new(&record.name)?;
             let result = match record.result {
                 wire::SignOutResult::SignedOut => SignOutResult::SignedOut,
                 wire::SignOutResult::Failed(failure) => {
-                    let failure = failure.into_parts();
                     SignOutResult::Failed { reason: source_failure(failure.reason), detail: failure.detail }
                 }
             };
@@ -148,32 +143,27 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v15::Limits) -> Opti
         | wire::Kind::Acknowledge
         | wire::Kind::Wires
         | wire::Kind::Cancel
+        | wire::Kind::Figures
         | wire::Kind::Grant => None,
     }
 }
 pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
     match record {
-        Up::Ask(record) => {
-            let record = record.into_parts();
-            host::LinkUp::Ask {
-                run: Token::new(record.run),
-                attempt: Token::new(record.attempt),
-                number: record.number,
-                bytes: record.bytes,
-            }
-        }
+        Up::Ask(record) => host::LinkUp::Ask {
+            run: Token::new(record.run),
+            attempt: Token::new(record.attempt),
+            number: record.number,
+            bytes: record.bytes,
+        },
         Up::Source(up) => up,
-        Up::ListRead(record) => {
-            let record = record.into_parts();
-            host::LinkUp::ListRead { read: record.read, outcome: list_outcome(record.outcome) }
-        }
+        Up::ListRead(record) => host::LinkUp::ListRead { read: record.read, outcome: list_outcome(record.outcome) },
         Up::Turn(record) => turn(record),
         Up::Call(record) => call(record),
         Up::Answer(record) => answer(record, parts),
         Up::JobAnswer(record) => job_answer(record, parts),
         Up::Fact(record) => fact(record),
         Up::Unauthorized(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::LinkUp::Unauthorized {
                 run: Token::new(fields.task),
                 attempt: Token::new(fields.attempt),
@@ -182,7 +172,7 @@ pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
             }
         }
         Up::Limited(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::LinkUp::Limited {
                 run: Token::new(fields.task),
                 attempt: Token::new(fields.attempt),
@@ -191,7 +181,7 @@ pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
             }
         }
         Up::AccountRefused(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::LinkUp::AccountRefused {
                 run: Token::new(fields.task),
                 attempt: Token::new(fields.attempt),
@@ -203,7 +193,7 @@ pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
     }
 }
 fn turn(record: wire::Turn) -> host::LinkUp {
-    let fields = record.into_parts();
+    let fields = record;
     let refused = refusals(fields.refused);
     host::LinkUp::Turn {
         run: Token::new(fields.task),
@@ -221,7 +211,7 @@ fn turn(record: wire::Turn) -> host::LinkUp {
 fn refusals(records: List<wire::Refused>) -> Box<[host::Refused]> {
     let mut refused = List::with_capacity(records.len());
     for record in records.into_boxed() {
-        let fields = record.into_parts();
+        let fields = record;
         let reason = match fields.reason {
             wire::MessageRefusal::TooLarge => host::MessageRefusal::TooLarge,
             wire::MessageRefusal::Full => host::MessageRefusal::Full,
@@ -236,17 +226,13 @@ fn optional_token(value: Option<u64>) -> Option<Token> {
     Some(Token::new(value?))
 }
 fn fact(record: wire::Fact) -> host::LinkUp {
-    let fields = record.into_parts();
+    let fields = record;
     let activity = match fields.value {
         wire::FactValue::Piece(piece) => {
-            let piece = piece.into_parts();
             let kind = match piece.kind {
                 wire::LiveKind::Text => host::LiveKind::Text,
                 wire::LiveKind::Reasoning => host::LiveKind::Reasoning,
-                wire::LiveKind::Input(call) => {
-                    let call = call.into_parts();
-                    host::LiveKind::Input { call: call.id, tool: call.tool }
-                }
+                wire::LiveKind::Input(call) => host::LiveKind::Input { call: call.id, tool: call.tool },
             };
             return host::LinkUp::Piece {
                 run: Token::new(fields.task),
@@ -260,9 +246,9 @@ fn fact(record: wire::Fact) -> host::LinkUp {
                 },
             };
         }
-        wire::FactValue::Phase(value) => host::AgentActivity::Phase(phase(value.into_parts().value)),
+        wire::FactValue::Phase(value) => host::AgentActivity::Phase(phase(value.value)),
         wire::FactValue::Long(value) => {
-            let fields = value.into_parts();
+            let fields = value;
             let operation = match fields.operation {
                 wire::Operation::Checks => Operation::Checks,
                 wire::Operation::Completion => Operation::Completion,
@@ -272,7 +258,7 @@ fn fact(record: wire::Fact) -> host::LinkUp {
         }
         wire::FactValue::LongDone => host::AgentActivity::LongDone,
         wire::FactValue::Count(value) => {
-            let fields = value.into_parts();
+            let fields = value;
             host::AgentActivity::Count { kind: count_kind(fields.kind), elapsed: fields.elapsed, count: fields.value }
         }
     };
@@ -321,7 +307,7 @@ impl Parts {
     }
 }
 pub(crate) fn answer(record: wire::Answer, parts: &mut Parts) -> host::LinkUp {
-    let fields = record.into_parts();
+    let fields = record;
     let ending = ending(fields.ending, parts);
     host::LinkUp::Answer {
         run: Token::new(fields.task),
@@ -336,27 +322,27 @@ pub(crate) fn answer(record: wire::Answer, parts: &mut Parts) -> host::LinkUp {
     }
 }
 fn job_answer(record: wire::JobAnswer, parts: &mut Parts) -> host::LinkUp {
-    let fields = record.into_parts();
+    let fields = record;
     let answer = match fields.ending {
         wire::JobEnding::Refused(record) => {
-            let refusal = match record.into_parts().value {
+            let refusal = match record.value {
                 wire::JobRefusal::Busy => host::JobRefusal::Busy,
-                wire::JobRefusal::Invalid(record) => host::JobRefusal::Invalid(match record.into_parts().value {
+                wire::JobRefusal::Invalid(record) => host::JobRefusal::Invalid(match record.value {
                     wire::JobInvalid::Kind => host::JobInvalid::Kind,
                     wire::JobInvalid::Spec => host::JobInvalid::Spec,
                     wire::JobInvalid::Deadline => host::JobInvalid::Deadline,
                     wire::JobInvalid::Grants => host::JobInvalid::Grants,
-                    wire::JobInvalid::Start(record) => host::JobInvalid::Start { why: record.into_parts().why },
+                    wire::JobInvalid::Start(record) => host::JobInvalid::Start { why: record.why },
                 }),
             };
             host::JobEnding::Refused(refusal)
         }
         wire::JobEnding::Finished(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::JobEnding::Finished { result: fields.result, work: work(fields.work, parts) }
         }
         wire::JobEnding::Failed(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::JobEnding::Failed {
                 failure: job_failure(fields.failure, parts),
                 detail: fields.detail,
@@ -368,24 +354,24 @@ fn job_answer(record: wire::JobAnswer, parts: &mut Parts) -> host::LinkUp {
 }
 fn job_failure(value: wire::JobFailure, parts: &mut Parts) -> host::JobFailure {
     match value {
-        wire::JobFailure::Unprepared(record) => host::JobFailure::Unprepared(match record.into_parts().value {
+        wire::JobFailure::Unprepared(record) => host::JobFailure::Unprepared(match record.value {
             wire::Preparation::Transient => host::Preparation::Transient,
             wire::Preparation::Permanent(record) => {
-                host::Preparation::Permanent { resource: parts.optional(record.into_parts().resource) }
+                host::Preparation::Permanent { resource: parts.optional(record.resource) }
             }
         }),
         wire::JobFailure::Failed => host::JobFailure::Failed,
         wire::JobFailure::Deadline => host::JobFailure::Deadline,
         wire::JobFailure::Result => host::JobFailure::Result,
         wire::JobFailure::Unstarted => host::JobFailure::Unstarted,
-        wire::JobFailure::Undelivered(record) => host::JobFailure::Undelivered(match record.into_parts().value {
+        wire::JobFailure::Undelivered(record) => host::JobFailure::Undelivered(match record.value {
             wire::DeliveryOutcome::Delivered => host::DeliveryOutcome::Delivered,
             wire::DeliveryOutcome::Nothing => host::DeliveryOutcome::Nothing,
             wire::DeliveryOutcome::Stale => host::DeliveryOutcome::Stale,
             wire::DeliveryOutcome::Refused => host::DeliveryOutcome::Refused,
             wire::DeliveryOutcome::Failed => host::DeliveryOutcome::Failed,
         }),
-        wire::JobFailure::Cancelled(record) => host::JobFailure::Cancelled(match record.into_parts().value {
+        wire::JobFailure::Cancelled(record) => host::JobFailure::Cancelled(match record.value {
             wire::CancelReason::Engine => host::Reason::Engine,
             wire::CancelReason::Contact => host::Reason::Contact,
             wire::CancelReason::Shutdown => host::Reason::Shutdown,
@@ -395,10 +381,10 @@ fn job_failure(value: wire::JobFailure, parts: &mut Parts) -> host::JobFailure {
 fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
     match value {
         wire::Ending::Refused(record) => {
-            let refusal = match record.into_parts().value {
+            let refusal = match record.value {
                 wire::Refusal::Busy => host::Refusal::Busy,
                 wire::Refusal::Version(record) => {
-                    let value = record.into_parts();
+                    let value = record;
                     host::Refusal::Version(host::Mismatch {
                         wire: value.wire,
                         version: value.version,
@@ -407,22 +393,19 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
                     })
                 }
                 wire::Refusal::Invalid(record) => {
-                    let invalid = match record.into_parts().value {
+                    let invalid = match record.value {
                         wire::Invalid::Charter => host::Invalid::Charter,
                         wire::Invalid::Transcript => host::Invalid::Transcript,
                         wire::Invalid::Grants => host::Invalid::Grants,
                         wire::Invalid::Messages => host::Invalid::Messages,
-                        wire::Invalid::Start(record) => {
-                            let record = record.into_parts();
-                            host::Invalid::Start {
-                                why: record.why,
-                                cause: match record.cause {
-                                    wire::StartCause::Other => host::StartCause::Other,
-                                    wire::StartCause::Grants => host::StartCause::Grants,
-                                    wire::StartCause::Transcript => host::StartCause::Transcript,
-                                },
-                            }
-                        }
+                        wire::Invalid::Start(record) => host::Invalid::Start {
+                            why: record.why,
+                            cause: match record.cause {
+                                wire::StartCause::Other => host::StartCause::Other,
+                                wire::StartCause::Grants => host::StartCause::Grants,
+                                wire::StartCause::Transcript => host::StartCause::Transcript,
+                            },
+                        },
                     };
                     host::Refusal::Invalid(invalid)
                 }
@@ -430,12 +413,12 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
             host::Ending::Refused(refusal)
         }
         wire::Ending::Ended(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::Ending::Ended { outcome: fields.outcome, work: work(fields.work, parts) }
         }
-        wire::Ending::Parked(record) => host::Ending::Parked { work: work(record.into_parts().work, parts) },
+        wire::Ending::Parked(record) => host::Ending::Parked { work: work(record.work, parts) },
         wire::Ending::Failed(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             let failure = failure(fields.failure, parts);
             let model = model_failure(fields.model);
             host::Ending::Failed { failure, detail: fields.detail, work: work(fields.work, parts), model }
@@ -443,7 +426,7 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
     }
 }
 fn model_failure(value: Option<wire::ModelFailure>) -> Option<host::ModelFailure> {
-    let fields = value?.into_parts();
+    let fields = value?;
     let kind = match fields.kind {
         wire::ModelFailureKind::Unavailable => host::ModelFailureKind::Unavailable,
         wire::ModelFailureKind::Overloaded => host::ModelFailureKind::Overloaded,
@@ -464,11 +447,18 @@ fn model_failure(value: Option<wire::ModelFailure>) -> Option<host::ModelFailure
         wire::ModelEvidence::Unknown => host::ModelEvidence::Unknown,
         wire::ModelEvidence::Response => host::ModelEvidence::Response,
     };
-    Some(host::ModelFailure { endpoint: fields.endpoint, model: fields.model, kind, evidence, status: fields.status })
+    Some(host::ModelFailure {
+        endpoint: fields.endpoint,
+        model: fields.model,
+        kind,
+        evidence,
+        status: fields.status,
+        refusal: fields.refusal,
+    })
 }
 
 fn work(value: wire::Work, parts: &mut Parts) -> host::Work {
-    let fields = value.into_parts();
+    let fields = value;
     let left = parts.optional(fields.left);
     let saved = parts.optional(fields.saved);
     host::Work { left, saved }
@@ -476,18 +466,18 @@ fn work(value: wire::Work, parts: &mut Parts) -> host::Work {
 fn failure(value: wire::Failure, parts: &mut Parts) -> host::Failure {
     match value {
         wire::Failure::Unprepared(record) => {
-            let preparation = match record.into_parts().value {
+            let preparation = match record.value {
                 wire::Preparation::Transient => host::Preparation::Transient,
                 wire::Preparation::Permanent(record) => {
-                    host::Preparation::Permanent { resource: parts.optional(record.into_parts().resource) }
+                    host::Preparation::Permanent { resource: parts.optional(record.resource) }
                 }
             };
             host::Failure::Unprepared(preparation)
         }
-        wire::Failure::Run(record) => host::Failure::Run(run_failure(record.into_parts().value)),
-        wire::Failure::Agent(record) => host::Failure::Agent(agent_failure(record.into_parts().value)),
+        wire::Failure::Run(record) => host::Failure::Run(run_failure(record.value)),
+        wire::Failure::Agent(record) => host::Failure::Agent(agent_failure(record.value)),
         wire::Failure::Cancelled(record) => {
-            let reason = match record.into_parts().value {
+            let reason = match record.value {
                 wire::CancelReason::Engine => host::Reason::Engine,
                 wire::CancelReason::Contact => host::Reason::Contact,
                 wire::CancelReason::Shutdown => host::Reason::Shutdown,
@@ -499,7 +489,7 @@ fn failure(value: wire::Failure, parts: &mut Parts) -> host::Failure {
 fn run_failure(value: wire::RunFailure) -> host::RunFailure {
     match value {
         wire::RunFailure::Exceeded(value) => host::RunFailure::Exceeded(host::Exceeded {
-            bound: match value.bound() {
+            bound: match &value.bound {
                 wire::Bound::Reasoning => host::Bound::Reasoning,
                 wire::Bound::Metadata => host::Bound::Metadata,
                 wire::Bound::Items => host::Bound::Items,
@@ -510,19 +500,20 @@ fn run_failure(value: wire::RunFailure) -> host::RunFailure {
                 wire::Bound::Window => host::Bound::Window,
                 wire::Bound::Output => host::Bound::Output,
             },
-            value: value.value(),
+            value: value.value,
         }),
         wire::RunFailure::Model => host::RunFailure::Model,
         wire::RunFailure::Transcript => host::RunFailure::Transcript,
+        wire::RunFailure::Untooled => host::RunFailure::Untooled,
         wire::RunFailure::Budget => host::RunFailure::Budget,
         wire::RunFailure::Policy => host::RunFailure::Policy,
         wire::RunFailure::Cancelled => host::RunFailure::Cancelled,
         wire::RunFailure::Stale => host::RunFailure::Stale,
         wire::RunFailure::Limited(record) => {
-            let fields = record.into_parts();
+            let fields = record;
             host::RunFailure::Limited { account: fields.account, reset: fields.reset }
         }
-        wire::RunFailure::Refused(record) => host::RunFailure::Refused { account: record.into_parts().account },
+        wire::RunFailure::Refused(record) => host::RunFailure::Refused { account: record.account },
     }
 }
 fn agent_failure(value: wire::AgentFailure) -> host::AgentFailure {
@@ -536,7 +527,7 @@ fn agent_failure(value: wire::AgentFailure) -> host::AgentFailure {
 }
 
 pub(crate) fn call(record: wire::Call) -> host::LinkUp {
-    let fields = record.into_parts();
+    let fields = record;
     host::LinkUp::Call {
         run: Token::new(fields.task),
         attempt: Token::new(fields.attempt),
@@ -588,78 +579,65 @@ impl Down {
             Self::Grant(_) => wire::Kind::Grant,
         }
     }
-    pub fn frame(self) -> skein_channel::Frame {
+    pub fn frame(self, limits: &wire::v18::Limits) -> Result<skein_channel::Frame, crate::Unencoded> {
         let (kind, length) = match &self {
-            Self::Restarting(record) => (wire::Kind::Restarting.number(), record.measure()),
-            Self::Asked(record) => (wire::Kind::Asked.number(), record.measure()),
-            Self::ReadList(record) => (wire::Kind::ReadList.number(), record.measure()),
-            Self::Sources(record) => (0x0188, record.measure()),
-            Self::Check(record) => (0x0189, record.measure()),
-            Self::SignOut(record) => (0x018a, record.measure()),
-            Self::Assign(record) => (0x0180, record.measure()),
-            Self::AssignJob(record) => (wire::Kind::Job.number(), record.measure()),
-            Self::Message(record) => (0x0181, record.measure()),
-            Self::Relayed(record) => (0x0182, record.measure()),
-            Self::TurnKept(record) => (0x0183, record.measure()),
-            Self::TurnBusy(record) => (0x0184, record.measure()),
-            Self::Acknowledge(record) => (0x0185, record.measure()),
-            Self::Cancel(record) => (0x0186, record.measure()),
-            Self::Grant(record) => (0x0187, record.measure()),
+            Self::Restarting(record) => (wire::Kind::Restarting.number(), record.measure(limits)),
+            Self::Asked(record) => (wire::Kind::Asked.number(), record.measure(limits)),
+            Self::ReadList(record) => (wire::Kind::ReadList.number(), record.measure(limits)),
+            Self::Sources(record) => (0x0188, record.measure(limits)),
+            Self::Check(record) => (0x0189, record.measure(limits)),
+            Self::SignOut(record) => (0x018a, record.measure(limits)),
+            Self::Assign(record) => (0x0180, record.measure(limits)),
+            Self::AssignJob(record) => (wire::Kind::Job.number(), record.measure(limits)),
+            Self::Message(record) => (0x0181, record.measure(limits)),
+            Self::Relayed(record) => (0x0182, record.measure(limits)),
+            Self::TurnKept(record) => (0x0183, record.measure(limits)),
+            Self::TurnBusy(record) => (0x0184, record.measure(limits)),
+            Self::Acknowledge(record) => (0x0185, record.measure(limits)),
+            Self::Cancel(record) => (0x0186, record.measure(limits)),
+            Self::Grant(record) => (0x0187, record.measure(limits)),
+        };
+        let length = match length {
+            Ok(length) => length,
+            Err(why) => return Err(problem(why)),
         };
         let mut writer = skein_channel::frame_writer(kind, length).expect("checked record fits a frame");
         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
         let encoded = match self {
-            Self::Restarting(record) => record.encode(&mut body),
-            Self::Asked(record) => record.encode(&mut body),
-            Self::ReadList(record) => record.encode(&mut body),
-            Self::Sources(record) => record.encode(&mut body),
-            Self::Check(record) => record.encode(&mut body),
-            Self::SignOut(record) => record.encode(&mut body),
-            Self::Assign(record) => record.encode(&mut body),
-            Self::AssignJob(record) => record.encode(&mut body),
-            Self::Message(record) => record.encode(&mut body),
-            Self::Relayed(record) => record.encode(&mut body),
-            Self::TurnKept(record) => record.encode(&mut body),
-            Self::TurnBusy(record) => record.encode(&mut body),
-            Self::Acknowledge(record) => record.encode(&mut body),
-            Self::Cancel(record) => record.encode(&mut body),
-            Self::Grant(record) => record.encode(&mut body),
+            Self::Restarting(record) => record.write(limits, &mut body),
+            Self::Asked(record) => record.write(limits, &mut body),
+            Self::ReadList(record) => record.write(limits, &mut body),
+            Self::Sources(record) => record.write(limits, &mut body),
+            Self::Check(record) => record.write(limits, &mut body),
+            Self::SignOut(record) => record.write(limits, &mut body),
+            Self::Assign(record) => record.write(limits, &mut body),
+            Self::AssignJob(record) => record.write(limits, &mut body),
+            Self::Message(record) => record.write(limits, &mut body),
+            Self::Relayed(record) => record.write(limits, &mut body),
+            Self::TurnKept(record) => record.write(limits, &mut body),
+            Self::TurnBusy(record) => record.write(limits, &mut body),
+            Self::Acknowledge(record) => record.write(limits, &mut body),
+            Self::Cancel(record) => record.write(limits, &mut body),
+            Self::Grant(record) => record.write(limits, &mut body),
         };
         encoded.expect("measured record");
         writer.put(&body.finish()).expect("measured body fits frame");
-        writer.finish().expect("complete record")
+        Ok(writer.finish().expect("complete record"))
     }
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm per downward record keeps each constructor's refusal beside its fields"
-)]
 pub(crate) fn down(
     down: host::LinkDown,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v15::Limits,
+    limits: &wire::v18::Limits,
 ) -> Result<Down, crate::Unencoded> {
     match down {
         host::LinkDown::Asked { run, attempt, number, answer } => {
             let answer = match answer {
-                host::AskAnswer::Bytes(bytes) => {
-                    wire::AskAnswer::Bytes(match wire::AskBytes::new(limits, wire::AskBytesParts { bytes }) {
-                        Ok(record) => record,
-                        Err(why) => return Err(problem(why)),
-                    })
-                }
+                host::AskAnswer::Bytes(bytes) => wire::AskAnswer::Bytes(wire::AskBytes { bytes }),
                 host::AskAnswer::Refused => wire::AskAnswer::Refused,
             };
-            Ok(Down::Asked(
-                match wire::Asked::new(
-                    limits,
-                    wire::AskedParts { run: run.raw(), attempt: attempt.raw(), number, answer },
-                ) {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            ))
+            Ok(Down::Asked(wire::Asked { run: run.raw(), attempt: attempt.raw(), number, answer }))
         }
         host::LinkDown::ReadList { read, endpoint, grant } => {
             match grant.form {
@@ -669,12 +647,8 @@ pub(crate) fn down(
             let grant = grant_record(
                 grant,
                 values.into_iter().next().flatten().ok_or(crate::Unencoded::field("grant.value"))?,
-                limits,
             )?;
-            Ok(Down::ReadList(match wire::ReadList::new(limits, wire::ReadListParts { read, endpoint, grant }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            }))
+            Ok(Down::ReadList(wire::ReadList { read, endpoint, grant }))
         }
         host::LinkDown::AssignJob { job } => Ok(Down::AssignJob(job_record(job, parts, values, limits)?)),
 
@@ -686,109 +660,49 @@ pub(crate) fn down(
                 "Sources.sources",
                 skein_lib::length::len_u64(sources.len()),
                 limits.sources_sources,
-                wire::v15::CEILINGS.sources_sources,
+                wire::v18::CEILINGS.sources_sources,
             )?;
             let mut names = List::with_capacity(u32::try_from(sources.len()).expect("measured sources count fits"));
             for name in sources {
-                names
-                    .push(
-                        match wire::ProgramSource::new(
-                            limits,
-                            wire::ProgramSourceParts { name: Box::from(name.as_bytes()) },
-                        ) {
-                            Ok(record) => record,
-                            Err(why) => return Err(problem(why)),
-                        },
-                    )
-                    .expect("measured sources count");
+                names.push(wire::ProgramSource { name: Box::from(name.as_bytes()) }).expect("measured sources count");
             }
-            Ok(Down::Sources(match wire::Sources::new(limits, wire::SourcesParts { sources: names }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            }))
+            Ok(Down::Sources(wire::Sources { sources: names }))
         }
-        host::LinkDown::Check { name } => {
-            Ok(Down::Check(match wire::Check::new(limits, wire::CheckParts { name: Box::from(name.as_bytes()) }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            }))
-        }
-        host::LinkDown::SignOut { name } => Ok(Down::SignOut(
-            match wire::SignOut::new(limits, wire::SignOutParts { name: Box::from(name.as_bytes()) }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            },
-        )),
+        host::LinkDown::Check { name } => Ok(Down::Check(wire::Check { name: Box::from(name.as_bytes()) })),
+        host::LinkDown::SignOut { name } => Ok(Down::SignOut(wire::SignOut { name: Box::from(name.as_bytes()) })),
         host::LinkDown::Assign { assignment } => {
             Ok(Down::Assign(assignment_record(assignment, parts, values, limits)?))
         }
-        host::LinkDown::Message { run, attempt, name, sender, words, finish_requested } => Ok(Down::Message(
-            match wire::Inbound::new(
-                limits,
-                wire::InboundParts {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    name: name.raw(),
-                    sender,
-                    words,
-                    finish_requested,
-                },
-            ) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            },
-        )),
+        host::LinkDown::Message { run, attempt, name, sender, words, finish_requested } => {
+            Ok(Down::Message(wire::Inbound {
+                task: run.raw(),
+                attempt: attempt.raw(),
+                name: name.raw(),
+                sender,
+                words,
+                finish_requested,
+            }))
+        }
         host::LinkDown::Relayed { run, attempt, call, answer } => {
             let answer = match answer {
                 host::Relayed::Busy => wire::RelayAnswer::Busy,
-                host::Relayed::Answer { error, text } => {
-                    wire::RelayAnswer::Text(match wire::RelayText::new(limits, wire::RelayTextParts { error, text }) {
-                        Ok(record) => record,
-                        Err(why) => return Err(problem(why)),
-                    })
-                }
+                host::Relayed::Answer { error, text } => wire::RelayAnswer::Text(wire::RelayText { error, text }),
             };
-            Ok(Down::Relayed(
-                match wire::Relayed::new(
-                    limits,
-                    wire::RelayedParts { task: run.raw(), attempt: attempt.raw(), name: call, answer },
-                ) {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            ))
+            Ok(Down::Relayed(wire::Relayed { task: run.raw(), attempt: attempt.raw(), name: call, answer }))
         }
-        host::LinkDown::TurnKept { run, attempt, turn } => Ok(Down::TurnKept(
-            match wire::TurnKept::new(
-                limits,
-                wire::TurnKeptParts { task: run.raw(), attempt: attempt.raw(), number: turn },
-            ) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            },
-        )),
-        host::LinkDown::Acknowledge { run, attempt } => Ok(Down::Acknowledge(
-            match wire::Acknowledge::new(limits, wire::AcknowledgeParts { task: run.raw(), attempt: attempt.raw() }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            },
-        )),
-        host::LinkDown::Cancel { run, attempt } => Ok(Down::Cancel(
-            match wire::Cancel::new(limits, wire::CancelParts { task: run.raw(), attempt: attempt.raw() }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            },
-        )),
+        host::LinkDown::TurnKept { run, attempt, turn } => {
+            Ok(Down::TurnKept(wire::TurnKept { task: run.raw(), attempt: attempt.raw(), number: turn }))
+        }
+        host::LinkDown::Acknowledge { run, attempt } => {
+            Ok(Down::Acknowledge(wire::Acknowledge { task: run.raw(), attempt: attempt.raw() }))
+        }
+        host::LinkDown::Cancel { run, attempt } => {
+            Ok(Down::Cancel(wire::Cancel { task: run.raw(), attempt: attempt.raw() }))
+        }
         host::LinkDown::Grant { run, attempt, grant } => {
             let value = values.into_iter().next().flatten().ok_or(crate::Unencoded::field("grant.value"))?;
-            let grant = grant_record(grant, value, limits)?;
-            Ok(Down::Grant(
-                match wire::Granted::new(limits, wire::GrantedParts { task: run.raw(), attempt: attempt.raw(), grant })
-                {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            ))
+            let grant = grant_record(grant, value)?;
+            Ok(Down::Grant(wire::Granted { task: run.raw(), attempt: attempt.raw(), grant }))
         }
     }
 }
@@ -796,81 +710,58 @@ fn job_record(
     job: host::JobAssignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v15::Limits,
+    limits: &wire::v18::Limits,
 ) -> Result<wire::Job, crate::Unencoded> {
-    let workspace = workspace_record(job.workspace, parts, limits)?;
-    let grants =
-        grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v15::CEILINGS.job_grants, limits)?;
-    match wire::Job::new(
-        limits,
-        wire::JobParts {
-            task: job.run.raw(),
-            attempt: job.attempt.raw(),
-            kind: job.kind.0,
-            spec: job.spec,
-            deadline: job.deadline,
-            workspace,
-            grants,
-        },
-    ) {
-        Ok(record) => Ok(record),
-        Err(why) => Err(problem(why)),
-    }
+    let workspace = workspace_record(job.workspace, parts)?;
+    let grants = grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v18::CEILINGS.job_grants)?;
+    Ok(wire::Job {
+        task: job.run.raw(),
+        attempt: job.attempt.raw(),
+        kind: job.kind.0,
+        spec: job.spec,
+        deadline: job.deadline,
+        workspace,
+        grants,
+    })
 }
 fn assignment_record(
     assignment: host::Assignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v15::Limits,
+    limits: &wire::v18::Limits,
 ) -> Result<wire::Assignment, crate::Unencoded> {
     let run = assignment.assignment;
-    let workspace = workspace_record(run.workspace, parts, limits)?;
+    let workspace = workspace_record(run.workspace, parts)?;
     measured(
         "Assignment.messages",
         skein_lib::length::len_u64(assignment.messages.len()),
         limits.assignment_messages,
-        wire::v15::CEILINGS.assignment_messages,
+        wire::v18::CEILINGS.assignment_messages,
     )?;
     let mut messages =
         List::with_capacity(u32::try_from(assignment.messages.len()).expect("measured messages count fits"));
     for message in assignment.messages {
         messages
-            .push(
-                match wire::Message::new(
-                    limits,
-                    wire::MessageParts {
-                        name: message.name.raw(),
-                        sender: message.sender,
-                        words: message.words,
-                        finish_requested: message.finish_requested,
-                    },
-                ) {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            )
+            .push(wire::Message {
+                name: message.name.raw(),
+                sender: message.sender,
+                words: message.words,
+                finish_requested: message.finish_requested,
+            })
             .expect("measured messages count");
     }
     measured(
         "Assignment.answered",
         skein_lib::length::len_u64(assignment.answered.len()),
         limits.assignment_answered,
-        wire::v15::CEILINGS.assignment_answered,
+        wire::v18::CEILINGS.assignment_answered,
     )?;
     let mut answered =
         List::with_capacity(u32::try_from(assignment.answered.len()).expect("measured answered count fits"));
     for call in assignment.answered {
-        let answer = settled(call.answer, limits)?;
+        let answer = settled(call.answer);
         answered
-            .push(
-                match wire::AnsweredCall::new(
-                    limits,
-                    wire::AnsweredCallParts { name: call.name, tool: call.tool, answer },
-                ) {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            )
+            .push(wire::AnsweredCall { name: call.name, tool: call.tool, answer })
             .expect("measured answered count");
     }
     let grants = grants_record(
@@ -878,45 +769,32 @@ fn assignment_record(
         values,
         "Assignment.grants",
         limits.assignment_grants,
-        wire::v15::CEILINGS.assignment_grants,
-        limits,
+        wire::v18::CEILINGS.assignment_grants,
     )?;
     measured(
         "Assignment.charter",
         skein_lib::length::len_u64(run.charter.len()),
         limits.assignment_charter,
-        wire::v15::CEILINGS.assignment_charter,
+        wire::v18::CEILINGS.assignment_charter,
     )?;
     let transcript = transcript(&assignment.turns, limits.assignment_transcript)?;
-    match wire::Assignment::new(
-        limits,
-        wire::AssignmentParts {
-            task: run.run.raw(),
-            attempt: run.attempt.raw(),
-            identity: run.identity,
-            workspace,
-            save: run.save,
-            live: match wire::LiveAsk::new(
-                limits,
-                wire::LiveAskParts { text: run.live.text, reasoning: run.live.reasoning, input: run.live.input },
-            ) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            },
-            charter: run.charter,
-            transcript,
-            answered,
-            messages,
-            grants,
-        },
-    ) {
-        Ok(record) => Ok(record),
-        Err(why) => Err(problem(why)),
-    }
+    Ok(wire::Assignment {
+        task: run.run.raw(),
+        attempt: run.attempt.raw(),
+        identity: run.identity,
+        workspace,
+        save: run.save,
+        live: wire::LiveAsk { text: run.live.text, reasoning: run.live.reasoning, input: run.live.input },
+        charter: run.charter,
+        transcript,
+        answered,
+        messages,
+        grants,
+    })
 }
-fn problem(problem: wire::v15::Problem) -> crate::Unencoded {
+pub(crate) fn problem(problem: wire::v18::Problem) -> crate::Unencoded {
     crate::Unencoded {
-        field: problem.path.name(),
+        field: wire::v18::name(problem.path).expect("generated problem path"),
         reason: Some(problem.reason),
         figure: None,
         bound: None,
@@ -941,7 +819,6 @@ fn grants_record(
     field: &'static str,
     bound: u32,
     ceiling: u32,
-    limits: &wire::v15::Limits,
 ) -> Result<List<wire::Grant>, crate::Unencoded> {
     let mut count = 0_u64;
     for value in values.iter().take(grants.len()) {
@@ -953,7 +830,7 @@ fn grants_record(
     let mut records = List::with_capacity(u32::try_from(count).expect("measured grants count fits"));
     for (grant, value) in grants.into_iter().zip(values) {
         if let Some(value) = value {
-            records.push(grant_record(grant, value, limits)?).expect("measured grants count");
+            records.push(grant_record(grant, value)?).expect("measured grants count");
         }
     }
     Ok(records)
@@ -961,16 +838,11 @@ fn grants_record(
 fn workspace_record(
     workspace: Option<host::Workspace>,
     parts: &[wire::Part],
-    limits: &wire::v15::Limits,
 ) -> Result<Option<wire::Workspace>, crate::Unencoded> {
     match workspace {
-        Some(workspace) => match wire::Workspace::new(
-            limits,
-            wire::WorkspaceParts { workstream: workspace.workstream, items: part(workspace.items, parts)? },
-        ) {
-            Ok(record) => Ok(Some(record)),
-            Err(why) => Err(problem(why)),
-        },
+        Some(workspace) => {
+            Ok(Some(wire::Workspace { workstream: workspace.workstream, items: part(workspace.items, parts)? }))
+        }
         None => Ok(None),
     }
 }
@@ -990,7 +862,7 @@ fn transcript(turns: &[Box<[u8]>], bound: u32) -> Result<Box<[u8]>, crate::Unenc
             .ok_or(crate::Unencoded::field("Assignment.transcript"))?;
         length = length.checked_add(4).ok_or(crate::Unencoded::field("Assignment.transcript"))?;
     }
-    measured("Assignment.transcript", length, bound, wire::v15::CEILINGS.assignment_transcript)?;
+    measured("Assignment.transcript", length, bound, wire::v18::CEILINGS.assignment_transcript)?;
     let mut writer = skein_lib::Writer::new(usize::try_from(length).expect("bounded framed transcript fits usize"));
     for turn in turns {
         skein_codec::piece::write(&mut writer, turn).expect("measured framed transcript fits");
@@ -998,23 +870,14 @@ fn transcript(turns: &[Box<[u8]>], bound: u32) -> Result<Box<[u8]>, crate::Unenc
     Ok(writer.finish())
 }
 /// A grant's form and its value's arm agree, or the grant is not sent.
-fn grant_record(
-    grant: jig_domain_link::Grant,
-    value: crate::GrantValue,
-    limits: &wire::v15::Limits,
-) -> Result<wire::Grant, crate::Unencoded> {
+fn grant_record(grant: jig_domain_link::Grant, value: crate::GrantValue) -> Result<wire::Grant, crate::Unencoded> {
     let value = match grant.form {
         Form::Program(form) => match value {
             crate::GrantValue::Program { name } => {
                 if name != form {
                     return Err(crate::Unencoded::field("grant.value"));
                 }
-                wire::GrantValue::Program(
-                    match wire::ProgramValue::new(limits, wire::ProgramValueParts { name: name.as_bytes().into() }) {
-                        Ok(record) => record,
-                        Err(why) => return Err(problem(why)),
-                    },
-                )
+                wire::GrantValue::Program(wire::ProgramValue { name: name.as_bytes().into() })
             }
             crate::GrantValue::Credential { .. } | crate::GrantValue::Application { .. } => {
                 return Err(crate::Unencoded::field("grant.value"));
@@ -1029,36 +892,22 @@ fn grant_record(
                     Scheme::Bearer => wire::Scheme::Bearer,
                     Scheme::Key => wire::Scheme::Key,
                 };
-                wire::GrantValue::Credential(
-                    match wire::CredentialValue::new(limits, wire::CredentialValueParts { scheme, bytes: token }) {
-                        Ok(record) => record,
-                        Err(why) => return Err(problem(why)),
-                    },
-                )
+                wire::GrantValue::Credential(wire::CredentialValue { scheme, bytes: token })
             }
             crate::GrantValue::Application { .. } | crate::GrantValue::Program { .. } => {
                 return Err(crate::Unencoded::field("grant.value"));
             }
         },
         Form::Application => match value {
-            crate::GrantValue::Application { secret } => wire::GrantValue::Application(
-                match wire::ApplicationValue::new(limits, wire::ApplicationValueParts { secret }) {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            ),
+            crate::GrantValue::Application { secret } => {
+                wire::GrantValue::Application(wire::ApplicationValue { secret })
+            }
             crate::GrantValue::Credential { .. } | crate::GrantValue::Program { .. } => {
                 return Err(crate::Unencoded::field("grant.value"));
             }
         },
     };
-    match wire::Grant::new(
-        limits,
-        wire::GrantParts { number: grant.account, generation: grant.generation, valid: grant.valid, value },
-    ) {
-        Ok(record) => Ok(record),
-        Err(why) => Err(problem(why)),
-    }
+    Ok(wire::Grant { number: grant.account, generation: grant.generation, valid: grant.valid, value })
 }
 const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
     match scheme {
@@ -1066,14 +915,9 @@ const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
         Scheme::Key => crate::Scheme::Key,
     }
 }
-fn settled(answer: host::SettledAnswer, limits: &wire::v15::Limits) -> Result<wire::SettledAnswer, crate::Unencoded> {
+fn settled(answer: host::SettledAnswer) -> wire::SettledAnswer {
     match answer {
-        host::SettledAnswer::Host { error, body } => {
-            Ok(wire::SettledAnswer::Host(match wire::HostAnswer::new(limits, wire::HostAnswerParts { error, body }) {
-                Ok(record) => record,
-                Err(why) => return Err(problem(why)),
-            }))
-        }
+        host::SettledAnswer::Host { error, body } => wire::SettledAnswer::Host(wire::HostAnswer { error, body }),
         host::SettledAnswer::Delivery { outcome, evidence } => {
             let outcome = match outcome {
                 host::DeliveryOutcome::Delivered => wire::DeliveryOutcome::Delivered,
@@ -1082,21 +926,13 @@ fn settled(answer: host::SettledAnswer, limits: &wire::v15::Limits) -> Result<wi
                 host::DeliveryOutcome::Refused => wire::DeliveryOutcome::Refused,
                 host::DeliveryOutcome::Failed => wire::DeliveryOutcome::Failed,
             };
-            Ok(wire::SettledAnswer::Delivery(
-                match wire::DeliveryAnswer::new(limits, wire::DeliveryAnswerParts { outcome, evidence }) {
-                    Ok(record) => record,
-                    Err(why) => return Err(problem(why)),
-                },
-            ))
+            wire::SettledAnswer::Delivery(wire::DeliveryAnswer { outcome, evidence })
         }
     }
 }
 
-pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32, limits: &wire::v15::Limits) -> Down {
-    Down::TurnBusy(
-        wire::TurnBusy::new(limits, wire::TurnBusyParts { task: run.raw(), attempt: attempt.raw(), number: turn })
-            .expect("fixed turn busy fields fit"),
-    )
+pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32) -> Down {
+    Down::TurnBusy(wire::TurnBusy { task: run.raw(), attempt: attempt.raw(), number: turn })
 }
 
 fn source_failure(reason: wire::SourceFailure) -> SourceFailure {
@@ -1115,10 +951,9 @@ fn login_state(state: wire::LoginState) -> Option<LoginState> {
         wire::LoginState::Usable => LoginState::Usable,
         wire::LoginState::NotSignedIn => LoginState::NotSignedIn,
         wire::LoginState::SignedInOtherwise(method) => {
-            LoginState::SignedInOtherwise(LoginMethod::new(method.method())?)
+            LoginState::SignedInOtherwise(LoginMethod::new(method.method.as_ref())?)
         }
         wire::LoginState::Failed(failure) => {
-            let failure = failure.into_parts();
             LoginState::Failed { reason: source_failure(failure.reason), detail: failure.detail }
         }
     })
@@ -1128,10 +963,9 @@ fn list_outcome(value: wire::ListOutcome) -> jig_domain_link::ListOutcome {
     use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
     match value {
         wire::ListOutcome::Listed(record) => {
-            let rows = record.into_parts().rows;
+            let rows = record.rows;
             let mut listed = List::with_capacity(rows.len());
             for row in rows.into_boxed() {
-                let row = row.into_parts();
                 listed
                     .push(ListedModel {
                         name: row.name,
@@ -1144,8 +978,8 @@ fn list_outcome(value: wire::ListOutcome) -> jig_domain_link::ListOutcome {
             }
             ListOutcome::Listed(listed.into_boxed())
         }
-        wire::ListOutcome::Failed(record) => ListOutcome::Failed(match record.into_parts().value {
-            wire::ListFailed::Refused(record) => ListFailure::Refused { status: record.status() },
+        wire::ListOutcome::Failed(record) => ListOutcome::Failed(match record.value {
+            wire::ListFailed::Refused(record) => ListFailure::Refused { status: record.status },
             wire::ListFailed::Unreachable => ListFailure::Unreachable,
             wire::ListFailed::Unreadable => ListFailure::Unreadable,
             wire::ListFailed::Deadline => ListFailure::Deadline,
@@ -1160,7 +994,7 @@ pub(crate) fn send(
     frame: skein_channel::Frame,
     version: u16,
     agreed: &List<wire::Agreed>,
-    limits: &wire::v15::Limits,
+    limits: &wire::v18::Limits,
 ) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
     machine.send(frame, version, agreed.as_slice(), limits)
 }
@@ -1170,7 +1004,7 @@ pub(crate) fn receive(
     body: &[u8],
     version: u16,
     agreed: &List<wire::Agreed>,
-    limits: &wire::v15::Limits,
+    limits: &wire::v18::Limits,
 ) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
     machine.receive(kind, body, version, agreed.as_slice(), limits)
 }

@@ -21,7 +21,7 @@
     | Forges | Where your code lives. | Each forge temper is connected to, or setting up. Add one to bring its repositories to temper. |
     | Accounts | What agents run on. | The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it. |
     | Models | What the picker offers. | The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has. |
-    | Workers | Where agents work. | The machines temper’s agents run on, each with its slots and how many are in use. |
+    | Workers | Where agents work. | The machines temper’s agents run on, each with its places and whether it’s up. An owner adds one by its secret’s digest. |
     | Members | Who may do what. | Each project’s people and services, and the role each holds there. Who owns an area of a project is its Team’s. |
     | Limits | What this deployment holds. | The capacities temper’s engine runs within, as it reports them. Its owner sets them in its configuration. |
 
@@ -152,21 +152,9 @@
       temper.", its last two words a link to `Ask { project }`.
     - *In the terminal,* the same sections as lines, a row's word and name on one line,
       and the switch and the form as the terminal has them on How work runs (2).
-  - *Workers,* `Builders { project }`, reads jig's `deployment` document, watched while the tab is open
-    by a person with a role in the deployment, as `Accounts` watches it for an
-    owner. It draws `Deployment.hosts`, as far as the document's configured rows
-    hold them. A section, "Workers · N", N its rows; then a line per host, as
-    Repositories' are, no link and no act: the host's name, or "Worker
-    CHANNEL" with none; in `small`, "2 slots · 1 in use" ("1 slot" for one); in
-    the line's `.when`, "Not connected" while it is not connected, else
-    "Draining" while it drains, else "Connected". Under them, `.facts`: "Each
-    agent’s role names which workers it runs on. Ask temper to change it."
-    With no host connected, `.empty`, "No worker is connected.",
-    above any lines left. A cut document says so, as `Accounts` does. With no
-    role in the deployment, one line, "Workers are seen by the deployment’s
-    owners.", and no section. Until the document is read, the title "Workers"
-    alone, claiming nothing. There is no capacity graph. The word on the page
-    is "worker"; the code's stays host, and the page's `Builders`.
+  - *Workers,* `Builders { project }`, is the workers' settings, each with
+    its places and whether it is up, and an owner's acts on them
+    (`workers.md`). There is no capacity graph.
   - *Members* (jig's `domain/people/README.md`, section 4, and `jig/docs/design/domain/people/acts.md`, section 2) reads jig's
     `Read::Project` for each project `me` lists, in `me`'s order, one read at a
     time, while the tab is open, and again when `me`'s projects change. A
@@ -307,20 +295,23 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     where it runs none. Under it, with no tabs, the head Ask temper's page
     draws (`ask-temper.md`, 1, *the head*; the look request
     `ways-current`'s default, which the person chose for this page on
-    2026-11-16): the shown way's line at its left, a stock way's `line`,
-    the project words' `lede` or "PROJECT runs settings of its own."; at
-    its right the shown way's act, "Use this" or "Keep it" (*A way's
-    acts,* below), "Back" while a way the project doesn't run is shown,
-    and the "Stock ways" menu, the way the project runs ticked where it is
-    a stock one; then its path, the drawing Ask temper's page draws
+    2026-11-16; the look request `ways-shown`, 2026-11-19): the shown
+    way's line, a stock way's `line`, the project words' `lede` or
+    "PROJECT runs settings of its own.", the column to itself; its acts,
+    the shown way's act, "Use this" or "Keep it" (*A way's acts,* below),
+    and the drop-down naming the way shown, its button and menu as Ask
+    temper's (`ask-temper.md`, 1, *the head*), with no "Back", at the
+    right of the section's head row, after "the way: NAME", that row
+    leaving them room, so that switching ways moves nothing; on a phone
+    the head wraps as Ask temper's does, the line, then the acts; then its path, the drawing Ask temper's page draws
     (`chat/conversation.md`, 3), its stops pressed, laid out by the box's width, the legend
     under it as Ask temper's page has it, with no button beside it; while
     a stop is open, its card, as Ask temper's page draws a stop's card,
     its caret across; and a refusal under the legend. The page's own
     heading, lede and "Ask temper to change this" stay as they are, and
     Ask temper's last line is not drawn here. The terminal prints the
-    head's line, the path, the card, the legend, the act and "Back", then
-    "Stock ways:" and the three names, as Ask temper's page does. The
+    head's line, the path, the card, the legend and the act, then
+    "Stock ways:" and its names, as Ask temper's page does. The
     shown way and the open stop are the page's state, as on Ask temper's page. Until the read
     answers the section holds its title alone; once its watch has ended,
     "The ways can't be read now.", muted.
@@ -541,8 +532,11 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   kinds 7 and 8 of the open project as the project opens, kind 8 also of the
   card *Needs you* shows where that card's project is another, and kind 6 on
   the tab, through the forge's reads in that project's scope (`../forge/served.md`
-  ), and again whenever the document's line for that setting says it
-  changed and when the link comes back. Kind 8 decodes to the kit's table
+  ). Each read answers with the revision it read, none at the default
+  (`../../protocol/configuration/settings.md`, 2, *Read from the
+  forge*), and the setting is read again only when the document's line
+  names a newer one (`last`), or none where the read named one, whichever
+  of the two came first; and when the link comes back from offline. Kind 8 decodes to the kit's table
   (`temper-protocol-reaches`, `classes_from`); one `Classes::check` refuses
   reads as a lasting refusal. A transient read failure (busy, unreachable, local
   read capacity, or sign-in still settling) retries after one second, doubling
@@ -585,8 +579,9 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   runs, while To begin's "Tell temper how you work" is left (`home.md`, 1, *To
   begin*), so that its values become the project's own and that change
   marks the step done; once the step is done the current way has no act.
-  A project that runs no stock way has a fourth, *"Yours"*, current, its
-  path the read's `own`, with no act. Neither act shows where `may_change`
+  A project that runs no stock way has a fourth, current, its path the
+  read's `own`, with no act, which the head's drop-down names
+  "PROJECT's own" (`ask-temper.md`, 1, *the head*). Neither act shows where `may_change`
   is false. While one is out both are disabled; a `stale` refusal is sent
   once more against the revision it names; a refusal is said in jig's
   words with the forge's reason, as an approval too few people can give

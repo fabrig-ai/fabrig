@@ -15,7 +15,9 @@ public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none
                temper-box program-login [DIRECTORIES] NAME
                temper-box help [NAME | pages | --search WORDS...]
                temper-box versions
-               temper-box upgrade --check DIRECTORY | --back
+               temper-box upgrade --check DIRECTORY | --workers DIRECTORY | --back
+               temper-box checkpoint [DIRECTORIES] [--hold NAME -- COMMAND ARGS... | --remove NAME]
+               temper-box restore NAME [DIRECTORIES]
 internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--record]
                temper-box [DIRECTORIES] [--fake-backends [--bundle DIR]] [--record] --front
                temper-box init [DIRECTORIES] --box
@@ -200,9 +202,48 @@ default; the document is `temper.json` in the configuration directory
   `temper-engine versions`', the same constant run by the same code (2).
 - **`temper-box upgrade --check DIRECTORY`:** a rehearsal (jig's
   `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
-  data directory or a copy of one such as last night's backup, which it
-  never writes: it works in a scratch copy under the cache directory,
-  with the configuration `temper-box serve` would read; the open
+  data directory, a checkpoint of a deployment
+  (`DEPLOYMENT/checkpoints/NAME`, `checkpoints.md`), or a copy of one
+  such as last night's backup, which it never writes and whose lock it
+  holds while it reads, so that a checkpoint it reads is not removed
+  under it (jig's `protocol/store/checkpoints.md`, 6). Over a
+  checkpoint it runs while the engine serves the deployment, as a
+  redeploy runs it (`../redeploy.md`, 4.1): nothing before the
+  rehearsal takes the deployment's lock or writes under `--data`. It
+  works in a scratch under the cache directory, `upgrade-SEED`, SEED
+  sixteen lowercase hex digits from a fresh seed, with the
+  configuration `temper-box serve` would read, and holds it under io's
+  lock (the `flock` jig's store takes on a root, jig's
+  `protocol/store/opening.md`, 1.1) from making it until it removes it.
+  It makes the scratch as `upgrade-SEED.new`, a name the sweep below
+  never matches, takes its lock, then renames it `upgrade-SEED`: the
+  lock moves with the directory, so no rehearsal sees a scratch of this
+  build unlocked. Once its rehearsal ends, passed, refused or failed,
+  it removes its scratch whole, files left by a close that could not
+  empty it included, while it still holds the lock; one it cannot
+  remove stays, named in a line after the rehearsal's others, `scratch
+  not removed: NAME: errno N`, and its exit is the rehearsal's.
+  Before making it, it sweeps the cache directory: it removes, whole,
+  each directory named `upgrade-SEED` whose modification time is an
+  hour or more before its clock's reading and whose lock it then takes,
+  a scratch left by a rehearsal killed partway, whose links would
+  otherwise keep a checkpoint's files on disk past its retention. It
+  reads the time before it takes the lock, and leaves each whose lock
+  is held, a rehearsal's in use, and each modified within the hour or
+  after its clock's reading, which a rehearsal by a build before this
+  rule may still be filling: such a build makes `upgrade-SEED` itself
+  and takes its lock only at its store's open, after the whole copy,
+  and a removal that stopped partway would leave it working over
+  missing files. It leaves `upgrade-SEED.new` too: one left by a
+  rehearsal killed before its rename is empty. A leftover whose open,
+  time or removal fails, or whose lock fails other than by being held,
+  but for one gone since it listed the cache directory, stays, named in
+  a line before the rehearsal's report, `scratch left behind not
+  removed: NAME: errno N`, and the rehearsal goes on. In these lines,
+  and in `scratch: errno N`, the failure to make or lock a scratch that
+  ends the rehearsal, an error that carries no errno is named by its
+  kind, `kind KIND`, KIND the name of its `std::io::ErrorKind` variant
+  (`kind Other`). The open
   registers layouts, runs jobs and checks as a start would, restores,
   and stops before its switch step. After the floor check and before
   its plan it decodes every record by its registry layout, or by the
@@ -222,6 +263,33 @@ default; the document is `temper.json` in the configuration directory
   the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   registry commit, jobs and restores pass, 1 when a start would be refused there.
+- **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
+  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2) and
+  once before it, over the check's checkpoint while the engine serves
+  (`../redeploy.md`, 4.1, step 10): a
+  rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
+  (jig's `protocol/store/opening.md`, 5), which makes the active
+  generation's maps in its scratch without their task logs, linking
+  the snapshot and every segment but the newest and copying the rest,
+  recovers them and reads the
+  wires and the workers' openings they keep, and ends there: no record
+  decoded, no level checked, no plan, job or restore run. It prints
+  how many files its rehearsal linked and how many it copied, from
+  `Rehearsing` (jig's `protocol/store/opening.md`, 5), a link the file
+  system refused counted as a copy:
+
+  ```
+  temper-box upgrade: rehearsal linked {linked} files, copied {copied}
+  ```
+
+  then `--check`'s lines from its verdict's alone (`wires.md`, 10.2,
+  steps 1 to 4), in their words and order, and exits 0 once they are
+  printed, whatever the verdict. A redeploy notes the count, from the
+  first line that starts so (`../redeploy.md`, 6.3). A refusal before
+  the rows are read (DIRECTORY in use, an unfinished restore, an
+  unreadable `active`, a copy or a recovery failing) is printed as
+  `--check` prints a refusal, exit 1.
+  It never writes DIRECTORY.
 - **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that upgraded and
   failed before its first commit of its own: the deployment stopped,
@@ -230,6 +298,18 @@ default; the document is `temper.json` in the configuration directory
   while a process holds the deployment, each in words that say so; past
   the first commit, going back is restoring a backup
   (`../draft/upgrades.md`, 3.2).
+- **`temper-box checkpoint`:** a checkpoint of the stopped deployment,
+  its state at its last commit in `checkpoints/`, mostly by hard links;
+  `--hold NAME -- COMMAND` runs a command under that checkpoint's lock,
+  and `--remove NAME` removes it (`checkpoints.md`, 2). While the engine
+  serves, an owner takes one with `temper ctl DIR deployment checkpoint`
+  (`checkpoints.md`, 3).
+- **`temper-box restore NAME`:** makes the checkpoint NAME's state the
+  stopped deployment's, after a safety checkpoint of the state it
+  replaces, crash-safe: a start after a cut finishes it
+  (`checkpoints.md`, 2.5). Undoing it is restoring the safety
+  checkpoint, and `upgrade --back` refuses after it with no previous
+  generation.
 - **A start that runs a job at open** prints a line per `Event::Ran`
   job as it ends,
   `temper-box serve: ran {owner} {job}: {rows} rows in {commits} commits`,
@@ -299,7 +379,10 @@ temper ctl DIRECTORY GROUP VERB ...    a process per call, reaching the engine o
 temper-box program-login NAME              run by hand on a host, replaced by the program's sign-in
 temper-box versions                        prints this binary's levels, versions and wires
 temper-box upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
+temper-box upgrade --workers DIRECTORY     judges the workers alone over links and small copies; switches nothing
 temper-box upgrade --back                  makes the previous generation active again, before the upgraded one's first commit
+temper-box checkpoint                      takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
+temper-box restore NAME                    restores a checkpoint over the stopped deployment, after a safety checkpoint of it
 ```
 
 A box runs `temper-box serve` as one of its steps, after the forge's setup's
@@ -363,7 +446,9 @@ client, with the owned forge's commands. Its table and sets are
 documentation  temper-engine help [NAME | pages | --search WORDS...]
 deployment     temper-engine serve [DIRECTORIES] [--record]
                temper-engine versions
-               temper-engine upgrade --check DIRECTORY | --back
+               temper-engine upgrade --check DIRECTORY | --workers DIRECTORY | --back
+               temper-engine checkpoint [DIRECTORIES] [--hold NAME -- COMMAND ARGS... | --remove NAME]
+               temper-engine restore NAME [DIRECTORIES]
                temper-engine forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
                temper-engine forge run [DIRECTORIES] FORGE forgejo|runner
 spawned        temper-engine internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
@@ -403,7 +488,9 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     (`wires.md`, section 10): `wire NAME LOWEST HIGHEST`, LOWEST its
     floor, then `layout NAME VERSION FINGERPRINT` for each version from
     LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits.
-- **`upgrade`** is `binaries.md`'s `temper-box upgrade`, on this binary.
+- **`upgrade`**, **`checkpoint`** and **`restore`** are `binaries.md`'s
+  `temper-box upgrade`, `temper-box checkpoint` and `temper-box
+  restore`, on this binary.
 - **No command is an unknown command:** `temper-engine: no command WORDS;
   temper-engine --help lists them`, the words given as far as a command
   begins with them, and exit 2 (`../cli/README.md`, 4).

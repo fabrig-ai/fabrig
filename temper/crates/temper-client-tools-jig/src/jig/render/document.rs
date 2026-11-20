@@ -1,5 +1,6 @@
 //! Step-local document rendering; no borrowed document survives a step.
 //! Creating bounds follow jig/docs/design/client/domain/contract/documents.md, 3.
+use super::amount;
 mod account_lines;
 mod account_programs;
 mod account_text;
@@ -7,6 +8,8 @@ mod census;
 mod projects;
 mod projects_json;
 mod proposal;
+mod unread;
+mod workers;
 pub(super) use proposal::projects_text;
 pub(super) mod question;
 pub(crate) mod settings;
@@ -165,7 +168,7 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
         role(project.role, out);
         if let Some(pool) = &project.pool {
             out.put(b" \xc2\xb7 pool left ");
-            out.number(pool.left);
+            amount(pool.left, out);
         }
         out.put(b"\n");
         if let Some(creating) = &project.creating {
@@ -314,6 +317,7 @@ fn task_with_specification(
     out.put(b"\nwaiting on: ");
     waiting(task, me, book, out);
     out.put(b"\n");
+    unread::text(task, me, out);
     task_details(task, me, book, vocabulary, out);
 }
 fn task_details(
@@ -422,14 +426,6 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
             out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
         }
     }
-}
-fn amount(value: u64, out: &mut Text) {
-    out.number(value / 100);
-    out.put(b".");
-    if value % 100 < 10 {
-        out.put(b"0");
-    }
-    out.number(value % 100);
 }
 pub(super) fn utc(wall: skein_lib::Wall, out: &mut Text) {
     let minute = wall.as_secs() / 60;

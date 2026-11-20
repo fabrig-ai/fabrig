@@ -77,14 +77,13 @@ impl skein_world::Referee<SignalHost<Tool>> for Judge {
         self.done
     }
 }
-thread_local! { static CONFIGURATION: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) }; }
+thread_local! { static CONFIGURATION: std::cell::RefCell<Option<temper_playground::documents::Configuration>> = const { std::cell::RefCell::new(None) }; }
 fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
-    let configuration = CONFIGURATION.with(|bytes| bytes.borrow().clone());
-    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
+    let mut document = CONFIGURATION.with(|bytes| bytes.borrow().as_ref().expect("configured rehearsal").clone());
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
     let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
-    for provider in document["engine"]["llm"]["providers"].as_array().expect("LLM providers") {
+    for provider in document["world_settings"]["llm"]["providers"].as_array().expect("LLM providers") {
         if provider["sources"]["sign_in"].is_object() {
             let endpoint = || accounts::Endpoint {
                 address: ([127, 0, 0, 1], 7104).into(),
@@ -104,19 +103,9 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
                 .expect("two providers");
         }
     }
-    let mut files = fixtures::files();
-    for worker in document["engine"]["hosts"]["workers"].as_array().expect("configured workers") {
-        let name = worker["digest"].as_str().expect("digest path").as_bytes();
-        if !files.entries.iter().any(|(path, _)| path.as_ref() == name) {
-            // A SHA-256 digest has 64 hexadecimal digits.
-            const DIGEST_BYTES: usize = 64;
-            files
-                .entries
-                .push((name.into(), skein_lib::Secret::new(Box::new([b'0'; DIGEST_BYTES]))))
-                .expect("remote worker fixture files");
-        }
-    }
-    let mut service = temper_service::startup::restoring_with(
+    let files = fixtures::files();
+    document.as_object_mut().expect("world document").remove("world_settings");
+    let mut service = temper_service::startup::restoring_with_limits(
         &serde_json::to_vec(&document).expect("configuration"),
         &jig_protocol_config::Directories::working(),
         &files,
@@ -124,10 +113,14 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         &fixtures::seeds(),
         Some(runtime),
         &given,
+        &document.jig,
+        &document.limits,
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     let root = |name: &[u8]| inherited.roots.iter().find(|(key, _)| key.as_ref() == name).expect("tool root").1;
-    service.rehearse_store(root(b"source"), root(b"scratch"), 1000).expect("tool roots adopted");
+    service
+        .rehearse_store(root(b"source"), root(b"scratch"), 1000, jig_protocol_store::Reach::Whole)
+        .expect("tool roots adopted");
     let owners = service.wait_state().engine.expect("upgrade engine");
     assert!(
         owners.workers.closed && owners.setup.closed && owners.forge.closed,
@@ -139,7 +132,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     SignalHost::new(Tool(service, Time::ZERO), Some(inherited.signal))
 }
 
-/// Every floor record decodes and restores, without pending patches or jobs.
+/// Every floor record decodes and restores after the id jobs.
 pub fn golden_check(directory: &Path) {
     golden_check_with(directory, golden::read_configuration(directory), Copy::Whole);
 }
@@ -161,49 +154,26 @@ enum Copy {
 
 /// A deployment's remote workers and owned Forgejo must stay unstarted.
 pub fn deployment_check(directory: &Path) {
-    golden_check_with(
-        directory,
-        serde_json::to_vec(&deployment_document(directory)).expect("deployment configuration"),
-        Copy::Whole,
-    );
+    golden_check_with(directory, deployment_document(directory), Copy::Whole);
 }
 
-fn deployment_document(directory: &Path) -> serde_json::Value {
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&golden::read_configuration(directory)).expect("golden configuration");
+fn deployment_document(directory: &Path) -> temper_playground::documents::Configuration {
+    let mut document = golden::read_configuration(directory);
     document["workers"] = serde_json::json!([]);
-    document["application"]["workers"] = serde_json::json!([]);
+
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
-    document["engine"]["hosts"]["workers"] = serde_json::json!([
-        {"name":"worker-a", "digest":"secrets/worker-a.digest"},
-        {"name":"worker-b", "digest":"secrets/worker-b.digest"},
-        {"name":"worker-c", "digest":"secrets/worker-c.digest"}
-    ]);
-    document["application"]["machine"] = serde_json::json!({"owned": {
-        "listen":{"socket":"127.0.0.1:3000"}, "remote":"http://127.0.0.1:3000",
-        "forgejo":"/opt/forgejo/forgejo", "runner":null,
-        "person":{"login":"person", "email":"person@example.invalid"}, "sign_in":null
-    }});
     document
 }
 
 /// Configured sign-in sources must not keep the rehearsal waiting for its start mark.
 pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
-    document["engine"]["providers"] = serde_json::json!([
-        {"number":1,"kind":"link"}, {"number":2,"kind":"deployment"}, {"number":3,"kind":"application"}
-    ]);
-    document["engine"]["acts"] = serde_json::json!([{"connector":1,"may":["remove_account","adopt"]}]);
     // The configured endpoints and identity providers coexist with the floor's kept settings versions.
-    document["engine"]["limits"]["overrides"]["core.settings.versions"] = 12.into();
-    let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
-    endpoint["name"] = "second".into();
-    endpoint["number"] = 2.into();
-    endpoint["provider"] = "golden-provider".into();
-    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
-    document["engine"]["llm"]["providers"][1]["endpoint"] = "second".into();
-    document["engine"]["llm"]["models"][1]["endpoint"] = "second".into();
-    for provider in document["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
+    document.jig_over("core.settings.versions", 12);
+    document["world_settings"]["llm"]["endpoints"][1]["name"] = "second".into();
+    document["world_settings"]["llm"]["providers"][1]["endpoint"] = "second".into();
+    document["world_settings"]["llm"]["models"][1]["endpoint"] = "second".into();
+    for provider in document["world_settings"]["llm"]["providers"].as_array_mut().expect("providers") {
         provider["signed_in_plan"] = true.into();
         provider["manage_usage"] = "https://accounts.example.invalid/usage".into();
         provider["sources"] = serde_json::json!({"keys":true,"sign_in":{
@@ -213,10 +183,10 @@ pub fn accounts_check(directory: &Path) {
             "redirect_path":"callback"
         }});
     }
-    golden_check_with(directory, serde_json::to_vec(&document).expect("accounts configuration"), Copy::Whole);
+    golden_check_with(directory, document, Copy::Whole);
 }
 
-fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
+fn golden_check_with(directory: &Path, configuration: temper_playground::documents::Configuration, copy: Copy) {
     let mut disk = golden::files::load(directory);
     let broken =
         jig_protocol_store::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), 64)
@@ -228,7 +198,7 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
     }
     let before = golden::files::image_root(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
-    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = configuration);
+    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = Some(configuration));
     let mut world = skein_world::World::new(
         fixtures::SEED,
         skein_sim::Config::calm(),
@@ -249,9 +219,31 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
     eprintln!("{lines}");
     let report = tool.0.upgrade_report().expect("completed report");
     assert!(report.done, "report complete: {lines}");
-    assert!(!report.events.iter().any(|event| matches!(event, Event::Ran { .. })), "no pending work: {lines}");
+    let ran: Vec<_> = report
+        .events
+        .iter()
+        .filter_map(|event| {
+            if let Event::Ran { of, job, counts, .. } = event {
+                assert_eq!(*of, super::job_owner(job));
+                assert!(counts.iter().all(|count| count.count == 0), "short floor ids: {lines}");
+                Some(job.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect();
     match copy {
         Copy::Whole => {
+            assert_eq!(
+                ran,
+                [
+                    "escalation-deciders",
+                    "test-ids-landing",
+                    "test-ids-receipt",
+                    "test-ids-tier",
+                    "test-ids-verification"
+                ]
+            );
             assert_eq!(code, 0, "{lines}");
             assert!(report.restored, "{lines}");
             assert!(
@@ -261,12 +253,14 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
             assert!(lines.contains("registry commit, jobs and restores pass"), "{lines}");
         }
         Copy::Broken => {
+            assert!(ran.is_empty(), "broken store before jobs: {lines}");
             assert_eq!(code, 1, "{lines}");
             assert!(!report.restored);
             assert!(report.events.iter().any(|event| matches!(event, Event::Undecodable { family, version: 0, at: Undecoded::Record { map: KeptMap::Store, key }, .. } if family.as_ref() == "jig-store-core" && key.as_ref() == broken.as_ref())), "broken record named: {lines}");
             assert!(!report.events.iter().any(|event| matches!(event, Event::Decoded { .. })), "{lines}");
         }
         Copy::Floorless => {
+            assert!(ran.is_empty(), "floor before jobs: {lines}");
             assert_eq!(code, 1, "{lines}");
             assert!(!report.restored);
             assert_eq!(

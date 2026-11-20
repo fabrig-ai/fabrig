@@ -12,11 +12,12 @@ prefix; jig's test application mounts it at `/jig`.
 
 | Route | Message |
 |---|---|
-| `GET <prefix>/v1/stream` | opening the stream, answered with server-sent events (2) |
+| `GET <prefix>/v1/stream?version=<version>` | opening the stream, naming jig's wire version in decimal, answered with server-sent events (2); `&replaces=` names the stream it replaces |
 | `POST <prefix>/v1/request` | a keyed request |
 | `POST <prefix>/v1/read` | a read |
 | `POST <prefix>/v1/watch` | opening a watch |
 | `POST <prefix>/v1/unwatch` | closing a watch |
+| `POST <prefix>/v1/batch` | a batch of reads, watches' openings and closings, answered a reply at a time (6) |
 | `POST <prefix>/v1/stream-gone` | a stream gone |
 | `POST <prefix>/v1/sign-in/link` | signing in with the printed link's secret |
 | `POST <prefix>/v1/sign-in/deployment` | signing in as a service, its credential as the bearer |
@@ -24,6 +25,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/approval/ask` | asking an approval |
 | `POST <prefix>/v1/approval/read` | reading an approval by its code |
 | `POST <prefix>/v1/approval/decide` | approving or refusing an approval by its code |
+| `POST <prefix>/v1/link/ask` | asking a link, with a person's credential (`sign-in.md`, the asked link) |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (`openid.md`) |
 | `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (5, `public-reads.md`) |
@@ -31,7 +33,8 @@ prefix; jig's test application mounts it at `/jig`.
 - **A POST's body** is its message's record, `application/octet-stream`.
   Its answer is `200` with the reply's record and `Cache-Control:
   no-store`, whatever jig's answer says: a refusal, signed out and a
-  version not served are records. A POST whose `Content-Type` is not
+  version not served are records; a batch's is its replies, each framed
+  (6). A POST whose `Content-Type` is not
   `application/octet-stream` is `415`, a body that is not a record of
   its route `400`, and one past the route's bound `413`, each with
   nothing done; any other method or path under the prefix is `404`, but
@@ -39,14 +42,45 @@ prefix; jig's test application mounts it at `/jig`.
   example guards' (`../browser/README.md`, 12.2).
 - **The printed link's URL** is `<prefix>/v1/sign-in/link?secret=…` on
   the loopback address the application's server listens on, which the
-  application's startup prints. A `GET` of it, a browser's opening the
+  application's startup prints; where the application gives the mapping
+  a link page (below), it is the same link at that page,
+  `<page>?secret=…`, the route's form still taken. A `GET` of the
+  route's form, a browser's opening the
   link, spends nothing and draws nothing, since any other site can make
   a person's browser send a `GET`: the engine end leaves it to the
   application's page, which the server answers there, with
   `Referrer-Policy: no-referrer`; the shell takes the secret out of the
   address and `POST`s it, with the browser header, which signs in
   (`../browser/README.md`, section 11). A native client sends the secret by the
-  same `POST`.
+  same `POST`. An asked link's URL (`sign-in.md`) is the same, with its
+  secret, on the address its client reaches the engine at: the mapping's
+  client end makes it, byte for byte as the engine end makes the printed
+  link's, and parses it as it parses the printed link's.
+- **The link's page,** where the application gives one: a path of its
+  own, outside the prefix, given to the mapping beside the prefix
+  (temper's is `/sign-in`). It is the same link in a shorter form,
+  `<page>?secret=…` on the same address with the same secret, and
+  nothing of the mapping's: a `GET` of it is the application's, as every
+  path outside the prefix is, and its server answers its page there,
+  with the link route's referrer policy, spending nothing. The secret is
+  still spent by the link route's `POST`, as above. The client end takes
+  a link in either form, as one link (4), and so does the browser's
+  sign-in part (`../browser/README.md`, section 11). Where the
+  application gives a page, each end makes the page's form, the printed
+  link's (the engine end's) and an asked link's (the client end's), and
+  where it gives none, the route's (4); the route's form stays taken,
+  and its `GET` left to the application's page, so that a link made
+  before still signs in (7).
+  - **Its path:** at most 64 bytes, beginning with `/` and not ending
+    with one, holding no `?` or `#`, and neither the prefix nor a path
+    under it, whose `GET` the engine end would answer `404` (above); any
+    other is refused when the mapping is made.
+  - **Its form, exactly:** `http://HOST<page>?secret=SECRET`, HOST the
+    numeric address and port the route's form takes, SECRET the 32
+    bytes in unpadded base64url with nothing after them, as in the
+    route's form. The page's path with no query, another query, a
+    second parameter or a fragment is no link; with no page given, the
+    page's form is no link.
 - **No provider route.** The application's sign-in runs on its own
   routes; after a `Minted`, its server sets the credential's cookie on
   its own answer with the mapping's function for it (3). So do the
@@ -56,11 +90,28 @@ prefix; jig's test application mounts it at `/jig`.
 
 ## 2. The stream
 
+- **Its opening names the stream it replaces,** when the client knew
+  one (`wire.md`, section 2): `GET <prefix>/v1/stream?replaces=<name>`, the name
+  the stream's 16 bytes as 32 lowercase hexadecimal digits; with none,
+  no query. Any other query on the route, a second parameter, an empty
+  one, a name of other digits or another length among them, is `404`
+  with nothing done, as an unknown path is. The engine end hands the
+  name to the component with the stream's opening, `StreamOpen`'s
+  `replaces` (`wire.md`, 2.2).
 - **Server-sent events,** `text/event-stream`, `Cache-Control: no-store`:
   the hello first; each streamed message one event, whose data is its
   record's bytes in base64; a heartbeat a comment line. No event names
   and no ids: a record says what it is, and a client reopens by its own
   backoffs, never by the event stream's retry.
+- **Its version.** The `GET`'s `version` names the version of jig's
+  wire the client speaks, the component's `StreamOpen` `version`
+  (`wire.md`, 2.2). A `GET` of the path with no `version`, as an
+  earlier client sends it, names none, and is answered the hello alone
+  (`wire.md`, section 2); a `version` that is not a decimal `u32` is
+  `400`. Nothing is written before the hello, which waits for `me`, so
+  a stream the engine ends before it (signed out, or busy, for want of
+  room for its `me`) is answered by status, as now: `401` signed out,
+  and a `409` with no body, which the client takes as gone.
 - **Paced by its connection.** The engine end says `StreamTaken` once an
   event's bytes are in the connection's send buffer, bounded by the
   mapping's limits; a client that reads slowly fills it, and nothing
@@ -131,6 +182,25 @@ prefix; jig's test application mounts it at `/jig`.
   valid bearer is read first. That is what reading and deciding an
   approval admit (`sign-in.md`); a take's `signed_in` is answered to a
   browser as a link's is, the cookie set and no credential in the body.
+- **The exchange's way and source, told to the component** (`wire.md`,
+  2.2), beside its carrier, for an approval's kind and source
+  (`sign-in.md`, *A sign-in approved by a browser*):
+  - *its way,* `Via`, public or listener, the `Host` decision above,
+    which the cookie's `Secure` takes too;
+  - *its source,* an IP address or unknown. One that came by the public
+    name has the client's address as the TLS proxy saw it: the last
+    element of the last `X-Forwarded-For` field, which the proxy sets,
+    overwriting what the client sent, its spaces and tabs trimmed, read
+    as an IPv4 address in dotted decimal or an IPv6 address in RFC 4291's
+    text, and nothing else; the header missing, or that element
+    unreadable (a port, brackets, `unknown`, an obfuscated name, empty),
+    is an unknown source. One that came by the listener's own address
+    has its connection's peer, the socket's address without its port,
+    and an in-process connection none. Every source is canonical, an
+    IPv4-mapped IPv6 address read as its IPv4 address
+    (`IpAddr::to_canonical`), so that one client is one source either
+    way. `X-Forwarded-For` is read for nothing else, and a source is
+    never a check.
 
 ## 4. Its two ends
 
@@ -139,20 +209,53 @@ prefix; jig's test application mounts it at `/jig`.
   headers (its content type, and the bearer where the client holds a
   credential) and a body, with no browser header, which a browser's
   transport adds (3); a response's status and body back as a
-  `Reply`, or `Lost`; `OpenStream` as the stream's `GET`, its body cut
+  `Reply`, or `Lost`; a batch's body cut into its parts as its pieces
+  come, each a `Part`, then `Done` or `Lost` (6); `OpenStream` as the
+  stream's `GET`, naming the stream it replaces, its body cut
   into messages (2). The native shell and the reference's browser
   client host use it (`../browser/README.md`, 3.2); an application's own shell
   may.
+- **Its `Mapping`** is the application's: its prefix, and its link page
+  where it gives one (1). `Mapping::new(prefix)` makes one with no page
+  and `Mapping::with_page(prefix, page)` one with it, refusing a page
+  off 1's rule as `Unmapped::Page`. `printed(mapping, url)` takes the
+  printed link's URL in the route's form and, with a page, in the
+  page's, the same `Printed { host, secret }` for both.
+  `link_url(mapping, host, secret)` makes an asked link's URL in the
+  page's form where the mapping has a page,
+  `http://HOST<page>?secret=SECRET`, and in the route's where it has
+  none, `http://HOST<prefix>/v1/sign-in/link?secret=SECRET`, SECRET in
+  unpadded base64url (1). The native shell
+  (`jig-client-shell-native`) is given its application's mapping in its
+  `Settings`, and keeps no prefix of its own: its exchanges' paths and
+  every link it reads are that mapping's.
 - **`jig-protocol-engine-clients-http`,** the engine end, a component on
   skein's HTTP server: each call under its prefix routed to one of the
   component's messages, but a `GET` of the link's route, left to the
   application's page with the referrer policy (1); its credential
   read from the cookie or the bearer; each `Reply` written as `200` with
-  its record; the stream written as events, `StreamTaken` said as their
+  its record; a batch's `Part`s written as they come, each framed, and
+  its body ended at `Done` (6); the stream written as events, `StreamTaken` said as their
   bytes are written. The application's server mounts it at a prefix of
-  its listener and hands it the calls under that prefix.
-- **The engine end's room** is its calls in flight, streams among them
-  (`README.md`, section 10), and it owns that bound alone. It holds a call from its
+  its listener and hands it the calls under that prefix, each call's
+  head with its connection's peer address (3, *The exchange's way and
+  source*), which the server keeps from the connection's accept (skein's
+  io, `Accepted { peer }`): jig's connection-owning `server` keeps it
+  for the application and routes each call with it.
+- **Its `Settings`** name that prefix, the public name (3), and the
+  link page where the application gives one, `page: Option<Box<[u8]>>`,
+  the same page its clients' `Mapping` is given, under 1's rule, which
+  the application keeps (a page off it is the application's bug,
+  asserted). The page changes no route the engine end answers: its `GET`
+  is the application's (1). `link_path(settings, secret)` makes the
+  printed link's path and query, `<page>?secret=SECRET` with a page and
+  `<prefix>/v1/sign-in/link?secret=SECRET` with none, and
+  `printed_link(address, path)` puts it on the listener's address,
+  `http://HOST:PORT` before it; an application printing at a public
+  origin puts the same path on that origin.
+- **The engine end's room** is its calls in flight, streams and batches among them
+  (`README.md`, section 10), and it owns that bound alone. A batch is one call, held
+  until its body has ended. It holds a call from its
   head until it has handled the call's end, even once the server has
   let the call's connection go: until then the call takes room, and
   nothing tells the server it has let the call go. The application asks
@@ -268,3 +371,58 @@ prefix; jig's test application mounts it at `/jig`.
   bearer and no body, and takes back the status, the body and the
   freshness left: the `Cache-Control`'s `max-age` less the `Age` a
   cache added. A `503` is busy, a `404` unknown.
+
+## 6. A batch
+
+Many of jig's messages in one exchange, each answered as it is ready
+(`wire.md`, section 2).
+
+- **Its body** is a `Batch` record (`wire.md`, 2.1): its members, at most
+  64, in the order the client asked for them, each a read, a watch's
+  opening or a watch's closing as the record its own route takes. Its
+  bytes are bounded as every POST's are, by the route's bound (1): past
+  it, `413`. A body that is no `Batch` record, one of more than 64
+  members among them, is the component's not a record, `400`. Either is
+  the whole batch's answer, with nothing done, which its client takes as
+  lost.
+- **Its answer** is `200`, `application/octet-stream`, `Cache-Control:
+  no-store`, a body of frames: each a length, four bytes big-endian,
+  then that many bytes, one `BatchReply` record (`wire.md`, 2.1), naming
+  its member by its place in the batch, from 0, and holding the record
+  that member's own route would answer, or none where its route would
+  answer `400` or `409`. One frame per member, in the order the
+  component hands their replies out (`wire.md`, 2.2), and the body ends
+  after the last.
+- **Written as they come.** The engine end opens the answer at the
+  first part and writes each frame as the connection takes it, as the
+  stream's events are (2): one slow member holds back no frame of
+  another's. It holds at most 64 frames unwritten, a batch's members,
+  since each member is answered once, and ends the body once the
+  component has said `Done` and every frame is written.
+- **One call, one exchange.** A batch is one call of the engine end's
+  room, held until its body has ended or its connection has, as any
+  call is (4), and one exchange of the component's (`README.md`, section 10).
+  A batch whose connection ends before the component's `Done` was
+  handled says `ExchangeGone`, as any exchange whose reply was owed (4).
+- **The client end** reads the body a piece at a time, as the stream's
+  (2), and cuts each frame out as its last byte comes, handing its record
+  at once as a `Part { exchange, message }`: so a member answered early
+  reaches its caller early. A body that ends on a frame's boundary is
+  `Done`. A status other than `200`, a frame longer than the client
+  end's bound on a record, a body that ends inside a frame, or a
+  failure, is `Lost`, after the parts that came whole. The client end
+  reads no record: which member a part answers is the link's
+  (`wire.md`, 2.3).
+- **The shells give the body in pieces:** the native shell hands each
+  piece of a batch's body to the client end as it arrives; the
+  browser's shell through skein's fetch reading the exchange's body in
+  pieces (skein's `ui/web/README.md`, section 8), each read on after the step, as the
+  stream is (`../browser/README.md`, 5.2).
+
+## 7. Later
+
+- **The route's form retired:** an application that prints its page's
+  form (1) might one day stop taking a link at the route and stop
+  answering the route's `GET` with its page. Each end keeps taking both
+  forms while any link made in the route's form may still be held; an
+  application decides when none is. Default: both taken.

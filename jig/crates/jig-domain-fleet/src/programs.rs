@@ -10,6 +10,8 @@ pub(crate) fn check(domain: &mut Domain, name: SourceName, out: &mut Queue<Reque
             continue;
         }
         if host.sources.sent.contains(&name) {
+            crate::untooled::clear(host, name);
+            domain.placing = true;
             out.push(Request::Check { channel: host.token, name });
         } else if let Some(desired) = &host.sources.desired
             && desired.contains(&name)
@@ -22,13 +24,13 @@ pub(crate) fn sign_out(domain: &mut Domain, source: u32, name: SourceName, out: 
     let count = domain.worker_names.len();
     let mut workers = List::with_capacity(count);
     for position in 0..count {
-        workers
-            .push(domain.worker_names.worker(position).expect("admitted configured position"))
-            .expect("configured worker count");
+        if let Some(worker) = domain.worker_names.worker(position) {
+            workers.push(worker).expect("configured worker count");
+        }
     }
     out.push(Request::ProgramTargets { source, workers: workers.into_boxed() });
     for position in 0..count {
-        let worker = domain.worker_names.worker(position).expect("admitted configured position");
+        let Some(worker) = domain.worker_names.worker(position) else { continue };
         let mut target = None;
         for (_, id) in &domain.tokens {
             let host = domain.channels.get(*id).expect("current channel");
@@ -61,7 +63,7 @@ pub(crate) fn sign_out(domain: &mut Domain, source: u32, name: SourceName, out: 
             .pending
             .insert(name, Pending { reply: Reply::Program { source, worker }, sent: false })
             .expect("one pending operation per admitted name");
-        flush(&mut host.sources, host.token, out);
+        flush(host, out);
     }
 }
 /// After reconnect, desired absence is enforced once per name on this channel.
@@ -89,9 +91,11 @@ pub(crate) fn cleanup(domain: &mut Domain, channel: Token, out: &mut Queue<Reque
                 .expect("cleanup names fit the declared source capacity");
         }
     }
-    flush(&mut host.sources, channel, out);
+    flush(host, out);
 }
-pub(crate) fn flush(sources: &mut Sources, channel: Token, out: &mut Queue<Request>) {
+pub(crate) fn flush(host: &mut crate::channel::Channel, out: &mut Queue<Request>) {
+    let channel = host.token;
+    let sources = &mut host.sources;
     let mut pending = List::with_capacity(sources.pending.capacity());
     for (name, row) in &sources.pending {
         if !row.sent && sources.sent.contains(name) {
@@ -110,8 +114,9 @@ pub(crate) fn flush(sources: &mut Sources, channel: Token, out: &mut Queue<Reque
         }
     }
     for name in &checked {
-        sources.checks.remove(name);
-        if !sources.pending.contains_key(name) {
+        host.sources.checks.remove(name);
+        if !host.sources.pending.contains_key(name) {
+            crate::untooled::clear(host, *name);
             out.push(Request::Check { channel, name: *name });
         }
     }
@@ -145,7 +150,7 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
         if let Some(host) = domain.channels.get_mut(*id)
             && flushable(&host.sources)
         {
-            flush(&mut host.sources, host.token, out);
+            flush(host, out);
             return;
         }
     }

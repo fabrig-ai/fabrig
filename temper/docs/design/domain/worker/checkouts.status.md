@@ -1,6 +1,6 @@
 # checkouts: status
 
-2026-11-15. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
+2026-11-19. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
 
 
@@ -28,6 +28,10 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
+- **Not yet:** *Kept packed*: the cache counts no fetch, check out or merge, and no prepare asks a `Pack` [in flight: change 9629].
+- **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
+  asks the engine nothing and answers its checkout not landed [in
+  flight: change 6018].
 - **Not yet:** the whole document: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
   repository that may be written
@@ -45,7 +49,7 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   the next landing plan on a real deployment, which no record shows either.
 - **Not yet:** *A merge in progress*: a producer's start that finds its base contained stands
   on `temper-fake-git` alone (`a_resumed_producer_holding_the_tip_pushes_no_merge`,
-  `temper/tests/worker/checkout/tests/suite/merges.rs`), with that same proof.
+  `temper/tests/worker/checkout/tests/fakes/merges.rs`), with that same proof.
 - **Not yet:** the whole document and `README.md`, 9: a parked producer's delivered and saved edits survive a moved landing
   tip, repeated questions and a save refused for markers in the composed system
   world's two `parked` stories. Those use fake git and a fake disk, and their
@@ -67,10 +71,14 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
     saved. It is fetched and checked out afresh, so an unchanged file keeps its
     mtime. Anything else is made again, as `checkouts.md` has it, a workspace whose
     disk is not known included;
-  - where `../../protocol/git.md`, section 2 has a start set `workspaces` aside, it
-    stays, and a workspace's first hold looks at each repository the spec names:
-    one there, a git repository, with `remote.origin.url` exactly its remote, as
-    `git clone` wrote it (`../../protocol/git.status.md`), is treated as cloned. A
+  - where `../../protocol/git.md`, section 2 has a start set `workspaces` and
+    `gitdirs` aside, they stay, and a workspace's first hold looks at each
+    repository the spec names: one whose worker's git directory holds
+    `remote.origin.url` exactly its remote, as `git clone` wrote it
+    (`../../protocol/git.status.md`), is treated as cloned; one with a work tree
+    and no worker's directory, a checkout made with one git directory
+    (*Two git directories*), is given a worker's directory made afresh from its
+    store, its `.git` left as the run's, and is treated as cloned. A
     look that finds otherwise makes the workspace again; one that breaks fails
     the prepare as transient, and the next prepare makes it. A look names only
     the spec's repositories, so a directory beside them stays until a make. A
@@ -79,9 +87,9 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
     `README.md`, section 8 has what a worker left behind fail no prepare, a look cannot tell
     a damaged clone from a whole one. The operation that breaks on it fails that
     prepare as transient and spoils it, and the next prepare makes it again, as
-    `temper/tests/worker/checkout/tests/suite/reuse.rs` shows with a stale
+    `temper/tests/worker/checkout/tests/fakes/reuse.rs` shows with a stale
     `index.lock`. Damage no operation breaks on stays in use;
-  - a kept repository's alternates name the store it was cloned with, by
+  - a kept worker's directory's alternates name the store it was cloned with, by
     token, which is its remote's (`checkouts.md`), so after a restart they
     name the store `stores` kept;
   - a workspace's path stays `<root>/workspaces/<token>/<repository>`, its
@@ -93,13 +101,12 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   Because a deployment that runs one trusted person's work on a machine it
   builds on needs a workspace to act as a long-lived build directory, so that
   new work rebuilds only what changed (the user, 2026-11-05). It is off by
-  default because a run can write its `.git`, and the worker's next git command
-  obeys what that says, now in another workstream, with that workstream's
-  identity on a fetch or a push. The user's request and
+  default because a run's command, as the worker's user, can still write the
+  worker's git directory or a store itself (*Two git directories*), and a kept
+  workspace carries what it wrote to another workstream, whose identity the
+  worker's next fetch or push names. The user's request and
   `../../draft/dogfood-hacks.md`, 2.1 name its hooks, which `../../protocol/git.md`,
-  section 3's settings hold off; those settings do not hold off a filter driver
-  or a URL rewrite (`../../protocol/git.md`, 10). That is acceptable only for one
+  section 3's settings hold off, as they hold off whatever the run's own `.git`
+  says; what a command writes in the worker's directory, a filter driver or a URL
+  rewrite, they do not (`../../protocol/git-later.md`, 1). That is acceptable only for one
   trusted person.
-
-Under those settings real git ran no `post-checkout` hook and did run a
-filter driver (the `worker-slots` cut, 2026-11-05).

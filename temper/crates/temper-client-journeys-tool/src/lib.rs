@@ -1,12 +1,12 @@
 //! The journeys: the client's pages recorded, replayed and printed (client/web/journeys.md).
 
-use skein_ui::Role;
 use std::{
     fs, io,
     path::{Path, PathBuf},
 };
 use temper_client_shell_web::journey::{self, Stale};
 
+mod isolation;
 mod run;
 mod table;
 pub use run::main;
@@ -16,8 +16,8 @@ type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 pub mod again;
 pub mod drive;
-pub mod line;
-pub mod print;
+pub use temper_client_walk_lines::{line, named, print};
+mod pages;
 pub mod recipe;
 pub mod tui;
 pub mod tui_again;
@@ -31,6 +31,7 @@ pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/desi
 pub enum Refusal {
     Name(String),
     OtherClient { name: String },
+    Moved { name: String },
     TuiProof { name: String, refusal: temper_client_shell_tui::journey::Refusal },
     TuiFound { name: String, found: temper_client_shell_tui::journey::Found, file: Option<String> },
     TuiWalk { name: String, unreadable: temper_client_shell_tui::journey::Unreadable },
@@ -39,6 +40,7 @@ pub enum Refusal {
     SetupAfter { name: String, after: String, why: &'static str },
     SetupTimeout { name: String, setup: String, line: u32, sought: String },
     MarkTimeout { name: String, mark: u32, text: Box<[u8]> },
+    PageState { why: Box<Refusal>, address: Box<[u8]>, text: Box<[u8]> },
     Undecoded { name: String, line: u32 },
     Found { name: String, line: u32, record: &'static str, place: journey::Place, what: journey::What },
     FoundDrawn { name: String, turn: u32, what: journey::What },
@@ -54,15 +56,7 @@ pub enum Refusal {
     Harness { name: String, step: u32, report: String },
 }
 
-/// Whether NAME is a journey's name, `[a-z][a-z0-9-]*` (client/web/journeys.md, 5.1).
-#[must_use]
-pub fn named(name: &str) -> bool {
-    let mut bytes = name.bytes();
-    bytes.next().is_some_and(|byte| byte.is_ascii_lowercase())
-        && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-}
-
-/// Counts of the originals and replacements (client/web/journeys.md, 3.6).
+/// Counts of the originals and replacements (client/web/journey-redaction.md).
 #[derive(Debug)]
 pub struct Added {
     pub link: u32,
@@ -73,10 +67,15 @@ pub struct Added {
     pub approval: u32,
     pub credential: u32,
     pub bearer: u32,
+    pub build: u32,
+    pub port: u32,
+    pub code: u32,
+    pub placeholder_places: u32,
+    pub stood: u32,
 }
 
-/// Takes a recording as NAME, redacts, proves and scans it in memory, then
-/// replaces its recording and pages (client/web/journeys.md, 3.6–3.7 and 4.3–5.1).
+/// Takes a recording as NAME, redacts, proves, normalises and scans it in memory, then
+/// replaces its recording and pages (client/web/journey-redaction.md and client/web/journeys.md, 3.7 and 4.3–5.1).
 /// # Errors
 /// Refuses an invalid name, unreadable or unsafe bytes, a failed proof or io.
 pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Added, Refusal> {
@@ -100,6 +99,7 @@ pub fn add_to(
     if !named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
+    refuse_moved(journeys, tui_journeys, name)?;
     let is_tui = recording
         .split(|byte| *byte == b'\n')
         .skip_while(|line| !line.starts_with(b"clocks "))
@@ -116,30 +116,44 @@ pub fn add_to(
         journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
         journey::Unredacted::Undecoded(undecoded) => Refusal::Undecoded { name: name.to_owned(), line: undecoded.line },
     })?;
-    scanned(name, &redacted.recording, &redacted.originals)?;
+    let redacted_lines =
+        journey::lines(&redacted.recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    scanned(name, &redacted_lines, &redacted.originals)?;
     let mut drawn = None;
-    let proof = journey::prove_drawn(&redacted.recording, &mut |turn, page| {
-        if drawn.is_none() {
-            drawn = journey::scan::page(&page.html(), &redacted.originals).map(|what| Refusal::FoundDrawn {
-                name: name.to_owned(),
-                turn,
-                what,
-            });
-        }
+    let proof = journey::Replay::from_lines(redacted_lines).and_then(|replay| {
+        replay.prove_drawn(&mut |turn, page| {
+            if drawn.is_none() {
+                drawn = journey::scan::page(&page.html(), &redacted.originals).map(|what| Refusal::FoundDrawn {
+                    name: name.to_owned(),
+                    turn,
+                    what,
+                });
+            }
+        })
     });
     if let Some(found) = drawn {
         return Err(found);
     }
     // A differing live print must not hide a hit in the printed document.
-    let recording = proof.as_deref().unwrap_or(&redacted.recording);
-    let pages = printed(name, recording)?.map_err(|stale| proof_refusal(name, journey::Refusal::Stale(stale)))?;
-    scanned(name, recording, &redacted.originals)?;
+    let (normalised, proof) = match proof {
+        Ok(lines) => (journey::normalise_lines(lines), Ok(())),
+        Err(refusal) => (journey::normalise(&redacted.recording), Err(refusal)),
+    };
+    let normalised = normalised.map_err(|why| match why {
+        journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
+        journey::Unredacted::Undecoded(undecoded) => Refusal::Undecoded { name: name.to_owned(), line: undecoded.line },
+    })?;
+    let normalised_lines =
+        journey::lines(&normalised.recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    let replay = journey::Replay::from_lines(normalised_lines.clone()).map_err(|why| replay_refusal(name, why))?;
+    let pages = printed_replay(replay).map_err(|stale| proof_refusal(name, journey::Refusal::Stale(stale)))?;
+    scanned(name, &normalised_lines, &redacted.originals)?;
     for page in &pages {
         if let Some(what) = journey::scan::bytes(page.document.as_bytes(), &redacted.originals) {
             return Err(Refusal::FoundPrinted { name: name.to_owned(), page: page.name.clone(), what });
         }
     }
-    let recording = proof.map_err(|refusal| proof_refusal(name, refusal))?;
+    proof.map_err(|refusal| proof_refusal(name, refusal))?;
     let added = Added {
         link: redacted.originals.count(journey::Kind::Link),
         stored: redacted.originals.count(journey::Kind::Stored),
@@ -149,20 +163,23 @@ pub fn add_to(
         approval: 0,
         credential: 0,
         bearer: 0,
+        build: normalised.build,
+        port: normalised.port,
+        code: normalised.code,
+        placeholder_places: normalised.places,
+        stood: normalised.stood,
     };
     let directory = journeys.join(name);
     fs::create_dir_all(&directory).map_err(|_| io_refusal(&directory))?;
     let path = directory.join("recording");
-    fs::write(&path, &recording).map_err(|_| io_refusal(&path))?;
+    fs::write(&path, &normalised.recording).map_err(|_| io_refusal(&path))?;
     write_pages(&directory, pages)?;
     print::beside(journeys).map_err(|_| io_refusal(journeys))?;
     Ok(added)
 }
 
-fn scanned(name: &str, recording: &[u8], originals: &journey::Originals) -> Result<(), Refusal> {
-    let lines = journey::lines(recording)
-        .map_err(|unreadable| proof_refusal(name, journey::Refusal::Unreadable(unreadable)))?;
-    let found = journey::scan::lines(&lines, originals)
+fn scanned(name: &str, lines: &[journey::Line], originals: &journey::Originals) -> Result<(), Refusal> {
+    let found = journey::scan::lines(lines, originals)
         .map_err(|why| Refusal::Undecoded { name: name.to_owned(), line: why.line })?;
     if let Some(journey::Found { line, record, place, what }) = found {
         return Err(Refusal::Found { name: name.to_owned(), line, record, place, what });
@@ -197,6 +214,54 @@ pub fn reprint(journeys: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refu
     Ok(stale)
 }
 
+/// Written recordings with their placeholder counts, and safe stale refusals.
+pub type Normalising = (Vec<(String, journey::Normalised)>, Vec<Refusal>);
+
+/// Give both directories' recordings their placeholders after their replay holds
+/// (temper/docs/design/client/journey-placeholders.md, 4.3). Stale recordings stay
+/// untouched; the caller reprints both directories afterwards.
+/// # Errors
+/// Refuses an unreadable recording or a filesystem failure.
+pub fn normalise(journeys: &Path, tui_journeys: &Path) -> Result<Normalising, Refusal> {
+    let mut written = Vec::new();
+    let mut stale = Vec::new();
+    for (root, is_tui) in [(journeys, false), (tui_journeys, true)] {
+        for name in names(root)? {
+            let path = root.join(&name).join("recording");
+            let recording = fs::read(&path).map_err(|_| io_refusal(&path))?;
+            let normalised = if is_tui {
+                temper_client_shell_tui::journey::normalise(&recording).map_err(|why| {
+                    tui::proof_refusal(&name, temper_client_shell_tui::journey::Refusal::Unreadable(why))
+                })?
+            } else {
+                journey::normalise(&recording).map_err(|why| match why {
+                    journey::Unredacted::Unreadable(why) => proof_refusal(&name, journey::Refusal::Unreadable(why)),
+                    journey::Unredacted::Undecoded(why) => Refusal::Undecoded { name: name.clone(), line: why.line },
+                })?
+            };
+            if normalised.recording.as_ref() == recording {
+                continue;
+            }
+            let stopped = if is_tui {
+                tui::printed(&name, &normalised.recording)?
+                    .err()
+                    .map(|why| tui::proof_refusal(&name, temper_client_shell_tui::journey::Refusal::Stale(why)))
+            } else {
+                printed(&name, &normalised.recording)?
+                    .err()
+                    .map(|why| proof_refusal(&name, journey::Refusal::Stale(why)))
+            };
+            if let Some(why) = stopped {
+                stale.push(why);
+                continue;
+            }
+            fs::write(&path, &normalised.recording).map_err(|_| io_refusal(&path))?;
+            written.push((name, normalised));
+        }
+    }
+    Ok((written, stale))
+}
+
 fn names(journeys: &Path) -> Result<Vec<String>, Refusal> {
     let entries = match fs::read_dir(journeys) {
         Ok(entries) => entries,
@@ -210,6 +275,9 @@ fn names(journeys: &Path) -> Result<Vec<String>, Refusal> {
         if !entry.file_type().map_err(|_| io_refusal(&path))?.is_dir() {
             continue;
         }
+        if moved(&path)? {
+            continue;
+        }
         let recording = path.join("recording");
         if recording.try_exists().map_err(|_| io_refusal(&recording))? {
             names.push(entry.file_name().into_string().map_err(|_| io_refusal(&path))?);
@@ -217,6 +285,19 @@ fn names(journeys: &Path) -> Result<Vec<String>, Refusal> {
     }
     names.sort();
     Ok(names)
+}
+
+fn moved(directory: &Path) -> Result<bool, Refusal> {
+    temper_client_walk_lines::walk::moved(directory).map_err(|_| io_refusal(&directory.join("walk")))
+}
+
+fn refuse_moved(web: &Path, tui: &Path, name: &str) -> Result<(), Refusal> {
+    for root in [web, tui] {
+        if moved(&root.join(name))? {
+            return Err(Refusal::Moved { name: name.to_owned() });
+        }
+    }
+    Ok(())
 }
 
 fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, Refusal> {
@@ -230,28 +311,36 @@ fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, 
 }
 
 fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<print::Printed>, Stale>, Refusal> {
-    let mut replay = journey::Replay::new(recording).map_err(|refusal| match refusal {
+    let replay = journey::Replay::new(recording).map_err(|why| replay_refusal(name, why))?;
+    Ok(printed_replay(replay))
+}
+
+fn replay_refusal(name: &str, refusal: journey::Refusal) -> Refusal {
+    match refusal {
         journey::Refusal::Unreadable(unreadable) => Refusal::Unreadable { name: name.to_owned(), unreadable },
         refusal @ (journey::Refusal::Stale(_)
         | journey::Refusal::Unproved { .. }
         | journey::Refusal::Differs { .. }) => Refusal::Proof { name: name.to_owned(), refusal },
-    })?;
+    }
+}
+
+fn printed_replay(mut replay: journey::Replay) -> Result<Vec<print::Printed>, Stale> {
     let mut marks = Vec::new();
     loop {
         match replay.next() {
             Ok(Some(mark)) => {
                 marks.push(print::Mark {
                     html: mark.page.html(),
-                    heading: heading(mark.tree),
+                    heading: print::heading(mark.tree),
                     acted: mark.acted,
                     lead: mark.lead,
                 });
             }
             Ok(None) => break,
-            Err(stale) => return Ok(Err(stale)),
+            Err(stale) => return Err(stale),
         }
     }
-    Ok(Ok(print::pages(&marks)))
+    Ok(print::pages(&marks))
 }
 
 fn write_pages(out: &Path, pages: Vec<print::Printed>) -> Result<(), Refusal> {
@@ -279,30 +368,6 @@ fn printed_page(path: &Path) -> bool {
 
 fn io_refusal(path: &Path) -> Refusal {
     Refusal::Io { path: path.to_owned() }
-}
-
-// The main region's level-1 heading, as in the gallery (client/web/gallery.md, 1).
-fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
-    let nodes = tree.nodes();
-    for (index, node) in nodes.iter().enumerate() {
-        if node.role == Role::Main {
-            let end = index + usize::try_from(node.size).expect("main subtree");
-            for (offset, heading) in nodes[index..end].iter().enumerate() {
-                if heading.role == (Role::Heading { level: 1 }) {
-                    let start = index + offset;
-                    let end = start + usize::try_from(heading.size).expect("heading subtree");
-                    let mut result = Vec::new();
-                    for node in &nodes[start..end] {
-                        for run in &node.text {
-                            result.extend_from_slice(&run.text);
-                        }
-                    }
-                    return result;
-                }
-            }
-        }
-    }
-    Vec::new()
 }
 
 #[cfg(test)]

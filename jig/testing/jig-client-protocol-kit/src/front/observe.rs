@@ -2,7 +2,7 @@
 use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
 use jig_client_kit::harness::{Receipt, Sent};
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use jig_client_test_domain::{Event, Request};
 use skein_lib::{Reader, RequestEnvelope, Token};
 
@@ -28,7 +28,8 @@ pub(super) fn callback(event: &jig_client::Event) -> Option<Callback> {
         jig_client::Event::Start { .. }
         | jig_client::Event::StartUnlinked { .. }
         | jig_client::Event::SignIn { .. }
-        | jig_client::Event::AskApproval
+        | jig_client::Event::AskLink
+        | jig_client::Event::AskApproval { .. }
         | jig_client::Event::ReadApproval { .. }
         | jig_client::Event::DecideApproval { .. }
         | jig_client::Event::ApprovalAnswer { .. }
@@ -40,6 +41,8 @@ pub(super) fn callback(event: &jig_client::Event) -> Option<Callback> {
         | jig_client::Event::Read { .. }
         | jig_client::Event::Send { .. }
         | jig_client::Event::Carry { .. }
+        | jig_client::Event::Part { .. }
+        | jig_client::Event::Done { .. }
         | jig_client::Event::Lost { .. }
         | jig_client::Event::Stored
         | jig_client::Event::NotStored
@@ -151,18 +154,18 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
             }
         }
         w::Owner::Family(_) => {
-            use jig_client_test_protocol_wire::v2 as family;
+            use jig_client_test_protocol_wire::v2::{self as family, Record};
             sent.application = true;
             let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
                 .expect("family request envelope");
             let request = family::Request::decode(&family::CEILINGS, &mut Reader::new(envelope.record()))
                 .expect("family request");
             let subject = jig_client_test_domain::family::Subject {
-                scope: jig_client_test_domain::family::Scope::Project(request.project()),
-                kind: jig_client_test_domain::family::Kind::Item(request.value().object()),
+                scope: jig_client_test_domain::family::Scope::Project(request.project),
+                kind: jig_client_test_domain::family::Kind::Item(request.value.object),
             };
             sent.card = Some(jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(&subject)));
-            sent.revision = Some((0, request.value().revision()));
+            sent.revision = Some((0, request.value.revision));
         }
     }
     Some(sent)

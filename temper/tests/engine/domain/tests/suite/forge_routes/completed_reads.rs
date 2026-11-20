@@ -67,6 +67,8 @@ fn an_ended_changes_branch_move_reads_no_comparison_or_file() {
         heard: change::Heard {
             delegate: change::Status::Passed,
             delegate_running: false,
+            flake: false,
+            no_test: false,
             delegate_live: false,
             effect: change::EffectResult::None,
             released: false,

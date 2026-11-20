@@ -4,6 +4,7 @@ use ::core::mem::size_of;
 use jig_domain_core as core;
 use jig_protocol_store as store;
 use skein_lib::{Queue, Token};
+use smith_transcript::Record;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 
@@ -331,7 +332,7 @@ fn a_row_that_does_not_decode_fails_its_original_load_once() {
     ];
     for (row, family) in rows.into_iter().zip([(21, "Flight"), (9, "Landed")]) {
         let store::Row::Application { key, .. } = &row else { panic!("application row") };
-        let expected = crate::UnreadableRow { key: key.clone() };
+        let expected = crate::UnreadableRow { key: key.clone(), lowered: None };
         let mut routes = fixtures::routes();
         route::down(&mut routes, engine::StoreRequest::Commit { number: 7, writes: Box::new([]) }).unwrap();
         let Some(store::Request::Restore { owner, .. }) =
@@ -351,6 +352,57 @@ fn a_row_that_does_not_decode_fails_its_original_load_once() {
         failed_load(&mut routes, owner, &mut out);
         assert_eq!(routes.row_failure(), Some(&expected), "late answers cannot replace the refused row");
     }
+}
+
+#[test]
+fn a_lowered_forge_codec_cause_survives_the_page_route() {
+    let (mut root, _, _) = fixtures::store_limits();
+    let stock = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).unwrap();
+    root.forge.client.op_bytes = 200;
+    let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).unwrap().with_stock(&stock);
+    let mut routes = route::Routes::new(
+        2,
+        &root,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
+    let row = forge::Stored::Release(forge::ReleaseRow {
+        task: 1,
+        room: None,
+        root: 2,
+        ending: forge::ReleaseEnding::Cancelled,
+        close_pull: None,
+        comment: Some(Box::new([b'x'; 300])),
+        pending: None,
+        failed: false,
+        effects_settled: true,
+        releasing: true,
+    });
+    let key = temper_protocol_store::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    let value = temper_protocol_store::records::encode(&row);
+    let Some(store::Request::Restore { owner, .. }) =
+        route::down(&mut routes, load(engine::Range::Forge, None, 4, 4096))
+    else {
+        panic!("restore")
+    };
+    let mut out = Queue::uncapped();
+    route::up(
+        &mut routes,
+        store::Event::Page {
+            owner,
+            items: items(Box::new([store::Row::Application { key: key.clone(), value }])),
+            next: None,
+        },
+        &mut out,
+    );
+    assert_eq!(
+        routes.row_failure(),
+        Some(&crate::UnreadableRow {
+            key,
+            lowered: Some(store::codec::Lowered { name: b"forge.client.op_bytes", configured: 200, held: 300 }),
+        })
+    );
+    failed_load(&mut routes, owner, &mut out);
 }
 
 fn failed_load(routes: &mut route::Routes, owner: Token, out: &mut Queue<Up>) {
@@ -652,7 +704,12 @@ fn window_turns_past_store_row_or_page_room_are_carried_cut() {
         let mut limits = limits;
         limits.loads.bytes = page_bound;
         let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
-        let mut routes = route::Routes::new(2, &limits, bounds);
+        let mut routes = route::Routes::new(
+            2,
+            &limits,
+            bounds,
+            skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+        );
         let range = engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) });
         let mut after = None;
         let large = window_turn(if prefix { 2 } else { 1 }, if store_cut { 0 } else { bytes });
@@ -744,40 +801,30 @@ fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
 
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
     use smith_transcript::v7 as wire;
-    let limits = &wire::CEILINGS;
+
     let mut blocks = skein_lib::List::with_capacity(1);
-    blocks
-        .push(wire::Block::Text(wire::Text::new(limits, wire::TextParts { text: words.into(), replay: None }).unwrap()))
-        .unwrap();
+    blocks.push(wire::Block::Text(wire::Text { text: words.into(), replay: None })).unwrap();
     let mut messages = skein_lib::List::with_capacity(1);
-    messages
-        .push(wire::Message::new(limits, wire::MessageParts { role: wire::Role::Assistant, blocks }).unwrap())
-        .unwrap();
-    let usage = wire::Usage::new(
-        limits,
-        wire::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-    )
-    .unwrap();
-    let turn = wire::Turn::new(
-        limits,
-        wire::TurnParts {
-            system: None,
-            kind: wire::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fake".as_slice().into(),
-            model: b"small".as_slice().into(),
-            effort: None,
-            dialect: fixtures::DIALECT,
-            place: 1,
-            usage,
-            spent: 0,
-            jobs: 0,
-            messages,
-        },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    messages.push(wire::Message { role: wire::Role::Assistant, blocks }).unwrap();
+    let usage = wire::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None };
+    let turn = wire::Turn {
+        system: None,
+        kind: wire::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fake".as_slice().into(),
+        model: b"small".as_slice().into(),
+        effort: None,
+        dialect: fixtures::DIALECT,
+        place: 1,
+        usage,
+        spent: 0,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 
@@ -895,11 +942,24 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
 
 #[test]
 fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
+    let (root, core, mut limits) = fixtures::store_limits();
+    limits.core = core;
+    let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
+    let mut component = store::Store::over(
+        &limits,
+        application,
+        &[],
+        store::Stores {
+            store: skein_kv::Store::memory(&limits.store),
+            secrets: skein_kv::Store::memory(&limits.secrets),
+        },
+    );
     let mut routes = fixtures::routes();
     let mut out = Queue::with_capacity(4);
     for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
-        route::up(
+        route::site(
             &mut routes,
+            &mut component,
             store::Event::Job {
                 owner: fixtures::OWNER,
                 of,
@@ -937,6 +997,7 @@ fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
         task: 0,
         attempt: 0,
         conversation: 0,
+        endpoint: None,
         credentials: Box::new([]),
         accounts: Box::new([]),
         placement: None,
@@ -1029,7 +1090,12 @@ fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
     // A smaller per-record entrance exercises the cut without raising any budget.
     limits.loads.transcript_bytes = 1;
     let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
-    let mut routes = route::Routes::new(2, &limits, bounds);
+    let mut routes = route::Routes::new(
+        2,
+        &limits,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
     let Some(store::Request::Restore { owner, .. }) =
         route::down(&mut routes, load(engine::Range::Forge, None, 4, 8192))
     else {

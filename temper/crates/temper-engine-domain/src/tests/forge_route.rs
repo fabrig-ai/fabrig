@@ -12,6 +12,8 @@ fn item(start: items::Start) -> items::Item {
         start,
         push: Some(b"temper/7".as_slice().into()),
         landing: Some(b"main".as_slice().into()),
+        pin: None,
+        delivered: None,
         holder: Some(7),
         credential: Some(1),
         bytes: 0,

@@ -86,9 +86,7 @@ pub fn report_delegate(words: &[u8], dependencies: Box<[engine::Dependency]>) ->
 pub fn tool_call(driver: &mut Driver, source: &engine::Assignment, call: u64, tool: engine::Tool) {
     let body = engine::Call { completion: 1, position: u32::try_from(call).expect("small call"), tool };
     driver.call(Token::new(7), source.task, source.attempt, call, body);
-    for _ in 0..60 {
-        driver.advance(true);
-    }
+    driver.drain(60);
 }
 
 #[must_use]

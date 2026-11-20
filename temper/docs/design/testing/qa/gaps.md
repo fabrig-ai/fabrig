@@ -76,7 +76,8 @@ request was filed; `closed`, the landing that closed it and its time.
 
 The loop's fourth step (`README.md`, 4), with the requests
 (`findings.md`, 5): open gaps not yet filed, every one at once, as one
-request with no `goal`:
+request with no `goal`, whatever the findings' requests did. A findings
+request's failure never stops the gaps' request from being tried:
 
 - **Its files:** `temper/docs/development/qa/gaps/gap-<N>.md` for each,
   its kind, owner, landing (number, goal, title, commit), case and steps
@@ -86,7 +87,9 @@ request with no `goal`:
 - **`request.command`** as for any request with no `goal` (a recipes'
   alone, `findings.md`, 5): it puts the files on main and starts nothing.
   Its success marks each gap `filed`; a failure is tried again at the
-  next tick, as a request's is.
+  next tick, as a request's is, and included with the step's other
+  failures in its result and its line after an hour (`README.md`, 4).
+  It does not stop the waiting goals' state checks.
 - **No goal, ever, from a gap:** the user, 2026-11-16. A person reads the
   gap and starts what they choose, whose landing then closes it.
 

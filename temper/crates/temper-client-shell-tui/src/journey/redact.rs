@@ -19,10 +19,13 @@ pub struct Redacted {
 
 /// Every byte field, in record order, with the framing that counts its bytes.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive match visits the journey's byte fields")]
 pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
     use Framing::{Framed, Text};
     match line {
-        Line::Reply { bytes, .. } | Line::Credential(bytes) | Line::Erase(bytes) => vec![(bytes, Framed)],
+        Line::Reply { bytes, .. } | Line::Part { bytes, .. } | Line::Credential(bytes) | Line::Erase(bytes) => {
+            vec![(bytes, Framed)]
+        }
         Line::Stored { key, bytes } | Line::Save { key, bytes } => vec![(key, Framed), (bytes, Framed)],
         Line::Streamed(streamed) => match streamed {
             Streamed::Record(bytes) => vec![(bytes, Framed)],
@@ -37,6 +40,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
                 | Sent::SignInApproval(bytes)
                 | Sent::Request(bytes)
                 | Sent::Read(bytes)
+                | Sent::Batch(bytes)
                 | Sent::Watch(bytes)
                 | Sent::Unwatch(bytes)
                 | Sent::StreamGone(bytes)
@@ -48,6 +52,11 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         }
         Line::Stream(credential) | Line::Keep(credential) => {
             credential.iter_mut().map(|bytes| (bytes, Framed)).collect()
+        }
+        Line::Replacing { credential, stream } => {
+            let mut fields: Vec<_> = credential.iter_mut().map(|bytes| (bytes, Framed)).collect();
+            fields.push((stream, Framed));
+            fields
         }
         Line::Key { key, event } => {
             let mut fields = match key {
@@ -101,10 +110,12 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Due
         | Line::Resize(_)
         | Line::Unanswered(_)
+        | Line::Done(_)
         | Line::Gone
         | Line::Saved
         | Line::Unsaved
         | Line::Kept { .. }
+        | Line::Handshake(_)
         | Line::Opened { .. }
         | Line::Unstream
         | Line::Quit
@@ -141,6 +152,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                     | Sent::ApprovalDecide(_)
                     | Sent::Request(_)
                     | Sent::Read(_)
+                    | Sent::Batch(_)
                     | Sent::Watch(_)
                     | Sent::Unwatch(_)
                     | Sent::StreamGone(_)
@@ -151,7 +163,9 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                     candidates.push((Kind::Bearer, bytes.clone()));
                 }
             }
-            Line::Stream(Some(bytes)) => candidates.push((Kind::Bearer, bytes.clone())),
+            Line::Stream(Some(bytes)) | Line::Replacing { credential: Some(bytes), .. } => {
+                candidates.push((Kind::Bearer, bytes.clone()));
+            }
             Line::Found(Some(bytes)) => {
                 candidates.extend(link_original(bytes));
             }
@@ -185,14 +199,18 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Key { .. }
             | Line::Resize(_)
             | Line::Reply { .. }
+            | Line::Part { .. }
             | Line::Unanswered(_)
+            | Line::Done(_)
             | Line::Streamed(_)
             | Line::Gone
             | Line::Saved
             | Line::Unsaved
             | Line::Kept { .. }
+            | Line::Handshake(_)
             | Line::Opened { .. }
             | Line::Stream(None)
+            | Line::Replacing { credential: None, .. }
             | Line::Unstream
             | Line::Save { .. }
             | Line::Erase(_)
@@ -214,7 +232,8 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
 }
 
 fn link_original(url: &[u8]) -> Option<(Kind, Box<[u8]>)> {
-    let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
+    let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+        .expect("temper mapping");
     jig_client_protocol_http::printed(&mapping, url).ok().map(|link| (Kind::Link, link.secret.into_exposed()))
 }
 
@@ -269,6 +288,30 @@ fn decimal(bytes: &[u8]) -> Box<[u8]> {
 
 impl LinkForm {
     pub(super) fn occurrences(&self, field: &[u8]) -> Vec<(usize, usize)> {
+        if !self.decimal {
+            // The welcome and /web note wrap links at their own column
+            // (temper/docs/design/client/tui/journeys.md, 8.3).
+            let mut joined = Vec::new();
+            let mut positions = Vec::new();
+            let mut offset = 0_usize;
+            for row in field.split(|byte| *byte == b'\n') {
+                let start = row.iter().take_while(|byte| byte.is_ascii_whitespace()).count();
+                let end = row.len() - row.iter().rev().take_while(|byte| byte.is_ascii_whitespace()).count();
+                for (at, byte) in row.iter().enumerate().take(end).skip(start) {
+                    joined.push(*byte);
+                    positions.push(offset + at);
+                }
+                offset += row.len() + 1;
+            }
+            let mut found = Vec::new();
+            let mut from = 0;
+            while let Some(at) = find_from(&joined, &self.bytes, from) {
+                let end = at + self.bytes.len();
+                found.push((positions[at], positions[end - 1] + 1));
+                from = at + 1;
+            }
+            return found;
+        }
         let mut found = Vec::new();
         let mut from = 0;
         while let Some(at) = find_from(field, &self.bytes, from) {
@@ -290,7 +333,22 @@ fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
     for form in links {
         for (at, end) in form.occurrences(field) {
             if replacements.range(..end).next_back().is_none_or(|(_, (prior_end, _))| *prior_end <= at) {
-                replacements.insert(at, (end, &form.hidden));
+                let hidden = if form.decimal {
+                    form.hidden.to_vec()
+                } else {
+                    let mut bytes = form.hidden.iter();
+                    field[at..end]
+                        .iter()
+                        .map(|byte| {
+                            if byte.is_ascii_whitespace() {
+                                *byte
+                            } else {
+                                *bytes.next().expect("one hidden byte per link byte")
+                            }
+                        })
+                        .collect()
+                };
+                replacements.insert(at, (end, hidden));
             }
         }
     }
@@ -300,7 +358,7 @@ fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
         let mut from = 0;
         for (at, (end, hidden)) in replacements {
             output.extend_from_slice(&field[from..at]);
-            output.extend_from_slice(hidden);
+            output.extend_from_slice(&hidden);
             from = end;
         }
         output.extend_from_slice(&field[from..]);

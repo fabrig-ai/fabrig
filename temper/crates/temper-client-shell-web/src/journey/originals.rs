@@ -1,4 +1,4 @@
-//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and 3.6).
+//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
 use super::{Kind, Line, Originals};
 use jig_client_protocol_wire as w;
 use skein_lib::Reader;
@@ -7,7 +7,7 @@ use skein_ui::Act;
 /// How an event shows a secret's length (client/web/journeys.md, 3.3).
 pub const SECRET_EVENT: &[u8] = b"Secret { len: ";
 
-/// Read the originals of a recording's lines and the given texts (client/web/journeys.md, 3.6).
+/// Read the originals of a recording's lines and the given texts (client/web/journey-redaction.md).
 #[must_use]
 pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
     collect(lines, given, true)
@@ -39,6 +39,7 @@ fn collect(lines: &[Line], given: &[Box<[u8]>], include_typed: bool) -> Original
             Line::Journey { .. }
             | Line::Seed(_)
             | Line::Clocks { .. }
+            | Line::Fixed
             | Line::Primary(_)
             | Line::Zone(_)
             | Line::Ways { .. }
@@ -83,6 +84,7 @@ pub fn typed(line: &Line) -> bool {
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
+        | Line::Fixed
         | Line::Primary(_)
         | Line::Zone(_)
         | Line::Ways { .. }

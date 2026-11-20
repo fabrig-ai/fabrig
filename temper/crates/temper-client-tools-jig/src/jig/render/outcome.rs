@@ -20,6 +20,8 @@ pub struct Operation {
     /// The declaration's provider and program name, retained from its durable ask.
     pub declaration: Option<(u32, Box<[u8]>)>,
     pub task: Option<u64>,
+    /// The funder of a goal start beneath a milestone (client/ctl/milestones.md, 3).
+    pub milestone: Option<u64>,
     pub ended_task: Option<c::Phase>,
     pub asked: Option<Asked>,
     pub to: Option<c::Recipient>,
@@ -31,6 +33,8 @@ pub struct Operation {
     /// Distinct submitted settings scopes, ordered with the deployment before projects.
     pub settings_scopes: Option<skein_lib::Set<u32>>,
     pub start_model: Option<start_model::Start>,
+    /// The live worker shorthand's name; the durable request remains a settings change.
+    pub worker: Option<Box<[u8]>>,
 }
 /// What a person task's contract asks of an answer past it (client/ctl/areas.md).
 #[derive(Debug)]
@@ -68,6 +72,12 @@ impl Operation {
         } else {
             Self::of(ask)
         };
+        if tool.name == crate::jig::rows::GOAL_START.name
+            && let Ask::Jig(ask) = ask
+            && let c::Ask::Delegate { task, .. } = ask.as_ref()
+        {
+            operation.milestone = Some(*task);
+        }
         if tool.name == crate::jig::rows::MILESTONE_NEW.name {
             operation.word = b"milestone";
         }
@@ -80,6 +90,14 @@ impl Operation {
     pub(crate) fn model_flags(&mut self, call: &crate::jig::call::Call) {
         if let Some(start) = &mut self.start_model {
             start.flags(call);
+        }
+    }
+    pub(crate) fn worker_name(&mut self, call: &crate::jig::call::Call) {
+        if (crate::jig::rows::WORKER_ADD_AT..=crate::jig::rows::WORKER_REMOVE_AT).contains(&call.tool) {
+            let Some(crate::jig::call::Value::Text(name)) = crate::jig::call::value(call, 0) else {
+                unreachable!("worker name argument")
+            };
+            self.worker = Some(name.clone());
         }
     }
     fn tool_name(&self) -> &'static [u8] {
@@ -165,6 +183,7 @@ impl Operation {
                         c::AccountChange::MoveIn { .. } => b"import",
                         c::AccountChange::DeclareProgram { .. } => b"declare".as_slice(),
                         c::AccountChange::CheckProgram { .. } => b"verify",
+                        c::AccountChange::SetUses { .. } => b"uses",
                         c::AccountChange::AddKey { .. } => b"add-key".as_slice(),
                         c::AccountChange::ReplaceKey { .. } => b"replace-key",
                         c::AccountChange::Resume { .. } => b"retry",
@@ -173,7 +192,6 @@ impl Operation {
                         c::AccountChange::LoginProgram { .. }
                         | c::AccountChange::CancelLogin { .. }
                         | c::AccountChange::LoginEnded { .. }
-                        | c::AccountChange::SetUses { .. }
                         | c::AccountChange::FinishSignIn { .. } => b"account-change",
                     },
                     None,
@@ -192,7 +210,7 @@ impl Operation {
     fn with_words(ask: &Ask, word: &'static [u8], task: Option<u64>) -> Self {
         let mut proposal_decision = false;
         if let Ask::Jig(ask) = ask
-            && let c::Ask::Decide { on: c::DecideOn::Proposal { .. }, .. } = ask.as_ref()
+            && let c::Ask::Decide { on: c::DecideOn::Proposal { .. }, .. } | c::Ask::Withdraw { .. } = ask.as_ref()
         {
             proposal_decision = true;
         }
@@ -207,6 +225,7 @@ impl Operation {
             account: None,
             declaration: None,
             task,
+            milestone: None,
             ended_task: None,
             asked: None,
             to: None,
@@ -217,6 +236,7 @@ impl Operation {
             proposal_decision,
             settings_scopes: settings_scopes(ask),
             start_model: start_model::Start::of(ask, word),
+            worker: None,
         }
     }
 }
@@ -318,7 +338,7 @@ fn bytes(
 }
 fn client_reason<'a>(operation: &'a Operation, outcome: &Outcome) -> Option<[&'a [u8]; 4]> {
     let reason: Option<&[u8]> = match outcome {
-        Outcome::NotKept => Some(b"request not kept"),
+        Outcome::NotKept => Some(b"request not kept; nothing was sent"),
         Outcome::Unknown => Some(b"unknown past retention"),
         Outcome::Limit => Some(b"request limit"),
         Outcome::Held => Some(b"name held by another request"),
@@ -414,6 +434,11 @@ fn text(
         }
         c::Answer::Done(c::Outcome::MovedToNewest(value)) => moved_text(operation, value, out),
         c::Answer::Done(c::Outcome::SettingsChanged(changed)) => {
+            if let Some(worker) = &operation.worker {
+                out.put(b"worker ");
+                out.put(worker);
+                out.put(b": ");
+            }
             out.put(b"revision ");
             out.number(u64::from(changed.revision));
         }
@@ -545,8 +570,11 @@ fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
                 c::Setting::Charter(_)
                 | c::Setting::Template(_)
                 | c::Setting::Policy(_)
+                | c::Setting::Provider(_)
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
-                | c::Setting::Rules => 0,
+                | c::Setting::Rules
+                | c::Setting::Limits => 0,
                 c::Setting::ProjectPolicy { project } => project,
                 c::Setting::Application { scope, .. } => scope,
             };
@@ -806,10 +834,25 @@ pub fn newline(bytes: &[u8]) -> Box<[u8]> {
     out.put(b"\n").expect("measured newline");
     out.finish()
 }
-pub(crate) fn retry(call: &crate::jig::call::Call) -> Box<[u8]> {
+pub(crate) fn retry(call: &crate::jig::call::Call, json: bool) -> Box<[u8]> {
     use crate::jig::argv;
     let tool = act_tool(call.tool);
     let mut call = call.clone();
+    // JSON's embedded retry command keeps its spend-unit figures.
+    if json {
+        use crate::jig::{
+            call::{Value, Values},
+            table::Kind,
+        };
+        let form = tool.forms.get(usize::from(call.form)).expect("parsed form");
+        for (argument, slot) in form.iter().zip(&mut call.values) {
+            if argument.kind == Kind::Amount
+                && let Some(Values::One(Value::Number(value))) = slot
+            {
+                *slot = Some(Values::One(Value::Text(Box::from(skein_lib::Decimal::of(*value).as_bytes()))));
+            }
+        }
+    }
     call.tool = 0;
     let mut words = skein_lib::List::with_capacity(128);
     argv::back(&[tool], &call, &mut words).expect("parsed act");
@@ -835,16 +878,23 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::TAKE_AT => &rows::TAKE,
         rows::HAND_BACK_AT => &rows::HAND_BACK,
         rows::DECIDE_AT => &rows::DECIDE,
+        rows::WITHDRAW_AT => &rows::WITHDRAW,
         rows::TASK_DECIDE_AT => &rows::TASK_DECIDE,
         rows::RELEASE_AT => &rows::RELEASE,
         rows::LIFT_AT => &rows::LIFT,
         rows::STOP_AT => &rows::STOP,
         rows::CANCEL_AT => &rows::CANCEL,
-        rows::CONNECT_AT..=rows::RETRY_AT | rows::DECLARE_AT | rows::VERIFY_AT | rows::EXPORT_AT | rows::IMPORT_AT => {
-            account_tool(tool)
-        }
+        rows::CONNECT_AT..=rows::RETRY_AT
+        | rows::DECLARE_AT
+        | rows::VERIFY_AT
+        | rows::EXPORT_AT
+        | rows::IMPORT_AT
+        | rows::USES_AT => account_tool(tool),
         rows::AMEND_AT => &rows::AMEND,
         rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
+        rows::WORKER_ADD_AT => &rows::WORKER_ADD,
+        rows::WORKER_PLACES_AT => &rows::WORKER_PLACES,
+        rows::WORKER_REMOVE_AT => &rows::WORKER_REMOVE,
         rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::RESTORE_AT => &rows::RESTORE,
@@ -878,6 +928,7 @@ pub(crate) fn account_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::REPLACE_KEY_AT => &rows::REPLACE_KEY,
         rows::FORGET_AT => &rows::FORGET,
         rows::RANK_AT => &rows::RANK,
+        rows::USES_AT => &rows::USES,
         rows::RETRY_AT => &rows::RETRY,
         rows::DECLARE_AT => &rows::DECLARE,
         rows::VERIFY_AT => &rows::VERIFY,
@@ -999,6 +1050,7 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 
 mod ceiling;
 
+#[expect(clippy::too_many_lines, reason = "each refusal renders its own actionable outcome")]
 fn refused_text(
     operation: &Operation,
     refusal: &c::Refusal,
@@ -1007,6 +1059,9 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
+    if worker_refusal(operation, refusal, out) {
+        return;
+    }
     if super::roles::refusal(operation.word, refusal, me, out) {
         return;
     }
@@ -1050,14 +1105,17 @@ fn refused_text(
         ceiling::text(project, *holder, *dimension, *value, limits.application, out);
         return;
     }
+    if milestone_budget_refusal(operation, refusal, out) {
+        return;
+    }
     if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
         (operation.project, refusal)
         && operation.word == b"project fund"
     {
         out.put(b"refused: the period has ");
-        out.number(*left);
+        super::amount(*left, out);
         out.put(b" left, the pools need ");
-        out.number(*needed);
+        super::amount(*needed, out);
         out.put(b"; raise the project's first: project fund ");
         out.number(u64::from(project));
         out.put(b" AMOUNT");
@@ -1104,6 +1162,76 @@ fn refused_text(
     }
 }
 
+/// Worker refusals retain the settings answer's status and do not retry (client/ctl/workers.md, 2).
+fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    let Some(worker) = &operation.worker else { return false };
+    match refusal {
+        c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } if value.fault == c::SettingFault::Linked => {
+            out.put(worker);
+            out.put(b" is linked: stop it first; its runs end interrupted");
+        }
+        c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } if value.fault == c::SettingFault::Count => {
+            out.put(operation.tool_name());
+            out.put(b": configured workers' bound reached");
+        }
+        c::Refusal::Stale(value) => {
+            out.put(operation.tool_name());
+            out.put(b": stale; newest revision ");
+            out.number(u64::from(value.newest));
+            out.put(b"; run it again");
+        }
+        c::Refusal::Concluded { .. }
+        | c::Refusal::Judged { .. }
+        | c::Refusal::SignInRedirect { .. }
+        | c::Refusal::Forgotten { .. }
+        | c::Refusal::Full(_)
+        | c::Refusal::AccountMove { .. }
+        | c::Refusal::Circle { .. }
+        | c::Refusal::Dependency { .. }
+        | c::Refusal::Kept { .. }
+        | c::Refusal::Account { .. }
+        | c::Refusal::NoEscalationHolder
+        | c::Refusal::Provider
+        | c::Refusal::Malformed { .. }
+        | c::Refusal::Role { .. }
+        | c::Refusal::Taken { .. }
+        | c::Refusal::NotWaiting
+        | c::Refusal::NoFurther
+        | c::Refusal::Authority { .. }
+        | c::Refusal::Limit { .. }
+        | c::Refusal::Moved { .. }
+        | c::Refusal::Ended { .. }
+        | c::Refusal::Unknown
+        | c::Refusal::NameTaken
+        | c::Refusal::NotOffered
+        | c::Refusal::NoTerminal
+        | c::Refusal::LoginUnderWay
+        | c::Refusal::NotLending
+        | c::Refusal::ProgramNameReserved
+        | c::Refusal::KeyConflict
+        | c::Refusal::Llm { .. }
+        | c::Refusal::LiveTasks { .. } => return false,
+    }
+    true
+}
+
+fn milestone_budget_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let (Some(milestone), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
+        (operation.milestone, refusal)
+    {
+        out.put(operation.tool_name());
+        out.put(b": refused: milestone ");
+        out.number(milestone);
+        out.put(b" had ");
+        super::amount(*left, out);
+        out.put(b" left, ");
+        super::amount(*needed, out);
+        out.put(b" needed; give each goal in it --budget AMOUNT");
+        return true;
+    }
+    false
+}
+
 /// Account refusals with one actionable meaning (client/ctl/areas.md).
 fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
     if let Some((provider, name)) = &operation.declaration {
@@ -1118,6 +1246,12 @@ fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) 
         } else {
             return false;
         }
+    } else if operation.word == b"uses" && *refusal == c::Refusal::Provider {
+        out.put(b"account uses: a plan account cannot pay for another person or a project with another person");
+        return true;
+    } else if operation.word == b"uses" && *refusal == c::Refusal::Unknown {
+        out.put(b"account uses: unknown account, party or project");
+        return true;
     } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
         out.put(b"account retry: the source is not limited, so there is nothing to resume");
     } else {
@@ -1198,9 +1332,9 @@ fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: O
     out.put(b": refused: your pool in project ");
     out.number(u64::from(project));
     out.put(b" had ");
-    out.number(left);
+    super::amount(left, out);
     out.put(b" left, ");
-    out.number(needed);
+    super::amount(needed, out);
     out.put(b" needed");
     let pool = match membership {
         Some(held) => held.pool.as_ref(),
@@ -1210,11 +1344,18 @@ fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: O
         && pool.left >= needed
     {
         out.put(b"\nnow: your pool has ");
-        out.number(pool.left);
+        super::amount(pool.left, out);
         out.put(b" left; budget ");
-        out.number(pool.numbers.budget);
+        super::amount(pool.numbers.budget, out);
         out.put(b"; this key keeps its first answer: start new work with a new --key");
         return;
+    }
+    if let Some(pool) = pool
+        && pool.numbers.reserved > 0
+    {
+        out.put(b"\nreserved: ");
+        super::amount(pool.numbers.reserved, out);
+        out.put(b", for the live work your pool funds; a goal or milestone started with --as-allowed takes all your pool may give: start them with --budget AMOUNT to leave room");
     }
     out.put(b"\nread it: project show ");
     out.number(u64::from(project));

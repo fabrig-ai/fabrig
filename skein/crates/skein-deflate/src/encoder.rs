@@ -1,5 +1,8 @@
 //! Raw DEFLATE encoding (skein/docs/design/data/deflate.md, 2; RFC 1951).
 
+#[cfg(test)]
+mod tests;
+
 /// The length of every block but the last: the most a stored block holds
 /// (RFC 1951, 3.2.4).
 const BLOCK: usize = 65_535;
@@ -69,36 +72,12 @@ pub fn bound(length: usize) -> Option<usize> {
 ///
 /// The same body gives the same bytes: the codes are chosen by the body alone.
 #[must_use]
-#[expect(
-    clippy::large_stack_arrays,
-    reason = "the match table and one block's matches, 144 KiB, live for one call: on the stack, not in the heap the limits account"
-)]
 pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
     if out.len() < bound(body.len())? {
         return None;
     }
-    let mut encoder = Encoder {
-        heads: [0; HEADS],
-        parse: Parse {
-            count: 0,
-            starts: [0; MATCHES],
-            lengths: [0; MATCHES],
-            distances: [0; MATCHES],
-            counts: Counts { literals: [0; SYMBOLS], distances: [0; DISTANCES], extra: 0 },
-        },
-        fixed: fixed()?,
-        own: Codes { literals: [NONE; SYMBOLS], distances: [NONE; DISTANCES] },
-        header: Header {
-            literals: 0,
-            distances: 0,
-            widths: 0,
-            code: [NONE; WIDTHS],
-            runs: [Run { symbol: 0, extra: 0 }; SENT],
-            count: 0,
-            bits: 0,
-        },
-        bits: Bits { at: 0, held: 0, count: 0 },
-    };
+    let mut encoder = EMPTY;
+    encoder.fixed = fixed()?;
     let blocks = blocks(body.len());
     for index in 0..blocks {
         let start = index.checked_mul(BLOCK)?;
@@ -109,6 +88,32 @@ pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
     align(out, &mut encoder.bits)?;
     Some(encoder.bits.at)
 }
+
+/// Each call takes its own empty state. The constant has no mutable storage;
+/// building the fixed codes in place avoids moving a large fallible result.
+#[expect(clippy::large_const_arrays, reason = "every encode owns its bounded stack state, never shared static storage")]
+const EMPTY: Encoder = Encoder {
+    heads: [0; HEADS],
+    parse: Parse {
+        count: 0,
+        starts: [0; MATCHES],
+        lengths: [0; MATCHES],
+        distances: [0; MATCHES],
+        counts: Counts { literals: [0; SYMBOLS], distances: [0; DISTANCES], extra: 0 },
+    },
+    fixed: Codes { literals: [NONE; SYMBOLS], distances: [NONE; DISTANCES] },
+    own: Codes { literals: [NONE; SYMBOLS], distances: [NONE; DISTANCES] },
+    header: Header {
+        literals: 0,
+        distances: 0,
+        widths: 0,
+        code: [NONE; WIDTHS],
+        runs: [Run { symbol: 0, extra: 0 }; SENT],
+        count: 0,
+        bits: 0,
+    },
+    bits: Bits { at: 0, held: 0, count: 0 },
+};
 
 /// How many blocks a body of `length` bytes takes: one at least.
 fn blocks(length: usize) -> usize {
@@ -279,7 +284,7 @@ fn parse(encoder: &mut Encoder, body: &[u8], block: Block) -> Option<()> {
         }
         let found = match word(body, at) {
             Some(bytes) => {
-                let head = encoder.heads.get_mut(hash(bytes)?)?;
+                let head = encoder.heads.get_mut(hash(bytes))?;
                 let earlier = *head;
                 *head = low(at);
                 longest(body, at, block.end, earlier, bytes)
@@ -293,11 +298,12 @@ fn parse(encoder: &mut Encoder, body: &[u8], block: Block) -> Option<()> {
         };
         record(parse, block, at, found)?;
         let next = at.checked_add(found.length)?;
-        for inside in at.checked_add(1)?..next {
-            let Some(bytes) = word(body, inside) else {
-                break;
-            };
-            *encoder.heads.get_mut(hash(bytes)?)? = low(inside);
+        let inside = at.checked_add(1)?;
+        let mut position = low(inside);
+        for bytes in body.get(inside..)?.windows(4).take(found.length.checked_sub(1)?) {
+            let bytes = u32::from_le_bytes(*bytes.first_chunk::<4>()?);
+            *encoder.heads.get_mut(hash(bytes))? = position;
+            position = position.wrapping_add(1);
         }
         at = next;
     }
@@ -554,8 +560,9 @@ fn word(body: &[u8], at: usize) -> Option<u32> {
 
 /// The table's head for four bytes (Fibonacci hashing: the top bits of
 /// their product with 2^32 over the golden ratio).
-fn hash(word: u32) -> Option<usize> {
-    usize::try_from(word.wrapping_mul(0x9E37_79B1).checked_shr(32_u32.checked_sub(HASH)?)?).ok()
+fn hash(word: u32) -> usize {
+    let [a, b, ..] = word.wrapping_mul(0x9E37_79B1).to_be_bytes();
+    usize::from(u16::from_be_bytes([a, b]) >> 1_u32)
 }
 
 /// The low 16 bits of a position, what a head keeps.
@@ -613,16 +620,18 @@ fn mask(width: u32) -> Option<u32> {
 /// distances of 5.
 fn fixed() -> Option<Codes> {
     let mut codes = Codes { literals: [NONE; SYMBOLS], distances: [Code { bits: 0, width: 5 }; DISTANCES] };
-    for (symbol, code) in codes.literals.iter_mut().enumerate() {
-        // 0 to 143 and 280 to 287 of 8 bits.
-        code.width = match symbol {
-            144..=255 => 9,
-            256..=279 => 7,
-            _ => 8,
+    for (symbol, code) in (0_u32..).zip(codes.literals.iter_mut()) {
+        let (value, width) = match symbol {
+            0..=143 => (symbol.checked_add(48)?, 8),
+            144..=255 => (symbol.checked_add(256)?, 9),
+            256..=279 => (symbol.checked_sub(256)?, 7),
+            _ => (symbol.checked_sub(88)?, 8),
         };
+        *code = Code { bits: reversed(value, width)?, width };
     }
-    canonical(&mut codes.literals)?;
-    canonical(&mut codes.distances)?;
+    for (symbol, code) in (0_u32..).zip(codes.distances.iter_mut()) {
+        code.bits = reversed(symbol, 5)?;
+    }
     Some(codes)
 }
 

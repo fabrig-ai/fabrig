@@ -50,26 +50,28 @@ pub fn replies() -> Vec<(String, String)> {
     const MIDDLE_PARAGRAPHS: u32 = 10;
     // Full long replies give the PageUp and PageDown counts height to cross at both read margins.
     const WINDOW_PARAGRAPHS: u32 = 40;
-    let mut replies: Vec<_> = (1..=LONG_MESSAGES)
+    // The first request also appears in the system's task brief. Keep each chat's
+    // first cue among the eight asked scripts, so later messages choose their own replies.
+    let mut replies: Vec<_> = (1..=POSITION_MESSAGES)
         .map(|number| {
-            let paragraphs = if number < LONG_MESSAGES { WINDOW_PARAGRAPHS } else { POSITION_PARAGRAPHS };
-            let reply = reading_reply(LONG_CODE_WORDS, paragraphs);
+            let paragraphs = if number >= POSITION_MESSAGES - 1 { POSITION_PARAGRAPHS } else { MIDDLE_PARAGRAPHS };
+            let reply = reading_reply(POSITION_CODE_WORDS, paragraphs);
             (
-                String::from_utf8(long_words(number).into_vec()).expect("long words"),
+                String::from_utf8(position_words(number).into_vec()).expect("position words"),
                 format!("{reply}\n\nEnd of reply {number}."),
             )
         })
         .collect();
-    replies.extend((1..=POSITION_MESSAGES).map(|number| {
-        let paragraphs = if number >= POSITION_MESSAGES - 1 { POSITION_PARAGRAPHS } else { MIDDLE_PARAGRAPHS };
-        let reply = reading_reply(POSITION_CODE_WORDS, paragraphs);
+    replies.push(("Latest paragraph".into(), "Keep these words available while reading back. ".repeat(4)));
+    replies.push((SHORT_START.into(), SHORT_END.into()));
+    replies.extend((1..=LONG_MESSAGES).map(|number| {
+        let paragraphs = if number < LONG_MESSAGES { WINDOW_PARAGRAPHS } else { POSITION_PARAGRAPHS };
+        let reply = reading_reply(LONG_CODE_WORDS, paragraphs);
         (
-            String::from_utf8(position_words(number).into_vec()).expect("position words"),
+            String::from_utf8(long_words(number).into_vec()).expect("long words"),
             format!("{reply}\n\nEnd of reply {number}."),
         )
     }));
-    replies.push(("Latest paragraph".into(), "Keep these words available while reading back. ".repeat(4)));
-    replies.push((SHORT_START.into(), SHORT_END.into()));
     replies
 }
 
@@ -96,11 +98,9 @@ pub fn anchoring_on() -> Step {
 }
 
 /// Offer at most eight reading replies; the rest stay cued without a suggestion.
-pub(crate) fn configure(value: &mut serde_json::Value, replies: &[(String, String)]) {
+pub(crate) fn configure(replies: &[(String, String)]) -> serde_json::Value {
     let (asked, cued) = replies.split_at(replies.len().min(8));
-    let llm = &mut value["application"]["demo"]["llm"];
-    llm["asked"] = scripts(asked);
-    llm["cued"] = scripts(cued);
+    serde_json::json!({"asked": scripts(asked), "cued": scripts(cued), "otherwise": ["scripted model"]})
 }
 
 pub(crate) fn scripts(replies: &[(String, String)]) -> serde_json::Value {
@@ -119,26 +119,7 @@ mod tests {
     use super::*;
 
     fn demo_deployment() -> serde_json::Value {
-        use std::num::NonZeroU16;
-        let facts = temper_init::Facts {
-            binary: b"/test/temper",
-            git: Some(b"/usr/bin/git"),
-            claude: None,
-            login: None,
-            sign_in: false,
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).expect("clients port"),
-                owned: NonZeroU16::new(8368).expect("owned port"),
-                forge: NonZeroU16::new(8369).expect("forge port"),
-                llm: NonZeroU16::new(8370).expect("LLM port"),
-                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
-            },
-        };
-        let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
-        let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("demo init");
-        let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("deployment file");
-        let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("deployment bytes") };
-        serde_json::from_slice(bytes).expect("demo deployment JSON")
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start")
     }
 
     #[test]
@@ -158,9 +139,28 @@ mod tests {
     /// A startup refusal would otherwise show only in the browser tier.
     #[test]
     fn the_fake_admits_every_historys_replies() {
-        let mut value = demo_deployment();
-        configure(&mut value, &replies());
-        let llm = &value["application"]["demo"]["llm"];
+        let value = demo_deployment();
+        let replies = replies();
+        let scripts = configure(&replies);
+        let document = crate::scripted::document("127.0.0.1:8370", std::path::Path::new("/test/state/model.key"));
+        let mut joined = temper_fake::llm::ScriptJoin::empty();
+        joined
+            .push(
+                &serde_json::to_vec(&document).expect("model document"),
+                &serde_json::to_vec(&scripts).expect("reading scripts"),
+            )
+            .expect("the product's join admits the world's scripts");
+        let llm: serde_json::Value = serde_json::from_slice(&joined.into_bytes()).expect("joined scripts");
+        assert_eq!(llm["asked"].as_array().expect("asked").len(), 8);
+        let cued = llm["cued"].as_array().expect("cued");
+        assert_eq!(cued.len(), replies.len() - 8);
+        for first in [SHORT_START.as_bytes(), &position_words(1), &long_words(1)] {
+            let first = std::str::from_utf8(first).expect("first request");
+            assert!(
+                !cued.iter().any(|script| first.contains(script["cue"].as_str().expect("cue"))),
+                "a first request in the system brief must not select a cued script on later turns"
+            );
+        }
         let complete: Vec<_> = llm["asked"]
             .as_array()
             .expect("offered scripts")
@@ -168,31 +168,51 @@ mod tests {
             .chain(llm["cued"].as_array().expect("unoffered scripts"))
             .cloned()
             .collect();
-        assert_eq!(serde_json::Value::Array(complete), scripts(&replies()), "every reading reply is kept whole");
-        let bytes = serde_json::to_vec(&value).expect("reading deployment JSON");
-        temper_service::startup::shape(&bytes, &jig_protocol_config::Directories::working()).unwrap_or_else(
-            |problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))),
+        assert_eq!(serde_json::Value::Array(complete), super::scripts(&replies), "every reading reply is kept whole");
+        crate::configuration::shape(value);
+        temper_fake::llm::Document::decode_with_scripts(
+            &serde_json::to_vec(&document).expect("model document"),
+            Some(&serde_json::to_vec(&llm).expect("joined reading scripts")),
+        )
+        .expect("the standalone fake admits every history's replies");
+    }
+
+    #[test]
+    fn the_scripted_provider_fits_beside_the_stock_and_box_endpoints() {
+        let stock = temper_agent_fixtures::providers::stock();
+        let settings = crate::scripted::settings("127.0.0.1:8370");
+        let items = settings["items"].as_array().expect("settings items");
+        let provider = |number| {
+            items
+                .iter()
+                .find(|item| item["setting"]["kind"] == "provider" && item["setting"]["number"] == number)
+                .expect("provider setting")["set"]
+                .clone()
+        };
+        let anthropic = provider(2);
+        let browser = provider(4);
+        let endpoints = stock["endpoints"].as_array().expect("stock endpoints");
+        let retained_stock = endpoints.iter().filter(|endpoint| endpoint["provider"] != "anthropic").count();
+        assert_eq!(
+            retained_stock
+                + anthropic["endpoints"].as_array().expect("Anthropic endpoints").len()
+                + browser["endpoints"].as_array().expect("world endpoints").len()
+                + 1,
+            4,
+            "the box's endpoint and the world's fit the standard agent profile"
         );
-        let engine = crate::configuration::stock_engine(&value);
-        let document = jig_protocol_config::document(
-            &bytes,
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-        )
-        .expect("reading deployment document");
-        let mut root = jig_protocol_config::read::Object::new(&document, 0).expect("deployment object");
-        let application = root.member(&document, b"application").expect("application");
-        let mut application =
-            jig_protocol_config::read::Object::new(&document, application).expect("application object");
-        let demo = application.member(&document, b"demo").expect("demo");
-        let directories = jig_protocol_config::Directories::given(b"/test/config", b"/test/state", b"/test/cache")
-            .expect("absolute demo directories");
-        temper_fake::demo::read(
-            &document,
-            demo,
-            &temper_fake::demo::Facts { llm: &engine.llm, listeners: &[], directories: &directories },
-        )
-        .expect("the complete derived fake admits every history's replies")
-        .expect("reading demo");
+        let mut expected = temper_box_kit::provider_setup::items(&stock)
+            .into_iter()
+            .find(|item| item["setting"]["number"] == 2)
+            .expect("stock Anthropic")["set"]
+            .clone();
+        expected.as_object_mut().expect("provider").remove("direct");
+        expected["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["number"] == 2);
+        assert_eq!(anthropic, expected, "only Anthropic's unused direct route changes");
+        let model = &items.iter().find(|item| item["setting"]["kind"] == "model").expect("model setting")["set"];
+        assert_eq!(model["number"], 8);
+        assert_eq!(model["model"]["provider"], 4);
+        assert_eq!(model["model"]["endpoint"], browser["endpoints"][0]["number"]);
     }
 
     /// The fake chooses by the cue that comes first in a request's words.

@@ -62,15 +62,12 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
         let source = plan.options.deployment.as_ref().expect("deployment directory");
         for entry in fs::read_dir(source).map_err(|why| format!("{}: {why}", source.display()))? {
             let entry = entry.map_err(|why| format!("{}: {why}", source.display()))?;
-            if !["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"]
-                .iter()
-                .any(|name| entry.file_name() == *name)
-            {
+            if !deployment::inputs().iter().any(|(name, _)| entry.file_name() == *name) {
                 return Err(format!("{}: unexpected deployment document", entry.path().display()));
             }
         }
         let mut input = vec![];
-        for name in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+        for (name, _) in deployment::inputs() {
             input.push((name, read(&source.join(name), deployment::DOCUMENT_BYTES)?));
         }
         let documents = deployment::documents(
@@ -132,6 +129,8 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
     std::os::unix::fs::symlink(plan.options.bin.join("temper-box"), &git)
         .map_err(|why| format!("{}: {why}", git.display()))?;
 
+    let providers = read(&beneath(scratch, Path::new("config/providers.json"))?, deployment::DOCUMENT_BYTES)?;
+    replace(&scratch.join("data/engine/providers.setting"), &providers)?;
     let forge = read(&beneath(scratch, Path::new("config/forgejo.json"))?, deployment::DOCUMENT_BYTES)?;
     let model = read(&beneath(scratch, Path::new("config/model.json"))?, deployment::DOCUMENT_BYTES)?;
     if !plan.options.scripts.is_empty() {
@@ -150,6 +149,31 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
     }
     deployment::values(&place, &forge, &model)
 }
+pub(in crate::drive) fn worker(plan: &Plan) -> Result<deployment::Worker, String> {
+    let scratch = &plan.options.scratch;
+    let document = read(&beneath(scratch, &crate::line::Document::Worker.path())?, deployment::DOCUMENT_BYTES)?;
+    let digest = read(&beneath(scratch, Path::new("data/engine/secrets/worker.digest"))?, 65)?;
+    deployment::Worker::read(&document, &digest)
+}
+
+/// Resolve bounded settings inputs before ctl starts, leaving flags and stdin unchanged.
+pub(in crate::drive) fn settings_files(
+    directory: Option<&Path>,
+    mut args: Vec<Box<[u8]>>,
+) -> Result<Vec<Box<[u8]>>, String> {
+    use std::os::unix::ffi::OsStrExt;
+    let paths = crate::line::settings_paths(&args);
+    let directory = directory
+        .ok_or_else(|| format!("{}: no settings files directory (--files DIR)", String::from_utf8_lossy(paths[0])))?;
+    let directory = std::path::absolute(directory).map_err(|why| format!("{}: {why}", directory.display()))?;
+    super::forge::read_files(&directory, &paths.iter().map(|path| Box::from(*path)).collect::<Vec<_>>())?;
+    for arg in args.iter_mut().skip(2).take_while(|arg| arg.as_ref() == b"-" || !arg.starts_with(b"-")) {
+        if arg.as_ref() != b"-" {
+            *arg = directory.join(std::ffi::OsStr::from_bytes(arg)).as_os_str().as_bytes().into();
+        }
+    }
+    Ok(args)
+}
 pub(in crate::drive) fn patch(
     plan: &Plan,
     document: crate::line::Document,
@@ -157,15 +181,19 @@ pub(in crate::drive) fn patch(
 ) -> Result<deployment::RenderedFile, String> {
     let directory = plan.options.files.as_ref().ok_or("deployment patch: no files directory (--files DIR)")?;
     let files = super::forge::read_files(directory, &[path.into()])?;
-    let path = beneath(&plan.options.scratch, Path::new(document.path()))?;
+    let path = beneath(&plan.options.scratch, &document.path())?;
     let bytes = read(&path, deployment::DOCUMENT_BYTES)?;
     let change = files.first().expect("one patch file");
+    let shape = match document {
+        crate::line::Document::Engine => temper_config_shell::Shape::EngineAlone,
+        crate::line::Document::Worker => temper_config_shell::Shape::WorkerAlone,
+    };
     let merged =
-        deployment::merge(&bytes, change, &plan.place()?).map_err(|why| format!("{}: {why}", path.display()))?;
+        deployment::merge(&bytes, change, &plan.place()?, shape).map_err(|why| format!("{}: {why}", path.display()))?;
     Ok((path, merged))
 }
 pub(in crate::drive) fn replace(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let temporary = path.with_extension("json.patch");
+    let temporary = path.with_added_extension("patch");
     write(&temporary, bytes)?;
     fs::rename(&temporary, path).map_err(|why| {
         let _removed = fs::remove_file(&temporary);

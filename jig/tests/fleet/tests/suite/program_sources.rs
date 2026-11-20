@@ -23,7 +23,15 @@ impl World {
             out: Queue::uncapped(),
         };
         let membership = Membership::new(
-            Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+            Box::new([
+                jig_domain_link::Member {
+                    number: 1,
+                    name: Box::from(b"alpha".as_slice()),
+                    places: 4,
+                    withdrawn: false,
+                },
+                jig_domain_link::Member { number: 2, name: Box::from(b"beta".as_slice()), places: 4, withdrawn: false },
+            ]),
             limits.configured_workers,
             limits.worker_name_bytes,
         )
@@ -74,6 +82,81 @@ impl World {
 fn source(name: &[u8]) -> SourceName {
     SourceName::new(name).expect("fixture source")
 }
+#[test]
+fn a_program_check_lifts_only_its_sources_fault_on_the_checked_channel() {
+    let mut world = World::new(&[b"a", b"b"]);
+    let other = Token::new(102);
+    let run = Token::new(1);
+    world.hello(CHANNEL);
+    world.hello_at(other, 1);
+    for channel in [CHANNEL, other] {
+        world.step(Event::Logins {
+            channel,
+            logins: [b"a", b"b"]
+                .iter()
+                .map(|name| Login { name: source(*name), state: LoginState::Usable, email: None })
+                .collect(),
+        });
+        for name in [b"a", b"b"] {
+            world.step(Event::Untooled { run, channel, source: source(name) });
+        }
+    }
+    assert_eq!(
+        world.step(Event::Check { channel: CHANNEL, name: source(b"a") }),
+        vec![Request::Check { channel: CHANNEL, name: source(b"a") }]
+    );
+    assert!(!world.domain.untooled_on(run, CHANNEL, &source(b"a")));
+    assert!(world.domain.untooled_on(run, other, &source(b"a")));
+    assert!(world.domain.untooled_on(run, CHANNEL, &source(b"b")));
+    assert_eq!(world.step(Event::CheckProgram { name: source(b"b") }).len(), 2);
+    assert!(!world.domain.untooled_on(run, CHANNEL, &source(b"b")));
+    assert!(!world.domain.untooled_on(run, other, &source(b"b")));
+    assert!(world.domain.untooled_on(run, other, &source(b"a")));
+}
+
+#[test]
+fn a_program_fault_lifts_when_its_login_becomes_unusable_or_is_omitted() {
+    for state in [
+        LoginState::NotSignedIn,
+        LoginState::SignedInOtherwise(LoginMethod::new(b"api-key").unwrap()),
+        LoginState::Failed { reason: SourceFailure::Exited, detail: Box::new([]) },
+    ] {
+        let mut world = World::new(&[b"a", b"b"]);
+        world.hello(CHANNEL);
+        let run = Token::new(1);
+        let usable = || Event::Logins {
+            channel: CHANNEL,
+            logins: [b"a", b"b"]
+                .iter()
+                .map(|name| Login { name: source(*name), state: LoginState::Usable, email: None })
+                .collect(),
+        };
+        world.step(usable());
+        for name in [b"a", b"b"] {
+            world.step(Event::Untooled { run, channel: CHANNEL, source: source(name) });
+        }
+        world.step(usable());
+        assert!(world.domain.untooled_on(run, CHANNEL, &source(b"a")), "an unchanged usable login keeps the fault");
+        world.step(Event::Logins {
+            channel: CHANNEL,
+            logins: Box::new([
+                Login { name: source(b"a"), state, email: None },
+                Login { name: source(b"b"), state: LoginState::Usable, email: None },
+            ]),
+        });
+        assert!(!world.domain.untooled_on(run, CHANNEL, &source(b"a")));
+        assert!(world.domain.untooled_on(run, CHANNEL, &source(b"b")));
+        world.step(usable());
+        assert!(!world.domain.untooled_on(run, CHANNEL, &source(b"a")));
+        world.step(Event::Sources { sources: Box::new([source(b"a")]) });
+        world.step(Event::Logins {
+            channel: CHANNEL,
+            logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable, email: None }]),
+        });
+        assert_eq!(world.domain.untooled(run), None, "the omitted source's place lifts too");
+    }
+}
+
 #[test]
 fn even_empty_inventory_is_a_placement_barrier() {
     let mut world = World::new(&[]);

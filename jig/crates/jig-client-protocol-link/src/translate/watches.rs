@@ -4,7 +4,8 @@ use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
 use jig_client_domain::Watchable;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::{VERSION, v26 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
 pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::Problem> {
@@ -25,7 +26,7 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         }
         c::Subject::Tasks { query, window } => w::Subject::Tasks(w::SubjectTasks::new(
             limits,
-            w::SubjectTasksParts { query: super::queries::query(*query, limits)?, window: *window },
+            w::SubjectTasksParts { query: super::queries::query(query, limits)?, window: *window },
         )?),
         c::Subject::Run { task, turn, offset } => {
             let turn = match turn {

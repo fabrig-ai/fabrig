@@ -99,25 +99,30 @@ fn contract(value: &Contract, limits: &Limits) -> Result<(), RestoreCause> {
                 }
             }
         }
-        Contract::Report { words } | Contract::Change { words, .. } => {
+        Contract::Report { words } => {
             bound(RestoreBound::ResultBytes, u64::from(*words), u64::from(limits.result_bytes))
         }
-        Contract::Verdict { choices } => {
-            count(RestoreBound::ContractChoices, choices.len(), limits.contract_choices)?;
-            for choice in choices {
-                count(RestoreBound::ResultFields, choice.fields.len(), limits.result_bytes)?;
-                bound(RestoreBound::Batch, u64::from(choice.followups), u64::from(limits.batch))?;
-                let mut bytes = skein_lib::length::usize_of(choice.words);
-                for field in &choice.fields {
-                    bytes = bytes.checked_add(field.name.len()).ok_or(RestoreCause::Accounting)?;
-                    bytes =
-                        bytes.checked_add(skein_lib::length::usize_of(field.max)).ok_or(RestoreCause::Accounting)?;
-                }
-                count(RestoreBound::ResultBytes, bytes, limits.result_bytes)?;
-            }
-            Ok(())
+        Contract::Change { words, choices, .. } => {
+            bound(RestoreBound::ResultBytes, u64::from(*words), u64::from(limits.result_bytes))?;
+            contract_choices(choices, limits)
         }
+        Contract::Verdict { choices } => contract_choices(choices, limits),
     }
+}
+
+fn contract_choices(choices: &[crate::Verdict], limits: &Limits) -> Result<(), RestoreCause> {
+    count(RestoreBound::ContractChoices, choices.len(), limits.contract_choices)?;
+    for choice in choices {
+        count(RestoreBound::ResultFields, choice.fields.len(), limits.result_bytes)?;
+        bound(RestoreBound::Batch, u64::from(choice.followups), u64::from(limits.batch))?;
+        let mut bytes = skein_lib::length::usize_of(choice.words);
+        for field in &choice.fields {
+            bytes = bytes.checked_add(field.name.len()).ok_or(RestoreCause::Accounting)?;
+            bytes = bytes.checked_add(skein_lib::length::usize_of(field.max)).ok_or(RestoreCause::Accounting)?;
+        }
+        count(RestoreBound::ResultBytes, bytes, limits.result_bytes)?;
+    }
+    Ok(())
 }
 
 fn fields(value: &[ResultField]) -> Result<usize, RestoreCause> {
@@ -318,7 +323,11 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Delegates, value.delegates.len(), limits.delegates)?;
     count(RestoreBound::Batch, value.result_followups.len(), limits.batch)?;
     count(RestoreBound::References, value.references.len(), limits.references)?;
-    count(RestoreBound::Subscriptions, value.subscriptions.len(), limits.subscriptions)?;
+    count(
+        RestoreBound::Subscriptions,
+        value.subscriptions.len(),
+        crate::subscriptions::kept_capacity(limits).ok_or(RestoreCause::Accounting)?,
+    )?;
     count(RestoreBound::Dependencies, value.dependencies.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.waiting_on.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;
@@ -482,7 +491,7 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
     let mut amendments = 0_usize;
     let mut met = 0_usize;
     let mut ordinary_count = 0_usize;
-    for word in &value.inbox {
+    for word in value.inbox.iter().chain(value.unrecorded.iter()) {
         let size = payload(word, limits)?;
         let (which, limit) = payload_bound(value, word, limits);
         count(which, size, limit)?;
@@ -544,7 +553,7 @@ pub(super) fn linked_inbox(domain: &Domain, limits: &Limits, value: &TaskRecord)
         }
     }
     let mut ordinary_count = 0_usize;
-    for word in &value.inbox {
+    for word in value.inbox.iter().chain(value.unrecorded.iter()) {
         if ordinary(&word.kind) {
             ordinary_count = ordinary_count.checked_add(1).ok_or(RestoreCause::Accounting)?;
         }

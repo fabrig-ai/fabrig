@@ -1,5 +1,6 @@
 //! A project's whole queues and retained titles (temper/docs/design/domain/forge/queues.md;
 //! temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 3).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{ChangeRow, Domain, LandingRed, Limits};
 use alloc::boxed::Box;
 use core::cmp::Reverse;
@@ -63,6 +64,9 @@ impl Domain {
                     };
                 changes
                     .push(ChangesQueued {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: *task,
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         ready_since,
@@ -115,6 +119,9 @@ impl Domain {
                 {
                     let change = self.changes.get(&member.change)?;
                     return Some(TrainLanding {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: row.landing.task,
                         member: member.change,
                         round: row.landing.preparation,
@@ -130,7 +137,10 @@ impl Domain {
     }
     fn changes_history(&self, view: &mut ChangesView, limits: &Limits) -> Option<()> {
         let mut recent = Map::with_capacity(
-            limits.repositories.checked_mul(limits.landings_kept)?.checked_mul(limits.landing_members)?,
+            limits
+                .repositories
+                .checked_mul(limits.landings_kept.checked_add(limits.landings_pending)?)?
+                .checked_mul(limits.landing_members)?,
         );
         let mut newest = None;
         let mut landing: Box<[u8]> = Box::default();
@@ -154,12 +164,15 @@ impl Domain {
                         .insert(
                             (key, change.task),
                             ChangesLanded {
-                                signed: change.signed.clone(),
+                                goal: None,
+                                chat: None,
+                                milestone: None,
+                                signed: signed(&change.signed),
                                 task: change.task,
                                 title: change.title.clone(),
                                 at: logged.at,
                                 commit: logged.commit,
-                                default_branch: logged.branch == adopted.settings.default_branch,
+                                default_branch: logged.branch == adopted.landing,
                             },
                         )
                         .ok()?;
@@ -169,7 +182,7 @@ impl Domain {
         if newest.is_none() {
             for (_, repository) in &self.repositories {
                 if repository.project == view.project && (landing.is_empty() || repository.home) {
-                    landing.clone_from(&repository.settings.default_branch);
+                    landing.clone_from(&repository.landing);
                     if repository.home {
                         break;
                     }
@@ -259,6 +272,15 @@ impl Domain {
         false
     }
 }
+fn signed(signs: &[crate::SignOff]) -> Box<[ChangesSigned]> {
+    let mut rows = List::with_capacity(u32::try_from(signs.len()).expect("bounded sign-offs"));
+    for sign in signs {
+        rows.push(ChangesSigned { person: sign.person, head: sign.head, at: sign.at, name: None })
+            .expect("one document sign-off per logged sign-off");
+    }
+    rows.into_boxed()
+}
+
 fn owns(row: &ChangeRow) -> bool {
     crate::domain::owns_turn(row)
 }

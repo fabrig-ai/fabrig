@@ -66,6 +66,7 @@ impl Measured {
         self.event(Event::Prepare { reply_to, task: number });
         let reply_to = self.to();
         self.event(Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
@@ -162,6 +163,7 @@ fn measure_saturated_payloads_graph_backoff_held_closing_retirement_and_restore_
             m.event(Event::Prepare { reply_to, task: number });
             let reply_to = m.to();
             m.event(Event::Claim {
+                fresh: None,
                 session_end: None,
                 offered: jig_domain_tasks::Reasons::ALL,
                 reasons: jig_domain_tasks::Reasons::FIRST,
@@ -429,7 +431,11 @@ fn borrowed_stored_bytes_matches_allocator_for_every_retained_row() {
             path: Box::new([Box::new([8, 9]), Box::new([10])]),
         }))),
     };
-    record.escalation = tasks::Escalation::Rejected { revision: 1, by: 1, reason: Box::new([6, 7, 8, 9]) };
+    record.escalation = tasks::Escalation::Rejected {
+        revision: 1,
+        by: tasks::EscalationDecider::Person(1),
+        reason: Box::new([6, 7, 8, 9]),
+    };
     let mut rows = world.records.values().cloned().collect::<Vec<_>>();
     rows.push(Stored::Live(Box::new(record.clone())));
     let mut preparation = record.clone();

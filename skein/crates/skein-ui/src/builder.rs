@@ -8,8 +8,8 @@ use crate::Binding;
 use crate::Limits;
 use crate::tree::length;
 use crate::{
-    Drawing, DrawingKind, EntryKind, Fraction, Key, Modifier, Node, Picture, Region, Role, Run, Shortcut, SlotRef,
-    Sort, Source, Spans, State, Style, TextRun, Tree, Value,
+    Drawing, DrawingKind, EntryKind, Fraction, Key, MenuButton, Modifier, Node, Picture, Region, Role, Run, Shortcut,
+    SlotRef, Sort, Source, Spans, State, Style, TextRun, Tree, Value,
 };
 
 use alloc::boxed::Box;
@@ -35,12 +35,19 @@ pub(crate) struct PlacedSlot {
     index: u32,
 }
 
+#[derive(Debug)]
+struct OpenNode {
+    index: u32,
+    // This node's own charged bytes, excluding its children.
+    text_bytes: u32,
+}
+
 /// A tree under construction and its bounded parent stack.
 #[derive(Debug)]
 pub struct Builder {
     pub(crate) tree: Tree,
     pub(crate) limits: Limits,
-    open: Stack<u32>,
+    open: Stack<OpenNode>,
     text_bytes: u32,
     bindings: u32,
     focused: bool,
@@ -98,26 +105,31 @@ impl Builder {
         self.open_with_runs(role, runs);
     }
 
-    fn open_with_runs(&mut self, role: Role, runs: u32) {
+    fn check_node_room(&self) {
         assert!(self.tree.nodes.room() > 0, "tree fits its node capacity");
         assert!(self.open.len() < self.limits.depth, "tree fits its depth capacity");
+    }
+
+    fn open_with_runs(&mut self, role: Role, runs: u32) {
+        self.check_node_room();
         let index = self.tree.len();
         let node = Node::new(role, &self.limits, runs);
         self.tree.nodes.push(node).expect("tree fits its node capacity");
-        self.open.push(index).expect("tree fits its depth capacity");
+        self.open.push(OpenNode { index, text_bytes: 0 }).expect("tree fits its depth capacity");
     }
 
     /// End the innermost node and record its full subtree's size.
     pub fn close(&mut self) {
-        let index = self.open.pop().expect("a node is open");
+        let index = self.open.pop().expect("a node is open").index;
         let size = self.tree.len().checked_sub(index).expect("node precedes its children");
         let node = self.tree.nodes.get_mut(index).expect("open node exists");
+        assert!(node.role != Role::Meter || node.fraction.is_some(), "a meter has a fraction");
         assert!(node.fraction.is_none() || !node.text.is_empty(), "a fraction has its words");
         node.size = size;
     }
 
     fn index(&self) -> u32 {
-        *self.open.top().expect("an attribute has an open node")
+        self.open.top().expect("an attribute has an open node").index
     }
     fn node(&self) -> &Node {
         self.tree.get(self.index()).expect("open node exists")
@@ -128,30 +140,40 @@ impl Builder {
     }
 
     fn charge(&mut self, old: u32, new: u32) {
-        let node_bytes = self
-            .node()
-            .text_bytes()
-            .checked_sub(old)
-            .expect("old bytes are held")
-            .checked_add(new)
-            .expect("node bytes fit u32");
+        if old == new {
+            return;
+        }
+        let held = self.open.top().expect("an attribute has an open node").text_bytes;
+        let bytes = self.charge_bytes(held, old, new);
+        self.open.top_mut().expect("an attribute has an open node").text_bytes = bytes;
+    }
+
+    fn charge_bytes(&mut self, held: u32, old: u32, new: u32) -> u32 {
+        let node_bytes =
+            held.checked_sub(old).expect("old bytes are held").checked_add(new).expect("node bytes fit u32");
         assert!(node_bytes <= self.limits.text_per_node, "node fits its text capacity");
         let total =
             self.text_bytes.checked_sub(old).expect("old bytes are held").checked_add(new).expect("tree bytes fit u32");
         assert!(total <= self.limits.text_bytes, "tree fits its text capacity");
         self.text_bytes = total;
+        node_bytes
     }
 
-    /// Build a text leaf with one run.
+    /// Build a text leaf with one run, without entering the parent stack.
     pub fn text(&mut self, run: Run, bytes: &[u8]) {
-        self.open_with_runs(Role::Text, 1);
-        self.run(run, bytes);
-        self.close();
+        self.check_node_room();
+        let mut node = Node::new(Role::Text, &self.limits, 1);
+        if !bytes.is_empty() {
+            self.charge_bytes(0, 0, length(bytes));
+            let text = copy_of(bytes);
+            node.text.push(TextRun { run, text }).expect("one run fits the text capacity");
+        }
+        self.tree.nodes.push(node).expect("tree fits its node capacity");
     }
 
-    /// Append a nonempty run to an open text node or progress; empty spans take no storage.
+    /// Append a nonempty run to an open text node, progress or meter; empty spans take no storage.
     pub fn run(&mut self, run: Run, bytes: &[u8]) {
-        assert!(self.node().role.takes_runs(), "runs belong to text nodes or progress");
+        assert!(self.node().role.takes_runs(), "runs belong to text nodes, progress or meters");
         if bytes.is_empty() {
             return;
         }
@@ -160,9 +182,12 @@ impl Builder {
         self.node_mut().text.push(TextRun { run, text }).expect("nonempty runs fit the text capacity");
     }
 
-    /// Say how far a progress has gone, its runs saying it in words.
+    /// Give a progress or meter its fraction, its runs saying it in words.
     pub fn fraction(&mut self, fraction: Fraction) {
-        assert!(self.node().role == Role::Progress, "fractions belong to progress");
+        assert!(
+            self.node().role == Role::Progress || self.node().role == Role::Meter,
+            "fractions belong to progress or meters"
+        );
         assert!(fraction.total > 0, "a fraction's total is above zero");
         assert!(fraction.done <= fraction.total, "a fraction's done is at most its total");
         self.node_mut().fraction = Some(fraction);
@@ -209,6 +234,21 @@ impl Builder {
         self.charge(old, length(bytes));
         let hint = copy_of(bytes);
         self.node_mut().hint = Some(hint);
+    }
+    /// Give a menu's button its words and name, within the menu's text bound
+    /// (ui/README.md, 3.2 and 13).
+    pub fn menu_button(&mut self, words: &[u8], name: &[u8]) {
+        assert!(self.node().role == Role::Menu, "a menu's button belongs to a menu");
+        assert!(!self.node().states.as_slice().contains(&State::Options), "an options menu has no button");
+        let old = match &self.node().button {
+            Some(button) => length(&button.words).checked_add(length(&button.name)).expect("button bytes fit u32"),
+            None => 0,
+        };
+        let new = length(words).checked_add(length(name)).expect("button bytes fit u32");
+        self.charge(old, new);
+        let words = copy_of(words);
+        let name = copy_of(name);
+        self.node_mut().button = Some(MenuButton { words, name });
     }
     /// Offer the keyboard or control for a text field.
     pub fn entry(&mut self, kind: EntryKind) {
@@ -260,8 +300,12 @@ impl Builder {
 
     /// Add a semantic state once.
     pub fn state(&mut self, state: State) {
+        if state == State::ShownFolded {
+            self.check_shown_folded();
+        }
         if state == State::Options {
             assert!(self.node().role == Role::Menu, "options belongs to menus");
+            assert!(self.node().button.is_none(), "an options menu has no button");
         }
         if state == State::Required {
             assert!(self.node().role.takes_required(), "required belongs to fields");
@@ -283,6 +327,28 @@ impl Builder {
         }
         if !self.node().states.as_slice().contains(&state) {
             self.node_mut().states.push(state).expect("states fit the node capacity");
+        }
+    }
+
+    fn check_shown_folded(&mut self) {
+        let current = self.open.pop().expect("a node is open");
+        let parent = self.open.top().expect("shown folded has a parent").index;
+        self.open.push(current).expect("open node fits its previous room");
+        assert!(
+            self.tree.get(parent).expect("parent exists").role == Role::Disclosure,
+            "shown folded belongs to disclosure children"
+        );
+        let first = parent.checked_add(1).expect("child index fits u32");
+        let mut next = first;
+        for at in first..self.index() {
+            if at == next {
+                let child = self.tree.get(at).expect("earlier child exists");
+                assert!(
+                    child.states.as_slice().contains(&State::ShownFolded),
+                    "shown folded children precede ordinary children"
+                );
+                next = at.checked_add(child.size).expect("subtree end fits u32");
+            }
         }
     }
 
@@ -629,6 +695,7 @@ fn acted_on(role: Role) -> bool {
         | Role::TreeItem
         | Role::Tabs
         | Role::Progress
+        | Role::Meter
         | Role::Time
         | Role::Code
         | Role::Quote

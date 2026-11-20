@@ -131,6 +131,12 @@ which is not the head temper saw. A pull request GitHub takes out of
 its queue for any reason but its merge is repaired, as a failed CI is,
 the repairing step naming GitHub's reason. Forgejo has no such queue.
 
+A change whose write waits for room in the forge's outbox
+(`../../domain/forge/room.md`, 7) stays at the step its decision
+started from, and its panel carries the wait: the page says "Waiting
+for room in the forge outbox." beneath that step's line until it is
+admitted (`../pages/task.md`, 3). A held change shows its hold instead.
+
 ### 2.2 What it shows
 
 - **Its pull request:** number, title, head and base, state,
@@ -198,11 +204,13 @@ What the first milestone needs of the forge's parts (`../../README.md`,
 section 2, steps 6 and 7):
 
 - **Its result,** a connector's result (jig's
-  `client/domain/objects.md`, section 8), given at cleared
+  `client/domain/objects.md`, section 8), given at cleared, or at
+  landed where its project's kind 4 says `wait: landed`
   (`../../domain/after-landing.md`, section 6): landed, with its pull
   request's number and title, its merge commit (through GitHub's merge
   queue, the commit its group landed), and the address of each on the
-  forge, and cleared, or uncleared past the verification bound; or ended otherwise, with what became of its pull request
+  forge, and cleared, uncleared past the verification bound, or ended at
+  landing with after landing to judge it later; or ended otherwise, with what became of its pull request
   and its branch. It shows on the change's page, in the chat that
   delegated it, as its delegate's result, and in the update of the
   person who asked for it.

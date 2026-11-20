@@ -53,11 +53,14 @@ pub fn header(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &
             | jig_client::contract::WaitsOn::Delegates
             | jig_client::contract::WaitsOn::News
             | jig_client::contract::WaitsOn::Nothing => {
-                words.chat_status(
-                    b,
-                    &jig_client::facts::chat_status(&doc.chip, &doc.waits_on, doc.run_wait.as_ref(), doc.project, me),
-                    client.wall(),
-                );
+                let status =
+                    jig_client::facts::chat_status(&doc.chip, &doc.waits_on, doc.run_wait.as_ref(), doc.project, me);
+                words.chat_status(b, &status, client.wall());
+                if status == jig_client::facts::ChatStatus::RunWaiting(jig_client::facts::RunWaitKind::Account)
+                    && let Some(wait) = &doc.run_wait
+                {
+                    words.run_wait(b, wait);
+                }
             }
         }
     }

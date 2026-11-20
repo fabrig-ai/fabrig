@@ -185,6 +185,8 @@ fn hold(value: c::Hold) -> &'static [u8] {
         c::Hold::PullClosed => b"the pull request closed without a merge",
         c::Hold::Retargeted => b"the pull request was retargeted",
         c::Hold::Failed => b"a delegate or effect failed",
+        c::Hold::Flake => b"its repair found only flakes",
+        c::Hold::NoTest => b"its repair found no failed test",
         c::Hold::Rejected => b"a required gate was rejected",
         c::Hold::Authority(_) => b"the next delegate needs more authority",
         c::Hold::Questions => b"the question allowance was exhausted",

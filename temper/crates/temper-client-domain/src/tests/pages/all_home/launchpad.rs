@@ -19,6 +19,13 @@ fn offer_goals(fixture: &mut Across) {
 fn task_subject(fixture: &Across, project: Option<u32>, tracked: Option<bool>) -> Watchable {
     Watchable::Jig(c::Subject::Tasks {
         query: c::TaskQuery {
+            parts: if project.is_some() && tracked.is_none() {
+                List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+                    temper_client_protocol_wire::CHAT_PART,
+                )]))
+            } else {
+                List::with_capacity(0)
+            },
             project,
             requester: Some(c::Requester::Person(f::PARTY)),
             root: None,
@@ -94,7 +101,7 @@ fn tasks(fixture: &mut Across, watch: Token, project: u32, tracked: Option<bool>
     rows.push(task_line(project, tracked)).expect("fixture rows grow");
     fixture.up(Up::Watched {
         watch,
-        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more }))),
+        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more, ended_mark: 0 }))),
     });
 }
 
@@ -227,6 +234,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
             fixture.up(Up::ReadDone {
                 read: *read,
                 result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
                     live: List::uncapped(),
                     live_after: None,
                     ended: c::EndedGroup::None,
@@ -246,14 +254,10 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
     );
     fixture.told(last, family_answer(w::Outcome::Looked));
     let mut dismissed = List::with_capacity(wire::DISMISSED);
-    dismissed
-        .push(w::PersonFact::ToBegin(
-            w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: FIRST }).expect("skip row"),
-        ))
-        .expect("fixture rows grow");
+    dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: FIRST })).expect("fixture rows grow");
     let out = fixture.family(
         fixture.watch(forge::dismissed::watch(&fixture.limits.forge).expect("dismissals subject")),
-        wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).expect("dismissals")),
+        wire::dismissals(&w::Dismissals { dismissed }),
     );
     assert_eq!(looks(&out).as_ref(), [FIRST], "Home's own look, no across duplicate");
     let own = last_key(&fixture);
@@ -261,21 +265,18 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
     assert!(looks(&fixture.settle()).is_empty(), "no second look");
     assert!(looks(&fixture.frame(&[FIRST, SECOND, THIRD])).is_empty(), "reconfiguration keeps looks");
     for (project, at) in [(FIRST, 10), (SECOND, 20), (THIRD, 30)] {
-        let mut document = crate::tests::fixtures::status::document(3, 1, Some(3)).into_parts();
+        let mut document = crate::tests::fixtures::status::document(3, 1, Some(3));
         document.project = project;
         document.previous = Some(5);
         if project == THIRD {
             document.brief = None;
         } else if let Some(brief) = document.brief.take() {
-            let mut brief = brief.into_parts();
+            let mut brief = brief;
             brief.at = at;
             brief.lede = b"Ready! More follows.".as_slice().into();
-            document.brief = Some(w::StatusBrief::new(&w::CEILINGS, brief).expect("brief"));
+            document.brief = Some(brief);
         }
-        fixture.family(
-            fixture.status_watch(project),
-            wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, document).expect("status")),
-        );
+        fixture.family(fixture.status_watch(project), wire::project_status(&document));
     }
     let out = inbox(&mut fixture, &[THIRD, SECOND]);
     questions(&mut fixture, &out);
@@ -283,9 +284,9 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
     for row in &facts.projects {
         match &row.status {
             Status::Shown(document) => {
-                assert_eq!(document.project(), row.project);
-                assert_eq!(document.landed(), 3);
-                assert_eq!(document.seen(), 1);
+                assert_eq!(document.project, row.project);
+                assert_eq!(document.landed, 3);
+                assert_eq!(document.seen, 1);
             }
             Status::Unknown => panic!("status not shown for {}", row.project),
         }
@@ -310,9 +311,9 @@ fn launchpad_decided_prioritizes_root_then_distinct_open_needs_then_me_to_four()
     for (_, subject) in &fixture.opened {
         if let Watchable::Family { record, .. } = subject
             && let w::Watch::Decided(row) =
-                wire::decode_watching(&record.bytes, &w::CEILINGS).expect("forge subject").watch()
+                &wire::decode_watching(&record.bytes, &w::CEILINGS).expect("forge subject").watch
         {
-            projects.push(row.project()).expect("fixture projects grow");
+            projects.push(row.project).expect("fixture projects grow");
         }
     }
     assert_eq!(projects.as_slice(), [FIRST, THIRD, SECOND, FOURTH]);
@@ -327,28 +328,16 @@ fn launchpad_decided_prioritizes_root_then_distinct_open_needs_then_me_to_four()
     };
     let mut asked = List::with_capacity(1);
     asked
-        .push(
-            w::Asked::new(
-                &w::CEILINGS,
-                w::AskedParts {
-                    number: 1,
-                    task: u64::from(THIRD),
-                    at: 0,
-                    reach: temper_protocol_reaches::reach_record(&reach),
-                },
-            )
-            .expect("asked row"),
-        )
+        .push(w::Asked {
+            number: 1,
+            task: u64::from(THIRD),
+            at: 0,
+            reach: temper_protocol_reaches::reach_record(&reach),
+        })
         .expect("fixture rows grow");
     fixture.family(
         fixture.decided_watch(THIRD),
-        wire::decisions(
-            &w::Decisions::new(
-                &w::CEILINGS,
-                w::DecisionsParts { project: THIRD, rows: List::with_capacity(0), asked, cut: false },
-            )
-            .expect("decisions"),
-        ),
+        wire::decisions(&w::Decisions { project: THIRD, rows: List::with_capacity(0), asked, cut: false }),
     );
     let open = fixture
         .root
@@ -381,11 +370,11 @@ fn launchpad_findings_and_decided_keep_the_root_once_before_needs() {
                 if let Watchable::Family { record, .. } = subject {
                     let watch = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("forge subject");
                     if kind == "findings" {
-                        if let w::Watch::Findings(row) = watch.watch() {
-                            projects.push(row.project()).expect("fixture projects grow");
+                        if let w::Watch::Findings(row) = &watch.watch {
+                            projects.push(row.project).expect("fixture projects grow");
                         }
-                    } else if let w::Watch::Decided(row) = watch.watch() {
-                        projects.push(row.project()).expect("fixture projects grow");
+                    } else if let w::Watch::Decided(row) = &watch.watch {
+                        projects.push(row.project).expect("fixture projects grow");
                     }
                 }
             }
@@ -455,6 +444,7 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
         }
         fixture.go(Address::Home { project: FIRST });
         let query = c::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(FIRST),
             label: Some(3),
             order: c::QueryOrder::Number,
@@ -475,7 +465,11 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
         let rows = List::from_boxed(Box::new([first, second]));
         let out = fixture.up(Up::Watched {
             watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: false }))),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
+                rows: rows.clone(),
+                more: false,
+            }))),
         });
         assert_eq!(now_reads(&out).len(), usize::from(enabled));
         if enabled {
@@ -501,7 +495,11 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
             }
             let out = fixture.up(Up::Watched {
                 watch,
-                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                    ended_mark: 0,
+                    rows,
+                    more: false,
+                }))),
             });
             let reads = now_reads(&out);
             let (task, pending) = *reads.first().expect("refresh Now");

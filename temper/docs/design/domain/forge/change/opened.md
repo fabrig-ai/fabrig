@@ -38,7 +38,8 @@ are `../../../client/forge/records.md`'s:
 - `branch`, the source branch, in that repository; `at`, the commit the
   person means, as 40 or 64 lowercase hexadecimal digits, none for its
   head when the change takes it;
-- `into`, the landing branch, none for the repository's default branch;
+- `into`, the landing branch, none for the repository's landing branch
+  (`../adoption.md`, 8);
 - `title`; `body`, none or more words;
 - `budget`: an amount, or as allowed.
 
@@ -51,7 +52,8 @@ The root resolves it before anything is made. Each refusal is
   of them, refused naming each by owner and name (`several`); with none
   at all, refused (`no_repository`, a case the draft leaves unsaid); a
   named one not among them, refused (`not_a_repository`).
-- **The landing branch:** `into`, or the repository's default branch. A
+- **The landing branch:** `into`, or the repository's landing branch,
+  the one its adoption names (`../adoption.md`, 8). A
   branch under the repository's prefix, temper's own (`../branches.md`),
   is refused naming the repository and the prefix (`under_prefix`): a
   goal's branch as the target is section 8's. A branch the repository
@@ -65,7 +67,17 @@ The root resolves it before anything is made. Each refusal is
 Its outcomes: `opened`, the change's task; `open_refused`, one of the
 above; the family's `core_refused`, jig's refusal facts whole (3); or
 unknown, no longer held. A replay under the same key answers the first,
-as every keyed request is answered (jig's `domain/people/acts.md`, 1).
+as every keyed request is answered (jig's `domain/people/acts.md`, 1),
+while the forge keeps it (`../adoption.md`, 9).
+
+- **Never refused for the answers kept:** an open takes a place in the
+  forge's table of kept answers, where the oldest answered makes room
+  for it (`../adoption.md`, 9), so any number of opens within a day are
+  decided. It is answered busy only while `forge.adoptions` requests
+  are pending, which passes as they are answered.
+- **Sent again once its answer made room:** jig's people child keeps the
+  key, so the open is not decided again: it is answered unknown and
+  opens nothing new.
 
 ## 3. The change it makes
 
@@ -257,7 +269,11 @@ section 10, whose items are the stories):
   `squash`.
 - **The engine's world** (`temper/tests/engine/domain`) and the root's
   own tests: the request's expansion, its refusals, and one story from
-  the request to the change's pull request.
+  the request to the change's pull request; an open sent again once its
+  kept answer made room, answered unknown with no task made.
+- **The forge domain's own tests** (`temper-engine-domain-forge`): a
+  full table of opens' kept answers answering the next open, its oldest
+  dropped, never a pending one; every expired answer dropped at once.
 - **ctl** (`../../../client/ctl/testing.md`): the act's usage, its answer,
   its replay and its refusals.
 - **Versions:** the client wire's version refused by an engine of the
@@ -271,3 +287,7 @@ the opener rather than to a resolution or a repair; what may be opened,
 by path set and role; a goal's branch as the target; out-of-band fixes
 through the act; opening from the web's Changes page; and moving an
 opened change to its branch's newer head.
+
+Whether a second open of a branch a live change was opened from is
+refused: under a new key, it makes a second change, as nothing refuses
+it (3); only a resend under the first key opens nothing new (2).

@@ -166,14 +166,15 @@ pub(crate) struct Inputs {
 impl Inputs {
     pub fn read(
         git: &mut impl GitFace,
+        ledger: &Ledger,
         landing: &Landing,
         configured: &[String],
         kinds: &[Kind],
         build: &str,
     ) -> Result<Self, Refusal> {
         let commit = &landing.commit;
-        let parent = format!("{commit}^1");
-        let drafts = landing_drafts(git, landing)?;
+        let parent = crate::watch::landing_base(git, ledger, landing)?;
+        let drafts = landing_drafts(git, landing, &parent)?;
         let mut pages = Pages::new();
         let mut surfaces = String::new();
         if configured.iter().any(|surface| surface == "ctl") {
@@ -242,7 +243,7 @@ impl Inputs {
     }
     pub fn render(&self, home: &Home, number: u64, landing: &Landing, ledger: &Ledger) -> String {
         let mut text = format!(
-            "# Triage\n\nJudge what a person now sees or does through {}. The green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, what a person meets that these cannot show is a gap. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
+            "# Triage\n\nJudge what a person now sees or does through {}. QA judges the happy path alone: v0.1.0's stories and each part's bar, used as intended (temper/docs/design/draft/v0.1.0.md, 4). Edge cases are off it: malformed, out-of-range or oversized input, limits and bounds, refusals of bad input and their exit codes, errors, races and recovery. Write no case, step or gap for one, and answer no QA for a landing whose only change a person meets is one, saying so. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, what a person meets that these cannot show is a gap. Read only: start no box. A security hole or lost data still counts wherever it is.\n",
             opening(&self.pages),
         );
         writeln!(
@@ -333,7 +334,10 @@ impl Inputs {
         };
         write!(text, "\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{{\"surface\":\"{example}\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}}]}}\n```\nA case's surface is {names};").expect("string");
         if self.pages.contains_key("ctl") {
-            text.push_str(r#" for ctl, page is one of its groups. For ctl steps, write do as ctl or forge drive lines. Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#);
+            text.push_str(r#" for ctl, page is one of its groups. For ctl steps, write do as ctl or forge drive lines, or `temper help PAGE`. In its pass, a `temper help PAGE` step is read with the place's own program, with no box; compare its words as a `see` is. Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#);
+        }
+        if self.pages.contains_key("web") {
+            text.push_str(" For a web page whose draft promises a request budget, a step's do may be `web requests`, after a step that opens the page cold, such as a reload of its path; its see is that line's last line as the budget counts it, `N requests in W waves`: `2 requests in 2 waves` for two waves of two requests.");
         }
         text.push_str(
             " Use only the pages and setups above; give at least one step, each with nonempty do and expect.\n",
@@ -341,7 +345,7 @@ impl Inputs {
     }
 }
 
-pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing) -> Result<Vec<String>, Refusal> {
+pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing, base: &str) -> Result<Vec<String>, Refusal> {
     let commit = &landing.commit;
     let message = git.message(commit)?;
     let mut drafts = present_drafts(
@@ -350,7 +354,7 @@ pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing) -> Resul
         message.split(|c: char| !(c.is_alphanumeric() || matches!(c, '/' | '.' | '-' | '_'))).filter_map(draft_path),
     )?;
     if drafts.is_empty() {
-        let paths = git.changed_paths(&format!("{commit}^1"), commit)?;
+        let paths = git.changed_paths(base, commit)?;
         drafts = present_drafts(git, commit, paths.into_iter().filter_map(|path| draft_path(&path)))?;
     }
     Ok(drafts)

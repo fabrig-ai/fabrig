@@ -1,6 +1,6 @@
-walk 1
-see "then press Approve."
-mark
-approve
-see "Setting temper up makes your first project"
-end
+walk 2
+tui see "then press Approve."
+tui mark
+tui approve
+tui see "Setting temper up makes your first project"
+tui mark

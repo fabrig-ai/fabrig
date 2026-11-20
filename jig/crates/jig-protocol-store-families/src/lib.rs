@@ -4,26 +4,25 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/accounts_v2.rs"]
+#[path = "generated/accounts.rs"]
 pub mod accounts_v2;
 
 #[rustfmt::skip]
-#[path = "generated/component_v3.rs"]
+#[path = "generated/component.rs"]
 pub mod component_v3;
 
 #[rustfmt::skip]
-#[path = "generated/notes_v1.rs"]
+#[path = "generated/notes.rs"]
 pub mod notes_v1;
 
 #[rustfmt::skip]
-#[path = "generated/secrets_v1.rs"]
+#[path = "generated/secrets.rs"]
 pub mod secrets_v1;
 
 #[rustfmt::skip]
-#[path = "generated/openings_v1.rs"]
+#[path = "generated/openings.rs"]
 pub mod openings_v1;
 
 #[rustfmt::skip]
-#[expect(clippy::struct_field_names, reason = "the registry schema names Layout's fingerprint layout (layouts.md, 3)")]
-#[path = "generated/registry_v1.rs"]
+#[path = "generated/registry.rs"]
 pub mod registry_v1;

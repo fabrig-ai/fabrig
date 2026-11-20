@@ -157,6 +157,47 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
 }
 
 #[test]
+fn pass_brief_says_the_happy_path_and_reads_help() {
+    let world = World::new();
+    let run = ready(&world, Agent::Never);
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains(super::HAPPY_PATH));
+    assert!(brief.contains(
+        "Run a case's intended-use steps alone; an edge case met is a note (temper-qa pass note), never a finding."
+    ));
+    assert!(brief.contains("A security hole or lost data still counts wherever it is."));
+    assert!(brief.contains("Read a case's `temper help PAGE` with the place's own program, as `Help pages:` below names it. A help page needs no box; compare its words as a `see` is."));
+    assert!(brief.lines().any(|line| line.starts_with("Help pages: /") && line.ends_with("/bin/temper help PAGE")));
+}
+
+#[test]
+fn pass_brief_explains_web_requests_on_start_and_resume() {
+    let world = World::new();
+    let mut run = ready(&world, Agent::Fail);
+    for session in [2, 3] {
+        let brief = fs::read_to_string(world.home.session_directory(session).join("brief")).expect("brief");
+        let purpose = brief.split("\n\n## Pass\n").next().expect("what a pass is");
+        assert!(purpose.contains("judge the rest against the draft's promises. A `web` step whose do is `web requests` is that drive line: compare its see with the line's last shown line, `N requests in W waves`, which must equal it; one that differs is a finding, its seen the line's whole answer."), "{purpose}");
+        let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
+        assert!(drive_lines.contains("`web look [WIDTH]`, `web requests`;"), "{drive_lines}");
+        assert!(drive_lines.contains("A look prints accessible text or the TUI's frame; a web look with WIDTH also writes a screenshot. `web requests` answers the requests the page has sent since it last loaded, each with its wave, then `N requests in W waves`."), "{drive_lines}");
+        if session == 2 {
+            run.tick();
+            world
+                .home
+                .transact(|ledger| {
+                    ledger.file_request(1, 1, Some(99), 1)?;
+                    ledger.end_goal(99, 2)
+                })
+                .expect("ended goal");
+            run.processes.next.push_back(Agent::Never);
+            run.tick();
+            assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");
+        }
+    }
+}
+
+#[test]
 fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
     let world = World::new();
     let mut run = ready(&world, Agent::Fail);
@@ -292,17 +333,32 @@ fn a_bad_manifest_names_the_path_records_nothing_and_retries_next_tick() {
 
 #[test]
 fn installation_reads_sha256sum_escaped_byte_paths() {
+    installation_reads_path(std::path::Path::new("bundle/weird\\\n\r"), b"bundle/weird\\\\\\n\\r");
+}
+
+// APFS, macOS's file system, holds no file name that is not UTF-8 (temper/docs/design/testing/macos.md, 3).
+#[cfg(target_os = "linux")]
+#[test]
+fn installation_reads_a_non_utf8_manifest_path_as_its_bytes() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt, path::PathBuf};
+    installation_reads_path(
+        &PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec())),
+        b"bundle/weird\\\\\\n\\r\xff",
+    );
+}
+
+fn installation_reads_path(name: &std::path::Path, escaped: &[u8]) {
     use sha2::{Digest, Sha256};
-    use std::{ffi::OsString, io::Write, os::unix::ffi::OsStringExt, path::PathBuf};
+    use std::io::Write;
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
     let build = world.installable_build(2);
-    let name = PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec()));
-    fs::write(build.join(&name), b"escaped asset").expect("byte path");
-    let mut line = format!("\\{:x}  bundle/weird\\\\\\n\\r", Sha256::digest(b"escaped asset")).into_bytes();
-    line.extend_from_slice(b"\xff\n");
+    fs::write(build.join(name), b"escaped asset").expect("byte path");
+    let mut line = format!("\\{:x}  ", Sha256::digest(b"escaped asset")).into_bytes();
+    line.extend_from_slice(escaped);
+    line.push(b'\n');
     File::options()
         .append(true)
         .open(build.join("manifest"))
@@ -850,7 +906,7 @@ fn a_deployment_pass_installs_its_scratch_and_briefs_only_its_kind() {
             git.file_at(2, &format!("{SETUPS}/{name}/recipe"), recipe.as_bytes());
             git.file_at(2, &format!("{SETUPS}/{name}/README.md"), format!("The {name} state. More detail.").as_bytes());
         }
-        git.file_at(2, &format!("{SETUPS}/root/config/engine/temper.json"), b"{}");
+        git.file_at(2, &format!("{SETUPS}/root/config/engine/{}", temper_config_shell::FILE), &super::engine_file());
         world.installable_build(2);
         let mut run = world.start(git, &[Agent::Never]);
         run.tick();

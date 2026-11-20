@@ -25,6 +25,8 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
             Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::CheckOut { .. } => Done::Succeeded,
             other @ (Op::Reds { .. }
             | Op::Look { .. }
+            | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Create { .. }
             | Op::IsAncestor { .. }
@@ -41,6 +43,7 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
                 return;
             }
             other @ (Request::Results { .. }
+            | Request::DependencyLanded { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }

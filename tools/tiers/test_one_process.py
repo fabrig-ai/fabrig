@@ -83,6 +83,52 @@ class ProtocolTests(unittest.TestCase):
                 self.assertIn('ok a' if scenario == 'pass' else 'failed a', logfile.read_text())
 
 
+class ConfigurationTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-config-')
+        self.addCleanup(temporary.cleanup)
+        self.config = Path(temporary.name) / 'nextest.toml'
+        self.configuration = runpy.run_path(str(HERE / 'one_process.py'))['configuration']
+
+    def test_platform_overrides_are_skipped_without_compiling_filters(self):
+        rows = [('cfg(target_os = "macos")', 'slow-timeout="12s"'),
+                ('cfg(unix)', 'filter="all()"'),
+                ('cfg(unix)', 'filter="rdeps(x)"')]
+        for platform, settings in rows:
+            with self.subTest(platform=platform, settings=settings):
+                self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                                       f"platform='{platform}'\n" + settings + '\n')
+                _, overrides, _, _ = self.configuration(self.config, 'default', {}, {}, False)
+                self.assertEqual(overrides, [])
+
+    def test_platform_overrides_with_honoured_keys_are_refused(self):
+        for settings in ('priority=5', 'test-group="serial"'):
+            with self.subTest(settings=settings):
+                self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                                       'platform="cfg(unix)"\n' + settings + '\n')
+                with self.assertRaisesRegex(ValueError, 'unsupported override platform'):
+                    self.configuration(self.config, 'default', {}, {}, False)
+
+    def test_platform_overrides_keep_other_refusals(self):
+        for settings, message in (('retries=1', 'retries'),
+                                  ('slow-timeout={period="12s",terminate-after=2}', 'terminate-after'),
+                                  ('threads-required=2', 'threads-required'),
+                                  ('run-extra-args=[]', 'run-extra-args')):
+            with self.subTest(settings=settings):
+                self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                                       'platform="cfg(unix)"\n' + settings + '\n')
+                with self.assertRaisesRegex(ValueError, message):
+                    self.configuration(self.config, 'default', {}, {}, False)
+
+    def test_repository_profiles_load(self):
+        for profile in ('default', 'fuzzy'):
+            with self.subTest(profile=profile):
+                _, overrides, _, _ = self.configuration(HERE.parents[1] / '.config/nextest.toml',
+                                                        profile, {}, {}, False)
+                self.assertTrue(overrides)
+                self.assertTrue(all('platform' not in settings for _, settings in overrides))
+
+
 class RunnerFixture(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-test-')
@@ -106,13 +152,14 @@ class RunnerFixture(unittest.TestCase):
                        version='1.2.3', authors=['A', 'B'],
                        targets=[dict(name='fixture', kind=['lib'], test=True),
                                 dict(name='suite', kind=['test'], test=True)])
-        self.metadata = {'packages': [package], 'workspace_root': str(self.root)}
+        self.metadata = {'packages': [package], 'workspace_members': ['fixture-id'],
+                         'workspace_root': str(self.root)}
         self.env['CARGO_HOME'] = str(self.root / 'cargo-home')
         self.listing = {'rust-suites': {}, 'rust-build-meta': {
             'target-directory': str(self.root / 'target'), 'base-output-directories': ['debug'],
             'non-test-binaries': {'fixture-id': [{'name': 'helper', 'path': 'debug/helper', 'kind': 'bin-exe'},
                                                {'name': 'library', 'path': 'debug/library.so', 'kind': 'dylib'}]},
-            'build-script-out-dirs': {'fixture-id': str(self.root / 'out')}, 'linked-paths': {}}}
+            'build-script-out-dirs': {'fixture-id': str(self.root / 'out')}, 'linked-paths': []}}
         self.binary()
 
     def binary(self, binary_id='fixture::suite', names=('a', 'b', 'c'), native='tests'):
@@ -144,6 +191,44 @@ class RunnerFixture(unittest.TestCase):
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, previous)
+
+
+class LaneTests(RunnerFixture):
+    cpu_counts = [(None, 3, 3), ({0, 1}, 8, 2), (None, None, 1)]
+
+    def check_lane_counts(self, fixed):
+        self.binary(names=())
+        self.run.__globals__['LANES'] = fixed
+        for index, (affinity, cpus, default) in enumerate(self.cpu_counts):
+            with self.subTest(affinity=affinity, cpus=cpus), contextlib.ExitStack() as patches:
+                if affinity is None:
+                    if hasattr(os, 'sched_getaffinity'):
+                        patches.enter_context(mock.patch.object(os, 'sched_getaffinity'))
+                        del os.sched_getaffinity
+                else:
+                    patches.enter_context(mock.patch.object(os, 'sched_getaffinity',
+                                                           return_value=affinity, create=True))
+                patches.enter_context(mock.patch.object(os, 'cpu_count', return_value=cpus))
+                self.assertEqual(self.module['default_lanes'](), default)
+                self.directory = self.root / f'run-{index}'
+                self.invoke()
+                expected = fixed or default
+                self.assertEqual(self.record['lanes'], expected)
+                plan = json.loads((self.directory / 'plan.json').read_text())
+                self.assertEqual(plan['lanes'], fixed)
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.module['lanes'](plan)
+                events = [json.loads(line.removeprefix(self.module['EVENT']))
+                          for line in output.getvalue().splitlines()]
+                self.assertEqual([event['lanes'] for event in events if event['event'] == 'lanes'],
+                                 [expected])
+
+    def test_default_lanes_follow_available_cpu_counts(self):
+        self.check_lane_counts(None)
+
+    def test_fixed_lanes_ignore_cpu_counts(self):
+        self.check_lane_counts(1)
 
 
 class PlacementTests(RunnerFixture):
@@ -178,7 +263,6 @@ class PlacementTests(RunnerFixture):
             ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'domain'),
             ('a', 'temper/crates/a/Cargo.toml', 'lib', 'temper', 'step'),
             ('a::bin/a', 'temper/crates/a/Cargo.toml', 'bin', 'temper', 'step'),
-            ('a::generated', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'step'),
             ('a::unplaced', 'temper/crates/a/Cargo.toml', 'test', 'temper', None),
             ('b::suite', 'skein/tests/b/Cargo.toml', 'test', 'skein', 'protocol'),
             ('c::suite', 'smith/tests/c/Cargo.toml', 'test', 'smith', 'world'),
@@ -187,14 +271,13 @@ class PlacementTests(RunnerFixture):
             ('x', 'tests/x/Cargo.toml', 'lib', 'repository', 'checks'),
             ('x::t', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
             ('x::bin/x', 'tests/x/Cargo.toml', 'bin', 'repository', 'checks'),
-            ('x::generated', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
         ]
         self.placement_binaries(rows)
         layers = self.root / 'tools/tiers/layers.toml'
         layers.parent.mkdir(parents=True)
         layers.write_text('layers = ["step", "domain", "protocol", "world", "machine"]\n'
                           '[temper]\n"a::suite" = "domain"\n'
-                          '"a" = "world"\n"a::bin/a" = "world"\n"a::generated" = "world"\n'
+                          '"a" = "world"\n"a::bin/a" = "world"\n'
                           '[skein]\n"b::suite" = "protocol"\n'
                           '[smith]\n"c::suite" = "world"\n'
                           '[jig]\n"d::suite" = "machine"\n'
@@ -207,7 +290,6 @@ class PlacementTests(RunnerFixture):
         rows = [
             ('a', 'temper/crates/a/Cargo.toml', 'lib', 'temper', 'step'),
             ('a::bin/a', 'temper/crates/a/Cargo.toml', 'bin', 'temper', 'step'),
-            ('a::generated', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'step'),
             ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', None),
             ('x', 'tests/x/Cargo.toml', 'lib', 'repository', 'checks'),
             ('x::t', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
@@ -346,6 +428,92 @@ class ReferenceTests(RunnerFixture):
                                max(p['start_s'] + p['wall_s'] for p in results['processes'])
                                - min(p['start_s'] for p in suite))
 
+    def assert_rounds(self, results, count, *, highest=False):
+        row, = results['references']
+        self.assertEqual(len(row['runs']), count)
+        references = [p for p in results['processes'] if p['kind'] == 'reference']
+        empties = [p for p in results['processes'] if p['kind'] == 'empty']
+        self.assertEqual((len(references), len(empties)), (count, count))
+        for run, reference, empty in zip(row['runs'], references, empties):
+            self.assertEqual(set(run), {'outcome', 'process', 'empty_process', 'cpu_s'})
+            self.assertEqual(run['outcome'], 'passed')
+            self.assertEqual(results['processes'][run['process']], reference)
+            self.assertEqual(results['processes'][run['empty_process']], empty)
+            self.assertEqual(run['cpu_s'], round(max(0, reference['user_s'] + reference['system_s']
+                                                    - empty['user_s'] - empty['system_s']), 3))
+        figure = (max if highest else min)(row['runs'], key=lambda run: run['cpu_s'])
+        self.assertEqual({key: row[key] for key in figure}, figure)
+        rounds = [[results['processes'][run[key]] for key in ('process', 'empty_process')] for run in row['runs']]
+        for before, after in zip(rounds, rounds[1:]):
+            self.assertGreaterEqual(min(p['start_s'] for p in after), max(p['start_s'] + p['wall_s'] for p in before))
+        output = (self.directory / 'command-output.txt').read_text()
+        for number in range(count):
+            self.assertIn(f'round {number + 1}, passed, CPU ', output)
+        if count > 1:
+            self.assertIn(f"REFERENCE FIGURE fixture::suite b: {'highest' if highest else 'lowest'}, CPU {row['cpu_s']} s", output)
+        return row
+
+    def test_head_repeats_only_past_first_limit_and_takes_lowest(self):
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        for limit, count in ((0.001, 3), (100, 1)):
+            with self.subTest(limit=limit):
+                self.directory = self.root / str(limit)
+                results = self.invoke({'gate': {'default': {'references': {'checks': limit}}}}, ledger=dict(binaries={}))
+                row = self.assert_rounds(results, count)
+                self.assertEqual(row['run_limit_s'], limit)
+
+    def test_flagged_running_limit_uses_ledger_median_or_reference_or_line(self):
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        for history, reference, line, limit, count in (([100, 10, 20], 0.001, None, 30, 1),
+                ([0], 100, None, 100, 1), ([], 0.001, None, 0.001, 3),
+                ([], 0.001, 100, 100, 1), ([], None, None, None, 1)):
+            with self.subTest(history=history, reference=reference, line=line):
+                self.directory = self.root / f'case-{reference}-{line}-{limit}'
+                profile = {'references': {} if reference is None else {'checks': reference}}
+                if line is not None:
+                    profile['reasons'] = [dict(binary='fixture::suite', test='b', cpu_s=line)]
+                ledger = dict(binaries={'fixture::suite': dict(tests={'b': [0]}, alone={'b': history})})
+                results = self.invoke({'gate': {'default': profile}}, ledger=ledger)
+                row = self.assert_rounds(results, count)
+                self.assertEqual((row['why'], row['run_limit_s']), ('flagged', limit))
+
+    def test_later_rounds_share_bounds_and_leave_unstarted_runs_unobserved(self):
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        execute = self.module['execute_plan']
+        cpu = execute.__globals__['CPU']
+        original = cpu['reference_limit']
+        for hard in (False, True):
+            with self.subTest(hard=hard):
+                self.directory = self.root / str(hard)
+                # Let the first round settle, then spend the remainder of the bound
+                # computing its limit. No later process may start after that bound.
+                def delayed_limit(*args, **kwargs):
+                    time.sleep(0.5)
+                    return original(*args, **kwargs)
+                plan_builder = execute.__globals__['make_plan']
+                def bounded(*args):
+                    plan = plan_builder(*args)
+                    plan['global_timeout'] = None if hard else 0.5
+                    return plan
+                limits = {'gate': {'default': {'references': {'checks': 0.001}}}}
+                if hard:
+                    limits['default'] = {'wall_hard_s': 0.5}
+                with mock.patch.dict(cpu, reference_limit=delayed_limit), mock.patch.dict(
+                        execute.__globals__, make_plan=bounded):
+                    results = self.invoke(limits, ledger=dict(binaries={}))
+                row, = results['references']
+                self.assertEqual(row['runs'][0]['outcome'], 'passed')
+                self.assertGreater(row['runs'][0]['cpu_s'], row['run_limit_s'])
+                self.assertEqual({key: row[key] for key in row['runs'][0]}, row['runs'][0])
+                self.assertEqual(row['runs'][1:], [dict(outcome='unobserved', process=None,
+                                 empty_process=None, cpu_s=None)] * 2)
+                self.assertEqual([p['kind'] for p in results['processes']], ['tests', 'reference', 'empty'])
+                self.assertEqual(results['cancelled'], 'wall-hard' if hard else 'global-timeout')
+                self.assertTrue(self.record['starved'])
+
     def test_reference_failure_is_not_a_suite_failure(self):
         self.binary(names=('a_passes', 'c_reads'), native='again')
         results = self.invoke(ledger=dict(binaries={}))
@@ -353,6 +521,8 @@ class ReferenceTests(RunnerFixture):
         self.assertEqual([(r['test_name'], r['outcome']) for r in results['references']],
                          [('a_passes', 'passed'), ('c_reads', 'failed')])
         self.assertIsNone(results['references'][1]['cpu_s'])
+        self.assertIsNone(results['references'][1]['run_limit_s'])
+        self.assertEqual(len(results['references'][1]['runs']), 1)
         self.assertEqual([p['kind'] for p in results['processes']],
                          ['tests', 'reference', 'empty', 'reference'])
         self.assertIsNone(ET.parse(self.directory / 'junit.xml').find('.//failure'))
@@ -481,9 +651,9 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(code, 0)
         ledger = cpu['ledger'](self.directory / 'ledger.json')
         result = cpu['summary'](self.directory)
-        self.assertEqual(ledger, dict(ledger=2, profile='default', budgets={}, moves=[], binaries={
+        self.assertEqual(ledger, dict(ledger=3, profile='default', budgets={}, moves=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
-                                  cpu_s=sum(p['cpu_s'] for p in result['processes']),
+                                  cpu=[sum(p['cpu_s'] for p in result['processes'])],
                                   tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={})}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
 
@@ -584,10 +754,152 @@ class BaseTests(RunnerFixture):
         return subprocess.run([*command, *extra], cwd=self.root, env=env, stdin=subprocess.DEVNULL,
                               capture_output=True, text=True, timeout=10)
 
+    def test_base_runs_three_rounds_and_takes_highest(self):
+        self.head([self.flagged()])
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        base = self.root / 'base output'
+        results = json.loads((base / 'results.json').read_text())
+        row, = results['references']
+        self.assertEqual(len(row['runs']), 3)
+        self.assertIsNone(row['run_limit_s'])
+        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'] * 3)
+        for number, run in enumerate(row['runs']):
+            self.assertEqual((run['outcome'], run['process'], run['empty_process']), ('passed', number * 2, number * 2 + 1))
+            reference, empty = (results['processes'][run[key]] for key in ('process', 'empty_process'))
+            self.assertEqual(run['cpu_s'], round(max(0, reference['user_s'] + reference['system_s']
+                                                    - empty['user_s'] - empty['system_s']), 3))
+            if number:
+                before = results['processes'][(number - 1) * 2:number * 2]
+                self.assertGreaterEqual(min(reference['start_s'], empty['start_s']),
+                                        max(p['start_s'] + p['wall_s'] for p in before))
+        figure = max(row['runs'], key=lambda run: run['cpu_s'])
+        self.assertEqual({key: row[key] for key in figure}, figure)
+        output = (base / 'command-output.txt').read_text()
+        for number in range(3):
+            self.assertIn(f'round {number + 1}, passed, CPU ', output)
+        self.assertIn(f"REFERENCE FIGURE fixture::suite b: highest, CPU {row['cpu_s']} s", output)
+
+    def test_two_packages_list_only_their_targets(self):
+        self.binary('zebra', names=('c',))
+        self.listing['rust-suites']['zebra'].update({
+            'package-id': 'zebra-id', 'kind': 'lib', 'binary-name': 'zebra'})
+        self.metadata['packages'].insert(0, dict(
+            self.metadata['packages'][0], id='zebra-id', name='zebra',
+            targets=[dict(name='zebra', kind=['rlib'], test=True)]))
+        self.metadata['workspace_members'].append('zebra-id')
+        for package in self.metadata['packages']:
+            listing = dict(self.listing, **{'rust-suites': {
+                binary: suite for binary, suite in self.listing['rust-suites'].items()
+                if suite['package-id'] == package['id']}})
+            (self.root / f"listing-{package['name']}.json").write_text(json.dumps(listing))
+        self.head([self.flagged('c', 'zebra'), self.flagged('b'), self.flagged('a')], profile='candidate')
+        self.config.write_text('[profile.default]\n[profile.candidate]\nglobal-timeout="2s"\n')
+        self.metadata['target_directory'] = str(self.root / 'target')
+        result = self.invoke_base(default_out=True, extra=('-E', 'all()', '--no-fail-fast'),
+                                  hold=str(self.root / 'hold'))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        listing_args = ['nextest', 'list', '--message-format', 'json', '--profile', 'candidate',
+                        '--config-file', str(self.config)]
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['metadata', '--format-version', '1', '--no-deps'],
+                                 [*listing_args, '-p', 'fixture', '--test', 'suite', '-E', 'all()'],
+                                 [*listing_args, '-p', 'zebra', '--lib', '-E', 'all()']])
+        prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
+        self.assertEqual([call[1:] for call in prefixed[:2]], calls[2:])
+        self.assertEqual(len(prefixed), 5)
+        events = [json.loads(line) for line in (self.root / 'hold-events.jsonl').read_text().splitlines()]
+        self.assertEqual(events[0][0], 'hold-start')
+        self.assertEqual([event[1] for event in events if event[0] == 'cargo'], calls)
+        self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
+        base = Path(result.stdout.splitlines()[0])
+        output = (base / 'command-output.txt').read_text()
+        self.assertLess(output.index('fixture::suite'), output.index('"zebra"'))
+        self.assertEqual(output.count('fixture listing prefix'), 2)
+        self.assertEqual(output.count('fixture listing suffix'), 2)
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual([(r['binary_id'], r['test_name'], r['why'], r['outcome'])
+                          for r in results['references']],
+                         [('fixture::suite', 'a', 'base', 'passed'),
+                          ('fixture::suite', 'b', 'base', 'passed'), ('zebra', 'c', 'base', 'passed')])
+        self.assertEqual(len(results['processes']), 15)
+        for row in results['references']:
+            reference, empty = (results['processes'][row[key]] for key in ('process', 'empty_process'))
+            self.assertEqual((reference['binary_id'], reference['kind'], reference['tests']),
+                             (row['binary_id'], 'reference', [row['test_name']]))
+            self.assertEqual((empty['binary_id'], empty['kind'], empty['tests']),
+                             (row['binary_id'], 'empty', []))
+            self.assertIsInstance(row['cpu_s'], (int, float))
+
+    def test_one_package_combines_targets_in_binary_id_order(self):
+        self.binary('fixture', names=('a',))
+        self.listing['rust-suites']['fixture'].update({'kind': 'lib', 'binary-name': 'fixture'})
+        self.head([self.flagged(), self.flagged('a', 'fixture')])
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                  '--config-file', str(self.config), '-p', 'fixture', '--lib', '--test', 'suite']])
+        results = json.loads((self.root / 'base output/results.json').read_text())
+        self.assertEqual([(r['binary_id'], r['outcome']) for r in results['references']],
+                         [('fixture', 'passed'), ('fixture::suite', 'passed')])
+        self.assertEqual(len(results['processes']), 12)
+
+    def test_binary_target_uses_bin_flag(self):
+        self.metadata['packages'][0]['targets'].append(dict(name='tool', kind=['bin'], test=True))
+        self.binary('fixture::bin/tool', names=('a',))
+        self.listing['rust-suites']['fixture::bin/tool'].update({'kind': 'bin', 'binary-name': 'tool'})
+        self.head([self.flagged('a', 'fixture::bin/tool')])
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls[1:], [
+            ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+             '--config-file', str(self.config), '-p', 'fixture', '--bin', 'tool']])
+        results = json.loads((self.root / 'base output/results.json').read_text())
+        row, = results['references']
+        self.assertEqual((row['binary_id'], row['outcome']), ('fixture::bin/tool', 'passed'))
+
+    def test_example_and_bench_target_flags(self):
+        for kind in ('example', 'bench'):
+            with self.subTest(kind=kind):
+                self.assertEqual(self.module['target_flags'](f'fixture::{kind}/tool'), ['--' + kind, 'tool'])
+
+    def test_listing_build_environments_are_unioned(self):
+        first = {'rust-suites': {'fixture::suite': {}}, 'rust-build-meta': {
+            'target-directory': '/target', 'base-output-directories': ['debug'],
+            'non-test-binaries': {'fixture-id': [{'name': 'one'}]},
+            'build-script-out-dirs': {'fixture-id': 'out/fixture'},
+            'linked-paths': ['debug/build/shared/out']}}
+        second = {'rust-suites': {'zebra': {}}, 'rust-build-meta': {
+            'target-directory': '/target', 'base-output-directories': ['debug', 'custom'],
+            'non-test-binaries': {'fixture-id': [{'name': 'one'}, {'name': 'two'}],
+                                  'zebra-id': [{'name': 'zebra'}]},
+            'build-script-out-dirs': {'zebra-id': 'out/zebra'},
+            'linked-paths': ['debug/build/shared/out', 'debug/build/zebra/out']}}
+        listing = self.module['merge_listings']([first, second])
+        self.assertEqual(set(listing['rust-suites']), {'fixture::suite', 'zebra'})
+        self.assertEqual(listing['rust-build-meta'], {
+            'target-directory': '/target', 'base-output-directories': ['debug', 'custom'],
+            'non-test-binaries': {'fixture-id': [{'name': 'one'}, {'name': 'two'}],
+                                  'zebra-id': [{'name': 'zebra'}]},
+            'build-script-out-dirs': {'fixture-id': 'out/fixture', 'zebra-id': 'out/zebra'},
+            'linked-paths': ['debug/build/shared/out', 'debug/build/zebra/out']})
+
+    def test_listings_with_different_target_directories_are_refused(self):
+        listings = [{'rust-suites': {}, 'rust-build-meta': {'target-directory': target}}
+                    for target in ('/first', '/second')]
+        with self.assertRaisesRegex(ValueError, 'different target directories'):
+            self.module['merge_listings'](listings)
+
     def test_head_base_and_judgement_meet(self):
         self.env['FIXTURE_CASE'] = 'slow'
         ledger = dict(profile='default', budgets={}, moves=[], binaries={'fixture::suite': dict(
-            tree='repository', layer='checks', cpu_s=1.0,
+            tree='repository', layer='checks', cpu=[1.0],
             tests={'a': [10], 'b': [0], 'c': [10]}, alone={'b': [100]})})
         head = self.invoke(ledger=ledger)
         self.assertEqual([(r['test_name'], r['why']) for r in head['references']], [('b', 'flagged')])
@@ -604,7 +916,7 @@ class BaseTests(RunnerFixture):
                          {'plan.json', 'run.json', 'results.json', 'command-output.txt'})
         results = json.loads((base / 'results.json').read_text())
         self.assertEqual((results['tests'], results['unobserved']), ([], []))
-        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'])
+        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'] * 3)
         self.assertEqual(results['processes'][0]['tests'], ['b'])
         row, = results['references']
         self.assertEqual((row['binary_id'], row['test_name'], row['why'], row['outcome']),
@@ -613,11 +925,13 @@ class BaseTests(RunnerFixture):
         self.assertGreaterEqual(row['cpu_s'], 0)
         self.assertEqual(times.read_bytes(), times_before)
         calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
-        self.assertEqual(calls[0], ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
-                                   '--config-file', str(self.config), '-p', 'fixture', '-E', 'test(=b)'])
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                  '--config-file', str(self.config), '-p', 'fixture', '--test', 'suite',
+                                  '-E', 'test(=b)']])
         prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
-        self.assertEqual(len(prefixed), 2)
-        self.assertEqual(prefixed[0][1:], calls[0])
+        self.assertEqual(len(prefixed), 4)
+        self.assertEqual(prefixed[0][1:], calls[1])
         self.assertEqual(prefixed[1][-2:], ['lanes', str(base / 'plan.json')])
         summary = self.module['CPU']['summary'](
             self.directory, {'gate': {'default': {'references': {'checks': 1}}}}, ledger=ledger, base=base)
@@ -639,7 +953,9 @@ class BaseTests(RunnerFixture):
 
     def test_missing_and_filtered_names_at_base(self):
         self.head([self.flagged('gone'), self.flagged(binary='absent::bin/tool'), self.flagged(),
-                   self.flagged('a', why='new')])
+                   self.flagged(binary='fixture::removed'), self.flagged('a', why='new')])
+        # Even an over-inclusive listing cannot supply a target absent from metadata.
+        self.binary('fixture::removed', names=('b',))
         self.listing['rust-suites']['fixture::suite']['testcases']['b']['filter-match'] = {
             'status': 'mismatch', 'reason': 'default-filter'}
         self.config.write_text('[profile.default]\ndefault-filter="none()"\n')
@@ -650,26 +966,40 @@ class BaseTests(RunnerFixture):
         self.assertEqual([(r['binary_id'], r['test_name'], r['why'], r['outcome'])
                           for r in results['references']],
                          [('absent::bin/tool', 'b', 'base', 'missing'),
+                          ('fixture::removed', 'b', 'base', 'missing'),
                           ('fixture::suite', 'b', 'base', 'passed'),
                           ('fixture::suite', 'gone', 'base', 'missing')])
         for row in results['references']:
             if row['outcome'] == 'missing':
                 self.assertEqual((row['cpu_s'], row['process'], row['empty_process']), (None, None, None))
+                self.assertEqual((row['runs'], row['run_limit_s']), ([], None))
                 self.assertIn(f"{row['binary_id']} {row['test_name']}: base, missing",
                               (base / 'command-output.txt').read_text())
-        self.assertEqual([p['tests'] for p in results['processes']], [['b'], []])
+        self.assertEqual([p['tests'] for p in results['processes']], [['b'], []] * 3)
         calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
-        self.assertEqual(calls[0][-4:], ['-p', 'absent', '-p', 'fixture'])
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                  '--config-file', str(self.config), '-p', 'fixture', '--test', 'suite']])
         self.assertFalse((self.root / 'target/tiers-one-process/times.json').exists())
 
     def test_all_missing_has_no_process(self):
-        self.head([self.flagged(binary='absent')])
+        self.metadata['packages'][0]['targets'].append(dict(name='disabled', kind=['test'], test=False))
+        self.metadata['packages'].append(dict(self.metadata['packages'][0], id='dependency-id', name='dependency'))
+        self.head([self.flagged(binary=binary) for binary in
+                   ('absent', 'fixture::removed', 'fixture::disabled', 'dependency::suite')])
         result = self.invoke_base()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        results = json.loads((self.root / 'base output/results.json').read_text())
-        self.assertEqual(results['processes'], [])
-        row, = results['references']
-        self.assertEqual((row['outcome'], row['cpu_s']), ('missing', None))
+        base = self.root / 'base output'
+        self.assertEqual({p.name for p in base.iterdir()},
+                         {'plan.json', 'run.json', 'results.json', 'command-output.txt'})
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual((results['processes'], results['tests'], results['unobserved']), ([], [], []))
+        self.assertEqual([(row['binary_id'], row['outcome'], row['cpu_s']) for row in results['references']],
+                         [(binary, 'missing', None) for binary in
+                          ('absent', 'dependency::suite', 'fixture::disabled', 'fixture::removed')])
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps']])
+        self.assertFalse((self.root / 'prefix-argv.jsonl').exists())
 
     def test_nonpasses_still_exit_zero_and_use_head_profile_bound(self):
         for scenario, name, native, outcome in (
@@ -679,8 +1009,9 @@ class BaseTests(RunnerFixture):
                 self.head([self.flagged(name)], profile='candidate')
                 self.binary(names=(name,), native=native)
                 self.env['FIXTURE_CASE'] = scenario
+                bound = '100ms' if scenario == 'hang' else '2s'
                 self.config.write_text('[profile.default]\nglobal-timeout="10s"\n'
-                                       '[profile.candidate]\nglobal-timeout="100ms"\n')
+                                       f'[profile.candidate]\nglobal-timeout="{bound}"\n')
                 base = self.root / f'base-{scenario}'
                 result = self.invoke_base(directory=base)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -688,8 +1019,10 @@ class BaseTests(RunnerFixture):
                 row, = results['references']
                 self.assertEqual((row['outcome'], row['cpu_s']), (outcome, None))
                 plan = json.loads((base / 'plan.json').read_text())
-                self.assertEqual((plan['profile'], plan['global_timeout']), ('candidate', 0.1))
+                self.assertEqual((plan['profile'], plan['global_timeout']), ('candidate', 0.1 if scenario == 'hang' else 2))
                 self.assertEqual(results['cancelled'], 'global-timeout' if scenario == 'hang' else None)
+                self.assertEqual([run['outcome'] for run in row['runs']],
+                                 [outcome, 'unobserved', 'unobserved'] if scenario == 'hang' else [outcome] * 3)
 
     def test_invalid_invocations_exit_two(self):
         self.head()
@@ -922,6 +1255,26 @@ class HoldTests(RunnerFixture):
         self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
         self.assertEqual(sum(e[0] == 'hold-start' for e in events), 1)
         self.assertIn('default: 1 tests', result.stdout)
+
+    def test_waiting_hold_delays_metadata_until_held(self):
+        command, env = self.prepare_command(str(self.root / 'hold') + ' waiting')
+        result = subprocess.run(command, cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 4, result.stderr)
+        events = self.events()
+        self.assertEqual(events[0][0:2], ['hold-start', ['waiting']])
+        self.assertEqual(events[1], ['held'], events)
+        self.assertEqual(events[2][0:2], ['cargo', ['metadata', '--format-version', '1', '--no-deps']])
+        self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
+        self.assertEqual(sum(e[0] == 'hold-start' for e in events), 1)
+        lines = result.stderr.splitlines()
+        self.assertEqual(lines[0:3], ['one-process: hold: waiting for a build place',
+                                     'smith-check: waiting', 'smith-check: admitted'])
+        self.assertRegex(lines[3], r'^one-process: hold: held after [0-9]+ s$')
+        self.assertEqual(sum(line == 'smith-check: waiting' for line in lines), 1)
+        self.assertEqual(sum(line == 'smith-check: admitted' for line in lines), 1)
+        self.assertEqual(sum(line == 'one-process: hold: waiting for a build place' for line in lines), 1)
+        self.assertIn('default: 0 tests', result.stdout)
 
     def test_unset_or_empty_hold_starts_none(self):
         for setting in (None, ''):
@@ -1335,7 +1688,7 @@ class RunnerTests(RunnerFixture):
             ('inherits="fuzzy"', [], {}, {}),
             ('[[profile.default.overrides]]\nfilter="all()"\nthreads-required=2', [], {}, {}),
             ('[[profile.default.overrides]]\nfilter="all()"\nrun-extra-args=[]', [], {}, {}),
-            ('[[profile.default.overrides]]\nfilter="all()"\nplatform="cfg(unix)"', [], {}, {}),
+            ('[[profile.default.overrides]]\nfilter="all()"\nplatform="cfg(unix)"\npriority=5', [], {}, {}),
             ('', ['--no-run'], {}, {}), ('', ['--config-file', 'x'], {}, {}),
             ('', ['--tool-config-file=x'], {}, {}), ('', ['--profile', 'fuzzy'], {}, {}), ('', ['-Pfuzzy'], {}, {}),
             ('', ['--stress-count=2'], {}, {}), ('', ['--stress-duration=1s'], {}, {}),

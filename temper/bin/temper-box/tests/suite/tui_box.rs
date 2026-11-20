@@ -28,6 +28,7 @@ struct Terminal {
     closing: bool,
     client_exit: Option<Exit>,
     bytes: Vec<u8>,
+    screen: support::screen::Screen,
     keys: VecDeque<Box<[u8]>>,
     complete: Queue<Complete>,
     submit: Queue<Submit>,
@@ -41,6 +42,7 @@ impl Terminal {
             closing: false,
             client_exit: None,
             bytes: Vec::new(),
+            screen: support::screen::Screen::new(80, 24),
             keys: VecDeque::from([Box::from(b"\n".as_slice())]),
             complete: Queue::with_capacity(8),
             submit: Queue::with_capacity(8),
@@ -61,7 +63,9 @@ impl Host for Terminal {
                 let Op::PipeRead { buf, .. } = done.kind else { panic!("terminal read") };
                 match done.result {
                     Ok(Done::Count(count)) if count > 0 => {
-                        self.bytes.extend_from_slice(&buf[..usize::try_from(count).expect("read count")]);
+                        let bytes = &buf[..usize::try_from(count).expect("read count")];
+                        self.bytes.extend_from_slice(bytes);
+                        self.screen.read(bytes);
                         assert!(self.bytes.len() <= 262_144, "bounded terminal output");
                     }
                     Ok(Done::Count(_)) | Err(_) => {
@@ -191,7 +195,7 @@ impl Referee<Root> for Judge {
             };
             terminal.client_exit = client.exit_status();
             match self.phase {
-                Phase::Connecting if terminal.has(b"Live") && !terminal.writing => {
+                Phase::Connecting if terminal.screen.has(b"Live") && !terminal.writing => {
                     if !box_link::link_path(&self.root).is_file() {
                         return Err(String::from("the handed link signed in and serve renewed it"));
                     }
@@ -235,19 +239,23 @@ impl Referee<Root> for Judge {
                     }
                     self.phase = Phase::Project;
                 }
-                Phase::Project if terminal.has(b"playground") && !terminal.writing => {
+                Phase::Project if terminal.screen.has(b"playground") && !terminal.writing => {
                     terminal.bytes.clear();
+                    terminal.screen.watch(b"Add CSV export to widget");
+                    terminal.screen.watch(b"Working");
                     terminal.keys(b"Add CSV export to widget\r");
                     self.phase = Phase::Chat;
                 }
                 // The echoed input can precede the running chat read by the TUI.
                 Phase::Chat
-                    if terminal.has(b"Add CSV export to widget") && terminal.has(b"Working") && !terminal.writing =>
+                    if terminal.screen.seen(b"Add CSV export to widget")
+                        && terminal.screen.seen(b"Working")
+                        && !terminal.writing =>
                 {
                     terminal.keys(b"\x03");
                     self.phase = Phase::Question;
                 }
-                Phase::Question if terminal.has(b"Stop the box?") && !terminal.writing => {
+                Phase::Question if terminal.screen.has(b"Stop the box?") && !terminal.writing => {
                     terminal.keys(b"\r");
                     calls.release();
                     self.phase = Phase::Stopping;
@@ -310,8 +318,14 @@ fn run(case: Case, name: &str) {
     let initialized = box_link::command(root, "init").arg("--box").output().expect("initialize box");
     assert!(initialized.status.success());
     support::own_listener_files(&root.join("config"));
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(root.join("config/temper.json")).expect("configuration")).expect("document");
+    let document: serde_json::Value = serde_json::from_slice(
+        &support::read_start(
+            &root.join("config").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::Standalone,
+        )
+        .document,
+    )
+    .expect("document");
     let address = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)

@@ -198,7 +198,7 @@ pub(super) fn check(request: &Request, items: &wire::Workspace, limits: &crate::
             }
             true
         }
-        wire::Access::Writable { push, expected: None, landing: None } => {
+        wire::Access::Writable { push, expected: None, landing: None, .. } => {
             let [member] = request.members.as_ref() else { return false };
             match &member.prefix {
                 Some(prefix) => prefix == push,

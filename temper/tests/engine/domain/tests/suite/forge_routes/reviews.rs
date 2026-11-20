@@ -222,6 +222,12 @@ fn rendered_review_world(
     journal: u32,
     content: &[u8],
 ) -> (World, engine::Assignment, engine::Assignment, [u8; 32]) {
+    let (mut world, goal, producer, branch) = rendered_change_world(bound, journal);
+    let (reviewer, head) = rendered_review_in(&mut world, &producer, &branch, content);
+    (world, goal, reviewer, head)
+}
+
+fn rendered_change_world(bound: u32, journal: u32) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
     world.env.limits.call_answer_bytes = bound;
     world.env.limits.journal.transcript_bytes = journal;
@@ -230,14 +236,23 @@ fn rendered_review_world(
     let world = world.with_forge_client(client);
     let (mut world, goal, producer, branch) = change_world_in(world, Change { tracked: true, ..Change::default() });
     world.fake_env.limits.limits.content_bytes = READ_ROOM;
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"generated", content, 1)
+    (world, goal, producer, branch)
+}
+
+fn rendered_review_in(
+    world: &mut World,
+    producer: &engine::Assignment,
+    branch: &[u8],
+    content: &[u8],
+) -> (engine::Assignment, [u8; 32]) {
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"generated", content, 1)
         .expect("generated file pushed");
     let review_index = world.assigned.len();
-    let head = produce(&mut world, &producer, &branch);
-    let reviewer = next_assignment(&mut world, review_index);
+    let head = produce(world, producer, branch);
+    let reviewer = next_assignment(world, review_index);
     world.protocol.defer_render = true;
-    (world, goal, reviewer, head)
+    (reviewer, head)
 }
 
 fn render_read(
@@ -276,7 +291,7 @@ fn render_read(
     }
     let (to, name) = world.protocol.pending_renders.pop().expect("read reached rendering");
     assert_eq!(name.as_ref(), u64::from(number).to_be_bytes().as_slice(), "render of requested call");
-    let answer = &world.protocol.answers.last().expect("typed read").1;
+    let (rendered, answer) = world.protocol.answers.last_mut().expect("typed read");
     assert!(
         matches!(answer, engine::CallAnswer::ForgeRead(result) if result.is_ok()),
         "fake read {number} using {}: {answer:?}",
@@ -288,7 +303,7 @@ fn render_read(
             .into_parts();
     assert!(!error, "renderer produced a full answer");
     // The scripted worker identifies successful relays by their rendered body.
-    world.protocol.answers.push((body.clone(), answer.clone()));
+    rendered.clone_from(&body);
     (to, jig_domain_core::SettledAnswer::Host { error, body })
 }
 
@@ -306,11 +321,11 @@ fn settle_read(world: &mut World, to: ReplyTo, answer: jig_domain_core::SettledA
 fn assert_render_refusal(world: &mut World, run: &engine::Assignment, tool: &[u8], limit: &str, measured: usize) {
     let error = world.call_errors.last().expect("oversized read refused");
     let text = core::str::from_utf8(&error.text).expect("refusal text");
-    for expected in [limit, &measured.to_string(), "read_file", "both endpoints", "max_bytes"] {
+    for expected in [limit, &measured.to_string(), "read_forge what=file", "both endpoints", "max_bytes"] {
         assert!(text.contains(expected), "read refusal must name {expected}: {text}");
     }
     if tool == b"read_compare" {
-        for expected in ["read_pull", "head", "read_pull_files", "page"] {
+        for expected in ["read_issues what=pull", "head", "read_issues what=pull_files", "page"] {
             assert!(text.contains(expected), "compare fallback {expected}: {text}");
         }
     }
@@ -334,7 +349,9 @@ fn assert_render_refusal(world: &mut World, run: &engine::Assignment, tool: &[u8
 
 #[test]
 fn oversized_forge_reads_name_the_bound_and_emit_a_refusal() {
-    let (mut world, goal, reviewer, head) = rendered_review_world(READ_BOUND, READ_ROOM, &vec![b'x'; GENERATED_BYTES]);
+    let (mut world, goal, producer, branch) = rendered_change_world(READ_BOUND, READ_ROOM);
+    rendered_read_edges(&mut world, &producer, &branch);
+    let (reviewer, head) = rendered_review_in(&mut world, &producer, &branch, &vec![b'x'; GENERATED_BYTES]);
     let input = pull_files_input(&world, &reviewer, head);
     let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
     let measured = answer_size(&answer) + b"read_pull_files".len();
@@ -353,7 +370,6 @@ fn oversized_forge_reads_name_the_bound_and_emit_a_refusal() {
     settle_read(&mut world, to, answer);
     assert_eq!(world.call_errors.len(), errors, "names-only compare fits despite large contents");
     assert_eq!(world.answers.len(), answered + 1);
-    rendered_read_edges();
     rendered_read_journal();
 }
 
@@ -362,23 +378,30 @@ fn answer_size(answer: &jig_domain_core::SettledAnswer) -> usize {
     body.len()
 }
 
-fn rendered_read_edges() {
+fn rendered_read_edges(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
     // Both added files have absent before-sides; the renderer's framing counts too.
     let overhead =
         b"generated\n[absent]\n->\n\nfile\n[absent]\n->\nreview this diff\n".len() + b"read_pull_files".len();
     for extra in [-1_i32, 0, 1] {
+        match skein_fork::split() {
+            skein_fork::Split::Parent(exit) => {
+                assert_eq!(exit, skein_fork::Exit::Code(0), "read bound offset {extra}");
+                continue;
+            }
+            skein_fork::Split::Child => {}
+        }
         let bytes =
             usize::try_from(i64::from(READ_BOUND) - i64::try_from(overhead).expect("framing") + i64::from(extra))
                 .expect("positive file size");
-        let (mut world, _, reviewer, head) = rendered_review_world(READ_BOUND, READ_ROOM, &vec![b'x'; bytes]);
-        let input = pull_files_input(&world, &reviewer, head);
-        let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
+        let (reviewer, head) = rendered_review_in(world, producer, branch, &vec![b'x'; bytes]);
+        let input = pull_files_input(world, &reviewer, head);
+        let (to, answer) = render_read(world, &reviewer, 11, b"read_pull_files", input.as_bytes());
         let measured = answer_size(&answer) + b"read_pull_files".len();
         assert_eq!(i64::try_from(measured).expect("answer size"), i64::from(READ_BOUND) + i64::from(extra));
         let answered = world.answers.len();
-        settle_read(&mut world, to, answer);
+        settle_read(world, to, answer);
         if extra > 0 {
-            assert_render_refusal(&mut world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
+            assert_render_refusal(world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
         } else {
             assert!(world.call_errors.is_empty(), "answer at or below bound fits");
             assert_eq!(world.answers.len(), answered + 1, "fitting answer reaches its host");
@@ -387,6 +410,7 @@ fn rendered_read_edges() {
                     .all(|fact| !matches!(fact, engine::Fact::ReadRefused { layer: "host-render", .. }))
             );
         }
+        skein_fork::passed();
     }
 }
 
@@ -456,9 +480,7 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
     let busy = world.busy_calls;
     ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false });
     ask_read(&mut world, &reviewer, 11, forge_world::REPO, Read::Checks { commit: head });
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     assert_eq!(world.answers.len(), before, "admission Busy is not a model-visible forge error");
     assert_eq!(world.busy_calls, busy + 2, "both calls use the host's backoff path");
     let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
@@ -474,15 +496,11 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
         world.send(event);
     }
     // The scripted worker plays the host's retry after capacity has progressed.
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     let pull = read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false });
     assert!(matches!(pull, Ok(Answer::Pull(pull)) if pull.number == 1 && pull.commit == head));
     assert_review_checks(read(&mut world, &reviewer, 11, forge_world::REPO, Read::Checks { commit: head }));
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     assert_eq!(world.answers.len(), before + 2, "each pending call has one terminal answer");
 }
 
@@ -557,14 +575,10 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
         }
     }
     assert!(continued, "the change consumes its Commits and continues its own gather");
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     let answer = read(&mut world, &reviewer, 10, forge_world::REPO, file);
     assert!(matches!(answer, Ok(Answer::File { .. })), "the run gets its File: {answer:?}");
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     assert!(
         world.answers[before..].iter().all(|answer| matches!(answer,
         engine::CallAnswer::ForgeRead(result) if matches!(result.as_ref(), Ok(Answer::File { .. })))),
@@ -605,9 +619,7 @@ fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
     let held = occupy_read_capacity(&mut world);
     let before = world.answers.len();
     ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false });
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     assert_eq!(world.busy_calls, 1);
     assert_eq!(world.answers.len(), before);
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -625,9 +637,7 @@ fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
     for event in held {
         world.send(event);
     }
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     assert!(matches!(live_task(&world, reviewer.task).phase, tasks::Phase::Closing(_)));
     assert_eq!(world.answers.len(), before, "the cancelled host sends no retry");
     assert_eq!(world.call_errors.len(), 0);
@@ -641,9 +651,7 @@ fn reviewer_read_errors_are_terminal_without_backoff() {
         read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 999, ci: false }),
         Err(Error::Missing)
     );
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     assert_eq!(world.busy_calls, busy);
     assert_eq!(
         world
@@ -704,14 +712,10 @@ fn reviewer_reads_back_off_for_the_background_reserve() {
     }
     assert!(world.pending.len() < world.env.limits.forge.client.pending as usize);
     ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Checks { commit: head });
-    for _ in 0..8 {
-        world.tick();
-    }
+    world.advance_ticks(8);
     assert_eq!(world.answers.len(), before);
     assert_eq!(world.busy_calls, busy + 1, "background reserve uses host backoff despite free call slots");
-    for _ in 0..110 {
-        world.tick();
-    }
+    world.advance_ticks(110);
     assert_review_checks(read(&mut world, &reviewer, 10, forge_world::REPO, Read::Checks { commit: head }));
     assert_eq!(world.answers.len(), before + 1);
 }
@@ -964,9 +968,7 @@ fn a_second_failed_review_holds_the_change_naming_it() {
     let second = next_assignment(&mut world, 3);
     assert_review_head(&world, &second, head);
     finish_review(&mut world, &second, tasks::TaskResult::Failure { reason: SECOND_FAILURE.into() });
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     let row = change_row(&world, change);
     assert!(matches!(row.change.state, State::Held { why: Hold::Failed, .. }), "{:?}", row.change.state);
     assert_eq!(row.change.repairs, 0);
@@ -1005,49 +1007,55 @@ fn a_request_for_changes_is_still_a_repair() {
 // temper/docs/design/domain/forge/change/repairs.md: a failed review repair holds at its attempted count.
 #[test]
 fn a_failed_review_repair_names_its_task_account_and_release() {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate { agent: true, ..Gate::default() },
+        None,
+        StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
+    );
+    world.adopt();
+    let mut hello = super::landing::hello_prepare(2);
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
+        &mut hello
+    else {
+        panic!("worker hello")
+    };
+    worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(hello);
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let engine::CallAnswer::Delegated(made) =
+        super::change_tool::change(&mut world, &chat, 93, None, b"Keep both lines")
+    else {
+        panic!("change")
+    };
+    let change = made[0].task;
+    let producer = next_assignment(&mut world, 1);
+    let branch = producer.workspace.repositories[0].push.clone().expect("branch");
+    produce(&mut world, &producer, &branch);
+    for _ in 0..MAX_TICKS {
+        world.prepare_tick();
+        if world.assigned.len() > 2 {
+            break;
+        }
+    }
+    let review = world.assigned.get(2).expect("landing member review").clone();
+    reject_lost_content(&mut world, &review, b"keep both lines");
+    let repair = next_assignment(&mut world, 3);
     for (reason, no_change) in
         [(b"cannot preserve both lines".as_slice(), false), (b"".as_slice(), false), (b"".as_slice(), true)]
     {
-        let mut world = World::configured_limits(
-            true,
-            true,
-            false,
-            1000,
-            Gate { agent: true, ..Gate::default() },
-            None,
-            StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
-        );
-        world.adopt();
-        let mut hello = super::landing::hello_prepare(2);
-        let engine::Event::Worker(engine::WorkerInput::Link {
-            link: engine::Link::Hello { hello: worker, .. }, ..
-        }) = &mut hello
-        else {
-            panic!("worker hello")
-        };
-        worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
-        world.send(hello);
-        let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
-        batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
-        let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
-        let engine::CallAnswer::Delegated(made) =
-            super::change_tool::change(&mut world, &chat, 93, None, b"Keep both lines")
-        else {
-            panic!("change")
-        };
-        let change = made[0].task;
-        let producer = next_assignment(&mut world, 1);
-        let branch = producer.workspace.repositories[0].push.clone().expect("branch");
-        produce(&mut world, &producer, &branch);
-        for _ in 0..MAX_TICKS {
-            world.prepare_tick();
-            if world.assigned.len() > 2 {
-                break;
+        match skein_fork::split() {
+            skein_fork::Split::Parent(exit) => {
+                assert_eq!(exit, skein_fork::Exit::Code(0), "repair account {reason:?}, no change {no_change}");
+                continue;
             }
+            skein_fork::Split::Child => {}
         }
-        let review = world.assigned.get(2).expect("landing member review").clone();
-        reject_lost_content(&mut world, &review, b"keep both lines");
-        let repair = next_assignment(&mut world, 3);
         let result = if no_change {
             tasks::TaskResult::NoChange { words: reason.into() }
         } else {
@@ -1064,7 +1072,11 @@ fn a_failed_review_repair_names_its_task_account_and_release() {
         let words = core::str::from_utf8(words).expect("hold words");
         for expected in [
             format!("its repair, task {}", repair.task),
-            if reason.is_empty() { "gave no account".into() } else { String::from_utf8(reason.into()).unwrap() },
+            if reason.is_empty() {
+                if no_change { "gave no account".into() } else { "Its run declared failure without a reason.".into() }
+            } else {
+                String::from_utf8(reason.into()).unwrap()
+            },
             "release this change to ask for a fresh repair".into(),
         ] {
             assert!(words.contains(&expected), "missing {expected:?}: {words}");
@@ -1077,6 +1089,7 @@ fn a_failed_review_repair_names_its_task_account_and_release() {
         assert_ne!(replacement.task, repair.task);
         assert_eq!(requester(&world, replacement.task), change);
         assert_eq!(live_task(&world, change).made, made_before + 1);
+        skein_fork::passed();
     }
 }
 
@@ -1132,9 +1145,7 @@ fn delivered_review_repair(moved: bool, idle: bool) {
         world.protocol.answer(CHANNEL, repair.task, repair.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
     if idle {
-        for _ in 0..MAX_TICKS {
-            world.tick();
-        }
+        world.advance_ticks(MAX_TICKS);
         let head = fake::advance(
             &mut world.fake,
             &world.fake_env,
@@ -1145,9 +1156,7 @@ fn delivered_review_repair(moved: bool, idle: bool) {
             2,
         )
         .expect("another writer advances the idle repair's branch");
-        for _ in 0..MAX_TICKS {
-            world.tick();
-        }
+        world.advance_ticks(MAX_TICKS);
         let row = change_row(&world, change);
         assert_ne!(row.delegate.map(|(task, _)| task), Some(repair.task), "stale repair must end: {row:?}");
         assert!(!matches!(
@@ -1494,9 +1503,7 @@ fn a_released_change_with_a_declined_approval_is_held_again() {
     let (mut world, task, _) = held_for(Hold::Rejected);
     let revision = live_task(&world, task).revisions.hold;
     release(&mut world, task);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert!(matches!(change_row(&world, task).change.state, State::Held { why: Hold::Rejected, .. }));
     assert!(matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
     assert!(live_task(&world, task).revisions.hold > revision, "a fresh task hold matches the unchanged verdict");
@@ -1662,9 +1669,7 @@ fn a_change_past_its_tasks_holds_naming_them() {
 fn a_bare_release_of_a_change_past_its_tasks_holds_it_again() {
     let (mut world, task, _) = past_tasks();
     release(&mut world, task);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert_authority_hold(
         &world,
         task,
@@ -1793,9 +1798,7 @@ fn a_change_past_its_depth_holds_naming_it() {
     let (mut world, task, _) = held_review();
     change_authority(&mut world, task, None, Some(0), None);
     release(&mut world, task);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert_authority_hold(
         &world,
         task,
@@ -1811,9 +1814,7 @@ fn a_change_below_a_runs_reserve_holds_naming_it() {
     let spent = live_task(&world, task).numbers.spent + live_task(&world, task).numbers.spent_below;
     change_authority(&mut world, task, None, None, Some(spent + 1));
     release(&mut world, task);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert_authority_hold(
         &world,
         task,
@@ -1837,9 +1838,7 @@ fn a_producers_result_is_a_push_while_gating_and_only_the_change_reports_a_landi
         if words.as_ref() == b"pushed" && !words.windows(6).any(|word| word.eq_ignore_ascii_case(b"landed"))));
     approve(&mut world, &reviewer);
     assert_lands(&mut world, change);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert_eq!(ended_result(&world, producer.task), &push);
     assert!(matches!(ended_result(&world, change), tasks::TaskResult::Change { kind: 1, words, .. }
         if words.split(|byte| *byte == b'\n').next().is_some_and(|line| line.len() == 32 && line.iter().all(u8::is_ascii_hexdigit))));
@@ -1995,7 +1994,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
 
 /// Stop after the producer releases its reservation, before the review is delegated.
 fn before_review() -> (World, u64) {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     // The task read includes the change's grants and its amendment offers.
     documents.grants = 16;
     let world =
@@ -2117,7 +2116,7 @@ fn concurrent_change(world: &mut World, key: u8, words: &[u8]) -> u64 {
     task
 }
 
-fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
+pub(super) fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..MAX_TICKS {
         world.tick();
         for run in &world.assigned {
@@ -2134,7 +2133,7 @@ fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
 }
 
 fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 32;
     documents.text_bytes = 512;
     let mut world = World::configured_limits(
@@ -2202,9 +2201,7 @@ fn independent_alpha_and_beta_start_while_a_large_change_is_pending() {
 fn beta_at_an_eight_task_limit_waits_for_room_then_starts_its_producer() {
     let (mut world, large, alpha, beta) = pending_large_with_alpha_and_beta(8);
     let _producer = producer_for(&mut world, alpha);
-    for _ in 0..80 {
-        world.tick();
-    }
+    world.advance_ticks(80);
     let problem = std::iter::from_fn(|| world.root.pop_fact())
         .find_map(|fact| match fact {
             engine::Fact::StepRefused { task, problem, .. } if task == beta => Some(problem),
@@ -2236,7 +2233,7 @@ fn beta_at_an_eight_task_limit_waits_for_room_then_starts_its_producer() {
 
 #[test]
 fn a_vetoed_open_holds_as_its_procedure_naming_the_effect_and_decision() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 16;
     documents.text_bytes = 512;
     let world =
@@ -2260,7 +2257,7 @@ fn a_vetoed_open_holds_as_its_procedure_naming_the_effect_and_decision() {
 
 #[test]
 fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 16;
     documents.text_bytes = 512;
     let world =
@@ -2284,8 +2281,7 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 
 #[test]
 fn a_gate_repairs_with_its_whole_remarks_before_its_named_pull() {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let world = World::configured_limits(
         true,
         true,

@@ -316,30 +316,14 @@ fn shared_person_line_names_the_reader_and_waits_only_when_read() {
 fn shared_finding_refusal_says_full_and_context_free_owners_and_areas() {
     use temper_client_protocol_wire::v1 as w;
     let words = Words::english(1, 4096, crate::words::Shell::Browser).expect("English");
-    let full =
-        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).expect("full"));
+    let full = w::FindingRefusal::Full(w::FindingsFull { count: 128 });
     assert_eq!(shared::finding_refusal(&words, &full).as_ref(), b"the project's findings are full: 128 new");
-    let areas = w::FindingRefusal::NoArea(
-        w::FindingAreas::new(
-            &w::CEILINGS,
-            w::FindingAreasParts {
-                areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"core".as_slice().into()])),
-            },
-        )
-        .expect("areas"),
-    );
+    let areas = w::FindingRefusal::NoArea(w::FindingAreas {
+        areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"core".as_slice().into()])),
+    });
     assert_eq!(shared::finding_refusal(&words, &areas).as_ref(), b"No such area; its areas: tests, core");
-    let held = w::FindingRefusal::NotYours(
-        w::FindingNotYours::new(
-            &w::CEILINGS,
-            w::FindingNotYoursParts {
-                holder: w::Holder::Task(
-                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).expect("task"),
-                ),
-            },
-        )
-        .expect("holder"),
-    );
+    let held =
+        w::FindingRefusal::NotYours(w::FindingNotYours { holder: w::Holder::Task(w::HolderTask { number: 41 }) });
     assert_eq!(shared::finding_refusal(&words, &held).as_ref(), b"Not yours: its owner is task 41");
 }
 
@@ -396,5 +380,132 @@ fn findings_reach_words_name_the_triager_and_the_work() {
         );
         assert_eq!(shared::offer(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), offer.as_bytes());
         assert_eq!(shared::rule(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), rule.as_bytes());
+    }
+}
+
+#[test]
+fn delegation_headings_and_shared_lines_cut_titles_in_both_shells() {
+    use skein_ui::{Builder, Role};
+    for (title, cut) in f::row_titles() {
+        let mut task = f::delegation::change();
+        task.chip.title = f::delegation::document(title);
+        for words in [f::browser_words(), f::words()] {
+            assert_eq!(shared::delegation_line(&task, &words).title.as_ref(), cut);
+            for terminal in [false, true] {
+                let mut b = Builder::new(&f::tree_limits());
+                let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+                if terminal {
+                    crate::cards::delegation::terminal_card(&mut b, &task, &words, &mut bindings);
+                } else {
+                    crate::cards::delegation::card(&mut b, &task, &words, &mut bindings);
+                }
+                let tree = b.finish();
+                let heading = tree.nodes().iter().find(|node| node.role == Role::Heading { level: 3 }).unwrap();
+                assert_eq!(heading.name.as_deref(), Some(cut));
+                assert_eq!(f::text(&tree).windows(cut.len()).filter(|bytes| *bytes == cut).count(), 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn proposal_titles_stay_whole_while_shared_lines_keep_their_cut() {
+    let root = f::chat::proposal_root();
+    let mut card = root.pages().cards().unwrap().as_slice().first().unwrap().clone();
+    for (title, cut) in f::row_titles() {
+        let mut page = f::cards::batch_proposal();
+        let c::ReadValue::Proposal(proposal) = &mut page else { unreachable!() };
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { unreachable!() };
+        tasks.get_mut(0).unwrap().spec.specification.words =
+            f::delegation::document(&skein_lib::bytes::concat(&[title, b"\nThe rest is not the title"]));
+        card.page = Some(page);
+        assert_eq!(shared::proposal_title(&card).unwrap().as_ref(), title);
+        for words in [f::browser_words(), f::words()] {
+            assert_eq!(shared::proposal_line(&card, &words).unwrap().as_ref(), cut);
+        }
+    }
+    let mut proposal = f::needs::proposal(c::Proposer::Task(f::INBOX_TASK));
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 1,
+        items: List::with_capacity(0),
+        review: None,
+        made: None,
+    }));
+    let title = f::row_titles()[0].0;
+    proposal.reason = f::delegation::document(&skein_lib::bytes::concat(&[title, b"\nReason body"]));
+    card.page = Some(c::ReadValue::Proposal(Box::new(proposal)));
+    assert_eq!(shared::proposal_title(&card).unwrap().as_ref(), title);
+    assert_eq!(shared::proposal_line(&card, &f::words()).unwrap().as_ref(), title);
+    let c::ReadValue::Proposal(proposal) = card.page.as_mut().unwrap() else { unreachable!() };
+    proposal.action = c::ProposalAction::Batch(List::uncapped());
+    assert_eq!(shared::proposal_title(&card).unwrap().as_ref(), title);
+    assert_eq!(shared::proposal_line(&card, &f::words()).unwrap().as_ref(), title);
+    card.page = Some(c::ReadValue::Task(Box::new(f::task::document())));
+    assert_eq!(shared::proposal_title(&card), None);
+    assert_eq!(shared::proposal_line(&card, &f::words()), None);
+    card.page = None;
+    assert_eq!(shared::proposal_title(&card), None);
+    assert_eq!(shared::proposal_line(&card, &f::words()), None);
+}
+
+#[test]
+fn result_cards_and_close_delegate_rows_cut_titles_in_both_shells() {
+    use skein_ui::{Builder, Role};
+    for (title, cut) in f::row_titles() {
+        let mut task = f::delegation::change();
+        task.chip.title = f::delegation::document(title);
+        let result = c::Result {
+            task: task.chip.clone(),
+            ending: c::Ending::Done,
+            value: None,
+            at: None,
+            details: None,
+            acts: List::uncapped(),
+        };
+        let mut parent = f::task::document();
+        parent.delegates =
+            List::from_boxed(Box::new([c::LiveDelegate { chip: task.chip.clone(), takeover_budget: 0 }]));
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            crate::cards::result(&mut b, &result, &words);
+            let tree = b.finish();
+            assert!(f::find(&tree, Role::Heading { level: 3 }, cut).is_some());
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            crate::confirm::fates(
+                &mut b,
+                &parent,
+                &[c::Operation::Cancel {
+                    project: f::PROJECT,
+                    task: task.chip.task,
+                    reason: f::delegation::text(b"closed"),
+                    grace: None,
+                }],
+                crate::words::Word::CloseTitle,
+                &words,
+                &mut bindings,
+            );
+            let tree = b.finish();
+            let fate = skein_lib::bytes::concat(&[b"T2 ", cut, b" is cancelled."]);
+            assert!(skein_lib::bytes::find(&f::text(&tree), &fate).is_some());
+        }
+    }
+}
+
+#[test]
+fn the_chat_switcher_cuts_titles_without_changing_its_destinations() {
+    for (title, cut) in f::row_titles() {
+        let mut row = f::chats::line();
+        row.chip.title = f::delegation::document(title);
+        let root = f::chats::listed(&[row], &[], false);
+        for words in [f::browser_words(), f::words()] {
+            let choices = shared::chats(&root, &words);
+            let choice = choices
+                .iter()
+                .find(|choice| choice.act == Act::Go { address: d::Address::Chat { task: f::chats::TASK } })
+                .unwrap();
+            assert_eq!(choice.words.as_ref(), cut);
+        }
     }
 }

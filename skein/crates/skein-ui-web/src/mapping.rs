@@ -134,7 +134,7 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
         code.children = std::mem::take(&mut e.children);
         e.append(code);
     }
-    if a.role == Role::Progress {
+    if a.role == Role::Progress || a.role == Role::Meter {
         let text: String = made.text.iter().map(|run| words(&run.text)).collect();
         if !text.is_empty() {
             e.set("aria-valuetext", &text);
@@ -169,8 +169,13 @@ fn menu_element(mut e: Element, made: &Made) -> Element {
     button.set("type", "button");
     button.set("aria-haspopup", "menu");
     button.set("aria-controls", &id);
+    if let Some(menu_button) = &a.button {
+        button.set("aria-label", &words(&menu_button.name));
+    }
     button.set("aria-expanded", "false");
-    if let Some(name) = &a.name {
+    if let Some(menu_button) = &a.button {
+        button.text(&menu_button.words);
+    } else if let Some(name) = &a.name {
         button.text(name);
     }
     let mut pair = Element::new("");
@@ -320,6 +325,7 @@ fn base(role: Role, id: u32) -> Element {
         | Role::TreeItem
         | Role::Tabs
         | Role::Progress
+        | Role::Meter
         | Role::Time
         | Role::Code
         | Role::Quote
@@ -361,7 +367,7 @@ fn state_attribute(e: &mut Element, role: Role, state: State) {
             },
             if role.is_selectable() { "" } else { "true" },
         ),
-        State::Completed | State::Continues | State::Options => {}
+        State::ShownFolded | State::Completed | State::Continues | State::Options => {}
         State::Required => {
             let native = role.has_native_required();
             e.set(if native { "required" } else { "aria-required" }, if native { "" } else { "true" });
@@ -438,6 +444,7 @@ pub const fn accessible(role: Role) -> &'static [&'static [u8]] {
         Role::Tabs => &[b"tablist"],
         Role::Tab => &[b"tab"],
         Role::Progress => &[b"progressbar"],
+        Role::Meter => &[b"meter"],
         Role::Time => &[b"time"],
         Role::Quote => &[b"blockquote"],
         Role::Separator => &[b"separator"],
@@ -506,6 +513,7 @@ fn name(e: &mut Element, made: &Made) {
             | Role::TreeItem
             | Role::Tabs
             | Role::Progress
+            | Role::Meter
             | Role::Time
             | Role::Code
             | Role::Quote
@@ -589,6 +597,7 @@ fn value(e: &mut Element, made: &Made) {
             | Role::Tabs
             | Role::Tab
             | Role::Progress
+            | Role::Meter
             | Role::Time
             | Role::Code
             | Role::Quote
@@ -652,6 +661,7 @@ fn tag(role: Role) -> (&'static str, Option<&'static str>) {
         Role::Tabs => ("div", Some("tablist")),
         Role::Tab => ("a", Some("tab")),
         Role::Progress => ("div", Some("progressbar")),
+        Role::Meter => ("div", Some("meter")),
         Role::Time => ("time", None),
         Role::Code => ("pre", None),
         Role::Quote => ("blockquote", None),

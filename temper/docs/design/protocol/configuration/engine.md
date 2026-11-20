@@ -1,10 +1,12 @@
 # temper's members for the engine
 
-**`machine`:** the machine's places, never a forge: where a box's owned
-Forgejo and the playground's fake forge listen, which `temper-box init
---box` chooses (../setup/init.md, 2) and the box holds from its start (../setup/box.md,
-1), and where GitHub is. A forge set up or connected takes its place
-from here (../forge/engine.md, 2). Each:
+**`machine`** is no member now: a start refuses it (`moved.md`,
+section 3). A forge's place is chosen when it is set up and kept with
+it (../setup/place.md): the members below are the forms an owned or
+fake forge's setup file and `forge prepare`'s flags take
+(../setup/place.md, 3 and 4), and `github`'s are `application.test`'s,
+a test's fake GitHub (../setup/place.md, 7). Where the text below says
+the machine, read the forge's setup file. Each:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
@@ -22,9 +24,9 @@ from here (../forge/engine.md, 2). Each:
   when it names a port.
 - **No forge here.** A forge's kind, mode, place, git program, bot
   and number are its record's in temper's store (../forge/engine.md, 1), made
-  at runtime: an owned Forgejo's from `owned` by `SetUp`, the
-  playground's fake forge's from `fake` at its start, a GitHub forge's
-  from `github` by `Connect`, and a Forgejo connected as its admin from
+  at runtime: an owned Forgejo's by `SetUp` and the playground's fake
+  forge's at its start, each on a place they choose, a GitHub forge's
+  from github.com's or a test's by `Connect`, and a Forgejo connected as its admin from
   the address, base and git program the person gives (../setup/reconcile.md, 5).
   A first run's document names no forge.
 - **No credential is configured:** a forge's API token, git token,
@@ -42,13 +44,16 @@ from here (../forge/engine.md, 2). Each:
   `records.value_bytes`, or a GitHub forge's list at
   `forges.installations` entries, each at its largest (`limits.md`).
 
-**`landing`:** the projects' ways of landing, `projects` alone, each
-entry its `project`, `by`, `gates` and the turn's and the tiers' project
-settings below. The landing rules are settings in the store, temper's
-kinds 1 and 2 (`settings.md`): a `deployment` member, or a project's
-`rules`, is refused as `settings.md`, 4 says. What `landing` keeps leaves the
-document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
-13.1 moves there (`settings.md`, 5, step 2).
+**`landing`** is no member now: a start refuses it (`moved.md`,
+section 3). Each project's way of landing is temper's kind 4, and its
+repositories' gates and tiers kind 5, settings taken at the next start
+(`../../domain/landing-settings.md`, 1.1; `settings.md`, 2). What follows gives
+their fields' forms, bounds and defaults, as the member had them: a
+project's entry is kind 4's value with its `gates` as kind 5's
+`repositories`. Where a bullet says a value refuses the start at its
+member, the forge refuses the change of settings instead, naming its
+field. The landing rules were settings already, temper's kinds 1 and 2
+(`settings.md`).
 
 ```
 "landing": {
@@ -67,7 +72,7 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
   "artifact": string, "format": "junit" | "lines", "branch": string,
   "span_ms": u64, "description": string}]}`,
-  a repository at most once (`../../domain/landing.md`, 13.1;
+  a repository at most once (`../../domain/landing-settings.md`, 1.1;
   `../../domain/after-landing.md`, section 11). A gate's `base`, false
   when absent, says that it reads the base: it is given `temper_base`
   and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
@@ -105,7 +110,10 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.
 - **The tiers' project settings,** beside `by`, by either way:
-  `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
+  `wait`, `"cleared"` or `"landed"`, `"cleared"` when absent, another
+  word refused at its member, `wait`: whether a change into a branch a
+  tier follows lives to cleared or ends at landed; `tier_retries`, a
+  u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
 - **Prepare under `turn`:** a document that selects `by: turn` needs job
@@ -116,8 +124,8 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   (`../../domain/worker/jobs.md`).
 - **The batch,** beside `by`: `batch`, a u16 from 1 to the deployment's
   `forge.landing_members`, 1 when absent: the most changes a landing
-  into a repository's main forms with (`../../domain/landing.md`,
-  section 9 and 13.1). One past its bounds refuses the start at its
+  into a repository's main forms with (`../../domain/landing.md`, section 9, and `../../domain/landing-settings.md`, section 1.1
+  ). One past its bounds refuses the start at its
   member, `application.landing.projects[i].batch`, naming
   `forge.landing_members` where it passes that.
 - **The trains' way of combining,** beside `by`: `combine`,
@@ -126,7 +134,7 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   the trains into a repository's main and `other` for those into any
   other branch; a member absent, or `combine` absent, takes its stock,
   `merge` for `main` and `squash` for `other`
-  (`../../domain/landing.md`, 5.2 and 13.1). Another value refuses the
+  (`../../domain/landing.md`, 5.2, and `../../domain/landing-settings.md`, 1.1). Another value refuses the
   start at its member, `application.landing.projects[i].combine.main`
   or `.other`.
 - **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
@@ -283,8 +291,9 @@ answer not found.
   delivery log, which the forge component reads, with no address GitHub
   must reach (../forge/README.md, section 4).
 
-**`demo`:** the playground's scripted model, or `null` for none, never
-missing (`README.md`, section 8): its `llm`, the fake LLM the box runs, with its
+**`demo`:** refused since 2026-11-17, the playground's scripted model
+being the box's constant (`providers.md`, 4; `moved.md`, 3); what
+follows is the member as it was, which the constant keeps: its `llm`, the fake LLM the box runs, with its
 port (`listen`), its LLM provider of `engine.llm` (`provider`), its
 key's file (`key`) and its scripts (`asked`). Its members, their bounds
 and their checks against the document's LLM providers are ../setup/playground.md
@@ -336,8 +345,8 @@ any member it doesn't know.
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (../credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |
-| `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (../forge/engine.md, 2) |
-| `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
+| `machine` | the test's GitHub place, `application.test.github`, or github.com's; an owned or fake forge's place is chosen at its set-up (../setup/place.md) |
+| `playground` | the box's scripted provider, 3, with `setup.deadline_ms`; none outside a box (`providers.md`, 4; ../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
 | `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
 
@@ -347,7 +356,7 @@ origins (../forge/README.md, 2.6), with the access the engine's routing builds
 from the forge's credentials (../credentials.md, section 5), and the
 webhooks' listener, `webhooks.listener`; the engine's setup host takes
 each kept forge's record, with an owned or fake one's setup entry,
-and the machine's GitHub place for GitHub's plans (../forge/engine.md, 6); the
+and GitHub's place for GitHub's plans (../forge/engine.md, 6); the
 identities' table takes each kept forge's identity, its number, login
 and author from its record, its value from its forge (../credentials.md,
 section 4); the engine's routing takes each forge's `git` base and git

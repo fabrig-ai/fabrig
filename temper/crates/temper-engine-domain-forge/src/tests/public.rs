@@ -1,6 +1,7 @@
 //! Public source-table tests (temper/docs/design/client/forge/README.md, 9.4).
 use crate::*;
 use skein_lib::{Duration, Env, Time, Wall};
+use temper_client_protocol_wire::v1::Record;
 #[test]
 fn unknown_is_one_return() {
     let d = setup();
@@ -77,6 +78,7 @@ const LIMITS: Limits = Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -156,6 +158,7 @@ fn domain_with_limits(limits: &Limits) -> Domain {
 fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -220,8 +223,10 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -236,6 +241,7 @@ fn change_row() -> ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -248,11 +254,13 @@ fn change_row() -> ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: env().wall,
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: None,
@@ -262,8 +270,14 @@ fn change_row() -> ChangeRow {
         delegate_status: change::Status::Passed,
         spec_revision: 0,
         gate_revision: 0,
+        delegate_flake: false,
+        delegate_no_test: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -358,6 +372,7 @@ fn member(task: u64) -> policy::Member {
 fn setup() -> Domain {
     setup_with_limits(&LIMITS)
 }
+#[expect(clippy::too_many_lines, reason = "bounded public view fixture with its stored landing")]
 fn setup_with_limits(limits: &Limits) -> Domain {
     let mut d = domain_with_limits(limits);
     d.repositories.insert(REPO, Box::new(adopted())).expect("repository");
@@ -402,6 +417,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     tiers: Box::new([]),
                 }]),
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -420,6 +436,11 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -432,6 +453,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     members: Box::new([member(CHANGE), member(SECOND)]),
                     preparation: 2,
                     stale_proofs: 3,
+                    last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None, None]),
@@ -477,137 +499,85 @@ fn list<T, const N: usize>(items: [T; N]) -> List<T> {
     list
 }
 fn used(used: u32) -> w::PublicUsed {
-    w::PublicUsed::new(&w::CEILINGS, w::PublicUsedParts { used, limit: 3 }).expect("used")
+    w::PublicUsed { used, limit: 3 }
 }
 fn expected_change() -> w::PublicChange {
-    w::PublicChange::new(
-        &w::CEILINGS,
-        w::PublicChangeParts {
-            task: 0,
-            head: Some(HEAD),
-            step: w::PublicStep::Opening,
-            repair: None,
-            merge: None,
-            tiers: 0,
-            hold: None,
-            ci: w::PublicCi::Unknown,
-            gates: list([w::PublicGate::new(
-                &w::CEILINGS,
-                w::PublicGateParts {
-                    number: 9,
-                    kind: w::PublicGateKind::Review,
-                    blocks: true,
-                    verdict: w::PublicVerdict::Changes,
-                },
-            )
-            .expect("gate")]),
-            repairs: used(2),
-            resolutions: used(0),
-            updates: used(0),
-            way: w::PublicWay::Queue,
-            in_landing: true,
-        },
-    )
-    .expect("expected change")
+    w::PublicChange {
+        task: 0,
+        head: Some(HEAD),
+        step: w::PublicStep::Opening,
+        repair: None,
+        merge: None,
+        tiers: 0,
+        hold: None,
+        ci: w::PublicCi::Unknown,
+        gates: list([w::PublicGate {
+            number: 9,
+            kind: w::PublicGateKind::Review,
+            blocks: true,
+            verdict: w::PublicVerdict::Changes,
+        }]),
+        repairs: used(2),
+        resolutions: used(0),
+        updates: used(0),
+        way: w::PublicWay::Queue,
+        in_landing: true,
+    }
 }
 fn expected_landings() -> w::PublicLandings {
-    let l = &w::CEILINGS;
-    w::PublicLandings::new(
-        l,
-        w::PublicLandingsParts {
-            turn: Some(0),
-            landings: list([w::PublicLandingLine::new(
-                l,
-                w::PublicLandingLineParts {
-                    members: list([0, 1]),
-                    phase: w::PublicLandingPhase::Turn,
-                    landed: list([MERGE, MERGE]),
-                },
-            )
-            .expect("line")]),
-            queues: list([w::PublicQueue::new(
-                l,
-                w::PublicQueueParts {
-                    changes: list([w::PublicQueued::new(
-                        l,
-                        w::PublicQueuedParts { task: 2, goal: 3, ready_since: 90 },
-                    )
-                    .expect("queued")]),
-                },
-            )
-            .expect("queue")]),
-        },
-    )
-    .expect("expected landings")
+    w::PublicLandings {
+        turn: Some(0),
+        landings: list([w::PublicLandingLine {
+            members: list([0, 1]),
+            phase: w::PublicLandingPhase::Turn,
+            landed: list([MERGE, MERGE]),
+        }]),
+        queues: list([w::PublicQueue { changes: list([w::PublicQueued { task: 2, goal: 3, ready_since: 90 }]) }]),
+    }
 }
 fn expected_landing() -> w::PublicLanding {
-    let l = &w::CEILINGS;
     let mut members = List::with_capacity(2);
     for task in [0, 1] {
         members
-            .push(
-                w::PublicMember::new(
-                    l,
-                    w::PublicMemberParts {
-                        head: Some(HEAD),
-                        left: None,
-                        judgement: Some(
-                            w::PublicJudgement::new(
-                                l,
-                                w::PublicJudgementParts {
-                                    prefix: CANDIDATE,
-                                    verdict: w::PublicCi::Failed,
-                                    gates: list([w::PublicGate::new(
-                                        l,
-                                        w::PublicGateParts {
-                                            number: 9,
-                                            kind: w::PublicGateKind::Review,
-                                            blocks: true,
-                                            verdict: w::PublicVerdict::Changes,
-                                        },
-                                    )
-                                    .unwrap()]),
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        task,
+            .push(w::PublicMember {
+                head: Some(HEAD),
+                left: None,
+                judgement: Some(w::PublicJudgement {
+                    prefix: CANDIDATE,
+                    verdict: w::PublicCi::Failed,
+                    gates: list([w::PublicGate {
+                        number: 9,
+                        kind: w::PublicGateKind::Review,
+                        blocks: true,
+                        verdict: w::PublicVerdict::Changes,
+                    }]),
+                }),
+                task,
 
-                        base: Some(BASE),
-                        candidate: Some(CANDIDATE),
-                        landed: Some(MERGE),
-                        gates: list([w::PublicGateProof::new(
-                            l,
-                            w::PublicGateProofParts {
-                                faults: 1,
-                                number: 0,
-                                kind: w::PublicGateKind::Check,
-                                blocks: true,
-                                proof: w::PublicProof::Failed,
-                            },
-                        )
-                        .expect("proof")]),
-                    },
-                )
-                .expect("member"),
-            )
+                base: Some(BASE),
+                candidate: Some(CANDIDATE),
+                landed: Some(MERGE),
+                gates: list([w::PublicGateProof {
+                    faults: 1,
+                    number: 0,
+                    kind: w::PublicGateKind::Check,
+                    blocks: true,
+                    proof: w::PublicProof::Failed,
+                }]),
+            })
             .expect("members");
     }
-    w::PublicLanding::new(
-        l,
-        w::PublicLandingParts {
-            search: None,
-            combined: None,
-            step: Some(w::PublicLandingStep::Telling),
-            phase: w::PublicLandingPhase::Turn,
-            hold: None,
-            preparation: 2,
-            members,
-            stale_proofs: 3,
-            holds_turn: true,
-        },
-    )
-    .expect("expected landing")
+    w::PublicLanding {
+        search: None,
+        combined: None,
+        step: Some(w::PublicLandingStep::Telling),
+        phase: w::PublicLandingPhase::Turn,
+        hold: None,
+        preparation: 2,
+        members,
+        stale_proofs: 3,
+        holds_turn: true,
+    }
 }
 #[test]
 fn each_repair_reason_projects_to_the_public_step() {
@@ -619,8 +589,8 @@ fn each_repair_reason_projects_to_the_public_step() {
         let mut d = setup();
         d.changes.get_mut(&CHANGE).expect("change").change.state = c::State::Repairing { requested: true, why };
         let got = change(&d, &handed());
-        assert_eq!(*got.step(), w::PublicStep::Repairing);
-        assert_eq!(*got.repair(), Some(expected));
+        assert_eq!(got.step, w::PublicStep::Repairing);
+        assert_eq!(got.repair, Some(expected));
     }
 }
 
@@ -651,12 +621,12 @@ fn the_meaning_check_catches_a_field_from_the_wrong_source() {
     let d = setup();
     let public = handed();
     let got = change(&d, &public);
-    let mut expected = expected_change().into_parts();
+    let mut expected = expected_change();
     expected.head = Some(BASE);
-    assert_ne!(got, w::PublicChange::new(&w::CEILINGS, expected).expect("mutation"));
-    let mut expected = expected_change().into_parts();
+    assert_ne!(got, expected);
+    let mut expected = expected_change();
     expected.task = 1;
-    assert_ne!(got, w::PublicChange::new(&w::CEILINGS, expected).expect("mutation"));
+    assert_ne!(got, expected);
 }
 #[test]
 fn forbidden_sources_never_reach_the_bytes() {
@@ -714,18 +684,18 @@ fn forbidden_sources_never_reach_the_bytes() {
 fn a_landing_with_a_member_not_public_is_absent_and_unknown() {
     let d = setup();
     let public = [handed()[0], handed()[1], handed()[3]];
-    assert!(landings(&d, &public).landings().is_empty());
-    assert_eq!(landings(&d, &public).turn(), &None);
+    assert!(landings(&d, &public).landings.is_empty());
+    assert_eq!(&landings(&d, &public).turn, &None);
     for task in [CHANGE, SECOND] {
         assert!(d.public(&ask(w::PUBLIC_LANDING, Some(task), &public), &LIMITS).is_none());
     }
-    assert!(!change(&d, &public).in_landing());
+    assert!(!change(&d, &public).in_landing);
 }
 #[test]
 fn a_task_not_handed_is_never_named() {
     let d = setup();
     let public = &handed()[1..];
-    assert!(landings(&d, public).queues().is_empty());
+    assert!(landings(&d, public).queues.is_empty());
     for kind in [w::PUBLIC_CHANGE, w::PUBLIC_LANDING] {
         assert!(d.public(&ask(kind, Some(CHANGE), &[]), &LIMITS).is_none());
     }
@@ -741,7 +711,7 @@ fn filtered_before_ordered_or_counted() {
     private.change.state = c::State::Queued { head: HEAD, ready_since: Wall::from_nanos(1) };
     d.changes.insert(private.task, private).expect("private room");
     assert_eq!(landings(&d, &public), expected_landings());
-    assert_eq!(landings(&d, &public).landings().as_slice().first().expect("landing").members().len(), 2);
+    assert_eq!(landings(&d, &public).landings.as_slice().first().expect("landing").members.len(), 2);
 }
 
 #[test]
@@ -753,12 +723,12 @@ fn the_public_queue_follows_aging_and_uses_only_public_ties() {
     row.change.state = c::State::Queued { head: HEAD, ready_since: Wall::from_nanos(95_000_000_000) };
     let early = made(&d, w::PUBLIC_LANDINGS, None, &public);
     let early = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&early.record)).expect("early");
-    assert_eq!(early.queues().get(0).expect("queue").changes().get(0).expect("first").task(), 1);
+    assert_eq!(early.queues.get(0).expect("queue").changes.get(0).expect("first").task, 1);
     let mut late = ask(w::PUBLIC_LANDINGS, None, &public);
     late.now = Wall::from_nanos(121_000_000_000);
     let late = d.public(&late, &LIMITS).expect("late");
     let late = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&late.record)).expect("late record");
-    assert_eq!(late.queues().get(0).expect("queue").changes().get(0).expect("first").task(), 2);
+    assert_eq!(late.queues.get(0).expect("queue").changes.get(0).expect("first").task, 2);
 }
 #[test]
 fn the_largest_answers_fit_their_declared_bounds() {
@@ -785,9 +755,9 @@ fn the_largest_answers_fit_their_declared_bounds() {
     }
     let made = d.public(&ask(w::PUBLIC_LANDINGS, None, &public), &limits).expect("bounded list");
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("bounded record");
-    assert_eq!(record.landings().len(), 64);
-    assert_eq!(record.landings().get(0).expect("line").members().len(), 8);
-    assert_eq!(record.queues().get(0).expect("queue").changes().len(), 64);
+    assert_eq!(record.landings.len(), 64);
+    assert_eq!(record.landings.get(0).expect("line").members.len(), 8);
+    assert_eq!(record.queues.get(0).expect("queue").changes.len(), 64);
     for offset in 8..72_u64 {
         let task = CHANGE.checked_add(offset).expect("task");
         d.changes.get_mut(&task).expect("queued").base = Box::from(skein_lib::Decimal::of(offset).as_bytes());
@@ -795,7 +765,7 @@ fn the_largest_answers_fit_their_declared_bounds() {
     let made = d.public(&ask(w::PUBLIC_LANDINGS, None, &public), &limits).expect("maximum queues");
     assert!(made.record.len() <= usize::try_from(declared[1]).expect("list bound"));
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("queues");
-    assert_eq!(record.queues().len(), 64);
+    assert_eq!(record.queues.len(), 64);
     let row = d.changes.get_mut(&CHANGE).expect("change");
     let mut gates = List::with_capacity(65);
     for gate in &row.change.gates {
@@ -823,9 +793,9 @@ fn the_newest_landing_and_a_pin_only_member_obey_the_same_filter() {
     newer.landing.task = LANDING.checked_add(1).expect("newer");
     newer.landing.members.get_mut(1).expect("member").change = 0;
     d.landing.rows.insert(newer.landing.task, newer).expect("newer room");
-    assert!(!change(&d, &public).in_landing());
+    assert!(!change(&d, &public).in_landing);
     assert!(d.public(&ask(w::PUBLIC_LANDING, Some(CHANGE), &public), &LIMITS).is_none());
-    assert_eq!(landings(&d, &public).landings().len(), 2);
+    assert_eq!(landings(&d, &public).landings.len(), 2);
 }
 
 fn maximal_proofs(d: &mut Domain) {
@@ -917,6 +887,11 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
+                    flake_reruns: Box::new([]),
+                    room: None,
                     job: None,
                     landing: policy::Landing {
                         last_left: None,
@@ -929,6 +904,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         members: members.clone(),
                         preparation: u16::MAX,
                         stale_proofs: u32::MAX,
+                        last_prepare: None,
                         branch: Box::from(b"main".as_slice()),
                     },
                     asks: Box::new([const { None }; 8]),
@@ -951,6 +927,12 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
     for task in tasks {
         changes
             .push(LoggedChange {
+                fixes: Box::new([]),
+                goal: None,
+                milestone: None,
+                person: None,
+                goal_title: None,
+                draft: None,
                 signed: Box::new([]),
                 task: *task,
                 pull: Some(LOGGED_PULL),
@@ -958,7 +940,13 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
             })
             .expect("logged change");
     }
-    LoggedLanding { commit, branch: Box::from(MARKERS[0]), at: Wall::from_nanos(at), changes: changes.into_boxed() }
+    LoggedLanding {
+        tiers: Box::new([]),
+        commit,
+        branch: Box::from(MARKERS[0]),
+        at: Wall::from_nanos(at),
+        changes: changes.into_boxed(),
+    }
 }
 fn install_log(d: &mut Domain, landings: Box<[LoggedLanding]>) {
     d.landing_logs.insert(REPO, LandingLog { repository: REPO, landings }).expect("log");
@@ -975,49 +963,35 @@ fn ended_public() -> [PublicTask; 2] {
     [PublicTask { task: CHANGE, goal: None }, PublicTask { task: SECOND, goal: None }]
 }
 fn expected_merge_line(members: List<u16>, commit: [u8; 32]) -> w::PublicLandingLine {
-    w::PublicLandingLine::new(
-        &w::CEILINGS,
-        w::PublicLandingLineParts { members, phase: w::PublicLandingPhase::Landed, landed: list([commit]) },
-    )
-    .expect("merge line")
+    w::PublicLandingLine { members, phase: w::PublicLandingPhase::Landed, landed: list([commit]) }
 }
 fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
     let mut members = List::with_capacity(u32::try_from(tasks.len()).expect("fixture members"));
     for task in tasks {
         members
-            .push(
-                w::PublicMember::new(
-                    &w::CEILINGS,
-                    w::PublicMemberParts {
-                        head: None,
-                        left: None,
-                        judgement: None,
-                        task: *task,
-                        base: None,
-                        candidate: None,
-                        landed: Some(MERGE),
-                        gates: list([]),
-                    },
-                )
-                .expect("merge member"),
-            )
+            .push(w::PublicMember {
+                head: None,
+                left: None,
+                judgement: None,
+                task: *task,
+                base: None,
+                candidate: None,
+                landed: Some(MERGE),
+                gates: list([]),
+            })
             .expect("member room");
     }
-    w::PublicLanding::new(
-        &w::CEILINGS,
-        w::PublicLandingParts {
-            search: None,
-            combined: None,
-            step: None,
-            phase: w::PublicLandingPhase::Landed,
-            hold: None,
-            preparation: 0,
-            members,
-            stale_proofs: 0,
-            holds_turn: false,
-        },
-    )
-    .expect("merge landing")
+    w::PublicLanding {
+        search: None,
+        combined: None,
+        step: None,
+        phase: w::PublicLandingPhase::Landed,
+        hold: None,
+        preparation: 0,
+        members,
+        stale_proofs: 0,
+        holds_turn: false,
+    }
 }
 #[test]
 fn a_queue_merge_is_a_landed_line_newest_first() {
@@ -1026,15 +1000,11 @@ fn a_queue_merge_is_a_landed_line_newest_first() {
     install_log(&mut d, Box::new([logged(MERGE, 50, &[CHANGE]), logged(HEAD, 100, &[SECOND])]));
     let made = made(&d, w::PUBLIC_LANDINGS, None, &public);
     assert_eq!(made.tasks.as_ref(), &[SECOND, CHANGE]);
-    let expected = w::PublicLandings::new(
-        &w::CEILINGS,
-        w::PublicLandingsParts {
-            turn: None,
-            landings: list([expected_merge_line(list([0]), HEAD), expected_merge_line(list([1]), MERGE)]),
-            queues: list([]),
-        },
-    )
-    .expect("queue history");
+    let expected = w::PublicLandings {
+        turn: None,
+        landings: list([expected_merge_line(list([0]), HEAD), expected_merge_line(list([1]), MERGE)]),
+        queues: list([]),
+    };
     assert_eq!(landings(&d, &public), expected);
 }
 #[test]
@@ -1049,8 +1019,8 @@ fn a_queue_merge_reads_as_its_landing() {
             let record = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("merge");
             assert_eq!(record, expected_merge(places));
         }
-        assert_eq!(landings(&d, &public).landings(), &list([expected_merge_line(list_from(places), MERGE)]));
-        assert!(!change(&d, &public).in_landing());
+        assert_eq!(&landings(&d, &public).landings, &list([expected_merge_line(list_from(places), MERGE)]));
+        assert!(!change(&d, &public).in_landing);
     }
 }
 fn list_from(items: &[u16]) -> List<u16> {
@@ -1074,16 +1044,27 @@ fn a_public_merge_keeps_a_dropped_member_from_its_log() {
     assert_eq!(made.tasks.as_ref(), &[CHANGE, SECOND]);
     let record = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&made.record)).unwrap();
     assert_eq!(record, expected_merge(&[0, 1]));
-    assert_eq!(landings(&d, &public).landings(), &list([expected_merge_line(list([0, 1]), MERGE)]));
+    assert_eq!(&landings(&d, &public).landings, &list([expected_merge_line(list([0, 1]), MERGE)]));
     assert!(d.public(&ask(w::PUBLIC_CHANGE, Some(SECOND), &public), &LIMITS).is_none());
     assert!(d.public(&ask(w::PUBLIC_LANDING, Some(SECOND), &public), &LIMITS).is_none());
     let log = d.landing_logs.get(&REPO).unwrap();
     assert_eq!(
         log.landings[0].changes[1],
-        LoggedChange { signed: Box::new([]), task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
+        LoggedChange {
+            fixes: Box::new([]),
+            goal: None,
+            milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
+            signed: Box::new([]),
+            task: SECOND,
+            pull: Some(LOGGED_PULL),
+            title: Box::from(MARKERS[1])
+        }
     );
     // Handed tasks still bound the public projection, even without a change row.
-    assert!(landings(&d, &public[..1]).landings().is_empty());
+    assert!(landings(&d, &public[..1]).landings.is_empty());
 }
 
 #[test]
@@ -1107,7 +1088,7 @@ fn a_logged_landing_not_wholly_public_is_absent_and_unknown() {
         install_log(&mut d, Box::new([logged(MERGE, 100, tasks)]));
         let made = made(&d, w::PUBLIC_LANDINGS, None, handed);
         assert!(made.tasks.is_empty(), "{handed:?} {repository:?} {way:?} {tasks:?}");
-        assert!(landings(&d, handed).landings().is_empty());
+        assert!(landings(&d, handed).landings.is_empty());
         for task in [CHANGE, SECOND] {
             assert!(d.public(&ask(w::PUBLIC_LANDING, Some(task), handed), &LIMITS).is_none());
         }
@@ -1128,15 +1109,11 @@ fn landings_by_turn_stand_before_queue_merges_within_the_bound() {
     let made = d.public(&ask(w::PUBLIC_LANDINGS, None, &public), &limits).expect("bounded history");
     assert_eq!(made.tasks.as_ref(), &[CHANGE, SECOND, QUEUED]);
     let mut expected = List::with_capacity(w::CEILINGS.public_landings_landings);
-    expected.push(expected_landings().landings().get(0).expect("turn line").clone()).expect("turn room");
+    expected.push(expected_landings().landings.get(0).expect("turn line").clone()).expect("turn room");
     for at in (2..65_u8).rev() {
         expected.push(expected_merge_line(list([2]), [at; 32])).expect("merge room");
     }
-    let expected = w::PublicLandings::new(
-        &w::CEILINGS,
-        w::PublicLandingsParts { turn: Some(0), landings: expected, queues: list([]) },
-    )
-    .expect("bounded landings");
+    let expected = w::PublicLandings { turn: Some(0), landings: expected, queues: list([]) };
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("history");
     assert_eq!(record, expected);
 }
@@ -1156,21 +1133,21 @@ fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
     }
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
-    assert_eq!(got.step(), &Some(w::PublicLandingStep::Probing));
-    let search = got.search().as_ref().expect("public search");
-    assert_eq!((search.green().member(), search.green().prefix()), (0, &BASE));
-    assert_eq!((search.red().member(), search.red().prefix()), (2, &MERGE));
-    assert_eq!(search.probe(), &Some(CANDIDATE));
+    assert_eq!(&got.step, &Some(w::PublicLandingStep::Probing));
+    let search = got.search.as_ref().expect("public search");
+    assert_eq!((search.green.member, &search.green.prefix), (0, &BASE));
+    assert_eq!((search.red.member, &search.red.prefix), (2, &MERGE));
+    assert_eq!(&search.probe, &Some(CANDIDATE));
     let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
     row.round.search = Some(policy::Search { tests: policy::SearchTests::Whole, green: 1, red: 2 });
     row.members[1].candidate = None;
     row.members[1].left = Some(policy::Leave::Blamed { gate: 0, run: 7, red: MERGE, green: CANDIDATE });
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
-    let search = got.search().as_ref().unwrap();
-    assert_eq!((search.green().member(), search.green().prefix()), (1, &CANDIDATE));
-    assert_eq!(search.probe(), &None, "resolved bounds have no running probe");
-    assert_eq!((search.red().member(), search.red().prefix()), (2, &MERGE), "cut red prefix is kept in its blame");
+    let search = got.search.as_ref().unwrap();
+    assert_eq!((search.green.member, &search.green.prefix), (1, &CANDIDATE));
+    assert_eq!(&search.probe, &None, "resolved bounds have no running probe");
+    assert_eq!((search.red.member, &search.red.prefix), (2, &MERGE), "cut red prefix is kept in its blame");
 }
 
 #[test]
@@ -1181,10 +1158,8 @@ fn a_public_blamed_member_keeps_its_gate_and_both_prefixes() {
     row.members[0].left = Some(policy::Leave::Blamed { gate: 3, run: 7, red: CANDIDATE, green: BASE });
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
-    let Some(w::PublicLeave::Blamed(blamed)) = got.members().get(0).unwrap().left() else {
-        panic!("blamed, not failed")
-    };
-    assert_eq!((blamed.gate(), blamed.red(), blamed.green()), (3, &CANDIDATE, &BASE));
+    let Some(w::PublicLeave::Blamed(blamed)) = &got.members.get(0).unwrap().left else { panic!("blamed, not failed") };
+    assert_eq!((blamed.gate, &blamed.red, &blamed.green), (3, &CANDIDATE, &BASE));
 }
 
 #[test]
@@ -1200,14 +1175,14 @@ fn a_public_landing_keeps_squash_and_prefix_evidence_without_forge_names() {
     }
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
-    assert_eq!(got.combined(), &Some(w::PublicCombined::Squash));
-    assert_eq!(got.step(), &Some(w::PublicLandingStep::Landed));
-    let member = got.members().get(0).unwrap();
-    assert_eq!((member.head(), member.landed()), (&Some(HEAD), &Some(MERGE)));
-    let judgement = member.judgement().as_ref().unwrap();
-    assert_eq!((judgement.prefix(), judgement.verdict()), (&CANDIDATE, &w::PublicCi::Passed));
-    assert_eq!(judgement.gates().get(0).unwrap().verdict(), &w::PublicVerdict::Approved);
-    assert_eq!(member.gates().get(0).unwrap().faults(), 1);
+    assert_eq!(&got.combined, &Some(w::PublicCombined::Squash));
+    assert_eq!(&got.step, &Some(w::PublicLandingStep::Landed));
+    let member = got.members.get(0).unwrap();
+    assert_eq!((&member.head, &member.landed), (&Some(HEAD), &Some(MERGE)));
+    let judgement = member.judgement.as_ref().unwrap();
+    assert_eq!((&judgement.prefix, &judgement.verdict), (&CANDIDATE, &w::PublicCi::Passed));
+    assert_eq!(&judgement.gates.get(0).unwrap().verdict, &w::PublicVerdict::Approved);
+    assert_eq!(member.gates.get(0).unwrap().faults, 1);
     for marker in MARKERS {
         assert!(skein_lib::bytes::find(&m.record, marker).is_none());
     }

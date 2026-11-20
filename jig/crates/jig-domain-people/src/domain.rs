@@ -22,11 +22,11 @@ use parties::{SignIn, apply_roles, deadline, end_signin, has_person, make_servic
 pub(crate) use requests::{Answered, Pending};
 use requests::{admit_ask, again, answer_decided, answer_expiry, answer_reservations, decided, refused, signed_out};
 mod start;
-use inbox::{ChatTotal, Need, Recent, conversation_seen_decision, mark_seen, prune_unheld_roles, replace_waiting};
+use inbox::{ChatTotal, Recent, conversation_seen_decision, mark_seen, prune_unheld_roles, replace_waiting};
 
 use crate::{
-    Again, Ask, Entry, Event, Fact, Holding, Identity, IdentityKey, InitialOwner, Key, Kind, Limits, Outcome,
-    ProjectRole, Reply, Request, RequestKey, ResultRef, Role, Seed, Stored, Whom,
+    Again, Ask, Entry, Event, Fact, Holding, Identity, IdentityKey, InitialOwner, Key, Kind, Limits, NeedSource,
+    Outcome, ProjectRole, Reply, Request, RequestKey, ResultRef, Role, Seed, Stored, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, List, Map, Queue, Set, Slab, Time, Token, Wall};
@@ -56,14 +56,14 @@ pub struct Domain {
     people: Map<u64, Identity>,
     results_seen: Map<u64, u64>,
     conversations_seen: Map<(u64, u64), u64>,
-    replies: Map<u64, Box<[Entry]>>,
+    replies: Map<NeedSource, Box<[Entry]>>,
     chat_totals: Map<u64, ChatTotal>,
     chat_updates: Map<(u64, u32), u128>,
     result_census: Map<(u64, u32), Box<[ResultRef]>>,
     recent: Map<u64, Box<[Recent]>>,
     unread: Map<u64, Box<[ResultRef]>>,
     waiting: Map<Whom, Box<[Entry]>>,
-    needs: Map<u64, Box<[Need]>>,
+    needs: Map<NeedSource, Box<[Entry]>>,
     identities: Map<IdentityKey, u64>,
     sign_ins: Map<u64, SignIn>,
     alarms: Deadlines<u64>,
@@ -566,21 +566,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::MakeService { request, person } => make_service(domain, env, request, person, out),
         Event::Seed { project, collaborators } => seed(domain, &env.limits, project, &collaborators, out),
-        Event::Waiting { task, entries } => {
+        Event::Waiting { source, entries } => {
             domain.assert_projection_event();
-            replace_waiting(domain, &env.limits, task, &entries, out);
+            replace_waiting(domain, &env.limits, source, &entries, out);
         }
         Event::ApplyRoles { reply_to, request } => {
             let result = apply_roles(domain, env, request, out);
             out.push(Request::RolesApplied { reply_to, request, result });
         }
         Event::Restore { record } => start::load(domain, env, record, out),
-        Event::SignedIn { reply_to, person, sign_in, identity, kind, held } => {
+        Event::SignedIn { until, reply_to, person, sign_in, identity, kind, held } => {
             signin(
                 domain,
                 env,
                 reply_to,
-                parties::SigningIn { candidate: person, number: sign_in, identity, kind, held },
+                parties::SigningIn { candidate: person, number: sign_in, identity, kind, held, until },
                 out,
             );
         }

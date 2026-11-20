@@ -20,3 +20,11 @@ mod fuzzy {
     mod client_wire;
     mod public_wire;
 }
+
+#[path = "../../../client-values.rs"]
+mod client_values;
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

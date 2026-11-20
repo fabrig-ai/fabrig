@@ -24,9 +24,9 @@ pub struct Config {
 pub enum Wait {
     /// Submit and return: work is pending above.
     No,
-    /// Block until a completion arrives or the deadline passes, a monotonic
-    /// [`Time`] read from the [`Clock`](crate::Clock): the earliest deadline
-    /// over every layer (programming-model.md, section 9).
+    /// Block until a completion arrives or the native monotonic deadline passes:
+    /// the earliest deadline over every layer, translated by [`crate::Clock::until`]
+    /// (skein/docs/design/runtime/shell.md, 5).
     Until(Time),
     /// Block until a completion arrives: no deadline is armed. Asserts that
     /// something is in flight or ready, since otherwise it never returns.
@@ -147,6 +147,14 @@ fn falls_back(refused: &OpenError) -> Option<i32> {
 }
 
 impl Kernel {
+    /// Makes the backend's process-wide storage before metered startup calls
+    /// (runtime/readiness.md, 5). Repeated calls allocate nothing; Linux has
+    /// no such tables.
+    pub fn warm() {
+        #[cfg(target_os = "macos")]
+        crate::darwin::process::warm_tables();
+    }
+
     /// The host's backend (runtime/readiness.md, 1).
     #[cfg(target_os = "linux")]
     pub fn open(config: Config) -> Result<Self, OpenError> {
@@ -178,6 +186,25 @@ impl Kernel {
             Backend::Readiness => Running::Readiness(readiness::Readiness::open(config)?),
         };
         Ok(Self { running, ring_refused: None })
+    }
+
+    /// Names the executable whose main dispatches the helper first (runtime/kernel.md, 6.6).
+    /// Defaults to `/proc/self/exe` on Linux.
+    pub fn set_helper(&mut self, executable: Box<[u8]>) {
+        self.helper().executable = executable;
+    }
+
+    /// Checks that a child can enforce ABI 6's reach, without changing this process.
+    pub fn can_restrict(&mut self) -> Result<(), skein_io::kernel::Unenforced> {
+        self.helper().check()
+    }
+
+    fn helper(&mut self) -> &mut crate::helper::Launcher {
+        match &mut self.running {
+            #[cfg(target_os = "linux")]
+            Running::Ring(ring) => &mut ring.helper,
+            Running::Readiness(readiness) => &mut readiness.helper,
+        }
     }
 
     /// The backend selected at startup.

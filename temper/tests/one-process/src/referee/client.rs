@@ -1,12 +1,15 @@
 //! Client receipts decoded from the kernel's HTTP and SSE bytes.
 pub(crate) mod cache;
+#[cfg(test)]
+mod tests;
 use jig_client::contract as client;
 use jig_client_protocol_link::translate;
-use jig_client_protocol_wire::v26 as wire;
+use jig_client_protocol_wire as wire;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{
     Reader,
     base64::{self, Alphabet},
+    bytes::find as mark,
 };
 use std::collections::BTreeMap;
 
@@ -44,9 +47,6 @@ pub(crate) struct Wire {
     capture_only: bool,
     pub(crate) received: Vec<Received>,
 }
-fn mark(bytes: &[u8], marker: &[u8]) -> Option<usize> {
-    bytes.windows(marker.len()).position(|window| window == marker)
-}
 impl Wire {
     pub(crate) fn capturing() -> Self {
         Self { capture_only: true, ..Self::default() }
@@ -81,7 +81,7 @@ pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
         return false;
     };
     forge::decode_requesting(envelope.record(), &w::CEILINGS)
-        .is_some_and(|request| matches!(request.request(), w::Request::Reachable(_)))
+        .is_some_and(|request| matches!(request.request, w::Request::Reachable(_)))
 }
 impl Connection {
     fn request(&mut self, received: &mut Vec<Received>) {
@@ -216,13 +216,13 @@ impl Connection {
     fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool) {
         let limits = native_link_limits();
         while let Some(end) = mark(&self.body, b"\n\n") {
-            let event: Vec<_> = self.body.drain(..end + 2).collect();
-            let data: Vec<_> = event
-                .split(|byte| *byte == b'\n')
-                .filter_map(|line| line.strip_prefix(b"data: ").or_else(|| line.strip_prefix(b"data:")))
-                .flatten()
-                .copied()
-                .collect();
+            let mut data = Vec::new();
+            for line in self.body[..end].split(|byte| *byte == b'\n') {
+                if let Some(line) = line.strip_prefix(b"data: ").or_else(|| line.strip_prefix(b"data:")) {
+                    data.extend_from_slice(line);
+                }
+            }
+            self.body.drain(..end + 2);
             if data.is_empty() {
                 continue;
             }
@@ -231,12 +231,18 @@ impl Connection {
             if capture_only {
                 continue;
             }
-            if let wire::StreamEvent::Delivery(value) =
-                wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded)).expect("SSE record bytes")
-                && value.document().owner() == &wire::Owner::Jig
+            let document = match wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded))
+                .expect("SSE record bytes")
+            {
+                wire::StreamEvent::Opened(value) => Some(value.into_parts().me),
+                wire::StreamEvent::Delivery(value) => Some(value.into_parts().document),
+                wire::StreamEvent::Hello(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_) => None,
+            };
+            if let Some(document) = document
+                && document.owner() == &wire::Owner::Jig
             {
                 received.push(Received::Delivery(
-                    translate::watches::delivery(value.document().record(), &limits).expect("delivery document"),
+                    translate::watches::delivery(document.record(), &limits).expect("delivery document"),
                 ));
             }
         }

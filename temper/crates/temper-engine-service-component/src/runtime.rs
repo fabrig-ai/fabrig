@@ -1,12 +1,28 @@
 //! The engine component seam (temper/docs/design/protocol/services.md, 4).
-use crate::system::{accounts_driver, core_config, deployment_owned, machine_config, playground_config, start_problem};
+use crate::system::{accounts_driver, core_config, machine_config, playground_config, start_problem};
 use crate::{AccountsRuntime, accounts, clients, engine, limits, settings, store, values, workers};
 use crate::{End, ForgeRuntime, Stop, forge, forges, route::box_link};
 use alloc::boxed::Box;
 use jig_protocol_config::{Problems, What};
 use skein_io::{self as io, kernel::Fd};
 use skein_lib::{List, Queue, Time, Token};
+fn normalize_trust(transport: &mut jig_protocol_config::Transport, directories: &jig_protocol_config::Directories) {
+    match transport {
+        jig_protocol_config::Transport::Plaintext => {}
+        jig_protocol_config::Transport::Tls { trust, .. } => {
+            if let Some(path) = trust
+                && let Ok(joined) = directories.join(jig_protocol_config::Directory::Config, path)
+            {
+                *path = joined;
+            }
+        }
+    }
+}
 impl engine::Engine {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the checked component construction also pins the providers kept by the shell"
+    )]
     pub fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -17,7 +33,6 @@ impl engine::Engine {
     ) -> Result<Self, Problems> {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
-        limits.memory_bytes = settings.jig.memory;
         limits.host_reply_bytes = settings.host_reply_bytes;
         if !temper_engine_domain::valid(&limits) {
             return Err(start_problem(b"memory_bytes", What::Bound));
@@ -26,8 +41,21 @@ impl engine::Engine {
         let shared = forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
-        let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
-            .ok_or(start_problem(b"limits", What::Bound))?;
+        let store_limits = match settings.store_limits {
+            Some(envelope) => {
+                let application = temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
+                    .ok_or(start_problem(b"limits", What::Bound))?;
+                jig_protocol_store::runtime_limits(
+                    &envelope,
+                    &temper_engine_domain::core_limits(&limits),
+                    application,
+                    limits.journal.transcript_bytes.max(limits.loads.transcript_bytes),
+                )
+                .or(Err(start_problem(b"limits", What::Bound)))?
+            }
+            None => store::limits(&limits, &limits.forge, &settings.jig.limits.store)
+                .ok_or(start_problem(b"limits", What::Bound))?,
+        };
         let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
@@ -46,14 +74,14 @@ impl engine::Engine {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
-            settings.machine.owned.as_ref(),
+            None,
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login,
-            welcome: settings.welcome,
-            owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+            welcome: false,
+            owned: box_line_bytes.is_some(),
             push: match &settings.push {
                 Some(push) => Some(*push.key.public()),
                 None => None,
@@ -73,21 +101,39 @@ impl engine::Engine {
         let mut core = core_config(&settings.jig, seeds);
         core.kinds.clone_from(&settings.kinds);
         core.jobs = limits::jobs(&settings.jig.limits);
+        let places = crate::places::Places::new(&settings);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
-            kinds_stock: settings.kinds_stock,
+            kinds_stock: temper_engine_service_stock::stock::with_welcome(
+                settings.kinds_stock,
+                box_line_bytes.is_some(),
+            ),
             ways_stock: settings.ways_stock,
             period_span: settings.period_span,
             core,
-            landings: settings.landings,
+            landing_held: settings.landing_held,
             forge: forge_config,
             identities,
-            machine: Some(machine_config(&settings.machine)),
+            machine: Some(machine_config(settings.test_github.as_ref())),
             forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
-            playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
+            playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
+        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
+        let providers_path = settings
+            .directories
+            .join(jig_protocol_config::Directory::Data, b"providers.setting")
+            .or(Err(start_problem(b"providers.setting", What::Bound)))?;
+        let mut running_providers = List::uncapped();
+        for provider in jig_protocol_config::llm::provider_values(&settings.jig.llm) {
+            let mut fixed = false;
+            for value in &settings.jig.fixed_llm_providers {
+                fixed |= provider.provider.number == value.provider.number;
+            }
+            if !fixed {
+                running_providers.push(provider).expect("running providers");
+            }
+        }
         let demo = settings.demo;
         let own = settings.limits;
         let mut engine = engine::Engine::new(
@@ -98,10 +144,52 @@ impl engine::Engine {
             values,
             first_periods,
         )?;
+        engine.providers_path = providers_path;
+        engine.providers_directory = Some(settings.directories);
+        engine.running_providers = running_providers.into_boxed();
+        engine.places = Some(places);
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
         Ok(engine)
+    }
+    /// Each committed providers ask reaches the shell, fixed providers never among them.
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole provider values")]
+    pub fn take_providers_write(&mut self) -> Option<(Box<[u8]>, Box<[jig_protocol_config::ProviderSetting]>)> {
+        let providers = self.providers.pop()?;
+        let mut normalized = providers.clone();
+        if let Some(directories) = &self.providers_directory {
+            for provider in &mut normalized {
+                if let Some(registration) = &mut provider.provider.sign_in {
+                    normalize_trust(&mut registration.endpoint_transport, directories);
+                }
+                for endpoint in &mut provider.endpoints {
+                    normalize_trust(&mut endpoint.transport, directories);
+                }
+            }
+        }
+        if normalized != self.running_providers {
+            self.notes.push(crate::Note::StartupWarning {
+                line: skein_lib::bytes::copy_of(b"LLM providers changed; they apply at the engine's next start"),
+            });
+        }
+        Some((self.providers_path.clone(), providers))
+    }
+    /// Keep kind 21 in the box's data directory (protocol/configuration/figures.md, 4).
+    pub fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<temper_client_protocol_wire::v1::AgentFigures>) {
+        self.workers.keep_agents(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_agents_write()
+    }
+    /// Keep worker setting 1 in the box's data directory (configuration/figures.md, 4).
+    pub fn keep_local(&mut self, path: Box<[u8]>, initial: Option<jig_client_protocol_wire::WorkerSetting>) {
+        self.workers.keep_local(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_local_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_local_write()
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;
@@ -139,6 +227,10 @@ impl engine::Engine {
         self.setup.page(forge, state, now)
     }
     /// The binary's build name for the store floor (jig's protocol/store/records.md, 3).
+    /// The shell supplies the immutable hold before starting the loop.
+    pub fn hold_landings(&mut self, held: bool) {
+        self.domain.hold_landings(held);
+    }
     pub fn build_name(&mut self, name: &'static str) {
         self.store.build_name(name);
     }
@@ -148,7 +240,13 @@ impl engine::Engine {
         self.store.owner_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
-    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+    pub fn rehearse_store(
+        &mut self,
+        directory: Fd,
+        scratch: Fd,
+        user: u32,
+        reach: jig_protocol_store::Reach,
+    ) -> Result<(), Fd> {
         let engine = self;
         engine.domain.rehearse();
         crate::upgrade::prepare(engine, true);
@@ -156,8 +254,26 @@ impl engine::Engine {
             directory,
             user,
             engine.store.installation,
-            jig_protocol_store::host::Adoption::Rehearse { scratch },
+            jig_protocol_store::host::Adoption::Rehearse { scratch, reach },
         )
+    }
+    /// Rehearse over a copy its shell opened at the stock's figures. `settings` are the limits a
+    /// start takes from the copy, which sized this engine (configuration/limit-settings.md, 3);
+    /// none when the copy didn't open and its store keeps the terminal for the report. The
+    /// rehearsal counts from `began`.
+    pub fn rehearse_opened(
+        &mut self,
+        store: store::Store,
+        settings: Option<crate::limit_settings::LimitSettings>,
+        began: Time,
+    ) {
+        let engine = self;
+        engine.domain.rehearse();
+        crate::upgrade::prepare_opened(engine, began);
+        match settings {
+            Some(settings) => engine.take_limit_store(store, settings),
+            None => engine.replace_store(store),
+        }
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
@@ -168,6 +284,24 @@ impl engine::Engine {
             user,
             engine.store.installation,
             jig_protocol_store::host::Adoption::Back,
+        )
+    }
+    /// Restore a checkpoint over the stopped deployment (protocol/checkpoints.md, 2.5).
+    /// Retain its terminal through teardown as for going back.
+    pub fn restore_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        name: jig_protocol_store::CheckpointName,
+        draw: [u8; 16],
+    ) -> Result<(), Fd> {
+        crate::upgrade::prepare(self, false);
+        self.upgrade.as_mut().expect("prepared restore").report.checkpoint = Some(name);
+        self.store.host.adopt_mode(
+            directory,
+            user,
+            self.store.installation,
+            jig_protocol_store::host::Adoption::Restore { name, draw },
         )
     }
     /// Retained through teardown for shells and worlds alike.
@@ -269,7 +403,15 @@ impl engine::Engine {
             }
             process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
         }
-        if engine.store.opened || engine.end.is_some() {
+        if let Some(state) = &mut engine.checkpoint {
+            for _ in 0..state.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
+                }
+                process.down(state.io.pop().expect("checkpoint child requests"));
+            }
+        }
+        if engine.store.opened || engine.end.is_some() || engine.checkpoint.is_some() {
             for _ in 0..engine.setup.io.len() {
                 if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
                     break;
@@ -329,7 +471,9 @@ impl engine::Engine {
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
         let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
-        if let Some(owner) = owner
+        if owner == Some(crate::checkpoint::CHILD) {
+            engine.checkpoint.as_mut().expect("checkpoint child").up(event);
+        } else if let Some(owner) = owner
             && crate::tokens::prefix(owner) == 11
         {
             engine.setup.up(event);
@@ -364,6 +508,9 @@ impl engine::Engine {
             (crate::Listening::Workers, engine.workers.host.listening.take()),
         ] {
             if let Some(addr) = addr {
+                if let Some(places) = &mut engine.places {
+                    places.listening(addr);
+                }
                 engine
                     .listening
                     .try_push(crate::Note::Listening { listener, addr })
@@ -402,6 +549,10 @@ impl engine::Engine {
         &self.domain
     }
     pub fn shutdown(&mut self) {
+        if let Some(state) = &mut self.checkpoint {
+            state.shutdown(io::kernel::ServiceSignal::Terminate);
+            return;
+        }
         crate::stop::shutdown(self);
     }
     pub fn agents_ended(&mut self, ended: bool) {

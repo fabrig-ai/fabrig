@@ -12,6 +12,7 @@ use jig_protocol_worker_wire as wire;
 use skein_fake_machine::How;
 use skein_lib::{Duration, List, Reader, Time};
 use skein_world::{HostedProgram, Inherited, StartupRoot};
+use smith_charter::Record;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -33,20 +34,26 @@ impl Case {
 }
 
 fn engine(inherited: &Inherited) -> Proc {
-    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::engine_document()).expect("engine JSON");
-    let llm = &mut document["engine"]["llm"];
-    llm["providers"][0]["endpoint"] = "fake".into();
-    llm["providers"][0]["direct"] = "direct".into();
-    llm["providers"][0]["sources"] = serde_json::json!({"keys":true,"programs":["claude_code"]});
-    llm["providers"][0]["manage_usage"] = "https://usage.example/".into();
-    llm["endpoints"][0]["program"] = "claude_code".into();
-    let mut direct = llm["endpoints"][0].clone();
-    direct.as_object_mut().expect("endpoint").remove("program");
-    direct["name"] = "direct".into();
-    direct["number"] = 2.into();
-    llm["endpoints"].as_array_mut().expect("endpoints").push(direct);
-    llm["models"][0]["window"] = 272_000.into();
-    processes::engine_document(inherited, &serde_json::to_vec(&document).expect("both ways JSON"))
+    static PREPARED: std::sync::OnceLock<jig_test_service::Prepared> = std::sync::OnceLock::new();
+    let prepared = PREPARED.get_or_init(|| {
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&fixtures::engine_document()).expect("engine JSON");
+        let llm = &mut document["engine"]["llm"];
+        llm["providers"][0]["endpoint"] = "fake".into();
+        llm["providers"][0]["direct"] = "direct".into();
+        llm["providers"][0]["sources"] = serde_json::json!({"keys":true,"programs":["claude_code"]});
+        llm["providers"][0]["manage_usage"] = "https://usage.example/".into();
+        llm["endpoints"][0]["program"] = "claude_code".into();
+        let mut direct = llm["endpoints"][0].clone();
+        direct.as_object_mut().expect("endpoint").remove("program");
+        direct["name"] = "direct".into();
+        direct["number"] = 2.into();
+        llm["endpoints"].as_array_mut().expect("endpoints").push(direct);
+        llm["models"][0]["window"] = 272_000.into();
+        jig_test_service::prepare(&serde_json::to_vec(&document).expect("both ways JSON"))
+            .expect("both ways configuration")
+    });
+    processes::engine_document(inherited, prepared)
 }
 
 fn declarations() -> smith_agent_service::profile::Configuration {
@@ -191,6 +198,11 @@ impl Judge {
         } else if waiting(procs)? {
             // The first run still owns its slot while the worker's periodic check
             // reports the host-local change. The next activation sees that inventory.
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    host.service.engine().ok_or("engine")?.hold_workspaces();
+                }
+            }
             self.login.set(Some(signed_in));
             self.check_after = Some(engine_wire(procs)?.frames.len());
         }
@@ -209,8 +221,8 @@ fn logins(procs: &[Proc]) -> Result<Vec<(usize, wire::LoginState)>, String> {
         if *kind == wire::Kind::Logins.number() {
             let logins = wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(body))
                 .map_err(|why| format!("login inventory: {why:?}"))?;
-            if let Some(login) = logins.logins().iter().find(|login| login.name() == b"alice") {
-                found.push((frame, login.state().clone()));
+            if let Some(login) = logins.logins.iter().find(|login| login.name.as_ref() == b"alice") {
+                found.push((frame, login.state.clone()));
             }
         }
     }
@@ -221,7 +233,7 @@ fn waiting(procs: &[Proc]) -> Result<bool, String> {
         if *kind == wire::Kind::Fact.number() {
             let fact =
                 wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body)).map_err(|why| format!("fact: {why:?}"))?;
-            if matches!(fact.value(), wire::FactValue::Phase(phase) if *phase.value() == wire::Phase::Waiting) {
+            if matches!( &fact.value, wire::FactValue::Phase(phase) if phase.value == wire::Phase::Waiting) {
                 return Ok(true);
             }
         }
@@ -237,14 +249,14 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
             let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes))
                 .map_err(|why| format!("assignment: {why:?}"))?;
             let charter =
-                smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(assignment.charter()))
+                smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(assignment.charter.as_ref()))
                     .map_err(|why| format!("charter: {why:?}"))?;
-            let source = charter.main().account().ok_or("selected source")?;
-            let grant = assignment.grants().iter().find(|grant| grant.number() == source).ok_or("main's grant")?;
-            let grant = match grant.value() {
+            let source = charter.main.account.ok_or("selected source")?;
+            let grant = assignment.grants.iter().find(|grant| grant.number == source).ok_or("main's grant")?;
+            let grant = match &grant.value {
                 wire::GrantValue::Credential(value) => {
                     {
-                        let (observed_value, wanted) = (value.scheme(), &(wire::Scheme::Key));
+                        let (observed_value, wanted) = ((&value.scheme), &(wire::Scheme::Key));
                         if observed_value != wanted {
                             return Err(format!(
                                 "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
@@ -252,7 +264,7 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
                         }
                     }
                     {
-                        let (observed_value, wanted) = (&(value.bytes().expose()), &(fixtures::KEY));
+                        let (observed_value, wanted) = (&(value.bytes.expose()), &(fixtures::KEY));
                         if observed_value != wanted {
                             return Err(format!(
                                 "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
@@ -263,7 +275,7 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
                 }
                 wire::GrantValue::Program(value) => {
                     {
-                        let (observed_value, wanted) = (&(value.name()), &(b"alice"));
+                        let (observed_value, wanted) = (&(value.name.as_ref()), &(b"alice"));
                         if observed_value != wanted {
                             return Err(format!(
                                 "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
@@ -275,10 +287,10 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
                 wire::GrantValue::Application(_) => return Err(String::from("main uses the LLM grant")),
             };
             Ok(Assignment {
-                task: assignment.task(),
-                attempt: assignment.attempt(),
-                endpoint: charter.main().endpoint().to_vec(),
-                model: charter.main().model().to_vec(),
+                task: assignment.task,
+                attempt: assignment.attempt,
+                endpoint: charter.main.endpoint.to_vec(),
+                model: charter.main.model.to_vec(),
                 source,
                 grant,
             })
@@ -502,6 +514,21 @@ impl Judge {
             if answer.end == jig_domain_tasks::End::Parked)
         });
         self.cross(procs, parked)?;
+        // The parked finite task may self-wake. Hold its preparation until the
+        // requester's waking words have committed, before giving it a new backend.
+        let heard = self.store.rows.values().any(|row| {
+            matches!(row,
+            jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
+                if task.inbox.iter().any(|word| word.words.as_ref() == b"Continue on the other source"))
+        });
+        if heard {
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    let engine = host.service.engine().ok_or("engine")?;
+                    engine.release_workspaces();
+                }
+            }
+        }
         let mut run = self.shared.borrow_mut();
         run.turns = world::turns(&self.store).into_iter().cloned().collect();
         run.terminals = self

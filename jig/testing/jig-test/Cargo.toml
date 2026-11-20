@@ -8,10 +8,13 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-protocol-config-fixtures.workspace = true
 skein-fail-stop.workspace = true
 jig-test-service.workspace = true
+jig-protocol-store.workspace = true
 jig-protocol-config.workspace = true
 jig-domain-link.workspace = true
+jig-domain-core.workspace = true
 jig-domain-accounts.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
@@ -48,7 +51,6 @@ smith-protocol-program.workspace = true
 jig-client-test-records.workspace = true
 jig-client-protocol-link.workspace = true
 skein-scratch.workspace = true
-jig-domain-core.workspace = true
 jig-test-domain.workspace = true
 skein-kv.workspace = true
 jig-protocol-accounts-kit.workspace = true
@@ -64,7 +66,6 @@ skein-fake-peers.workspace = true
 skein-fake-llm-domain.workspace = true
 skein-fake-llm-protocol.workspace = true
 skein-llm.workspace = true
-jig-protocol-store.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 

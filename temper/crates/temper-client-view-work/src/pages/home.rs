@@ -109,7 +109,7 @@ fn intro(
         b.text(Run::Plain, &intro.headline);
         if let Some(lede) = &intro.lede {
             b.text(Run::Plain, b" ");
-            text(b, Role::Text, lede, Some(look::HOME_LEDE));
+            intro_lede(b, w, bindings, lede, Role::Text, intro.accounts);
         }
         b.close();
         if let Some(byline) = &intro.byline {
@@ -126,7 +126,7 @@ fn intro(
         b.style(look::HOME_LEDES);
     }
     if let Some(lede) = intro.lede {
-        text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
+        intro_lede(b, w, bindings, &lede, Role::Paragraph, intro.accounts);
     }
     if facts.to_begin() {
         let (_, more) = crate::common::accounts::home_accounts(root);
@@ -137,6 +137,17 @@ fn intro(
         text(b, Role::Paragraph, &byline, Some(look::HOME_BYLINE));
     }
     stopped_try(b, root, w, accounts);
+    b.close();
+}
+fn intro_lede(b: &mut Builder, w: &Words, bindings: &mut Bindings, lede: &[u8], role: Role, accounts: bool) {
+    b.open(role);
+    b.style(look::HOME_LEDE);
+    b.name(lede);
+    b.text(Run::Plain, lede);
+    if accounts {
+        b.text(Run::Plain, b" ");
+        go(b, bindings, &w.say(Word::SettingsAccountsTab, &[]), Address::Accounts, None);
+    }
     b.close();
 }
 fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::accounts::Bindings) {
@@ -294,7 +305,7 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
     b.style(look::GOALS_ROWS);
     let names = super::goals::Names::of(root);
     let milestones = root.pages().milestones();
-    for row in &home_rows(live, goals.ended(), milestones, times.now) {
+    for row in &home_rows(live, goals.ended(), milestones, goals, times.now) {
         match *row {
             GroupRow::Goal(task) => {
                 if let Some(line) = goal(live, goals.ended(), task) {
@@ -369,10 +380,10 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
                 None => Box::default(),
             };
             let age = times.say(w, TimeForm::Span, line.ended_at.unwrap_or(line.last_activity));
-            let title = line.chip.title.bytes();
+            let title = crate::common::chat::row_title(line.chip.title.bytes());
             let name = w.say(
                 Word::HomeChatName,
-                &[Hole::Name(title.into()), Hole::Name(status.clone()), Hole::Name(age.clone())],
+                &[Hole::Name(title.clone()), Hole::Name(status.clone()), Hole::Name(age.clone())],
             );
             crate::bindings::link(
                 b,
@@ -380,7 +391,7 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
                 bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }),
             );
             let when = crate::accounts::words::join(&[&status, &w.say(Word::ToolSeparator, &[]), &age]);
-            row_words(b, w, title, &when);
+            row_words(b, w, &title, &when);
             b.close();
             b.close();
         }
@@ -397,17 +408,17 @@ fn foot(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, facts
         return;
     }
     let Status::Shown(status) = &facts.status else { return };
-    let branch = status.branch();
+    let branch = status.branch.as_ref();
     let branch = if branch.is_empty() { None } else { Some(branch) };
     let red = [branch.unwrap_or(b"")];
     let landing = super::changes::LandingFacts {
-        queued: u64::from(status.queued()),
-        last: match status.last_landed() {
+        queued: u64::from(status.queued),
+        last: match &status.last_landed {
             Some(at) => Some(skein_lib::Wall::from_nanos(*at)),
             None => None,
         },
         branch,
-        red: if status.red() { &red } else { &[] },
+        red: if status.red { &red } else { &[] },
     };
     b.open(Role::Paragraph);
     b.style(look::HOME_FACTS);
@@ -744,7 +755,7 @@ fn add_sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings,
     text(b, Role::Heading { level: 3 }, &legend, Some(look::WELCOME_LEGEND));
     for (start, title, detail) in [
         (Start::Empty, Word::WelcomeForgejoEmpty, Word::WelcomeForgejoEmptyDetail),
-        (Start::Copies, Word::WelcomeForgejoCopies, Word::WelcomeForgejoCopiesDetail),
+        (Start::Copies, Word::WelcomeForgejoCopies, Word::HomeAddCopiesDetail),
     ] {
         b.open(Role::Slot);
         b.style(look::WELCOME_OPTION);
@@ -823,7 +834,7 @@ fn add_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
             }
             b.close();
         }
-        Start::Nothing => {}
+        Start::Sample | Start::Nothing => {}
     }
     b.close();
 }

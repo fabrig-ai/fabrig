@@ -29,6 +29,12 @@ failure is fixed, and a test's shape.
   clock, the seeds and the kernel, so a seed replays to the same run.
   The real loop trades replay for the real kernel. TLS is not
   deterministic, so the replaying tiers run in plaintext.
+- **The same work at every run.** Every focused and fuzzy test, the real
+  loop's and end to end's included, passes or fails alike at every run of
+  the same code and does the same work, so its CPU moves only when the
+  code beneath it does, within the gate's tolerance (8.1). A test whose
+  work rides on entropy, the real clock or a race is repaired at its
+  cause (section 10).
 - **End to end, few tests.** Above the real loop, the binaries run as
   they ship, as processes, against fakes in the focused suite or the real
   backends in a live suite run by choice: one test per path through
@@ -86,13 +92,6 @@ it emits, or drive one container through its operations: one transition,
 a full queue, a stale handle, a refusal at the entrance, a deadline that
 fires as it is cancelled. lib's containers are tested hardest, since
 every layer of every service stands on them.
-
-One exception: a crate's generated codec tests are an integration test
-target of their own, `tests/generated/`, outside its library
-(`../design/data/codec/README.md`, section 6). They check the
-generator's output through the items the crate's users see, so they
-test it from outside, and a crate whose library then holds no other
-tests compiles it once.
 
 ### 2.2 Domain worlds
 
@@ -645,11 +644,14 @@ provenance (who wrote it, or why) is never a tier.
 A slow tier's rule holds wherever it runs: after landing, through
 `tools/tiers/run`, or in anyone's own run. Slow tiers never run in the
 gate. **The focused and fuzzy suites' CPU budgets are judged at the merge
-gate:** a layer over its budget there is red, and every other run (the
-delivery check, a builder's, anyone's own) prints the same comparison as
-a warning naming the layer, its figure and its budget, since another
-machine's CPU, or a busy one's, isn't the gate's (the user, 11-16;
-`tools/tiers/budgets.md`, 5).
+gate:** a layer over its budget there is red. A delivery check on a
+builder that keeps main's ledgers judges the delivery as the gate will
+and refuses it there, so a goal hears it before its pull request (the
+user, 11-17). Every other run (a delivery check without them, a
+builder's own, anyone's) prints the same comparison as a warning naming
+the layer, its figure and its budget, since another machine's CPU, or a
+busy one's, isn't the gate's (the user, 11-16; `tools/tiers/budgets.md`,
+5).
 
 **The budget is CPU seconds:** user plus system time of the tests'
 processes, descendants included, summed per suite (a tree's tier):
@@ -675,7 +677,8 @@ it, and nothing raises a budget by itself. The gate runs the packages a
 change reaches and takes the others' figures from a ledger of main's, so
 each layer is judged whole. A layer over its budget is the change's red
 where main is within it, or where the change adds more than the noise, a
-hundredth of the layer and at least half a second; otherwise the red is
+twentieth of the layer at main and at least a second, main's figure for
+each binary the median of its last three landings'; otherwise the red is
 main's, as a failure the base has too is. The red names the binaries
 that grew and their tests (`tools/tiers/budgets.md`, 7 to 9). **Budget
 moves down the pyramid with the tests a change places lower** (section
@@ -685,15 +688,23 @@ goes down and applies it to the ceiling and the held budget alike. A
 move up is a raise (`tools/tiers/budgets.md`, 10).
 
 **Each test is held to its reference at the gate,** its layer's per-test
-guide (section 8). A new test, one main's ledger lacks, is run alone after
+guide (section 8); for now a test past it is a warning there, and the
+gate's budgets warn until its runs show few warnings (the user, 11-19). A new test, one main's ledger lacks, is run alone after
 the suite, in a process of its own, and stays within its reference, or is
 red. An existing test stays within the larger of its reference and half
 again its own CPU at main: its wall in the shared run flags it, past twice
 its figure at main and at least 50 ms over it, and a flagged test is run
-alone at the head and at the base and judged by the two figures. A test
+alone at the head and at the base and judged by the two figures. That
+tolerance holds because a test does the same work at every run (section
+10): one whose CPU swings past it on the same code is a defect, repaired
+at its cause, never by a line. A test
 may pass its reference by a line beside the budgets giving its figure and
-why, which the change's review judges; it still counts in its layer, so a
-reason never raises a budget. Every other run judges nothing alone
+why. The line is the user's figure, as a budget is: a change never adds
+or raises one, and the gate refuses a change that raises any figure there
+(the user, 11-18; `tools/tiers/budgets.md`, 10). It still counts in its
+layer, so a reason never raises a budget. A delivery check with main's ledgers
+judges its tests so too, a flagged one by the ledger's figures alone,
+since it builds nothing at its base; every other run judges nothing alone
 (`tools/tiers/references.md`).
 
 **Every test binary is in one layer,** a tier of section 2, since a
@@ -738,7 +749,8 @@ says nothing of the whole suite's: they change by the user's word alone.
 A harness's own deadline keeps 2.10's rule.
 
 **Over budget is red,** at the gate for the focused and fuzzy suites'
-layers and wherever a slow tier runs. Repair it by asking these questions, in order:
+layers and wherever a slow tier runs. Its repair starts by reading this
+strategy in full, as the red says; then it asks these questions, in order:
 
 1. **Does the test belong to this tier?** Use the tier definitions in
    this strategy and the tree's testing document. If it does not belong,
@@ -804,6 +816,17 @@ design, a task or a review cites it, and none of them restates it.
   the number is the same in every checkout, at any depth. In temper's
   forge-setup, the owned example's minima moved with the scratch
   directory: 32 bytes in one worktree, 8 in another.
+- **The same work at every run.** A focused or fuzzy test does the same
+  work each time it runs the same code, so its CPU changes only with the
+  code beneath it, and within the gate's tolerance, half again its figure
+  at main (8.1). What it would draw from entropy (a key, a nonce, a
+  random choice) it draws from its seed or takes from a fixture; it
+  waits on no clock it doesn't own; it blocks rather than polls while it
+  waits; and it provokes a race a fixed number of times, never until it
+  wins. In temper's box-shell, a test that generated a 3072-bit RSA key
+  from the kernel's entropy took 0.08 to 0.40 s alone on the same code,
+  and failed the gate at random (11-18). A test whose CPU swings so is
+  repaired at its cause, as a flake is.
 - **A bound's two sides.** A limit that refuses is tested at the bound,
   which holds, and one past it, which is refused, each in a test or a
   row of its own. A limit an assertion guards is tested at the bound,

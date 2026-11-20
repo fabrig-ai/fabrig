@@ -5,9 +5,9 @@
 use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
 use skein_lib::List;
 
-use crate::{kind, v10};
+use crate::{Record, kind, v11};
 
-/// A version-ten body's number, sender, admission obligation and codec.
+/// A version-eleven body's number, sender, admission obligation and codec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[expect(
     clippy::partial_pub_fields,
@@ -55,8 +55,8 @@ pub enum Overflow {
     Frame,
 }
 
-/// The 22 kinds required by channel version ten, in wire number order.
-pub const V10: &[KindRule] = &[
+/// The 22 kinds required by channel version eleven, in wire number order.
+pub const V11: &[KindRule] = &[
     KindRule { kind: kind::START, direction: Direction::FromInitiator, required: true, body: Body::Start },
     KindRule { kind: kind::MESSAGE, direction: Direction::FromInitiator, required: true, body: Body::Message },
     KindRule { kind: kind::HOST_ANSWER, direction: Direction::FromInitiator, required: true, body: Body::HostAnswer },
@@ -101,39 +101,39 @@ pub const V10: &[KindRule] = &[
     KindRule { kind: kind::RENEWALS, direction: Direction::FromInitiator, required: true, body: Body::Renewals },
 ];
 
-/// Build the version-ten channel schema from receiving codec limits.
-pub fn schema(limits: &v10::Limits) -> Result<Schema, Overflow> {
+/// Build the version-eleven channel schema from receiving codec limits.
+pub fn schema(limits: &v11::Limits) -> Result<Schema, Overflow> {
     let mut kinds = List::with_capacity(22);
-    for rule in V10 {
+    for rule in V11 {
         let largest = match rule.body {
-            Body::Start => v10::Start::encoded_bound(limits),
-            Body::Message => v10::Message::encoded_bound(limits),
-            Body::MessageRefused => v10::MessageRefused::encoded_bound(limits),
-            Body::HostAnswer => v10::HostAnswer::encoded_bound(limits),
-            Body::Acknowledge => v10::Acknowledge::encoded_bound(limits),
-            Body::GrantRefresh => v10::GrantRefresh::encoded_bound(limits),
-            Body::Cancel => v10::Cancel::encoded_bound(limits),
-            Body::Renewals => v10::Renewals::encoded_bound(limits),
-            Body::Drain => v10::Drain::encoded_bound(limits),
-            Body::Admitted => v10::Admitted::encoded_bound(limits),
-            Body::Call => v10::Call::encoded_bound(limits),
-            Body::Withdraw => v10::Withdraw::encoded_bound(limits),
-            Body::Turn => v10::Turn::encoded_bound(limits),
-            Body::Waiting => v10::Waiting::encoded_bound(limits),
-            Body::Long => v10::Long::encoded_bound(limits),
-            Body::LongDone => v10::LongDone::encoded_bound(limits),
-            Body::Unauthorized => v10::Unauthorized::encoded_bound(limits),
-            Body::Limited => v10::Limited::encoded_bound(limits),
-            Body::Fact => v10::Fact::encoded_bound(limits),
-            Body::Answer => v10::Answer::encoded_bound(limits),
-            Body::AccountRefused => v10::AccountRefused::encoded_bound(limits),
-            Body::Live => v10::Live::encoded_bound(limits),
+            Body::Start => v11::Start::encoded_bound(limits),
+            Body::Message => v11::Message::encoded_bound(limits),
+            Body::MessageRefused => v11::MessageRefused::encoded_bound(limits),
+            Body::HostAnswer => v11::HostAnswer::encoded_bound(limits),
+            Body::Acknowledge => v11::Acknowledge::encoded_bound(limits),
+            Body::GrantRefresh => v11::GrantRefresh::encoded_bound(limits),
+            Body::Cancel => v11::Cancel::encoded_bound(limits),
+            Body::Renewals => v11::Renewals::encoded_bound(limits),
+            Body::Drain => v11::Drain::encoded_bound(limits),
+            Body::Admitted => v11::Admitted::encoded_bound(limits),
+            Body::Call => v11::Call::encoded_bound(limits),
+            Body::Withdraw => v11::Withdraw::encoded_bound(limits),
+            Body::Turn => v11::Turn::encoded_bound(limits),
+            Body::Waiting => v11::Waiting::encoded_bound(limits),
+            Body::Long => v11::Long::encoded_bound(limits),
+            Body::LongDone => v11::LongDone::encoded_bound(limits),
+            Body::Unauthorized => v11::Unauthorized::encoded_bound(limits),
+            Body::Limited => v11::Limited::encoded_bound(limits),
+            Body::Fact => v11::Fact::encoded_bound(limits),
+            Body::Answer => v11::Answer::encoded_bound(limits),
+            Body::AccountRefused => v11::AccountRefused::encoded_bound(limits),
+            Body::Live => v11::Live::encoded_bound(limits),
         };
         let largest = largest.ok_or(Overflow::Body)?;
         let Ok(largest) = u32::try_from(largest) else {
             return Err(Overflow::Frame);
         };
-        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V10 has exactly 22 kinds");
+        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V11 has exactly 22 kinds");
     }
     let mut versions = List::with_capacity(1);
     versions.push(Version { version: kind::VERSION, kinds }).expect("one version has one slot");
@@ -143,7 +143,7 @@ pub fn schema(limits: &v10::Limits) -> Result<Schema, Overflow> {
 /// Find the first required kind that the peer cannot receive at our sending bound.
 #[must_use]
 pub fn peer_terms_gap(schema: &Schema, role: Role, version: u16, terms: &List<Term>) -> Option<u16> {
-    required_terms_gap(schema, role, version, terms, V10)
+    required_terms_gap(schema, role, version, terms, V11)
 }
 
 fn required_terms_gap(

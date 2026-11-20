@@ -10,6 +10,7 @@ use alloc::boxed::Box;
 use jig_client::{Handle, Key, Outcome, Readable, Readout, Told, contract as c};
 use skein_lib::{Env, List, Queue, Reader, Writer, bytes::concat};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
@@ -277,11 +278,11 @@ fn open(root: &mut dyn Routing, give: bool) {
         let mut charters = List::with_capacity(areas.rows.len());
         for area in &areas.rows {
             if let Some(w::Holder::Task(holder)) = &area.holder
-                && holder.number() == task
+                && holder.number == task
             {
                 names.push(area.name.clone()).expect("one name per area");
                 if let w::AreaOwner::Charter(charter) = &area.owner {
-                    charters.push(charter.number()).expect("at most one charter per area");
+                    charters.push(charter.number).expect("at most one charter per area");
                 }
             }
         }
@@ -456,7 +457,11 @@ fn record(page: &Readout, project: u32, revision: u32, bounds: &w::Limits) -> Op
         return None;
     }
     match &document.value {
-        None => w::ProjectAreas::new(bounds, w::ProjectAreasParts { areas: List::with_capacity(0) }).ok(),
+        None => {
+            let value = w::ProjectAreas { areas: List::with_capacity(0) };
+            value.measure(bounds).ok()?;
+            Some(value)
+        }
         Some(c::SettingValue::Application(bytes)) => {
             let mut reader = Reader::new(bytes);
             let record = w::ProjectAreas::decode(bounds, &mut reader).ok()?;
@@ -468,67 +473,62 @@ fn record(page: &Readout, project: u32, revision: u32, bounds: &w::Limits) -> Op
             | c::SettingValue::Charter(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
+            | c::SettingValue::Limits(_)
+            | c::SettingValue::Provider(_)
+            | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_),
         ) => None,
     }
 }
 fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w::ProjectAreas> {
-    let mut rows = List::with_capacity(record.areas().len().saturating_add(1));
+    let mut rows = List::with_capacity(record.areas.len().saturating_add(1));
     let mut found = false;
-    for row in record.into_parts().areas.into_boxed() {
-        let mut row = row.into_parts();
+    for row in record.areas.into_boxed() {
+        let mut row = row;
         if let Some(give) = &open.give {
             let held = match &row.owner {
-                w::AreaOwner::Task(task) => task.number() == give.task,
-                w::AreaOwner::Charter(charter) => give.charters.as_slice().contains(&charter.number()),
+                w::AreaOwner::Task(task) => task.number == give.task,
+                w::AreaOwner::Charter(charter) => give.charters.as_slice().contains(&charter.number),
                 w::AreaOwner::Party(_) | w::AreaOwner::Role(_) => false,
             };
             if held {
-                row.owner =
-                    w::AreaOwner::Party(w::AreaParty::new(bounds, w::AreaPartyParts { number: give.party }).ok()?);
+                row.owner = w::AreaOwner::Party(w::AreaParty { number: give.party });
                 found = true;
             }
         } else if Some(&row.name) == open.area.as_ref() {
-            row.owner = chosen_owner(open, bounds)?;
+            row.owner = chosen_owner(open)?;
             found = true;
         } else if open.area.is_none() && row.name == open.name {
             return None;
         }
-        rows.push(w::Area::new(bounds, row).ok()?).ok()?;
+        rows.push(row).ok()?;
     }
     if open.give.is_none() && open.area.is_none() {
         if rows.len() >= 16 || !valid_name(&open.name) || !valid_words(&open.words) {
             return None;
         }
-        rows.push(
-            w::Area::new(
-                bounds,
-                w::AreaParts { name: open.name.clone(), words: open.words.clone(), owner: chosen_owner(open, bounds)? },
-            )
-            .ok()?,
-        )
-        .ok()?;
+        rows.push(w::Area { name: open.name.clone(), words: open.words.clone(), owner: chosen_owner(open)? }).ok()?;
     } else if !found {
         return None;
     }
-    w::ProjectAreas::new(bounds, w::ProjectAreasParts { areas: rows }).ok()
+    {
+        let value = w::ProjectAreas { areas: rows };
+        value.measure(bounds).ok()?;
+        Some(value)
+    }
 }
-fn chosen_owner(open: &Open, bounds: &w::Limits) -> Option<w::AreaOwner> {
+fn chosen_owner(open: &Open) -> Option<w::AreaOwner> {
     match open.stock {
-        Some(stock) => Some(w::AreaOwner::Charter(
-            w::AreaCharter::new(bounds, w::AreaCharterParts { number: stock.charter() }).ok()?,
-        )),
-        None => Some(w::AreaOwner::Task(
-            w::AreaTask::new(bounds, w::AreaTaskParts { number: open.chosen_role()?.task }).ok()?,
-        )),
+        Some(stock) => Some(w::AreaOwner::Charter(w::AreaCharter { number: stock.charter() })),
+        None => Some(w::AreaOwner::Task(w::AreaTask { number: open.chosen_role()?.task })),
     }
 }
 fn send(root: &mut dyn Routing, env: &Env<Limits>, page: &Readout, revision: u32) -> Option<()> {
     let open = root.pages().hand_area.as_ref()?;
     let bounds = crate::forge::wire_limits(&env.limits.forge)?;
     let record = changed(open, record(page, open.project, revision, &bounds)?, &bounds)?;
-    let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut writer).ok()?;
+    let mut writer = Writer::new(usize::try_from(record.measure(&bounds).ok()?).ok()?);
+    record.write(&bounds, &mut writer).ok()?;
     let mut items = List::with_capacity(1);
     items
         .push(c::SettingItem {

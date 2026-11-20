@@ -1,5 +1,5 @@
 # records: status
 
-2026-11-16. Where jig's code lags or departs from [records.md](records.md).
+2026-11-19. Where jig's code lags or departs from [records.md](records.md).
 
-
+No gap.

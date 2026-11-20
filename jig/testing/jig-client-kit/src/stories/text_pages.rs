@@ -107,6 +107,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
 }
 fn reply(task: c::Task) -> TaskLine {
     TaskLine {
+        parts: skein_lib::List::with_capacity(0),
         chip: {
             let mut chip = task.chip;
             chip.title = DocumentText::complete(text(b"Hello"));

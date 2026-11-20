@@ -3,7 +3,7 @@ use crate::{directory, host::Startup};
 use jig_client_shell_native::Shell;
 use skein_io::kernel::{Complete, Done, Fd, Op, OpenHow, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Token};
-const FIRST: Duration = Duration::from_millis(100);
+pub(crate) const FIRST: Duration = Duration::from_millis(100);
 const MOST: Duration = Duration::from_secs(2);
 const OPEN: Token = Token::new(1 << 59);
 #[derive(PartialEq, Eq)]
@@ -46,7 +46,12 @@ impl Signing {
         });
         Self {
             shell: Some(Shell::new(jig_client_shell_native::Settings {
-                engine,
+                mapping: jig_client_protocol_http::Mapping::with_page(
+                    b"/jig",
+                    temper_client_domain_forge::sign_in::LINK_PAGE,
+                )
+                .expect("temper mapping"),
+                engine: jig_client_shell_native::Engine::Plain(engine),
                 directory: leaf,
                 limits: connections,
                 io,
@@ -81,17 +86,22 @@ impl Signing {
         if bytes.is_empty() {
             return Err(b"sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -");
         }
-        let parsed = jig_client_protocol_http::printed(
-            &jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping"),
-            bytes,
-        )
-        .map_err(|_| b"the sign-in link was refused".as_slice())?;
+        let mapping =
+            jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE)
+                .expect("temper mapping");
+        let parsed = jig_client_protocol_http::printed(&mapping, bytes)
+            .map_err(|_| b"the sign-in link was refused".as_slice())?;
         let mut address = b"http://".to_vec();
         address.extend_from_slice(&parsed.host);
         address.push(b'\n');
         let engine = directory::address(&address)?;
-        let mut shell =
-            Shell::new(jig_client_shell_native::Settings { engine, directory: leaf, limits: connections, io });
+        let mut shell = Shell::new(jig_client_shell_native::Settings {
+            mapping,
+            engine: jig_client_shell_native::Engine::Plain(engine),
+            directory: leaf,
+            limits: connections,
+            io,
+        });
         let with = shell.sign_in(bytes).map_err(|_| b"the sign-in link was refused".as_slice())?;
         out.push(Submit {
             op: OPEN,
@@ -162,8 +172,7 @@ impl Signing {
         }
     }
     pub(crate) fn again(&mut self, now: Time, until: Time) {
-        self.retry = Some(now.saturating_add(self.backoff).min(until));
-        self.backoff = self.backoff.saturating_mul(2).min(MOST);
+        self.retry = Some(again(now, until, &mut self.backoff));
     }
     pub(crate) fn close(&mut self) {
         self.link = None;
@@ -178,4 +187,11 @@ impl Signing {
     pub(crate) fn is_empty(&self) -> bool {
         !self.opening && self.shell.as_ref().is_none_or(Shell::is_empty)
     }
+}
+
+/// The call retries after 100 ms, doubling to 2 s, never past its deadline.
+pub(crate) fn again(now: Time, until: Time, backoff: &mut Duration) -> Time {
+    let at = now.saturating_add(*backoff).min(until);
+    *backoff = backoff.saturating_mul(2).min(MOST);
+    at
 }

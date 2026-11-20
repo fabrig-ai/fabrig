@@ -204,7 +204,11 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
 - **`temper-client-shell-terminal`** holds, as modules:
   - `client`: the native client, `NativeClient`: temper's client root,
     its view and `jig-client-shell-native`'s transport, and when
-    `jig-client-shell-native` keeps the credential's file (section 4);
+    `jig-client-shell-native` keeps the credential's file (section 4).
+    What its tests and the process tier's person wait on it shows read-only:
+    `pending`, its readiness counts and the view's revision, and
+    `address`, the address it last applied, by its own `go` or a root's
+    `Show` (`view.md`, 3, *A new project*);
   - `route`: each of the root's requests to the native shell, the host
     or one of temper's lines;
   - `terminal`: skein's text shell's terminal with temper's settings,
@@ -369,6 +373,37 @@ and `jig-client` opens none on the engine until it is signed in (jig's
 `client/domain/client/README.md`, section 9), so no stream leaves without the
 credential.
 
+- **`me` comes with the stream** (jig's `client/domain/client/watches.md`,
+  2): the stream's hello brings it, and the link is live with it, so
+  what waits for `me` (the templates' labels, the party, the projects
+  it lists) is ready when the stream is, and is asked in the step that
+  hears the hello.
+- **What names no party waits for no `me`.** The party's own and the
+  deployment's watches and reads (jig's
+  `client/domain/contract/README.md`, 5.5): the forge side's
+  `dismissed`, `away`, `trials`, `approvals`, `devices` and `forges`,
+  jig's `settings`, and the `deployment`, `playground` and program
+  environment's reads, are asked once the link is live, never after a
+  value of `me`'s, so they leave in the step that hears the hello,
+  beside the page's. A watch or read that needs what `me` says (a
+  deployment role, a template's label, the party's number) still asks
+  in that step, from the hello's `me`.
+- **Nothing of the frame's or a page's before the hello.** Their reads,
+  as their watches, are asked once the link is live, in the step that
+  hears the hello, never at start before it: the rail's `Read::Project`
+  of Team's (`pages/team.md`, 1, *Its reads*) and the `accounts` watch
+  the banner draws from (`pages/accounts.md`, 2) among them. A watch
+  asked before the hello would leave as its own exchange ahead of a
+  reload's kept keyed requests, which `jig-client` releases only once
+  `me` confirms their party, and the link keeps the order exchanges
+  were asked in (jig's `client/domain/client/README.md`, 4.1, *The
+  settling*), so the kept requests would part it from the batch and it
+  would cost a request of its own. So a cold
+  open sends the stream alone first, and everything else after the
+  hello: one batch, and on a reload the kept keyed requests on their
+  own routes beside it, once the hello's `me` confirms their party
+  (jig's `client/domain/client/README.md`, section 8; `pages/work.md`,
+  1, *Its budget*).
 - **Another party's kept work** stays parked and is not shown (jig's
   `client/domain/client/README.md`, section 8); the terminal says so in a line
   of its own (`line.md`, 6).
@@ -542,8 +577,16 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
   | `words(Text)` | `spec`: the base's, with its `words` replaced |
   | `dependencies(List<u64>)` | `dependencies`: the whole list |
   | `llm(LlmChoice)` | `llm`: the whole choice |
+  | `address(AddressChange)` | `addressed`: the person task's new address and the person revision it names |
 
-  An edit equal to the base is no change. A deadline needs the base's
+  An edit equal to the base is no change, but for an address, which is
+  always one: re-addressed to where it waits now, a person task is let
+  go by a party who took it (jig's `domain/tasks/changes.md`).
+  `amend::address(&c::Task, c::PersonAddress) -> Option<c::AddressChange>`
+  makes the change a read allows: the address at the document's
+  `person_revision`, and none for a document without one, which is no
+  person task; every caller that sends an address, a draft's or one
+  named whole, makes it so. A deadline needs the base's
   whole authority and words its whole spec: where the document cut it,
   the edit answers `Cut::Authority` or `Cut::Spec`, and the draft is
   unchanged, so a page shows the field read only and `ctl` says so.
@@ -555,7 +598,8 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
   without a change; else `Drafted { revision: Option<Revision>,
   change: c::Amendment }`, the revision absent exactly when the change
   is a tracked task's priority alone (jig's `domain/tasks/changes.md`
-  ), and the base's otherwise.
+  ), and the base's otherwise, an address among the changes that name
+  it.
 - **What is whose.** The editor holds the rules of a draft (what
   each edit keeps, what is cut, when a revision is named). The words
   and fields are the caller's: a page's form, `ctl`'s flags and its
@@ -580,17 +624,56 @@ temper's:
 - **The printed link** (jig's `protocol/client/sign-in.md`): at
   start, `temper-box serve`, or `temper box` before it starts serve
   (`../protocol/setup/box.md`, 2), prints a sign-in link for the deployment's
-  first owner (`../protocol/binaries.md`), in the default
-  mapping's link route under temper's prefix,
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper-box open
+  first owner (`../protocol/binaries.md`), at the link's page (below),
+  `http://HOST:PORT/sign-in?secret=SECRET`. `temper-box open
   DIRECTORY LINK` checks that the link names the engine's address on
-  loopback and that route, and gives the secret to `jig-client` with the
+  loopback and that route or the link's page (below), and gives the secret to `jig-client` with the
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
   held } }`). The secret is in the command line only until the sign-in
   spends it; the client root passes it on and keeps nothing of it. The
   running engine also keeps a local link of its own at rest, never the
   printed one, for a TUI on the same machine (`tui/README.md`, 2, *The engine's link,
   kept at rest*).
+- **The link's page, `/sign-in`** (the user's request of 2026-11-18,
+  "a more terse URL, e.g. http://127.0.0.1:8367/sign-in?secret=xxx"):
+  temper gives jig's mapping its link page, `/sign-in`, beside its
+  prefix, `/jig` (jig's `protocol/client/default-http.md`, 1), so the
+  link reads `http://HOST:PORT/sign-in?secret=SECRET`, its secret spent
+  by the `POST` to the link's route, `/jig/v1/sign-in/link`, as before.
+  - **Printed and shown at the page:** every link temper makes is in
+    the page's form, by jig's ends given that page
+    (`default-http.md`, 4): the box's block and every fresh link
+    (`../protocol/setup/box.md`, 2), serve's line, and at a public
+    origin `https://NAME/sign-in?secret=SECRET`; the engine's local
+    link at rest (`tui/README.md`, 2); the link the box hands the TUI
+    in front of it, which its welcome and `/web`'s note show as given
+    (`tui/box.md`, *The welcome*); ctl's asked link (`ctl/README.md`,
+    6.1); and the TUI's link field's placeholder
+    (`tui/pages/sign-in.md`, 1). The help that shows the link shows it
+    so, and the operator's journal search finds it so.
+  - **The route's form still taken** ("let's keep backward compat"):
+    a link in the route's form,
+    `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, printed by a
+    build before, still signs in wherever a link is taken, and its
+    `GET` still answers the page (`web/README.md`, 2.2), until the user
+    says otherwise (5.8). Every client of temper takes either form: the
+    browser opening it (`web/README.md`, 2.4), the TUI's paste and the
+    engine's link file (`tui/pages/README.md`), `temper ADDRESS`
+    refusing it as an argument (`tui/README.md`, section 1),
+    `temper-box open` (`line.md`, 1), `temper ctl DIRECTORY sign-in`
+    (`ctl/README.md`, 6.1) and the TUI journeys' redaction
+    (`tui/journeys.md`, section 5); each reads it with jig's mapping
+    made with that page.
+  - **Named once:** the page's path is `LINK_PAGE` in
+    `temper-client-protocol-wire`, the lowest crate both the engine,
+    which prints the link, and the clients, which read it, name;
+    `temper-client-domain-forge`'s `sign_in` module re-exports it, and
+    every client names it from there.
+  - **No version moves:** the link is no versioned wire, and every
+    client of temper since dev.fabrig.ai's 0.0.2 takes both forms. A
+    client of a build before that one says the page's form is no link;
+    it is a client of another build, which an engine refuses and tells
+    to upgrade (`../draft/redeploys.md`, section 8).
 - **A sign-in held is kept** (jig's `domain/people/README.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -624,9 +707,14 @@ temper's:
   carries no value (a manifest's `Connect`, `Install`, `Forget`,
   `SetUp`, `Reachable`) is kept as any keyed request; one carrying a
   value is not.
-- **Loopback only** in standalone (`../protocol/configuration/README.md`,
-  section 2; `line.md`, 1), so a bearer token never crosses a network in
-  plaintext. Clients between hosts, over TLS, come after standalone.
+- **Loopback, or TLS by name,** so a bearer token never crosses a
+  network in plaintext: plain HTTP reaches an engine on loopback alone
+  (`../protocol/configuration/README.md`, section 2; `line.md`, 1), and
+  the TUI reaches a deployment by name over HTTPS
+  (`tui/README.md`, 1; jig's `protocol/client/README.md`, section 9),
+  each deployment's credential and small store in a directory of its
+  own (`tui/README.md`, 2). `temper-box open` and `temper ctl` stay on
+  loopback.
 - **One person.** The deployment's link signs in its first owner;
   signing in through the forge is open (section 5).
 
@@ -676,16 +764,21 @@ was answered with. A box enables it beside the printed link
     a kept credential the engine refused), while the root holds no ask:
     the host steps `Event::AskApproval`. A held credential's sign-in in
     flight is not signed out, so nothing is asked until the engine has
-    answered it. The screen still takes the printed link, pasted, as
-    `../draft/tui.md`, 4.1 has it.
+    answered it. On loopback the screen still takes the printed link,
+    pasted, as `../draft/tui.md`, 4.1 has it; at a name it holds the
+    approval alone, by a typed code (`tui/pages/sign-in.md`, 3).
   - *Asking:* until the engine answers, "Asking temper for a code…",
     dim, under the screen's first line.
   - *The tab's address* is the TUI's own, made from its own parts alone
-    by `temper-client-tui`'s `approval_address(address, code)`: the
-    engine's address it was given or kept, `http://HOST:PORT`, then the
-    approval page's printed path, `address::print_approve(Some(code))`,
-    `/terminal?code=WDJB-MJHT` (`web/README.md`, 2.3), the code an
-    `ApprovalCode`, so of the code's alphabet by its type. An answer
+    by `temper-client-tui`'s `approval_address(origin: &Origin, code:
+    ApprovalCode)`: the origin it was given or kept, printed
+    (`tui/README.md`, 1), then the approval page's printed path. On
+    loopback, `address::print_approve(Some(code))`,
+    `http://127.0.0.1:8367/terminal?code=WDJB-MJHT` (`web/README.md`,
+    2.3), the code an `ApprovalCode`, so of the code's alphabet by its
+    type; at a name, `address::print_approve(None)`, no code, so
+    `https://dev.fabrig.ai/terminal`, whose page asks for the code
+    typed (`tui/pages/sign-in.md`, 3). An answer
     whose code is off the alphabet is refused by jig's reader, so
     nothing is opened for it. It opens no address the engine sent.
   - *Opening the tab:* on each ask answered, once, the host's duty
@@ -729,7 +822,9 @@ was answered with. A box enables it beside the printed link
     PORT to this one first.", then the expiry's line. The engine is on
     loopback, so a browser elsewhere reaches it through a tunnel to its
     listener on the same port, which jig's guards require of the
-    address (jig's `protocol/browser/README.md`, 12.2).
+    address (jig's `protocol/browser/README.md`, 12.2). The tunnel's
+    line is loopback's alone: a deployment by name is reached from any
+    browser, and its lines are `tui/pages/sign-in.md`, 3's.
   - *Asking again:* Enter in the Link field while it is empty, once the
     approval has ended or was not asked, or a pasted link has replaced
     it, asks again (`may_ask_again`), and its line says "Press Enter to
@@ -752,7 +847,7 @@ was answered with. A box enables it beside the printed link
     | unknown | "temper doesn't know that code any more: it restarted, or the code is old. Press Enter to ask again." |
     | full | "All N sign-ins are in use; the earliest ends MOMENT UTC. Press Enter to ask again then." (`view.md`, 1's full, its moments so said) |
     | the take busy, not ready or lost | "temper is busy; still trying…", while `jig-client` sends it again |
-    | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead." |
+    | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead."; at a name, "PLACE doesn't sign terminals in from the browser." (`tui/pages/sign-in.md`, 3) |
     | not asked: busy | "Too many terminals are waiting to sign in. Press Enter to ask again in a moment." |
     | not asked: not ready or lost | "temper is starting or stopping, or out of reach. Press Enter to ask again." |
 
@@ -802,6 +897,13 @@ was answered with. A box enables it beside the printed link
   still signs in on a reload. Falling back to the transport is jig's
   client question (jig's `client/domain/client/README.md`, section 15).
   Default: no fallback; reload to use the cookie.
+- **The route's form retired** (section 4, *The route's form still
+  taken*; jig's `protocol/client/default-http.md`, 7): once every tool
+  and person has moved to the page's form, temper might stop taking a
+  link at the route and stop answering its `GET` with the page. The
+  user's request of 2026-11-18 keeps it "at first, then all tooling gets
+  migrated"; the user decides when. Default: both taken, the route's
+  page kept.
 
 - **The forge as people's sign-in provider:** temper's own routes on its
   clients' listener run the forge's OAuth flow, read who the person is,

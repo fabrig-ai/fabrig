@@ -14,15 +14,22 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
+    pub(crate) limits_in_force: Option<Box<crate::limit_settings::LimitSettings>>,
     // Keep the root's state out of service construction and movement frames.
     pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
+    pub(crate) checkpoint: Option<crate::checkpoint::State>,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
     pub(crate) clients: crate::clients::Clients,
     pub(crate) demo: Option<crate::settings::Demo>,
+    pub(crate) providers: Queue<Box<[jig_protocol_config::ProviderSetting]>>,
+    pub(crate) providers_path: Box<[u8]>,
+    pub(crate) providers_directory: Option<jig_protocol_config::Directories>,
+    pub(crate) running_providers: Box<[jig_protocol_config::ProviderSetting]>,
+    pub(crate) places: Option<crate::places::Places>,
     pub(crate) box_link: route::box_link::Link,
     pub(crate) setup: crate::setup::Layer,
     pub(crate) forge: crate::forge::Layer,
@@ -46,6 +53,7 @@ pub struct Engine {
     passing: Option<Box<root::Event>>,
     begin: bool,
     core_wait: crate::core_wait::Watch,
+    settings_warned: bool,
     pub(crate) credentials: List<u32>,
     pub(crate) ready: bool,
     settled_revision: Option<u64>,
@@ -147,7 +155,9 @@ impl Engine {
         };
         domain.connection_limits(own.forge.forges, own.forge_component.installations);
         let mut engine = Self {
+            limits_in_force: None,
             upgrade: None,
+            checkpoint: None,
             credentials,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -156,9 +166,14 @@ impl Engine {
             workers,
             clients,
             demo,
+            providers: Queue::uncapped(),
+            providers_path: Box::new([]),
+            providers_directory: None,
+            running_providers: Box::new([]),
             forge,
             setup,
             box_link: route::box_link::Link::new(0, false),
+            places: None,
             forge_records,
             admission: None,
             facts: 0,
@@ -178,6 +193,7 @@ impl Engine {
             passing: None,
             begin: true,
             core_wait: crate::core_wait::Watch::new(),
+            settings_warned: false,
             ready: true,
             settled_revision: None,
             aborted: None,
@@ -215,7 +231,23 @@ impl Engine {
             None => !self.begin,
         }
     }
+    fn restored_limit_revision(&mut self) {
+        if let Some(state) = &mut self.limits_in_force
+            && state.revision == 0
+            && self.domain.ready()
+        {
+            state.revision = self.domain.settings_revision();
+        }
+    }
     pub(crate) fn step(&mut self, event: root::Event) {
+        self.restored_limit_revision();
+        let event = match crate::limit_settings::admission::party(self.limits_in_force.as_deref(), event) {
+            Ok(event) => event,
+            Err(reply) => {
+                self.clients.down(*reply);
+                return;
+            }
+        };
         let watcher = watcher(&event);
         let party = party_input(&event);
         if let Err(event) = root::try_step(&mut self.domain, &self.env, event) {
@@ -239,6 +271,7 @@ impl Engine {
                 self.observe_party(true);
             }
         }
+        self.restored_limit_revision();
         self.drain_notes();
     }
     fn holding(&self) -> Option<CoreWait> {
@@ -292,6 +325,13 @@ impl Engine {
         }
     }
     pub(crate) fn drain_notes(&mut self) {
+        if !self.settings_warned && self.domain.ready() && self.notes.room() != 0 {
+            let kept = self.domain.settings_kept();
+            self.settings_warned = true;
+            if !kept.is_empty() {
+                self.notes.push(crate::Note::StartupWarning { line: crate::core_wait::settings_kept(&kept) });
+            }
+        }
         self.drain_worker_notes();
         for _ in 0..self.notes.room() {
             let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {
@@ -313,8 +353,17 @@ impl Engine {
             }
             let Some(fact) = self.domain.pop_fact() else { break };
             match fact {
+                root::Fact::LandingUnmade { task, repository, branch, changes } => {
+                    self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
+                }
+                root::Fact::HoldDropped { name, task } => {
+                    self.notes.push(crate::Note::HoldDropped { name, task });
+                }
                 root::Fact::ForgeLink { forge, note } => {
                     self.notes.push(crate::Note::ForgeLink { forge, note });
+                }
+                root::Fact::LandingRefused { task, repository, branch, why, changes } => {
+                    self.notes.push(crate::Note::LandingRefused { task, repository, branch, why, changes });
                 }
                 root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error, job } => {
                     self.notes.push(crate::Note::ReadRefused {
@@ -382,6 +431,11 @@ impl Engine {
         self.pending_with_clients(now, self.notes.room(), self.clients.root_outputs_pending())
     }
     fn pending_with_clients(&self, now: Time, notes_room: u32, clients_pending: bool) -> bool {
+        if let Some(state) = &self.checkpoint
+            && state.pending()
+        {
+            return true;
+        }
         let effects = self.store.host.mark_durable() || self.end.is_some();
         let components = (self.store.opened || self.end.is_some()) && clients_pending
             || effects && self.setup.work_pending(now)
@@ -473,6 +527,9 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     clock(engine, now, wall);
     engine.store.iterate();
     answer(engine);
+    if crate::checkpoint::advance(engine) {
+        return;
+    }
     if crate::upgrade::advance(engine) {
         engine.abort_if_ended();
         return;
@@ -509,6 +566,9 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.forge.serving = Some(());
     }
     engine.clients.playground = engine.domain.playground().copied();
+    if engine.domain.quiescent() && engine.events.is_empty() && engine.pending.is_none() {
+        engine.clients.playground_admitted();
+    }
     engine.clients.starting = if open { None } else { Some(()) };
     engine.clients.iterate(
         now,
@@ -608,6 +668,7 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
+    engine.clients.deployment.welcome = engine.domain.welcome();
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     if engine.end.is_none() && engine.store.host.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
@@ -657,6 +718,7 @@ pub(crate) fn release(engine: &mut Engine) {
         if engine.requests.is_empty() {
             stop::advance(engine);
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
+            engine.restored_limit_revision();
             engine.drain_notes();
             #[cfg(test)]
             let before = engine.requests.len();
@@ -754,6 +816,10 @@ pub(crate) fn answer(engine: &mut Engine) {
             break;
         }
         let event = engine.store.host.above.pop().expect("store terminals");
+        if let Some(state) = &mut engine.checkpoint {
+            state.store(event);
+            continue;
+        }
         match event {
             jig_protocol_store::Event::Opened { installation, pending, .. } => {
                 engine.store.opened = true;
@@ -773,6 +839,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Rehearsing { .. }
             | jig_protocol_store::Event::Back { .. }
             | jig_protocol_store::Event::BackRefused { .. }
+            | jig_protocol_store::Event::Restored { .. }
+            | jig_protocol_store::Event::RestoreRefused { .. }
             | jig_protocol_store::Event::Closed { .. }) => {
                 let state = engine.upgrade.as_mut().expect("upgrade store event");
                 if let jig_protocol_store::Event::Undecodable { .. } = &event {
@@ -780,9 +848,14 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 if let jig_protocol_store::Event::Closed { .. } = &event {
                     state.closed = true;
+                    state.terminal = true;
                 }
-                if let jig_protocol_store::Event::Back { .. } | jig_protocol_store::Event::BackRefused { .. } = &event {
-                    state.back = true;
+                if let jig_protocol_store::Event::Back { .. }
+                | jig_protocol_store::Event::BackRefused { .. }
+                | jig_protocol_store::Event::Restored { .. }
+                | jig_protocol_store::Event::RestoreRefused { .. } = &event
+                {
+                    state.terminal = true;
                 }
                 state.report.events.push(event);
             }
@@ -848,7 +921,11 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.pending_generation = false;
                 crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
-            event @ (jig_protocol_store::Event::Census { .. }
+            event @ (jig_protocol_store::Event::Checkpointed { .. }
+            | jig_protocol_store::Event::CheckpointRefused { .. }
+            | jig_protocol_store::Event::CheckpointHeld { .. }
+            | jig_protocol_store::Event::CheckpointRemoved { .. }
+            | jig_protocol_store::Event::Census { .. }
             | jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
@@ -926,6 +1003,7 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::Layout { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Check { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Unready { .. } => stop::open(engine, &why),
     }
 }
 
@@ -941,6 +1019,7 @@ fn party_input(event: &root::Event) -> bool {
         | root::Event::Setup { .. }
         | root::Event::Restart { .. }
         | root::Event::Stop
+        | root::Event::LimitsRaised
         | root::Event::Resume => false,
         root::Event::Party(_) => true,
     }
@@ -961,6 +1040,7 @@ fn watcher(event: &root::Event) -> Option<skein_lib::Token> {
         | root::Event::Setup { .. }
         | root::Event::Restart { .. }
         | root::Event::Stop
+        | root::Event::LimitsRaised
         | root::Event::Resume => None,
     }
 }
@@ -1000,6 +1080,9 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             skein_forge_connection::Event::Listening { addr } => {
                 if let Some(addr) = addr.socket() {
                     engine.setup.webhooks_listening(addr);
+                    if let Some(places) = &mut engine.places {
+                        places.listening(addr);
+                    }
                     let note = crate::Note::Listening { listener: crate::Listening::Webhooks, addr };
                     engine.listening.try_push(note).expect("one note per listener bind");
                 }

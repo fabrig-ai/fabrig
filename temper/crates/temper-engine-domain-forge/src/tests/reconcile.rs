@@ -80,6 +80,7 @@ fn closing_history(
 
 fn release() -> Stored {
     Stored::Release(ReleaseRow {
+        room: None,
         task: TASK,
         root: TASK,
         ending: ReleaseEnding::Done,
@@ -102,7 +103,7 @@ fn subscription() -> Stored {
     })
 }
 fn hold(task: u64, writer: Option<Writer>) -> Stored {
-    Stored::Hold(Hold { name: branch(), task, writer, design_writers: Box::new([]), drift: None })
+    Stored::Hold(Hold { name: branch(), task, writer, beside: None, design_writers: Box::new([]), drift: None })
 }
 fn owner_rows() -> [Stored; 7] {
     [
@@ -161,6 +162,7 @@ pub(crate) fn repository_rows(repository: skein_forge::api::Repository) -> [Stor
             token: 1,
             until: Wall::EPOCH,
             outcome: ApplicationOutcome::Adopted(AdoptedRepository {
+                landing: b"main".as_slice().into(),
                 repository,
                 owner: b"org".as_slice().into(),
                 name: b"repo".as_slice().into(),

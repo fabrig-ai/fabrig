@@ -9,6 +9,31 @@ use jig_protocol_engine_clients_http as http;
 use jig_test_domain as root;
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 use std::collections::{BTreeMap, BTreeSet};
+/// A default fixture need not be built when the story supplies another seed.
+pub(super) struct Fixture {
+    value: std::cell::OnceCell<Engine>,
+    seed: u64,
+}
+impl Fixture {
+    pub fn new(seed: u64) -> Self {
+        Self { value: std::cell::OnceCell::new(), seed }
+    }
+    pub fn ready(engine: Engine) -> Self {
+        Self { seed: engine.seed, value: std::cell::OnceCell::from(engine) }
+    }
+}
+impl std::ops::Deref for Fixture {
+    type Target = Engine;
+    fn deref(&self) -> &Engine {
+        self.value.get_or_init(|| Engine::bounded(self.seed, &crate::fixtures::owner_limits()))
+    }
+}
+impl std::ops::DerefMut for Fixture {
+    fn deref_mut(&mut self) -> &mut Engine {
+        let _ = &**self;
+        self.value.get_mut().expect("prepared engine")
+    }
+}
 pub(super) struct Engine {
     pub driver: Driver,
     pub account_sign_in_burst: Option<Vec<root::Event>>,
@@ -213,9 +238,9 @@ impl Engine {
         while let Some(routed) = self.server_out.pop() {
             match routed {
                 jig_test_service::server::Routed::Io(request) => return Some(request),
-                jig_test_service::server::Routed::Call { call, head } => {
+                jig_test_service::server::Routed::Call { call, head, peer } => {
                     if self.mount.room() > 0 {
-                        self.mount_event(http::Event::Call { call, head });
+                        self.mount_event(http::Event::Call { call, head, peer });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
                         self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);
@@ -414,6 +439,8 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
+        | core::Event::Parts { .. }
+        | core::Event::PartsMarked { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::Read { .. }

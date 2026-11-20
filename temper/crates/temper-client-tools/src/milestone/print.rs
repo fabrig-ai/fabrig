@@ -259,37 +259,37 @@ fn totals_text(
         None => out.put(b"totals: none\n"),
         Some(totals) => {
             out.put(b"goals: ");
-            out.number(u64::from(totals.done()));
+            out.number(u64::from(totals.done));
             out.put(b" / ");
             out.number(
-                u64::from(totals.done())
-                    .checked_add(u64::from(totals.failed()))
+                u64::from(totals.done)
+                    .checked_add(u64::from(totals.failed))
                     .expect("goal counts")
-                    .checked_add(u64::from(totals.live()))
+                    .checked_add(u64::from(totals.live))
                     .expect("goal counts"),
             );
             out.put(b" done \xc2\xb7 ");
-            out.number(u64::from(totals.failed()));
+            out.number(u64::from(totals.failed));
             out.put(b" failed \xc2\xb7 ");
-            out.number(u64::from(totals.closed()));
+            out.number(u64::from(totals.closed));
             out.put(b" closed \xc2\xb7 ");
-            out.number(u64::from(totals.live()));
+            out.number(u64::from(totals.live));
             out.put(b" live\nspent: ");
-            out.number(totals.spent());
+            render::amount(totals.spent, out);
             out.put(b" of ");
-            out.number(task.budget.numbers.budget);
+            render::amount(task.budget.numbers.budget, out);
             out.put(b"\n");
-            if let Some(at) = totals.ended() {
+            if let Some(at) = &totals.ended {
                 out.put(b"ended: ");
                 render::document::clock::minute(Wall::from_nanos(*at), out);
                 out.put(b", ");
                 out.put(ended_state(task, result));
                 out.put(b"\n");
-            } else if let Some(landing) = totals.last_landing() {
+            } else if let Some(landing) = &totals.last_landing {
                 out.put(b"last landing: ");
-                render::document::clock::minute(Wall::from_nanos(landing.at()), out);
+                render::document::clock::minute(Wall::from_nanos(landing.at), out);
                 out.put(b", ");
-                if let Some(goal) = goals.get(&landing.goal()) {
+                if let Some(goal) = goals.get(&landing.goal) {
                     out.put(goal.chip.title.bytes());
                 } else if let Some(Readout::Jig(c::ReadResult::Value(value))) = reading.pages.get(&5)
                     && let Some((goal, _)) = render::read_task(value)
@@ -297,7 +297,7 @@ fn totals_text(
                     out.put(goal.chip.title.bytes());
                 }
                 out.put(b" (task ");
-                out.number(landing.goal());
+                out.number(landing.goal);
                 out.put(b")\n");
             }
         }
@@ -473,35 +473,35 @@ fn line(row: &c::TaskLine, state: &[u8], out: &mut Encoder) {
 fn encode_totals(totals: &w::MilestoneTotals, out: &mut Encoder) {
     out.object_start();
     out.key(b"task");
-    out.unsigned(totals.task());
+    out.unsigned(totals.task);
     out.key(b"done");
-    out.unsigned(u64::from(totals.done()));
+    out.unsigned(u64::from(totals.done));
     out.key(b"failed");
-    out.unsigned(u64::from(totals.failed()));
+    out.unsigned(u64::from(totals.failed));
     out.key(b"closed");
-    out.unsigned(u64::from(totals.closed()));
+    out.unsigned(u64::from(totals.closed));
     out.key(b"live");
-    out.unsigned(u64::from(totals.live()));
+    out.unsigned(u64::from(totals.live));
     out.key(b"ended");
-    match totals.ended() {
+    match &totals.ended {
         Some(at) => out.unsigned(*at),
         None => out.null(),
     }
     out.key(b"last_landing");
-    match totals.last_landing() {
+    match &totals.last_landing {
         Some(landing) => {
             out.object_start();
             out.key(b"at");
-            out.unsigned(landing.at());
+            out.unsigned(landing.at);
             out.key(b"goal");
-            out.unsigned(landing.goal());
+            out.unsigned(landing.goal);
             out.key(b"change");
-            out.unsigned(landing.change());
+            out.unsigned(landing.change);
             out.object_end();
         }
         None => out.null(),
     }
     out.key(b"spent");
-    out.unsigned(totals.spent());
+    out.unsigned(totals.spent);
     out.object_end();
 }

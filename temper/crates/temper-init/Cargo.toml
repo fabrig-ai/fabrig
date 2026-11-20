@@ -1,6 +1,6 @@
 [package]
 name = "temper-init"
-description = "The files temper init writes, and the default document"
+description = "The data files temper init writes"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,10 +10,12 @@ publish.workspace = true
 [dependencies]
 temper-fetch.workspace = true
 skein-lib.workspace = true
-skein-json.workspace = true
 skein-forge-setup.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
+temper-agent-fixtures.workspace = true
+temper-service-core.workspace = true
 jig-protocol-config.workspace = true
 serde_json.workspace = true
 skein-fake-checkout.workspace = true

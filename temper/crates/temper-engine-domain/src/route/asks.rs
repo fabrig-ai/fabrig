@@ -15,6 +15,11 @@ use skein_lib::Token;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates the core's ask vocabulary")]
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
     let request = match ask {
+        core::Ask::Parts(ask) => {
+            super::parts::ask(domain, env, decision, connector, ask);
+            None
+        }
+
         ask @ core::Ask::Public { .. } => {
             super::public::ask(domain, env, connector, ask);
             None
@@ -126,6 +131,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             );
             None
         }
+        core::Ask::Workers(workers) => {
+            assert!(
+                super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
+                "worker table door reserved"
+            );
+            None
+        }
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
             let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
@@ -145,6 +157,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 super::now(domain, crate::Request::Party(crate::PartyRequest::Catalogue { models })),
                 "catalogue clients door reserved"
             );
+            None
+        }
+        core::Ask::Providers(providers) => {
+            emit(decision, &env.limits, Delivery::Providers(providers));
             None
         }
         core::Ask::DropDocument { .. } => None,
@@ -367,6 +383,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 None
             };
             domain.work.push(Work::Core(core::Event::ProcedureHoldings { refused, task, step, connector, holdings }));
+            if domain.forge.status_owner(task).is_some() {
+                // The holdings answer drains the status delegate's make before its account is read.
+                domain.work.push(Work::StatusAccount { procedure: task });
+            }
             None
         }
         core::Ask::ProjectGoal { feed } => {
@@ -495,12 +515,18 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::RepairRefused { repair } => {
+        core::Ask::RepairRefused { repair, number, why } => {
+            if connector == domain.config.forge_connector
+                && let Some((forming, reason)) = &mut domain.forge_forming
+                && *forming == number
+            {
+                *reason = Some(why);
+            }
             if connector == domain.config.forge_connector
                 && let Some(task) = repair
-                && let Some(project) = domain.forge.status_project(task)
+                && let Some((party, project)) = domain.forge.status_owner(task)
             {
-                domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
+                domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
             }
             if connector == domain.config.forge_connector
                 && let Some(repair) = repair

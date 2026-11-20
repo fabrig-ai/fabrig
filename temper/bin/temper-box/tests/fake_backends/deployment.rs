@@ -47,16 +47,41 @@ impl Place {
         super::private(&bin);
         super::private(&scratch);
         let ports = support::free_addresses(&[]);
-        let place = Self {
-            root,
-            scratch,
-            bin,
-            bundle,
-            setups: skein_scratch::paths::tree().join("docs/development/qa/setups"),
-            ports,
-        };
+        let setups = root.path().join("setups");
+        let place = Self { root, scratch, bin, bundle, setups, ports };
+        place.fixture();
         place.copy();
         place
+    }
+
+    fn fixture(&self) {
+        let source = skein_scratch::paths::tree().join("docs/development/qa/setups/turn-landing");
+        let target = self.setups.join("turn-landing");
+        let mut pending = vec![(source, target.clone())];
+        while let Some((source, target)) = pending.pop() {
+            fs::create_dir_all(&target).expect("fixture directory");
+            for entry in fs::read_dir(source).expect("fixture inputs") {
+                let entry = entry.expect("fixture entry");
+                let destination = target.join(entry.file_name());
+                let kind = entry.file_type().expect("fixture kind");
+                if kind.is_dir() {
+                    pending.push((entry.path(), destination));
+                } else {
+                    assert!(kind.is_file(), "regular fixture input");
+                    fs::copy(entry.path(), destination).expect("fixture copy");
+                }
+            }
+        }
+        // The recipe already restarts after landing.json. Commit the model's provider there,
+        // so that restart takes the store's fake endpoint rather than its stock default.
+        let providers = fs::read_to_string(target.join("config/providers.json")).expect("fixture providers");
+        let providers = providers.replace("{place.model}", &self.ports[7].to_string());
+        let providers = temper_agent_fixtures::providers::parse(providers.as_bytes());
+        let providers = temper_agent_fixtures::providers::flat(&providers);
+        let path = target.join("files/landing.json");
+        let mut settings = document(&path);
+        settings["items"].as_array_mut().expect("landing settings").extend(support::provider_setup::items(&providers));
+        support::write_private(&path, &serde_json::to_vec(&settings).expect("fixture settings"));
     }
 
     fn copy(&self) {
@@ -117,10 +142,7 @@ impl Place {
         assert_eq!(hash.len(), 64, "chain hash length");
         assert!(hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)), "chain hash");
         if !restored {
-            assert!(
-                seen.lines.iter().any(|line| line == "turn-landing:6 | patched engine"),
-                "walk restarted engine and worker"
-            );
+            assert!(seen.lines.iter().any(|line| line == "turn-landing:7 ok"), "walk restarted engine and worker");
         }
         hash.into()
     }
@@ -173,8 +195,7 @@ impl Place {
     }
 
     fn pin(&self) -> PathBuf {
-        let worker = document(&self.scratch.join("config/worker/temper.json"));
-        Path::new(worker["application"]["workers"][0]["root"].as_str().expect("worker root")).join("agent/temper-agent")
+        self.scratch.join("data/worker/workspaces/agent/temper-agent")
     }
 
     fn processes(&self, old: &[Identity]) -> File {
@@ -234,9 +255,16 @@ impl Place {
     }
 
     fn listeners(&self) {
-        let engine = document(&self.scratch.join("config/engine/temper.json"));
-        let worker = document(&self.scratch.join("config/worker/temper.json"));
-        let agent = document(&self.scratch.join("config/worker/agent.json"));
+        let engine = support::start_document(
+            &self.scratch.join("config/engine").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::EngineAlone,
+        );
+        let providers = document(&self.scratch.join("config/providers.json"));
+        let worker = support::start_document(
+            &self.scratch.join("config/worker").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::WorkerAlone,
+        );
+        let agent = document(&self.scratch.join("data/worker/workspaces/agent/agent.json"));
         let model = document(&self.scratch.join("config/model.json"));
         let forge = document(&self.scratch.join("config/forgejo.json"));
         for (socket, port) in [
@@ -246,27 +274,16 @@ impl Place {
             (&engine["application"]["webhooks"]["listener"]["socket"], 4),
             (&model["listen"]["socket"], 7),
             (&agent["endpoints"][0]["address"], 7),
-            (&engine["engine"]["llm"]["endpoints"][0]["address"]["socket"], 7),
+            (&providers["providers"][0]["endpoints"][0]["address"]["socket"], 7),
             (&forge["listen"]["socket"], 8),
         ] {
             assert_eq!(socket.as_str().expect("rendered listener"), self.ports[port].to_string());
         }
-        assert_eq!(worker["workers"][0]["agent"]["program"], self.bin.join("temper-agent").display().to_string());
+        assert!(worker["workers"][0].get("agent").is_none(), "the engine supplies the worker's agent figures");
         assert_eq!(
             fs::read_link(self.scratch.join("data/bin/git")).expect("fake git link"),
             self.bin.join("temper-box")
         );
-    }
-
-    fn landing(&self) -> Value {
-        // ctl reads landing tasks, not the configured way. This is the deployment's patched document.
-        let engine = document(&self.scratch.join("config/engine/temper.json"));
-        let landing = &engine["application"]["landing"]["projects"];
-        assert_eq!(
-            landing,
-            &json!([{"project":1,"by":"turn","batch":2,"gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true}]}]}])
-        );
-        landing.clone()
     }
 
     fn api(&self, dispatch: bool) -> Value {
@@ -363,10 +380,12 @@ fn document(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("rendered deployment document")).expect("deployment JSON")
 }
 fn no_link(bytes: &[u8]) {
-    assert!(
-        !bytes.windows(b"/jig/v1/sign-in/link".len()).any(|part| part == b"/jig/v1/sign-in/link"),
-        "sign-in link must not be printed, answered or logged"
-    );
+    for path in [b"/sign-in?secret=".as_slice(), b"/jig/v1/sign-in/link"] {
+        assert!(
+            !bytes.windows(path.len()).any(|part| part == path),
+            "sign-in link must not be printed, answered or logged"
+        );
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -375,10 +394,29 @@ struct Kept {
     forge: Value,
     repositories: Value,
     landings: Value,
+    landing: Value,
+    gates: Value,
     api: Value,
 }
 impl Kept {
     fn read(mut answers: Vec<Value>, api: Value) -> Self {
+        let gates = answers.pop().expect("project gates");
+        let landing = answers.pop().expect("project landing");
+        assert_eq!(landing["setting"], json!({"kind":"project-landing","project":1}));
+        assert_eq!(landing["value"]["by"], "turn");
+        assert_eq!(landing["value"]["batch"], 2);
+        assert_eq!(gates["setting"], json!({"kind":"project-gates","project":1}));
+        let [repository] = gates["value"]["repositories"].as_array().expect("gate repositories").as_slice() else {
+            panic!("one repository's gates")
+        };
+        assert_eq!(repository["forge"], 1);
+        assert_eq!(repository["repository"], 1);
+        let [gate] = repository["gates"].as_array().expect("repository gates").as_slice() else {
+            panic!("one blocking gate")
+        };
+        assert_eq!(gate["name"], "gate");
+        assert_eq!(gate["workflow"], "gate.yml");
+        assert_eq!(gate["blocking"], true);
         let landings = answers.pop().expect("landing list");
         let repositories = answers.pop().expect("forge repositories");
         let connected = answers.pop().expect("forge list");
@@ -407,8 +445,8 @@ impl Kept {
                 .iter()
                 .any(|row| row["owner"]["login"] == "work" && row["name"] == "hello")
         );
-        assert_eq!(landings, json!({"turn":null,"landings":[]}));
-        Self { project, forge, repositories, landings, api }
+        assert_eq!(landings, json!({"project":1,"turn":null,"landings":[]}));
+        Self { project, forge, repositories, landings, landing, gates, api }
     }
 }
 
@@ -419,9 +457,7 @@ fn a_stopped_deployment_restored_at_its_place_uses_new_files() {
     place.listeners();
     // A baseline session captures ctl/API facts and the first worker pin before the archive.
     let (before, first_pin) = place.read(&[]);
-    let landing = place.landing();
     place.restore();
-    assert_eq!(place.landing(), landing, "the restored copy holds the patched landing");
     let mut old_files = place.replace();
     old_files.push(first_pin);
     let old = old_files
@@ -432,7 +468,7 @@ fn a_stopped_deployment_restored_at_its_place_uses_new_files() {
     place.listeners();
     let (after, new_pin) = place.read(&old);
     assert_eq!(after, before, "ctl and fake Forgejo facts survive the copy and newer build");
-    assert_eq!(place.landing(), landing);
+
     drop(new_pin);
     drop(old_files);
     place.root.remove();

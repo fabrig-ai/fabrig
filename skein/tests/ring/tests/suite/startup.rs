@@ -131,6 +131,20 @@ fn a_private_file_is_read_within_its_bound() {
 }
 
 #[test]
+fn a_private_file_is_read_through_the_environments_temporary_directory() {
+    let scratch = Scratch::new("private-temp-path");
+    let token = private_token(&scratch);
+    let base = std::env::temp_dir();
+    let canonical_base = fs::canonicalize(&base).expect("canonical temporary base");
+    let relative = token.strip_prefix(&canonical_base).expect("scratch lies beneath temporary base");
+    let path = base.join(relative);
+    assert_eq!(
+        read_private_file(&path, 6, skein_shell::effective_user()).expect("temporary path as named").expose(),
+        b"secret"
+    );
+}
+
+#[test]
 fn a_file_with_group_or_other_bits_is_refused_unread_as_mode() {
     let scratch = Scratch::new("private");
     let path = private_token(&scratch);

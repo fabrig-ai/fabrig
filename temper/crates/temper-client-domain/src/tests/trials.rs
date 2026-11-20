@@ -6,6 +6,7 @@ use crate::{
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const ACCOUNT: u32 = 17;
@@ -13,11 +14,8 @@ const OTHER: u32 = 23;
 const TASK: u64 = f::chat::TASK;
 const NEXT: u64 = 31;
 const WAIT: c::TaskRunWait = c::TaskRunWait::Credential;
-// Each operation opens or closes one trial-owned watch.
-const ONE: u32 = 1;
-// The session fixture delivers two account rows; the refused-task fixture delivers one.
+// The session fixture delivers two account rows.
 const SESSION_ROWS: usize = 2;
-const REFUSED_ROWS: usize = 1;
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -50,29 +48,22 @@ fn opened() -> (Domain, Token, Token) {
     (root, watch, frame)
 }
 fn row(account: u32, task: Option<u64>, state: w::TrialState) -> w::TrialRow {
-    w::TrialRow::new(
-        &w::CEILINGS,
-        w::TrialRowParts { account, task, took: Some(OTHER), step: w::TrialStep::Answers, state },
-    )
-    .unwrap()
+    w::TrialRow { run_wait: None, account, task, took: Some(OTHER), step: w::TrialStep::Answers, state }
 }
 fn running(account: u32, task: u64) -> w::TrialRow {
     row(account, Some(task), w::TrialState::Running)
 }
 fn ended() -> w::TrialRow {
-    row(
-        ACCOUNT,
-        Some(TASK),
-        w::TrialState::Failed(
-            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited }).unwrap(),
-        ),
-    )
+    row(ACCOUNT, Some(TASK), w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }))
 }
 fn deliver(root: &mut Domain, watch: Token, rows: &[w::TrialRow]) -> Queue<Request> {
     let rows = List::from_boxed(rows.into());
-    let document = w::Trials::new(&w::CEILINGS, w::TrialsParts { rows }).unwrap();
-    let mut writer = Writer::new(usize::try_from(document.measure()).unwrap());
-    document.encode(&mut writer).unwrap();
+    let document = w::Trials { rows };
+    let mut writer = Writer::new(
+        usize::try_from(document.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .unwrap(),
+    );
+    document.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
         Up::FamilyDelivered {
@@ -80,18 +71,6 @@ fn deliver(root: &mut Domain, watch: Token, rows: &[w::TrialRow]) -> Queue<Reque
             record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() },
         },
     )
-}
-fn closes(out: &Queue<Request>, expected: Token) -> u32 {
-    let mut count = 0_u32;
-    for request in out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
-            request
-            && *watch == expected
-        {
-            count = count.checked_add(1).unwrap();
-        }
-    }
-    count
 }
 fn again(root: &mut Domain, account: u32) -> Queue<Request> {
     f::form_act(root, forge::Act::TryAccount { account, again: true })
@@ -103,29 +82,24 @@ fn sent(out: &mut Queue<Request>) -> Option<skein_lib::RequestKey> {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, key, .. } },
         } = request
-            && let w::Request::TryAccount(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            && let w::Request::TryAccount(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             assert!(found.is_none(), "one send");
             assert_eq!(scope, c::Scope::Own);
-            assert_eq!(value.account(), ACCOUNT);
-            assert!(value.again());
+            assert_eq!(value.account, ACCOUNT);
+            assert!(value.again);
             found = Some(key);
         }
     }
     found
 }
 fn answer(outcome: w::Outcome) -> Family {
-    let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap();
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let answer = w::Answer { outcome };
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    answer.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() }
-}
-fn task(root: &mut Domain, watch: Token, number: u64, wait: Option<c::TaskRunWait>) {
-    let mut task = f::chat::task();
-    task.chip.task = number;
-    task.run_wait = wait;
-    up(root, Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))) });
 }
 fn link(root: &mut Domain, link: Link) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -142,9 +116,10 @@ fn trial_pages() -> [crate::Address; 3] {
 }
 fn account_session(address: crate::Address) -> (Domain, Token, Token) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, accounts) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let mut out = Queue::uncapped();
     f::confirm(&mut root, me, f::PARTY, &mut out);
+    let accounts = f::accounts_watch(&out);
     let trials = opening(&out, trials::watch(&f::limits().forge).unwrap()).expect("trial watch");
     up(&mut root, Up::Watched { watch: trials, event: c::WatchEvent::Opened });
     event(&mut root, Event::Went { place: crate::Place::Address(address) });
@@ -162,11 +137,10 @@ fn tries(out: Queue<Request>) -> List<(u32, bool)> {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, .. } },
         } = request
-            && let w::Request::TryAccount(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            && let w::Request::TryAccount(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             assert_eq!(*scope, c::Scope::Own);
-            found.push((value.account(), value.again())).unwrap();
+            found.push((value.account, value.again)).unwrap();
         }
     }
     found
@@ -259,13 +233,13 @@ fn the_rows_arrive_for_the_session() {
     f::start(&mut root, List::with_capacity(0));
     let mut child = Queue::uncapped();
     trials::configure(&mut root.forge, f::limits().forge, &mut child);
-    assert!(child.is_empty(), "no trial watch before me");
+    assert!(child.is_empty(), "no trial watch while starting");
     let (mut root, watch, frame) = opened();
     let Watchable::Family { scope, record, .. } = trials::watch(&f::limits().forge).unwrap() else {
         panic!("family watch")
     };
     assert_eq!(scope, c::Scope::Own);
-    assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Trials);
+    assert_eq!(&wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch, &w::Watch::Trials);
     let mut out = Queue::uncapped();
     f::confirm(&mut root, frame, f::PARTY, &mut out);
     assert_eq!(opening(&out, trials::watch(&f::limits().forge).unwrap()), None);
@@ -274,6 +248,7 @@ fn the_rows_arrive_for_the_session() {
         root.forge().trials(),
         &[
             trials::Row {
+                run_wait: None,
                 account: ACCOUNT,
                 task: Some(TASK),
                 took: Some(OTHER),
@@ -281,6 +256,7 @@ fn the_rows_arrive_for_the_session() {
                 state: trials::State::Failed { why: trials::Why::Waited }
             },
             trials::Row {
+                run_wait: None,
                 account: OTHER,
                 task: None,
                 took: Some(OTHER),
@@ -294,7 +270,7 @@ fn the_rows_arrive_for_the_session() {
     up(&mut root, Up::SignedOut);
     assert_eq!((root.forge().trials()).len(), 0);
     let mut out = up(&mut root, Up::SignedIn);
-    let frame = opening(&out, Watchable::Jig(c::Subject::Me)).unwrap();
+    let frame = Token::new(0);
     f::confirm(&mut root, frame, f::PARTY, &mut out);
     assert!(opening(&out, trials::watch(&f::limits().forge).unwrap()).is_some());
 }
@@ -334,65 +310,78 @@ fn try_again_sends_once() {
 }
 
 #[test]
-fn a_running_rows_task_is_watched() {
+fn a_running_rows_wait_arrives_without_a_task_watch() {
+    use jig_client_protocol_wire::TaskRunWait as J;
     let (mut root, watch, _) = opened();
-    let out = deliver(&mut root, watch, &[running(ACCOUNT, TASK)]);
-    let first = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).expect("trial task");
-    task(&mut root, first, TASK, Some(WAIT));
-    assert_eq!(root.forge().trial_wait(), Some(&WAIT));
-    assert_eq!(
-        opening(&deliver(&mut root, watch, &[running(ACCOUNT, TASK)]), Watchable::Jig(c::Subject::Task { task: TASK })),
-        None
-    );
-    task(&mut root, first, TASK, None);
-    assert_eq!(root.forge().trial_wait(), None);
-    let out = deliver(&mut root, watch, &[running(OTHER, NEXT), running(ACCOUNT, TASK)]);
-    // One move closes the first task before opening the next.
-    assert_eq!(closes(&out, first), ONE);
-    let next = opening(&out, Watchable::Jig(c::Subject::Task { task: NEXT })).expect("newest running task");
-    assert_eq!(root.forge().trial_wait(), None);
-    task(&mut root, next, NEXT, Some(c::TaskRunWait::Host));
-    task(&mut root, first, TASK, Some(WAIT));
+    for (value, expected) in
+        [(Some(J::Credential), Some(WAIT)), (Some(J::Host), Some(c::TaskRunWait::Host)), (None, None)]
+    {
+        let out = deliver(&mut root, watch, &[waiting(running(ACCOUNT, TASK), value)]);
+        assert!(opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).is_none());
+        assert_eq!(root.forge().trial_wait(), expected.as_ref());
+    }
+    deliver(&mut root, watch, &[waiting(running(OTHER, NEXT), Some(J::Host)), running(ACCOUNT, TASK)]);
     assert_eq!(root.forge().trial_wait(), Some(&c::TaskRunWait::Host));
-    let out = deliver(&mut root, watch, &[ended()]);
-    assert_eq!(closes(&out, next), ONE);
+    deliver(&mut root, watch, &[ended()]);
     assert_eq!(root.forge().trial_wait(), Some(&c::TaskRunWait::Host));
     again(&mut root, ACCOUNT);
     assert_eq!(root.forge().trial_wait(), None);
 }
 
 #[test]
-fn a_watch_refused_leaves_no_wait() {
-    for end in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
-        let (mut root, watch, _) = opened();
-        let out = deliver(&mut root, watch, &[running(ACCOUNT, TASK)]);
-        let watched = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).unwrap();
-        task(&mut root, watched, TASK, Some(WAIT));
-        up(&mut root, Up::WatchEnded { watch: watched, end });
-        assert_eq!(root.forge().trial_wait(), None, "{end:?}");
-        assert_eq!(root.forge().trials().len(), REFUSED_ROWS);
-        assert_eq!(
-            opening(
-                &deliver(&mut root, watch, &[running(ACCOUNT, TASK)]),
-                Watchable::Jig(c::Subject::Task { task: TASK })
-            ),
-            None
-        );
+fn malformed_or_inapplicable_row_waits_are_no_wait() {
+    use jig_client_protocol_wire::TaskRunWait as J;
+    let (mut root, watch, _) = opened();
+    let valid = waiting(running(ACCOUNT, TASK), Some(J::Credential));
+    let mut trailing = valid.clone();
+    trailing.run_wait = Some(skein_lib::bytes::concat(&[&trailing.run_wait.take().unwrap(), &[0]]));
+    let mut malformed = valid.clone();
+    malformed.run_wait = Some(b"invalid".as_slice().into());
+    for row in [
+        trailing,
+        malformed,
+        waiting(row(ACCOUNT, None, w::TrialState::Running), Some(J::Credential)),
+        waiting(ended(), Some(J::Credential)),
+    ] {
+        deliver(&mut root, watch, core::slice::from_ref(&valid));
+        deliver(&mut root, watch, &[row]);
+        assert_eq!(root.forge().trials().first().unwrap().run_wait, None);
+        if root.forge().trials().first().unwrap().state == trials::State::Running {
+            assert_eq!(root.forge().trial_wait(), None);
+        }
     }
 }
 
 #[test]
 fn a_timed_out_trial_keeps_its_last_wait_after_task_ends() {
     let (mut root, watch, _) = opened();
-    let out = deliver(&mut root, watch, &[running(ACCOUNT, TASK)]);
-    let watched = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).expect("trial task");
-    task(&mut root, watched, TASK, Some(WAIT));
-    task(&mut root, watched, TASK, None);
-    up(&mut root, Up::WatchEnded { watch: watched, end: c::WatchEnd::SubjectEnded });
+    deliver(
+        &mut root,
+        watch,
+        &[waiting(running(ACCOUNT, TASK), Some(jig_client_protocol_wire::TaskRunWait::Credential))],
+    );
+    deliver(&mut root, watch, &[running(ACCOUNT, TASK)]);
     deliver(&mut root, watch, &[ended()]);
     assert_eq!(root.forge().trial_wait(), Some(&WAIT), "the timed-out row keeps the reason seen before cancellation");
+    deliver(&mut root, watch, &[running(ACCOUNT, NEXT)]);
+    assert_eq!(root.forge().trial_wait(), None, "a different running task forgets the wait");
+    deliver(&mut root, watch, &[ended()]);
+    assert_eq!(root.forge().trial_wait(), None);
     again(&mut root, ACCOUNT);
     assert_eq!(root.forge().trial_wait(), None, "a new try forgets the previous wait");
+}
+
+fn waiting(row: w::TrialRow, wait: Option<jig_client_protocol_wire::TaskRunWait>) -> w::TrialRow {
+    let mut row = row;
+    row.run_wait = match wait {
+        Some(wait) => {
+            let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
+            wait.encode(&mut writer).unwrap();
+            Some(writer.finish())
+        }
+        None => None,
+    };
+    row
 }
 
 #[test]

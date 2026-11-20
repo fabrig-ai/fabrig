@@ -1,4 +1,5 @@
 //! Check notifications, the real hub's ask and serialized checkout operations.
+mod landed;
 use super::{fixtures, harness::Harness};
 use crate::{Event, Request, agent, host, wire};
 use alloc::boxed::Box;
@@ -10,11 +11,15 @@ pub(crate) fn prepared() -> Harness {
         push: Box::from(b"topic".as_slice()),
         landing: Some(Box::from(b"goal".as_slice())),
         expected: None,
+        delivered: None,
+        pin: None,
     };
     prepared_items(items)
 }
 fn prepared_items(items: wire::Workspace) -> Harness {
-    let mut h = Harness::new();
+    prepared_with(Harness::new(), items)
+}
+fn prepared_with(mut h: Harness, items: wire::Workspace) -> Harness {
     h.env.limits.host.application_ask_bytes = 4;
     h.env.limits.host.application_answer_bytes = 64;
     let rows = h.step(Event::Assign { assignment: fixtures::assignment(true, Box::new([])), items: Ok(items) });
@@ -25,8 +30,19 @@ fn prepared_items(items: wire::Workspace) -> Harness {
     for _ in 0..64_u32 {
         let row = pending.pop().expect("prepare continues");
         if let Request::Io { owner, op, .. } = row {
-            let done = if let Op::Fetch { .. } = op {
-                Done::Fetched { commit: Commit::new([1; 32]) }
+            let done = if let Op::Fetch { want, .. } = op {
+                let commit = match want {
+                    temper_worker_domain_checkout::git::Want::Commit { commit } => commit,
+                    temper_worker_domain_checkout::git::Want::Branch { .. }
+                    | temper_worker_domain_checkout::git::Want::Default => Commit::new([1; 32]),
+                };
+                Done::Fetched { commit }
+            } else if let Op::IsAncestor { .. } = op {
+                Done::IsAncestor { contains: false }
+            } else if let Op::Merge { .. } = op {
+                Done::Merged
+            } else if let Op::Commit { .. } = op {
+                Done::Committed { commit: Commit::new([2; 32]) }
             } else {
                 Done::Succeeded
             };
@@ -354,6 +370,8 @@ fn two_writable() -> Harness {
             push: Box::from(b"topic".as_slice()),
             expected: None,
             landing: Some(Box::from(b"goal".as_slice())),
+            delivered: None,
+            pin: None,
         };
     }
     prepared_items(items)

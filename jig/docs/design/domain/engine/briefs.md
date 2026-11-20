@@ -26,7 +26,8 @@ whom; its delegates, their states, and the
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; what waits for it, the waiting
-  section: the questions asked of it still open (1.2) and the proposals
+  section: the questions asked of it still open (1.2), the words it
+  keeps unrecorded (1.3), and the proposals
   and escalations waiting for its decision; the index of its notes; for a run that
   explains to its person, that person's preferences, whole (2.1); for a
   standing task, its Now, whole (../tasks/standing.md, section 6); a
@@ -110,8 +111,10 @@ A brief fails whole: a required section is missing, the brief child
 refuses its plan, or the core or the root cannot make or put together
 its parts. Every such failure carries a **failure**: how it counts, and
 why, as a section's name and fixed words. Both name and words are
-`'static` in the code, so a reason cannot carry a run's words or a
-secret. A connector chooses its own, and names no more than the kind of
+fixed in the code, so a reason cannot carry a run's words or a
+secret; the one thing a reason may carry beside them is a task's
+number, where a `results` failure names the task it read (below). A
+connector chooses its own, and names no more than the kind of
 its section and of the error its system gave.
 
 How it counts decides what becomes of the task:
@@ -142,7 +145,10 @@ Which is which, by what `executors.md`, 1 prepares:
 | a required section whose cut is unanswered at the brief's deadline | infrastructure | `SECTION: not cut by its deadline` |
 | a connector says its system failed for now | infrastructure | the connector's |
 | a connector says its section is to be gathered again, what it reads having moved meanwhile | transient | the connector's |
-| a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
+| a dependency's or input's result whose load failed: the root or the store could not serve it now | infrastructure | `results: task N's result could not be read: the store answered busy` |
+| a dependency's or input's result the store answered with no row | transient | `results: task N's result is missing: the store holds no ended record of it` |
+| a dependency's or input's result the store answered with another task's row, or with a row of another project | transient | `results: task N's result is missing: the store answered task M's record`, or `results: task N's result is missing: the store's record of it is another project's` |
+| a dependency's or input's result the store answered with its row not ended | transient | `results: task N's result is missing: the store's record of it has not ended` |
 | a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread, which closes it (`executors.md`, 2) |
 | a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
 | a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
@@ -152,6 +158,28 @@ Which is which, by what `executors.md`, 1 prepares:
 | a core section the core cannot read within its bounds | permanent | `task: ...`, `results: ...`, `transcript: ...` |
 | a brief's notes index refused for any reason but room | permanent | `notes: the index could not be read` |
 | no attempt number left | permanent | `run: no attempt number is left` |
+
+**A dependency's result.** The core reads each of a run's dependencies'
+and inputs' results from the store, one task at a time (`executors.md`,
+1), and a failure names the task it was reading, `N` its number in
+decimal, and what the read found:
+
+- **Busy:** the load failed; the root or the store could not serve it.
+  A root that has no slot for the load yet is not failing: it keeps the
+  load until one frees (`README.md`, 5.3), so no preparation fails for
+  room. A busy answer counts as infrastructure, so a store that cannot
+  serve reads for minutes holds no task: the task backs off within that
+  class's spaced allowance, some 20 to 40 minutes at the defaults
+  (../tasks/lifecycle.md, 6), and is held only past it.
+- **No row, another task's or project's row, or a row not ended:** the
+  store answered, without task `N`'s ended record in the preparing
+  task's project; `M` is the number of the task whose row it gave. It
+  counts as transient, as the engine's own reads missing do
+  (../tasks/lifecycle.md, 6): a result that is truly gone holds past
+  that allowance, the hold's words naming the task and what was read.
+
+Each is at most 110 bytes with both numbers at their longest, inside
+`REASON_BYTES`, so no hold's words are cut.
 
 A stale preparation and a wait for an account (`executors.md`, 1) are neither: the task
 returns to due without a timer, as it does.
@@ -205,6 +233,41 @@ nothing to go on, so every brief shows the open questions:
 The same open questions are among every run's reasons
 (../tasks/messages.md, 6), and one left open wakes the task again
 (../tasks/lifecycle.md, 2).
+
+### 1.3 The unrecorded words in the waiting section
+
+A words message a task keeps is taken from its inbox by the turn that
+reads it, and stays among the task's unrecorded words until a run
+records it (../tasks/messages.md, 2). So that a run that read it and
+ended, parked or stopped, without recording it leaves the next run
+something to go on, every brief shows them:
+
+- **Which.** Each words message the task keeps unrecorded, oldest
+  first. A message still in the inbox is none of them: the run's start
+  carries it whole, as a message.
+- **Which runs.** Every run that starts from a brief, the run after one
+  that was stopped among them. A task whose runs resume keeps no words.
+- **Its form.** The waiting section holds them after the open
+  questions (1.2), or alone where none is open. They open with the line
+  `Words sent to you, not yet recorded, oldest first:` and are each one
+  line and then the words whole, as their sender sent them:
+
+  ```
+  Person 42 wrote (message 77); once it is in a spec or a note, mark_read messages=[77], or name 77 in that note's records:
+  Also add a /ready endpoint beside /health.
+  ```
+
+  The sender is `Person N` or `Task N`, its number as the activity
+  names it; the number is the message's, the one `mark_read` and a
+  note's `records` take (`executors.md`, 3). Where open questions come
+  first, a blank line parts the two.
+- **Its place.** The waiting section's, as 1.2 says: optional, kept
+  before every other optional section, cut from its end past its budget,
+  saying how much. Words it cut stay unrecorded, shown again to the
+  next run, and listed in the task's document as every unrecorded
+  message is.
+- **Its words.** The kept `Word`'s, read from the task's record with no
+  store read.
 
 ## 2. Notes
 

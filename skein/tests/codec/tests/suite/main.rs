@@ -13,8 +13,13 @@ mod bounds;
 mod diff;
 mod drawn;
 mod drift;
+mod every;
+mod every_bounds;
 mod fingerprint;
 mod generic;
+mod largest;
+mod lean;
+mod lean_bounds;
 mod memory;
 mod named_limits;
 mod patch;
@@ -27,3 +32,8 @@ mod fuzzy {
     mod layout;
     mod patch;
 }
+
+mod codec_memory {
+    include!("../../../../testing/codec-memory.rs");
+}
+mod largest_memory;

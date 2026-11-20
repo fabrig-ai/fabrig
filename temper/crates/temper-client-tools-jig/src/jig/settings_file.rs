@@ -20,8 +20,23 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
         Some(Value::Word(1)) => c::Setting::Template(number),
         Some(Value::Word(2)) => c::Setting::Policy(number),
         Some(Value::Word(3)) => c::Setting::Model(number),
+        Some(Value::Word(4)) => c::Setting::Worker(number),
+        Some(Value::Word(5)) => c::Setting::Provider(number),
         Some(_) | None => unreachable!("parsed setting kind"),
     }
+}
+/// The revision flag follows the selector's positional and project arguments.
+pub(crate) fn revision(call: &Call) -> Option<u64> {
+    number(
+        call,
+        if call.form == 9 {
+            1
+        } else if call.form == 2 || call.form == 7 {
+            3
+        } else {
+            2
+        },
+    )
 }
 fn input_files(call: &Call) -> Result<&[Value], Box<[u8]>> {
     let slot = match call.values.first() {
@@ -61,6 +76,7 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
             | Value::Duration(_)
             | Value::Proposal(_)
             | Value::Digest(_)
+            | Value::Sha256(_)
             | Value::Condition(_)
             | Value::Switch
             | Value::Project(_)

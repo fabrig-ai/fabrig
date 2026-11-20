@@ -8,14 +8,14 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 
 - **The engine** keeps state and decides acts. A **worker** checks out
   repositories and runs agents. `temper-box init` writes one worker in the
-  engine's process, with 4 slots.
-- **`temper-box serve`** runs any shape: engine, workers or both.
+  engine's process, with 4 places.
+- **`temper-box serve`** runs the engine and its worker in one process.
   **`temper box`** runs serve and each managed forge's setup processes
   on this machine (temper help box). A **server** runs `temper-engine serve` for its engine alone and
   `temper-worker serve` for each worker alone (temper help server).
 
-**The three directories:** `CONFIG` holds `temper.json` and
-`agent.json`; `DATA` holds the store under `deployment`, workspaces,
+**The three directories:** `CONFIG` holds `temper.toml`; `DATA` holds `agents.setting`, the box’s
+copy of its agents setting, the store under `state`, workspaces,
 forge state, the worker secret and box logs; `CACHE` holds fetched
 Forgejo and runner binaries at pinned versions.
 
@@ -28,20 +28,20 @@ Each directory comes from its flag (`temper-box help commands`), else
 `DATA` and `CACHE` belong to the user running temper; missing ones
 are made with mode 0700.
 
-**`CONFIG/temper.json` has three members:**
-
-- `engine`: limits, model providers, admitted workers, listeners,
-  owners, sign-in and first-start projects, each naming `"policy": 1`;
-- `workers`: engine addresses, names, secret files, slots and agent programs;
-- `application`: managed and fake forge locations, landing rules,
-  client and webhook listeners, sign-in, scripted model and application limits.
+**`CONFIG/temper.toml` holds what a start needs:** listeners, the public
+origin, the first owner, sign-in, OpenID, push and program paths. Each
+binary's `help config` lists its public keys and an example file; temper
+help configuration lists all keys and where the old members went.
+A worker's file names its engine and its own name, with optional
+`[programs]` and `[environment]` tables.
 
 Forges are made through setup or connect and kept in the store
 (temper help forge). Charters, templates, policies and rules are
-settings in the store (temper help settings). Writing them into this
-configuration is refused; an inline project policy is refused as
-`engine.projects[0].policy: name a policy, policy: 1; change it with
-temper ctl settings apply`.
+settings in the store (temper help settings). Projects are made at runtime;
+make one from the client or `temper ctl`.
+LLM providers are settings in the store (temper help settings): see them with
+`temper ctl settings show provider`, change them with `temper ctl settings apply`;
+a change is taken at the engine's next start.
 
 ## How it changes
 
@@ -69,7 +69,7 @@ temper ctl settings apply`.
 ## Acting on it
 
 - **The binaries:** the box's `temper-box init` writes a deployment;
-  `temper box` runs it; `temper-box serve` runs any shape;
+  `temper box` runs it; `temper-box serve` runs the box;
   `temper-box program-login` signs a program in on this host. A server's
   `temper-engine serve` runs its engine, `temper-worker serve` each worker,
   and `temper-worker program-login` signs a program in on each worker's
@@ -82,10 +82,15 @@ temper ctl settings apply`.
 
 **Offering another model** (for example, `claude-haiku-5-5`):
 
-1. Set the provider's `keep` patterns for names to read and `drop` patterns
-   for names to exclude in `engine.llm.providers` in `CONFIG/temper.json`.
-   Without `keep`, that provider reads no list. Drain the stop and restart
-   with the same `CONFIG`, `DATA` and `CACHE`. Where the provider has a list,
+1. Read `temper ctl settings show provider N`, where N is the provider's
+   number. Copy its whole value to FILE in this settings form:
+   `{"items": [{"setting": {"kind": "provider", "number": N}, "set": VALUE}]}`.
+   In VALUE, set `keep` patterns for names to read and `drop` patterns for
+   names to exclude; preserve `sources` and `endpoints`. Without `keep`,
+   that provider reads no list. Apply with
+   `temper ctl settings apply FILE --against REVISION --key KEY`, using the
+   newest revision (temper help settings). Drain the stop and restart with
+   the same `CONFIG`, `DATA` and `CACHE`. Where the provider has a list,
    temper reads it as an account becomes usable, once a day and on
    **Read again** in **Deployment**, **Models**.
 2. For what a list doesn't show, including a new Claude subscription model,
@@ -96,48 +101,52 @@ temper ctl settings apply`.
    A task keeps the model it has. Adding or changing a model needs no restart.
    `model list` reads the models offered to a project; a charter or policy
    may restrict which it can use (temper help charter; temper help settings).
-4. For a local model, its provider's `endpoint` in `engine.llm.providers`
-   names the configured endpoint serving it. Providers and endpoints stay
-   in `CONFIG/temper.json`.
+4. For a local model, read its provider with `temper ctl settings show provider N`.
+   Its `endpoint` names an entry in its `endpoints` list; set that entry's
+   `address.socket` to the local server's address. Keep the other members,
+   including `sources`. Write the whole provider setting and apply FILE as
+   in step 1, then drain the stop and restart with the same `CONFIG`, `DATA`
+   and `CACHE`.
 5. For a larger output than an agent's endpoint's limits allow, raise those
-   limits in `CONFIG/agent.json` and restart, then change the model.
+   limits in the `agents` setting and restart, then change the model.
    Preserve endpoint addresses, transports and sign-in settings. The endpoint's
-   `reasoning_item` is the byte allowance per reasoning item; `head` and `idle`
+   `reasoning_item` is the byte allowance per reasoning item; `head_ms` and `idle_ms`
    are deadlines in milliseconds. A model can go quiet for minutes in a response;
-   init gives OpenAI's an `idle` of 300000 and Anthropic's 120000.
+   init gives OpenAI's an `idle_ms` of 300000 and Anthropic's 120000.
    Larger outputs may require larger agent and channel bounds; a refused start
    names the shortfall. Restart with the same `CONFIG`, `DATA` and `CACHE`.
 
-**Writing larger pieces:** `CONFIG/agent.json`'s
-`profile.declared.tool_payload` bounds bytes per piece: a write's
+**Writing larger pieces:** the `agents` setting’s
+`declared.tool_payload` bounds bytes per piece: a write's
 content, or an edit's combined old snippets and combined new snippets,
 each separately. A 4,487-byte design edit fits the shipped 10,662-byte
 profile. This is a deployment setting; changing a charter cannot raise it.
 
-Keep these coupled values in `CONFIG/temper.json` aligned:
+Keep these coupled values in the `temper-limits` and `limits` settings aligned
+(`temper ctl settings show`, then `temper ctl settings apply`); they are not
+keys of `CONFIG/temper.toml`:
 
-- `application.limits.overrides.checkout.message_bytes` holds the payload.
-- `workers[0].limits.overrides.hub.event_bytes` equals payload minus 2,
+- `temper-limits` override `checkout.message_bytes` holds the payload.
+- `limits` override `hub.event_bytes` equals payload minus 2,
   the message separator: payload `8194` requires event bytes `8192`.
-- Both engine and worker overrides `hub.turn_bytes` hold the derived
+- `limits` overrides `hub.turn_bytes` hold the derived
   agent turn; `hub.turn_queue_bytes` holds that times the agent's turns.
-  Engine `core.resume_bytes` holds the turn plus 4; both
+  `limits` override `core.resume_bytes` holds the turn plus 4; both
   `hub.transcript_bytes` hold that resume window including its framing.
-- Application `root.journal.transcript_bytes` and `root.loads` byte
+- `temper-limits` overrides `root.journal.transcript_bytes` and `root.loads` byte
   overrides hold the turn, resume and encoded record carriers.
   Raise every short value startup reports together (temper help limits;
   temper help limits-engine).
 
-For example, `workers[0].limits.overrides.hub.event_bytes: 4096 bytes,
-short of agent.json profile.declared.tool_payload less the 2-byte
-separator, 8192 bytes` means set that override to `8192`. An event bound
+For example, `the engine’s figures: hub.event_bytes 4096: 4096 bytes,
+short of agents setting declared.tool_payload less the 2-byte separator, 8192 bytes` means set that override to `8192`. An event bound
 above that figure is refused with its configured value and upper bound;
 set it to the same required figure.
 
 A payload of `16386` can instead fail at the model:
 `input-answer: llm.input[endpoint=1]=99876; llm.answer[endpoint=1]=65536`.
 The encoded input must fit the model's answer capacity. Reduce the payload,
-or raise the agent endpoint's output limit in `CONFIG/agent.json` and restart,
+or raise the agent endpoint's output limit in the `agents` setting and restart,
 then change the model's `output` through Ask temper; this example needs
 at least 12,485 output tokens (eight answer bytes per token).
 Do not lower a receiving check. Recheck all derived carriers after that

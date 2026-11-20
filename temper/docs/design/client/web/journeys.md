@@ -5,10 +5,10 @@ browser's client (`README.md`) recorded on a fresh `temper box
 --fake-backends`, or on any deployment with real accounts and redacted (3.5), then replayed
 natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
-pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
+pages, and main's are kept current by one writer (`../journey-writer.md`). They are not the mockups' journeys
 (`mockups/README.md`, 4), which are worlds walked in the mockups.
 The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
-file (3.2), redaction (3.6) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
+file (3.2), redaction (`journey-redaction.md`) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
 print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
 journeys, 10 what is open.
 
@@ -36,7 +36,8 @@ journeys, 10 what is open.
   the live page's prints.
 - **Recorded again by a command** while its acts hold: `again NAME`
   walks them on a fresh fake box in headless Chromium, as the browser
-  tier drives it, and adds the result; no person walks it (8.1). A
+  tier drives it, and adds the result; no person walks it (8.1), and on
+  main the journeys' writer alone runs it. A
   journey that starts past the first page says how to reach it in a
   setup file beside its recording (8.2).
 - **Printed as static pages** by `temper-client-journeys`, under
@@ -45,21 +46,21 @@ journeys, 10 what is open.
   linked from the checkout, then an empty `overlay.css`; beside them the
   journey's `../README.md`, its description. No browser, no box, the same
   bytes every time (section 5).
-- **Kept current by a test** that reprints every committed journey and
-  fails while a byte differs, naming the command that reprints, so a
-  landing that changes a recorded page carries its new print. It also
-  fails while `overlay.css` holds anything (section 6).
+- **Kept current by one writer:** after each landing, `pages` walks
+  again each stale journey and reprints them all, offered as a change of
+  its own. No other change commits a recording, a page or a file
+  printed beside them, and no test holds them (`../journey-writer.md`).
 - **The look is tuned on the print:** rules in the overlay, markup in
   place, each request a commit on the person's branch `look-requests`,
   kept on `main` by `scripts/look-refresh.sh` and never landed. A
   landing that carries a request's name moves it into the shell's
-  stylesheets and the view, and reprints (section 7).
+  stylesheets and the view, and compares by a reprint (section 7).
 - **Fake, or real and redacted.** A recording keeps what the page was
   given as it was, but the sign-in, which no saved file holds (3.1). On
   a real deployment `add` first takes out what must not be
   committed, proves the rest, and writes nothing until a last scan has
   passed; the scan knows what it knows, and the person reads the pages
-  for the rest (3.5 to 3.8).
+  for the rest (`journeys.md`, 3.5 and `journey-redaction.md` and `journeys.md`, 3.7 to 3.8).
 
 ## 2. The host on native
 
@@ -73,7 +74,7 @@ journeys, 10 what is open.
 - **The `journey` module** (the file, the recorder, the replay) builds
   on every target, the shipped bundle's among them; the redaction's and
   the last scan's shared code, which the TUI's journeys use too, is
-  `temper-client-redaction`'s (3.6, 3.7).
+  `temper-client-redaction`'s (`journey-redaction.md`, `journeys.md`, 3.7).
 - **The seam** is `host::Host`'s, and the shell's turn and the replay
   call it alike:
   - `clocks(now, wall)`, at the turn's start, as today;
@@ -147,16 +148,16 @@ journeys, 10 what is open.
   a new recording, and so does the page's load on a return from a
   departure, when the page records again (`README.md`, 2.1).
 - **No sign-in in the file.** Each save, Alt+Shift+S's and the one
-  before a departure, writes the recording with two of 3.6's originals
+  before a departure, writes the recording with two of `journey-redaction.md`'s originals
   replaced as `add` replaces them, an `x` a byte, in every field and in
   a stream's joined records alike: the *link*, the `secret` record's
   value, and the *stored*, each `stored` record's value and each `save`
   of the stream's record, a `Kept`'s head standing. So a saved
   recording is never a sign-in. Nothing else is replaced: a typed
   value, such as a key pasted into the page, and what agents wrote stay
-  for `add`, whose redaction and last scan are unchanged (3.6, 3.7); on
+  for `add`, whose redaction and last scan are unchanged (`journey-redaction.md`, `journeys.md`, 3.7); on
   a real deployment, as on a real box, the person types no key (3.5). A
-  recording whose streams don't decode (3.6) is written with those two
+  recording whose streams don't decode (`journey-redaction.md`) is written with those two
   replaced in every field and every `heard piece` all `x`s, its size
   kept: no such recording can be added, and none is a sign-in. The
   memory keeps the originals, so the recording goes on as it is, and
@@ -189,6 +190,7 @@ comment, no blank.
 | `journey` | `2`, the format's version | the first line |
 | `seed` | the platform's seed | the start's facts, in this order |
 | `clocks` | now and wall, in nanoseconds | |
+| `fixed` | none | on a fixed start (`../journey-clock.md`, 4.2) |
 | `primary` | `control` or `meta` | |
 | `ways` | the `temper-sign-in` meta's content, the page's origin | when the page has the meta |
 | `forge` | a `temper-forge-sign-in` meta's content | one per meta, in order |
@@ -197,19 +199,21 @@ comment, no blank.
 | `stored` | a small-store record's key and value | one per record read at start |
 | `turn` | now and wall | each turn's clocks |
 | `start`, `due`, `place`, `heard`, `carried`, `act`, `copied` | the report | each report, in its turn's order |
-| `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
+| `exchange`, `pieces`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
 | `deadline` | nanoseconds, or `none` | each turn's end |
 | `mark` | the live page's html | before its act, or at the key, in a turn of its own (`turn`, `mark`, `deadline`) |
 | `end` | the live page's html | the last line |
 
 - **The reports:** `place PATH`; `heard answered EXCHANGE STATUS BODY`,
-  `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
+  `heard begun EXCHANGE STATUS`, `heard part EXCHANGE BYTES`,
+  `heard done EXCHANGE`, `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
   `heard piece BYTES`, `heard ended`; `carried WRITES`, then one line
   per carried report, `written KEY`, `unwritten KEY` or `lost
   EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3); `copied TOKEN
   done|refused|failed`.
 - **The asks:** `exchange ID BOUND METHOD PATH BODY`, then its headers
-  as `NAME VALUE` pairs on the same line; `open PIECE PATH` and its
+  as `NAME VALUE` pairs on the same line; `pieces ID BOUND PIECE METHOD PATH BODY`,
+  then its headers as `exchange`'s are; `open PIECE PATH` and its
   headers; `close`; `save KEY VALUE`; `erase KEY`; `writes N`, when not
   zero; `navigate TO`; `replace TO`; `show PATH push|replace`; `copy
   TOKEN WORDS`, whose words a redaction replaces as it does a `navigate`'s.
@@ -236,7 +240,7 @@ comment, no blank.
 - The welcome's "Set up temper" is kept as `act press "Act { action:
   Pages(Go { address: ... }) }" "Set up temper"`; a typed secret's event
   shows its length alone (`AccountKey { value: Secret { len: 12 } }`),
-  its value being the act's until `add` takes it out (3.5, 3.6).
+  its value being the act's until `add` takes it out (`journeys.md`, 3.5, `journey-redaction.md`).
 
 ### 3.4 Marks
 
@@ -275,77 +279,7 @@ with `--record` (`README.md`, 2.2). The person uses public
 repositories and writes nothing private into the chats: the model's
 words are kept as they were given, and what agents wrote may stay in a
 recording. A saved file holds no sign-in (3.1); `add` redacts every
-recording alike, fake or real (3.6).
-
-### 3.6 Redaction
-
-`add` redacts before its first replay's proof (4.3). It reads the
-recording as its lines (3.2), and every byte field of each. It writes
-nothing and prints no original. A browser's saved file already holds
-the *link* and the *stored* replaced (3.1): their values are `x`s
-alone, which are no original, so `add` counts none of either, and its
-redaction of the rest is unchanged.
-
-- **The originals:**
-  - *link:* the `secret` record's value;
-  - *stored:* each `stored` record's value, and each `save` of the
-    stream's record (jig's `STREAM_KEY`), the same credential as it is
-    issued. Such a value is a `Kept`: its head stands, so that the host
-    still reads it, and its `record` is the original. A value that isn't
-    one is an original whole;
-  - *typed:* each value of an act whose event shows a secret's length
-    (`Secret { len: N }`, 3.3), such as a typed key or a pasted sign-in;
-  - *given:* each `--redact TEXT`; `again` also supplies its local binary,
-    bundle, scratch and cache paths, for both browser and TUI captures;
-  - *approval*, *credential* and *bearer:* the TUI's, the approval's
-    secret, the credential the TUI takes and the bearer every exchange
-    carries (`../tui/journeys.md`, section 5), which a browser's recording
-    never gives. They are sought as every original is, and reach the
-    shared code from the TUI's lines through `Originals::new` and
-    `redact_field`.
-- **The placeholder** is `x`s, one for each byte, so that every frame,
-  length prefix and base64 run keeps its size. Surrounding spaces, tabs,
-  CRs and LFs of a typed or given original stand, outside it: the client
-  trims them from a sign-in's paste before it carries the value, and a
-  key's field carries them with it.
-- **Where:** every original is sought in every field, longest first, in
-  these forms: its bytes; percent-encoded, either hex case, for a URL's
-  query; `dom::print`'s escapes, for a mark's html; and Rust's Debug
-  escapes, for an event's print. Its sha-256, with those spaces and
-  without them, is sought as well and becomes the placeholder's:
-  `AddKey`, `ReplaceKey` and `FinishSignIn` carry the digest of the value
-  they carry.
-- **A form's size:** in a framed field (a `heard answered` body, a
-  stream's record, an `exchange` body, a `save` or `stored` key or
-  value, and `written`, `unwritten` and `erase`) a form becomes `x`s of
-  its own length. In any other field, which no length prefix counts, it
-  becomes the placeholder.
-- **Typing:** typing is given an act at a time (8.1), so a typed value
-  shorter than 4 bytes, or the head of a longer typed value, is replaced
-  in its own act alone, and sought nowhere else. The view draws a secret
-  field's value empty, so no mark holds it.
-- **A stream's pieces are joined first.** A `heard piece` is a fetch's
-  chunk: it may end in the middle of a `data:` line, an original or a
-  base64 group. Between an `open` or `heard opened` and the next, the
-  pieces are one stream of bytes, cut into its lines; each `data:` line's
-  canonical base64 is decoded to its record, replaced there, encoded
-  back, and the bytes cut again where the pieces ended, so that the
-  replay is given the chunks it was given. A `data:` line that doesn't
-  decode refuses the recording, by the line of the piece it starts on. A
-  last line that the recording's end cuts short is decoded by its whole
-  groups, the rest kept as text.
-- **The rest is the proof's:** the host derives what it asks from what
-  it heard, so a consistent replacement replays as the original did. An
-  ask is proved, then: what is left of a typed value in an exchange
-  differs from what the replay asks, and is stale (4.2). A report is
-  only replaced and scanned (3.7).
-- **What `add` prints:** the count of each kind of original, and of the
-  places replaced.
-- **Not done, the user's word, 2026-11-05:** `temper box --bundle` on
-  real backends and its line under the sign-in block, since a real box's
-  own bundle records (3.5); email addresses, neither replaced
-  nor refused, since the account's email may stand in a committed
-  journey.
+recording alike, fake or real (`journey-redaction.md`).
 
 ### 3.7 The last scan
 
@@ -361,7 +295,7 @@ the replay drew on the way.
   replay drew at each turn's end, its escapes read back, so that what a
   page joins is seen, and each printed page.
 - **What it refuses:**
-  - *an original:* any form of a sought original (3.6), or its sha-256;
+  - *an original:* any form of a sought original (`journey-redaction.md`), or its sha-256;
   - *a key:* `sk-`, then at least 20 of `[A-Za-z0-9_-]`;
   - *a JWT:* three base64url parts joined by `.`, the first beginning
     `eyJ`, each at least 8 long;
@@ -441,12 +375,14 @@ and, for an act's mark, every node on it that gives the act's event.
 
 ### 4.3 The first replay's proof
 
-`add` replays the redacted recording (3.6) with its redacted live
+`add` replays the redacted recording (`journey-redaction.md`) with its redacted live
 prints: at each mark the replay's `Page::html()` is the recorded one,
 or the recording is refused, naming the mark and the first byte that
 differs. Such a replay is not faithful, and the defect is fixed in the
 seam or the replay, never recorded around. Once every mark matches, the
-live prints are dropped: the print is the replay's from then on.
+live prints are dropped, and the recording takes its placeholders and
+replays again (`../journey-placeholders.md`, 4.1): the print is that
+replay's.
 
 A refusal of `add`'s names the turn, the line and each record's kind:
 never a line's text, which may hold what the redaction missed. The
@@ -462,8 +398,10 @@ whose crate is `crates/temper-client-journeys-tool`, beside the gallery
 
 - `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
   FILE` takes a saved recording as the journey NAME, replacing one of
-  that name, redacts it (3.6), proves it (4.3), scans it (3.7) and prints
-  it, in memory until the scan has passed. A NAME is `[a-z][a-z0-9-]*`.
+  that name, redacts it (`journey-redaction.md`), proves it (4.3), normalises it, scans it
+  (3.7) and prints it, in memory until the scan has passed. A NAME is
+  `[a-z][a-z0-9-]*`. `normalise` gives the committed recordings their
+  placeholders (`../journey-placeholders.md`, 4.3).
 - `cargo run -p temper-client-journeys -- add --help` says what `add` takes
   out and what it leaves to the person (3.8).
 - `cargo run -p temper-client-journeys` reprints every journey from its
@@ -471,9 +409,13 @@ whose crate is `crates/temper-client-journeys-tool`, beside the gallery
   left as it was, and the program exits 1 once the others are printed.
 - `cargo run -p temper-client-journeys -- again NAME` records the
   journey NAME again while its acts hold (8.1).
+- `cargo run -p temper-client-journeys -- pages [--prepared DIR]
+  [--within DURATION]` is the journeys' writer's: `again` for each stale
+  journey, then the reprint; `pages --check` names each journey fresh or
+  stale and writes nothing (`../journey-writer.md`, 3).
 - `add` and the reprint read no configuration, environment, clock or
-  network, and start no server; `again` alone does. Its paths are its
-  manifest's, as the gallery's are.
+  network, and start no server; `again` alone does, and `pages` through
+  it. Its paths are its manifest's, as the gallery's are.
 
 ### 5.2 What it writes
 
@@ -489,11 +431,10 @@ Under `docs/design/client/web/journeys/`:
   `journey.js`, the program's, both written at each print; and
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
-- **Generated:** the pages, `skein-ui.css` and `journey.js` are
-  generated files, rewritten by the reprint, so that a rebase that
-  conflicts in them is resolved by reprinting. A recording, a README, a
-  setup and the overlay are sources, never regenerated. A stale journey fails the
-  reprint: such a change waits until the journey is recorded again
+- **The writer's:** on main, the recordings, the pages, `skein-ui.css`
+  and `journey.js` are written by the journeys' writer alone; a README,
+  a setup and the overlay are sources (`../journey-writer.md`, 2). A
+  stale journey keeps its pages until the writer walks it again
   (section 8).
 
 ### 5.3 A page
@@ -507,7 +448,8 @@ Under `docs/design/client/web/journeys/`:
   `../journey.js`; in its body the page.
 - **For a diff:** one tag per line, the break inside the tag before its
   `>`, so that nothing drawn gains a space; and no `data-node`, whose
-  numbers follow the order the nodes appeared in, not what they are.
+  numbers follow the order the nodes appeared in, not what they are;
+  skein-ui's ids are numbered afresh (`../journey-placeholders.md`, 5).
   skein's `dom::print` escapes `<`, `>`, `"` and `&` in text and
   attribute values alike, so the tags of `Page::html()` are found
   exactly.
@@ -556,14 +498,15 @@ python3 -m http.server 8766
   event no control gives; a control's recorded name changed, holding;
   an act with no event, kept nowhere; and the proof refusing a mark
   whose html differs.
-- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every
-  committed journey reprinted into a scratch directory equals its directory and
-  the files beside it, byte for byte; one that differs or is stale
-  fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
-  journey's README.
-- **No request lands as it is:** the same tests fail while
-  `overlay.css` holds any byte, and for a journey whose `../README.md` is
-  missing or empty (section 7).
+- **The print, in `crates/temper-client-journeys-tool`'s own tests,** on
+  walks they record in the host's world: printed, redacted and printed
+  again, the same pages; a reprint keeps a journey's README. No test
+  replays, reprints or compares a recording or a page of main's
+  (`../journey-writer.md`, 7).
+- **No request lands as it is:** the delivery check refuses a nonempty
+  `overlay.css` (`../journey-writer.md`, 5), and the tests fail while it
+  holds a byte, and for a journey whose `../README.md` is missing or
+  empty (section 7).
 - **The links by act,** in the print's unit tests: a press's control,
   a submit's field and a toggle's box, each with its attributes.
 - **`again`'s walk, natively,** in the journey module's tests and the
@@ -578,10 +521,7 @@ python3 -m http.server 8766
   record among them, and another version, a line out of its place, a second `reload`
   and an unknown role each unreadable; `after` joining a named setup's
   steps without its `reload`, and a chain of two, a missing name and a
-  name of its own refused; every committed setup read; and
-  `project-landing`'s first steps, replayed against `welcome-set-up`'s
-  recording, each naming a control of which the view makes that act's
-  event, so that the two starts stay one.
+  name of its own refused; and every committed setup read.
 - **`again`'s browser half has no story of its own,** as the recorder's
   keys have none: its first run, a journey recorded again, proves it,
   and skein's browser tier proves the kit's letter with Alt and its
@@ -595,17 +535,17 @@ python3 -m http.server 8766
   leaves the recording going on is the recorder's, tested natively: two
   saves of one walk, the first a whole recording that the second
   extends.
-- **The redaction, natively:** each kind of original (3.6) in each place
+- **The redaction, natively:** each kind of original (`journey-redaction.md`) in each place
   it can appear: a plain field, a piece's base64, split across two pieces
   at every byte, and a URL's query, each failing first. The host's world
   walks a typed key, pressed, through `add`'s steps, so that its digest
-  and its stream's name go and the replay holds. A committed journey
-  redacted replays as it stands. Test data is fake, a token's shape built
+  and its stream's name go and the replay holds. A walk of several
+  marks, redacted, replays as it stands. Test data is fake, a token's shape built
   in the test from pieces. No test reaches a real host or account.
 - **The scan, natively:** each shape in each place, a run's text split
   across deliveries among them; a length prefix of every byte before a
   key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
-  the committed journeys.
+  a walk recorded in the host's world, with its pages.
 - **The binary's table,** in `bin/temper-client-journeys`' suite: help,
   version, the internal commands' pages and argument refusals, with no build
   or child started (`../../testing/tools.md`, 6). Its `arguments` and
@@ -614,8 +554,7 @@ python3 -m http.server 8766
 - **The refusal, as a process:** no original's bytes on stdout or stderr,
   a failed proof's among them, and nothing written on any path; in the
   print's tests, a refused `add` leaves its root as it was.
-- **Their cost:** the journeys' reprint together at most 1 s of the
-  default suite, as the gallery's states (`gallery.md`, 3); no fuzzy
+- **Their cost:** within their layers' budgets as they stand; no fuzzy
   test.
 
 ## 7. Editing the look
@@ -643,10 +582,12 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
 - **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
   their checkout with `look-requests` checked out and clean, fetches
   `main` alone, rebases the branch on `origin/main`, drops each request
-  whose name a commit on `main` carries in that trailer, and pushes it
+  whose name a commit on `main` carries in that trailer once the last
+  `Printed:` there covers that commit (`../journey-writer.md`, 6), and pushes it
   with `--force-with-lease`, its lease the branch as the checkout last
   knew it, so that a branch moved from another checkout is refused,
-  never overwritten. It says, for each request, whether it was kept or
+  never overwritten. It says which commit main's pages were printed at,
+  then, for each request, whether it was kept or
   dropped and by which commit. Nothing is built on the branch, so
   moving it breaks no one, and its one name leaves no copies behind. A
   conflict is a line of a request's that `main` reprinted since: the
@@ -656,12 +597,13 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   progress. It takes the TUI's branch, `tui-requests` (`../tui/journeys.md`,
   10), alike, with that branch's lease, requests and push; any other
   branch is refused.
-- **Never landed:** the journeys' test refuses a request's pages, which
-  differ from the reprint, and its overlay (section 6), so `main`'s
-  overlay stays empty.
+- **Never landed:** the delivery check refuses a request's pages beside
+  any other file, and its overlay (`../journey-writer.md`, 5), so
+  `main`'s overlay stays empty.
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
-  state, then reprints (`look-requests.md`, 3). Its own commits carry
+  state, then compares by a reprint in its own tree and commits no page
+  (`look-requests.md`, 3). Its own commits carry
   the request's trailer, never the request's commit itself. The account
   and what done means are `look-requests.md`, 5; the render comparison
   follows landing on main (`look-requests.md`, 4).
@@ -673,33 +615,34 @@ changes, or what the client can do on a page (an event no control
 gives); never for a change to the view or the look alone, which a
 reprint carries, since its acts are events, not controls.
 
-- **While its acts hold,** `again NAME` records it again (8.1). No
-  person walks it.
+- **While its acts hold,** `again NAME` records it again (8.1), run on
+  main by the journeys' writer after the landing that staled it
+  (`../journey-writer.md`, 3). No person or goal walks it.
 - **A real journey** (section 9) is never walked by `again`, which starts
   fake boxes alone: its person records it again by hand (3.5).
 - **A setup that no longer walks** (a control renamed before the reload)
-  stops `again`, naming its line; it is edited, and no recording changes
-  for it (8.2).
+  stops `again`, naming its line; it is edited, in the change that
+  renamed it, and no recording changes for it (8.2).
 - **When the walk itself changes** (a step gone, another added), the
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `../README.md` and the change that moved it, then added (`add NAME
-  FILE`). The README changes with it, and its new pages are read as new.
-- **A new recording reads anew:** its times are the new walk's, and so
-  are the fake box's loopback ports wherever a page shows one, so the
-  print's diff holds those as well as what changed (section 10).
+  FILE`) by the writer's runner (`../journey-writer.md`, 2). The README
+  changes with the change that moved it, and its new pages are read as new.
+- **`again`'s walks** match but where real processes decide
+  (`../journey-clock.md`, 5).
 
 ### 8.1 Again
 
 `again --prepared DIR NAME` uses prebuilt `temper-box`, `fake-claude`,
 `temper-client` for TUI, and `bundle/index.html` in DIR. It builds nothing
 and creates its fresh private scratch directory beneath DIR. An optional
-`cache` subdirectory supplies pinned downloads. Without this
-option, the recorder builds its inputs in a fresh private scratch
-directory of its own, `temper-journey-PID-N`, under the platform's
+`cache` subdirectory supplies pinned downloads. Without it, the
+recorder builds its inputs in a fresh private scratch
+directory, `temper-journey-PID-N`, under the platform's
 temporary directory: Rust's `std::env::temp_dir()`, which is `TMPDIR`
 where that is set. Nothing in the recorder names `/tmp`, so a host
 whose `/tmp` is held in memory points `TMPDIR` elsewhere; its tests
-take the same temporary directory, each under a directory of its own.
+take the same temporary directory, each in its own directory.
 
 `cargo run -p temper-client-journeys -- again NAME`, in
 `crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
@@ -716,15 +659,16 @@ over skein's harness.
   walk. It keeps no print mark before it, as an `input` keeps none, but
   still counts as a report when deciding whether the page is still or a
   key's mark caught it moving. Replay gives it as recorded (section 4). A
-  `drawing` act is no person's to give, and a key's mark that caught the
-  page moving (a report other than a due within half a second after it)
+  `drawing` act is no person's to give, and, without `fixed` (3.2), a
+  key's mark that caught the page moving (a report but a due within half
+  a second after it)
   is no state a still page shows: such a journey is refused before
   anything starts, and walked anew.
-- **A fresh fake box** (3.5): `temper box --fake-backends`, built from
+- **A fresh fake box** (3.5) on `again`'s fixed start
+  (`../journey-clock.md`, 4.4): `temper box --fake-backends`, built from
   the checkout with the bundle (`scripts/bundle.sh`), its printed link
   opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
-  every directory fresh in that scratch directory;
-  its printed sign-in link opened.
+  every directory fresh in the scratch one.
 - **Headless Chromium, as the browser tier drives it** (`testing.md`
   ): skein's browser kit through the fake person's browser face and
   harness (skein's `ui/web/testing.md`, 2), Chromium from
@@ -753,7 +697,7 @@ over skein's harness.
   A step whose event no control gives, in a still save, within 10
   seconds stops `again`: its acts no longer hold.
 - **The check, then `add`:** the new recording's walk is the old one's,
-  the same acts with their values and events in order and the key marks
+  both normalised (`../journey-placeholders.md`, 4.2), the same acts with their values and events in order and the key marks
   in their places, or `again` refuses, naming the first step that
   differs, and the journey is walked anew. The page may change between
   a still save and the act given; an act that then lands on a control
@@ -792,9 +736,8 @@ fields, each after one space, a word bare, bytes in double quotes.
   `textbox`, `checkbox`.
 - **Shared, once:** `project-landing`'s setup walks a fresh box to Home in
   Hello, and `chat-draft`'s is `after project-landing`, what it waits for
-  on Home, and its own `reload`. `welcome-set-up`, with no setup, walks
-  that start in its recording, and a test holds the two together
-  (section 6).
+  on Home, and its own `reload`. `welcome-set-up` walks the welcome's
+  part in a world (`../journey-walks.md`, 6).
 - **Why a mark waits:** the page may stand still for seconds while a fake
   model's turn goes on, and two saves a second apart can't tell that
   from settled, where the person could (8.1). A `mark` names what the
@@ -813,10 +756,10 @@ fields, each after one space, a word bare, bytes in double quotes.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`../pages/README.md`) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html`, the Model step, the set up running on as it was when the recording ended; its `../README.md` says so |
-| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `../README.md` says so |
-| `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so |
-| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Chat, Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat; not recorded until temper/ui walks it anew (10) | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
+| `welcome-set-up` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the box's part played by the world's box's peer (`../journey-walks.md`, 4.4 and 6), no `temper box`: the welcome marked, "Set up temper" pressed, the Forge step marked, Forgejo's "Run on this machine" pressed, its sheet marked with the sample chosen, its "Run on this machine" pressed, which makes the forge and sets it up (`../pages/README.md`), then the Model step marked as the peer reports fetching, preparing and starting, and once the forge is connected as temper and `work/hello` made | `01.html`, the welcome, leading to `02.html`, the Forge step's choices, leading to `03.html`, Forgejo's sheet, leading to `04.html` to `06.html`, the Model step with the set up's steps under way, fetching at the peer's first figure, preparing and starting, then `07.html`, the Model step with Forgejo on this machine connected as temper and `work/hello` made; its `welcome-set-up/README.md` describes the world's pages |
+| `welcome-playground` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome` (`../journey-walks.md`, 4 and 6), no `temper box`: the welcome seen and marked, "Try the playground" pressed, the banner and New chat seen, then marked | `01.html`, the welcome under its top bar, its "Try the playground" leading to `02.html`, New chat in Demo with `playground/widget`, the banner above main, the three suggested requests and composer, model `fake`; the rail offers New change, no Away, and Deployment says "a forge is setting up"; no Chat/Split/Draft switch or plan-or-key choices at this mark; its `welcome-playground/README.md` describes the world's pages |
+| `project-landing` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the forge at `127.0.0.1:10002`, the box's part played by the world's box's peer and the sign-in's tab by the world's tab (`../journey-walks.md`, 4 and 6), no `temper box`: Forgejo run on this machine with the sample, `work/hello`; "Continue with ChatGPT" pressed, its tab carried to the fake issuer and back, so that the welcome moves on to Ready by itself; Ready's "Create your project" pressed, which creates Hello and adopts `work/hello`; once Home says "work/hello is in Hello", `/projects/1` reloaded, "Hello is ready." seen and marked | `01.html`, Home in Hello with "Hello is ready.", the ChatGPT plan, Forgejo with `work/hello`'s link at `127.0.0.1:10002`, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", and the rail's "Home" and "Ask temper" alone while To begin shows; its `project-landing/README.md` describes the world's page |
+| `chat-draft` | version-2 `walk`, `after project-landing`, with its `scripts.json`, in one process on the playground's composition (`../journey-walks.md`, 4 and 6): `/projects/1/settings` reloaded and "Chats can write drafts" seen on, as a fresh project has it; a new chat started from Chats with "Let us design Away mode." and its scripted reply marked; Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), the fake model's document seen and marked; Chat chosen, "Add what happens to a running goal." sent and the second revision's turn marked; Split, then Draft, each marked; "Start goal…" pressed and its sheet marked; the sheet's "Start goal" pressed and the goal's page marked once its report is drawn; its "Draft" link pressed and the chat marked | `01.html`, the chat after its first reply; `02.html`, Split with the document's first revision; `03.html`, Chat after the second turn; `04.html` and `05.html`, Split and Draft at the second revision, "Start goal…" offered; `06.html`, the Start goal sheet; `07.html`, the goal's page with its report and its Draft link (`../../domain/agent/agents.md`, 3; `../pages/README.md`); `08.html`, the chat that link returns to; its `chat-draft/README.md` describes the world's pages |
 
 A journey recorded on a real box says so in its walk here, as `real`,
 and in its `../README.md`; none is yet (3.5).
@@ -837,6 +780,10 @@ The `ask-temper-ways` request's hand-made `ask-temper-ways/01.html`
 through `04.html` are not journeys to reprint or land (section 7): no
 journey reaches the ways, and the gallery draws them and the states its
 message names in words (`gallery.md`, 2, the `ask-ways-*` states).
+So are the `ways-shown` request's hand-made `ways-shown/review-*.html`
+and `approve-*.html`, from a browser recording: the gallery draws their
+states, `ask-first-run`, `ask-ways-menu`, `ask-ways-approve` and
+`ask-ways-approve-menu`, and How work runs' `how` and `how-menu`.
 
 The `bundle-loading` request's hand-made `bundle-loading/01.html` through
 `04.html` are not journeys to reprint or land (section 7): they draw the
@@ -925,17 +872,22 @@ box built at `a9e804e340`: not journeys to reprint or land (section 7). Each
 landing removes its request's directory and its overlay rules, and the
 render check reads them from the request's own commit (`look-requests.md`,
 4). `welcome-set-up` and `welcome-playground` reprint with the welcome's bar
-of the brand, the steps and the link region alone and Welcome's box line
-under its cards; the prints that draw the rail reprint with the switcher's
-phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
+of the brand, the steps, the link region and the night switch last
+(`night-switch-top`), and Welcome's box line under its cards; the prints
+that draw the rail reprint with the switcher's phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
 its path naming no project, no ">_" and the view group in the bar. The
 states the messages name in words are the gallery's (`gallery.md`, 2).
 `chat-bar` removes "+ Draft", which `chat-draft`'s recorded walk pressed
 (`Pages(AddDraft)` in Chat), so its replay would go stale (4.2) and a plan
 walks no journey anew (`look-requests.md`, 3; the user, 2026-11-12):
-`chat-bar`'s landing removes `chat-draft`'s recording and prints, and
-temper/ui walks it anew after landing, as section 9's table has it
-(section 10).
+`chat-draft` is a walk in a world instead, by section 9's table, its
+pages the writer's (`../journey-walks.md`, 6).
+
+Milestone R4 of `../../draft/page-round-trips.md` holds Work to its budget,
+which changes which requests the pages send and when (`../README.md`, 3.4;
+`../pages/work.md`, 1, *Its budget*), so a recorded exchange goes stale
+by it (4.2). `welcome-playground` and `project-landing` print in a world,
+where nothing recorded is compared (`../journey-walks.md`, 6).
 
 The `forge-steps` request's hand-made `forge-steps/fetching-before.html`,
 `fetching-after.html`, `preparing-before.html` and `preparing-after.html`
@@ -982,16 +934,6 @@ words in the welcome and Forges. No overlay rule changes.
   gallery inputs, with no recording of a night choice; print equality
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
-
-- **Renewing `chat-draft`** (8, 9): temper/ui walks it anew after
-  landing, by section 9's walk, choosing Split and pressing "Write it up
-  from this chat" where the old walk pressed "+ Draft", and following the
-  Draft link to the chat the goal names, then adds the whole recording and
-  its prints. Removing the configuring chat changed task numbers too, so
-  the old walk's task 2 is no longer the return target. Default:
-  `chat-bar`'s landing removes the old recording and prints, which no
-  longer replay (9); until the renewal no journey prints a chat's draft
-  flow, which the gallery's chat states and the view's tables cover.
 
 - **Ask temper's first-run prints** (9): temper/ui compares
   `project-landing`, `chat-draft` and `welcome-playground` with the
@@ -1051,21 +993,16 @@ words in the welcome and Forges. No overlay rule changes.
   can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
   that fewer states are hand-made (`look-requests.md`, 8); Model's
   forge failed waits on a fake box whose set up can fail. The two
-  fetching states wait on a still page at the fetch: `welcome-set-up`'s
-  recording holds the fetch's rows, but they keep the page moving, so
-  its pages 07 and 08 fall at preparing (8.1;
-  `../../protocol/setup/README.md`, section 9).
+  fetching states can, `welcome-set-up`'s walk in a world marking the
+  Model step at the box's peer's first figure (`../journey-walks.md`,
+  4.4 and 6); the fake box still fetches nothing a walk sees
+  (`../../protocol/setup/README.md`, section 9).
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
   (`look-requests.md`, 4 and 8).
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.
-- **A new recording's noise:** ports fixed for a fake box that `again`
-  starts, where it takes the kernel's (`../../protocol/setup/box.md`, 5), and
-  which must not collide when several record at once, and a fixed start
-  for its clock and the browser's, so that a recording made again
-  differs from the last only where the client does.
 - **A tab in a setup** (8.2): `project-landing`'s setup presses "Continue with
   ChatGPT", and the tab it opens stays beside the page. The next step's find
   brings the page to the front (skein's `testing/browser.md`, section 6), so a tab

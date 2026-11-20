@@ -90,13 +90,22 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 15. **The generated-tests check:** `tools/tiers/one-process default -p fabrig-boundary`,
     part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.4, and
     `tests/boundary/tests/generated_tests.rs`'s module doc: generated records hold
-    no test code, their tests have a separate target and file per record file,
-    and their libraries build no test target, with shrinking exceptions.
+    no test code, and their libraries build no test target, with shrinking
+    exceptions.
 16. **The layers check:** `tools/tiers/one-process default -p fabrig-boundary`,
     part of item 4's focused suite. Rule: `tools/tiers/layers.md`, 7, and
     `tests/boundary/tests/layers.rs`: every test binary of a tree has its layer
     in `tools/tiers/layers.toml`, by rule or by its line, and every line names a
     test binary of its tree, placed by no rule, at a layer the file names.
+17. **The figures:** `python3 -I -B tools/tiers/figures.py --base BASE`, on
+    the candidate, BASE the commit of main it merges onto, as item 6 runs
+    on the candidate. Exit 1 refuses a change that raises a figure of
+    `tools/tiers/budgets.toml` or adds a reason's line, one line naming
+    each, the output ending with the repair line; a change of that file
+    alone passes, whatever it does there. The runner makes a red case of
+    each `figure raised:` and `figure added:` line. Rule:
+    `tools/tiers/budgets.md`, 10.1; every figure there is the user's
+    (`skein/docs/foundation/testing-strategy.md`, 8.1).
 
 ## The gate's lists
 
@@ -146,6 +155,12 @@ Each list has one entry per line; `#` starts a comment line.
   On fabrig's own Forgejo, temper dispatches `.forgejo/workflows/tier-main.yml`
   at each move of main: it runs the runner's `$CI_TIER` at `temper_commit`, with
   `temper_tests` as `CI_TIER_TESTS`, and uploads `junit.xml` as the artifact `junit`.
+- **The macOS tiers:** `.forgejo/workflows/tier-macos-e2e.yml` and
+  `tier-macos-suites.yml`, on the runner label `relay`, run the runner's
+  `$CI_TIER --tier macos-e2e` or `macos-suites` as tier main's runs `$CI_TIER`;
+  it hands the run to GitHub's `.github/workflows/macos.yml` at the same commit
+  and brings back its report (`temper/docs/design/testing/macos.md`, 9). A macOS
+  red blocks nothing.
 - **What red means:** a failure observed after landing is red; repair starts in
   the lowest tier that shows it (`skein/docs/foundation/testing-strategy.md`, 9).
   Over a CPU budget is red; past the wall hard limit is starved, a warning; tests

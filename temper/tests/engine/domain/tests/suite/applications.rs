@@ -159,6 +159,7 @@ fn an_adoption_on_a_configured_forge_is_adopted_with_what_temper_may_do() {
         outcomes(&driver),
         [&Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(
             forge::AdoptedRepository {
+                landing: b"main".as_slice().into(),
                 repository: skein_forge::api::Repository { forge: 1, repository: 2 },
                 owner: Box::from(&b"org"[..]),
                 name: Box::from(&b"repo"[..]),
@@ -203,7 +204,7 @@ fn assert_project_home(driver: &mut Driver) {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(97)),
         sign_in,
-        read: reads::Read::Project { project: 1 },
+        read: Box::new(reads::Read::Project { project: 1 }),
     }));
     driver.settle();
     let project = driver

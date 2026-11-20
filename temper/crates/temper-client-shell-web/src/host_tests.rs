@@ -1,11 +1,15 @@
 //! The host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
 use super::*;
 use jig_client::contract as c;
+use jig_client_protocol_wire as w;
+use skein_lib::{Reader, Token};
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_approve.rs"]
 mod approve;
 #[path = "host_tests_authorize.rs"]
 mod authorize;
+#[path = "host_tests_closing.rs"]
+mod closing;
 #[path = "host_tests_reload.rs"]
 mod reload;
 #[path = "host_tests_tab.rs"]
@@ -23,31 +27,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
     host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
     host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
-    let me = host
-        .out
-        .iter()
-        .find_map(|request| match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => Some(*watch),
-            Request::Client { .. }
-            | Request::Unlinked { .. }
-            | Request::Show { .. }
-            | Request::Leave { .. }
-            | Request::SignOut
-            | Request::Dropped { .. }
-            | Request::Screen { .. }
-            | Request::KeepLook { .. }
-            | Request::KeepSignIn { .. }
-            | Request::Tab { .. }
-            | Request::Copy { .. }
-            | Request::Push(_)
-            | Request::Fact { .. } => None,
-        })
-        .expect("me watch");
+    let me = Token::new(0);
     let link =
         jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).expect("link bounds");
     let mut frame =
@@ -135,6 +115,53 @@ fn node(host: &Host, role: Role, name: &[u8]) -> NodeId {
         .expect("account control")
         .id
 }
+fn openings(path: &[u8], body: &[u8]) -> Vec<w::Open> {
+    if path == b"/jig/v1/watch" {
+        return vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("opening")];
+    }
+    if path == b"/jig/v1/batch" {
+        return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
+            .expect("batch")
+            .into_parts()
+            .members
+            .into_boxed()
+            .into_vec()
+            .into_iter()
+            .filter_map(|member| match member {
+                w::Member::Open(open) => Some(open),
+                w::Member::Read(_) | w::Member::Close(_) => None,
+            })
+            .collect();
+    }
+    vec![]
+}
+fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch");
+    host.heard(Heard::Begun { exchange, status: 200 });
+    let mut complete = true;
+    for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+        let reply = match member {
+            w::Member::Open(_) => encoded(w::OpenAnswer::Admitted.measure(), |w| w::OpenAnswer::Admitted.encode(w)),
+            w::Member::Close(_) => encoded(w::CloseAnswer::Closed.measure(), |w| w::CloseAnswer::Closed.encode(w)),
+            w::Member::Read(_) => {
+                complete = false;
+                continue; // These fixtures leave lone reads unanswered too.
+            }
+        };
+        let part = w::BatchReply::new(
+            &w::CEILINGS,
+            w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
+        )
+        .expect("part");
+        let bytes = encoded(part.measure(), |w| part.encode(w));
+        let frame = [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
+        host.heard(Heard::Part { exchange, bytes: frame });
+    }
+    if complete {
+        host.heard(Heard::Done { exchange });
+    }
+}
+
 #[test]
 fn the_reload_press_asks_the_browser_to_reload_once() {
     let mut host = fixture();
@@ -272,19 +299,19 @@ fn the_brand_href_navigates_inside_the_app() {
     let mut host = fixture_at(b"/welcome");
     build(&mut host);
     let link = node(&host, Role::Link, b"temper");
-    assert_eq!(host.href(link).as_deref(), Some(b"/".as_slice()));
+    assert_eq!(host.href(link).as_deref(), Some(b"/home".as_slice()));
     host.went(b"/welcome?at=forge");
     build(&mut host);
     let link = node(&host, Role::Link, b"temper");
     host.act(link, Act::Press);
     host.requests();
-    assert_eq!(host.show, Some((Box::from(b"/".as_slice()), false)));
+    assert_eq!(host.show, Some((Box::from(b"/home".as_slice()), false)));
 }
 
 #[test]
 fn a_filter_chosen_pushes_the_inbox_at_its_query() {
-    let mut host = fixture_at(b"/");
-    host.went(b"/?kind=question");
+    let mut host = fixture_at(b"/needs");
+    host.went(b"/needs?kind=question");
     build(&mut host);
     assert_eq!(
         host.address,
@@ -308,7 +335,7 @@ fn a_filter_chosen_pushes_the_inbox_at_its_query() {
 }
 #[test]
 fn a_load_at_a_filtered_address_opens_the_inbox_filtered() {
-    let mut host = fixture_at(b"/?kind=question");
+    let mut host = fixture_at(b"/needs?kind=question");
     build(&mut host);
     assert_eq!(
         host.address,
@@ -325,7 +352,7 @@ fn a_load_at_a_filtered_address_opens_the_inbox_filtered() {
 }
 #[test]
 fn a_stale_filter_link_opens_less_filtered_at_its_printed_address() {
-    let mut host = fixture_at(b"/?kind=reply&project=3");
+    let mut host = fixture_at(b"/needs?kind=reply&project=3");
     build(&mut host);
     assert!(
         host.view
@@ -335,7 +362,7 @@ fn a_stale_filter_link_opens_less_filtered_at_its_printed_address() {
             .any(|node| node.role == Role::Main && node.styles.as_slice().contains(&temper_client_view::look::NEEDS))
     );
     assert_eq!(host.address, Address::Inbox { filter: Filter { project: Some(3), ..Filter::ALL } });
-    assert_eq!(host.show, Some((Box::from(b"/?project=3".as_slice()), true)));
+    assert_eq!(host.show, Some((Box::from(b"/needs?project=3".as_slice()), true)));
 }
 
 #[test]
@@ -349,12 +376,13 @@ fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), s
     write(&mut writer).expect("measured fixture");
     writer.finish()
 }
-fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v26::Owned {
-    use jig_client_protocol_wire::{VERSION, v26 as w};
+fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
+    use jig_client_protocol_wire as w;
+    use jig_client_protocol_wire::VERSION;
     w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
         .expect("fixture envelope")
 }
-fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v26::StreamEvent) {
+fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
     use skein_lib::base64::{self, Alphabet};
     let bytes = encoded(event.measure(), |writer| event.encode(writer));
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -369,7 +397,8 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v26::StreamEvent)
 #[test]
 #[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
-    use jig_client_protocol_wire::{VERSION, v26 as w};
+    use jig_client_protocol_wire as w;
+    use jig_client_protocol_wire::VERSION;
     use skein_lib::{Duration, Reader};
     // task_record's chip is task 7; the answer carries one committed run marker.
     const TASK_PATH: &[u8] = b"/tasks/7";
@@ -400,25 +429,24 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         .expect("one served family");
     streamed(
         &mut host,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
     );
     let mut watch = None;
-    let mut me = None;
+    let me = 0;
     for request in host.requests() {
         let Asked::Exchange { call, .. } = request else { continue };
-        if call.path.as_ref() != b"/jig/v1/watch" {
-            continue;
-        }
-        let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-        let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-        if matches!(subject, w::Subject::Task(_)) {
-            watch = Some(open.watch());
-        }
-        if subject == w::Subject::Me {
-            me = Some(open.watch());
+        for open in openings(&call.path, &call.body) {
+            if open.subject().owner() != &w::Owner::Jig {
+                continue;
+            }
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            if matches!(subject, w::Subject::Task(_)) {
+                watch = Some(open.watch());
+            }
         }
     }
     let watch = watch.expect("task watch");
@@ -441,7 +469,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     let event = w::Activity::RunBegan(
         w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None },
         )
         .expect("run marker"),
     );
@@ -465,7 +493,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             w::Delivery::new(
                 &w::CEILINGS,
                 w::DeliveryParts {
-                    watch: me.expect("me watch"),
+                    watch: me,
                     document: owned(encoded(document.measure(), |writer| document.encode(writer))),
                 },
             )
@@ -590,42 +618,28 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
     for web in [None, Some(b"https://github.test/base/?a=1&b=2".as_slice())] {
         let mut forges = List::with_capacity(1);
         forges
-            .push(
-                w::ForgeRow::new(
-                    &w::CEILINGS,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        makings: skein_lib::List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        web: web.map(Into::into),
-                        repositories: List::with_capacity(0),
-                        app: Some(w::AppWay::Pasted),
-                        number: 2,
-                        kind: w::Kind::Github,
-                        mode: w::Mode::Connected,
-                        connection: w::Connection::Connected(
-                            w::Connected::new(
-                                &w::CEILINGS,
-                                w::ConnectedParts { id: 9, login: b"my-app[bot]".as_slice().into() },
-                            )
-                            .expect("connected App"),
-                        ),
-                        offer: w::Offer::NotOffered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .expect("forge row"),
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: skein_lib::List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                web: web.map(Into::into),
+                repositories: List::with_capacity(0),
+                app: Some(w::AppWay::Pasted),
+                number: 2,
+                kind: w::Kind::Github,
+                mode: w::Mode::Connected,
+                connection: w::Connection::Connected(w::Connected { id: 9, login: b"my-app[bot]".as_slice().into() }),
+                offer: w::Offer::NotOffered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .expect("one forge");
-        let mut host = fixture_forges(Some(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).expect("forges"),
-        ));
+        let mut host = fixture_forges(Some(&w::Forges { forges, linked: false }));
         host.went(b"/forges");
         let mut page = skein_ui_web::page::Page::new(
             skein_ui_web::Look {
@@ -798,5 +812,62 @@ fn the_look_is_kept_and_full_screen_carried() {
         assert_eq!(duties.screen, None);
         assert_eq!(duties.keep_look, None);
         assert!(duties.asked.is_empty());
+    }
+}
+
+#[test]
+fn root_and_missing_starts_wait_for_me_and_replace_even_the_provisional_home() {
+    for path in [b"/".as_slice(), b"/nowhere"] {
+        for projects in [0, 1, 2] {
+            let mut host = Host::new(limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+            host.root = root::unlinked(&host.env.limits, 11);
+            host.start(path, Vec::new(), None);
+            host.client(jig_client::Event::StartUnlinked { kept: List::uncapped() });
+            host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
+            host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+            assert_eq!(host.report(Report::Start).show, None);
+            build(&mut host);
+            assert_eq!(host.root.pages().address(), &Address::AllHome);
+            assert!(!host.view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&view::look::NEEDS)));
+            let link = jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).unwrap();
+            let mut me = jig_client_protocol_link::translate::documents::frame(
+                jig_client_test_records::frame_two_projects_record(),
+                &link,
+            )
+            .unwrap();
+            let project = me.projects.get(0).unwrap().clone();
+            me.projects = List::with_capacity(2);
+            for n in 0..projects {
+                let mut project = project.clone();
+                project.project = 1 + n;
+                me.projects.push(project).unwrap();
+            }
+            host.client(jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            });
+            let expected = if projects == 1 { b"/projects/1".as_slice() } else { b"/home".as_slice() };
+            assert_eq!(host.report(Report::Start).show, Some((Box::from(expected), true)), "{path:?}, {projects}");
+            assert_eq!(host.report(Report::Start).show, None);
+        }
+    }
+}
+
+#[test]
+fn an_old_root_filter_replaces_at_once_but_a_needs_filter_stays() {
+    for (path, replacement) in [
+        (b"/?kind=question&goal=9".as_slice(), Some((Box::from(b"/needs?kind=question&goal=9".as_slice()), true))),
+        (b"/needs?kind=question", None),
+    ] {
+        let mut host = Host::new(limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        host.start(path, Vec::new(), None);
+        assert_eq!(host.report(Report::Start).show, replacement);
+        assert_eq!(host.root.pages().inbox().unwrap().filter.kind, Some(root::address::Kind::Question));
+        assert_eq!(
+            host.root.pages().inbox().unwrap().filter.goal,
+            if path.starts_with(b"/?") { Some(9) } else { None }
+        );
     }
 }

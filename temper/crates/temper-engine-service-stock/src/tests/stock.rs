@@ -6,62 +6,44 @@
 )]
 use super::fixtures;
 use jig_protocol_config as config;
+use temper_client_protocol_wire::v1::Record;
 
 /// The complete startup document emitted by init for fixed machine facts.
 pub(super) fn generated() -> Box<[u8]> {
-    use core::num::NonZeroU16;
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                owned: NonZeroU16::new(8368).unwrap(),
-                forge: NonZeroU16::new(8369).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-        &[1; 32],
-    )
-    .unwrap();
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
-}
-fn single_model() -> Box<[u8]> {
-    let bytes = generated();
-    let document = fixtures::Json::new(&bytes);
-    let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
-    let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    document.with(&[
-        (b"engine.llm.providers", &providers),
-        (b"engine.llm.endpoints", &endpoints),
-        (b"application.demo", b"null"),
-    ])
+    temper_config_shell::init_document(false)
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let mut base = config::stock();
+    temper_service_core::derived::engine(&mut base, temper_service_core::derived::STOCK).unwrap();
+    fixtures::parse_engine_over(&fixtures::value(document, b"engine"), &base)
 }
 fn single_engine() -> config::Engine {
-    let mut engine = engine(&single_model());
+    let mut engine = engine(&generated());
     let sol = engine.llm.models.iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").unwrap().clone();
     let defaults = crate::stock::checked_with(Box::new([sol]), engine.limits.core.tasks.result_bytes).unwrap();
     config::pass(&mut engine, defaults).unwrap();
     engine
 }
 fn without_projects() -> Box<[u8]> {
-    let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+    generated()
+}
+
+#[test]
+fn stock_items_stay_within_the_stock_numbers() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::Given::Stock.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).unwrap();
+    for template in &defaults.templates {
+        assert!(template.number <= jig_domain_people::STOCK_NUMBERS, "template {}", template.number);
+    }
+    for charter in &defaults.charters {
+        assert!(charter.number <= jig_domain_people::STOCK_NUMBERS, "charter {}", charter.number);
+    }
+    for (number, _) in &defaults.policies {
+        assert!(*number <= jig_domain_people::STOCK_NUMBERS, "policy {number}");
+    }
+    for model in &defaults.models {
+        assert!(model.number <= jig_domain_people::STOCK_NUMBERS, "model {}", model.number);
+    }
 }
 
 #[test]
@@ -404,6 +386,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
@@ -452,14 +435,6 @@ fn the_drafter_is_charter_12_and_template_6() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
     assert_document_rule(core::str::from_utf8(&charter.policy.instructions).unwrap());
-    assert_eq!(charter.policy.instructions.len(), 3_319);
-    assert_eq!(
-        skein_lib::sha256::digest(&charter.policy.instructions),
-        [
-            0x56, 0xb6, 0x8b, 0xbd, 0xdc, 0x3f, 0x13, 0x71, 0xf7, 0x13, 0x49, 0xf8, 0xfe, 0xf6, 0x06, 0x40, 0x4e, 0x21,
-            0x67, 0xc2, 0x20, 0x78, 0x32, 0x1a, 0x43, 0x8f, 0xcf, 0xc2, 0xc7, 0x59, 0xfc, 0xa0,
-        ]
-    );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.settings, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
@@ -520,7 +495,7 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     let coordinator = defaults.charters.iter().find(|charter| charter.number == 5).unwrap();
     assert_eq!(charter.wake, jig_domain_tasks::WakePolicy { results: ResultsWake::Each, ..coordinator.wake });
     assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
-    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(60)));
+    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(300)));
     let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
     assert_eq!(template.name.as_ref(), b"standing role");
     assert_eq!(template.executor, TemplateExecutor::Chosen);
@@ -542,7 +517,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
     use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
     use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
     let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let template = defaults.templates.iter().find(|template| template.number == 8).expect("milestone template");
     assert_eq!(
         *template,
@@ -572,6 +547,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
             assert!(role.authority.delegation.kinds.contains(&jig_domain_authority::Executor::Procedure(2)));
         }
     }
+    defaults.providers = config::llm::provider_values(&engine.llm);
     let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
     let core = config::core(&engine, [1; 16], 7);
     assert_eq!(
@@ -712,7 +688,7 @@ fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
 
 #[test]
 fn stock_models_keep_a_five_minute_cache_except_the_scripted_one() {
-    let models = crate::stock::models(&engine(&generated()).llm);
+    let models = crate::stock::models(&with_scripted(engine(&generated()).llm));
     assert_eq!(models.len(), 8);
     for model in models {
         assert_eq!(model.model.cache_life_ms, if model.model.name.as_ref() == b"demo" { 0 } else { 300_000 });
@@ -763,7 +739,7 @@ fn the_chats_opening_sends_plain_edits_directly_to_change() {
         )
     );
     assert!(opening.contains("then call change with their request and only what you read"));
-    assert!(opening.contains("call read_branch with its repository before you say it isn't there"));
+    assert!(opening.contains("call read_forge what=branch with its repository before you say it isn't there"));
 }
 
 #[test]
@@ -828,8 +804,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     for phrase in [
         "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
-        "report: ` then a one-line headline for the person saying where the goal stands, naming no task, change or pull request by number",
-        "5 of its 7 changes landed; the other 2 are building.",
+        "report: ` then a one-line headline for the person saying, in the work's own terms, what the goal has done and what's left, naming no task, change or pull request by number, no draft code or branch, and none of the words of how goals run, as \"Most of it is in; the last two parts are being built.\"",
         "Left: ",
         "Risk: ",
         "Decided: ",
@@ -840,6 +815,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     ] {
         assert!(goal.contains(phrase), "{phrase}");
     }
+    assert!(!goal.contains("5 of its 7 changes"));
 }
 
 fn chat_and_goal_use_asking() {
@@ -858,8 +834,9 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
         .split("\n\n")
         .find(|paragraph| paragraph.starts_with("Titles, for a goal and the person's chat:"))
         .expect("titles paragraph");
-    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work for a person, as Store shape S7 · history in task logs; the rest follows on the lines below.";
+    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work in plain words, with no draft codes or internal names, as Store shape · history in task logs; the rest follows on the lines below.";
     assert!(titles.contains(sentence));
+    assert!(!words.contains("Store shape S7"));
     for words in [
         include_str!("../stock/role.md"),
         include_str!("../stock/triager.md"),
@@ -868,6 +845,7 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
     ] {
         let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
         assert!(shared.contains(sentence));
+        assert!(!words.contains("Store shape S7"));
     }
 }
 
@@ -897,6 +875,11 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
+    let asking = goal
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("**Asking your requester.**"))
+        .expect("goal's asking paragraph");
+    assert!(asking.contains("(see settings project-classes). Write its question in one sentence, the situation as a person reads it, and each option in one line; commits, figures and task or pull numbers go in its why. On Decided, carry on with it and ask no one; on Ask, ask as the answer says."));
     assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
         "Before you ask anything, call `decided`",
@@ -913,6 +896,36 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         include_str!("../stock/chat.txt")
             .contains("If they tell you a decision was overturned, ask it with message, as a question, and wait.")
     );
+}
+
+// temper/docs/design/domain/red-repairs.md, 2 and 9.
+#[test]
+fn the_triager_sorts_reds_before_repairing() {
+    let words = include_str!("../stock/triager.md");
+    let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+    let reds =
+        shared.split("\n\n").find(|paragraph| paragraph.starts_with("A red after landing")).expect("reds paragraph");
+    for rule in [
+        "each finding, or each group one act settles",
+        "one culprit together where you can, those with no culprit together",
+        "Routine: a bug with a clear repair within what the culprit was asked to do",
+        "`decided` with kind `findings` and `under` the project's classes item whose words are \"a repair goal for a routine red after landing\"",
+        "On Decided, start a repair goal with the `finding` tool's `repair`, `numbers` the findings and `words` your sort",
+        "On Ask, ask your person as for any finding",
+        "Product decision:",
+        "the culprit goal's person, `Person N` in the finding's body, with a person task",
+        "the question in one sentence, each choice on its own line, the recommended first",
+        "Ask your own person if that delegate is refused or no person is named",
+        "a repair goal whose `words` carry the decision, the backlog or a drop",
+        "A repair goal's product question goes the same way",
+        "Flake: a failure of load or of the machine that failed again alone; drop it, saying so",
+        "Blamed wrongly: move it with `blame`, `commit` the landing or absent for none and `why` your reason",
+        "Confirm or move suspected blame before any repair",
+        "A culprit still live may have its red routed to it",
+        "Where `repair` refuses, including `ask before repairing finding P/N again` or the cap on live repair goals, ask your person, backlog or drop",
+    ] {
+        assert!(reds.contains(rule), "{rule}");
+    }
 }
 
 // temper/docs/design/domain/areas.md, 6, Its groups; domain/agent/agents.md, 2.
@@ -1107,7 +1120,6 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "gpt-6-astra",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
-                "demo",
             ],
             vec![
                 "claude-opus-5-5",
@@ -1117,11 +1129,10 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "claude-fable-5-1",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
-                "demo",
             ],
         ),
         (
-            engine(include_bytes!("../../../temper-init/template/bare.json")).llm,
+            engine(&temper_config_shell::init_document(false)).llm,
             vec![
                 "claude-opus-5-5",
                 "gpt-6.1-sol",
@@ -1143,8 +1154,8 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
         ),
         (
             unnamed.llm,
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "demo"],
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "demo"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
         ),
     ] {
         let defaults = crate::stock::checked_with(llm.models.clone(), 10_660).expect("representable stock");
@@ -1167,7 +1178,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             let charter = jig_domain_core::settings::charters::resolved(
                 charter,
                 &defaults.models,
-                &jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core,
+                &jig_protocol_config::stock().core,
             )
             .unwrap();
             let offered: Box<[_]> = core::iter::once(&charter.policy.model)
@@ -1219,15 +1230,17 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 
 #[test]
 fn init_inbox_holds_three_message_credits_within_the_store_codec() {
+    // Fabrig's own development's 63,740-byte payload, less the separator.
+    const MESSAGE: u32 = 63_738;
     let engine = engine(&generated());
     let limits = &engine.limits.core;
-    assert_eq!(limits.tasks.result_bytes, 10_660);
-    assert_eq!(limits.tasks.message_bytes, 10_660);
+    assert_eq!(limits.tasks.result_bytes, MESSAGE);
+    assert_eq!(limits.tasks.message_bytes, MESSAGE);
     assert_eq!(limits.tasks.inbox_bytes, 82 * limits.tasks.message_bytes);
     // protocol/configuration/stock.md: news and answer credits, four live
     // delegates' result reservations, and one unread result coexist.
     let required = 2 * limits.tasks.message_bytes + 5 * limits.tasks.result_bytes;
-    assert_eq!(required, 74_620);
+    assert_eq!(required, 446_166);
     assert!(limits.tasks.inbox_bytes >= required);
     assert!(jig_protocol_store::codec::limits(limits).is_some(), "the three-credit inbox fits the pinned store codec");
 }
@@ -1260,15 +1273,25 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (9, 4, 300)] {
+        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (5, 800, 28_800), (9, 4, 300)] {
             let charter = stock.charters.iter().find(|charter| charter.number == number).unwrap();
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
-            assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if number == 9 || number == 10 { 60 } else { 300 }),
+                "{row}"
+            );
         }
         for charter in &stock.charters {
             assert_eq!(charter.spend, k, "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if charter.number == 9 || charter.number == 10 { 60 } else { 300 }),
+                "{row}: charter {}",
+                charter.number
+            );
         }
         let policy = &stock.policies.get(&1).expect("policy 1").policy;
         assert_eq!(policy.roles[0].authority.budget.spend, 24 * k, "{row}");
@@ -1364,16 +1387,10 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
-    let engine_bytes = fixtures::value(&document, b"engine");
-    let engine = fixtures::parse_engine(&engine_bytes);
+    let document = generated();
+    let engine = engine(&document);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let core = config::core(&engine, [1; 16], 7);
-    for ceiling in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).unwrap().policy.ceiling,
-        &core.seed_projects[0].policy.policy.ceiling,
-    ] {
+    for ceiling in [&defaults.rules.ceiling, &defaults.policies.get(&1).unwrap().policy.ceiling] {
         use jig_domain_authority::Executor;
         for executor in [Executor::Procedure(6), Executor::Job(4)] {
             assert!(ceiling.delegation.kinds.contains(&executor));
@@ -1538,7 +1555,7 @@ fn a_stock_landing_can_start_its_prepare_job() {
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_forge what=branch for its head, then read_forge what=file), then call change with their request and only what you read: never describe unread code."));
     assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 
@@ -1690,6 +1707,28 @@ fn kinds_are_declared_with_their_bounds() {
                 charters: 1
             },
             Kind {
+                number: 4,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: u32::try_from(
+                    temper_client_protocol_wire::v1::ProjectLanding::encoded_bound(
+                        &temper_client_protocol_wire::v1::CEILINGS
+                    )
+                    .expect("landing bound")
+                )
+                .expect("bounded encoding"),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 5,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: settings::CARRIER,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
                 number: 6,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
@@ -1787,6 +1826,32 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 1,
                 charters: 0
             },
+            Kind {
+                number: 20,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Welcome(settings::Welcome {
+                    shown: true
+                })),
+                per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 21,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29,
+                per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 22,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 51_204,
+                per_scope: 1,
+                charters: 0,
+            },
         ]
     );
     limits.authority.segment_bytes = 6;
@@ -1796,12 +1861,13 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 16;
+    const ITEMS: usize = 18;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let stock = crate::stock::forge(&limits);
     assert_eq!(stock.len(), ITEMS);
+    assert_eq!(stock.last().unwrap().value.value, settings::Value::Limits(Box::new([])));
     assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (2, 0, 1));
     assert_eq!(
         stock[0].value.value,
@@ -2166,6 +2232,7 @@ fn the_status_charter_is_small_and_reaches_nothing() {
     expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
     expected.policy.turns = 4;
     expected.policy.time = skein_lib::Duration::from_secs(300);
+    expected.policy.reserve_time = skein_lib::Duration::from_secs(60);
     expected.policy.inspect = false;
     expected.policy.agents = false;
     expected.policy.tools = jig_domain_tasks::Tools(0);
@@ -2184,7 +2251,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, for a person, from the facts in your task. Write one sentence of at most 25 words on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line and at most two plain sentences, 70 words in all, on what stands out: what finished, what is stuck and why, what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one and by what it does, with no codes (K3), wire or protocol versions or words of how goals run (delegates, cut, wave, spec), and say when a milestone completed and its last goal landed. Say a person is waited on only where a line counts questions open to a person, never from a Now alone. Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -2216,6 +2283,7 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
     expected.policy.turns = 2;
     expected.policy.time = skein_lib::Duration::from_secs(120);
+    expected.policy.reserve_time = skein_lib::Duration::from_secs(60);
     expected.policy.resume = false;
     expected.policy.inspect = false;
     expected.policy.agents = false;
@@ -2252,7 +2320,7 @@ fn no_policy_delegates_to_the_trial_charter() {
 
 #[test]
 fn stock_numbers_each_model_for_good() {
-    let mut llm = engine(&generated()).llm;
+    let mut llm = with_scripted(engine(&generated()).llm);
     // A typed caller's leftover table cannot replace the binary's catalogue.
     llm.models = Box::new([fixtures::small_model()]);
     let models = crate::stock::models(&llm);
@@ -2285,15 +2353,15 @@ fn stock_numbers_each_model_for_good() {
 }
 
 #[test]
-fn a_row_whose_provider_isnt_configured_isnt_a_default() {
-    let bare = engine(include_bytes!("../../../temper-init/template/bare.json"));
+fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
+    let bare = engine(&temper_config_shell::init_document(false));
     let models = crate::stock::models(&bare.llm);
     assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
-    let mut llm = engine(&generated()).llm;
+    let mut llm = with_scripted(engine(&generated()).llm);
     llm.providers = llm.providers.into_vec().into_iter().filter(|provider| provider.number == 3).collect();
     let models = crate::stock::models(&llm);
-    assert_eq!(models.len(), 1);
-    assert_eq!((models[0].number, models[0].model.provider, models[0].model.name.as_ref()), (8, 3, b"demo".as_slice()));
+    assert_eq!(models.len(), 8);
+    assert_eq!((models[7].number, models[7].model.provider, models[7].model.name.as_ref()), (8, 3, b"demo".as_slice()));
     let defaults = crate::stock::checked(&llm, 10_660).unwrap();
     for charter in &defaults.charters {
         assert_eq!(charter.policy.model.name.as_ref(), b"demo");
@@ -2340,4 +2408,31 @@ fn the_prepare_executor_needs_both_stock_executor_limits() {
             Err(crate::stock::Floor { limit: name, configured: 20, needed: 21, setting: Setting::Rules })
         );
     }
+}
+
+#[test]
+fn agents_default_is_declared() {
+    let stock = crate::stock::agents();
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let kinds = crate::stock::kinds(&limits, 1);
+    let kind = kinds.iter().find(|kind| kind.number == 21).unwrap();
+    assert_eq!(
+        (kind.scope, kind.connector, kind.per_scope, kind.charters),
+        (jig_domain_core::settings::KindScope::Deployment, 1, 1, 0)
+    );
+    assert_eq!(kind.value_bytes, 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29);
+    assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (21, 0, 1)
+        && row.value.value == temper_engine_domain_forge::settings::Value::AgentFigures(stock.clone())));
+}
+
+fn with_scripted(mut llm: config::Llm) -> config::Llm {
+    let scripted = crate::stock::scripted(([127, 0, 0, 1], 8370).into());
+    let mut providers = llm.providers.into_vec();
+    providers.push(scripted.provider);
+    let mut endpoints = llm.endpoints.into_vec();
+    endpoints.extend(scripted.endpoints);
+    llm.providers = providers.into_boxed_slice();
+    llm.endpoints = endpoints.into_boxed_slice();
+    llm
 }

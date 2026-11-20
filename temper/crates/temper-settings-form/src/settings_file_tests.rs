@@ -3,6 +3,7 @@ use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::{Duration, Writer};
+use temper_client_protocol_wire::v1::Record;
 
 // C7's coordinator paces news at 30 minutes, in the settings file's nanoseconds.
 const COORDINATOR: &[u8] = br#", "wake":{"words":"immediate","notices":"immediate","news":{"paced":1800000000000},"results":"each","questions":true,"answers":true,"timers":true}"#;
@@ -172,12 +173,26 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
         (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
         (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, b"{}", c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"landed"}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"by":"turn","batch":4}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-gates","project":1}"#, br#"{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}"#, c::Setting::Application { kind: 5, scope: 1, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
         let item = items.get(0).expect("one item");
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+        if item.setting == (c::Setting::Application { kind: 4, scope: 1, number: 1 }) {
+            use temper_client_protocol_wire::v1 as w;
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("landing bytes") };
+            let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+            assert_eq!(landing.wait, if json == br#"{"wait":"landed"}"# {
+                w::SettingsLandingWait::Landed
+            } else {
+                w::SettingsLandingWait::Cleared
+            });
+        }
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -189,6 +204,106 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+const REPAIR_SETTING: &[u8] = br#"{"kind":"project-landing","project":7}"#;
+fn repair_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLanding {
+    use temper_client_protocol_wire::v1 as w;
+    let items = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).expect("repair setting file");
+    let item = items.get(0).unwrap();
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("kind 4 bytes") };
+    let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+    let mut measure = Encoder::measure(&JsonLimits { depth: 32, length: 8192 });
+    assert!(crate::kinds::render(4, bytes, &mut measure));
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    assert!(crate::kinds::render(4, bytes, &mut out));
+    assert_eq!(out.finish().as_ref(), json);
+    landing
+}
+#[test]
+fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
+    let landing = repair_round_trip(
+        br#"{"wait":"landed","repairs":{"goal":{"charter":5,"llm":null,"priority":0,"budget":2000000}}}"#,
+    );
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (2, 2, 86_400_000));
+    assert!(repairs.goal.llm.is_none());
+}
+#[test]
+fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
+    let landing = repair_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
+    assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
+}
+#[test]
+fn repair_settings_refuse_unknown_and_missing_members_by_path() {
+    for (json, why) in [
+        (
+            br#"{"repairs":{"goal":{"charter":5,"priority":0,"budget":2},"other":0}}"#.as_slice(),
+            b"repairs.other: unknown member".as_slice(),
+        ),
+        (
+            br#"{"repairs":{"goal":{"charter":5,"priority":0,"budget":2,"other":0}}}"#,
+            b"repairs.goal.other: unknown member",
+        ),
+        (br#"{"repairs":{}}"#, b"repairs.goal: missing member"),
+        (br#"{"repairs":{"goal":{"priority":0,"budget":2}}}"#, b"repairs.goal.charter: missing member"),
+        (br#"{"repairs":{"goal":{"charter":5,"budget":2}}}"#, b"repairs.goal.priority: missing member"),
+        (br#"{"repairs":{"goal":{"charter":5,"priority":0}}}"#, b"repairs.goal.budget: missing member"),
+    ] {
+        let error = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).unwrap_err();
+        assert_eq!(error.as_ref(), joined(&[b"settings file item 1: ", why]).as_ref());
+    }
+    // llm alone is optional, as for a template's default choice.
+    file::decode(
+        &kind_file(REPAIR_SETTING, br#"{"wait":"landed","repairs":{"goal":{"charter":5,"priority":0,"budget":2}}}"#),
+        &Limits::standard(),
+    )
+    .expect("llm may be absent");
+}
+
+#[test]
+fn landing_wait_refuses_another_word_at_wait() {
+    let bytes = kind_file(br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"soon"}"#);
+    assert_eq!(
+        file::decode(&bytes, &Limits::standard()).expect_err("unknown wait").as_ref(),
+        b"settings file item 1: wait: cleared or landed required"
+    );
+}
+
+#[test]
+fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() {
+    use temper_client_protocol_wire::v1 as w;
+    let setting = br#"{"kind":"welcome"}"#;
+    let items = file::decode(&kind_file(setting, br#"{"shown":true}"#), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set welcome") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("welcome bytes") };
+    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown);
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document).as_ref(), br#"{"setting":{"kind":"welcome"},"revision":1,"value":{"shown":true}}"#);
+    let reset =
+        file::decode(br#"{"items":[{"setting":{"kind":"welcome"},"edit":"reset"}]}"#, &Limits::standard()).unwrap();
+    assert_eq!(reset.get(0).unwrap().setting, item.setting);
+    assert_eq!(reset.get(0).unwrap().edit, c::SettingEdit::Reset);
+    for bad in [
+        br#"{"items":[{"setting":{"kind":"welcome","project":1},"set":{"shown":true}}]}"#.as_slice(),
+        br#"{"items":[{"setting":{"kind":"welcome","number":1},"set":{"shown":true}}]}"#,
+        br#"{"items":[{"setting":{"kind":"welcome"},"set":{"shown":"true"}}]}"#,
+    ] {
+        file::decode(bad, &Limits::standard()).expect_err("invalid welcome");
+    }
+}
+
 fn landing_sets(member: &[u8]) -> Box<[u8]> {
     joined(&[LANDING.strip_suffix(b"}").expect("rule object"), member, b"}"])
 }
@@ -207,7 +322,7 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("rule bytes") };
         let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
-        assert_eq!(rule.sets().as_slice(), expected);
+        assert_eq!(rule.sets.as_slice(), expected);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -685,8 +800,11 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
             sets: Box::default(),
         };
         let record = temper_protocol_reaches::classes_record(&classes).expect("shaped record");
-        let mut bytes = Writer::new(usize::try_from(record.measure()).expect("record length"));
-        record.encode(&mut bytes).expect("measured record");
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("record length"),
+        );
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("measured record");
         let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 4096 });
         assert!(!crate::kinds::render(8, &bytes.finish(), &mut out));
     }
@@ -881,14 +999,14 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-        assert_eq!(record.source().repository().forge(), 1);
-        assert_eq!(record.source().repository().repository(), 12);
-        assert_eq!(record.target().repository().repository(), 13);
-        assert_eq!(record.start(), &w::FollowStart::Owner);
-        assert_eq!(record.source().paths().is_empty(), optional);
-        assert_eq!(record.source().branch().is_empty(), optional);
-        assert_eq!(record.producer().is_none(), optional);
-        assert_eq!((record.target().branch()).len(), 0);
+        assert_eq!(record.source.repository.forge, 1);
+        assert_eq!(record.source.repository.repository, 12);
+        assert_eq!(record.target.repository.repository, 13);
+        assert_eq!(&record.start, &w::FollowStart::Owner);
+        assert_eq!(record.source.paths.is_empty(), optional);
+        assert_eq!(record.source.branch.is_empty(), optional);
+        assert_eq!(record.producer.is_none(), optional);
+        assert_eq!(record.target.branch.len(), 0);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -917,21 +1035,15 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
     let prefix = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":"#;
     let suffix = br#", "check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
     for (owner, expected) in [
-        (
-            br#"{"task":52}"#.as_slice(),
-            w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap()),
-        ),
-        (
-            br#"{"person":4}"#.as_slice(),
-            w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap()),
-        ),
+        (br#"{"task":52}"#.as_slice(), w::FollowOwner::Task(w::FollowOwnerTask { task: 52 })),
+        (br#"{"person":4}"#.as_slice(), w::FollowOwner::Person(w::FollowPerson { person: 4 })),
     ] {
         let items = file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap();
         let item = items.get(0).unwrap();
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-        assert_eq!(record.owner(), &expected);
+        assert_eq!(&record.owner, &expected);
         let text = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -979,5 +1091,221 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
             file::decode(&kind_file(selector, json), &Limits::standard()).unwrap_err(),
             joined(&[b"settings file item 1: dependency.project: ", reason])
         );
+    }
+}
+
+#[test]
+fn neutral_limits_keep_the_wire_value_and_render_one_line_per_override() {
+    let limits = Limits::standard();
+    let value = c::SettingValue::Limits(Box::new([
+        c::Override { name: b"tasks.depth".as_slice().into(), value: 0, reason: b"a reason".as_slice().into() },
+        c::Override { name: b"tasks.tasks".as_slice().into(), value: u64::MAX, reason: "理由".as_bytes().into() },
+    ]));
+    let wire = crate::wire::settings_wire_setting_value(&value, &limits.settings).unwrap();
+    let restored = crate::wire::settings_restore_setting_value(&wire, &limits).unwrap();
+    assert_eq!(restored, value);
+    let mut measured = crate::Text::measure();
+    crate::render::value_inline(&restored, &limits, &mut measured);
+    let mut text = crate::Text::writing_exact(measured);
+    crate::render::value_inline(&restored, &limits, &mut text);
+    assert_eq!(
+        text.finish().as_ref(),
+        "tasks.depth = 0  a reason\ntasks.tasks = 18446744073709551615  理由".as_bytes()
+    );
+    let bounds = JsonLimits { depth: 8, length: 1024 };
+    let mut measured = Encoder::measure(&bounds);
+    crate::render::encode_value(&restored, &mut measured);
+    let mut out = Encoder::write(measured.measured().unwrap(), &bounds);
+    crate::render::encode_value(&restored, &mut out);
+    assert_eq!(
+        out.finish().as_ref(),
+        "[{\"name\":\"tasks.depth\",\"value\":0,\"reason\":\"a reason\"},{\"name\":\"tasks.tasks\",\"value\":18446744073709551615,\"reason\":\"理由\"}]".as_bytes()
+    );
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "read fixture JSON and rendered error text in the form test")]
+fn agents_form_round_trips_named_maps_and_reports_duplicates() {
+    let setting = br#"{"kind":"agents"}"#;
+    let json = br#"{"profile":{"policy.max_turns":900,"declared.memory":18446744073709551615},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1,"output":1,"reasoning_item":1,"head_ms":1,"idle_ms":1,"oversized":"drop"}}"#;
+    let items = file::decode(&kind_file(setting, json), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 21, scope: 0, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
+    for (from, to, name) in [
+        ("\"policy.max_turns\":900", "\"policy.max_turns\":900,\"policy.max_turns\":901", "policy.max_turns"),
+        ("\"openai\":{", "\"openai\":{},\"openai\":{", "openai"),
+        ("\"output\":8192", "\"output\":4294967296", "output"),
+    ] {
+        let bad = core::str::from_utf8(json).unwrap().replace(from, to);
+        let why = file::decode(&kind_file(setting, bad.as_bytes()), &Limits::standard()).unwrap_err();
+        assert!(core::str::from_utf8(&why).unwrap().contains(name));
+    }
+    let page = crate::fields::page(&Limits::standard());
+    assert!(
+        core::str::from_utf8(&page)
+            .unwrap()
+            .contains("Agent profile and endpoint limits, taken at each worker's next start.")
+    );
+}
+
+#[test]
+fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
+    let limits = Limits::standard();
+    let list = br#"[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#;
+    for (kind, setting) in [
+        (br#"{"kind":"limits"}"#.as_slice(), c::Setting::Limits),
+        (br#"{"kind":"temper-limits"}"#, c::Setting::Application { kind: 22, scope: 0, number: 1 }),
+    ] {
+        let bytes = kind_file(kind, list);
+        let items = file::decode(&bytes, &limits).expect("whole override list");
+        let item = items.as_slice().first().unwrap();
+        assert_eq!(item.setting, setting);
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set list") };
+        assert_eq!(
+            crate::render::limit_values(setting, &set.value).unwrap().as_ref(),
+            &[c::Override {
+                name: b"forge.entries".as_slice().into(),
+                value: 16,
+                reason: b"dev's outbox".as_slice().into(),
+            }]
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            overlay: None,
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, list).is_some(), "{shown:?}");
+        assert!(file::decode(&kind_file(kind, b"{}"), &limits).is_err(), "requires list");
+    }
+    for kind in [br#"{"kind":"limits","number":1}"#.as_slice(), br#"{"kind":"temper-limits","project":1}"#] {
+        assert!(file::decode(&kind_file(kind, list), &limits).is_err(), "unnumbered deployment kind");
+    }
+}
+
+#[test]
+fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
+    const SETTING: &[u8] = br#"{"kind":"provider","number":3}"#;
+    const VALUE: &[u8] = br#"{"number":3,"name":"local","endpoint":"local","signed_in_plan":false,"sources":{},"endpoints":[{"name":"local","number":5,"dialect":3,"address":{"socket":"127.0.0.1:8080"},"transport":"plaintext","headers":[],"connect_ms":10000,"handshake_ms":10000}]}"#;
+    let limits = Limits::standard();
+    let items = file::decode(&kind_file(SETTING, VALUE), &limits).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Provider(c::SettingNumber { number: 3 }));
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Provider(value) = &set.value else { panic!("provider") };
+    assert_eq!(value.provider.number, 3);
+    assert_eq!(value.provider.name.as_ref(), b"local");
+    let endpoint = value.endpoints.first().unwrap();
+    assert_eq!(endpoint.name.as_ref(), b"local");
+    assert_eq!(endpoint.number, 5);
+    assert_eq!(endpoint.provider.as_ref(), b"local");
+    assert_eq!(endpoint.connect.as_millis(), 10000);
+    let mut measured = Encoder::measure(&skein_json::writer::Limits { depth: 32, length: 32768 });
+    crate::render::encode_value(&set.value, &mut measured);
+    let mut out =
+        Encoder::write(measured.measured().unwrap(), &skein_json::writer::Limits { depth: 32, length: 32768 });
+    crate::render::encode_value(&set.value, &mut out);
+    assert_eq!(file::decode(&kind_file(SETTING, &out.finish()), &limits).unwrap(), items);
+    let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+        setting: item.setting,
+        revision: 2,
+        value: Some(set.value.clone()),
+        overlay: None,
+        application: None,
+        proposed: None,
+    })));
+    assert!(skein_lib::bytes::find(&shown, VALUE).is_some());
+    let proposal = joined(&[
+        br#"{"against":1,"reason":"Add provider","items":[{"setting":"#,
+        SETTING,
+        br#", "set":"#,
+        VALUE,
+        b"}]}",
+    ]);
+    assert_eq!(file::proposal_items(&proposal, &limits).unwrap(), items);
+    let mismatch = joined(&[br#"{"number":4,"name":"local","sources":{},"endpoints":[]}"#]);
+    let why = file::decode(&kind_file(SETTING, &mismatch), &limits).unwrap_err();
+    assert!(skein_lib::bytes::find(&why, b"number").is_some(), "{why:?}");
+    for (edit, expected) in [
+        (br#""remove":true"#.as_slice(), c::SettingEdit::Removed),
+        (br#""reset":true"#, c::SettingEdit::Reset),
+        (br#""edit":"removed""#, c::SettingEdit::Removed),
+        (br#""edit":"reset""#, c::SettingEdit::Reset),
+    ] {
+        let bytes = joined(&[br#"{"items":[{"setting":"#, SETTING, b",", edit, b"}]}"]);
+        let items = file::decode(&bytes, &limits).unwrap();
+        assert_eq!(items.get(0).unwrap(), &c::SettingItem { setting: item.setting, edit: expected });
+    }
+    let read = joined(&[br#"{"setting":"#, SETTING, b"}"]);
+    assert_eq!(file::read_setting(&read, &limits).unwrap(), item.setting);
+    let page = crate::fields::page(&limits);
+    assert!(skein_lib::bytes::find(&page, b"LLM provider/endpoints; next engine start").is_some());
+}
+
+#[test]
+fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
+    const SETTING: &[u8] = br#"{"kind":"worker","number":2}"#;
+    const DIGEST: &[u8] = b"abababababababababababababababababababababababababababababababab";
+    for (value, digest) in [
+        (
+            br#"{"name":"w1","places":4,"digest":"abababababababababababababababababababababababababababababababab"}"#
+                .as_slice(),
+            Some([0xab; 32]),
+        ),
+        (br#"{"name":"w1","places":4}"#.as_slice(), None),
+    ] {
+        let items = file::decode(&kind_file(SETTING, value), &Limits::standard()).expect("worker file");
+        let item = items.get(0).unwrap();
+        assert_eq!(item.setting, c::Setting::Worker(c::SettingNumber { number: 2 }));
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+        assert_eq!(
+            set.value,
+            c::SettingValue::Worker(Box::new(c::WorkerSetting {
+                number: 2,
+                name: b"w1".as_slice().into(),
+                places: 4,
+                digest,
+                withdrawn: false
+            }))
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting: item.setting,
+            revision: 2,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, SETTING).is_some());
+        assert_eq!(skein_lib::bytes::find(&shown, DIGEST).is_some(), digest.is_some());
+        let proposal = joined(&[
+            br#"{"against":1,"reason":"Add worker","items":[{"setting":"#,
+            SETTING,
+            br#", "set":"#,
+            value,
+            b"}]}",
+        ]);
+        assert_eq!(file::proposal_items(&proposal, &Limits::standard()).unwrap(), items);
+    }
+    for bad in
+        [br#""ab""#.as_slice(), br#""ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB""#, br#""zz""#]
+    {
+        file::decode(
+            &kind_file(SETTING, &joined(&[br#"{"name":"w1","places":4,"digest":"#, bad, b"}"])),
+            &Limits::standard(),
+        )
+        .expect_err("malformed digest");
     }
 }

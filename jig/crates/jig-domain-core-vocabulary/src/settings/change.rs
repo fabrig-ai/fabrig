@@ -34,7 +34,9 @@ pub fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
                 }
                 project_policy = true;
             }
-            Setting::Model(0)
+            Setting::Provider(0)
+            | Setting::Worker(0)
+            | Setting::Model(0)
             | Setting::Charter(0)
             | Setting::Template(0)
             | Setting::Policy(0)
@@ -44,11 +46,20 @@ pub fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
             Setting::Model(number) if number > jig_domain_tasks::MODELS => {
                 return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
-            Setting::Model(_)
+            Setting::Provider(number) if number > super::PROVIDERS => {
+                return Err(Failure { setting: item.setting, fault: Fault::Count, detail: None });
+            }
+            Setting::Worker(number) if number > limits.fleet.configured_workers => {
+                return Err(Failure { setting: item.setting, fault: Fault::Count, detail: None });
+            }
+            Setting::Provider(_)
+            | Setting::Worker(_)
+            | Setting::Model(_)
             | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. } => {}
         }
         for earlier in items.iter().take(at) {
@@ -61,7 +72,7 @@ pub fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
                 super::check::shape(item.setting, value, limits)?;
                 super::check::count(item.setting, &mut counts, limits)?;
             }
-            Edit::Removed if item.setting == Setting::Rules => {
+            Edit::Removed if item.setting == Setting::Rules || item.setting == Setting::Limits => {
                 return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
             Edit::Removed | Edit::Reset => {}

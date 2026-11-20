@@ -295,3 +295,120 @@ would double-count work. Causes with no demonstrated fix remain causes,
 including the unsuccessful writer experiment. The remaining suite and
 placement decisions are open with their numbers above, without a raised
 budget, merged test, reduced assertion or new exception.
+
+## A journey's walk in a world
+
+2026-11-19, `bfae5c538ca01ce7e0cac5ed7f91b404faeec6af`:
+`welcome-playground`'s seven-line version-2 walk prints the welcome and
+New chat in one process. On Linux x86_64, `nproc` = 8, CPU model
+AMD EPYC-Genoa Processor, three warm runs of the built, unoptimized
+`target/debug/temper-client-walk print --out DIR welcome-playground`
+(each DIR fresh, using Cargo's configured target directory) took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.538768 | 0.090480 | 0.629248 |
+| 2 | 0.507844 | 0.039987 | 0.547831 |
+| 3 | 0.513697 | 0.044146 | 0.557843 |
+
+**Median: 0.557843 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run;
+user plus system, build and cargo overhead excluded. Two preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+welcome-playground` runs warmed the binary and printed byte-identical
+scratch trees. An independently idle host was not established.
+
+2026-11-19, based on `e82aba53cb532fbdc3b5d83d36add6d8a930dd33`:
+`welcome-set-up`'s twenty-line version-2 walk prints seven pages,
+from the welcome through the owned Forgejo's set-up on the world's
+box's peer to `work/hello` made. On Linux x86_64, `nproc` = 8, CPU
+model AMD EPYC-Genoa Processor, three warm runs of the built,
+unoptimized `target/debug/temper-client-walk print --out DIR
+welcome-set-up` (each DIR fresh, using Cargo's configured target
+directory) took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.739301 | 0.129276 | 0.868577 |
+| 2 | 0.740045 | 0.043532 | 0.783577 |
+| 3 | 0.734798 | 0.047663 | 0.782461 |
+
+**Median: 0.783577 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run;
+user plus system, build and cargo overhead excluded. Preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+--out DIR welcome-set-up` runs warmed the binary and printed
+byte-identical scratch trees. An independently idle host was not
+established.
+
+The walker and program tests added by change 9774, each run alone by
+exact name with `cargo nextest run`, default (focused) profile:
+nextest's per-test elapsed seconds below, not CPU or build time. The
+binary-table and dependency-boundary tests are included too.
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::links_use_the_marked_tree_first_act_exact_role_name_order_and_lead` | 0.008 |
+| `temper-client-walk-tool` / suite | `walked_and_printed_marks_link_the_pressed_control` | 0.842 |
+| same | `two_prints_have_identical_bytes` | 1.162 |
+| same | `stopped_walks_and_unreadable_chains_do_not_stop_other_journeys` | 1.060 |
+| same | `ancestors_marks_are_not_printed_and_old_numbered_pages_are_removed` | 1.099 |
+| same | `printed_pages_resolve_styles_scripts_and_relative_css_urls` | 0.619 |
+| same | `pages_writes_nothing_when_fresh_and_repairs_only_the_changed_page` | 1.339 |
+| same | `pages_removes_recording_and_preserves_unmoved_and_stopped_journeys` | 0.995 |
+| same | `usage_refuses_unmoved_names_and_output_inside_either_root_even_through_links` | 0.038 |
+| same | `submit_on_a_textbox_links_by_its_act` | 0.643 |
+| `temper-client-walk` / suite | `the_binary_answers_its_table_and_refuses_unknown_commands` | 0.219 |
+| `fabrig-boundary` / journey_walk | `the_walk_binarys_normal_closure_has_no_browser_or_journeys_tool` | 0.107 |
+
+All twelve passed. The first tool-test attempt was externally killed
+by the enclosing shell's 120 s deadline, not by nextest or a test
+budget; its replacement ran alone with a 600 s shell deadline. These
+figures use only the completed individual runs. No project budget,
+nextest setting or test reference was changed.
+
+### The TUI's first walk
+
+2026-11-19, change 10239: `sign-in-approved`'s six-line version-2
+walk prints its approval frame and no-project launchpad in one process,
+on the playground's service. On Linux x86_64, `nproc` = 8,
+CPU model AMD EPYC-Genoa Processor, three warm runs of the
+built, unoptimized `target/debug/temper-client-walk print --out DIR
+sign-in-approved` (Cargo's configured target directory, each DIR fresh)
+took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.511237 | 0.091863 | 0.603100 |
+| 2 | 0.548186 | 0.140048 | 0.688234 |
+| 3 | 0.514345 | 0.107653 | 0.621998 |
+
+**Median: 0.621998 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run,
+user plus system, build and cargo overhead excluded. The preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+--out DIR sign-in-approved` warmed the binary. An independently idle
+host was not established. Both printed frames and their HTML were
+checked against the journey's README; no page or recording is changed
+by this change.
+
+Each new test ran alone by exact name with `cargo nextest run`,
+`TEMPER_INTERNAL_BUNDLE=none`, default (focused) profile. These are
+nextest's per-test elapsed seconds, not CPU or build time:
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::tui_links_use_the_marked_event_and_only_see_lines_before_the_first_key` | 0.035 |
+| `temper-client-walk-tool` / suite | `tui_walks_print_frames_and_assets_under_the_tui_root` | 0.805 |
+| same | `tui_prints_twice_have_identical_bytes` | 1.052 |
+| same | `tui_keys_link_the_marked_frame_to_the_next_page` | 0.616 |
+| same | `a_tui_stop_names_its_line_and_leaves_other_journeys_printable` | 1.351 |
+| same | `tui_pages_remove_stale_frames_and_recording_then_write_nothing_when_fresh` | 2.239 |
+| same | `all_prints_visit_both_roots_in_order_and_names_prefer_the_browser` | 1.912 |
+| same | `tui_ancestors_marks_are_skipped_and_stop_restarts_the_terminal` | 0.634 |
+
+All eight passed. The named dependency-boundary test,
+`fabrig-boundary` / `journey_walk` /
+`the_walk_binarys_normal_closure_has_no_browser_or_journeys_tool`,
+also passed alone (0.125 s). No budget, timeout, nextest setting or
+reference was added or raised.

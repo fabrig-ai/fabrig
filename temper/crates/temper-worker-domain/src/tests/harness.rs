@@ -125,7 +125,9 @@ impl Harness {
             Request::Io { owner, .. } => {
                 return self.owed.push(Event::Done { owner: *owner, done: Done::Failed { fault: Fault::Unreachable } });
             }
-            Request::Unprepared { .. }
+            Request::Git { .. }
+            | Request::AgentStopped { .. }
+            | Request::Unprepared { .. }
             | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }

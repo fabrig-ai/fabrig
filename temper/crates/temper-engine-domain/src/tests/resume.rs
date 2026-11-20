@@ -472,8 +472,10 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 Request::Restarting { .. } => panic!("an unsettled stop says no restart"),
                 Request::Party(crate::PartyRequest::Deliver(crate::Delivery::WebReply { .. })) => {}
                 other @ (Request::Setup { .. }
+                | Request::LimitSettingsCommitted { .. }
                 | Request::ForgeKept(_)
                 | Request::ForgeGone { .. }
+                | Request::ChoosePlace { .. }
                 | Request::BoxGroup { .. }
                 | Request::PlaygroundActs { .. }
                 | Request::ResetAct { .. }
@@ -630,6 +632,7 @@ fn repository() -> temper_engine_domain_forge::Repository {
     use temper_engine_domain_forge as forge;
     forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: false,

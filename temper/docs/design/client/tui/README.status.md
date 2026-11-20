@@ -1,11 +1,17 @@
 # README: status
 
-2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2, *One directory per deployment* to *From the directory
+  before it*: `at/HOST/PORT`, the theme carried and the move [in
+  flight: change 8884].
 - **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
   flight: change 3611].
 - **Not yet:** 3: the events table's `Act { act }` row: a close done
   going to the launchpad [in flight: change 3609].
+- **Not yet:** 3: the events table's `Own { command }` row: no `Web`,
+  and `Duties.open` never carries the printed link [in flight: change
+  8716].
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,

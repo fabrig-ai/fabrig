@@ -115,10 +115,12 @@ fn consume_goal_wake(world: &mut World, attempt: u64, cause: u64) {
     world.claim(1, attempt);
     assert!(world.records.values().any(|record| matches!(record,
     jig_domain_tasks::Stored::Activity(line) if line.task == 1
-        && line.line == jig_domain_tasks::Line::RunBegan {
+        && line.line == jig_domain_tasks::Line::RunBegan { fresh: None,
             attempt, why: jig_domain_tasks::Why::Message { message: cause }, resumed: false,
         })));
     goal_turn(world, attempt, 1, None);
+    let reply_to = world.to();
+    world.send(Event::RecordWords { reply_to, task: 1, messages: Box::new([cause]) });
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     assert!(world.record(1).inbox.is_empty());
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
@@ -216,6 +218,8 @@ fn goal_with_read_escalation() -> World {
     assert_eq!(world.record(1).due_reason, jig_domain_tasks::Why::Message { message: 24 });
     world.claim(1, 6);
     goal_turn(&mut world, 6, 1, Some(23));
+    let reply_to = world.to();
+    world.send(Event::RecordWords { reply_to, task: 1, messages: Box::new([24]) });
     world
 }
 
@@ -320,10 +324,10 @@ fn extend_goal_deadline(world: &mut World) {
     let reply = jig_tasks_world::response(world, |reply_to| Event::Amend {
         reply_to,
         by: PERSON_PARTY,
-        funder: Some(funder),
         places: Box::new([]),
         operation: jig_domain_tasks::Amend {
             task: 1,
+            funder: Some(funder),
             message: 24,
             stop_run: false,
             amendment: Box::new(jig_domain_tasks::Amendment {

@@ -93,6 +93,7 @@ fn pull(repository: Repository, number: u64) -> forge::Name {
 
 fn tier(repository: Repository) -> forge::Stored {
     forge::Stored::Tier(forge::TierRow {
+        many: None,
         repository,
         tier: b"focused".as_slice().into(),
         record: tiers::Record {
@@ -103,6 +104,8 @@ fn tier(repository: Repository) -> forge::Stored {
             run: None,
         },
         task: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([]),
         requested: false,
         cancelled: false,
@@ -128,6 +131,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task: CHANGE,
         repository,
         branch: b"temper/old".as_slice().into(),
@@ -139,6 +143,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             way: change::Way::Queue,
             state: change::State::Ended,
             early: change::Early::None,
+            landing_ask: None,
             landing: None,
             ended_held: None,
             gates: Box::new([]),
@@ -149,17 +154,23 @@ fn ended_change(repository: Repository) -> forge::Stored {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::EPOCH,
             ready_since: None,
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
+        room: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: Some(forge::Ending::NoChange),
         repair_tasks: Box::new([]),
@@ -174,6 +185,9 @@ fn ended_change(repository: Repository) -> forge::Stored {
         delegate_status: change::Status::Passed,
         spec_revision: 0,
         gate_revision: 0,
+        delegate_flake: false,
+        delegate_no_test: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         gate_remarks: Box::new([]),
         drift: None,
@@ -359,6 +373,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         forge::Key::Call(_)
         | forge::Key::ProposedEffect(_)
         | forge::Key::Names(_)
+        | forge::Key::LimitHold(_)
         | forge::Key::Landed(_)
         | forge::Key::Entry(_)
         | forge::Key::Change(_)
@@ -377,6 +392,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         | forge::Key::Finding { .. }
         | forge::Key::Dismissed { .. }
         | forge::Key::Making(_)
+        | forge::Key::PersonBrief { .. }
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
         | forge::Key::Away { .. }
@@ -407,11 +423,16 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
             | Value::Questions(_)
             | Value::Ways(_)
             | Value::Classes(_)
+            | Value::Limits(_)
             | Value::CharterWords(_)
             | Value::ProjectWords(_)
             | Value::Goal(_)
             | Value::Dependency(_)
+            | Value::Welcome(_)
             | Value::ProjectAreas(_)
+            | Value::AgentFigures(_)
+            | Value::Landing(_)
+            | Value::Gates(_)
             | Value::ProjectTriager(_) => false,
         },
         Edit::Remove | Edit::Reset => false,
@@ -419,6 +440,7 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
 }
 
 // Exhaustive, deliberately independent of the production release's list.
+#[expect(clippy::too_many_lines, reason = "the independent repository predicate exhausts every stored record kind")]
 fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
     let (key, record) = row;
     if let Key::Forge(key) = key
@@ -483,6 +505,19 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         }
         // These contain task, project, forge or setting identities, not repository identities.
         // ChangeHot's ownership is pinned with the cold part's key in assert_whole.
+        forge::Stored::LimitHold(row) => match &row.set {
+            forge::LimitSet::DesignWriters(name) => name_is(name, repository),
+            forge::LimitSet::Operation
+            | forge::LimitSet::Entries
+            | forge::LimitSet::Holds
+            | forge::LimitSet::Tasks
+            | forge::LimitSet::Changes
+            | forge::LimitSet::Steps
+            | forge::LimitSet::Subscriptions
+            | forge::LimitSet::Watches
+            | forge::LimitSet::Heads
+            | forge::LimitSet::Repositories => false,
+        },
         forge::Stored::RefusedSetting(_)
         | forge::Stored::Call { .. }
         | forge::Stored::Landed { .. }
@@ -495,6 +530,7 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         | forge::Stored::Playground(_)
         | forge::Stored::Dismissed { .. }
         | forge::Stored::Milestone(_)
+        | forge::Stored::PersonBrief(_)
         | forge::Stored::ProjectFacts(_)
         | forge::Stored::Looked(_)
         | forge::Stored::Away(_)

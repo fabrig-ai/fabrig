@@ -210,7 +210,11 @@ impl Harness {
     fn outputs(&mut self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("core output") {
-                core::Request::Write(_) | core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => {}
+                core::Request::Write(_)
+                | core::Request::Ask {
+                    ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
+                    ..
+                } => {}
                 core::Request::Now(now) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));
@@ -491,6 +495,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                 &mut h.core.tasks,
                 &env,
                 tasks::Event::Claim {
+                    fresh: None,
                     session_end: None,
                     offered: jig_domain_tasks::Reasons::ALL,
                     reasons: jig_domain_tasks::Reasons::FIRST,

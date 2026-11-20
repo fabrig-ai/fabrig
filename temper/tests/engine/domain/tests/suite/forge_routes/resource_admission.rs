@@ -157,9 +157,7 @@ fn a_producing_change_watches_only_its_base_until_a_head_is_known() {
     assert_eq!(names(&world, task).as_ref(), &[base]);
     assert!(!kept_branch(&world, &branch), "neither the change nor its producer keeps an unpushed branch");
     let before = branch_reads(&world, &branch);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(branch_reads(&world, &branch), before, "no polling while the producer runs");
     assert!(kept_branch(&world, b"main"));
     assert_eq!(verifying(&mut world, &producer), task);
@@ -211,9 +209,7 @@ fn pressure(world: &mut World, first: u64, second: u64, later: u64) {
         world.pending
     );
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task: first, resources: original })));
-    for _ in 0..SLOTS {
-        world.tick();
-    }
+    world.advance_ticks(SLOTS);
     // Leave one slot for the later change's first head. Its admission then fits
     // exactly, while the departing read still consumes one extra slot.
     let mut steady = names(world, second).to_vec();
@@ -334,9 +330,11 @@ fn persistent_watch_holds_name_the_limit_and_release_reads_afresh() {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task, resources: oversized.into() })));
     await_hold(&mut world, task);
     let words = std::str::from_utf8(held_words(&world, task)).expect("hold words");
-    assert!(words.contains("forge.resources_per_task = 4; required usage 5"), "{words}");
+    assert!(words.contains("forge.resources_per_task is 4, and this needs 5"), "{words}");
     assert!(
-        words.contains("watch resources on branch") && words.contains("org/repo") && words.contains("then release"),
+        words.contains("watch resources on branch")
+            && words.contains("org/repo")
+            && words.contains("This goes on by itself once room frees or the limit rises."),
         "{words}"
     );
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task, resources })));
@@ -416,6 +414,9 @@ fn released_changes_name_the_branch_only_with_a_known_head() {
     }
 }
 
+#[path = "resource_admission/raises.rs"]
+mod raises;
+
 #[test]
 fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
     let mut configured = World::configured(true, true);
@@ -442,15 +443,90 @@ fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
             && matches!(live_task(&world, task).phase, tasks::Phase::Held { .. })
         {
             let words = std::str::from_utf8(held_words(&world, task)).expect("hold words");
-            assert!(words.contains("forge.client.resources = 2; required usage 3"), "{words}");
+            assert!(words.contains("forge.client.resources is 2, and this needs 3"), "{words}");
             return;
         }
     }
     panic!("release bypassed the persistent admission bound: {:?}", live_task(&world, task).phase);
 }
 
+fn kept_limit(world: &World, task: u64) -> forge_top::LimitHold {
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::LimitHold(task))) else {
+        panic!("durable limit hold for {task}")
+    };
+    let forge_top::Stored::LimitHold(row) = row.as_ref() else { panic!("limit hold row") };
+    row.clone()
+}
+
+#[test]
+fn restart_retries_a_kept_limit_hold_and_freed_room_resumes_its_work() {
+    let mut configured = World::configured(true, true);
+    configured.env.limits.forge.holds = 2;
+    let client = skein_forge_client::Limits { resources: 2, ..configured.env.limits.forge.client };
+    let mut world = configured.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let original = names(&world, chat.task);
+    fill_chat_watches(&mut world, chat.task);
+    let engine::CallAnswer::Delegated(made) = super::change_tool::change(&mut world, &chat, 93, None, b"Small fix")
+    else {
+        panic!("change delegated")
+    };
+    let task = made[0].task;
+    await_hold(&mut world, task);
+    world.until(Until::Ready);
+    let first = kept_limit(&world, task);
+    assert_eq!(first.member.as_ref(), b"forge.client.resources");
+    assert_eq!((first.configured, first.needed), (2, 3));
+    assert_eq!(first.revision, live_task(&world, task).revisions.hold);
+    for _ in 0..STEPS {
+        if world.pending.is_empty() && world.events.is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+        world.tick_without_resume();
+    }
+    world.restart_same();
+    let mut retried = false;
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(&world, task).revisions.hold > first.revision
+            && matches!(live_task(&world, task).phase, tasks::Phase::Held { .. })
+        {
+            retried = true;
+            break;
+        }
+    }
+    assert!(retried, "startup must release even when the work will meet the limit again");
+    world.until(Until::Ready);
+    let again = kept_limit(&world, task);
+    assert!(again.revision > first.revision);
+    assert_eq!(again.revision, live_task(&world, task).revisions.hold);
+    let assigned = world.assigned.len();
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task: chat.task, resources: original })));
+    let mut resumed = false;
+    for _ in 0..STEPS {
+        world.tick();
+        if world
+            .assigned
+            .iter()
+            .skip(assigned)
+            .any(|run| live_task(&world, run.task).requester == tasks::Party::Task(task))
+        {
+            resumed = true;
+            break;
+        }
+    }
+    assert!(resumed, "freed watches must resume the held procedure and assign its producer");
+    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::LimitHold(task))));
+    assert!(!matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
+    world.close();
+}
+
 fn stock_overlap_world() -> World {
-    let mut configured = World::configured_limits(
+    let stock = temper_limits_fixtures::small();
+    World::configured_limits(
         true,
         true,
         false,
@@ -458,6 +534,10 @@ fn stock_overlap_world() -> World {
         Gate::default(),
         None,
         StoryLimits {
+            forge_resources_per_task: Some(stock.forge.resources_per_task),
+            forge_tasks: Some(stock.forge.tasks),
+            forge_resources: Some(stock.forge.client.resources),
+            forge_repositories: Some(stock.forge.client.repositories),
             turn: true,
             tier: Some(temper_engine_domain_world::tier_runs::Tier { silent: true, ..Default::default() }),
             tasks: Some(TASKS),
@@ -465,17 +545,7 @@ fn stock_overlap_world() -> World {
             spec_bytes: Some(4096),
             ..StoryLimits::default()
         },
-    );
-    let stock =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
-    configured.env.limits.forge.resources_per_task = stock.forge.resources_per_task;
-    configured.env.limits.forge.tasks = stock.forge.tasks;
-    let client = skein_forge_client::Limits {
-        resources: stock.forge.client.resources,
-        repositories: stock.forge.client.repositories,
-        ..configured.env.limits.forge.client
-    };
-    configured.with_forge_client(client)
+    )
 }
 
 #[test]
@@ -507,7 +577,7 @@ fn stock_resources_fit_three_chats_changes_and_a_pending_tier() {
 
 #[test]
 fn resource_hold_account_survives_short_documents_and_unchanged_release() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.text_bytes = 128;
     let mut configured = World::configured_limits(
         true,
@@ -533,8 +603,11 @@ fn resource_hold_account_survives_short_documents_and_unchanged_release() {
     let task = made[0].task;
     await_hold(&mut world, task);
     let words = String::from_utf8(held_words(&world, task).to_vec()).expect("hold words");
-    assert!(words.contains("forge.client.resources = 2; required usage 3"), "{words}");
-    assert!(words.len() > 128 && words.contains("restart, then release"), "{words}");
+    assert!(words.contains("forge.client.resources is 2, and this needs 3"), "{words}");
+    assert!(
+        words.len() > 128 && words.ends_with("This goes on by itself once room frees or the limit rises."),
+        "{words}"
+    );
     super::tiers::task_show::assert_hold_words(&mut world, task, &words);
     let revision = live_task(&world, task).revisions.hold;
     send_release(&mut world, task, revision);

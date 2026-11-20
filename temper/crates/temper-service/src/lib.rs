@@ -5,7 +5,7 @@
 extern crate alloc;
 pub use temper_engine_service::{
     AccountsRuntime, ForgeRuntime, HandoverRead, HandoverRemoval, HandoverUnread, JobDiagnostic, JobDiagnosticEnding,
-    Listening, STAGES, Stage, Unsettled, clients, stock,
+    Listening, PlaceIo, STAGES, Stage, Unsettled, clients, stock,
 };
 #[cfg(test)]
 use temper_engine_service::{assignment, family, forges, workers};

@@ -34,28 +34,20 @@ fn group_counts_agree_on_homes_and_needs_intro() {
     ] {
         rows.push(f::groups::row(number, "Flake", severity, w::FindingKind::Flake, 16));
     }
-    let mut own = f::groups::row(11, "My finding", w::Severity::Medium, w::FindingKind::Review, 24).into_parts();
-    own.holder = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
-    let mine = [w::FindingRow::new(&w::CEILINGS, own).unwrap()];
+    let mut own = f::groups::row(11, "My finding", w::Severity::Medium, w::FindingKind::Review, 24);
+    own.holder = w::Holder::Party(w::HolderParty { number: 1 });
+    let mine = [own];
     let groups = [
         f::groups::QUESTION,
         "CI?\nFindings: 2/3 2/4 2/5\nChoice: A",
         "Flakes?\nFindings: 2/6 2/7 2/9 2/12\nChoice: A",
     ];
-    for (questions, cut, sentence, head, needs_head, counts) in [
-        (
-            groups.to_vec(),
-            false,
-            "11 findings need you.",
-            "Needs you · 11",
-            "Needs you · 4",
-            ["2 high", "4 medium", "5 low"],
-        ),
+    for (questions, cut, sentence, head, counts) in [
+        (groups.to_vec(), false, "11 findings need you.", "Needs you · 11", ["2 high", "4 medium", "5 low"]),
         (
             [groups.as_slice(), &["Plain?\nChoice: A"]].concat(),
             false,
             "Five things need you.",
-            "Needs you · 5",
             "Needs you · 5",
             ["2 high", "4 medium", "5 low"],
         ),
@@ -64,17 +56,9 @@ fn group_counts_agree_on_homes_and_needs_intro() {
             false,
             "Four findings need you.",
             "Needs you · 4",
-            "Needs you · 3",
             ["1 high", "2 medium", "1 low"],
         ),
-        (
-            groups.to_vec(),
-            true,
-            "4+ things need you.",
-            "Needs you · 4+",
-            "Needs you · 4+",
-            ["2 high", "4 medium", "5 low"],
-        ),
+        (groups.to_vec(), true, "4+ things need you.", "Needs you · 4+", ["2 high", "4 medium", "5 low"]),
     ] {
         for (address, is_needs) in [
             (Address::Home { project: f::groups::PROJECT }, false),
@@ -95,7 +79,7 @@ fn group_counts_agree_on_homes_and_needs_intro() {
                 let text = f::main_text(view.tree());
                 contains(&text, sentence);
                 if is_needs {
-                    main_find(view.tree(), Role::Heading { level: 2 }, needs_head.as_bytes());
+                    main_find(view.tree(), Role::Heading { level: 2 }, head.as_bytes());
                 } else {
                     main_find(view.tree(), Role::Heading { level: 2 }, head.as_bytes());
                     let sevs = styled(view.tree(), crate::look::HOME_SEVS);
@@ -103,6 +87,41 @@ fn group_counts_agree_on_homes_and_needs_intro() {
                     for count in counts {
                         contains(&sevs, count);
                     }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn every_open_row_counts_even_when_only_eight_cards_are_read() {
+    let questions = [f::groups::QUESTION; 29];
+    let findings = f::groups::bugs();
+    for cut in [false, true] {
+        for address in [
+            Address::Home { project: f::groups::PROJECT },
+            Address::AllHome,
+            Address::Inbox { filter: d::address::Filter::ALL },
+        ] {
+            let root = f::groups::at(&questions, &findings, &[], cut, address);
+            let inbox = root.pages().inbox().unwrap();
+            assert_eq!(inbox.rows.len(), 29);
+            assert_eq!(inbox.cards.len(), 8);
+            for card in &inbox.cards {
+                assert!(card.page.is_some());
+            }
+            for browser in [false, true] {
+                let view = group_view(&root, browser);
+                let text = f::main_text(view.tree());
+                if root.pages().address() == &(Address::Inbox { filter: d::address::Filter::ALL }) && !browser {
+                    contains(&text, if cut { "29+" } else { "29" });
+                } else {
+                    contains(&text, if cut { "29+ things need you." } else { "29 things need you." });
+                    main_find(
+                        view.tree(),
+                        Role::Heading { level: 2 },
+                        if cut { "Needs you · 29+" } else { "Needs you · 29" }.as_bytes(),
+                    );
                 }
             }
         }
@@ -124,6 +143,7 @@ fn trial_home(beginning: bool) -> d::Domain {
 fn trial_rows(root: &mut d::Domain, state: Option<d::forge::trials::State>) {
     let rows: Box<[d::forge::trials::Row]> = match state {
         Some(state) => Box::new([d::forge::trials::Row {
+            run_wait: None,
             account: 1,
             task: Some(91),
             took: None,
@@ -237,7 +257,7 @@ fn a_home_with_no_trial_reads_as_today() {
     }
 }
 
-fn printed(view: &crate::View) -> Box<[u8]> {
+pub(super) fn printed(view: &crate::View) -> Box<[u8]> {
     let mut print = skein_ui_text::Print::new(&view.limits().tree).expect("terminal bounds");
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     skein_lib::bytes::copy_of(print.text.as_slice())
@@ -417,7 +437,7 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
             b"an account is limited".as_slice(),
         ),
         (
-            w::Connection::Stopped(w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::default() }).unwrap()),
+            w::Connection::Stopped(w::Stopped { reason: Box::default() }),
             AccountState::SignInAgain,
             crate::look::NAV_NEEDS,
             b"a forge needs you",
@@ -633,15 +653,7 @@ fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
                 | d::Request::Fact { .. } => None,
             })
             .expect("adoption request");
-        let answer = w::Answer::new(
-            &w::CEILINGS,
-            w::AnswerParts {
-                outcome: w::Outcome::ForgeRefused(
-                    w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason }).unwrap(),
-                ),
-            },
-        )
-        .unwrap();
+        let answer = w::Answer { outcome: w::Outcome::ForgeRefused(w::ForgeRefused { reason }) };
         drive(
             root,
             d::Event::Client {
@@ -674,31 +686,18 @@ fn home_repository_states_keep_their_words_and_events() {
                 w::Mode::Managed,
                 super::connect_forge::connected(),
                 w::Offer::NotOffered,
-            )
-            .into_parts();
+            );
             parts.installations = List::with_capacity(1);
             parts
                 .installations
-                .push(
-                    w::Installation::new(
-                        &w::CEILINGS,
-                        w::InstallationParts {
-                            id: 1,
-                            account: Some(
-                                w::Account::new(
-                                    &w::CEILINGS,
-                                    w::AccountParts { id: 73, login: b"octo".as_slice().into() },
-                                )
-                                .unwrap(),
-                            ),
-                            suspended: false,
-                            stray: false,
-                        },
-                    )
-                    .unwrap(),
-                )
+                .push(w::Installation {
+                    id: 1,
+                    account: Some(w::Account { id: 73, login: b"octo".as_slice().into() }),
+                    suspended: false,
+                    stray: false,
+                })
                 .unwrap();
-            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            rows.push(parts).unwrap();
         }
         let (mut root, _) = home_root(rows, false, false);
         if state == "adopting" || state == "refused" {
@@ -1123,8 +1122,9 @@ fn chat_fixture(live: usize, ended: usize, more: bool, after: bool) -> ChatFixtu
         }
     }
     ChatFixture {
-        live: c::Tasks { rows: live_rows, more },
+        live: c::Tasks { rows: live_rows, more, ended_mark: 0 },
         ended: c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows {
@@ -1145,6 +1145,31 @@ fn home_chats(chats: ChatFixture) -> d::Domain {
     )
     .0
 }
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the view scenario constructs long titles and inspects semantic nodes"
+)]
+fn home_chat_rows_cut_titles_in_the_text_and_link_name() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut chats = chat_fixture(1, 0, false, false);
+    chats.live.rows.get_mut(0).unwrap().chip.title = f::needs::words(&long);
+    let root = home_chats(chats);
+    for browser in [false, true] {
+        let mut view = timed_view(&root, browser);
+        let name = format!("{cut}, waiting on you, 4 min");
+        let link = main_find(view.tree(), Role::Link, name.as_bytes());
+        assert!(f::nodes_text(subtree(view.tree(), link)).starts_with(cut.as_bytes()));
+        absent(&f::main_text(view.tree()), &long);
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task: 9 } }))
+        );
+    }
+}
+
 #[test]
 fn chats_keep_live_then_ended_status_age_names_and_events() {
     for (more, after, name, label) in [
@@ -1531,14 +1556,14 @@ fn home_lede_joins_only_the_facts_it_holds() {
     ] {
         for forge in ["here", "remote", "none", "disconnected", "fake"] {
             let mut rows = forge_rows(true);
-            let mut parts = rows.get(0).expect("forge row").clone().into_parts();
+            let mut parts = rows.get(0).expect("forge row").clone();
             match forge {
                 "remote" => parts.mode = w::Mode::Managed,
                 "disconnected" => parts.connection = w::Connection::NotConnected,
                 "fake" => parts.mode = w::Mode::Fake,
                 _ => {}
             }
-            *rows.get_mut(0).expect("forge row") = w::ForgeRow::new(&w::CEILINGS, parts).expect("forge");
+            *rows.get_mut(0).expect("forge row") = parts;
             if forge == "none" {
                 rows = List::with_capacity(0);
             }
@@ -1639,7 +1664,7 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
     deliver(
         &mut root,
         live.expect("Settings watches chats"),
-        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })),
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         let link = f::find(view.tree(), Role::Link, b"Ask temper").unwrap();
@@ -1662,15 +1687,8 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
 
 const CHAT_SENTENCE: &str = "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.";
 
-fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, goals: bool) -> d::Domain {
-    let fixture = StatusFixture {
-        document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
-        answered,
-        goals,
-        shown: goals,
-        goal_rows: None,
-        away: None,
-    };
+fn status_home(parts: w::ProjectStatus, answered: bool, beginning: bool, goals: bool) -> d::Domain {
+    let fixture = StatusFixture { document: parts, answered, goals, shown: goals, goal_rows: None, away: None };
     home_documents_with_status(
         forge_rows(true),
         !beginning,
@@ -2096,6 +2114,10 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
     for row in goals.live.rows.iter_mut() {
         row.tracked = Some(1);
         if row.chip.task == 9 {
+            row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+                Some((b"A goal report.", f::NOW)),
+                None,
+            )]));
             row.delegates_done = 5;
             row.delegates_total = 6;
         }
@@ -2109,7 +2131,7 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
         }
     }
     let fixture = StatusFixture {
-        document: w::ProjectStatus::new(&w::CEILINGS, status_parts()).unwrap(),
+        document: status_parts(),
         answered: true,
         goals: true,
         shown: !beginning,
@@ -2137,7 +2159,7 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
 #[test]
 fn goals_takes_chats_place() {
     let root = home_goals(2, 3, false);
-    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home reads the goal report");
+    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home takes the report from its goal part");
     assert!(root.pages().goals().unwrap().needs_person(9), "Home reads the goal needs");
     for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         let region = main_find(view.tree(), Role::Region, b"Goals");
@@ -2193,7 +2215,12 @@ fn goals_rows_are_live_first_and_at_least_five() {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "the test inspects grouped semantic subtrees")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::too_many_lines,
+    reason = "the test inspects Home's grouped milestone part and its dependency names in both shells"
+)]
 fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     let mut limits = home_limits();
     limits.client.domain.handles = 96;
@@ -2234,8 +2261,7 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         .unwrap()
         .label;
     let goals = f::milestones::watch(&out, Some(goal_label), None, limits.client.domain.rows);
-    let out = f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
-    let children = f::milestones::watch(&out, None, Some(f::milestones::TASK), limits.client.domain.rows);
+    f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     assert!(root.has_goals(f::PROJECT), "a milestone alone replaces Chats");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Region, b"Goals");
@@ -2252,7 +2278,19 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     waiting.chip.phase = c::Phase::Waiting;
     waiting.chip.details.phase =
         c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([3])), more: false, holds: false };
-    f::milestones::live(&mut root, &limits, children, core::slice::from_ref(&child), false);
+    child = f::milestones::in_milestone(child, f::milestones::TASK);
+    let totals = w::MilestoneTotals {
+        task: f::milestones::TASK,
+        done: 2,
+        failed: 0,
+        closed: 0,
+        live: 4,
+        ended: None,
+        last_landing: None,
+        spent: 0,
+    };
+    milestone.parts = List::from_boxed(Box::new([f::milestones::part(None, totals, &[(child.clone(), None)], 0)]));
+    f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     // The dependency is held only by the milestone, not the shared goals list.
     for more in [true, false] {
         f::milestones::live(&mut root, &limits, goals, core::slice::from_ref(&waiting), more);
@@ -2271,7 +2309,11 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
             contains(&f::nodes_text(subtree(view.tree(), region)), "waits on S3");
         }
     }
-    f::milestones::live(&mut root, &limits, goals, &[waiting, child], false);
+    waiting.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+        Some((b"K3 lands the codec's shape", f::NOW)),
+        None,
+    )]));
+    f::milestones::live(&mut root, &limits, goals, &[waiting.clone(), child.clone()], false);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Link, b"All 2 goals");
         let region = main_find(view.tree(), Role::Region, b"Goals");
@@ -2283,6 +2325,349 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
             2
         );
     }
+    let before = f::main_text(f::page_view(&root).tree());
+    let browser_before = f::main_text(f::browser_page_view(&root).tree());
+    contains(&before, "2 / 6 done");
+    contains(&before, "running");
+    contains(&before, "K3 lands the codec's shape");
+    let busy = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    milestone.parts = busy.clone();
+    child.parts = busy.clone();
+    waiting.parts = busy;
+    f::milestones::live(&mut root, &limits, listed, &[milestone], false);
+    f::milestones::live(&mut root, &limits, goals, &[waiting, child], false);
+    for (view, expected, browser) in
+        [(f::page_view(&root), before, false), (f::browser_page_view(&root), browser_before, true)]
+    {
+        let text = f::main_text(view.tree());
+        assert_eq!(text, expected, "a busy delivery changes no row or headline");
+        if browser {
+            let strip = main_nodes(view.tree())
+                .iter()
+                .filter(|node| node.styles.as_slice().contains(&crate::look::MS_STRIP))
+                .count();
+            assert_eq!(strip, 1);
+        } else {
+            contains(&text, "2 done of 6");
+        }
+    }
+}
+
+// temper/docs/design/client/pages/README.md: whole answers alone redraw a page.
+fn home_delivery(root: &mut d::Domain, limits: &d::Limits, watch: Token, value: c::Delivery) -> Queue<d::Request> {
+    f::milestones::event(
+        root,
+        limits,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(value) },
+            },
+        },
+    )
+}
+
+fn home_needs_reads(out: &Queue<d::Request>) -> List<Token> {
+    let mut tokens = List::uncapped();
+    for request in out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(c::Read::Inbox { group, project, after, .. }),
+                        },
+                },
+        } = request
+            && *group == c::InboxReadGroup::Needs
+        {
+            assert_eq!(*project, Some(f::PROJECT), "Home reads needs filtered by its project");
+            assert_eq!(*after, None, "a refresh or retry starts at the first page");
+            tokens.push(*read).unwrap();
+        }
+    }
+    assert!(!tokens.is_empty(), "the turn must ask for needs");
+    tokens
+}
+
+fn end_home_needs_reads(
+    root: &mut d::Domain,
+    limits: &d::Limits,
+    out: &mut Queue<d::Request>,
+    result: jig_client::Readout,
+) {
+    let tokens = home_needs_reads(out);
+    let mut rest = Queue::uncapped();
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
+        } = &request
+            && tokens.as_slice().contains(read)
+        {
+            let mut more = f::milestones::event(
+                root,
+                limits,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone { read: *read, result: result.clone() },
+                    },
+                },
+            );
+            while let Some(request) = more.pop() {
+                rest.push(request);
+            }
+        } else {
+            rest.push(request);
+        }
+    }
+    *out = rest;
+}
+
+fn home_drawings(root: &d::Domain) -> [Box<[u8]>; 2] {
+    [printed(&status_view(root, false)), printed(&status_view(root, true))]
+}
+
+#[expect(clippy::disallowed_methods, reason = "compare valid printed text byte for byte with readable failure diffs")]
+fn same_home_drawings(root: &d::Domain, expected: &[Box<[u8]>; 2], turn: &str) {
+    for ((actual, expected), shell) in home_drawings(root).iter().zip(expected).zip(["terminal", "browser"]) {
+        assert_eq!(core::str::from_utf8(actual).unwrap(), core::str::from_utf8(expected).unwrap(), "{shell}: {turn}");
+    }
+}
+
+fn busy_home_parts(lines: &[c::TaskLine]) -> Box<[c::TaskLine]> {
+    let mut lines = Box::<[c::TaskLine]>::from(lines);
+    for line in &mut lines {
+        line.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    }
+    lines
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary test assembles rows and inspects semantic cards and grouped rows"
+)]
+#[expect(clippy::too_many_lines, reason = "one Home drawing is compared after each interleaved delivery and answer")]
+fn home_draws_the_same_when_unchanged_reads_answer_in_turns() {
+    let mut limits = home_limits();
+    limits.client.domain.handles = 96;
+    limits.client.domain.watches = 96;
+    limits.client.domain.reads = 64;
+    let (mut root, me_watch, _, settings, inbox_watch, _) =
+        f::home_root(&limits, forge_rows(true), Some(&[f::PROJECT]), true);
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let member = me.projects.get_mut(0).unwrap();
+    let chat_source = f::chat::messaging_root();
+    let mut templates = List::uncapped();
+    for template in &chat_source.pages().me(chat_source.client()).unwrap().projects.get(0).unwrap().templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(f::goals::template(jig_client::shapes::GOAL, b"goal", true)).unwrap();
+    member.templates = templates;
+    f::deliver_me(&mut root, me_watch, me);
+    let out = f::milestones::offer(&mut root, me_watch, &limits);
+    let fact = f::milestones::watch(&out, Some(f::milestones::LABEL), None, 1);
+
+    let mut goals = Vec::new();
+    let mut embedded = Vec::new();
+    for (task, title, headline) in [
+        (3, "Codec shape K3", "K3 lands the codec's shape"),
+        (4, "Codec shape K4", "K4 checks the codec's bytes"),
+        (5, "Codec shape K5", "K5 bridges the codec's versions"),
+        (6, "Codec shape K6", "K6 documents the codec's shape"),
+        (7, "A plain goal", "The plain goal keeps its report"),
+        (8, "Another plain goal", "The other goal keeps its report"),
+    ] {
+        let mut goal = f::goals::line();
+        goal.chip.task = task;
+        goal.chip.title = f::goal::text(title.as_bytes());
+        // K3 has started; waiting milestone goals expose a dependency fallback if their parts are lost.
+        if (4..=6).contains(&task) {
+            goal.chip.phase = c::Phase::Waiting;
+            goal.chip.details.phase =
+                c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([5])), more: false, holds: false };
+        }
+        let milestone = (task <= 6).then_some(f::milestones::TASK);
+        goal.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+            Some((headline.as_bytes(), f::NOW)),
+            milestone,
+        )]));
+        if milestone.is_some() {
+            embedded.push((goal.clone(), Some(headline.as_bytes())));
+        }
+        goals.push(goal);
+    }
+    let mut milestone = f::goals::line();
+    milestone.chip.task = f::milestones::TASK;
+    milestone.chip.title = f::goal::text(b"Codec shape");
+    milestone.parts = List::from_boxed(Box::new([f::milestones::part(
+        None,
+        w::MilestoneTotals {
+            task: f::milestones::TASK,
+            done: 2,
+            failed: 0,
+            closed: 0,
+            live: 4,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+        },
+        &embedded,
+        0,
+    )]));
+    f::milestones::live(&mut root, &limits, fact, core::slice::from_ref(&milestone), false);
+    let mut out = f::milestones::event(
+        &mut root,
+        &limits,
+        d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) },
+    );
+    let listed = f::milestones::watch(&out, Some(f::milestones::LABEL), None, limits.client.domain.rows);
+    let goals_watch = f::milestones::watch(&out, Some(f::goals::LABEL), None, limits.client.domain.rows);
+    let mut rest = Queue::uncapped();
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } },
+        } = &request
+            && (*watch == goals_watch || *watch == listed)
+        {
+            continue; // These two lists are delivered explicitly, not by settle_home's default goals.
+        }
+        rest.push(request);
+    }
+    let mut delivered = home_delivery(
+        &mut root,
+        &limits,
+        settings,
+        c::Delivery::Settings(Box::new(c::SettingsDocument {
+            newest: 0,
+            settings: List::with_capacity(0),
+            held: List::with_capacity(0),
+            pending: List::with_capacity(0),
+        })),
+    );
+    while let Some(request) = delivered.pop() {
+        rest.push(request);
+    }
+    let inbox = c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
+        List::with_capacity(0),
+        0,
+        c::Count { value: 0, limited: false },
+        0,
+        false,
+    )));
+    let mut delivered = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+    while let Some(request) = delivered.pop() {
+        rest.push(request);
+    }
+    let objects: Box<[_]> = (1..=4).map(|message| c::ObjectKey::Question { task: f::INBOX_TASK, message }).collect();
+    let needs = NeedsFixture { objects: &objects, cut: false, read: true, decided: true };
+    let mut parts = status_parts();
+    parts.landed = parts.seen + 15;
+    let status =
+        StatusFixture { document: parts, answered: true, goals: true, shown: true, goal_rows: None, away: None };
+    settle_home(&mut root, &mut rest, Some(&needs), Some(&chat_fixture(0, 0, false, false)), Some(&status));
+    for (watch, rows) in [(goals_watch, goals.as_slice()), (listed, core::slice::from_ref(&milestone))] {
+        let mut out = f::milestones::live(&mut root, &limits, watch, rows, false);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    }
+
+    let first = home_drawings(&root);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let text = printed(&view);
+        contains(&text, "15 changes landed since you last looked. Four things need you.");
+        contains(&text, "Needs you · 4");
+        contains(&text, "Codec shape");
+        contains(&text, "2 / 6 done");
+        contains(&text, "running");
+        for headline in
+            ["K3 lands the codec's shape", "The plain goal keeps its report", "The other goal keeps its report"]
+        {
+            contains(&text, headline);
+        }
+        absent(&text, "waits on Codec shape K5");
+        let region = main_find(view.tree(), Role::Region, b"Goals");
+        let rows: Vec<_> = subtree(view.tree(), region)
+            .iter()
+            .filter(|node| node.styles.as_slice().contains(&crate::look::GOALS_ROW))
+            .collect();
+        assert_eq!(rows.len(), 3, "one milestone and two plain goals, no standalone K3–K6 rows");
+        assert_eq!(rows.iter().filter(|node| node.styles.as_slice().contains(&crate::look::MS_ROW)).count(), 1);
+        assert_eq!(
+            main_nodes(view.tree())
+                .iter()
+                .filter(|node| node.styles.as_slice().contains(&crate::look::NEED_CARD))
+                .count(),
+            3
+        );
+    }
+    assert_eq!(root.pages().inbox().unwrap().rows.len(), 4);
+    assert_eq!(root.pages().inbox().unwrap().needs().filter(|card| card.page.is_some()).count(), 4);
+
+    for (failure, turn) in [
+        (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)), "needs answered busy"),
+        (jig_client::Readout::Limit, "needs answered limited"),
+    ] {
+        let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+        same_home_drawings(&root, &first, "inbox delivered, needs pending");
+        end_home_needs_reads(&mut root, &limits, &mut out, failure);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, turn);
+        let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+        let _reads = home_needs_reads(&out);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, "needs answered whole");
+    }
+    for (watch, rows, turn) in [
+        (goals_watch, goals.as_slice(), "goals' busy parts"),
+        (listed, core::slice::from_ref(&milestone), "milestone's busy part"),
+    ] {
+        for (rows, stage) in [(busy_home_parts(rows), "busy"), (rows.into(), "whole")] {
+            let mut out = f::milestones::live(&mut root, &limits, watch, &rows, false);
+            same_home_drawings(&root, &first, turn);
+            settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+            same_home_drawings(&root, &first, stage);
+        }
+    }
+
+    // All three refreshes overlap; restore milestone, then goals, then needs, the reverse order.
+    let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+    same_home_drawings(&root, &first, "together: inbox pending");
+    end_home_needs_reads(&mut root, &limits, &mut out, jig_client::Readout::Limit);
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "together: needs limited");
+    for (watch, rows) in [(goals_watch, goals.as_slice()), (listed, core::slice::from_ref(&milestone))] {
+        let mut out = f::milestones::live(&mut root, &limits, watch, &busy_home_parts(rows), false);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, "together: busy parts");
+    }
+    for (watch, rows) in [(listed, core::slice::from_ref(&milestone)), (goals_watch, goals.as_slice())] {
+        let mut out = f::milestones::live(&mut root, &limits, watch, rows, false);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, "together: parts restored in reverse order");
+    }
+    let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+    let _reads = home_needs_reads(&out);
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "together: needs restored last");
+
+    let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox);
+    end_home_needs_reads(
+        &mut root,
+        &limits,
+        &mut out,
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+    );
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "retry: busy needs");
+    let due = d::pages::next_deadline(root.pages()).expect("busy needs schedule a retry");
+    let mut out = Queue::uncapped();
+    d::fire(&mut root, &skein_lib::Env { now: due, wall: f::NOW, limits }, &mut out);
+    let _reads = home_needs_reads(&out);
+    same_home_drawings(&root, &first, "retry deadline: needs pending");
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "retry answered whole");
 }
 
 #[test]
@@ -2334,7 +2719,12 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
             let entries: Vec<_> = rows.iter().map(|node| (node.role, node.name.as_deref())).collect();
             let mut expected = vec![(Role::Link, Some(b"Home".as_slice()))];
             if !cut {
-                expected.extend([(Role::Link, Some(b"Needs you".as_slice())), (Role::Link, Some(b"Work".as_slice()))]);
+                let needs = if address == (Address::Home { project: f::PROJECT }) {
+                    b"Needs you 1".as_slice()
+                } else {
+                    b"Needs you".as_slice()
+                };
+                expected.extend([(Role::Link, Some(needs)), (Role::Link, Some(b"Work".as_slice()))]);
             }
             expected.extend([
                 (Role::Link, Some(b"Ask temper".as_slice())),
@@ -2370,7 +2760,12 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
             if cut {
                 vec![b"Home".as_slice(), b"Ask temper", b"Deployment"]
             } else {
-                vec![b"Home".as_slice(), b"Needs", b"Work", b"Ask temper"]
+                let needs = if address == (Address::Home { project: f::PROJECT }) {
+                    b"Needs 1".as_slice()
+                } else {
+                    b"Needs".as_slice()
+                };
+                vec![b"Home".as_slice(), needs, b"Work", b"Ask temper"]
             },
             "{address:?}"
         );
@@ -2384,20 +2779,10 @@ const BRIEF_SENTENCE: &str = "41 changes landed overnight.";
 const BRIEF_LEDE: &str =
     "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.";
 
-fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatusParts {
+fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatus {
     let mut parts = status_parts();
-    parts.brief = Some(
-        w::StatusBrief::new(
-            &w::CEILINGS,
-            w::StatusBriefParts {
-                sentence: BRIEF_SENTENCE.as_bytes().into(),
-                lede: lede.as_bytes().into(),
-                at,
-                landed,
-            },
-        )
-        .unwrap(),
-    );
+    parts.brief =
+        Some(w::StatusBrief { sentence: BRIEF_SENTENCE.as_bytes().into(), lede: lede.as_bytes().into(), at, landed });
     parts
 }
 
@@ -2415,9 +2800,12 @@ fn no_brief_prose(view: &crate::View) {
 
 #[test]
 fn a_brief_above_seen_says_its_words() {
-    let root = status_home(brief_parts(2, BRIEF_LEDE, STATUS_NOW), true, false, false);
+    let mut parts = brief_parts(2, BRIEF_LEDE, STATUS_NOW);
+    parts.unpaid = true;
+    let root = status_home(parts, true, false, false);
     for browser in [false, true] {
         let view = status_view(&root, browser);
+        absent(&f::main_text(view.tree()), "No brief: no account pays for your work here.");
         main_find(view.tree(), Role::Heading { level: 1 }, b"41 changes landed overnight. Nothing needs you.");
         let lede = styled(view.tree(), crate::look::HOME_LEDE);
         let byline = styled(view.tree(), crate::look::HOME_BYLINE);
@@ -2463,6 +2851,38 @@ fn an_old_brief_with_new_landings_uses_the_computed_words() {
                 b"2 changes landed since you last looked. Nothing needs you.",
             );
             no_brief_prose(&view);
+        }
+    }
+}
+
+#[test]
+fn unpaid_without_a_new_brief_links_accounts_in_the_lede() {
+    for mut parts in [status_parts(), brief_parts(1, BRIEF_LEDE, STATUS_NOW - 10 * 60 * STATUS_MINUTE)] {
+        parts.unpaid = true;
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let mut view = status_view(&root, browser);
+            main_find(
+                view.tree(),
+                Role::Heading { level: 1 },
+                b"2 changes landed since you last looked. Nothing needs you.",
+            );
+            let lede = styled(view.tree(), crate::look::HOME_LEDE);
+            assert_eq!(lede.name.as_deref(), Some(b"No brief: no account pays for your work here.".as_slice()));
+            let lede_text = f::nodes_text(subtree(view.tree(), lede.id));
+            assert_eq!(lede_text.as_ref(), b"No brief: no account pays for your work here. Accounts");
+            for node in main_nodes(view.tree()) {
+                assert!(!node.styles.as_slice().contains(&crate::look::HOME_BYLINE));
+            }
+            let text = f::main_text(view.tree());
+            absent(&text, BRIEF_SENTENCE);
+            absent(&text, BRIEF_LEDE);
+            let link = main_find(view.tree(), Role::Link, b"Accounts");
+            assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/accounts".as_slice()));
+            assert_eq!(
+                crate::act(&mut view, link, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+            );
         }
     }
 }
@@ -2520,68 +2940,41 @@ fn the_byline_says_its_clock() {
 const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
 fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::ForgeRow> {
     let rows = forge_rows(false);
-    let mut row = rows.get(0).unwrap().clone().into_parts();
+    let mut row = rows.get(0).unwrap().clone();
     row.first = None;
     let mut addresses = List::with_capacity(2);
     for address in COPY_ADDRESSES.iter().take(states.len()) {
         addresses.push((*address).into()).unwrap();
     }
-    row.starts_with =
-        w::StartsWith::Copies(w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).unwrap());
+    row.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses });
     row.makings = List::with_capacity(2);
     row.repositories = List::with_capacity(2);
     for (address, state) in COPY_ADDRESSES.iter().zip(states) {
         let (org, name) = d::forge::making::target(address).unwrap();
         if let Some(state) = state {
             row.makings
-                .push(
-                    w::RepositoryMaking::new(
-                        &w::CEILINGS,
-                        w::RepositoryMakingParts {
-                            org,
-                            name,
-                            state: state.clone(),
-                            from: w::MakeFrom::Copy(
-                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
-                                    .unwrap(),
-                            ),
-                            into: Some(
-                                w::MakeInto::new(
-                                    &w::CEILINGS,
-                                    w::MakeIntoParts { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] },
-                                )
-                                .unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                )
+                .push(w::RepositoryMaking {
+                    org,
+                    name,
+                    state: state.clone(),
+                    from: w::MakeFrom::Copy(w::MakeCopy { address: (*address).into() }),
+                    into: Some(w::MakeInto { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] }),
+                })
                 .unwrap();
         } else if !unasked {
-            row.repositories
-                .push(
-                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: f::PROJECT }).unwrap(),
-                )
-                .unwrap();
+            row.repositories.push(w::Adoption { owner: org, name, project: f::PROJECT }).unwrap();
         }
     }
-    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+    List::from_boxed(Box::new([row]))
 }
 #[test]
 fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
-    let failed = w::MakingState::Failed(
-        w::MakingFailed::new(
-            &w::CEILINGS,
-            w::MakingFailedParts {
-                step: w::MakeStep::Repository,
-                reason: w::MakeFailure::Taken,
-                words: b"name taken".as_slice().into(),
-            },
-        )
-        .unwrap(),
-    );
-    let made =
-        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 1, branch: b"main".as_slice().into() }).unwrap();
+    let failed = w::MakingState::Failed(w::MakingFailed {
+        step: w::MakeStep::Repository,
+        reason: w::MakeFailure::Taken,
+        words: b"name taken".as_slice().into(),
+    });
+    let made = w::MakingMade { id: 1, branch: b"main".as_slice().into() };
     for (states, expected, done, retry) in [
         (
             [Some(w::MakingState::Making), Some(w::MakingState::Waiting)],
@@ -2672,10 +3065,10 @@ fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shell
 }
 
 fn add_rows() -> List<w::ForgeRow> {
-    let mut row = forge_rows(false).get(0).unwrap().clone().into_parts();
+    let mut row = forge_rows(false).get(0).unwrap().clone();
     row.first = None;
     row.starts_with = w::StartsWith::Nothing;
-    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+    List::from_boxed(Box::new([row]))
 }
 fn add_act(root: &mut d::Domain, act: d::pages::Act) -> Queue<d::Request> {
     drive(root, d::Event::Act { action: d::Action::Pages(act) })
@@ -2721,6 +3114,11 @@ fn home_add_sheet_keeps_choices_fields_cancel_escape_and_input_in_both_shells() 
             main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
             main_find(view.tree(), Role::Paragraph, b"Made or copied on your Forgejo, then in this project at once.");
             main_find(view.tree(), Role::ChoiceGroup, b"A repository");
+            main_find(
+                view.tree(),
+                Role::Paragraph,
+                b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.",
+            );
             absent(&f::main_text(view.tree()), "Nothing for now");
             for (choice, name) in
                 [(Start::Empty, b"An empty repository".as_slice()), (Start::Copies, b"Copies of public repositories")]
@@ -2779,19 +3177,15 @@ fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
 }
 #[test]
 fn home_empty_making_has_its_own_words_in_both_shells() {
-    let mut row = add_rows().get(0).unwrap().clone().into_parts();
-    row.makings = List::from_boxed(Box::new([w::RepositoryMaking::new(
-        &w::CEILINGS,
-        w::RepositoryMakingParts {
-            org: b"work".as_slice().into(),
-            name: b"hello".as_slice().into(),
-            from: w::MakeFrom::Empty,
-            into: Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: true }).unwrap()),
-            state: w::MakingState::Making,
-        },
-    )
-    .unwrap()]));
-    let (root, _) = home_root(List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()])), false, false);
+    let mut row = add_rows().get(0).unwrap().clone();
+    row.makings = List::from_boxed(Box::new([w::RepositoryMaking {
+        org: b"work".as_slice().into(),
+        name: b"hello".as_slice().into(),
+        from: w::MakeFrom::Empty,
+        into: Some(w::MakeInto { project: f::PROJECT, home: true }),
+        state: w::MakingState::Making,
+    }]));
+    let (root, _) = home_root(List::from_boxed(Box::new([row])), false, false);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Paragraph, "Making work/hello…".as_bytes());
         absent(&f::main_text(view.tree()), "Copy");
@@ -2834,12 +3228,10 @@ fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
             }
         }
         let outcome = match why {
-            Some(why) => {
-                w::Outcome::MakeRefused(w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why }).unwrap())
-            }
+            Some(why) => w::Outcome::MakeRefused(w::MakeRefused { why }),
             None => w::Outcome::MakeKept,
         };
-        let record = wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap());
+        let record = wire::answer(&w::Answer { outcome });
         drive(
             &mut root,
             d::Event::Client {
@@ -2882,14 +3274,14 @@ fn the_kicker_reads_since_to_now() {
 fn the_kicker_reads_since_to_its_end_once_off() {
     for until in [false, true] {
         let mut away = away_fixture(1);
-        let mut spell = away.spell.take().unwrap().into_parts();
+        let mut spell = away.spell.take().unwrap();
         let end = STATUS_NOW - 10 * STATUS_MINUTE;
         if until {
             spell.until = Some(end);
         } else {
             spell.off = Some(end);
         }
-        away.spell = Some(w::AwayRow::new(&w::CEILINGS, spell).unwrap());
+        away.spell = Some(spell);
         let root = default_away(away);
         for browser in [false, true] {
             assert_eq!(kicker(&root, browser).as_ref(), "While you were away · Sun 23:10 to Sun 23:50".as_bytes());
@@ -2985,9 +3377,9 @@ fn spell_intro_without_decisions_uses_the_needs_sentence() {
     ] {
         let mut away = away_fixture(0);
         if off {
-            let mut spell = away.spell.take().unwrap().into_parts();
+            let mut spell = away.spell.take().unwrap();
             spell.off = Some(STATUS_NOW - 10 * STATUS_MINUTE);
-            away.spell = Some(w::AwayRow::new(&w::CEILINGS, spell).unwrap());
+            away.spell = Some(spell);
         }
         let mut parts = status_parts();
         parts.landed = landed;
@@ -3113,55 +3505,44 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                 jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
         } = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
+            && let w::Watch::Findings(subject) = &watching.watch
         {
-            let holder =
-                w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
+            let holder = w::Holder::Party(w::HolderParty { number: 1 });
             let mut capacity = 0_u32;
             for count in counts {
                 capacity = capacity.checked_add(count).unwrap();
             }
             let mut rows = List::with_capacity(capacity);
-            if subject.project() == f::PROJECT {
+            if subject.project == f::PROJECT {
                 delivered = true;
                 for (severity, count) in
                     [w::Severity::High, w::Severity::Medium, w::Severity::Low].into_iter().zip(counts)
                 {
                     for _ in 0..count {
-                        rows.push(
-                            w::FindingRow::new(
-                                &w::CEILINGS,
-                                w::FindingRowParts {
-                                    number: rows.len().checked_add(1).unwrap(),
-                                    at: 0,
-                                    kind: w::FindingKind::Review,
-                                    severity: severity.clone(),
-                                    area: None,
-                                    state: w::FindingState::New,
-                                    title: b"A finding".as_slice().into(),
-                                    holder: holder.clone(),
-                                    why: None,
-                                    hander: None,
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        rows.push(w::FindingRow {
+                            number: rows.len().checked_add(1).unwrap(),
+                            at: 0,
+                            kind: w::FindingKind::Review,
+                            severity: severity.clone(),
+                            area: None,
+                            state: w::FindingState::New,
+                            title: b"A finding".as_slice().into(),
+                            holder: holder.clone(),
+                            why: None,
+                            hander: None,
+                        })
                         .unwrap();
                     }
                 }
             }
-            let document = w::Findings::new(
-                &w::CEILINGS,
-                w::FindingsParts {
-                    project: subject.project(),
-                    rows,
-                    areas: List::with_capacity(0),
-                    triager: None,
-                    holder,
-                    cut,
-                },
-            )
-            .unwrap();
+            let document = w::Findings {
+                project: subject.project,
+                rows,
+                areas: List::with_capacity(0),
+                triager: None,
+                holder,
+                cut,
+            };
             drive(
                 &mut root,
                 d::Event::Client {
@@ -3329,29 +3710,23 @@ fn a_row_says_title_and_clock() {
         (
             w::ReachKind::Implementation,
             w::ReachClass::Decide,
-            w::ReachReason::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number: 1 }).unwrap()),
+            w::ReachReason::Set(w::ReachSet { number: 1 }),
             false,
             Some("Allowed: changes to a path set."),
         ),
-        (
-            w::ReachKind::Tests,
-            w::ReachClass::Decide,
-            w::ReachReason::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number: 0 }).unwrap()),
-            false,
-            None,
-        ),
+        (w::ReachKind::Tests, w::ReachClass::Decide, w::ReachReason::Set(w::ReachSet { number: 0 }), false, None),
         (w::ReachKind::Retry, w::ReachClass::Ask, w::ReachReason::Kind, false, None),
     ] {
         let mut away = away_fixture(1);
-        let mut parts = away.rows.get(0).unwrap().clone().into_parts();
-        let mut reach = parts.reach.into_parts();
+        let mut parts = away.rows.get(0).unwrap().clone();
+        let mut reach = parts.reach;
         reach.kind = kind;
         reach.class = class;
         reach.reason = reason;
         reach.away = away_on;
         reach.under = 2;
-        parts.reach = w::Reach::new(&w::CEILINGS, reach).unwrap();
-        *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, parts).unwrap();
+        parts.reach = reach;
+        *away.rows.get_mut(0).unwrap() = parts;
         let root = default_away(away);
         for browser in [false, true] {
             let view = status_view(&root, browser);
@@ -3406,9 +3781,9 @@ fn an_unread_task_says_task_n() {
 fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool, late: &str) {
     let mut away = away_fixture(1);
     away.state = state;
-    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    let mut row = away.rows.get(0).unwrap().clone();
     row.overturned = overturned;
-    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    *away.rows.get_mut(0).unwrap() = row;
     let root = default_away(away);
     for browser in [false, true] {
         let view = status_view(&root, browser);
@@ -3480,9 +3855,9 @@ fn away_needs_head_is_still_only_while_needs_show() {
 #[test]
 fn the_oldest_expiry_wakes_home() {
     let mut away = away_fixture(1);
-    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    let mut row = away.rows.get(0).unwrap().clone();
     row.at = STATUS_NOW - 86_400_000_000_000 + 30_000_000_000;
-    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    *away.rows.get_mut(0).unwrap() = row;
     let root = default_away(away);
     for browser in [false, true] {
         assert_eq!(
@@ -3510,9 +3885,9 @@ fn a_live_row_offers_overturn() {
 #[test]
 fn an_overturned_row_offers_none() {
     let mut away = away_fixture(1);
-    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    let mut row = away.rows.get(0).unwrap().clone();
     row.overturned = true;
-    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    *away.rows.get_mut(0).unwrap() = row;
     let root = default_away(away);
     for browser in [false, true] {
         let view = status_view(&root, browser);
@@ -3620,6 +3995,118 @@ fn a_landing_never_stands_under_nothing_needs_you_alone() {
                 }
             }
         }
+    }
+}
+
+pub(super) fn needs_section(page: &f::ReadPage, group: c::InboxReadGroup) -> Token {
+    for (token, read) in page.reads.iter().rev() {
+        if let c::Read::Inbox { group: asked, .. } = read
+            && *asked == group
+        {
+            return *token;
+        }
+    }
+    panic!("section read")
+}
+pub(super) fn answer_needs(page: &mut f::ReadPage, count: u32, after: Option<c::Cursor>) {
+    let mut rows = List::with_capacity(count);
+    for number in 1..=count {
+        rows.push(temper_fixtures::client_documents::entry(
+            c::ObjectKey::Question { task: f::INBOX_TASK, message: u64::from(number) },
+            f::PROJECT,
+            u64::from(number),
+            f::NOW,
+            None,
+        ))
+        .unwrap();
+    }
+    let read = needs_section(page, c::InboxReadGroup::Needs);
+    page.answer(
+        read,
+        c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+            rows,
+            after,
+            before: None,
+            cut: false,
+            selection: None,
+        }))),
+    );
+}
+pub(super) fn four_needs_page(address: Address) -> f::ReadPage {
+    let mut page = f::ReadPage::new(address);
+    page.refresh_inbox();
+    let updates = needs_section(&page, c::InboxReadGroup::Updates);
+    page.answer(
+        updates,
+        c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+            rows: List::with_capacity(0),
+            after: None,
+            before: None,
+            cut: false,
+            selection: None,
+        }))),
+    );
+    answer_needs(&mut page, 4, None);
+    let reads = page.reads.clone().into_boxed();
+    for (read, what) in reads {
+        if let c::Read::Question { task, message } = what {
+            page.answer(read, c::ReadResult::Value(f::home::home_need_page(c::ObjectKey::Question { task, message })));
+        }
+    }
+    assert!(page.root.pages().inbox().unwrap().known());
+    page
+}
+fn four_needs_words(root: &d::Domain) {
+    for view in [f::page_view(root), f::browser_page_view(root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Four things need you.");
+        main_find(view.tree(), Role::Heading { level: 2 }, "Needs you · 4".as_bytes());
+        contains(&printed(&view), "Four things need you.");
+        contains(&printed(&view), "Needs you · 4");
+        absent(&printed(&view), "4+");
+    }
+}
+#[test]
+fn home_keeps_the_whole_count_and_words_when_needs_refresh_is_busy() {
+    for failure in [
+        jig_client::Readout::Limit,
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    ] {
+        let mut page = four_needs_page(Address::Home { project: f::PROJECT });
+        four_needs_words(&page.root);
+        page.refresh_inbox();
+        four_needs_words(&page.root);
+        let read = needs_section(&page, c::InboxReadGroup::Needs);
+        page.up(jig_client::Up::ReadDone { read, result: failure });
+        page.collect();
+        page.sections(false);
+        four_needs_words(&page.root);
+        page.refresh_inbox();
+        answer_needs(&mut page, 4, None);
+        page.sections(false);
+        four_needs_words(&page.root);
+    }
+}
+#[test]
+fn home_names_the_project_until_the_needs_chain_answers_whole() {
+    let mut page = f::ReadPage::new(Address::Home { project: f::PROJECT });
+    page.refresh_inbox();
+    answer_needs(&mut page, 2, Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap()));
+    let read = needs_section(&page, c::InboxReadGroup::Needs);
+    page.answer(read, c::ReadResult::None(c::ReadNone::Busy));
+    page.sections(false);
+    // Any card reads a stopped chain emitted must not make its partial count known.
+    let reads = page.reads.clone().into_boxed();
+    for (read, what) in reads {
+        if let c::Read::Question { task, message } = what {
+            page.answer(read, c::ReadResult::Value(f::home::home_need_page(c::ObjectKey::Question { task, message })));
+        }
+    }
+    for view in [f::page_view(&page.root), f::browser_page_view(&page.root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Shop");
+        absent(&printed(&view), "things need you.");
+        absent(&printed(&view), "2+");
     }
 }
 

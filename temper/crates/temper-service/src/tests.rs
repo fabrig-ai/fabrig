@@ -2,10 +2,14 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 mod checks;
 mod deployment;
+mod derived;
 pub(crate) mod fixtures;
+mod limit_settings;
 mod limits;
 mod link_room;
+mod live_limits;
 mod mirrors;
+mod moved_worker;
 mod reds;
 mod room;
 mod root_checks;

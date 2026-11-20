@@ -64,7 +64,7 @@ document's "The world" section.
 
 | Tier (testing-strategy.md, section 2) | In smith |
 |---|---|
-| step tests | every crate; the codecs' goldens, drift and bounds; the shell crates' parsing, settings and refusals; the profile's derivation properties (2.5) |
+| step tests | every crate; the codecs' built values, records-only drift, pinned constructs and bounds; the shell crates' parsing, settings and refusals; the profile's derivation properties (2.5) |
 | domain worlds | the agent's tools, session and run, each with the world as its parent; the agent's root with its children, on a scripted host; the host world, on a scripted parent: the host domain with a scripted agent, and the inline agent with smith's real domain, under one referee (domain/host.md, section 10) |
 | system worlds | the local host with the agent in it, a scripted person and skein's fake provider |
 | machine worlds | skein's: smith has no protocol machine of its own |
@@ -76,8 +76,13 @@ document's "The world" section.
 | benchmarks | not a test tier: real agents on real models, measured (2.4) |
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
-patch and drift tests check the generated `encoded_bound` and
-`decoded_bound` vocabulary.
+tests build values through constructors or fixed-rule encodings from
+embedded schema text; earlier versions use their kept texts. Drift compares
+the records' module and refuses unpinned constructs (skein's
+`data/codec/README.md`, section 6). Families keep no golden files or
+generated test targets; event JSONL and patch goldens remain. Memory and
+boundary tests check the generated `encoded_bound` and `decoded_bound`
+vocabulary.
 
 ### 2.1 Simulated worlds
 
@@ -119,7 +124,13 @@ patch and drift tests check the generated `encoded_bound` and
     skein's test certificates, the issuer reached through a `sign_in`
     account's moved addresses (shell/credentials.md, 1).
 - **Outside the loop:** git, rg, sh, the checks and the fake program, as
-  children in a scratch directory. The directory holds:
+  children in a scratch directory. git is `/usr/bin/git` and sh
+  `/bin/sh`; rg is the one on the test process's own `PATH`, which the
+  loop gives its agent's commands as their `PATH`, as smith's default
+  `inherit` gives a person's run theirs (`shell/README.md`, section 4),
+  so the agent finds it there as it ships (`protocol/agent.md`,
+  section 2). A world that runs the machine's listing against a real rg
+  takes the same one. The directory holds:
   - the settings;
   - the state and credentials directories;
   - the workspace's repositories.
@@ -522,6 +533,19 @@ Every component's files and processes go through it:
   up (section 6).
 - **Serving a fake on loopback is skein's:** one service shape for any
   fake peer, which smith's worlds configure.
+- **Their addresses on a real host** (2.2 and 2.3) are the test
+  process's own, so that tests running side by side never meet. On
+  Linux, which answers every address of `127.0.0.0/8`, a fake takes
+  `127.1.0.0` plus the test process's id and its fixed port, as it does
+  now. On macOS, whose loopback answers `127.0.0.1` alone unless aliases
+  are made, it takes `127.0.0.1` and a port of its own: a listener bound
+  to `127.0.0.1:0` and held from before the fake starts, the address the
+  kernel gave it written into the settings that reach the fake, and the
+  listener handed to the fake, which serves on it without binding again
+  (skein's fake peers' `adopt_listener`; `temper/docs/design/draft/macos.md`,
+  4.1). The simulated worlds keep `127.0.0.1` and their fixed ports on
+  both. A fake whose listener fails says the address it was given and the
+  error, never only that it must bind.
 
 ## 5. Scenarios and the referee
 
@@ -648,7 +672,11 @@ Every world checks what the strategy lists (testing-strategy.md, section
 - **The real loop, once settled:**
   - the scratch directory changed only where the scenario expects;
   - nothing is left running: the agent finished, and every child was
-    reaped, each job's process group included.
+    reaped, each job's process group included. The test process reads
+    its own unreaped children from outside the loop, a zombie awaiting
+    its wait among them, through skein's shell
+    (`skein/docs/design/runtime/readiness.md`, 5): Linux's `/proc` and
+    macOS's libproc give the same reading (6.2).
 - **Containment, with contained trees** (protocol/agent.md, sections
   2 and 3; protocol/host.md, section 3), in the real loop:
   - **writes stay in the view:** commands that try to write outside the
@@ -695,6 +723,26 @@ The live tests are a separate suite, outside the gate, under the
 `live-smith` profile only (2.3). Benchmarks are no suite: they run by their
 own command (2.4).
 
+### 6.2 On macOS
+
+- **The real loop and the end-to-end tests run on macOS** as on Linux,
+  in the `smith` part of `temper/docs/design/testing/macos.md`
+  (section 4). Their settled check (6) holds there: every
+  child of the test process, running or a zombie, has its test process
+  as its parent until its wait, so macOS's listing by parent answers
+  what Linux's threads' `children` files do, and no test is Linux's
+  for it.
+- **Linux's own tests, by name,** as skein's are
+  (`skein/docs/design/runtime/shell.md`, 8): built for Linux alone,
+  `cfg(target_os = "linux")` with the reason beside it, a helper only
+  they use gated too, and listed here; none is dropped silently. Every
+  other test runs on both systems. The benchmarks' are their own
+  (`benchmarks/README.md`).
+
+| Test | Its reason |
+|---|---|
+| `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs.md`, 5.1 and section 9) |
+
 ## 7. Layout
 
 ```
@@ -705,7 +753,7 @@ crates/*/src/tests.rs            step tests
 crates/smith-*-service           the profile, and its derivation properties
 crates/smith-*-shell             the shells' parsing, settings and refusals
 crates/smith-local-protocol/tests the chat store's real-directory layout cases (2.5)
-tests/codecs                     the codecs: goldens, drift, bounds, fuzzy decoding
+tests/codecs                     the codecs: built values, records-only drift, pinned constructs, bounds, fuzzy decoding
 tests/tools                      the tools child domain's world
 tests/session                    the session child domain's world
 tests/run                        the run child domain's world

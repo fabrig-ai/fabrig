@@ -1,4 +1,4 @@
-//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and 3.6).
+//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
 use skein_lib::sha256::digest;
 use std::{cmp::Reverse, fmt};
 
@@ -18,6 +18,7 @@ pub struct Original {
     kind: Kind,
     len: usize,
     forms: Vec<Box<[u8]>>,
+    form_order: Vec<usize>,
     digests: Vec<([u8; 32], [u8; 32])>,
 }
 impl Original {
@@ -36,6 +37,9 @@ impl Original {
     pub fn forms(&self) -> &[Box<[u8]>] {
         &self.forms
     }
+    pub(crate) fn form_order(&self) -> &[usize] {
+        &self.form_order
+    }
     /// The sha-256 pairs of the original and placeholder, including surrounding whitespace.
     #[must_use]
     pub fn digests(&self) -> &[([u8; 32], [u8; 32])] {
@@ -48,14 +52,21 @@ impl Original {
                 forms.push(form);
             }
         }
-        if let Ok(text) = std::str::from_utf8(bytes) {
-            let debug = format!("{text:?}");
-            let form = Box::from(&debug.as_bytes()[1..debug.len() - 1]);
-            if !forms.contains(&form) {
-                forms.push(form);
-            }
+        if let Some(form) = debug(bytes)
+            && !forms.contains(&form)
+        {
+            forms.push(form);
         }
-        Self { kind, len: bytes.len(), forms, digests: vec![(digest(bytes), digest(&vec![b'x'; bytes.len()]))] }
+        // An escaped form can contain its bytes as a prefix: a& in a&amp;.
+        let mut form_order: Vec<_> = (0..forms.len()).collect();
+        form_order.sort_by_key(|&index| Reverse(forms[index].len()));
+        Self {
+            kind,
+            len: bytes.len(),
+            forms,
+            form_order,
+            digests: vec![(digest(bytes), digest(&vec![b'x'; bytes.len()]))],
+        }
     }
 }
 #[expect(clippy::missing_fields_in_debug, reason = "original bytes and digests must never appear in Debug")]
@@ -70,7 +81,7 @@ pub struct Originals {
     counted: Vec<(Kind, Box<[u8]>)>,
 }
 impl Originals {
-    /// The originals of the candidates given, then each given text (client/web/journeys.md, 3.6).
+    /// The originals of the candidates given, then each given text (client/web/journey-redaction.md).
     #[must_use]
     pub fn new(mut candidates: Vec<(Kind, Box<[u8]>)>, given: &[Box<[u8]>]) -> Self {
         candidates.extend(given.iter().map(|value| (Kind::Given, value.clone())));
@@ -145,7 +156,7 @@ pub fn placeholder(value: &[u8]) -> Box<[u8]> {
     result.into()
 }
 
-fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
+pub(crate) fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
     let hex = if lower { b"0123456789abcdef" } else { b"0123456789ABCDEF" };
     let mut out = Vec::new();
     for &byte in bytes {
@@ -158,8 +169,14 @@ fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
     out.into()
 }
 
+pub(crate) fn debug(bytes: &[u8]) -> Option<Box<[u8]>> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    let debug = format!("{text:?}");
+    Some(debug.as_bytes()[1..debug.len() - 1].into())
+}
+
 // The four dom::print escapes (temper/docs/design/client/web/journeys.md, 5.3).
-fn html(bytes: &[u8]) -> Box<[u8]> {
+pub(crate) fn html(bytes: &[u8]) -> Box<[u8]> {
     let mut out = Vec::new();
     for &byte in bytes {
         match byte {

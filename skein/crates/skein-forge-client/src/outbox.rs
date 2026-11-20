@@ -80,6 +80,9 @@ impl Outbox {
             stop: stop::State::Running,
         }
     }
+    pub(crate) fn raise(&mut self, entries: u32) {
+        self.entries.raise(entries);
+    }
     pub(crate) fn is_ready(&self, keep: &crate::keep::Keep) -> bool {
         if !self.ready || self.paused {
             return false;
@@ -97,7 +100,9 @@ impl Outbox {
         false
     }
 }
-fn valid(entry: &Entry, l: &Limits) -> bool {
+/// Whether an entry can be admitted by the client, independent of available room.
+#[must_use]
+pub fn valid_entry(entry: &Entry, l: &Limits) -> bool {
     if entry.queued && (entry.attempt.is_none() || !is_merge(&entry.effect.write)) {
         return false;
     }
@@ -174,7 +179,7 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
         Some(Error::Busy)
     } else if !crate::identity::connected(d, entry.repository) {
         Some(Error::Forbidden)
-    } else if !valid(&entry, &env.limits) {
+    } else if !valid_entry(&entry, &env.limits) {
         Some(Error::TooLarge(match crate::measure::effect(&entry.effect) {
             Some(size) if size > u64::from(env.limits.op_bytes) => {
                 api::Excess::exact(api::Bound::OpBytes, u64::from(env.limits.op_bytes), size)

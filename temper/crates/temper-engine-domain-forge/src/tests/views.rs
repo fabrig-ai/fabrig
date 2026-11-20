@@ -116,6 +116,11 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
 
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
+        flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: policy::Landing {
             last_left: None,
@@ -127,6 +132,7 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
             phase,
             preparation: 1,
             stale_proofs: 2,
+            last_prepare: None,
             branch: Box::from(b"main".as_slice()),
             members: Box::new([policy::Member {
                 round: None,
@@ -180,6 +186,7 @@ fn setup() -> Domain {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -230,6 +237,7 @@ fn a_landing_view_shows_its_member_gate_and_turn() {
 fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     let mut d = setup();
     outputs(&mut d, Event::Restore { record: Stored::Landing(row(61, policy::Phase::Proving)) });
+    d.landing.rows.get_mut(&61).unwrap().waiting = Some(policy::Awaited::Run { member: 0, gate: 0 });
     let key =
         ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(b"gate".as_slice())), key: [7; 32] };
     let mut flight = runs::follow();
@@ -255,6 +263,7 @@ fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     let flight = d.landing.flights.remove(&key).unwrap();
     d.landing.faults.insert((61, 0, 0), flight).unwrap();
     assert_eq!(view(&d, 61).members[0].gates[0].proof, GateProof::Dispatched { attempt: 2, run: Some(7) });
+    assert_eq!(view(&d, 61).waits.unwrap().run, Some(3), "the run's number, not its id");
     let receipt = Receipt {
         report: ReceiptReport::Unset,
         base: None,
@@ -410,10 +419,22 @@ fn tasks(view: &ChangesView) -> Box<[u64]> {
 }
 fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
     LoggedLanding {
+        tiers: Box::new([]),
         commit: [commit; 32],
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
-        changes: Box::new([LoggedChange { signed: Box::new([]), task, pull: None, title: Box::from(TITLE) }]),
+        changes: Box::new([LoggedChange {
+            fixes: Box::new([]),
+            goal: None,
+            milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
+            signed: Box::new([]),
+            task,
+            pull: None,
+            title: Box::from(TITLE),
+        }]),
     }
 }
 fn log(d: &mut Domain, repository: skein_forge::api::Repository, landings: Box<[LoggedLanding]>) {
@@ -606,6 +627,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -633,6 +655,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         b"browser",
         &verdict,
         &[temper_engine_domain_forge_tiers::Landing { commit: fixtures::HEAD, key: [7; 32] }],
+        None,
         &mut out,
     );
     assert!(queue_marked(&out));
@@ -646,7 +669,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         landings: Box::new([]),
         flakes: Box::new([]),
     };
-    verification::judged(&mut d, REPO, b"browser", &verdict, &[], &mut out);
+    verification::judged(&mut d, REPO, b"browser", &verdict, &[], None, &mut out);
     assert!(queue_marked(&out));
     assert!(changes(&d).queues.is_empty());
     let mut out = Queue::uncapped();
@@ -658,6 +681,9 @@ fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
         landed_default: Box::new([ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             task: THIRD,
             title: Box::from(TITLE),
@@ -677,6 +703,9 @@ fn changes_owned_bytes_charges_every_field() {
             branch: Box::from(b"next".as_slice()),
             red: true,
             changes: Box::new([ChangesQueued {
+                goal: None,
+                chat: None,
+                milestone: None,
                 task: fixtures::CHANGE,
                 title: Box::from(TITLE),
                 ready_since: env().wall,
@@ -684,6 +713,9 @@ fn changes_owned_bytes_charges_every_field() {
             }]),
         }]),
         landed: Box::new([ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
@@ -714,12 +746,25 @@ fn changes_limits_accept_the_bounds_and_refuse_outside() {
 }
 
 #[test]
+fn changes_history_marks_the_adopted_landing_not_the_forge_default() {
+    let mut d = changes_setup(&[]);
+    d.repositories.get_mut(&REPO).unwrap().landing = b"staging".as_slice().into();
+    assert_eq!(changes(&d).landing.as_ref(), b"staging", "the empty panel names the landing");
+    log(&mut d, REPO, Box::new([logged(10, 10, 10, b"staging"), logged(20, 20, 20, b"main")]));
+    let got = changes(&d);
+    assert_eq!(got.landed.len(), 2);
+    assert_eq!((got.landed[0].task, got.landed[0].default_branch), (20, false));
+    assert_eq!((got.landed[1].task, got.landed[1].default_branch), (10, true));
+    assert_eq!(got.landed_default.as_ref(), &[got.landed[1].clone()]);
+}
+
+#[test]
 fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kind() {
     let mut d = changes_setup(&[]);
     let mut repository = adopted();
     repository.provider = OTHER_REPO;
     repository.home = false;
-    repository.settings.default_branch = b"trunk".as_slice().into();
+    repository.landing = b"trunk".as_slice().into();
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let mut outside = logged(90, 90, 90, b"main");
     outside.changes = Box::new([]);
@@ -746,6 +791,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed.as_ref(),
         &[
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 50,
                 title: TITLE.into(),
@@ -754,6 +802,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: false
             },
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 40,
                 title: TITLE.into(),
@@ -768,6 +819,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed_default.as_ref(),
         &[
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 25,
                 title: TITLE.into(),
@@ -776,6 +830,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: true
             },
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 20,
                 title: TITLE.into(),
@@ -1038,4 +1095,84 @@ fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
     d.landing.rows.get_mut(&61).unwrap().landing.round.recorded = true;
     d.landing.rows.get_mut(&61).unwrap().landing.members[0].recorded = true;
     assert_eq!(view(&d, 61).step, LandingStep::Telling);
+}
+
+#[test]
+fn landing_events_keep_their_time_through_the_steps_row_save() {
+    use crate::history::{Departure, InLanding, Line, On, Operation, Step, What};
+    let mut d = setup();
+    let stale = row(61, policy::Phase::Proving);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(stale.clone()) });
+    for (index, what) in [
+        What::Formed { members: Box::new([]), place: 1 },
+        What::Departed { line: Line::Landing, cause: Departure::Landing(policy::Leave::Cancelled) },
+        What::Held { on: On::Landing, reason: Box::new([]), by: None },
+        What::Proved { proofs: Box::new([]) },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let wall = Wall::from_nanos(u64::try_from(index).unwrap() + 10);
+        let mut out = Queue::uncapped();
+        d.write_event(
+            wall,
+            fixtures::CHANGE,
+            Step {
+                what,
+                landing: Some(InLanding { task: 61, round: 1, unit: 0 }),
+                head: None,
+                base: None,
+                operation: Operation::Own,
+                attempt: 0,
+                source_at: None,
+            },
+            &mut out,
+        )
+        .unwrap();
+        landing::save(&mut d, stale.clone(), &mut out);
+        assert_eq!(d.landing(61).unwrap().last_event, Some(wall));
+        let mut kept = false;
+        while let Some(request) = out.pop() {
+            kept |=
+                matches!(request, Request::Save { record: Stored::Landing(row), .. } if row.last_event == Some(wall));
+        }
+        assert!(kept);
+        assert_eq!(list(&d, false).landings[0].last_event, Some(wall));
+    }
+}
+#[test]
+fn landing_wait_views_resolve_names_and_list_times() {
+    let mut d = setup();
+    let mut saved = row(61, policy::Phase::Proving);
+    saved.waiting = Some(policy::Awaited::Close);
+    saved.last_event = Some(Wall::from_nanos(12));
+    outputs(&mut d, Event::Restore { record: Stored::Landing(saved.clone()) });
+    assert_eq!(view(&d, 61).waits.unwrap().on, LandingWaitFor::Close);
+    saved.waiting = Some(policy::Awaited::Run { member: 0, gate: 0 });
+    outputs(&mut d, Event::Restore { record: Stored::Landing(saved.clone()) });
+    let wait = view(&d, 61).waits.unwrap();
+    assert_eq!(
+        (wait.on, wait.change, wait.gate.as_deref(), wait.run),
+        (LandingWaitFor::Run, Some(51), Some(b"gate".as_slice()), None)
+    );
+    saved.room = Some(3);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(saved.clone()) });
+    assert_eq!(view(&d, 61).waits.unwrap().on, LandingWaitFor::Room);
+    saved.room = None;
+    saved.waiting = Some(policy::Awaited::Turn);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(saved) });
+    let mut holder = row(62, policy::Phase::Turn { at: Wall::EPOCH });
+    holder.turn_since = Some(Wall::from_nanos(8));
+    outputs(&mut d, Event::Restore { record: Stored::Landing(holder.clone()) });
+    assert_eq!(view(&d, 61).waits.unwrap().landing, Some(62));
+    let got = list(&d, false);
+    assert_eq!((got.now, got.turn_since), (env().wall, holder.turn_since));
+    assert_eq!(
+        (got.landings[1].step, got.landings[1].last_event),
+        (Some(LandingStep::Proving), Some(Wall::from_nanos(12)))
+    );
+    holder.landing.phase = policy::Phase::Landed;
+    outputs(&mut d, Event::Restore { record: Stored::Landing(holder) });
+    assert_eq!(view(&d, 62).waits, None);
+    assert_eq!(list(&d, true).landings[1].step, None);
 }

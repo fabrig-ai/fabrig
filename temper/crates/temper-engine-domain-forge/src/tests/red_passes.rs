@@ -6,7 +6,10 @@ fn carrying() -> Domain {
     let mut d = configured_domain(&[]);
     let name = tests::reds::name(7);
     d.holds
-        .insert(name.clone(), Hold { name, task: 7, writer: None, design_writers: Box::new([]), drift: None })
+        .insert(
+            name.clone(),
+            Hold { name, task: 7, writer: None, beside: None, design_writers: Box::new([]), drift: None },
+        )
         .unwrap();
     add_change(&mut d, CHANGE, b"temper/7/g7");
     d.record_red(&LIMITS, tests::reds::call(7, b"X"), &mut Queue::uncapped()).unwrap();
@@ -46,8 +49,10 @@ fn a_merge_outcome_ends_passed_reds_but_not_a_later_generation_or_another_destin
 }
 fn merged_pull() -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task: CHANGE,
         retry_at: None,
+        read: None,
         entry: OPEN,
         follow_tree: List::with_capacity(LIMITS.key_entries),
         stage: StepStage::Branch,
@@ -60,6 +65,7 @@ fn merged_pull() -> PendingStep {
         branch: Some(HEAD),
         branch_fresh: false,
         base_tip: Some(FIRST),
+        base_read: Some(FIRST),
         pull: Some(skein_forge::api::Pull {
             number: 1,
             head: b"temper/51".as_slice().into(),
@@ -115,6 +121,11 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+                        last_event: None,
+                        turn_since: None,
+                        waiting: None,
+                        flake_reruns: Box::new([]),
+                        room: None,
                         job: None,
                         landing: landing::Landing {
                             task: 61,
@@ -126,6 +137,7 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                             branch: b"temper/7/g7".as_slice().into(),
                             preparation: 0,
                             stale_proofs: 0,
+                            last_prepare: None,
                             members: Box::new([landing::Member {
                                 round: None,
                                 change: CHANGE,

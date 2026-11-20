@@ -76,6 +76,49 @@ fn a_change_runs_each_repositorys_checks_then_is_delivered_and_accepted() {
 }
 
 #[test]
+fn a_change_finish_after_a_delivered_run_parks_is_accepted_once_with_its_report() {
+    let (mut harness, conversation) = coding_after_delivery_and_park();
+    let owner = harness.land(conversation, 7);
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Check { owner: second, program, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        panic!("expected the second check, got {requests:?}");
+    };
+    assert_eq!((*second, program.root), (owner, Token::new(901)));
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Deliver { host_run, owner: submitted, change: report, .. }] = requests.as_ref() else {
+        panic!("expected finish delivery, got {requests:?}");
+    };
+    assert_eq!((*host_run, *submitted, report), (Token::new(1), owner, &change()));
+    assert_eq!(
+        harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
+        &[returned(7, Returned::Delivered(receipts())), Request::Close { peer: PEER }]
+    );
+    let accepted = Answer::Accepted { outcome: Declared::Change(change()), spent: Spend::ZERO, turns: 0 };
+    assert_eq!(answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))), (2, accepted));
+    assert!(harness.step(Event::Delivered { owner, delivery: delivered() }).is_empty());
+    assert!(harness.step(ended(conversation, End::Closed, Spend::ZERO)).is_empty(), "only one answer");
+    harness.domain.reclaim();
+    assert_eq!((harness.domain.runs(), harness.domain.conversations(), harness.domain.calls()), (0, 0, 0));
+}
+
+#[test]
+fn nothing_to_a_change_finish_after_a_park_is_feedback_and_the_run_can_retry() {
+    let (mut harness, conversation) = coding_after_delivery_and_park();
+    let owner = harness.land(conversation, 7);
+    drop(harness.step(pass_checks(owner)));
+    drop(harness.step(pass_checks(owner)));
+    assert_eq!(
+        harness.step(Event::Delivered { owner, delivery: Delivery::Nothing }).as_ref(),
+        &[returned(7, Returned::Nothing)]
+    );
+    let requests = harness.step(end_turn(conversation));
+    let [Request::Say { peer, .. }] = requests.as_ref() else {
+        panic!("a retry is nudged without ending the run, got {requests:?}");
+    };
+    assert_eq!(*peer, PEER);
+}
+
+#[test]
 fn each_directory_retries_a_timed_out_check_under_the_same_lease() {
     let limits = Limits { check_timeout: Duration::from_secs(60), ..LIMITS };
     let mut harness = Harness::new(limits);
@@ -83,19 +126,21 @@ fn each_directory_retries_a_timed_out_check_under_the_same_lease() {
     policy.reserve.time = Duration::from_secs(60);
     let (run, conversation) = harness.coding_policy(1, 100, policy);
     let requests = harness.step(finish(conversation, 7, Declared::Change(change())));
-    let [Request::Check { owner, deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+    let [Request::Check { owner, bound, cap, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
         panic!("first check: {requests:?}");
     };
+    let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
     assert_eq!((*deadline, *told), (Time::from_nanos(Duration::from_secs(60).as_nanos()), *deadline));
     let owner = *owner;
     for root in [Token::new(900), Token::new(901)] {
         harness.after(Duration::from_secs(60));
         let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
-        let [Request::Check { owner: retry, program, deadline, .. }, Request::Checking { deadline: told, .. }] =
+        let [Request::Check { owner: retry, program, bound, cap, .. }, Request::Checking { deadline: told, .. }] =
             &*requests
         else {
             panic!("timed out check retries immediately: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!((*retry, program.root), (owner, root));
         assert_eq!((*deadline, *told), (harness.env.now.saturating_add(Duration::from_secs(120)), *deadline));
         assert_eq!(harness.domain.calls(), 1);
@@ -160,9 +205,10 @@ fn the_charters_check_bound_replaces_the_limit_and_is_cut_by_the_call() {
         let (_, conversation) = harness.coding_policy(1, 100, policy);
         let deadline = harness.env.now.saturating_add(Duration::from_secs(call_seconds));
         let requests = harness.step(finish_by(conversation, 7, Declared::Change(change()), deadline));
-        let [Request::Check { owner, deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+        let [Request::Check { owner, bound, cap, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
             panic!("first check: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         let given = Duration::from_secs(expected_seconds);
         assert_eq!((*deadline, *told), (harness.env.now.saturating_add(given), *deadline));
         let owner = *owner;
@@ -217,9 +263,10 @@ fn retries_are_cut_at_the_call_and_ordinary_deadlines() {
         let owner = *owner;
         harness.after(Duration::from_secs(60));
         let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
-        let [Request::Check { deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+        let [Request::Check { bound, cap, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
             panic!("retry with room: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!((*deadline, *told), (Time::ZERO.saturating_add(Duration::from_secs(expected)), *deadline));
         harness.after(Duration::from_secs(90));
         assert_eq!(
@@ -458,9 +505,10 @@ fn a_landing_past_its_deadline_is_stopped_and_returns_timed_out_once_it_has() {
     let minute = Duration::from_secs(60);
     let requests =
         harness.step(finish_by(conversation, 7, Declared::Change(change()), Time::ZERO.saturating_add(minute)));
-    let [Request::Check { owner, deadline, .. }, Request::Checking { .. }] = &*requests else {
+    let [Request::Check { owner, bound, cap, .. }, Request::Checking { .. }] = &*requests else {
         panic!("expected the first check, got {requests:?}");
     };
+    let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
     // A check may not outlive its caller's earlier deadline.
     assert_eq!(*deadline, Time::ZERO.saturating_add(minute).min(Time::ZERO.saturating_add(LIMITS.check_timeout)));
     let owner = *owner;
@@ -709,9 +757,10 @@ fn a_mid_run_delivery_without_a_change_contract_needs_passing_checks() {
         let given = LIMITS.check_timeout.min(deadline.saturating_since(harness.env.now));
         let check = if custom { b".temper/pre-pr".as_slice() } else { b".smith/check".as_slice() };
         let requests = harness.step(Event::Delegated { conversation, call, name, ask, deadline });
-        let [Request::Check { owner, program, deadline, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        let [Request::Check { owner, program, bound, cap, .. }, Request::Checking { .. }] = requests.as_ref() else {
             panic!("discovered check runs: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!(program.path.as_ref(), check);
         assert_eq!(*deadline, harness.env.now.saturating_add(given));
         let owner = *owner;
@@ -749,6 +798,82 @@ fn a_mid_run_delivery_uses_the_change_contracts_optional_checks() {
         harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
         [returned(50, Returned::Delivered(receipts()))]
     );
+}
+
+fn coding_after_delivery_and_park() -> (Harness, Token) {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = coding();
+    policy.grants.deliver = mid_report().grants.deliver;
+    let waiting = policy.waiting;
+    let (run, conversation) = harness.coding_policy(1, 100, policy);
+    let requests = harness.step(mid_ask(conversation, 3));
+    let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        panic!("mid-run delivery checks first, got {requests:?}");
+    };
+    let owner = *owner;
+    drop(harness.step(pass_checks(owner)));
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Deliver { owner: submitted, .. }] = requests.as_ref() else {
+        panic!("mid-run delivery follows both checks, got {requests:?}");
+    };
+    assert_eq!(*submitted, owner);
+    let mut delivery = MidDelivery { harness, run, conversation, owner };
+    delivery.accepted_delivery();
+    let mut harness = delivery.harness;
+    assert_eq!(
+        harness
+            .step(Event::Delegated {
+                conversation,
+                call: Token::new(51),
+                name: crate::CallName { activation: 1, completion: 4, position: 0 },
+                ask: Ask::Wait,
+                deadline: EXPIRY,
+            })
+            .as_ref(),
+        &[Request::Waiting { host_run: Token::new(1), read: None }]
+    );
+    harness.after(waiting);
+    assert_eq!(harness.fire().as_ref(), &[returned(51, Returned::Withheld), Request::Close { peer: PEER }]);
+    assert_eq!(
+        answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))),
+        (1, Answer::Parked { spent: Spend::ZERO, turns: 0 })
+    );
+    harness.domain.reclaim();
+
+    // The parent binds the parked main's transcript by its conversation token;
+    // this domain passes the binding on without decoding the transcript.
+    let transcript = conversation;
+    let requests = harness.step(Event::Start {
+        reply_to: ReplyTo::new(Token::new(2)),
+        host_run: Token::new(1),
+        activation: 2,
+        identity: None,
+        window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
+        messages: Box::default(),
+        charter: Charter { resume: true, ..coding() },
+        workspace: Some(coding_workspace()),
+        transcript: Some(transcript),
+        resumed: true,
+    });
+    let [Request::Admitted { run: next_run, host_run }, Request::Read { .. }] = requests.as_ref() else {
+        panic!("a fresh run is admitted for the same task, got {requests:?}");
+    };
+    assert_eq!(*host_run, Token::new(1));
+    assert_ne!(*next_run, run);
+    let next_run = *next_run;
+    drop(harness.step(Event::Read { owner: next_run, read: Read::Missing }));
+    drop(harness.step(Event::Probed { owner: next_run, executable: true }));
+    drop(harness.step(Event::Read { owner: next_run, read: Read::Missing }));
+    let requests = harness.step(Event::Probed { owner: next_run, executable: true });
+    let [Request::Open { conversation: next, opening }] = requests.as_ref() else {
+        panic!("resumed main opens, got {requests:?}");
+    };
+    assert_eq!(opening.transcript, Some(transcript));
+    assert_eq!(opening.activation, 2);
+    assert_ne!(*next, conversation);
+    let next = *next;
+    assert!(harness.step(Event::Started { conversation: next, peer: PEER }).is_empty());
+    (harness, next)
 }
 
 struct MidDelivery {

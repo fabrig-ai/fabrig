@@ -560,6 +560,19 @@ impl Protocol {
             return;
         }
         let end = self.env.now.saturating_add(Duration::from_secs(seconds));
+        self.run_to(end, false);
+    }
+
+    /// Drain this instant, then advance through timers until an owner output or `until`.
+    pub fn run_until_output(&mut self, until: Wall) {
+        if self.cut_taken {
+            return;
+        }
+        let span = Duration::from_nanos(until.as_nanos().saturating_sub(self.env.wall.as_nanos()));
+        self.run_to(self.env.now.saturating_add(span), true);
+    }
+
+    fn run_to(&mut self, end: Time, yield_output: bool) {
         // Transport fragments do not change the top's readiness or timers.
         // Refresh its schedule only after an answer or a top step.
         let mut schedule = None;
@@ -591,7 +604,7 @@ impl Protocol {
                 self.take_top();
                 schedule = None;
             } else if !self.joint.busy() {
-                if self.env.now >= end {
+                if self.env.now >= end || (yield_output && !self.seen.is_empty()) {
                     return;
                 }
                 let offset = self.joint.fake_env.now.as_nanos().saturating_sub(self.env.now.as_nanos());
@@ -629,10 +642,12 @@ impl Protocol {
     fn take_top(&mut self) {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
-        for _ in 0..self.top_out.len() {
-            let request = self.top_out.pop().expect("counted top output");
+        while let Some(request) = self.top_out.pop() {
             self.secrets_kept &= fixtures::token_absent(&request);
             match request {
+                top::Request::LandingReady { task } => {
+                    self.top.decide_landing(&self.env, task, true, &mut self.top_out);
+                }
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
@@ -692,6 +707,8 @@ impl Protocol {
                 | top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
@@ -707,6 +724,7 @@ impl Protocol {
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
@@ -740,6 +758,7 @@ impl Protocol {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
+                | top::Request::FileVerdict { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
@@ -885,6 +904,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Call { key, .. } => top::Key::Call(*key),
         top::Stored::Repository(row) => top::Key::Repository(row.provider),
         top::Stored::Hold(row) => top::Key::Hold(row.name.clone()),
+        top::Stored::LimitHold(row) => top::Key::LimitHold(row.task),
         top::Stored::Names { task, .. } => top::Key::Names(*task),
         top::Stored::Subscription(row) => top::Key::Subscription { task: row.task, topic: row.topic.clone() },
         top::Stored::BranchHead(row) => top::Key::BranchHead(row.name.clone()),
@@ -922,6 +942,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },

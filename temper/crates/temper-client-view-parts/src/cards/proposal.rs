@@ -48,7 +48,7 @@ pub(super) fn reason(b: &mut Builder, page: &c::ReadValue) {
     }
 }
 /// The place is the caller's: it sets the title's level and whether a kicker says the kind.
-fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Words, place: super::Place) {
+fn headings(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Words, place: super::Place) {
     let level = place.level();
     if place.kicker() {
         b.open(Role::Paragraph);
@@ -61,13 +61,12 @@ fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Word
     for task in tasks {
         let written = task.spec.specification.words.bytes();
         let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
-        text(b, Role::Heading { level }, written.get(..end).expect("title prefix"));
-        if end < written.len() {
-            skein_ui::markdown::read(
-                written.get(end..).expect("spec body"),
-                level.checked_add(1).expect("proposal heading fits"),
-                b,
-            );
+        let first = written.get(..end).expect("title prefix");
+        let heading = crate::common::chat::row_title(first);
+        text(b, Role::Heading { level }, &heading);
+        let body = if heading.as_ref() == first { written.get(end..).expect("spec body") } else { written };
+        if !body.is_empty() {
+            skein_ui::markdown::read(body, level.checked_add(1).expect("proposal heading fits"), b);
         }
     }
 }
@@ -101,7 +100,7 @@ fn why(b: &mut Builder, page: &c::ReadValue) {
 }
 pub(super) fn facts(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u32, place: super::Place) {
     if let Some(tasks) = batch(page) {
-        title(b, tasks, words, place);
+        headings(b, tasks, words, place);
         batch_facts(b, page, tasks, words, rows);
         return;
     }
@@ -182,7 +181,7 @@ fn batch_facts(
     b.open(Role::Paragraph);
     let facts = jig_client::facts::decision(Some(page), c::ActKind::Accept);
     let mut first = true;
-    for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
+    for fact in &jig_client::words::decision(&facts, words.book(), words.language) {
         if !first {
             separator(b);
         }
@@ -542,45 +541,7 @@ pub fn settings(
     } else if state == SettingsState::Pending
         && let Some(proposal) = facts.live
     {
-        let offered = jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Accept);
-        if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) = offered {
-            b.open(Role::Slot);
-            b.style(crate::look::SETTINGS_PROPOSAL_ACTS);
-            settings_button(
-                b,
-                words,
-                bindings,
-                Word::Accept,
-                temper_client_domain::pages::Act::Decide {
-                    object: card.object,
-                    revision: None,
-                    act: c::ActKind::Accept,
-                },
-                true,
-                card.key.is_some(),
-            );
-            if root.pages().chat().is_some() {
-                settings_button(
-                    b,
-                    words,
-                    bindings,
-                    Word::SettingsProposalChange,
-                    temper_client_domain::pages::Act::ChangeProposal { proposal: proposal.key },
-                    false,
-                    false,
-                );
-            }
-            b.close();
-            if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
-                refusal, ..
-            }))) = &card.outcome
-            {
-                words.refusal(b, refusal, 0);
-            }
-        } else {
-            text(b, Role::Paragraph, &words.say(Word::SettingsProposalWaiting, &[]));
-            waiting(b, root, proposal.waiting.holder, words);
-        }
+        settings_actions(b, root, card, words, bindings, proposal);
     }
     if terminal {
         b.close();
@@ -590,6 +551,63 @@ pub fn settings(
     }
     b.close();
     true
+}
+
+fn settings_actions(
+    b: &mut Builder,
+    root: &temper_client_domain::Domain,
+    card: &temper_client_domain::pages::inbox::Card,
+    words: &Words,
+    bindings: &mut crate::bindings::Bindings,
+    proposal: &c::Proposal,
+) {
+    let offered = jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Accept);
+    if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) = offered {
+        b.open(Role::Slot);
+        b.style(crate::look::SETTINGS_PROPOSAL_ACTS);
+        settings_button(
+            b,
+            words,
+            bindings,
+            Word::Accept,
+            temper_client_domain::pages::Act::Decide { object: card.object, revision: None, act: c::ActKind::Accept },
+            true,
+            card.key.is_some(),
+        );
+        if root.pages().chat().is_some() {
+            settings_button(
+                b,
+                words,
+                bindings,
+                Word::SettingsProposalChange,
+                temper_client_domain::pages::Act::ChangeProposal { proposal: proposal.key },
+                false,
+                false,
+            );
+        }
+        b.close();
+        if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. }))) =
+            &card.outcome
+        {
+            words.refusal(b, refusal, 0);
+        }
+    } else {
+        text(b, Role::Paragraph, &words.say(Word::SettingsProposalWaiting, &[]));
+        waiting(b, root, proposal.waiting.holder, words);
+    }
+    if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) =
+        jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Withdraw)
+    {
+        settings_button(
+            b,
+            words,
+            bindings,
+            Word::Withdraw,
+            temper_client_domain::pages::Act::Decide { object: card.object, revision: None, act: c::ActKind::Withdraw },
+            false,
+            card.key.is_some(),
+        );
+    }
 }
 
 /// What a settings card draws, from a live proposal or its retained record (client/pages/settings.md, 2).
@@ -652,6 +670,9 @@ enum SettingsState {
     Other,
 }
 fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsState {
+    if card.withdrawn() {
+        return SettingsState::Withdrawn;
+    }
     if let Some(c::ReadValue::Ended(ended)) = &card.page
         && let c::EndedValue::Proposal(proposal) = &ended.value
     {
@@ -752,8 +773,11 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Provider(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
-            | c::Setting::Rules => {}
+            | c::Setting::Rules
+            | c::Setting::Limits => {}
         }
     }
     if facts.live.is_none()
@@ -1072,7 +1096,10 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
+        c::Setting::Provider(n) => (b"provider".as_slice(), Some(n.number)),
         c::Setting::Rules => (b"rules".as_slice(), None),
+        c::Setting::Limits => (b"limits".as_slice(), None),
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),
         c::Setting::Application { kind: 3, number, .. } => (b"forge charter".as_slice(), Some(number)),
@@ -1084,8 +1111,12 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Application { kind: 8, scope, .. } => (b"project-classes".as_slice(), Some(scope)),
         c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),
         c::Setting::Application { kind: 10, scope, .. } => (b"project-words".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 4, scope, .. } => (b"project-landing".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 5, scope, .. } => (b"project-gates".as_slice(), Some(scope)),
         c::Setting::Application { kind: 14, scope, .. } => (b"project-areas".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 21, .. } => (b"agents".as_slice(), None),
         c::Setting::Application { kind: 15, scope, .. } => (b"project-triager".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 20, .. } => (b"welcome".as_slice(), None),
         c::Setting::Application { kind, scope, number } => {
             return joined(&[
                 b"application kind ",
@@ -1165,17 +1196,26 @@ pub(crate) fn terminal(
 
 /// A proposal's terminal heading (temper/docs/design/client/pages/README.md).
 pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Words) -> Option<Box<[u8]>> {
+    let title = title(card)?;
+    if let Some(tasks) = batch(card.page.as_ref().expect("proposal title has a page"))
+        && !tasks.is_empty()
+    {
+        return Some(crate::common::chat::row_title(&title));
+    }
+    Some(title)
+}
+
+/// A chat card's whole title (temper/docs/design/client/tui/pages/chat.md, 1, a card).
+pub(crate) fn title(card: &temper_client_domain::pages::inbox::Card) -> Option<Box<[u8]>> {
     let page = card.page.as_ref()?;
-    let c::ReadValue::Proposal(_) = page else { return None };
-    let title = if let Some(tasks) = batch(page)
+    let c::ReadValue::Proposal(proposal) = page else { return None };
+    let written = if let Some(tasks) = batch(page)
         && let Some(task) = tasks.as_slice().first()
     {
         task.spec.specification.words.bytes()
-    } else if let c::ReadValue::Proposal(proposal) = page {
-        proposal.reason.bytes()
     } else {
-        b""
+        proposal.reason.bytes()
     };
-    let end = skein_lib::bytes::find(title, b"\n").unwrap_or(title.len());
-    Some(title.get(..end).expect("proposal first line").into())
+    let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
+    Some(written.get(..end).expect("proposal first line").into())
 }

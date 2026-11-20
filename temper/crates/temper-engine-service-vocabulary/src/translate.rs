@@ -3,7 +3,10 @@ use crate::settings;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret, Writer};
 use temper_engine_domain as engine;
-use temper_protocol_worker_wire::{self as wire, v1};
+use temper_protocol_worker_wire::{
+    self as wire,
+    v1::{self, Record},
+};
 
 /// Application limits from the engine's forge and checkout bounds.
 #[must_use]
@@ -33,12 +36,12 @@ pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
     }
     Some(match ask {
         v1::Ask::Reds => engine::wire::Ask::Reds,
+        v1::Ask::Landed(value) => engine::wire::Ask::Landed { head: value.head },
         v1::Ask::Results(value) => engine::wire::Ask::Results(results(value)?),
     })
 }
 
-fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
-    let parts = value.into_parts();
+fn results(parts: v1::CheckResults) -> Option<engine::wire::CheckResults> {
     if !wire::red_head(&parts.tree) {
         return None;
     }
@@ -49,7 +52,6 @@ fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
     }
     let mut flakes = List::with_capacity(parts.flakes.len());
     for flake in parts.flakes.into_boxed() {
-        let flake = flake.into_parts();
         flakes.push(engine::wire::Flake { key: flake.key, log: flake.log }).expect("one row per decoded flake");
     }
     Some(engine::wire::CheckResults {
@@ -71,19 +73,21 @@ fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
 pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
     let value = match answer {
         engine::wire::Answer::Kept => v1::Answer::Kept,
+        engine::wire::Answer::Landed => v1::Answer::Landed,
+        engine::wire::Answer::Unlanded => v1::Answer::Unlanded,
         engine::wire::Answer::Reds { reds } => {
             let mut rows = List::with_capacity(limits.reds_reds);
             for red in reds {
                 if !wire::red_head(&red.head) {
-                    return Err(problem(v1::Path::RedHead));
+                    return Err(problem(v1::paths::RED_HEAD));
                 }
-                let row = v1::Red::new(limits, v1::RedParts { key: red.key, head: red.head })?;
-                rows.push(row).or(Err(problem(v1::Path::RedsReds)))?;
+                let row = v1::Red { key: red.key, head: red.head };
+                rows.push(row).or(Err(problem(v1::paths::REDS_REDS)))?;
             }
-            v1::Answer::Reds(v1::Reds::new(limits, v1::RedsParts { reds: rows })?)
+            v1::Answer::Reds(v1::Reds { reds: rows })
         }
     };
-    Ok(wire::answer(&value))
+    value.encode(limits)
 }
 
 /// A workspace's remotes and programs, made from each configured forge.
@@ -109,9 +113,9 @@ pub(crate) fn workspace_items(
     let mut repositories = List::with_capacity(limits.items_repositories);
     for repository in &workspace.repositories {
         let value = repository_item(repository, save, forges, tokens, limits)?;
-        repositories.push(value).or(Err(problem(v1::Path::ItemsRepositories)))?;
+        repositories.push(value).or(Err(problem(v1::paths::ITEMS_REPOSITORIES)))?;
     }
-    Ok(Some(v1::Items::new(limits, v1::ItemsParts { repositories })?))
+    Ok(Some(v1::Items { repositories }))
 }
 fn repository_item(
     repository: &engine::ForgeRepository,
@@ -120,13 +124,13 @@ fn repository_item(
     tokens: &crate::forge::tokens::Tokens,
     limits: &v1::Limits,
 ) -> Result<v1::Repository, v1::Problem> {
-    let forge = forges.get(repository.provider.forge).ok_or(problem(v1::Path::RepositoryRemote))?;
+    let forge = forges.get(repository.provider.forge).ok_or(problem(v1::paths::REPOSITORY_REMOTE))?;
     let base = forge.git.as_ref();
-    let length = base.len().checked_add(repository.owner.len()).ok_or(problem(v1::Path::RepositoryRemote))?;
-    let length = length.checked_add(repository.name.len()).ok_or(problem(v1::Path::RepositoryRemote))?;
-    let length = length.checked_add(6).ok_or(problem(v1::Path::RepositoryRemote))?;
+    let length = base.len().checked_add(repository.owner.len()).ok_or(problem(v1::paths::REPOSITORY_REMOTE))?;
+    let length = length.checked_add(repository.name.len()).ok_or(problem(v1::paths::REPOSITORY_REMOTE))?;
+    let length = length.checked_add(6).ok_or(problem(v1::paths::REPOSITORY_REMOTE))?;
     if length > skein_lib::usize_of(limits.repository_remote) {
-        return Err(problem(v1::Path::RepositoryRemote));
+        return Err(problem(v1::paths::REPOSITORY_REMOTE));
     }
     let mut remote = Writer::new(length);
     for segment in [base, b"/", &repository.owner, b"/", &repository.name, b".git"] {
@@ -134,10 +138,13 @@ fn repository_item(
     }
     let access = if repository.prefixes.is_empty() {
         match &repository.push {
-            Some(push) => v1::Access::Writable(v1::Writable::new(
-                limits,
-                v1::WritableParts { push: push.clone(), expected: None, landing: repository.landing.clone() },
-            )?),
+            Some(push) => v1::Access::Writable(v1::Writable {
+                push: push.clone(),
+                expected: None,
+                landing: repository.landing.clone(),
+                delivered: repository.delivered,
+                pin: repository.pin,
+            }),
             None => v1::Access::ReadOnly,
         }
     } else {
@@ -145,49 +152,38 @@ fn repository_item(
         for branch in &repository.prefixes {
             branches.push(branch.clone()).expect("measured branches");
         }
-        v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches })?)
+        v1::Access::Prefixes(v1::Prefixes { branches })
     };
-    v1::Repository::new(
-        limits,
-        v1::RepositoryParts {
-            save: if save { repository.save.clone() } else { None },
-            tag: repository.tag,
-            name: repository.name.clone(),
-            remote: remote.finish(),
-            git: forge.git_program.clone(),
-            start: start(&repository.start, limits)?,
-            access,
-            identity: repository.identity,
-            account: match forge.kind {
-                settings::Kind::GitHub => crate::forge::tokens::account(tokens, forge.number, &repository.owner),
-                settings::Kind::Forgejo => None,
-            },
+    Ok(v1::Repository {
+        save: if save { repository.save.clone() } else { None },
+        tag: repository.tag,
+        name: repository.name.clone(),
+        remote: remote.finish(),
+        git: forge.git_program.clone(),
+        start: start(&repository.start, limits)?,
+        access,
+        identity: repository.identity,
+        account: match forge.kind {
+            settings::Kind::GitHub => crate::forge::tokens::account(tokens, forge.number, &repository.owner),
+            settings::Kind::Forgejo => None,
         },
-    )
+    })
 }
 fn start(start: &engine::ForgeStart, limits: &v1::Limits) -> Result<v1::Start, v1::Problem> {
     Ok(match start {
-        engine::ForgeStart::Commit(commit) => {
-            v1::Start::Commit(v1::Commit::new(limits, v1::CommitParts { commit: *commit })?)
-        }
-        engine::ForgeStart::Base(branch) => {
-            v1::Start::Base(v1::Branch::new(limits, v1::BranchParts { branch: branch.clone() })?)
-        }
-        engine::ForgeStart::Branch(branch) => {
-            v1::Start::Branch(v1::Branch::new(limits, v1::BranchParts { branch: branch.clone() })?)
-        }
-        engine::ForgeStart::Saved(branch) => {
-            v1::Start::Saved(v1::Branch::new(limits, v1::BranchParts { branch: branch.clone() })?)
-        }
+        engine::ForgeStart::Commit(commit) => v1::Start::Commit(v1::Commit { commit: *commit }),
+        engine::ForgeStart::Base(branch) => v1::Start::Base(v1::Branch { branch: branch.clone() }),
+        engine::ForgeStart::Branch(branch) => v1::Start::Branch(v1::Branch { branch: branch.clone() }),
+        engine::ForgeStart::Saved(branch) => v1::Start::Saved(v1::Branch { branch: branch.clone() }),
         engine::ForgeStart::Merge { branch, base } => {
-            v1::Start::Merge(v1::Merge::new(limits, v1::MergeParts { branch: branch.clone(), base: *base })?)
+            v1::Start::Merge(v1::Merge { branch: branch.clone(), base: *base })
         }
         engine::ForgeStart::Merged { branch, heads } => {
             let mut ordered = List::with_capacity(limits.merged_heads);
             for head in heads {
-                ordered.push(*head).or(Err(problem(v1::Path::MergedHeads)))?;
+                ordered.push(*head).or(Err(problem(v1::paths::MERGED_HEADS)))?;
             }
-            v1::Start::Merged(v1::Merged::new(limits, v1::MergedParts { branch: branch.clone(), heads: ordered })?)
+            v1::Start::Merged(v1::Merged { branch: branch.clone(), heads: ordered })
         }
     })
 }
@@ -199,12 +195,11 @@ fn problem(path: v1::Path) -> v1::Problem {
 #[must_use]
 pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Option<v1::Preparation>) -> engine::Parts {
     let mut pushed = List::with_capacity(match &left {
-        Some(left) => left.landed().len(),
+        Some(left) => left.landed.len(),
         None => 0,
     });
     if let Some(left) = left {
-        for head in left.into_parts().landed.into_boxed() {
-            let head = head.into_parts();
+        for head in left.landed.into_boxed() {
             pushed
                 .push(temper_engine_domain_forge::Pushed { tag: head.tag, commit: head.commit, checked: head.checked })
                 .expect("bounded heads");
@@ -212,10 +207,8 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
     }
     let saved = match saved {
         Some(saved) => {
-            let saved = saved.into_parts();
             let mut tags = List::with_capacity(saved.repositories.len());
             for repository in saved.repositories.into_boxed() {
-                let repository = repository.into_parts();
                 let kept = match repository.landing {
                     v1::Landing::Landed(_) => true,
                     v1::Landing::Conflicted(_)
@@ -235,7 +228,6 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
     };
     let preparation = match preparation {
         Some(v1::Preparation::Missing(missed)) => {
-            let missed = missed.into_parts();
             let missing = match missed.missing {
                 v1::Missing::Repository => engine::Missing::Repository,
                 v1::Missing::Branch => engine::Missing::Branch,
@@ -243,9 +235,9 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
             };
             Some(engine::Preparation::Missing { tag: missed.tag, missing })
         }
-        Some(v1::Preparation::Refused(tag)) => Some(engine::Preparation::Refused { tag: tag.tag() }),
+        Some(v1::Preparation::Refused(tag)) => Some(engine::Preparation::Refused { tag: tag.tag }),
         Some(v1::Preparation::Conflicted(value)) => {
-            Some(engine::Preparation::Conflicted { tag: value.tag(), head: *value.head() })
+            Some(engine::Preparation::Conflicted { tag: value.tag, head: value.head })
         }
         Some(v1::Preparation::Transient) | None => None,
     };
@@ -254,16 +246,13 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
 
 /// Encode one configured identity as the single secret the table holds.
 pub fn identity(identity: &settings::Identity, limits: &v1::Limits) -> Result<Secret, v1::Problem> {
-    let value = v1::Identity::new(
-        limits,
-        v1::IdentityParts {
-            kind: v1::Kind::Forgejo(v1::Token::new(limits, v1::TokenParts { token: identity.token.clone() })?),
-            login: identity.login.clone(),
-            name: identity.author.name.clone(),
-            email: identity.author.email.clone(),
-        },
-    )?;
-    Ok(wire::identity(&value))
+    let value = v1::Identity {
+        kind: v1::Kind::Forgejo(v1::Token { token: identity.token.clone() }),
+        login: identity.login.clone(),
+        name: identity.author.name.clone(),
+        email: identity.author.email.clone(),
+    };
+    Ok(Secret::new(value.encode(limits)?))
 }
 
 /// Encode a GitHub value with configuration's login and author or the App bot's defaults.
@@ -303,16 +292,13 @@ pub fn github_identity(
     } else {
         author.email.clone()
     };
-    let value = v1::Identity::new(
-        limits,
-        v1::IdentityParts {
-            kind: v1::Kind::Github(v1::Entries::new(limits, v1::EntriesParts { entries })?),
-            login: if login.is_empty() { b"x-access-token".as_slice().into() } else { login.into() },
-            name,
-            email,
-        },
-    )?;
-    Ok(wire::identity(&value))
+    let value = v1::Identity {
+        kind: v1::Kind::Github(v1::Entries { entries }),
+        login: if login.is_empty() { b"x-access-token".as_slice().into() } else { login.into() },
+        name,
+        email,
+    };
+    Ok(Secret::new(value.encode(limits)?))
 }
 
 #[cfg(test)]
@@ -320,15 +306,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn repository_items_encode_the_tasks_own_delivery_without_an_expected_head() {
+        use crate::tests::fixtures;
+        let limits = fixtures::wire_limits();
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        for delivered in [None, Some([7; 32])] {
+            let mut repository = fixtures::repository(7, b"acme", b"shop");
+            repository.delivered = delivered;
+            let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
+            let bytes = item.encode(&limits).expect("repository within bounds");
+            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
+            assert_eq!(value.delivered, delivered);
+            assert_eq!(value.expected, None);
+        }
+    }
+
+    #[test]
+    fn repository_items_encode_a_named_pin_or_none() {
+        use crate::tests::fixtures;
+        let limits = fixtures::wire_limits();
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        for pin in [None, Some([8; 32])] {
+            let mut repository = fixtures::repository(7, b"acme", b"shop");
+            repository.landing = None;
+            repository.pin = pin;
+            let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
+            let bytes = item.encode(&limits).expect("repository within bounds");
+            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
+            assert_eq!(value.pin, pin);
+            assert_eq!(value.expected, None);
+            assert_eq!(value.landing, None);
+        }
+    }
+
+    #[test]
     fn pushed_heads_keep_the_workers_check_status() {
         for checked in [false, true] {
             let mut landed = List::with_capacity(1);
-            landed
-                .push(
-                    v1::Landed::new(&v1::CEILINGS, v1::LandedParts { tag: 7, commit: [3; 32], checked }).expect("head"),
-                )
-                .expect("room");
-            let left = v1::Left::new(&v1::CEILINGS, v1::LeftParts { landed }).expect("left");
+            landed.push(v1::Landed { tag: 7, commit: [3; 32], checked }).expect("room");
+            let left = v1::Left { landed };
             assert_eq!(
                 parts(Some(left), None, None).pushed.as_ref(),
                 &[temper_engine_domain_forge::Pushed { tag: 7, commit: [3; 32], checked }]

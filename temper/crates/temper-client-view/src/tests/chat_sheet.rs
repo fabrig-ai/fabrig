@@ -6,6 +6,7 @@ use jig_client::{Down, Readable, Up, Watchable, contract as c};
 use skein_lib::{Env, List, Queue, Time, Wall, Writer};
 use skein_ui::{Role, Tree};
 use temper_client_domain::{Action, Address, Domain, Event, Request, pages::Act};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const CHAT: u64 = f::chat::TASK;
@@ -31,8 +32,11 @@ struct Case {
 impl Case {
     const READY: Self =
         Self { body: Some(BODY), offered: true, repository: true, asking: false, linked: None, chip: true };
-    #[expect(clippy::too_many_lines, reason = "the fixture answers the chat's watches and reads through public events")]
     fn root(&self) -> Domain {
+        self.root_named(b"Keep working")
+    }
+    #[expect(clippy::too_many_lines, reason = "the fixture answers the chat's watches and reads through public events")]
+    fn root_named(&self, title: &[u8]) -> Domain {
         let mut limits = f::domain_limits();
         limits.client.domain.text = TEXT;
         limits.client.domain.long_text = TEXT;
@@ -76,13 +80,22 @@ impl Case {
         ] {
             temper_client_domain::step(&mut root, &env, event, &mut out);
         }
+        let me_opened = {
+            Up::Watched {
+                watch: skein_lib::Token::new(0),
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))),
+            }
+        };
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Client { event: jig_client::Event::Up { up: me_opened } },
+            &mut out,
+        );
         for _ in 0_u32..128 {
             let Some(request) = out.pop() else { break };
             let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
             let up = match down {
-                Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                    Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))) }
-                }
                 Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) } => Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
@@ -94,20 +107,21 @@ impl Case {
                 },
                 Down::Read { read, what: Readable::Family { record, .. } } => {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                    let w::Read::Setting(setting) = reading.read() else { continue };
-                    let value = if setting.kind() == 7 {
-                        let value = w::ProjectWays::new(
-                            &w::CEILINGS,
-                            w::ProjectWaysParts { drafts: self.offered, goals: true, changes: false, way: 2 },
-                        )
-                        .unwrap();
-                        let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-                        value.encode(&mut writer).unwrap();
+                    let w::Read::Setting(setting) = &reading.read else { continue };
+                    let value = if setting.kind == 7 {
+                        let value = w::ProjectWays { drafts: self.offered, goals: true, changes: false, way: 2 };
+                        let mut writer = Writer::new(
+                            usize::try_from(
+                                value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                            )
+                            .unwrap(),
+                        );
+                        value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                         Some(writer.finish())
                     } else {
                         None
                     };
-                    let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
+                    let answer = w::SettingAnswer { revision: None, value };
                     Up::ReadDone {
                         read,
                         result: jig_client::Readout::Family {
@@ -123,8 +137,7 @@ impl Case {
                     assert_eq!(tasks.as_slice(), [GOAL]);
                     let mut chip = task.chip.clone();
                     chip.task = GOAL;
-                    chip.title =
-                        c::DocumentText::complete(c::Text::new(b"Keep working".as_slice().into(), TEXT).unwrap());
+                    chip.title = c::DocumentText::complete(c::Text::new(title.into(), TEXT).unwrap());
                     chip.phase = c::Phase::Running;
                     chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
                     Up::Watched {
@@ -133,30 +146,21 @@ impl Case {
                     }
                 }
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
-                    let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
-                        w::Watch::Forges => wire::forges(
-                            &w::Forges::new(
-                                &w::CEILINGS,
-                                w::ForgesParts { forges: forges(self.repository), linked: false },
-                            )
-                            .unwrap(),
-                        ),
+                    let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
+                        w::Watch::Forges => wire::forges(&w::Forges { forges: forges(self.repository), linked: false }),
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);
                             if let Some(at) = self.linked {
                                 dismissed
-                                    .push(w::PersonFact::GoalFrom(
-                                        w::GoalFrom::new(
-                                            &w::CEILINGS,
-                                            w::GoalFromParts { project: f::PROJECT, chat: CHAT, goal: GOAL, at },
-                                        )
-                                        .unwrap(),
-                                    ))
+                                    .push(w::PersonFact::GoalFrom(w::GoalFrom {
+                                        project: f::PROJECT,
+                                        chat: CHAT,
+                                        goal: GOAL,
+                                        at,
+                                    }))
                                     .unwrap();
                             }
-                            wire::dismissals(
-                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
-                            )
+                            wire::dismissals(&w::Dismissals { dismissed })
                         }
                         w::Watch::Change(_)
                         | w::Watch::Landing(_)
@@ -231,22 +235,16 @@ impl Case {
 fn forges(repository: bool) -> List<w::ForgeRow> {
     let mut rows = connect_forge::first_rows(connect_forge::connected(), connect_forge::made());
     if repository {
-        let mut row = rows.get(0).unwrap().clone().into_parts();
+        let mut row = rows.get(0).unwrap().clone();
         row.repositories = List::with_capacity(1);
         row.repositories
-            .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts {
-                        owner: b"work".as_slice().into(),
-                        name: b"shop".as_slice().into(),
-                        project: f::PROJECT,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::Adoption {
+                owner: b"work".as_slice().into(),
+                name: b"shop".as_slice().into(),
+                project: f::PROJECT,
+            })
             .unwrap();
-        *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, row).unwrap();
+        *rows.get_mut(0).unwrap() = row;
     }
     rows
 }
@@ -370,5 +368,29 @@ fn the_line_stands_by_its_time() {
             let link = find(tree, Role::Link, b"Open").unwrap();
             assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/tasks/42".as_slice()));
         }
+    }
+}
+
+#[test]
+fn the_goal_bar_and_started_fact_cut_their_goal_titles_in_the_terminal() {
+    goal_row_titles(f::words());
+}
+
+#[test]
+fn the_goal_bar_and_started_fact_cut_their_goal_titles_in_the_browser() {
+    goal_row_titles(f::browser_words());
+}
+
+fn goal_row_titles(words: crate::words::Words) {
+    for (title, cut) in f::row_titles() {
+        let root = Case { linked: Some(MIDDLE), ..Case::READY }.root_named(title);
+        let mut view = f::view_of(words.clone());
+        let tree = f::build(&mut view, &root);
+        let link = skein_lib::bytes::concat(&[b"Goal ", cut, " →".as_bytes()]);
+        assert!(find(tree, Role::Link, &link).is_some());
+        assert_eq!(skein_lib::bytes::count(&f::text(tree), cut, 3), 2);
+        let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::TURN_TOOL)).unwrap();
+        let fact = skein_lib::bytes::concat(&[b"Started goal", cut, b"RunningOpen"]);
+        assert_eq!(f::node_text(tree, index), fact);
     }
 }

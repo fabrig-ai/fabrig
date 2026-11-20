@@ -7,9 +7,12 @@
   updates, each entry its card (`../README.md`, section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
   since what is read leaves them (below): "Needs you 2", "Updates 2
-  new", or "0"; "2+" and "2+ new" where the inbox's document says its
-  list was cut (jig's `more`, an owner inbox's next page, a filtered
-  page's `cut`), so that a count never says less than there is; with
+  new", or "0". The needs' count is every open need, each row of every
+  page the needs' read holds (1, **What the client keeps**, *The needs'
+  rows*), "2+" where that read is cut; the updates' "2+ new" where the
+  inbox's document says its list was cut (jig's `more`, an owner inbox's
+  next page, a filtered page's `cut`), so that a count never says less
+  than there is; with
   none, once that section's read has answered, "Nothing needs you." or "No
   updates.", and no count before it. Its first heading's
   row holds "+ New chat", a link to `NewChat` (`/chats/new`, its text area
@@ -28,6 +31,9 @@
   "PROJECT › TN TITLE", for its own task alone, and its wait at the right
   (`../view.md`, 6). A proposal holds no proposing task's title, so its line stops at
   TN; questions, held tasks and person tasks use their documents' titles.
+  Every TITLE a card draws, on this page, on Home and in the inbox, its
+  milestone's and goal's in the from line among them, is cut past 80
+  characters (`README.md`, 2, *A task's title on a line*).
   A batch proposal keeps the mockup's Why, Goal, Landing and Budget rows:
   its reason quoted, its executor and specification, its landing resources
   and grants with priority, and its funding once. Template and charter
@@ -50,7 +56,8 @@
   leaves `new` or stops being theirs.
 - **A group of findings** (`../../draft/home-for-a-person.md`, 5;
   `../../domain/areas.md`, 6, *Its groups*): a question, by `message` or
-  a person task in words, whose whole words name findings in their line
+  a person task in words, asked under a goal, a chat or a standing role
+  alike (the triager's runs ask under theirs), whose whole words name findings in their line
   form (`../../domain/agent/agents.md`, 2, a `Findings:` line) is a
   group's card, on this page and on Home (`home.md`, 1, **Findings,
   drawn**, *A group's card*), where one of them at least is read. It is
@@ -142,13 +149,25 @@
   (`../../draft/surfaces.md`, section 4; the whole story's `needs.html` and
   `phone-need.html`): no filter menus and no "+ New chat". Updates
   leave the browser's page and no page replaces them; `Seen` marking
-  stays as it is. Its unfiltered address, `/`, works across projects,
+  stays as it is. Its unfiltered address, `/needs`, works across projects,
   each card's from line opening with its project's chip. On a wide page
-  it is a list of the open cards (1, *What the client keeps*), in
+  it is a list of the open cards (1, *What the client keeps*), every
+  open need among them, whether its card is read or not, in
   their order, oldest first as the inbox orders them: the shown one, the
   one a Home row asked for, else the first, open as *The card*; each other
-  closed, a `temper-need-row`, its from line and its SHORT (below), the
+  closed, a `temper-need-row`, its from line and its SHORT (below), a
+  held card's why it's held in its SHORT's place and a person task's
+  none, since their SHORT is the title the from line names (*Its title
+  once*, below), the
   whole a button that opens it (`needs::Act::Open`), closing the one open.
+  A need whose card is not read (1, *What the client keeps*, *The needs'
+  rows*) is a closed row drawn from its row alone: its from line, the
+  project's chip on the unfiltered address, its task's TITLE from the
+  row's task link, "TN" where the link holds no title, its kind and its
+  age; no SHORT. Opening it reads its card, and it opens as *The card*
+  once that read answers, closed until then. In the terminal's inbox
+  such a need is its row alone, its kind's tag, "PROJECT › TN TITLE" and
+  its wait, with "Open TN ↗".
   On a phone it is one card at a time, the shown one, as below. Until the
   inbox has answered, the column is empty, so that "Nothing needs you."
   never flashes, and what it said stands through each refresh after that.
@@ -157,15 +176,17 @@
   - *Its intro,* `temper-needs-intro`, while a card is open: the kicker
     "Needs you · all projects" unfiltered, "Needs you · PROJECT" filtered
     by a project; the level-1 heading, Home's needs sentence over the open
-    cards, then with a Decided for you row showing " Four were decided for
+    needs (1, *What the client keeps*, *The open cards*' count), then with a Decided for you row showing " Four were decided for
     you." or " One was decided for you.", in number words to "Nine",
     digits after. What reaches the person, the lede `needs.html` draws, is
     `../../draft/what-reaches-you.md`, section 2's, and joins the intro with
     its classes.
   - *Its head,* on a wide page: the level-2 heading "Needs you · N", N in
-    the signal colour, "N+" where the read is cut, and at its right "oldest
+    the signal colour, the headline's number (`home.md`, 1, *the
+    headline*: every open need, or the findings' `Counted::total` where
+    the sentence counts findings), "N+" where the read is cut, and at its right "oldest
     first", muted. Its place, "2 of 3": the total is what is answered of
-    this session's page plus the open; where the read is cut, "2 of 3+",
+    this session's page plus the open needs; where the read is cut, "2 of 3+",
     drawn in the phone's bar (*On a phone,* below).
   - *On a phone* (the whole story's `phone-need.html`;
     `../../draft/surfaces.md`, section 10), the browser's alone, at 760 px and
@@ -202,7 +223,8 @@
       inbox name them the same, the terminal's "PROJECT › Store shape › TN
       TITLE";
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 19px on a
-      phone;
+      phone; none on a person task's card whose from line names its
+      title (*Its title once*, below);
     - `.ctx`, `--gf-ink-2`, if it has a context;
     - a disclosure "What the agent saw", if the agent said: its summary
       width fit-content, 14px muted, its paragraph margin-top 6; closed
@@ -233,10 +255,20 @@
     *Tell it something else* alone. A proposal's question line is its reason's first
     sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
-    the terminal's card), through the confirmation they have (`../README.md`, 3.6). A
-    held task: its title and its words, its facts as the terminal's card
-    has them, then Release (primary) and Leave held (plain, its reason's
-    textarea as Reject's). A task held because a task it waits on failed or
+    the terminal's card), through the confirmation they have (`../README.md`, 3.6).
+    A party's amendment is drawn as a task's: "Amend task N", its
+    specification, and its authority before and after. Its maker's card,
+    on this page and in a chat, adds Withdraw (plain), offered to the
+    maker alone, as the document's acts offer it, and through its
+    confirmation, "Withdraw this proposal?", which sends `Withdraw` from
+    the card's key and project with no read of its own; a card whose
+    read was refused offers it too, when its key names the signed-in
+    party. Answered, the card leaves the rows with the entry. A
+    held task: why it's held as its question (*Why it's held*, below),
+    then its words, then Release (primary) and Leave held (plain, its
+    reason's textarea as Reject's). Its title is its from line's, and
+    its words are those past their first line (*Its title once*,
+    below). A task held because a task it waits on failed or
     was cancelled (jig's `HoldReason::Dependency { task, how }`) says which
     and what releasing needs as its question (`../../draft/milestones.md`,
     5.3): "S6 is held: S5, which it waits on, failed. Drop or replace that
@@ -244,12 +276,14 @@
     "ended" where the card holds no ending; each named by its id or title
     as a wait names it (`work.md`, 1, *A wait's names*), "task N" where its
     title is not held. A funds card: "S of L used." as the
-    question, in the task page's money form, plain numbers, its title as
-    owner, then Release and Leave held; there is no "Add $10". Its hold's
+    question, in the task page's money form, plain numbers, then its
+    words, its hold's words, and Release and Leave held; there is no
+    "Add $10". Its hold's
     words say what a person can do: accept a proposal for more budget, if one
     waits, then release it; otherwise close it and start the work again once
     their pool has room, which closing an open chat makes. A person task: its
-    title, its spec, its acts as plain buttons. *A person task in words,*
+    spec, its acts as plain buttons, its title its from line's (*Its
+    title once*, below). *A person task in words,*
     one addressed to a person with a report as its contract, as a goal
     asks the person who started it (`../../domain/agent/agents.md`, 2), reads as a
     question: its spec's words by the same line form, its kind "a
@@ -262,6 +296,54 @@
     a person task. On the terminal's inbox, Answer sends its words with
     the shown person revision. A role's task or a contract other than a
     report keeps the ordinary person-task card.
+  - *Its title once* (`../../draft/home-for-a-person.md`, 2, *Kept for
+    the thing's own page*): a card's body never repeats the title its
+    from line names. Where the from line of a held, funds or person task
+    card names its own task by its title (TITLE, or the goal's link
+    where the card's task is that goal: *The card*, *Its milestone*),
+    its body draws no title: no heading of it, no line of it as owner,
+    and of its words only those past their first line, the title's,
+    none where nothing but spaces, tabs, carriage returns and line
+    feeds follows it; a cut read keeps its cut notice. Where the from
+    line names another task in its place (a person task in words',
+    "Task N", its requester), the body keeps its title. One function of
+    the shared parts gives those words, beside `only_title`
+    (`README.md`, 2, *A task's words after its title*). Home's cards keep
+    the rule (`home.md`, 1, *The cards*), and so does a closed row
+    (above). *In the terminal's inbox* a card has no from line: its tag
+    line names "PROJECT › TN TITLE", and its body keeps the title as its
+    heading, over its words whole, left out where they are only the
+    title (`README.md`, 2, *A task's words after its title*).
+  - *Why it's held:* a held card's question is why it's held, in one
+    sentence for a person, on this page, on Home and in the terminal's
+    inbox, by one function of the shared parts,
+    `shared::hold_sentence`, from its task's hold (jig's `ChipHold`):
+    - a dependency's: its question, as above;
+    - a hold with words (`ChipHold::words`, the account its engine or
+      connector kept), not empty: their first clause, up to the first
+      "; " or line feed, its first letter upper-cased where it is an
+      ASCII lower-case letter, then "." unless it ends in ".", "!", "?"
+      or "…"; words cut before either end in "…" instead. "forge could
+      not release this task's resources; resolve this reason, then task
+      release 6978 --hold 1; or task cancel 6978 REASON" says "Forge
+      could not release this task's resources."; an empty first clause
+      says as a hold with none;
+    - otherwise its reason's phrase, the words `cards::hold_phrase`
+      gives its `HoldCategory` and its number, made a sentence the same
+      way: "An effect failed permanently.", "The executor stopped
+      progressing.";
+    - with no hold in its document, "This task is held."
+
+    A funds card's question stays "S of L used.", with its Budget
+    phrase under it, the words that say what a person can do (*By its
+    kind*). Past that, neither card draws its hold: the account whole,
+    a reason's phrase beside it, "Hold revision N", the acts the
+    account names (`task release`, `task cancel`) and its
+    specification's parameters ("Parameter 1: 2") are its task's
+    page's, whose own held card draws the hold (`task.md`, 2, *Its
+    parts, in order*; 3, *Its hold*). In the terminal's inbox the
+    question comes after the title, before the words; Release and Leave
+    held follow, as on the card here.
   - *An approval,* a change waiting on a review on the forge: a row of the
     subject `approvals` (`../forge/records.md`), its kind "an approval", its question, context,
     size, review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
@@ -296,8 +378,13 @@
   - *SHORT,* what a closed row or a Home line says of a card: a
     question's line, or a person task in words', from the document's bounded
     words; a proposal's reason's first
-    sentence; a held task's or another person task's title, a funds card's
-    "S of L used"; an approval's question.
+    sentence; a held task's or another person task's title, cut past 80
+    characters as TITLE is, a funds card's "S of L used"; an approval's
+    question. A held or person task's SHORT names its task where no from
+    line does, as Home's *More* line and a goal's needs bands say it;
+    under a from line, a closed row and Home's card say a held card's
+    why it's held instead, and a person task's nothing (*Its title
+    once*).
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
   - *Only you,* after them, and in the done state after "Home", while an
@@ -639,8 +726,42 @@
   stored record, and at most 64 each of the cards marked later, the answered
   lines, the refused answers and the proposals of settings, the oldest going
   first, a line still held never:
+  - *The needs' rows,* `Inbox::rows`, beside its cards: every row of the
+    needs' groups its address selects, read a page at a time through to
+    the last (jig's `domain/people/README.md`, section 5, *Bounded*), at
+    most 64, in the inbox's order, oldest first. A filtered address reads
+    its needs' pages with `Read::Inbox`, each answer's `after` read on at
+    once until none; the unfiltered address takes the watched document's
+    window and, where its needs run past it (its `next` set and no update
+    in the window), reads the needs as a filtered address does, from the
+    first page. Each refresh reads them again; the rows read before, and
+    whether they were cut, stand until the new read's last page has
+    answered with its value, so no count falls back or gains a "+" while
+    it reads (`README.md`'s opening: a page redraws from whole answers
+    alone). The read is *cut* where its list is: where it stops at 64 rows
+    with a page still after them, or where a page it answered says `cut`
+    (jig's `InboxPage::cut`); `Inbox::cut`'s needs' half says so, and
+    nothing else sets it. A page that answers without its value (busy,
+    unreachable, refused, past the client's reads, its watch ended) is no
+    answer: the read stops there, and the rows, their cards and their cut
+    stand as the last whole read left them. Before any read has answered
+    whole the needs are not known, and nothing a read has answered so far
+    is counted: Home's headline says the project's name (`home.md`, 1),
+    and no "N+" stands for a read that stopped. A read that ends
+    transiently, busy, unreachable or past the client's reads, is asked
+    again from its first page while the page is open, waiting one second,
+    doubling to at most thirty, as a conversation's activity reads are
+    (`README.md`'s opening; `pages::activity::Asking`), the wait back to
+    one second once a read answers whole; a refused or ended one waits for
+    the next refresh. The rows are what is counted; cards are read for
+    the first of them in the inbox's order, as many as the needs' share
+    of `card_capacity` (half, the updates' window holding the rest), and,
+    on *Needs you*, for the open one (1, **Needs you**), which takes the
+    place of the last of them. A row whose card is not read has no
+    severity and concerns no findings (`home.md`, 1, **Findings, drawn**,
+    *Counted*).
   - *Later,* the cards marked later. *The open cards* are the needs'
-    groups as `Inbox` reads them, less those answered, with the approvals
+    rows, each with its card where it is read, less those answered, with the approvals
     (1, *An approval*) and the findings the person holds (1, *A finding
     that is the person's*), in one order, `findings::Session::all`'s, which
     Home, Home on All projects and this page share
@@ -654,6 +775,16 @@
     findings, ranked by its highest and placed by when it was asked. So a medium finding filed an hour ago comes after a
     question asked a minute ago, and before a low finding filed a day
     ago. The head's "oldest first" stays: within a severity, it holds.
+    Their count, which Home's headline and head, Home on All projects'
+    headline, this page's intro and head and the terminal's "Needs you N"
+    say, is every open card: each open need once, its card read or not,
+    as `me` counts its needs, with the approvals and the findings the
+    person holds; "N+" only where the needs' rows, `approvals` or the
+    findings' read is cut, never because fewer cards are read than rows,
+    nor because a read ended without its value. Every place that says it
+    (Home's headline and head, this page's intro and head, the rail's count
+    on the page, below) takes it from the one `findings::Session::counted`,
+    so two of them never say two counts of the same needs.
   - *Answered,* a bounded list: each card's object, project, title,
     label and when. The label is the choice's words, or `Replied: “…”`,
     its words cut at 57 characters plus "…" past 60. A line shows on
@@ -695,9 +826,15 @@
     project, less those answered, a row counting in each project it shows in
     (jig's `client/domain/contract/documents.md`, 1: `shows_in`), so that a proposal of
     settings counts in the projects it belongs to, and for one of the
-    deployment's in each the person owns; "N+" where its document is cut, and no
-    count before it is delivered. A card marked later still counts. The open
-    project's rows of `approvals` add to it, "N+" where that document is cut too.
+    deployment's in each the person owns; "N+" where its needs run past its
+    window, its `next` set and no update in the window, as the unfiltered
+    address reads it (*The needs' rows*), never because updates run past
+    it; and no count before it is delivered. A card marked later still
+    counts. The open project's rows of `approvals` add to it, "N+" where
+    that document is cut too. On a page whose inbox is filtered by the open
+    project alone and known (Home, a project's *Needs you*), the rail says
+    that page's count, `findings::Session::counted`'s, the number and "+"
+    the page's head says, so the rail and the page never disagree.
     On a page across projects (`../view.md`, 3, *All projects*) it counts
     what *Needs you* across them shows: each of the needs' rows once,
     whatever projects it shows in, less those answered, and every row of
@@ -820,7 +957,13 @@
   answer.
 - **Across projects, in one project** (1, *Its intro* and an item's
   "PROJECT ›"; the look request `one-project`, which settles the switcher
-  alone, `../view.md`, 3, *All projects*): on `/` with one project, the
+  alone, `../view.md`, 3, *All projects*): on `/needs` with one project, the
   kicker reads "Needs you · all projects" and each item "PROJECT ›",
   though the switcher names the project. A look question for the user.
   Default: as they are.
+- **A maker's own pending proposals, listed** (1, *By its kind*; the
+  draft `../../draft/proposal-reach.md`, 2): a party's proposal waits in
+  the inbox of those who may decide it, so a maker who decides none of
+  its own finds no card for it, and its Withdraw is reached from ctl's
+  `proposal withdraw` alone. Default: no listing of a party's own
+  proposals; the card's Withdraw is where the card is drawn.

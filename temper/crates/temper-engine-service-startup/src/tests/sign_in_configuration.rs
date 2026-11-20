@@ -10,12 +10,6 @@ use jig_protocol_config as config;
 const SIGN_IN: &str = r#"{"google":{"provider":3,"client":"temper-test","secret":"google.secret","endpoints":{"issuer":"http://127.0.0.1:31999","authorization":"http://127.0.0.1:31999/auth","token":"http://127.0.0.1:31999/token","keys":"http://127.0.0.1:31999/keys","transport":"plaintext"}},"members":[{"address":"Sam@example.com","login":"sam"}]}"#;
 fn jig() -> config::Engine {
     let mut jig = fixtures::engine().jig;
-    let mut providers = skein_lib::List::with_capacity(3);
-    for provider in jig.providers {
-        providers.push(provider).unwrap();
-    }
-    providers.push(config::IdentityProvider { number: 3, kind: config::ProviderKind::Application }).unwrap();
-    jig.providers = providers.into_boxed();
     jig.owners[0].identity =
         jig_domain_people::IdentityKey { provider: 3, subject: b"Sam@example.com".as_slice().into() };
     jig
@@ -90,11 +84,13 @@ fn owners_must_be_members_and_at_least_one_google_owner_is_required() {
 }
 #[test]
 fn sign_in_is_required_and_each_zero_limit_is_refused() {
-    let missing = input("null").replace("\"sign_in\":null,", "");
+    let mut missing: serde_json::Value = serde_json::from_str(&input("null")).unwrap();
+    missing.as_object_mut().unwrap().remove("sign_in");
+    let missing = serde_json::to_string(&missing).unwrap();
     let (_, problems) = parse(&missing, &jig());
     assert!(core::str::from_utf8(&startup::lines(&problems)).unwrap().contains("application.sign_in: missing"));
     for name in ["members", "pending", "deadline_ms", "fetches", "body_bytes", "url_bytes", "secret_bytes"] {
-        let mut limits = crate::limits::profile(crate::limits::Profile::Small);
+        let mut limits = temper_limits_fixtures::small();
         crate::limits::apply(&mut limits, format!("sign_in.{name}").as_bytes(), 0).unwrap();
         let mut problems = Problems::empty();
         startup::checks::limits(&limits, &limits.git_component, &mut problems);
@@ -200,10 +196,10 @@ fn forge_sign_in_requires_a_provider() {
 }
 #[test]
 fn an_old_document_names_the_missing_members_and_their_fix() {
-    let input = core::str::from_utf8(fixtures::APPLICATION)
-        .unwrap()
-        .replace("\"sign_in\":null,", "")
-        .replace(",\"public\":null", "");
+    let mut input: serde_json::Value = serde_json::from_slice(fixtures::APPLICATION).unwrap();
+    input.as_object_mut().unwrap().remove("sign_in");
+    input["clients"].as_object_mut().unwrap().remove("public");
+    let input = serde_json::to_string(&input).unwrap();
     let (members, problems) = parse(&input, &jig());
     assert!(members.is_none());
     let lines = String::from_utf8(startup::lines(&problems).into()).unwrap();

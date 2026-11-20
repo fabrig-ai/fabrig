@@ -17,12 +17,11 @@ use skein_shell::Host as _;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Take, Write},
-    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 use temper_fake::check::{self, Reason};
 
-const COMMAND: &str = "temper fake forge check";
+const COMMAND: &str = "temper-box fake forge check";
 
 /// The check's exit status and its two streams (protocol/setup/playground.md).
 #[derive(Debug, PartialEq, Eq)]
@@ -77,20 +76,16 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
     Outcome { status: output.status, stdout: output.stdout, stderr: stderr.into_boxed_slice() }
 }
 fn configuration(directories: &Directories) -> Result<temper_service::startup::StoreLimits, String> {
-    let document = directories.document();
-    let bytes = skein_shell::read_file(&document, crate::CONFIG_BYTES)
-        .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))?;
-    let jig = jig_directories(directories);
-    let crate::setup::Deployment { named, .. } = crate::setup::check(&bytes, &jig)?;
-    let agent = named
-        .worker
-        .as_ref()
-        .map(|worker| temper_worker_shell::agent::read(Path::new(std::ffi::OsStr::from_bytes(&worker.agent))))
-        .transpose()?;
-    let declaration = agent.as_ref().map(temper_service::settings::Agent::declaration);
-    let limits = temper_service::startup::store_limits(&bytes, &jig, declaration.as_ref())
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-    Ok(limits)
+    let read = temper_service_shell::configuration::read_only(directories, temper_config_shell::Shape::Standalone)?;
+    let programs = read.programs()?;
+    read.prepare(|bytes| {
+        let jig = jig_directories(directories);
+        let agent = crate::serve::configured_agent(bytes, directories, &[], &programs)?;
+        let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
+        let limits = temper_service::startup::store_limits(bytes, &jig, declaration.as_ref())
+            .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
+        Ok(limits)
+    })
 }
 fn undecided(reason: Reason, mut stderr: Vec<u8>, why: Option<&str>) -> Outcome {
     if let Some(why) = why {

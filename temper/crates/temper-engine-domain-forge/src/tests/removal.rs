@@ -161,6 +161,7 @@ fn remove_ends_the_forge_in_one_decision_and_answers_removed() {
             1,
             First {
                 playground: false,
+                sample: false,
                 org: b"org".as_slice().into(),
                 repository: b"repo".as_slice().into(),
                 state: FirstState::Made { id: 2 },
@@ -373,6 +374,7 @@ fn removal_retires_waiting_reads_and_keeps_watches_from_returning() {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 7,

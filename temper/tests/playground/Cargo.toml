@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+temper-client-walk-world.workspace = true
 temper-playground.workspace = true
 skein-sim-world.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }
@@ -19,8 +20,6 @@ skein-lib.workspace = true
 skein-io.workspace = true
 temper-client-shell-web.workspace = true
 temper-client-domain.workspace = true
-temper-client-view.workspace = true
-jig-client-shell-web.workspace = true
 skein-ui.workspace = true
 skein-ui-web.workspace = true
 skein-playground.workspace = true
@@ -28,12 +27,15 @@ skein-fake-person.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+skein-ui-screen-terminal.workspace = true
+jig-protocol-config-fixtures.workspace = true
 skein-scratch.workspace = true
 temper-test-env.workspace = true
 jig-protocol-config.workspace = true
 skein-heap.workspace = true
 temper-service.workspace = true
 skein-fake-forge-domain.workspace = true
+temper-forge-setup.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

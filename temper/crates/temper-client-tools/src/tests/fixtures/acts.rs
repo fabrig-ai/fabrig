@@ -94,6 +94,8 @@ const RESTORED: u32 = 1;
 /// Common explicit name for optional-key acts, independent of each process.
 pub(crate) const DECIDE_TASK_CALL: &[&str] = &["proposal", "decide", "t41/17", "accept", "--key", "act-name"];
 pub(crate) const DECIDE_PARTY_CALL: &[&str] = &["proposal", "decide", "p73/17", "accept", "--key", "act-name"];
+/// Withdrawal needs its printed project, not a proposal read.
+pub(crate) const WITHDRAW_CALL: &[&str] = &["proposal", "withdraw", "p73/17", "--project", "1", "--key", "withdraw"];
 pub(crate) const DECIDE_ESCALATION_CALL: &[&str] =
     &["task", "decide", "41", "release", "--hold", "2", "--key", "act-name"];
 /// A move needs a sibling delegate left to cancel; one would miss that distinction.
@@ -234,8 +236,8 @@ pub(crate) fn act_text(bytes: &[u8]) -> c::Text {
 }
 pub(crate) fn encoded(ask: &client::Ask) -> Box<[u8]> {
     let client::Ask::Jig(ask) = ask else { panic!("jig ask") };
-    let wire = jig_client_protocol_link::translate::asks::ask(ask, &jig_client_protocol_wire::v26::CEILINGS)
-        .expect("wire ask");
+    let wire =
+        jig_client_protocol_link::translate::asks::ask(ask, &jig_client_protocol_wire::CEILINGS).expect("wire ask");
     let mut out = skein_lib::Writer::new(usize::try_from(wire.measure()).expect("wire bytes fit"));
     wire.encode(&mut out).expect("measured ask");
     out.finish()

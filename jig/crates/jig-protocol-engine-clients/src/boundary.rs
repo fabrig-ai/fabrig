@@ -56,6 +56,11 @@ pub enum Event {
         exchange: Token,
         identity: people::Identity,
     },
+    /// The application's runtime registration request (protocol/client/openid.md).
+    ProviderClient {
+        reply: ReplyTo,
+        change: ProviderClientChange,
+    },
     Redeem {
         exchange: Token,
         authorization: Option<Secret>,
@@ -124,6 +129,10 @@ pub enum Request {
 }
 #[derive(Debug)]
 pub enum ToApplication {
+    ProviderClientChanged {
+        reply: ReplyTo,
+        result: Result<(), ProviderClientRefusal>,
+    },
     Request {
         reply_to: ReplyTo,
         sign_in: u64,
@@ -155,6 +164,18 @@ pub enum ToApplication {
         window: jig_domain_core_vocabulary::documents::Window,
         record: Box<[u8]>,
     },
+}
+/// A registration's secret bytes have already been read privately by the application.
+#[derive(Debug)]
+pub enum ProviderClientChange {
+    Add(skein_oauth_issuer::Client),
+    Remove { id: Box<[u8]> },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProviderClientRefusal {
+    NoProvider,
+    NotReady,
+    Client(skein_oauth_issuer::ClientError),
 }
 #[derive(Debug)]
 pub enum FromApplication {
@@ -288,6 +309,13 @@ pub struct Served {
     pub last: u32,
 }
 
+/// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Via {
+    Public,
+    Listener,
+}
+
 /// Messages from an opaque transport (protocol/client/wire.md, 2.2).
 #[derive(Debug, PartialEq)]
 pub enum FromTransport {
@@ -296,11 +324,15 @@ pub enum FromTransport {
         credential: Option<Secret>,
         /// Whether the transport carried the credential itself, as a browser's cookie (protocol/client/default-http.md, 3).
         browser: bool,
+        via: Via,
+        source: Option<::core::net::IpAddr>,
         message: Message,
     },
     StreamOpen {
         stream: Token,
         credential: Option<Secret>,
+        replaces: Option<[u8; 16]>,
+        version: Option<u32>,
     },
     StreamTaken {
         stream: Token,
@@ -319,6 +351,7 @@ pub enum FromTransport {
 }
 #[derive(Debug, PartialEq)]
 pub enum Message {
+    LinkAsk(Box<[u8]>),
     ApprovalAsk(Box<[u8]>),
     ApprovalRead(Box<[u8]>),
     ApprovalDecide(Box<[u8]>),
@@ -326,6 +359,7 @@ pub enum Message {
     Authorize(Box<[u8]>),
     Request(Box<[u8]>),
     Read(Box<[u8]>),
+    Batch(Box<[u8]>),
     Watch(Box<[u8]>),
     Unwatch(Box<[u8]>),
     Gone(Box<[u8]>),
@@ -336,6 +370,8 @@ pub enum Message {
 #[derive(Debug)]
 pub enum ToTransport {
     Reply { exchange: Token, reply: Reply },
+    Part { exchange: Token, message: Box<[u8]> },
+    Done { exchange: Token },
     Streamed { stream: Token, message: Streamed },
     StreamEnded { stream: Token, why: Ended },
     Public { exchange: Token, reply: PublicReply },
@@ -400,5 +436,5 @@ impl ::core::fmt::Debug for Reply {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamFailure {
     QueueBound { queued_bytes: u32 },
-    Translation(jig_client_protocol_wire::v26::Problem),
+    Translation(jig_client_protocol_wire::Problem),
 }

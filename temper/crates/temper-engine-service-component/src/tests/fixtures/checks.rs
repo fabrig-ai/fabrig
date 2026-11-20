@@ -7,7 +7,8 @@ use super::*;
     reason = "the complete parsed configuration is compared without adding equality to product types"
 )]
 fn engine_copies_match_the_parsed_fixture_and_are_independent() {
-    let expected = parse_engine(ENGINE);
+    assert!(parse_engine(ENGINE).projects.is_empty());
+    let expected = engine().jig;
     let mut first = engine();
     assert_eq!(format!("{:?}", first.jig), format!("{expected:?}"), "cached engine matches the parsed fixture");
     first.jig.projects[0].name = "changed".into();

@@ -1,10 +1,10 @@
 //! Retained isolated startup for `temper-box --fake-backends` (protocol/configuration/directories.md, 1).
+//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::directories::jig_directories;
 mod import;
-pub(crate) mod json;
 use crate::directories::{Directories, make_private, private_root};
 use import::Source;
-use json::Json;
 use skein_io::kernel::{Exit, Fd};
 use std::{
     ffi::OsStr,
@@ -22,7 +22,10 @@ use std::{
 use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
-const REQUIRED: &[&str] = &["temper.json", "agent.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
+use temper_config_shell::{FILE, Shape};
+
+const ADAPTER: &str = "fake-claude.path";
+const REQUIRED: &[&str] = &[FILE, "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
 
 /// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
 pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
@@ -74,6 +77,7 @@ pub(crate) struct Options {
     pub bundle: Option<PathBuf>,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
+    pub fixed_start: Option<Box<[u8]>>,
 }
 pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<Options, String> {
     let mut fake = false;
@@ -83,6 +87,11 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
         match word.as_bytes() {
             b"--fake-backends" if !fake => fake = true,
             b"--strict" if !options.strict => options.strict = true,
+            b"--fixed-start" if options.fixed_start.is_none() => {
+                let value = words.next().ok_or("--fixed-start: missing SECONDS,SEED")?;
+                crate::fixed_start(value.as_bytes())?;
+                options.fixed_start = Some(value.as_bytes().into());
+            }
             flag @ (b"--bundle" | b"--scripts") if flag == b"--scripts" || options.bundle.is_none() => {
                 let flag = String::from_utf8_lossy(flag);
                 let value = words.next().ok_or_else(|| format!("{flag}: missing path"))?;
@@ -103,14 +112,14 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
             }
             _ => {
                 return Err(
-                    "invalid box arguments: expected --fake-backends [--bundle BUNDLE] [--scripts FILE]... [--strict]"
+                    "invalid box arguments: expected --fake-backends [--bundle BUNDLE] [--scripts FILE]... [--strict] [--fixed-start SECONDS,SEED]"
                         .into(),
                 );
             }
         }
     }
     if !fake {
-        return Err("--bundle, --scripts and --strict require --fake-backends".into());
+        return Err("--bundle, --scripts, --strict and --fixed-start require --fake-backends".into());
     }
     Ok(options)
 }
@@ -139,6 +148,7 @@ pub(crate) fn run(
         echo,
         front,
         record,
+        options.fixed_start.as_deref(),
         opening,
         environment,
     );
@@ -158,12 +168,26 @@ fn scripts_for_start(
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
             Err(why) => return Err(format!("{}: {why}", path.display())),
         }
-        return Ok(backends::steps(&dirs.config, &dirs.data, peers, None, options.strict));
+        return Ok(backends::steps(
+            &dirs.config,
+            &dirs.data,
+            peers,
+            None,
+            options.strict,
+            options.fixed_start.as_deref(),
+        ));
     }
     let document = peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?;
     let joined = join_scripts(&options.scripts, &document)?;
     write(&path, &joined, path.exists())?;
-    Ok(backends::steps(&dirs.config, &dirs.data, peers, Some(&bytes(&path)), options.strict))
+    Ok(backends::steps(
+        &dirs.config,
+        &dirs.data,
+        peers,
+        Some(&bytes(&path)),
+        options.strict,
+        options.fixed_start.as_deref(),
+    ))
 }
 fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String> {
     let mut joined = temper_fake::llm::ScriptJoin::empty();
@@ -186,6 +210,7 @@ fn bytes(path: &Path) -> Box<[u8]> {
 }
 fn public_path(path: &Path) -> Result<(), String> {
     // Public imports must not turn a link into an accidental source-secret copy.
+    let path = skein_shell::resolve_system_links(path);
     let mut prefix = PathBuf::new();
     for component in path.components() {
         prefix.push(component.as_os_str());
@@ -194,11 +219,17 @@ fn public_path(path: &Path) -> Result<(), String> {
             return Err(format!("{}: public documents must not be reached through links", prefix.display()));
         }
     }
-    let metadata = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
+    let metadata = fs::symlink_metadata(&path).map_err(|why| format!("{}: {why}", path.display()))?;
     if !metadata.is_file() || metadata.nlink() != 1 {
         return Err(format!("{}: expected a regular public document with one link", path.display()));
     }
     Ok(())
+}
+/// Check an in-memory candidate before it replaces the retained file.
+fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
+    let facts = temper_config_shell::facts(dirs).map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())?;
+    temper_config_shell::parse(text, Shape::Standalone, &facts)
+        .map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())
 }
 fn public(path: &Path) -> Result<Box<[u8]>, String> {
     public_path(path)?;
@@ -259,23 +290,24 @@ fn replace_bundle(
     content: Box<[u8]>,
     bundle: Option<&Path>,
     adapter: &Path,
+    deployment: &crate::setup::Deployment,
 ) -> Result<Box<[u8]>, String> {
     let mut updated = content.clone();
     if let Some(bundle) = bundle {
-        let mut document = Json::decode(&content)?;
-        let selection = Json::String(bytes(bundle));
-        if document.at("application/clients/bundle")? != &selection {
-            document.set("application/clients/bundle", selection)?;
-            updated = document.encode()?;
+        let mut file = configuration(dirs, &content)?.file;
+        if file.internal.bundle.as_deref() != Some(bundle) {
+            file.internal.bundle = Some(bundle.to_path_buf());
+            updated = temper_config_shell::render(&file, Shape::Standalone);
         }
     }
     // Check the entire candidate, including its bundle, before touching retained bytes.
-    validate(dirs, &updated, adapter)?;
     if updated == content {
+        validate_checked(dirs, deployment, adapter)?;
         return Ok(content);
     }
-    let path = dirs.document();
-    let staging = crate::path(&dirs.config).join("temper.json.bundle-staging");
+    validate(dirs, &updated, adapter)?;
+    let path = crate::path(&dirs.config).join(FILE);
+    let staging = crate::path(&dirs.config).join(format!("{FILE}.bundle-staging"));
     let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(&staging).map_err(|why| {
         format!(
             "{}: {why}; an existing staging file must be removed explicitly before another bundle replacement",
@@ -387,7 +419,11 @@ fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>
 /// The ports no peer may take: the callback's and the ordinary box's listeners and readiness
 /// (temper/docs/design/protocol/setup/box.md, 5).
 fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> {
-    let (ordinary, _) = crate::box_command::configuration_steps(dirs, bytes, Box::new([]))?;
+    let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
+    ordinary_ports_checked(dirs, &deployment)
+}
+fn ordinary_ports_checked(dirs: &Directories, deployment: &crate::setup::Deployment) -> Result<Vec<u16>, String> {
+    let (ordinary, _) = crate::box_command::configuration_steps_checked(dirs, deployment, Box::new([]), false, None)?;
     let mut ports = vec![1455];
     for step in
         ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
@@ -401,8 +437,8 @@ fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> 
     }
     Ok(ports)
 }
-fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
-    let mut ports = ordinary_ports(dirs, bytes)?;
+fn checked_peers(dirs: &Directories, deployment: &crate::setup::Deployment) -> Result<Peers, String> {
+    let mut ports = ordinary_ports_checked(dirs, deployment)?;
     let refuse = |name: &str, why: temper_fake::Refusal| {
         format!("{}: {}", crate::path(&dirs.config).join(name).display(), String::from_utf8_lossy(&why.line()))
     };
@@ -457,8 +493,13 @@ fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_f
     }
     Ok(document)
 }
-fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
-    let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
+fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
+    let document = configuration(dirs, bytes)?.document;
+    let deployment = crate::setup::check(&document, &jig_directories(dirs))?;
+    validate_checked(dirs, &deployment, expected)?;
+    Ok(deployment)
+}
+fn validate_checked(dirs: &Directories, deployment: &crate::setup::Deployment, expected: &Path) -> Result<(), String> {
     let named = &deployment.named;
     for file in named.files.iter().chain(&named.asked_files) {
         if !(contained(&dirs.config, &file.path) && !file.private || contained(&dirs.data, &file.path)) {
@@ -469,47 +510,19 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
         }
     }
     if !contained(&dirs.data, &named.deployment)
-        || named.worker.as_ref().is_none_or(|worker| {
-            !contained(&dirs.data, &worker.root)
-                || worker.agent.as_ref() != crate::path(&dirs.config).join("agent.json").as_os_str().as_bytes()
-        })
+        || named.worker.as_ref().is_none_or(|worker| !contained(&dirs.data, &worker.root))
     {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
     }
-    let tree = Json::decode(bytes)?;
-    let configuration = tree.string("workers/0/agent/configuration")?;
-    let argv = tree.at("workers/0/agent/arguments")?;
-    let wanted = Json::Array(vec![
-        Json::String(b"internal".as_slice().into()),
-        Json::String(b"agent".as_slice().into()),
-        Json::String(configuration.into()),
-    ]);
-    argv.same(&wanted, "workers/0/agent/arguments")?;
-    let agent_document = public(&crate::path(&dirs.config).join("agent.json"))?;
-    let agent_tree = Json::decode(&agent_document)?;
-    let adapter = agent_tree.string("programs/claude_code/path")
-        .map_err(|_| "agent.json/programs/claude_code/path: unsupported adapter; remove this sandbox directory explicitly to reset it".to_string())?;
-    adapter_identity(adapter, expected)?;
+    let adapter = peer_document(dirs, ADAPTER, 4096)?;
+    adapter_identity(&adapter, expected)?;
     provisioned_program(expected)?;
-    if tree.string("workers/0/agent/program")?
-        != std::env::current_exe().map_err(|why| why.to_string())?.as_os_str().as_bytes()
-    {
-        return Err("workers/0/agent/program: expected this temper binary".into());
-    }
     for file in &named.files {
         if !file.private {
             let asset = public(crate::path(&file.path))?;
             if asset.len() > usize::try_from(file.max).expect("file bound fits") {
                 return Err(format!("{}: public asset past its byte bound", crate::file_path(file.at.clone())));
             }
-        }
-    }
-    let agent = temper_worker_shell::agent::preflight_worker(
-        named.worker.as_ref().ok_or("workers: standalone takes one worker")?,
-    )?;
-    for program in agent.programs {
-        if !contained(&dirs.data, &program.directory) {
-            return Err("agent.programs.directory: must stay under effective data".into());
         }
     }
     match &named.bundle {
@@ -587,9 +600,31 @@ fn sibling(binary: &Path) -> Result<PathBuf, String> {
 }
 fn adapter_identity(given: &[u8], expected: &Path) -> Result<(), String> {
     if given != expected.as_os_str().as_bytes() {
-        return Err("agent.json/programs/claude_code/path: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
+        return Err("fake-claude.path: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
     }
     Ok(())
+}
+/// The sandbox pins its fake adapter outside the deployment's fixed worker members.
+pub(crate) fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, String> {
+    let record = crate::path(&dirs.config).join(ADAPTER);
+    match fs::symlink_metadata(&record) {
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {
+            let marker = record.parent().and_then(Path::parent).map(|root| root.join("prepared"));
+            if marker.is_some_and(|marker| marker.exists()) {
+                return Err(format!(
+                    "{ADAPTER}: missing pinned adapter; remove this sandbox directory explicitly to reset it"
+                ));
+            }
+            return Ok(None);
+        }
+        Err(why) => return Err(format!("{}: {why}", record.display())),
+        Ok(_) => {}
+    }
+    let expected = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
+    let adapter = peer_document(dirs, ADAPTER, 4096)?;
+    adapter_identity(&adapter, &expected)?;
+    provisioned_program(&expected)?;
+    Ok(Some(expected))
 }
 fn provisioned_program(path: &Path) -> Result<(), String> {
     let executable = fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.mode() & 0o111 != 0);
@@ -662,13 +697,20 @@ fn prepare(
             }
             public_path(&path).and_then(|()| private_document(&path)).map_err(|why| reset(&root, &why))?;
         }
-        let content = public(&effective.document())?;
-        let peers = checked_peers(&effective, &content)?;
+        let document =
+            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
+        let content = public(&crate::path(&effective.config).join(FILE))?;
+        let deployment = crate::setup::check(&document, &jig_directories(&effective))?;
+        let peers = checked_peers(&effective, &deployment)?;
         let steps = scripts_for_start(&effective, &peers, options)?;
-        let bytes = replace_bundle(&effective, content, bundle, adapter)?;
+        let _bytes = replace_bundle(&effective, content, bundle, adapter, &deployment)?;
+        let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+        write(&crate::path(&effective.data).join("providers.setting"), &providers, true)?;
+        let document =
+            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
         return Ok(Prepared {
             directories: effective,
-            bytes,
+            bytes: document,
             listeners: Listeners(Vec::new()),
             peers,
             steps,
@@ -679,12 +721,12 @@ fn prepare(
         &effective,
         environment,
         &binary,
-        chosen.map_or([0; 5], |ports| ports.listeners),
+        chosen.map_or([0; 2], |ports| [ports.listeners[0], ports.listeners[4]]),
         Some(adapter),
     )?;
     let mut held = Listeners(written.listeners);
     if let Some(chosen) = chosen {
-        for ((_, port), wanted) in held.0.iter().zip(chosen.listeners) {
+        for ((_, port), wanted) in held.0.iter().zip([chosen.listeners[0], chosen.listeners[4]]) {
             if port.get() != wanted {
                 return Err(format!("{CHOSEN_PORTS}: port {wanted}: init chose port {port} instead"));
             }
@@ -696,14 +738,13 @@ fn prepare(
             fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|why| why.to_string())?;
         }
     }
-    if let Some((temper, agent)) = source.rebase(&effective)? {
-        write(&effective.document(), &temper, true)?;
-        write(&crate::path(&effective.config).join("agent.json"), &agent, true)?;
+    if let Some(temper) = source.rebase(&effective) {
+        write(&crate::path(&effective.config).join(FILE), &temper, true)?;
         // Imported listeners retain their source values; init's new reservations do not represent them.
         crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
     }
-    let initial = public(&effective.document())?;
-    let mut excluded = ordinary_ports(&effective, &initial)?;
+    let initial = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?;
+    let mut excluded = ordinary_ports(&effective, &initial.document)?;
     let github = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[0]))?;
     excluded.push(addr(&github)?.port());
     let oauth = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[1]))?;
@@ -720,9 +761,18 @@ fn prepare(
         bundle: bytes(&bundle),
         claude: bytes(adapter),
     };
-    let documents =
-        backends::rewrite(&initial, &public(&crate::path(&effective.config).join("agent.json"))?, &paths, &peers)
-            .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let documents = backends::rewrite(&initial.document, &paths, &peers)
+        .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let mut file = initial.file;
+    file.internal.bundle = Some(bundle);
+    file.test.github = Some(temper_config_shell::TestGitHub {
+        api: peers.github.to_string(),
+        transport: temper_config_shell::Transport::Plaintext,
+        remote: format!("http://{}", peers.github),
+        web: format!("http://{}", peers.github),
+        git: Some(crate::path(&effective.data).join("demo/bin/git")),
+    });
+    let text = temper_config_shell::render(&file, Shape::Standalone);
     // Existing peer decoders check their generated documents before any marker is published.
     let forge = temper_fake::forge::Document::decode(&documents.github)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
@@ -731,22 +781,24 @@ fn prepare(
     let _model = temper_fake::llm::Document::decode(&documents.llm)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     for (name, document) in [
-        ("temper.json", &documents.temper),
-        ("agent.json", &documents.agent),
+        (FILE, &text),
         ("github.json", &documents.github),
         ("oauth.json", &documents.oauth),
         ("llm.json", &documents.llm),
         ("forgejo.json", &documents.forgejo),
     ] {
-        write(&crate::path(&effective.config).join(name), document, name == "temper.json" || name == "agent.json")?;
+        write(&crate::path(&effective.config).join(name), document, name == FILE)?;
     }
+    write(&crate::path(&effective.data).join("providers.setting"), &documents.providers, false)?;
     write(
         &crate::path(&effective.data).join("github-app.pem"),
         &forge.github_app_key().expect("generated GitHub App"),
         false,
     )?;
-    validate(&effective, &documents.temper, adapter)?;
-    let peers = checked_peers(&effective, &documents.temper)?;
+    write(&crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
+    let deployment = validate(&effective, &text, adapter)?;
+    let document = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
+    let peers = checked_peers(&effective, &deployment)?;
     let steps = scripts_for_start(&effective, &peers, options)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
@@ -755,7 +807,7 @@ fn prepare(
     {
         held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
     }
-    Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, steps, _lock: lock })
+    Ok(Prepared { directories: effective, bytes: document, listeners: held, peers, steps, _lock: lock })
 }
 #[cfg(test)]
 mod tests;

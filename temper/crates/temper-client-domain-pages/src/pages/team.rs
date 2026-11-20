@@ -41,11 +41,11 @@ pub enum Holder {
 #[must_use]
 pub fn areas(root: &dyn Root, project: u32) -> Option<HeldAreas> {
     let document = root.pages().needs.findings.document(project)?;
-    let mut rows = List::with_capacity(document.areas().len());
-    for area in document.areas() {
+    let mut rows = List::with_capacity(document.areas.len());
+    for area in &document.areas {
         rows.push(HeldArea {
-            name: area.name().into(),
-            holder: match area.holder() {
+            name: area.name.clone(),
+            holder: match &area.holder {
                 Some(value) => Some(area_holder(value)),
                 None => None,
             },
@@ -54,14 +54,14 @@ pub fn areas(root: &dyn Root, project: u32) -> Option<HeldAreas> {
     }
     Some(HeldAreas {
         rows: rows.into_boxed(),
-        triager: if document.triager().is_some() { Some(area_holder(document.holder())) } else { None },
+        triager: if document.triager.is_some() { Some(area_holder(&document.holder)) } else { None },
     })
 }
 pub(super) fn area_holder(value: &w::Holder) -> Holder {
     match value {
-        w::Holder::Task(task) => Holder::Task(task.number()),
-        w::Holder::Party(party) => Holder::Party(party.number()),
-        w::Holder::Role(role) => Holder::Role(role.number()),
+        w::Holder::Task(task) => Holder::Task(task.number),
+        w::Holder::Party(party) => Holder::Party(party.number),
+        w::Holder::Role(role) => Holder::Role(role.number),
     }
 }
 
@@ -321,7 +321,7 @@ pub fn parts(facts: &Facts) -> Parts {
     {
         for area in &areas.rows {
             if let Some(w::Holder::Task(holder)) = &area.holder
-                && holder.number() == task
+                && holder.number == task
             {
                 parts.give_areas = parts.give_areas.saturating_add(1);
             }
@@ -443,10 +443,10 @@ pub fn gather(
 fn signed_count(changes: Option<&w::ChangesPanel>, party: u64, wall: Wall) -> Option<Signed> {
     let changes = changes?;
     let start = Wall::from_nanos(wall.as_nanos().saturating_sub(Duration::from_secs(604_800).as_nanos()));
-    let mut tasks = Set::with_capacity(changes.landed_default().len());
+    let mut tasks = Set::with_capacity(changes.landed_default.len());
     let mut oldest = None;
-    for row in changes.landed_default() {
-        let at = Wall::from_nanos(row.at());
+    for row in &changes.landed_default {
+        let at = Wall::from_nanos(row.at);
         oldest = Some(match oldest {
             Some(held) => at.min(held),
             None => at,
@@ -454,14 +454,14 @@ fn signed_count(changes: Option<&w::ChangesPanel>, party: u64, wall: Wall) -> Op
         if at < start || at > wall {
             continue;
         }
-        for signer in row.signed() {
-            if signer.party() == party {
-                tasks.insert(row.task()).expect("one key per listed change");
+        for signer in &row.signed {
+            if signer.party == party {
+                tasks.insert(row.task).expect("one key per listed change");
                 break;
             }
         }
     }
-    let floor = changes.landed_default_more() > 0
+    let floor = changes.landed_default_more > 0
         && match oldest {
             Some(at) => at >= start && at <= wall,
             None => false,
@@ -641,6 +641,7 @@ impl Team {
             let handle = new_handle(next);
             self.others.push(Other { party: *party, handle, waits: None }).expect("at most OTHERS watches");
             let query = c::TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(project),
                 requester: Some(c::Requester::Person(*party)),
                 root: None,
@@ -706,7 +707,7 @@ impl Team {
                     None => return true,
                 };
                 self.areas = match document {
-                    Some(document) if Some(document.project()) == self.project => Some(areas::gather(&document)),
+                    Some(document) if Some(document.project) == self.project => Some(areas::gather(&document)),
                     Some(_) | None => None,
                 };
                 true
@@ -737,7 +738,7 @@ impl Team {
                     None => return true,
                 };
                 self.changes = match panel {
-                    Some(panel) if Some(panel.project()) == self.project => Some(Box::new(panel)),
+                    Some(panel) if Some(panel.project) == self.project => Some(Box::new(panel)),
                     Some(_) | None => None,
                 };
                 true
@@ -818,7 +819,7 @@ fn follows_panel(
     }
     let Latest::Family(record) = document.latest? else { return None };
     let panel = temper_client_protocol_wire::decode_follows_panel(&record.bytes, &crate::forge::wire_limits(&limits)?)?;
-    if Some(panel.project()) == project { Some(panel) } else { None }
+    if Some(panel.project) == project { Some(panel) } else { None }
 }
 fn new_handle(next: &mut u64) -> Handle {
     let handle = Handle { asker: Owner::Pages.asker(), number: *next };

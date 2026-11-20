@@ -125,7 +125,7 @@ fn question_lines(
     for member in source {
         let member = index::question_line(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::TaskHistoryQuestionLines));
+            return Err(problem(wire::paths::TASK_HISTORY_QUESTION_LINES));
         }
     }
     Ok(members)
@@ -146,7 +146,7 @@ fn proposal_rows(
     for member in source {
         let member = index::proposal_row(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::TaskHistoryProposalRows));
+            return Err(problem(wire::paths::TASK_HISTORY_PROPOSAL_ROWS));
         }
     }
     Ok(members)
@@ -164,7 +164,7 @@ fn replies(source: &[domain::ReplyHint], limits: &wire::Limits) -> Result<List<w
     for member in source {
         let member = state::reply_hint(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::TaskRunReplies));
+            return Err(problem(wire::paths::TASK_RUN_REPLIES));
         }
     }
     Ok(members)
@@ -182,7 +182,7 @@ fn holdings(source: &[domain::Holding], limits: &wire::Limits) -> Result<List<wi
     for member in source {
         let member = phase::holding(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::TaskInterestsHoldings));
+            return Err(problem(wire::paths::TASK_INTERESTS_HOLDINGS));
         }
     }
     Ok(members)
@@ -203,7 +203,7 @@ fn subscriptions(
     for member in source {
         let member = state::subscription(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::TaskInterestsSubscriptions));
+            return Err(problem(wire::paths::TASK_INTERESTS_SUBSCRIPTIONS));
         }
     }
     Ok(members)
@@ -219,48 +219,59 @@ fn read_subscriptions(source: List<wire::Subscription>) -> Result<Box<[domain::S
 // Answer credits and waiting words share the same admitted inbox slots.
 fn inbox(
     source: &[domain::Word],
+    unrecorded: &[domain::Word],
     credits: &[domain::QuestionCredit],
     limits: &wire::Limits,
 ) -> Result<List<wire::InboxItem>, wire::Problem> {
     let mut members = List::with_capacity(limits.task_interests_inbox);
     for credit in credits {
         if members.push(wire::InboxItem::Credit(state::question_credit(credit, limits)?)).is_err() {
-            return Err(problem(wire::Path::TaskInterestsInbox));
+            return Err(problem(wire::paths::TASK_INTERESTS_INBOX));
         }
     }
     for word in source {
         if members.push(wire::InboxItem::Word(activity::word(word, limits)?)).is_err() {
-            return Err(problem(wire::Path::TaskInterestsInbox));
+            return Err(problem(wire::paths::TASK_INTERESTS_INBOX));
+        }
+    }
+    for word in unrecorded {
+        if members.push(wire::InboxItem::Unrecorded(activity::word(word, limits)?)).is_err() {
+            return Err(problem(wire::paths::TASK_INTERESTS_INBOX));
         }
     }
     Ok(members)
 }
 struct Inbox {
     words: Box<[domain::Word]>,
+    unrecorded: Box<[domain::Word]>,
     credits: Box<[domain::QuestionCredit]>,
 }
 
 fn read_inbox(source: List<wire::InboxItem>, limits: &wire::Limits) -> Result<Inbox, wire::Problem> {
     let mut words = List::with_capacity(source.len());
     let mut credits = List::with_capacity(source.len());
+    let mut unrecorded = List::with_capacity(source.len());
     for member in source.into_boxed() {
         match member {
             wire::InboxItem::Word(word) => {
                 words.push(activity::read_word(word, limits)?).expect("same number of items");
+            }
+            wire::InboxItem::Unrecorded(word) => {
+                unrecorded.push(activity::read_word(word, limits)?).expect("same number of items");
             }
             wire::InboxItem::Credit(credit) => {
                 credits.push(state::read_question_credit(credit)?).expect("same number of items");
             }
         }
     }
-    Ok(Inbox { words: words.into_boxed(), credits: credits.into_boxed() })
+    Ok(Inbox { words: words.into_boxed(), unrecorded: unrecorded.into_boxed(), credits: credits.into_boxed() })
 }
 fn saved(source: &[domain::SavedResource], limits: &wire::Limits) -> Result<List<wire::SavedResource>, wire::Problem> {
     let mut members = List::with_capacity(limits.task_interests_saved);
     for member in source {
         let member = state::saved_resource(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::TaskInterestsSaved));
+            return Err(problem(wire::paths::TASK_INTERESTS_SAVED));
         }
     }
     Ok(members)
@@ -283,67 +294,54 @@ fn before_talk(
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::BeforeTalk, wire::Problem> {
-    wire::BeforeTalk::new(
-        limits,
-        wire::BeforeTalkParts {
-            activation_open: source.activation_open,
-            session: match source.session {
-                Some(session) => Some(wire::Session::new(
-                    limits,
-                    wire::SessionParts {
-                        first: session.first,
-                        reasons: session.reasons.0,
-                        last: session.last.as_nanos(),
-                    },
-                )?),
-                None => None,
-            },
-            closer: source.closer,
-            asked_requester: source.asked_requester,
-            question_woken: source.question_woken,
-            history: task_history(source, limits)?,
-            run: task_run(source, limits, moved)?,
-            definition: task_definition(source, limits, moved)?,
-            started_from: phase::references(
-                &source.started_from,
-                limits.before_talk_started_from,
-                wire::Path::BeforeTalkStartedFrom,
-                limits,
-            )?,
-            interests: task_interests(source, limits)?,
-            outcome: task_outcome(source, limits)?,
+    Ok(wire::BeforeTalk {
+        activation_open: source.activation_open,
+        session: match source.session {
+            Some(session) => {
+                Some(wire::Session { first: session.first, reasons: session.reasons.0, last: session.last.as_nanos() })
+            }
+            None => None,
         },
-    )
+        closer: source.closer,
+        asked_requester: source.asked_requester,
+        question_woken: source.question_woken,
+        words_woken: source.words_woken,
+        history: task_history(source, limits)?,
+        run: task_run(source, limits, moved)?,
+        definition: task_definition(source, limits, moved)?,
+        started_from: phase::references(
+            &source.started_from,
+            limits.before_talk_started_from,
+            wire::paths::BEFORE_TALK_STARTED_FROM,
+            limits,
+        )?,
+        interests: task_interests(source, limits)?,
+        outcome: task_outcome(source, limits)?,
+    })
 }
 
 fn task_history(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wire::TaskHistory, wire::Problem> {
-    wire::TaskHistory::new(
-        limits,
-        wire::TaskHistoryParts {
-            last_activity: source.last_activity.as_nanos(),
-            ended_below: index::endings(&source.ended_below, limits)?,
-            ended_delegates: index::endings(&source.ended_delegates, limits)?,
-            question_lines: question_lines(&source.question_lines, limits)?,
-            hold: source.hold,
-            placed: source.placed,
-            proposal_rows: proposal_rows(&source.proposal_rows, limits)?,
-            instructions: source.instructions.clone(),
-            refused: refused(&source.refused, limits)?,
-            grace: optional_grace(source.grace.as_ref(), limits)?,
-            settings: wire::SettingsRevision::new(
-                limits,
-                wire::SettingsRevisionParts { task: source.settings.task, run: source.settings.run },
-            )?,
-            revisions: phase::revisions(&source.revisions, limits)?,
-            created_at: source.created_at.as_nanos(),
-            changed: source.changed.as_nanos(),
-            phase_since: source.phase_since.as_nanos(),
-            run_since: value::wall(source.run_since),
-            retry_notice: optional_retry_notice(source.retry_notice.as_ref(), limits)?,
-            ended_at: value::wall(source.ended_at),
-            revision: source.revision,
-        },
-    )
+    Ok(wire::TaskHistory {
+        last_activity: source.last_activity.as_nanos(),
+        ended_below: index::endings(&source.ended_below, limits)?,
+        ended_delegates: index::endings(&source.ended_delegates, limits)?,
+        question_lines: question_lines(&source.question_lines, limits)?,
+        hold: source.hold,
+        placed: source.placed,
+        proposal_rows: proposal_rows(&source.proposal_rows, limits)?,
+        instructions: source.instructions.clone(),
+        refused: refused(&source.refused, limits)?,
+        grace: optional_grace(source.grace.as_ref(), limits)?,
+        settings: wire::SettingsRevision { task: source.settings.task, run: source.settings.run },
+        revisions: phase::revisions(&source.revisions, limits)?,
+        created_at: source.created_at.as_nanos(),
+        changed: source.changed.as_nanos(),
+        phase_since: source.phase_since.as_nanos(),
+        run_since: value::wall(source.run_since),
+        retry_notice: optional_retry_notice(source.retry_notice.as_ref(), limits)?,
+        ended_at: value::wall(source.ended_at),
+        revision: source.revision,
+    })
 }
 
 fn task_run(
@@ -351,30 +349,27 @@ fn task_run(
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::TaskRun, wire::Problem> {
-    wire::TaskRun::new(
-        limits,
-        wire::TaskRunParts {
-            milestone: source.milestone,
-            activity: source.activity,
-            due_reason: value::why(source.due_reason, limits)?,
-            reasons: source.reasons.0,
-            offered: source.offered.0,
-            narrowing: source.narrowing,
-            llm_changed: source.llm_changed,
-            result_position: source.result_position,
-            last_reply: source.last_reply,
-            replies: replies(&source.replies, limits)?,
-            escalation: state::escalation(&source.escalation, limits)?,
-            proposal: optional_proposal(source.proposal.as_deref(), limits, moved)?,
-            result_proposal: source.result_proposal,
-            number: source.number,
-            project: source.project,
-            requester: value::party(&source.requester, limits)?,
-            run_spent: source.run_spent,
-            run_reserved: source.run_reserved,
-            open_attempt: super::lifecycle::open(source.open_attempt.as_ref(), limits)?,
-        },
-    )
+    Ok(wire::TaskRun {
+        milestone: source.milestone,
+        activity: source.activity,
+        due_reason: value::why(source.due_reason, limits)?,
+        reasons: source.reasons.0,
+        offered: source.offered.0,
+        narrowing: source.narrowing,
+        llm_changed: source.llm_changed,
+        result_position: source.result_position,
+        last_reply: source.last_reply,
+        replies: replies(&source.replies, limits)?,
+        escalation: state::escalation(&source.escalation, limits)?,
+        proposal: optional_proposal(source.proposal.as_deref(), limits, moved)?,
+        result_proposal: source.result_proposal,
+        number: source.number,
+        project: source.project,
+        requester: value::party(&source.requester, limits)?,
+        run_spent: source.run_spent,
+        run_reserved: source.run_reserved,
+        open_attempt: super::lifecycle::open(source.open_attempt.as_ref(), limits)?,
+    })
 }
 
 fn task_definition(
@@ -382,77 +377,65 @@ fn task_definition(
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::TaskDefinition, wire::Problem> {
-    wire::TaskDefinition::new(
-        limits,
-        wire::TaskDefinitionParts {
-            label: source.label,
-            flags: phase::flags(source.flags, limits)?,
-            root: source.root,
-            depth: source.depth,
-            executor: value::executor(source.executor, limits)?,
-            llm: value::llm(source.llm.as_ref(), limits)?,
-            kept_account: source.kept_account,
-            taken_by: source.taken_by,
-            person_answer: optional_person_answer(source.person_answer.as_ref(), limits)?,
-            person_wait: optional_person_wait(source.person_wait.as_ref(), limits)?,
-            recurring: optional_recurring(source.recurring.as_deref(), limits, moved)?,
-            tracked: source.tracked,
-            spec: value::spec(&source.spec, limits)?,
-            contract: value::contract(&source.contract, limits)?,
-            authority: value::authority(&source.authority, limits, moved)?,
-            numbers: phase::numbers(&source.numbers, limits)?,
-            funder: value::funder(source.funder, limits)?,
-            dependencies: dependencies(&source.dependencies, limits)?,
-            waiting_on: waiting_on(&source.waiting_on, limits)?,
-            added: added(&source.added, limits)?,
-        },
-    )
+    Ok(wire::TaskDefinition {
+        label: source.label,
+        flags: phase::flags(source.flags, limits),
+        root: source.root,
+        depth: source.depth,
+        executor: value::executor(source.executor, limits)?,
+        llm: value::llm(source.llm.as_ref(), limits)?,
+        kept_account: source.kept_account,
+        taken_by: source.taken_by,
+        person_answer: optional_person_answer(source.person_answer.as_ref(), limits)?,
+        person_wait: optional_person_wait(source.person_wait.as_ref(), limits)?,
+        recurring: optional_recurring(source.recurring.as_deref(), limits, moved)?,
+        tracked: source.tracked,
+        spec: value::spec(&source.spec, limits)?,
+        contract: value::contract(&source.contract, limits)?,
+        authority: value::authority(&source.authority, limits, moved)?,
+        numbers: phase::numbers(&source.numbers, limits),
+        funder: value::funder(source.funder, limits),
+        dependencies: dependencies(&source.dependencies, limits)?,
+        waiting_on: waiting_on(&source.waiting_on, limits)?,
+        added: added(&source.added, limits)?,
+    })
 }
 
 fn task_interests(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wire::TaskInterests, wire::Problem> {
-    wire::TaskInterests::new(
-        limits,
-        wire::TaskInterestsParts {
-            holdings: holdings(&source.holdings, limits)?,
-            holds_taken: source.holds_taken,
-            hold_wait_since: value::wall(source.hold_wait_since),
-            hold_bound_since: value::wall(source.hold_bound_since),
-            delegates: delegates(&source.delegates, limits)?,
-            result_followups: result_followups(&source.result_followups, limits)?,
-            references: references(&source.references, limits)?,
-            subscriptions: subscriptions(&source.subscriptions, limits)?,
-            wake: phase::wake(&source.wake, limits)?,
-            turn: source.turn,
-            last_message: source.last_message,
-            inbox: inbox(&source.inbox, &source.questions, limits)?,
-            saved: saved(&source.saved, limits)?,
-            ever_turned: wire::TranscriptState::new(
-                limits,
-                wire::TranscriptStateParts { ever_turned: source.ever_turned },
-            )?,
-            made: source.made,
-        },
-    )
+    Ok(wire::TaskInterests {
+        holdings: holdings(&source.holdings, limits)?,
+        holds_taken: source.holds_taken,
+        hold_wait_since: value::wall(source.hold_wait_since),
+        hold_bound_since: value::wall(source.hold_bound_since),
+        delegates: delegates(&source.delegates, limits)?,
+        result_followups: result_followups(&source.result_followups, limits)?,
+        references: references(&source.references, limits)?,
+        subscriptions: subscriptions(&source.subscriptions, limits)?,
+        wake: phase::wake(&source.wake, limits)?,
+        turn: source.turn,
+        last_message: source.last_message,
+        inbox: inbox(&source.inbox, &source.unrecorded, &source.questions, limits)?,
+        saved: saved(&source.saved, limits)?,
+        ever_turned: wire::TranscriptState { ever_turned: source.ever_turned },
+        made: source.made,
+    })
 }
 
 fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wire::TaskOutcome, wire::Problem> {
-    wire::TaskOutcome::new(
-        limits,
-        wire::TaskOutcomeParts {
-            attempt: source.attempt,
-            last_answer: source.last_answer,
-            tries: value::tries(&source.tries, limits)?,
-            invalid_result: optional_invalid(source.invalid_result),
-            refusals: source.refusals,
-            phase: phase::phase(&source.phase, limits)?,
-            room_wait: room_wait(source.room_wait, limits)?,
-        },
-    )
+    Ok(wire::TaskOutcome {
+        attempt: source.attempt,
+        last_answer: source.last_answer,
+        tries: value::tries(&source.tries, limits)?,
+        invalid_result: optional_invalid(source.invalid_result),
+        refusals: source.refusals,
+        phase: phase::phase(&source.phase, limits)?,
+        room_wait: room_wait(source.room_wait, limits),
+    })
 }
 /// Read every retained task field.
 #[expect(clippy::too_many_lines, reason = "one translation carries every retained task field")]
 pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
-    let wire::BeforeTalkParts {
+    let wire::BeforeTalk {
         activation_open,
         session,
         closer,
@@ -464,31 +447,29 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         outcome,
         asked_requester,
         question_woken,
-    } = source.into_parts();
-    let history = history.into_parts();
-    let run = run.into_parts();
+        words_woken,
+    } = source;
+
     let reasons = domain::Reasons(run.reasons);
     let offered = domain::Reasons(run.offered);
     if !reasons.is_known() {
-        return Err(problem(wire::Path::TaskRunReasons));
+        return Err(problem(wire::paths::TASK_RUN_REASONS));
     }
     if !offered.is_known() {
-        return Err(problem(wire::Path::TaskRunOffered));
+        return Err(problem(wire::paths::TASK_RUN_OFFERED));
     }
-    let definition = definition.into_parts();
-    let interests = interests.into_parts();
-    let outcome = outcome.into_parts();
-    let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
+
+    let Inbox { words: inbox, unrecorded, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
         concluded: None,
         talk: None,
         activation_open,
         session: match session {
             Some(session) => {
-                let wire::SessionParts { first, reasons, last } = session.into_parts();
+                let wire::Session { first, reasons, last } = session;
                 let reasons = domain::Reasons(reasons);
                 if !reasons.is_known() {
-                    return Err(problem(wire::Path::SessionReasons));
+                    return Err(problem(wire::paths::SESSION_REASONS));
                 }
                 Some(domain::Session { first, reasons, last: Wall::from_nanos(last) })
             }
@@ -499,6 +480,8 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         reasons,
         asked_requester,
         question_woken,
+        words_woken,
+        unrecorded,
         label: definition.label,
         flags: phase::read_flags(definition.flags),
         last_activity: Wall::from_nanos(history.last_activity),
@@ -511,7 +494,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         instructions: history.instructions,
         refused: phase::read_references(history.refused),
         grace: read_optional_grace(history.grace)?,
-        settings: domain::SettingsRevision { task: history.settings.task(), run: *history.settings.run() },
+        settings: domain::SettingsRevision { task: history.settings.task, run: history.settings.run },
         revisions: phase::read_revisions(history.revisions)?,
         created_at: Wall::from_nanos(history.created_at),
         changed: Wall::from_nanos(history.changed),
@@ -570,7 +553,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         last_message: interests.last_message,
         inbox,
         saved: read_saved(interests.saved, limits)?,
-        ever_turned: interests.ever_turned.into_parts().ever_turned,
+        ever_turned: interests.ever_turned.ever_turned,
         made: interests.made,
         attempt: outcome.attempt,
         last_answer: outcome.last_answer,
@@ -586,38 +569,40 @@ fn problem(path: wire::Path) -> wire::Problem {
 }
 
 fn refused(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
-    phase::references(source, limits.task_history_refused, wire::Path::TaskHistoryRefused, limits)
+    phase::references(source, limits.task_history_refused, wire::paths::TASK_HISTORY_REFUSED, limits)
 }
 
 fn dependencies(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
-    phase::references(source, limits.task_definition_dependencies, wire::Path::TaskDefinitionDependencies, limits)
+    phase::references(source, limits.task_definition_dependencies, wire::paths::TASK_DEFINITION_DEPENDENCIES, limits)
 }
 
 fn waiting_on(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
-    phase::references(source, limits.task_definition_waiting_on, wire::Path::TaskDefinitionWaitingOn, limits)
+    phase::references(source, limits.task_definition_waiting_on, wire::paths::TASK_DEFINITION_WAITING_ON, limits)
 }
 
 fn delegates(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
-    phase::references(source, limits.task_interests_delegates, wire::Path::TaskInterestsDelegates, limits)
+    phase::references(source, limits.task_interests_delegates, wire::paths::TASK_INTERESTS_DELEGATES, limits)
 }
 
 fn result_followups(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
-    phase::references(source, limits.task_interests_result_followups, wire::Path::TaskInterestsResultFollowups, limits)
+    phase::references(
+        source,
+        limits.task_interests_result_followups,
+        wire::paths::TASK_INTERESTS_RESULT_FOLLOWUPS,
+        limits,
+    )
 }
 
 fn references(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
-    phase::references(source, limits.task_interests_references, wire::Path::TaskInterestsReferences, limits)
+    phase::references(source, limits.task_interests_references, wire::paths::TASK_INTERESTS_REFERENCES, limits)
 }
 
 fn added(source: &[domain::Added], limits: &wire::Limits) -> Result<List<wire::Added>, wire::Problem> {
     let mut rows = List::with_capacity(limits.task_definition_added);
     for row in source {
-        let row = wire::Added::new(
-            limits,
-            wire::AddedParts { task: row.task, at: row.at.as_nanos(), by: value::party(&row.by, limits)? },
-        )?;
+        let row = wire::Added { task: row.task, at: row.at.as_nanos(), by: value::party(&row.by, limits)? };
         if rows.push(row).is_err() {
-            return Err(problem(wire::Path::TaskDefinitionAdded));
+            return Err(problem(wire::paths::TASK_DEFINITION_ADDED));
         }
     }
     Ok(rows)
@@ -625,29 +610,27 @@ fn added(source: &[domain::Added], limits: &wire::Limits) -> Result<List<wire::A
 fn read_added(source: List<wire::Added>) -> Box<[domain::Added]> {
     let mut rows = List::with_capacity(source.len());
     for row in source.into_boxed() {
-        let wire::AddedParts { task, at, by } = row.into_parts();
+        let wire::Added { task, at, by } = row;
         rows.push(domain::Added { task, at: Wall::from_nanos(at), by: value::read_party(by) })
             .expect("same number of additions");
     }
     rows.into_boxed()
 }
 
-fn room_wait(source: Option<domain::RoomWait>, limits: &wire::Limits) -> Result<Option<wire::RoomWait>, wire::Problem> {
-    let Some(source) = source else { return Ok(None) };
+fn room_wait(source: Option<domain::RoomWait>, _limits: &wire::Limits) -> Option<wire::RoomWait> {
+    let source = source?;
     let room = match source.room {
         domain::LiveRoom::Deployment => wire::LiveRoom::Deployment,
-        domain::LiveRoom::Project(project) => {
-            wire::LiveRoom::Project(wire::RoomProject::new(limits, wire::RoomProjectParts { project })?)
-        }
+        domain::LiveRoom::Project(project) => wire::LiveRoom::Project(wire::RoomProject { project }),
     };
-    Ok(Some(wire::RoomWait::new(limits, wire::RoomWaitParts { room, order: source.order })?))
+    Some(wire::RoomWait { room, order: source.order })
 }
 
 fn read_room_wait(source: Option<wire::RoomWait>) -> Option<domain::RoomWait> {
-    let source = source?.into_parts();
+    let source = source?;
     let room = match source.room {
         wire::LiveRoom::Deployment => domain::LiveRoom::Deployment,
-        wire::LiveRoom::Project(project) => domain::LiveRoom::Project(project.into_parts().project),
+        wire::LiveRoom::Project(project) => domain::LiveRoom::Project(project.project),
     };
     Some(domain::RoomWait { room, order: source.order })
 }
@@ -658,31 +641,26 @@ pub fn task_record(
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::TaskRecord, wire::Problem> {
     let talk = match source.talk {
-        Some(talk) => Some(wire::Talk::new(
-            limits,
-            wire::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
-        )?),
+        Some(talk) => {
+            Some(wire::Talk { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() })
+        }
         None => None,
     };
-    wire::TaskRecord::new(
-        limits,
-        wire::TaskRecordParts {
-            record: before_talk(source, limits, moved)?,
-            talk,
-            concluded: concluded(source.concluded, limits)?,
-        },
-    )
+    Ok(wire::TaskRecord {
+        record: before_talk(source, limits, moved)?,
+        talk,
+        concluded: concluded(source.concluded, limits),
+    })
 }
 
 pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
-    let source = source.into_parts();
     let mut record = read_before_talk(source.record, limits)?;
     record.concluded = read_concluded(source.concluded);
     record.talk = match source.talk {
         Some(talk) => Some(domain::Talk {
-            party: talk.party(),
-            opened: Wall::from_nanos(talk.opened()),
-            last: Wall::from_nanos(talk.last()),
+            party: talk.party,
+            opened: Wall::from_nanos(talk.opened),
+            last: Wall::from_nanos(talk.last),
         }),
         None => None,
     };
@@ -698,15 +676,12 @@ pub fn live_cold(
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::LiveCold, wire::Problem> {
-    wire::LiveCold::new(
-        limits,
-        wire::LiveColdParts {
-            spec: value::spec(spec, limits)?,
-            contract: value::contract(contract, limits)?,
-            authority: value::authority(authority, limits, moved)?,
-            instructions: instructions.clone(),
-        },
-    )
+    Ok(wire::LiveCold {
+        spec: value::spec(spec, limits)?,
+        contract: value::contract(contract, limits)?,
+        authority: value::authority(authority, limits, moved)?,
+        instructions: instructions.clone(),
+    })
 }
 
 #[expect(clippy::too_many_lines, reason = "exhaustive placement of every task field before encoding its hot part")]
@@ -793,6 +768,7 @@ pub fn live_hot(
         turn,
         last_message,
         inbox,
+        unrecorded,
         saved,
         ever_turned,
         made,
@@ -805,160 +781,135 @@ pub fn live_hot(
         room_wait,
         asked_requester,
         question_woken,
+        words_woken,
     } = source;
-    let history = wire::HotHistory::new(
-        limits,
-        wire::HotHistoryParts {
-            last_activity: last_activity.as_nanos(),
-            ended_below: index::endings(ended_below, limits)?,
-            ended_delegates: index::endings(ended_delegates, limits)?,
-            question_lines: hot_question_lines(question_lines, limits)?,
-            hold: *hold,
-            placed: *placed,
-            proposal_rows: hot_proposal_rows(proposal_rows, limits)?,
-            refused: phase::references(refused, limits.hot_history_refused, wire::Path::HotHistoryRefused, limits)?,
-            grace: optional_grace(grace.as_ref(), limits)?,
-            settings: wire::SettingsRevision::new(
-                limits,
-                wire::SettingsRevisionParts { task: settings.task, run: settings.run },
-            )?,
-            revisions: phase::revisions(revisions, limits)?,
-            created_at: created_at.as_nanos(),
-            changed: changed.as_nanos(),
-            phase_since: phase_since.as_nanos(),
-            run_since: value::wall(*run_since),
-            retry_notice: optional_retry_notice(retry_notice.as_ref(), limits)?,
-            ended_at: value::wall(*ended_at),
-            revision: *revision,
+    let history = wire::HotHistory {
+        last_activity: last_activity.as_nanos(),
+        ended_below: index::endings(ended_below, limits)?,
+        ended_delegates: index::endings(ended_delegates, limits)?,
+        question_lines: hot_question_lines(question_lines, limits)?,
+        hold: *hold,
+        placed: *placed,
+        proposal_rows: hot_proposal_rows(proposal_rows, limits)?,
+        refused: phase::references(refused, limits.hot_history_refused, wire::paths::HOT_HISTORY_REFUSED, limits)?,
+        grace: optional_grace(grace.as_ref(), limits)?,
+        settings: wire::SettingsRevision { task: settings.task, run: settings.run },
+        revisions: phase::revisions(revisions, limits)?,
+        created_at: created_at.as_nanos(),
+        changed: changed.as_nanos(),
+        phase_since: phase_since.as_nanos(),
+        run_since: value::wall(*run_since),
+        retry_notice: optional_retry_notice(retry_notice.as_ref(), limits)?,
+        ended_at: value::wall(*ended_at),
+        revision: *revision,
+    };
+    let run = wire::TaskRun {
+        milestone: *milestone,
+        activity: *activity,
+        open_attempt: super::lifecycle::open(open_attempt.as_ref(), limits)?,
+        due_reason: value::why(*due_reason, limits)?,
+        reasons: reasons.0,
+        offered: offered.0,
+        narrowing: *narrowing,
+        llm_changed: *llm_changed,
+        result_position: *result_position,
+        last_reply: *last_reply,
+        replies: self::replies(replies, limits)?,
+        escalation: state::escalation(escalation, limits)?,
+        proposal: optional_proposal(proposal.as_deref(), limits, moved)?,
+        result_proposal: *result_proposal,
+        number: *number,
+        project: *project,
+        requester: value::party(requester, limits)?,
+        run_spent: *run_spent,
+        run_reserved: *run_reserved,
+    };
+    let definition = wire::HotDefinition {
+        label: *label,
+        flags: phase::flags(*flags, limits),
+        root: *root,
+        depth: *depth,
+        executor: value::executor(*executor, limits)?,
+        llm: value::llm(llm.as_ref(), limits)?,
+        kept_account: *kept_account,
+        taken_by: *taken_by,
+        person_answer: optional_person_answer(person_answer.as_ref(), limits)?,
+        person_wait: optional_person_wait(person_wait.as_ref(), limits)?,
+        recurring: optional_recurring(recurring.as_deref(), limits, moved)?,
+        tracked: *tracked,
+        numbers: phase::numbers(numbers, limits),
+        funder: value::funder(*funder, limits),
+        dependencies: phase::references(
+            dependencies,
+            limits.hot_definition_dependencies,
+            wire::paths::HOT_DEFINITION_DEPENDENCIES,
+            limits,
+        )?,
+        waiting_on: phase::references(
+            waiting_on,
+            limits.hot_definition_waiting_on,
+            wire::paths::HOT_DEFINITION_WAITING_ON,
+            limits,
+        )?,
+        added: hot_added(added, limits)?,
+    };
+    let interests = wire::TaskInterests {
+        holdings: self::holdings(holdings, limits)?,
+        holds_taken: *holds_taken,
+        hold_wait_since: value::wall(*hold_wait_since),
+        hold_bound_since: value::wall(*hold_bound_since),
+        delegates: self::delegates(delegates, limits)?,
+        result_followups: self::result_followups(result_followups, limits)?,
+        references: self::references(references, limits)?,
+        subscriptions: self::subscriptions(subscriptions, limits)?,
+        wake: phase::wake(wake, limits)?,
+        turn: *turn,
+        last_message: *last_message,
+        inbox: self::inbox(inbox, unrecorded, questions, limits)?,
+        saved: self::saved(saved, limits)?,
+        ever_turned: wire::TranscriptState { ever_turned: *ever_turned },
+        made: *made,
+    };
+    let outcome = wire::TaskOutcome {
+        attempt: *attempt,
+        last_answer: *last_answer,
+        tries: value::tries(tries, limits)?,
+        invalid_result: optional_invalid(*invalid_result),
+        refusals: *refusals,
+        phase: phase::phase(phase, limits)?,
+        room_wait: self::room_wait(*room_wait, limits),
+    };
+    Ok(wire::LiveHot {
+        concluded: concluded(*concluding, limits),
+        talk: match *talk {
+            Some(talk) => {
+                Some(wire::Talk { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() })
+            }
+            None => None,
         },
-    )?;
-    let run = wire::TaskRun::new(
-        limits,
-        wire::TaskRunParts {
-            milestone: *milestone,
-            activity: *activity,
-            open_attempt: super::lifecycle::open(open_attempt.as_ref(), limits)?,
-            due_reason: value::why(*due_reason, limits)?,
-            reasons: reasons.0,
-            offered: offered.0,
-            narrowing: *narrowing,
-            llm_changed: *llm_changed,
-            result_position: *result_position,
-            last_reply: *last_reply,
-            replies: self::replies(replies, limits)?,
-            escalation: state::escalation(escalation, limits)?,
-            proposal: optional_proposal(proposal.as_deref(), limits, moved)?,
-            result_proposal: *result_proposal,
-            number: *number,
-            project: *project,
-            requester: value::party(requester, limits)?,
-            run_spent: *run_spent,
-            run_reserved: *run_reserved,
+        activation_open: *activation_open,
+        session: match *session {
+            Some(session) => {
+                Some(wire::Session { first: session.first, reasons: session.reasons.0, last: session.last.as_nanos() })
+            }
+            None => None,
         },
-    )?;
-    let definition = wire::HotDefinition::new(
-        limits,
-        wire::HotDefinitionParts {
-            label: *label,
-            flags: phase::flags(*flags, limits)?,
-            root: *root,
-            depth: *depth,
-            executor: value::executor(*executor, limits)?,
-            llm: value::llm(llm.as_ref(), limits)?,
-            kept_account: *kept_account,
-            taken_by: *taken_by,
-            person_answer: optional_person_answer(person_answer.as_ref(), limits)?,
-            person_wait: optional_person_wait(person_wait.as_ref(), limits)?,
-            recurring: optional_recurring(recurring.as_deref(), limits, moved)?,
-            tracked: *tracked,
-            numbers: phase::numbers(numbers, limits)?,
-            funder: value::funder(*funder, limits)?,
-            dependencies: phase::references(
-                dependencies,
-                limits.hot_definition_dependencies,
-                wire::Path::HotDefinitionDependencies,
-                limits,
-            )?,
-            waiting_on: phase::references(
-                waiting_on,
-                limits.hot_definition_waiting_on,
-                wire::Path::HotDefinitionWaitingOn,
-                limits,
-            )?,
-            added: hot_added(added, limits)?,
-        },
-    )?;
-    let interests = wire::TaskInterests::new(
-        limits,
-        wire::TaskInterestsParts {
-            holdings: self::holdings(holdings, limits)?,
-            holds_taken: *holds_taken,
-            hold_wait_since: value::wall(*hold_wait_since),
-            hold_bound_since: value::wall(*hold_bound_since),
-            delegates: self::delegates(delegates, limits)?,
-            result_followups: self::result_followups(result_followups, limits)?,
-            references: self::references(references, limits)?,
-            subscriptions: self::subscriptions(subscriptions, limits)?,
-            wake: phase::wake(wake, limits)?,
-            turn: *turn,
-            last_message: *last_message,
-            inbox: self::inbox(inbox, questions, limits)?,
-            saved: self::saved(saved, limits)?,
-            ever_turned: wire::TranscriptState::new(limits, wire::TranscriptStateParts { ever_turned: *ever_turned })?,
-            made: *made,
-        },
-    )?;
-    let outcome = wire::TaskOutcome::new(
-        limits,
-        wire::TaskOutcomeParts {
-            attempt: *attempt,
-            last_answer: *last_answer,
-            tries: value::tries(tries, limits)?,
-            invalid_result: optional_invalid(*invalid_result),
-            refusals: *refusals,
-            phase: phase::phase(phase, limits)?,
-            room_wait: self::room_wait(*room_wait, limits)?,
-        },
-    )?;
-    wire::LiveHot::new(
-        limits,
-        wire::LiveHotParts {
-            concluded: concluded(*concluding, limits)?,
-            talk: match *talk {
-                Some(talk) => Some(wire::Talk::new(
-                    limits,
-                    wire::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
-                )?),
-                None => None,
-            },
-            activation_open: *activation_open,
-            session: match *session {
-                Some(session) => Some(wire::Session::new(
-                    limits,
-                    wire::SessionParts {
-                        first: session.first,
-                        reasons: session.reasons.0,
-                        last: session.last.as_nanos(),
-                    },
-                )?),
-                None => None,
-            },
-            closer: *closer,
-            asked_requester: *asked_requester,
-            question_woken: *question_woken,
-            history,
-            run,
-            definition,
-            started_from: phase::references(
-                started_from,
-                limits.live_hot_started_from,
-                wire::Path::LiveHotStartedFrom,
-                limits,
-            )?,
-            interests,
-            outcome,
-        },
-    )
+        closer: *closer,
+        asked_requester: *asked_requester,
+        question_woken: *question_woken,
+        words_woken: *words_woken,
+        history,
+        run,
+        definition,
+        started_from: phase::references(
+            started_from,
+            limits.live_hot_started_from,
+            wire::paths::LIVE_HOT_STARTED_FROM,
+            limits,
+        )?,
+        interests,
+        outcome,
+    })
 }
 
 fn hot_question_lines(
@@ -969,7 +920,7 @@ fn hot_question_lines(
     for member in source {
         let member = index::question_line(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::HotHistoryQuestionLines));
+            return Err(problem(wire::paths::HOT_HISTORY_QUESTION_LINES));
         }
     }
     Ok(members)
@@ -982,7 +933,7 @@ fn hot_proposal_rows(
     for member in source {
         let member = index::proposal_row(member, limits)?;
         if members.push(member).is_err() {
-            return Err(problem(wire::Path::HotHistoryProposalRows));
+            return Err(problem(wire::paths::HOT_HISTORY_PROPOSAL_ROWS));
         }
     }
     Ok(members)
@@ -990,12 +941,9 @@ fn hot_proposal_rows(
 fn hot_added(source: &[domain::Added], limits: &wire::Limits) -> Result<List<wire::Added>, wire::Problem> {
     let mut rows = List::with_capacity(limits.hot_definition_added);
     for row in source {
-        let row = wire::Added::new(
-            limits,
-            wire::AddedParts { task: row.task, at: row.at.as_nanos(), by: value::party(&row.by, limits)? },
-        )?;
+        let row = wire::Added { task: row.task, at: row.at.as_nanos(), by: value::party(&row.by, limits)? };
         if rows.push(row).is_err() {
-            return Err(problem(wire::Path::HotDefinitionAdded));
+            return Err(problem(wire::paths::HOT_DEFINITION_ADDED));
         }
     }
     Ok(rows)
@@ -1006,9 +954,9 @@ fn hot_added(source: &[domain::Added], limits: &wire::Limits) -> Result<List<wir
 pub fn join(
     hot: wire::LiveHot,
     cold: wire::LiveCold,
-    limits: &wire::Limits,
+    _limits: &wire::Limits,
 ) -> Result<wire::TaskRecord, wire::Problem> {
-    let wire::LiveHotParts {
+    let wire::LiveHot {
         concluded,
         activation_open,
         session,
@@ -1021,10 +969,11 @@ pub fn join(
         outcome,
         asked_requester,
         question_woken,
+        words_woken,
         talk,
-    } = hot.into_parts();
-    let wire::LiveColdParts { spec, contract, authority, instructions } = cold.into_parts();
-    let wire::HotHistoryParts {
+    } = hot;
+    let wire::LiveCold { spec, contract, authority, instructions } = cold;
+    let wire::HotHistory {
         last_activity,
         ended_below,
         ended_delegates,
@@ -1043,32 +992,29 @@ pub fn join(
         retry_notice,
         ended_at,
         revision,
-    } = history.into_parts();
-    let history = wire::TaskHistory::new(
-        limits,
-        wire::TaskHistoryParts {
-            last_activity,
-            ended_below,
-            ended_delegates,
-            question_lines,
-            hold,
-            placed,
-            proposal_rows,
-            instructions,
-            refused,
-            grace,
-            settings,
-            revisions,
-            created_at,
-            changed,
-            phase_since,
-            run_since,
-            retry_notice,
-            ended_at,
-            revision,
-        },
-    )?;
-    let wire::HotDefinitionParts {
+    } = history;
+    let history = wire::TaskHistory {
+        last_activity,
+        ended_below,
+        ended_delegates,
+        question_lines,
+        hold,
+        placed,
+        proposal_rows,
+        instructions,
+        refused,
+        grace,
+        settings,
+        revisions,
+        created_at,
+        changed,
+        phase_since,
+        run_since,
+        retry_notice,
+        ended_at,
+        revision,
+    };
+    let wire::HotDefinition {
         label,
         flags,
         root,
@@ -1086,65 +1032,55 @@ pub fn join(
         dependencies,
         waiting_on,
         added,
-    } = definition.into_parts();
-    let definition = wire::TaskDefinition::new(
-        limits,
-        wire::TaskDefinitionParts {
-            label,
-            flags,
-            root,
-            depth,
-            executor,
-            llm,
-            kept_account,
-            taken_by,
-            person_answer,
-            person_wait,
-            recurring,
-            tracked,
-            spec,
-            contract,
-            authority,
-            numbers,
-            funder,
-            dependencies,
-            waiting_on,
-            added,
-        },
-    )?;
-    let record = wire::BeforeTalk::new(
-        limits,
-        wire::BeforeTalkParts {
-            activation_open,
-            session,
-            closer,
-            history,
-            run,
-            definition,
-            started_from,
-            interests,
-            outcome,
-            asked_requester,
-            question_woken,
-        },
-    )?;
-    wire::TaskRecord::new(limits, wire::TaskRecordParts { record, talk, concluded })
+    } = definition;
+    let definition = wire::TaskDefinition {
+        label,
+        flags,
+        root,
+        depth,
+        executor,
+        llm,
+        kept_account,
+        taken_by,
+        person_answer,
+        person_wait,
+        recurring,
+        tracked,
+        spec,
+        contract,
+        authority,
+        numbers,
+        funder,
+        dependencies,
+        waiting_on,
+        added,
+    };
+    let record = wire::BeforeTalk {
+        activation_open,
+        session,
+        closer,
+        history,
+        run,
+        definition,
+        started_from,
+        interests,
+        outcome,
+        asked_requester,
+        question_woken,
+        words_woken,
+    };
+    Ok(wire::TaskRecord { record, talk, concluded })
 }
 
-fn concluded(
-    source: Option<domain::Concluded>,
-    limits: &wire::Limits,
-) -> Result<Option<wire::Concluded>, wire::Problem> {
-    Ok(match source {
-        Some(value) => {
-            Some(wire::Concluded::new(limits, wire::ConcludedParts { by: value.by, at: value.at.as_nanos() })?)
-        }
+fn concluded(source: Option<domain::Concluded>, _limits: &wire::Limits) -> Option<wire::Concluded> {
+    match source {
+        Some(value) => Some(wire::Concluded { by: value.by, at: value.at.as_nanos() }),
         None => None,
-    })
+    }
 }
 fn read_concluded(source: Option<wire::Concluded>) -> Option<domain::Concluded> {
     match source {
-        Some(value) => Some(domain::Concluded { by: value.by(), at: Wall::from_nanos(value.at()) }),
+        Some(value) => Some(domain::Concluded { by: value.by, at: Wall::from_nanos(value.at) }),
         None => None,
     }
 }

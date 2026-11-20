@@ -743,7 +743,7 @@ fn give(
         &role.authority,
         ask.tasks_left.min(role.authority.delegation.tasks),
         role.authority.delegation.depth,
-        left(ask.pool).min(role.authority.budget.spend),
+        left(ask.pool).saturating_add(ask.request.funding_credit()).min(role.authority.budget.spend),
         &domain.rules().implies,
     );
     if !lacks.is_empty() {
@@ -751,7 +751,7 @@ fn give(
     }
     ceilings(domain, policy, authority, &mut answer, why);
     let numbers = if answer == Answer::Allow {
-        match carve(ask.pool, &[authority.budget.spend]) {
+        match carve(ask.pool, &[authority.budget.spend.saturating_sub(ask.request.funding_credit())]) {
             Some(numbers) => Some(numbers),
             None => {
                 find(&mut answer, why, Answer::Refuse, Finding::Arithmetic);
@@ -793,7 +793,7 @@ pub fn check_request_with_standing(
         PersonRequest::Delegate { creator, tasks } => {
             authority_within(creator, domain.limits()) && delegates_within(tasks, domain.limits())
         }
-        PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {
+        PersonRequest::Allot(authority) | PersonRequest::Amend { authority, .. } | PersonRequest::Move(authority) => {
             authority_within(authority, domain.limits())
         }
         PersonRequest::Accept(action) => action_within(action, domain.limits()),
@@ -812,7 +812,7 @@ pub fn check_request_with_standing(
         PersonRequest::Create(_) | PersonRequest::Delegate { .. } => RequestKind::Create,
         PersonRequest::Allot(_) => RequestKind::Allot,
         PersonRequest::Accept(_) => RequestKind::Accept,
-        PersonRequest::Amend(_) => RequestKind::Amend,
+        PersonRequest::Amend { .. } => RequestKind::Amend,
         PersonRequest::Move(_) => RequestKind::Move,
         PersonRequest::Cancel => RequestKind::Cancel,
         PersonRequest::Release => RequestKind::Release,
@@ -820,7 +820,7 @@ pub fn check_request_with_standing(
         PersonRequest::Policy => RequestKind::Policy,
     };
     let control = match &ask.request {
-        PersonRequest::Amend(_) | PersonRequest::Move(_) | PersonRequest::Cancel | PersonRequest::Release => true,
+        PersonRequest::Amend { .. } | PersonRequest::Move(_) | PersonRequest::Cancel | PersonRequest::Release => true,
         PersonRequest::Create(_)
         | PersonRequest::Delegate { .. }
         | PersonRequest::Allot(_)
@@ -872,7 +872,7 @@ pub fn check_request_with_standing(
             );
             if task_check.answer == Answer::Allow { task_check } else { checked(Answer::Refuse, None) }
         }
-        PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {
+        PersonRequest::Allot(authority) | PersonRequest::Amend { authority, .. } | PersonRequest::Move(authority) => {
             if !authority_within(authority, domain.limits()) {
                 return checked(refuse(why, Finding::Oversized), None);
             }
@@ -938,7 +938,7 @@ fn batch_has_spend(tasks: &[Delegate]) -> bool {
 fn needs_funding(request: &PersonRequest) -> bool {
     match request {
         PersonRequest::Create(tasks) => batch_has_spend(tasks),
-        PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {
+        PersonRequest::Allot(authority) | PersonRequest::Amend { authority, .. } | PersonRequest::Move(authority) => {
             authority.budget.spend != 0
         }
         PersonRequest::Accept(action) => match action {

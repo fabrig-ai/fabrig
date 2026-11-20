@@ -6,6 +6,7 @@
 //! Credentials go to ctl and curl by path alone. No bot credential or store is read
 //! by the driver.
 use super::super::configuration::turn_bounds;
+use super::super::held_login::LOCK_FD_9;
 use super::super::patience::Patience;
 use serde_json::{Value, json};
 use skein_lib::{Duration, Time};
@@ -30,10 +31,6 @@ fn now() -> Time {
 
 fn require(yes: bool, message: &str) -> Result<(), String> {
     if yes { Ok(()) } else { Err(message.to_owned()) }
-}
-
-fn read_json(path: &Path) -> Value {
-    serde_json::from_slice(&fs::read(path).expect("configuration bytes")).expect("configuration JSON")
 }
 
 fn write_json(path: &Path, value: &Value) {
@@ -123,44 +120,65 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 /// The guide's init and the existing owned-forge fixture, with QA's model/room
 /// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings.md, 7),
 /// before the first start.
-pub fn deployment(paths: &[PathBuf; 3]) {
-    let _ = super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
-    let config = paths[0].join("temper.json");
-    let agent = paths[0].join("agent.json");
-    let mut value = read_json(&config);
-    let mut worker = read_json(&agent);
+#[expect(
+    clippy::must_use_candidate,
+    reason = "subprocess worlds use the files; focused checks retain the typed figures"
+)]
+pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configuration {
+    super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
+    let config = paths[0].join(temper_config_shell::FILE);
+    let mut value = crate::limit_settings::configuration(&paths[0]);
+    let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
-        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+        temper_agent_fixtures::providers::input(&mut value)[table]
+            .as_array_mut()
+            .expect("LLM table")
+            .retain(|row| row["name"] != "anthropic");
     }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
-    worker["endpoints"][0]["limits"]["output"] = 32_000.into();
+    // Keep the stock endpoint ceiling: its response holds the escaped stock tool payload.
+    // B0's model setting requests 32,000 tokens within that ceiling.
     worker["endpoints"][0]["limits"]["reasoning_item"] = 32_768.into();
-    // B0's carriers follow its one-call recipe.
+    // B0 uses one call per response.
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
-    let turn = turn_bounds::turn_body(&worker);
+    // The stock carriers also hold the stock's 82-message inbox; keep their
+    // floor when the one-call recipe makes the agent's turn smaller.
+    let stock_turn = value.jig.hub.turn_bytes;
+    let turn = turn_bounds::turn_body(&worker).max(u32::try_from(stock_turn).expect("stock turn fits"));
     turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.
-    value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
-    value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
-    assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
-    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
-    assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
-    assert_eq!(worker["endpoints"][0]["limits"]["output"], 32_000);
+    value.limits.root.transcript_memory = 817_372_775_016_049_u64;
+    assert_eq!(value.jig.core.people.requests, 256);
+    assert_eq!(value.jig.hub.turn_bytes, u64::from(turn));
+    assert_eq!(value.limits.root.loads.loads, 32);
+    assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
-    write_json(&config, &value);
-    write_json(&agent, &worker);
+    crate::limit_settings::remember(&paths[0], &value);
+    temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
+    value.jig_over("hub.run_calls", 1);
+    crate::limit_settings::remember(&paths[0], &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    temper_box_shell::boxed_operations_in(&[], b"/", &directories, &fs::read(&config).expect("configuration"))
-        .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+    temper_box_shell::operations_in_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &directories,
+        &crate::read_start(&config, temper_config_shell::Shape::Standalone).document,
+        &temper_service::stock::Given::Stock,
+        &value.jig,
+        &value.limits,
+    )
+    .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+    value
 }
 
-fn turn_limits(value: &mut Value, turn: u32) {
+fn turn_limits(value: &mut temper_playground::documents::Configuration, turn: u32) {
     turn_bounds::apply(value, turn);
-    value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
-    value["application"]["limits"]["overrides"]["root.loads.loads"] = 32.into();
+    value.jig_over("people.requests", 256);
+    value.temper_over("root.loads.loads", 32);
 }
 
 /// A private command transcript, with a hard wall bound and no pipe backpressure.
@@ -351,11 +369,13 @@ impl Driver {
 
     fn ctl(&mut self, args: &[&str], input: Option<&str>) -> Result<Value, String> {
         let mut command = if args.starts_with(&["account", "import"]) {
-            let mut locked = Command::new("flock");
+            let mut locked = Command::new("/bin/sh");
+            let import = format!(
+                "exec 9>\"$1\" || exit 1\n{LOCK_FD_9} || exit 1\ntest ! -e \"$2\" || exit 1\nshift 2\nexec \"$@\""
+            );
             locked
-                .arg("-x")
+                .args(["-c", &import, "rung-import"])
                 .arg(self.store.join("login.lock"))
-                .args(["sh", "-c", "test ! -e \"$1\" || exit 1; shift; exec \"$@\"", "rung-import"])
                 .arg(self.store.join("returning"))
                 .arg(&self.binary);
             locked
@@ -601,6 +621,7 @@ pub fn green_light() {
 }
 
 fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -> Child {
+    crate::limit_settings::install_paths(paths);
     let command = skein_world::end_to_end::Command {
         program: binary.into(),
         arguments: super::deployment_flags(paths)
@@ -694,9 +715,9 @@ fn twin_document() -> Value {
             for line in value["lines"].as_array().expect("lines") {
                 if let Some(call) = line["call"].as_str() {
                     let args = line["arguments"].as_object().expect("call arguments");
-                    let identity = args.contains_key("head")
+                    let identity = (args.contains_key("head") || args.contains_key("commit"))
                         || args.contains_key("merge")
-                        || (call.starts_with("read_pull") && args.contains_key("number"));
+                        || (call == "read_issues" && args.contains_key("number"));
                     assert!(!identity, "unbound recorded identity: task {task}, turn {turn}, call {call}");
                 }
             }
@@ -758,11 +779,10 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
     assert_eq!(outcome.exit, Some(Exit::Code(0)));
     assert!(outcome.checked.is_some() && outcome.left.as_ref().is_none_or(Vec::is_empty), "donor drained");
     let registration =
-        read_json(&donor_paths[0].join("temper.json"))["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
-    let config = paths[0].join("temper.json");
-    let mut destination = read_json(&config);
-    destination["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration;
-    write_json(&config, &destination);
+        temper_agent_fixtures::providers::read(&donor_paths[1])["providers"][0]["sources"]["sign_in"].clone();
+    let mut destination = temper_agent_fixtures::providers::read(&paths[1]);
+    destination["providers"][0]["sources"]["sign_in"] = registration;
+    temper_agent_fixtures::providers::write(&paths[1], &destination);
 }
 
 struct TwinPeers {
@@ -907,8 +927,23 @@ fn fund_project(driver: &mut Driver, project: &str) -> Result<(), String> {
     let owner = owner_role(&current)?["period_spend"].as_u64().ok_or("owner period spend")?.max(928_512);
     // Funding raises run project first, then pool (client/ctl/tools.md, 3).
     // Keep the current policy when it already funds the rung's work.
-    driver.ctl(&["project", "fund", project, &period.to_string(), "--key", "rung-project-funds"], None)?;
-    driver.ctl(&["project", "fund", project, &owner.to_string(), "--role", "0", "--key", "rung-role-funds"], None)?;
+    driver.ctl(
+        &["project", "fund", project, &format!("{}.{:02}", period / 100, period % 100), "--key", "rung-project-funds"],
+        None,
+    )?;
+    driver.ctl(
+        &[
+            "project",
+            "fund",
+            project,
+            &format!("{}.{:02}", owner / 100, owner % 100),
+            "--role",
+            "0",
+            "--key",
+            "rung-role-funds",
+        ],
+        None,
+    )?;
     Ok(())
 }
 
@@ -929,8 +964,18 @@ fn configure_model(driver: &mut Driver) -> Result<(), String> {
     require(value["model"]["name"] == "gpt-6.1-sol", "stock row 4 is sol")?;
     value["model"]["window"] = 1_048_576.into();
     value["model"]["output"] = 32_000.into();
+    let mut items = vec![json!({"setting":setting["setting"], "set":value})];
+    for number in ["1", "2"] {
+        let charter = driver.ctl(&["settings", "show", "charter", number], None)?;
+        let mut charter_value = charter["value"].clone();
+        super::super::provider_setup::use_provider(&mut charter_value, 1);
+        charter_value["model"] = value["model"].clone();
+        items.push(json!({"setting":charter["setting"], "set":charter_value}));
+    }
+    let providers = temper_agent_fixtures::providers::read(&driver.store.join("data"));
+    items.extend(super::super::provider_setup::items(&providers));
     let file = driver.store.join("model-settings.json");
-    write_json(&file, &json!({"items":[{"setting":setting["setting"], "set":value}]}));
+    write_json(&file, &json!({"items":items}));
     driver.ctl(
         &[
             "settings",
@@ -963,7 +1008,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3]) -> Result<Value, St
     super::super::live::notice(
         "SETUP sol high output=32000; engine memory=derived-before-start; project and owner funding keep the current policy above the rung's minimum",
     );
-    let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
+    let memory = serde_json::Value::from(temper_service::limits::stock().root.transcript_memory);
     super::super::live::notice(&format!("SETUP engine memory={memory}"));
     let baseline = driver.forge_json("branches")?;
     require(baseline.as_array().is_some_and(|b| b.len() == 1 && b[0]["name"] == "main"), "fresh main alone")?;

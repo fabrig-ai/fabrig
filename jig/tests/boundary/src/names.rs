@@ -257,15 +257,36 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
                 index += 1;
             }
             let name = &source[start..index];
-            let foreign_ip = matches!(name, "V4" | "V6")
-                && source[..start].strip_suffix("core::net::IpAddr::").is_some_and(|prefix| {
-                    prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == ':'))
+            let foreign_ip =
+                ["core::net::IpAddr::", "core::net::SocketAddr::", "core::net::"].iter().any(|qualifier| {
+                    let name_matches = if *qualifier == "core::net::" {
+                        matches!(name, "SocketAddrV4" | "SocketAddrV6")
+                    } else {
+                        matches!(name, "V4" | "V6")
+                    };
+                    name_matches
+                        && source[..start].strip_suffix(qualifier).is_some_and(|prefix| {
+                            prefix
+                                .chars()
+                                .next_back()
+                                .is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == ':'))
+                        })
                 });
             // The approval contract fixes the parser's input bound's name.
             let approval_input_bound = name == "CODE_TYPED_BYTES"
                 && (path.ends_with("crates/jig-client-protocol-wire/src/approval.rs")
                     || path.ends_with("crates/jig-client-protocol-wire/src/lib.rs"));
+            // ApprovalKind's code-entry kind is fixed by protocol/client/sign-in.md.
+            let approval_kind = (name == "Typed"
+                && source[..start].strip_suffix("ApprovalKind::").is_some_and(|prefix| {
+                    prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_'))
+                }))
+                || (name == "typed"
+                    && path.ends_with("crates/jig-client-protocol-wire/schema/client-v39.schema")
+                    && source[..start].ends_with("enum ApprovalKind { listener, returned, ")
+                    && source[index..].starts_with(" }"));
             if !foreign_ip
+                && !approval_kind
                 && !approval_input_bound
                 && forbidden_name(name, false)
                 && (!codec_module(name) || forbidden_name(name, true))
@@ -302,6 +323,15 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
 }
 
 #[test]
+fn standard_network_address_names_keep_their_foreign_qualification() {
+    let path = Path::new("fixture/addresses.rs");
+    for name in ["core::net::SocketAddr::V4", "core::net::SocketAddrV6"] {
+        assert!(breaches(path, name).is_empty(), "standard address {name}");
+        assert_eq!(breaches(path, &format!("other_{name}")).len(), 1, "not a standard qualifier");
+    }
+}
+
+#[test]
 fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
     let cases = [
         ("crates/jig-client-protocol-wire/src/approval.rs", "CODE_TYPED_BYTES", false),
@@ -321,15 +351,32 @@ fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
 }
 
 #[test]
+fn approval_kind_keeps_only_its_contract_member_name() {
+    let schema = "crates/jig-client-protocol-wire/schema/client-v39.schema";
+    let declaration = "enum ApprovalKind { listener, returned, typed }";
+    for (site, source, rejected) in [
+        ("fixture/source.rs", "ApprovalKind::Typed", false),
+        ("fixture/source.rs", "OtherApprovalKind::Typed", true),
+        ("fixture/source.rs", "Other::Typed", true),
+        (schema, declaration, false),
+        ("fixture/other.schema", declaration, true),
+        (schema, "enum Other { typed }", true),
+    ] {
+        let failures = breaches(Path::new(site), source);
+        assert_eq!(!failures.is_empty(), rejected, "{site}: {source}: {failures:?}");
+    }
+}
+
+#[test]
 fn versioned_codec_names_require_a_schema() {
     let path = Path::new("fixture/codecs.rs");
-    let source = "use crate::{public_v1, cursor_v1, unknown_v1, public_v2, cursor_v2};";
+    let source = "use crate::{public_v1, cursor_v2, unknown_v1, public_v2, cursor_v3};";
     assert_eq!(
         breaches(path, source),
         [
             "fixture/codecs.rs:1: identifier unknown_v1",
             "fixture/codecs.rs:1: identifier public_v2",
-            "fixture/codecs.rs:1: identifier cursor_v2",
+            "fixture/codecs.rs:1: identifier cursor_v3",
         ]
     );
 }

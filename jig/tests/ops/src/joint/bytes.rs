@@ -37,7 +37,11 @@ fn connections_limits() -> jig_client_shell_native::Limits {
 impl Side {
     fn new() -> Self {
         Self {
-            connections: Connections::new(&connections_limits(), fixtures::HOST),
+            connections: Connections::new(
+                &connections_limits(),
+                fixtures::HOST,
+                jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+            ),
             up: Queue::with_capacity(256),
             down: Queue::with_capacity(256),
             wire: Wire::default(),
@@ -47,7 +51,7 @@ impl Side {
         }
     }
     fn send(&mut self, now: Time, request: Request) {
-        use jig_client_protocol_wire::v26 as w;
+        use jig_client_protocol_wire as w;
         use skein_lib::Reader;
         if matches!(&request, Request::CloseStream) {
             self.stream_epoch += 1;
@@ -62,6 +66,7 @@ impl Side {
                 }
                 Message::Read(_)
                 | Message::SignInLink(_)
+                | Message::LinkAsk(_)
                 | Message::ApprovalAsk(_)
                 | Message::ApprovalRead(_)
                 | Message::ApprovalDecide(_)
@@ -70,6 +75,7 @@ impl Side {
                 | Message::Authorize(_)
                 | Message::SignOut
                 | Message::Watch(_)
+                | Message::Batch(_)
                 | Message::Unwatch(_)
                 | Message::StreamGone(_) => {}
             }
@@ -78,7 +84,7 @@ impl Side {
         self.connections.down(now, request, &mut self.down);
     }
     fn receipts(&mut self, event: &Event) -> Vec<Receipt> {
-        use jig_client_protocol_wire::v26 as w;
+        use jig_client_protocol_wire as w;
         use skein_lib::Reader;
         let mut receipts: Vec<_> = self
             .wire
@@ -106,7 +112,8 @@ impl Side {
             Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
-            | Event::AskApproval
+            | Event::AskLink
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }
@@ -118,6 +125,8 @@ impl Side {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
+            | Event::Part { .. }
+            | Event::Done { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
             | Event::StreamGone
@@ -161,7 +170,11 @@ impl Bytes {
             name: Box::new([]),
         });
         settings.served = jig_client_kit::test::list([
-            clients::Served { family: None, first: 26, last: 26 },
+            clients::Served {
+                family: None,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            },
             clients::Served { family: Some(1), first: 1, last: 1 },
             clients::Served { family: Some(2), first: 1, last: 1 },
         ]);
@@ -306,7 +319,8 @@ fn callback(event: &Event) -> Option<Callback> {
         Event::Start { .. }
         | Event::StartUnlinked { .. }
         | Event::SignIn { .. }
-        | Event::AskApproval
+        | Event::AskLink
+        | Event::AskApproval { .. }
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
         | Event::ApprovalAnswer { .. }
@@ -318,6 +332,8 @@ fn callback(event: &Event) -> Option<Callback> {
         | Event::Read { .. }
         | Event::Send { .. }
         | Event::Carry { .. }
+        | Event::Part { .. }
+        | Event::Done { .. }
         | Event::Lost { .. }
         | Event::Stored
         | Event::NotStored
@@ -423,9 +439,9 @@ impl Bytes {
                     self.server.up(event, &mut self.server_out);
                 }
             }
-            jig_test_service::server::Routed::Call { call, head } => {
+            jig_test_service::server::Routed::Call { call, head, peer } => {
                 if self.mount.room() > 0 {
-                    self.mount_event(http::Event::Call { call, head });
+                    self.mount_event(http::Event::Call { call, head, peer });
                 } else {
                     self.refused.insert(call, ()).expect("bounded refused server calls");
                     self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);
@@ -522,6 +538,7 @@ impl Bytes {
     }
     fn application(&mut self, joint: &mut Joint, request: clients::ToApplication) {
         let event = match request {
+            clients::ToApplication::ProviderClientChanged { .. } => panic!("Ops fixture requests no provider changes"),
             clients::ToApplication::Request { reply_to, sign_in, key, family, scope, record, digest, .. } => {
                 assert_eq!(family, 2);
                 joint.engine.peers.application_bytes.push((key, record.clone()));

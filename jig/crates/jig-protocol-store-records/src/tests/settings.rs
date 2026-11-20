@@ -6,6 +6,7 @@ use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use skein_codec::Record;
 use skein_lib::{Duration, Wall};
 
 fn model() -> core::Model {
@@ -181,7 +182,7 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         proposal: Some((people::Proposer::Task(8), 9)),
         moved: true,
     };
-    let mut rows = skein_lib::List::with_capacity(34);
+    let mut rows = skein_lib::List::with_capacity(40);
     for row in [
         s::Record::Extent { oldest: 1, keys: 1 },
         s::Record::Revision {
@@ -202,6 +203,16 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         rows.push(row).expect("settings fixture count");
     }
     for (setting, value) in [
+        (
+            s::Setting::Worker(1),
+            s::Value::Worker(Box::new(s::WorkerSetting {
+                number: 1,
+                name: b"w1".as_slice().into(),
+                places: 4,
+                digest: Some([7; 32]),
+                withdrawn: true,
+            })),
+        ),
         (s::Setting::Charter(1), s::Value::Charter(Box::new(charter()))),
         (s::Setting::Template(1), s::Value::Template(Box::new(template()))),
         (s::Setting::Policy(1), s::Value::Policy(Box::new(policy()))),
@@ -322,8 +333,11 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
             s::Value::Overlay(_)
             | s::Value::Policy(_)
             | s::Value::Charter(_)
+            | s::Value::Provider(_)
+            | s::Value::Worker(_)
             | s::Value::Model(_)
-            | s::Value::Application(_) => {
+            | s::Value::Application(_)
+            | s::Value::Limits(_) => {
                 panic!("fixture setting")
             }
         }
@@ -496,9 +510,7 @@ fn a_members_absent_wake_round_trips_without_a_default() {
     member.wake = None;
     let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
     let value = codec::people::encode_ask(&ask, &limits).expect("bounded batch");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured batch");
-    let bytes = writer.finish();
+    let bytes = value.encode(&limits).expect("bounded value");
     let value = crate::people_v17::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
     assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }
@@ -894,8 +906,8 @@ fn charter_versions_use_one_root_with_an_optional_overlay() {
             let wire =
                 crate::settings_v3::CharterVersion::decode(&limits.settings, &mut skein_lib::Reader::new(&bytes))
                     .unwrap();
-            assert_eq!(wire.charter().is_some(), value.charter.is_some());
-            assert_eq!(wire.overlay().is_some(), value.overlay.is_some());
+            assert_eq!(wire.charter.is_some(), value.charter.is_some());
+            assert_eq!(wire.overlay.is_some(), value.overlay.is_some());
             assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row));
         }
     }

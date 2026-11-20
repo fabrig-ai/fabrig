@@ -53,7 +53,7 @@ pub(crate) fn start(
         );
     }
     let Some(row) = domain.forge.change(task) else { return false };
-    let Some((child, _)) = row.delegate else { return false };
+    let Some((child, kind)) = row.delegate else { return false };
     let mut stale_question = false;
     for question in &row.questions.open {
         stale_question |= question.asker == child;
@@ -62,7 +62,7 @@ pub(crate) fn start(
         if !released
             && !stale_question
             && word.from == tasks::Party::Task(child)
-            && super::change_delegate_status(&word.kind).is_some()
+            && super::change_delegate_status(&word.kind, kind).is_some()
         {
             return false;
         }
@@ -128,7 +128,7 @@ pub(crate) fn loaded(
     let Some(record) = domain.core.tasks.task(task) else { return };
     let Some((_, _, due)) = domain.core.tasks.procedure_due(task) else { return };
     let Some(row) = domain.forge.change(task) else { return };
-    let Some((expected, _)) = row.delegate else { return };
+    let Some((expected, kind)) = row.delegate else { return };
     let released_at = match &row.task_release {
         Some(release) => Some(release.at),
         None => None,
@@ -165,7 +165,7 @@ pub(crate) fn loaded(
             forge::Event::ProducedTitle { task, child, title: title.words.clone(), report: words.clone() },
         );
     }
-    let (status, no_change, failed, cancelled, words) = terminal(ending);
+    let (status, no_change, flake, no_test, failed, cancelled, words) = terminal(ending, kind);
     // An end recovered by a release cannot spend that release's fresh allowance.
     let ended_at = match (ended.ended_at, released_at) {
         (Some(at), Some(released)) => Some(at.max(released)),
@@ -176,7 +176,18 @@ pub(crate) fn loaded(
         domain,
         env,
         decision,
-        forge::Event::DelegateResult { task, child, ended_at, status, no_change, failed, cancelled, words },
+        forge::Event::DelegateResult {
+            task,
+            child,
+            ended_at,
+            status,
+            no_change,
+            flake,
+            no_test,
+            failed,
+            cancelled,
+            words,
+        },
     );
     if let Some(context) = domain.core.tasks.run_context(task)
         && !super::start_recovered_change(domain, env, &context, Some((child, ended_at)))
@@ -185,29 +196,87 @@ pub(crate) fn loaded(
     }
 }
 
-fn terminal(ending: &tasks::Ending) -> (forge_change::Status, bool, bool, bool, Box<[u8]>) {
+fn terminal(
+    ending: &tasks::Ending,
+    kind: forge_change::Delegate,
+) -> (forge_change::Status, bool, bool, bool, bool, bool, Box<[u8]>) {
     use forge_change::Status::{Failed, Passed};
     match ending {
         tasks::Ending::Done(result) => match result {
-            tasks::TaskResult::Change { words, .. }
-            | tasks::TaskResult::Report { words }
-            | tasks::TaskResult::Verdict { code: 1, words, .. } => (Passed, false, false, false, words.clone()),
-            tasks::TaskResult::Verdict { words, .. } => (Failed, false, false, false, words.clone()),
-            tasks::TaskResult::NoChange { words } => (Passed, true, false, false, words.clone()),
-            tasks::TaskResult::Failure { reason } => (Failed, false, true, false, reason.clone()),
-            tasks::TaskResult::Job { bytes } => (Passed, false, false, false, bytes.clone()),
+            tasks::TaskResult::Change { words, .. } | tasks::TaskResult::Report { words } => {
+                (Passed, false, false, false, false, false, words.clone())
+            }
+            tasks::TaskResult::Verdict { code: 1, words, .. } => {
+                (Passed, false, super::repair_verdict(kind, forge::REPAIR_FLAKE), false, false, false, words.clone())
+            }
+            tasks::TaskResult::Verdict { code: forge::REPAIR_NO_TEST, words, .. }
+                if super::repair_verdict(kind, forge::REPAIR_NO_TEST) =>
+            {
+                (Passed, false, false, true, false, false, words.clone())
+            }
+            tasks::TaskResult::Verdict { words, .. } => (Failed, false, false, false, false, false, words.clone()),
+            tasks::TaskResult::NoChange { words } => (Passed, true, false, false, false, false, words.clone()),
+            tasks::TaskResult::Failure { reason } => (Failed, false, false, false, true, false, reason.clone()),
+            tasks::TaskResult::Job { bytes } => (Passed, false, false, false, false, false, bytes.clone()),
             tasks::TaskResult::Approved { words, .. } => {
-                (Failed, false, false, false, words.clone().unwrap_or_default())
+                (Failed, false, false, false, false, false, words.clone().unwrap_or_default())
             }
         },
-        tasks::Ending::Failed { reason } => (Failed, false, true, false, reason.clone()),
-        tasks::Ending::Cancelled { reason, .. } => (Failed, false, false, true, reason.clone()),
+        tasks::Ending::Failed { reason } => (Failed, false, false, false, true, false, reason.clone()),
+        tasks::Ending::Cancelled { reason, .. } => (Failed, false, false, false, false, true, reason.clone()),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_recovered_repair_flake_keeps_its_words_and_is_not_a_failure() {
+        let ending = tasks::Ending::Done(tasks::TaskResult::Verdict {
+            code: forge::REPAIR_FLAKE,
+            fields: Box::new([]),
+            words: b"test a::t x passed again".as_slice().into(),
+        });
+        assert_eq!(
+            terminal(&ending, forge_change::Delegate::Repair(forge_change::Repair::Landing { gate: 0 })),
+            (
+                forge_change::Status::Passed,
+                false,
+                true,
+                false,
+                false,
+                false,
+                b"test a::t x passed again".as_slice().into()
+            )
+        );
+        assert!(!terminal(&ending, forge_change::Delegate::Gate { number: 1, head: [0; 32] }).2);
+    }
+
+    #[test]
+    fn a_recovered_repair_no_test_keeps_its_words_and_is_not_a_failure() {
+        let ending = tasks::Ending::Done(tasks::TaskResult::Verdict {
+            code: forge::REPAIR_NO_TEST,
+            fields: Box::new([]),
+            words: b"the build failed before tests".as_slice().into(),
+        });
+        assert_eq!(
+            terminal(&ending, forge_change::Delegate::Repair(forge_change::Repair::Landing { gate: 0 })),
+            (
+                forge_change::Status::Passed,
+                false,
+                false,
+                true,
+                false,
+                false,
+                b"the build failed before tests".as_slice().into()
+            )
+        );
+        assert_eq!(
+            terminal(&ending, forge_change::Delegate::Repair(forge_change::Repair::Ci)).0,
+            forge_change::Status::Failed
+        );
+    }
 
     #[test]
     fn a_recovered_negative_verdict_is_still_negative() {
@@ -217,8 +286,8 @@ mod tests {
             words: b"Needs a repair".as_slice().into(),
         });
         assert_eq!(
-            terminal(&ending),
-            (forge_change::Status::Failed, false, false, false, b"Needs a repair".as_slice().into())
+            terminal(&ending, forge_change::Delegate::Gate { number: 1, head: [0; 32] }),
+            (forge_change::Status::Failed, false, false, false, false, false, b"Needs a repair".as_slice().into())
         );
     }
 }

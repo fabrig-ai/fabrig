@@ -17,7 +17,7 @@ fn before_change() -> Driver {
     let mut core = jig_tasks_kit::World::new(71, jig_tasks_kit::LIMITS);
     let mut new = jig_tasks_kit::task(TASK, &[]);
     new.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    new.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 32 };
+    new.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 32, choices: Box::new([]) };
     new.spec.parameters = Box::new([tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 2) }]);
     new.authority = fixtures::report_delegate(b"change", Box::new([])).authority;
     new.numbers.budget = new.authority.budget.spend;

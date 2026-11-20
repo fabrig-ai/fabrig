@@ -1,10 +1,11 @@
 //! Shipped profiles fit the byte-summed families (protocol/store/records.md, 1).
-use jig_protocol_config::{Profile, profile};
+
 use jig_protocol_store::codec;
+use jig_protocol_store::tasks_v13::Record;
 
 // Standard's development figures (protocol/limits.md), with small's other limits.
 fn fabrig_scale() -> jig_domain_core::Limits {
-    let mut core = profile(Profile::Small).core;
+    let mut core = jig_protocol_config_fixtures::small().core;
     core.tasks = jig_domain_tasks::Limits {
         tasks: 128,
         project_tasks: 128,
@@ -58,8 +59,8 @@ fn the_codecs_refuse_figures_past_the_ceilings() {
 
 #[test]
 fn both_shipped_profiles_admit_the_tasks_and_people_families() {
-    for profile_name in [Profile::Small, Profile::Standard] {
-        let limits = profile(profile_name);
+    for profile_name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+        let limits = profile_name;
         assert!(codec::tasks::limits(&limits.core.tasks).is_some(), "{profile_name:?} Tasks");
         assert!(codec::people::limits(&limits.core).is_some(), "{profile_name:?} People");
     }
@@ -68,8 +69,10 @@ fn both_shipped_profiles_admit_the_tasks_and_people_families() {
 #[test]
 fn both_shipped_profiles_round_trip_the_settled_call_sum() {
     use jig_domain_core as core;
-    for (profile_name, call_bytes) in [(Profile::Small, 69_632_u32), (Profile::Standard, 135_168)] {
-        let domain = profile(profile_name);
+    for (profile_name, call_bytes) in
+        [(jig_protocol_config_fixtures::small(), 69_632_u32), (jig_protocol_config::stock(), 135_168)]
+    {
+        let domain = profile_name;
         let limits = codec::limits(&domain.core).expect("shipped profile within codec ceilings");
         assert_eq!(domain.core.call_answer_bytes, call_bytes, "{profile_name:?}");
         // The opaque tool name and answer split the byte-summed carrier equally.
@@ -122,8 +125,8 @@ const STORE: skein_kv::Limits = skein_kv::Limits {
 fn both_shipped_profiles_are_admitted_by_the_store() {
     let application = jig_protocol_store::sizes::Application { version: 1, key: 2_078, value: 4_304 };
     assert!(STORE.is_usable());
-    for profile_name in [Profile::Small, Profile::Standard] {
-        let limits = profile(profile_name);
+    for profile_name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+        let limits = profile_name;
         assert!(codec::limits(&limits.core).is_some(), "{profile_name:?}");
         let sizes = jig_protocol_store::sizes::check_commits(
             &limits.core,
@@ -185,8 +188,8 @@ fn both_shipped_profiles_round_trip_a_policy_whose_roles_name_models() {
             templates: Box::new([]),
         },
     };
-    for profile_name in [Profile::Small, Profile::Standard] {
-        let limits = codec::people::limits(&profile(profile_name).core).expect("shipped profile within ceilings");
+    for profile_name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+        let limits = codec::people::limits(&profile_name.core).expect("shipped profile within ceilings");
         let bytes = codec::people::encode(&row, &limits, &names).expect("every name within people's bounds");
         assert_eq!(codec::people::decode(&bytes, &limits, &names), Ok(row.clone()), "{profile_name:?}");
     }
@@ -213,8 +216,8 @@ fn question_formats_fit_the_shipped_envelopes() {
         tasks_v13::KeptLine::encoded_bound(&tasks_v13::CEILINGS).expect("kept bound"),
         tasks_v13::TaskInterests::encoded_bound(&tasks_v13::CEILINGS).expect("interests bound"),
     );
-    for name in [Profile::Small, Profile::Standard] {
-        let limits = profile(name);
+    for name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+        let limits = name;
         let commits = sizes::Commits { in_flight: limits.journal.commits, writes: limits.journal.writes };
         let sizes = sizes::check_commits(
             &limits.core,

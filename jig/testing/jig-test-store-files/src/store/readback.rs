@@ -1,6 +1,7 @@
 //! Complete fixture readers (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/transcripts.md, 3, and jig/docs/design/protocol/store/README.md, 9).
 use super::{Store, protocol, root};
 use jig_domain_core as core;
+use jig_protocol_store::core_v6::Record as _;
 use protocol::{Event, Get, Request, codec, keys};
 use skein_lib::{Queue, Reader, Token};
 use std::collections::{BTreeMap, VecDeque};
@@ -96,8 +97,12 @@ impl Store {
         self.readback_boundary()?;
         let mut requests = VecDeque::from([request]);
         let mut above = Queue::uncapped();
-        let mut below =
-            protocol::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = protocol::Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         let mut captured = None;
         loop {
             if self.reached_kill() {
@@ -241,10 +246,6 @@ impl Store {
                         codec::component::Format::decode(value)
                             .map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;
                     }
-                    keys::Own::Layouts => {
-                        codec::component::Layouts::decode(value)
-                            .map_err(|failure| inventory(key, format!("layouts row: {failure:?}")))?;
-                    }
                     keys::Own::Floor => {
                         protocol::component_v3::Floor::decode(
                             &protocol::component_v3::CEILINGS,
@@ -280,7 +281,7 @@ impl Store {
                             &mut Reader::new(value),
                         )
                         .map_err(|failure| inventory(key, format!("opening row: {failure:?}")))?;
-                        if opening.worker() != worker.as_bytes() {
+                        if opening.worker.as_ref() != worker.as_bytes() {
                             return Err(inventory(key, "opening key agreement"));
                         }
                     }

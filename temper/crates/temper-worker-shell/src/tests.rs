@@ -1,13 +1,24 @@
 pub(crate) use crate::test_configuration as configuration;
 
-pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {
-    let (agent, input) = configuration::documents(directory, "/missing/temper");
-    let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
-    input.as_object_mut().expect("document object").remove("engine");
-    input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] =
-        serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
-    (agent, input)
+pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, temper_config_shell::File) {
+    let (agent, _) = configuration::typed_documents(directory, "/missing/temper");
+    let file = temper_config_shell::File {
+        engine: Some("127.0.0.1:7100".parse().expect("engine address")),
+        name: Some("worker".into()),
+        ..temper_config_shell::File::default()
+    };
+    (agent, file)
+}
+
+pub(crate) fn worker_start(file: &temper_config_shell::File) -> Box<[u8]> {
+    use temper_config_shell::{Facts, Shape, parse, render};
+    parse(
+        &render(file, Shape::WorkerAlone),
+        Shape::WorkerAlone,
+        &Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false },
+    )
+    .expect("worker file")
+    .document
 }
 
 #[test]
@@ -54,3 +65,5 @@ fn workspace_reuse_reads_nonempty_values_from_the_given_environment() {
 }
 
 mod pin;
+
+mod figures;

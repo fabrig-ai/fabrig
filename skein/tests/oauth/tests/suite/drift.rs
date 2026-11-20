@@ -1,4 +1,4 @@
-//! The kept record's schema, generated code, goldens and fingerprint (data/codec/README.md, 6).
+//! The kept record's schema and generated code (data/codec/README.md, 6).
 
 use std::fs;
 use std::path::Path;
@@ -23,28 +23,14 @@ fn check(path: &Path, bytes: &[u8], write: bool) {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch")]
 fn the_saved_token_schema_has_no_drift() {
-    let root = skein_scratch::paths::tree().join("crates/skein-oauth");
-    let source = fs::read_to_string(root.join("schema/oauth-v3.schema")).expect("schema readable");
-    let schema = skein_codegen::parse(&source).expect("schema valid");
-    let output = skein_codegen::generate(&schema);
+    let source = skein_oauth::SCHEMA;
+    let unpinned = skein_codegen::unpinned(source).expect("schema valid");
+    assert!(unpinned.is_empty(), "oauth-v3: unpinned constructs: {unpinned:?}");
+    let schema = skein_codegen::values(source).schema.clone();
+    let owner = skein_scratch::paths::tree().join("crates/skein-oauth");
+    let form = skein_codegen::form_of(&owner.join("schema"), &schema.family).expect("owner's lean mark readable");
+    let output = skein_codegen::generate_as(&schema, form);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let codec = skein_scratch::paths::tree().join("crates/skein-oauth-codec");
-    check(&codec.join("src/generated/v3.rs"), output.records.as_bytes(), write);
-    check(&codec.join("tests/generated/v3.rs"), output.tests.text("skein_oauth_codec::v3").as_bytes(), write);
-    check(&codec.join("tests/generated/main.rs"), skein_codegen::tests_main(&["v3"]).as_bytes(), write);
-    for golden in output.goldens {
-        check(&root.join("golden/v3").join(golden.name), &golden.bytes, write);
-    }
-    let family = skein_codec::schema::parse(source.as_bytes()).expect("runtime schema valid");
-    let fingerprint = family.fingerprints().family().digest();
-    if write {
-        let path = root.join("src/lib.rs");
-        let code = fs::read_to_string(&path).expect("crate root readable");
-        let (before, declaration) = code.split_once("pub const FINGERPRINT:").expect("fingerprint declaration");
-        let (_, after) = declaration.split_once(";\n").expect("fingerprint declaration ends");
-        let code = format!("{before}pub const FINGERPRINT: [u8; 32] = {fingerprint:?};\n{after}");
-        fs::write(path, code).expect("write fingerprint");
-    } else {
-        assert_eq!(skein_oauth::FINGERPRINT, fingerprint, "{REGENERATE}");
-    }
+    check(&codec.join("src/generated/oauth.rs"), output.records.as_bytes(), write);
 }

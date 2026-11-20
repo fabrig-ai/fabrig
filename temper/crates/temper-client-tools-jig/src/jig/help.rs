@@ -10,7 +10,7 @@ pub fn usage(tool: &Tool, out: &mut Writer) -> Result<(), Overflow> {
 }
 fn form_usage(tool: &Tool, form: &[Argument], out: &mut Writer) -> Result<(), Overflow> {
     if tool.name == b"task amend" {
-        return out.put(b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n");
+        return out.put(b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--budget AMOUNT] [--tasks N] [--to-party PARTY | --to-role ROLE] REASON [--key KEY]\n");
     }
     if tool.name == b"change open" {
         return out.put(b"change open --project PROJECT [--repository OWNER/NAME] --branch BRANCH [--at COMMIT] [--into BRANCH] --title TEXT [--body TEXT] (--budget AMOUNT | --as-allowed) --key KEY\n");
@@ -148,7 +148,8 @@ fn argument_record(argument: &Argument, limits: &Limits, out: &mut Writer) -> Re
 pub fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
     out.put(match kind {
         Kind::Number | Kind::NumberRange { .. } => b"a number",
-        Kind::Count => b"a count",
+        Kind::Amount => b"an amount with at most two decimals, as 130 or 1.25",
+        Kind::Count | Kind::Places => b"a count",
         Kind::NamedNumber { words, prefixes, .. } => return choices(words, prefixes, out),
         Kind::Word { set } => return choices(set, &[], out),
         Kind::Text | Kind::Literal => b"text",
@@ -156,6 +157,8 @@ pub fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
         Kind::Duration => b"a duration: seconds, or a number with s, m or h",
         Kind::Proposal => b"a proposal, tN/K or pN/K",
         Kind::Digest => b"a digest, as a read prints it",
+        Kind::Sha256 => b"64 lowercase hexadecimal digits",
+        Kind::Worker => b"a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit",
         Kind::Condition => b"a condition",
         Kind::Project { .. } => b"a project's name or number",
         Kind::Finding => b"P/N: a project name or number, then a finding number",

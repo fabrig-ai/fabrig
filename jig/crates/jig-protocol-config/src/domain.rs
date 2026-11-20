@@ -57,25 +57,15 @@ pub(crate) fn providers(document: &Document, at: u32, path: &Path, problems: &mu
             let kind = match kind.as_ref() {
                 b"link" => ProviderKind::Link,
                 b"application" => ProviderKind::Application,
-                b"deployment" => {
-                    deployments = deployments.saturating_add(1);
-                    if deployments > 1 {
-                        problems.push(path.member(b"kind"), What::Unique);
-                    }
-                    ProviderKind::Deployment
-                }
+                b"deployment" => ProviderKind::Deployment,
                 _ => {
                     problems.push(path.member(b"kind"), What::Form);
                     continue;
                 }
             };
-            for previous in &providers {
-                if previous.number == number {
-                    problems.push(path.member(b"number"), What::Unique);
-                    break;
-                }
-            }
-            providers.push(Provider { number, kind }).expect("bounded provider input");
+            let provider = Provider { number, kind };
+            check_provider(provider, providers.as_slice(), &mut deployments, &path, problems);
+            providers.push(provider).expect("bounded provider input");
         }
     }
     if deployments == 0 {
@@ -153,18 +143,69 @@ pub(crate) fn connectors(
         match read::integer(document, *at, u64::from(u16::MAX)) {
             Ok(number) => {
                 let number = u16::try_from(number).expect("u16 checked");
-                if number == jig_domain_core_vocabulary::RECURRING {
-                    problems.push(path.clone(), What::Bound);
-                }
-                if numbers.as_slice().contains(&number) {
-                    problems.push(path.clone(), What::Unique);
-                }
+                check_connector(number, numbers.as_slice(), &path, problems);
                 numbers.push(number).expect("bounded connector input");
             }
             Err(what) => problems.push(path, what),
         }
     }
     Some(numbers.into_boxed())
+}
+pub(crate) fn check_providers(providers: &[Provider], path: &Path, problems: &mut Problems) {
+    let mut deployments = 0_u32;
+    for (index, provider) in providers.iter().enumerate() {
+        check_provider(
+            *provider,
+            providers.get(..index).expect("enumerated prefix"),
+            &mut deployments,
+            &check::index(path, index),
+            problems,
+        );
+    }
+    if deployments == 0 {
+        problems.push(path.clone(), What::Missing);
+    }
+}
+fn check_provider(
+    provider: Provider,
+    previous: &[Provider],
+    deployments: &mut u32,
+    path: &Path,
+    problems: &mut Problems,
+) {
+    if provider.kind == ProviderKind::Deployment {
+        *deployments = deployments.saturating_add(1);
+        if *deployments > 1 {
+            problems.push(path.member(b"kind"), What::Unique);
+        }
+    }
+    for previous in previous {
+        if previous.number == provider.number {
+            problems.push(path.member(b"number"), What::Unique);
+            break;
+        }
+    }
+}
+pub(crate) fn check_connectors(numbers: &[u16], max: u32, path: &Path, problems: &mut Problems) {
+    if numbers.len() > skein_lib::length::usize_of(max) {
+        problems.push(path.clone(), What::Bound);
+    }
+    for (index, number) in numbers.iter().enumerate() {
+        check_connector(
+            *number,
+            numbers.get(..index).expect("enumerated prefix"),
+            &check::index(path, index),
+            problems,
+        );
+    }
+}
+fn check_connector(number: u16, previous: &[u16], path: &Path, problems: &mut Problems) {
+    if number == jig_domain_core_vocabulary::RECURRING {
+        problems.push(path.clone(), What::Bound);
+    }
+    if previous.contains(&number) {
+        problems.push(path.clone(), What::Unique);
+    }
 }
 pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problems: &mut Problems) -> Option<List<u32>> {
     match read::list(document, at, max) {
@@ -381,9 +422,7 @@ fn check_policy(
     problems: &mut Problems,
 ) {
     let before = problems.problems.len();
-    let admitted = if engine.defaults == crate::Defaults::Passed {
-        jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy).is_none()
-    } else {
+    let admitted = if engine.defaults == crate::Defaults::Document {
         let Some(mut authority) = jig_domain_authority::Domain::new(engine.rules.clone(), engine.limits.core.authority)
         else {
             problems.push(path.member(b"policy"), What::Because(b"deployment rules exceed authority limits"));
@@ -401,6 +440,8 @@ fn check_policy(
                 false
             }
         }
+    } else {
+        jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy).is_none()
     };
     crate::templates::check_overrides(engine, templates, &path.member(b"policy").member(b"templates"), problems);
     for (index, role) in roles.iter().enumerate() {
@@ -707,15 +748,11 @@ struct PeopleBound {
 // ceilings come from the codec's records; their arithmetic has one owner.
 // Keep one mapping per line so the translation can be read as a table.
 #[rustfmt::skip]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "Path is shared with decoding; non-limit paths must return None without panicking"
-)]
 fn people_bound(
     limits: &jig_protocol_store::people_v17::Limits,
     path: jig_protocol_store::people_v17::Path,
 ) -> Option<PeopleBound> {
-    use jig_protocol_store::people_v17::{CEILINGS, Path as P};
+    use jig_protocol_store::people_v17::{CEILINGS, paths};
     macro_rules! b {
         ($name:literal, $words:literal, $field:ident) => {
             Some(PeopleBound {
@@ -724,102 +761,99 @@ fn people_bound(
             })
         };
     }
-    match path {
-        P::SegmentBytes => b!(b"authority.segment_bytes", b"Segment.bytes", segment_bytes),
-        P::IdentityKeySubject => b!(b"people.identity_bytes", b"IdentityKey.subject", identity_key_subject),
-        P::IdentityLogin => b!(b"people.identity_bytes", b"Identity.login", identity_login),
-        P::IdentityName => b!(b"people.identity_bytes", b"Identity.name", identity_name),
-        P::LastExactValue => b!(b"authority.segment_bytes", b"LastExact.value", last_exact_value),
-        P::LastOpenValue => b!(b"authority.segment_bytes", b"LastOpen.value", last_open_value),
-        P::PatternSegments => b!(b"core.policy_bytes", b"Pattern.segments", pattern_segments),
-        P::DelegationKinds => b!(b"core.policy_bytes", b"Delegation.kinds", delegation_kinds),
-        P::AuthorityGrants => b!(b"core.policy_bytes", b"Authority.grants", authority_grants),
-        P::AuthorityNoteResources => b!(b"core.policy_bytes", b"Authority.note_resources", authority_note_resources),
-        P::PolicyValueProjections => b!(b"authority.grants", b"PolicyValue.projections", policy_value_projections),
-        P::PolicyValueRoles => b!(b"authority.roles", b"PolicyValue.roles", policy_value_roles),
-        P::PolicyValueRequirements => b!(b"authority.requirements", b"PolicyValue.requirements", policy_value_requirements),
-        P::PolicyValuePermissions => b!(b"core.policy_bytes", b"PolicyValue.permissions", policy_value_permissions),
-        P::PolicyValueTemplates => b!(b"core.templates", b"PolicyValue.templates", policy_value_templates),
-        P::PolicyChangeRequirementsRequirements => b!(b"people.amendment_bytes", b"PolicyChangeRequirements.requirements", policy_change_requirements_requirements),
-        P::PolicyChangeProjectionsGrants => b!(b"people.amendment_bytes", b"PolicyChangeProjections.grants", policy_change_projections_grants),
-        P::PolicyChangePermissionsMappings => b!(b"people.amendment_bytes", b"PolicyChangePermissions.mappings", policy_change_permissions_mappings),
-        P::PolicyChangeTemplatesOverrides => b!(b"core.templates", b"PolicyChangeTemplates.overrides", policy_change_templates_overrides),
-        P::NoteChangeCorrectDescription => b!(b"people.amendment_bytes", b"NoteChangeCorrect.description", note_change_correct_description),
-        P::NoteChangeCorrectBody => b!(b"people.amendment_bytes", b"NoteChangeCorrect.body", note_change_correct_body),
-        P::NoteChangeCorrectReferences => b!(b"people.amendment_bytes", b"NoteChangeCorrect.references", note_change_correct_references),
-        P::ResourceNamePath => b!(b"people.amendment_bytes", b"ResourceName.path", resource_name_path),
-        P::AdoptionOptions => b!(b"people.amendment_bytes", b"Adoption.options", adoption_options),
-        P::PersonResultApprovedState => b!(b"people.words", b"PersonResultApproved.state", person_result_approved_state),
-        P::PersonResultApprovedWords => b!(b"people.words", b"PersonResultApproved.words", person_result_approved_words_some),
-        P::PersonResultReportWords => b!(b"people.words", b"PersonResultReport.words", person_result_report_words),
-        P::PersonResultVerdictWords => b!(b"people.words", b"PersonResultVerdict.words", person_result_verdict_words),
-        P::PersonResultFailureReason => b!(b"people.words", b"PersonResultFailure.reason", person_result_failure_reason),
-        P::ProposalDecisionRejectReason => b!(b"people.words", b"ProposalDecisionReject.reason", proposal_decision_reject_reason),
-        P::EscalationDecisionRejectReason => b!(b"people.words", b"EscalationDecisionReject.reason", escalation_decision_reject_reason),
-        P::ParameterBytesValue => b!(b"people.amendment_bytes", b"ParameterBytes.value", parameter_bytes_value),
-        P::SpecWords => b!(b"people.amendment_bytes", b"Spec.words", spec_words),
-        P::SpecParameters => b!(b"people.amendment_bytes", b"Spec.parameters", spec_parameters),
-        P::SpecInputs => b!(b"people.amendment_bytes", b"Spec.inputs", spec_inputs),
-        P::LlmChoiceSubagents => b!(b"people-v13.LlmChoice.subagents", b"LlmChoice.subagents", llm_choice_subagents),
-        P::AmendmentInstructions => b!(b"people.amendment_bytes", b"Amendment.instructions", amendment_instructions_some),
-        P::AmendmentDependencies => b!(b"people.amendment_bytes", b"Amendment.dependencies", amendment_dependencies_some),
-        P::AmendmentReason => b!(b"people.words", b"Amendment.reason", amendment_reason),
-        P::FieldRuleName => b!(b"people.amendment_bytes", b"FieldRule.name", field_rule_name),
-        P::VerdictFields => b!(b"people.amendment_bytes", b"Verdict.fields", verdict_fields),
-        P::ContractVerdictChoices => b!(b"people.amendment_bytes", b"ContractVerdict.choices", contract_verdict_choices),
-        P::MemberWords => b!(b"tasks.spec_bytes", b"Member.words", member_words),
-        P::MemberParameters => b!(b"people.amendment_bytes", b"Member.parameters", member_parameters),
-        P::MemberInputs => b!(b"people.amendment_bytes", b"Member.inputs", member_inputs),
-        P::MemberDependencies => b!(b"people.amendment_bytes", b"Member.dependencies", member_dependencies),
-        P::MemberNamed => b!(b"core.policy_bytes", b"Member.named", member_named),
-        P::OperationCancelReason => b!(b"people.words", b"OperationCancel.reason", operation_cancel_reason),
-        P::OperationMoveReason => b!(b"people.words", b"OperationMove.reason", operation_move_reason),
-        P::OperationMessageWords => b!(b"people.words", b"OperationMessage.words", operation_message_words),
-        P::AskCompoundOperations => b!(b"people.operations", b"AskCompound.operations", ask_compound_operations),
-        P::AskCreateBatch => b!(b"people.batch", b"AskCreate.batch", ask_create_batch),
-        P::AskMakeServiceName => b!(b"people.words", b"AskMakeService.name", ask_make_service_name),
-        P::ActionBatchMembers => b!(b"people.batch", b"ActionBatch.members", action_batch_members),
-        P::AskRestoreReason => b!(b"people.words", b"AskRestore.reason", ask_restore_reason),
-        P::OutcomeRestoredLeftOut => b!(b"tasks.SETTINGS_ITEMS + 1", b"OutcomeRestored.left_out", outcome_restored_left_out),
-        P::AskProposeReason => b!(b"people.words", b"AskPropose.reason", ask_propose_reason),
-        P::AskCancelReason => b!(b"people.words", b"AskCancel.reason", ask_cancel_reason),
-        P::AskMoveReason => b!(b"people.words", b"AskMove.reason", ask_move_reason),
-        P::AskSayWords => b!(b"people.words", b"AskSay.words", ask_say_words),
-        P::AskAnswerQuestionWords => b!(b"people.words", b"AskAnswerQuestion.words", ask_answer_question_words),
-        P::AskSetRolesHoldings => b!(b"people.holdings", b"AskSetRoles.holdings", ask_set_roles_holdings),
-        P::AskRenameName => b!(b"people-v13.AskRename.name", b"AskRename.name", ask_rename_name),
-        P::RefusalFullTasks => b!(b"tasks.circle", b"RefusalFull.tasks", refusal_full_tasks),
-        P::AskMakeProjectName => b!(b"people-v13.AskMakeProject.name", b"AskMakeProject.name", ask_make_project_name),
-        P::AccountChangeDeclareProgramName => b!(b"people-v13.AccountChangeDeclareProgram.name", b"AccountChangeDeclareProgram.name", account_change_declare_program_name),
-        P::AccountChangeAddKeyDigest => b!(b"people-v13.AccountChangeAddKey.digest", b"AccountChangeAddKey.digest", account_change_add_key_digest),
-        P::AccountChangeReplaceKeyDigest => b!(b"people-v13.AccountChangeReplaceKey.digest", b"AccountChangeReplaceKey.digest", account_change_replace_key_digest),
-        P::AccountChangeSetUsesUses => b!(b"people.words", b"AccountChangeSetUses.uses", account_change_set_uses_uses_some),
-        P::AccountChangeMoveInDigest => b!(b"people-v13.AccountChangeMoveIn.digest", b"AccountChangeMoveIn.digest", account_change_move_in_digest),
-        P::StoredRolesHoldings => b!(b"people.holdings", b"StoredRoles.holdings", stored_roles_holdings),
-        P::ModelNameName => b!(b"people-v13.ModelName.name", b"ModelName.name", model_name_name),
-        P::StoredPolicyName => b!(b"people-v13.StoredPolicy.name", b"StoredPolicy.name", stored_policy_name),
-        P::StoredPolicyModels => b!(b"people-v13.StoredPolicy.models", b"StoredPolicy.models", stored_policy_models),
-        P::RefusalCircleTasks => b!(b"tasks.circle", b"RefusalCircle.tasks", refusal_circle_tasks),
-        P::RefusalKeptPending => b!(b"tasks.dependencies", b"RefusalKept.pending", refusal_kept_pending),
-        P::OutcomeAccountSignInStartedAddress => b!(b"people-v13.OutcomeAccountSignInStarted.address", b"OutcomeAccountSignInStarted.address", outcome_account_sign_in_started_address),
-        P::AccountHostFailureName => b!(b"people.program_host_name_bytes", b"AccountHostFailure.name", account_host_failure_name),
-        P::OutcomeAccountProgramDeclaredName => b!(b"people-v13.OutcomeAccountProgramDeclared.name", b"OutcomeAccountProgramDeclared.name", outcome_account_program_declared_name),
-        P::OutcomeAccountSignedOutFailedHosts => b!(b"people.program_hosts", b"OutcomeAccountSignedOut.failed_hosts", outcome_account_signed_out_failed_hosts),
-        P::OutcomeAccountRemovedFailedHosts => b!(b"people.program_hosts", b"OutcomeAccountRemoved.failed_hosts", outcome_account_removed_failed_hosts),
-        P::ActCloseReason => b!(b"people.words", b"ActClose.reason", act_close_reason),
-        P::ActMakeProjectName => b!(b"people-v13.ActMakeProject.name", b"ActMakeProject.name", act_make_project_name),
-        P::StoredAnswerModels => b!(b"people-v13.StoredAnswer.models", b"StoredAnswer.models", stored_answer_models),
-        // Path is shared with decoding; check_limits names only limit paths today.
-        _ => None,
-    }
+    if path == paths::SEGMENT_BYTES { return b!(b"authority.segment_bytes", b"Segment.bytes", segment_bytes); }
+    if path == paths::IDENTITY_KEY_SUBJECT { return b!(b"people.identity_bytes", b"IdentityKey.subject", identity_key_subject); }
+    if path == paths::IDENTITY_LOGIN { return b!(b"people.identity_bytes", b"Identity.login", identity_login); }
+    if path == paths::IDENTITY_NAME { return b!(b"people.identity_bytes", b"Identity.name", identity_name); }
+    if path == paths::LAST_EXACT_VALUE { return b!(b"authority.segment_bytes", b"LastExact.value", last_exact_value); }
+    if path == paths::LAST_OPEN_VALUE { return b!(b"authority.segment_bytes", b"LastOpen.value", last_open_value); }
+    if path == paths::PATTERN_SEGMENTS { return b!(b"core.policy_bytes", b"Pattern.segments", pattern_segments); }
+    if path == paths::DELEGATION_KINDS { return b!(b"core.policy_bytes", b"Delegation.kinds", delegation_kinds); }
+    if path == paths::AUTHORITY_GRANTS { return b!(b"core.policy_bytes", b"Authority.grants", authority_grants); }
+    if path == paths::AUTHORITY_NOTE_RESOURCES { return b!(b"core.policy_bytes", b"Authority.note_resources", authority_note_resources); }
+    if path == paths::POLICY_VALUE_PROJECTIONS { return b!(b"authority.grants", b"PolicyValue.projections", policy_value_projections); }
+    if path == paths::POLICY_VALUE_ROLES { return b!(b"authority.roles", b"PolicyValue.roles", policy_value_roles); }
+    if path == paths::POLICY_VALUE_REQUIREMENTS { return b!(b"authority.requirements", b"PolicyValue.requirements", policy_value_requirements); }
+    if path == paths::POLICY_VALUE_PERMISSIONS { return b!(b"core.policy_bytes", b"PolicyValue.permissions", policy_value_permissions); }
+    if path == paths::POLICY_VALUE_TEMPLATES { return b!(b"core.templates", b"PolicyValue.templates", policy_value_templates); }
+    if path == paths::POLICY_CHANGE_REQUIREMENTS_REQUIREMENTS { return b!(b"people.amendment_bytes", b"PolicyChangeRequirements.requirements", policy_change_requirements_requirements); }
+    if path == paths::POLICY_CHANGE_PROJECTIONS_GRANTS { return b!(b"people.amendment_bytes", b"PolicyChangeProjections.grants", policy_change_projections_grants); }
+    if path == paths::POLICY_CHANGE_PERMISSIONS_MAPPINGS { return b!(b"people.amendment_bytes", b"PolicyChangePermissions.mappings", policy_change_permissions_mappings); }
+    if path == paths::POLICY_CHANGE_TEMPLATES_OVERRIDES { return b!(b"core.templates", b"PolicyChangeTemplates.overrides", policy_change_templates_overrides); }
+    if path == paths::NOTE_CHANGE_CORRECT_DESCRIPTION { return b!(b"people.amendment_bytes", b"NoteChangeCorrect.description", note_change_correct_description); }
+    if path == paths::NOTE_CHANGE_CORRECT_BODY { return b!(b"people.amendment_bytes", b"NoteChangeCorrect.body", note_change_correct_body); }
+    if path == paths::NOTE_CHANGE_CORRECT_REFERENCES { return b!(b"people.amendment_bytes", b"NoteChangeCorrect.references", note_change_correct_references); }
+    if path == paths::RESOURCE_NAME_PATH { return b!(b"people.amendment_bytes", b"ResourceName.path", resource_name_path); }
+    if path == paths::ADOPTION_OPTIONS { return b!(b"people.amendment_bytes", b"Adoption.options", adoption_options); }
+    if path == paths::PERSON_RESULT_APPROVED_STATE { return b!(b"people.words", b"PersonResultApproved.state", person_result_approved_state); }
+    if path == paths::PERSON_RESULT_APPROVED_WORDS { return b!(b"people.words", b"PersonResultApproved.words", person_result_approved_words_some); }
+    if path == paths::PERSON_RESULT_REPORT_WORDS { return b!(b"people.words", b"PersonResultReport.words", person_result_report_words); }
+    if path == paths::PERSON_RESULT_VERDICT_WORDS { return b!(b"people.words", b"PersonResultVerdict.words", person_result_verdict_words); }
+    if path == paths::PERSON_RESULT_FAILURE_REASON { return b!(b"people.words", b"PersonResultFailure.reason", person_result_failure_reason); }
+    if path == paths::PROPOSAL_DECISION_REJECT_REASON { return b!(b"people.words", b"ProposalDecisionReject.reason", proposal_decision_reject_reason); }
+    if path == paths::ESCALATION_DECISION_REJECT_REASON { return b!(b"people.words", b"EscalationDecisionReject.reason", escalation_decision_reject_reason); }
+    if path == paths::PARAMETER_BYTES_VALUE { return b!(b"people.amendment_bytes", b"ParameterBytes.value", parameter_bytes_value); }
+    if path == paths::SPEC_WORDS { return b!(b"people.amendment_bytes", b"Spec.words", spec_words); }
+    if path == paths::SPEC_PARAMETERS { return b!(b"people.amendment_bytes", b"Spec.parameters", spec_parameters); }
+    if path == paths::SPEC_INPUTS { return b!(b"people.amendment_bytes", b"Spec.inputs", spec_inputs); }
+    if path == paths::LLM_CHOICE_SUBAGENTS { return b!(b"people-v13.LlmChoice.subagents", b"LlmChoice.subagents", llm_choice_subagents); }
+    if path == paths::AMENDMENT_INSTRUCTIONS { return b!(b"people.amendment_bytes", b"Amendment.instructions", amendment_instructions_some); }
+    if path == paths::AMENDMENT_DEPENDENCIES { return b!(b"people.amendment_bytes", b"Amendment.dependencies", amendment_dependencies_some); }
+    if path == paths::AMENDMENT_REASON { return b!(b"people.words", b"Amendment.reason", amendment_reason); }
+    if path == paths::FIELD_RULE_NAME { return b!(b"people.amendment_bytes", b"FieldRule.name", field_rule_name); }
+    if path == paths::VERDICT_FIELDS { return b!(b"people.amendment_bytes", b"Verdict.fields", verdict_fields); }
+    if path == paths::CONTRACT_VERDICT_CHOICES { return b!(b"people.amendment_bytes", b"ContractVerdict.choices", contract_verdict_choices); }
+    if path == paths::MEMBER_WORDS { return b!(b"tasks.spec_bytes", b"Member.words", member_words); }
+    if path == paths::MEMBER_PARAMETERS { return b!(b"people.amendment_bytes", b"Member.parameters", member_parameters); }
+    if path == paths::MEMBER_INPUTS { return b!(b"people.amendment_bytes", b"Member.inputs", member_inputs); }
+    if path == paths::MEMBER_DEPENDENCIES { return b!(b"people.amendment_bytes", b"Member.dependencies", member_dependencies); }
+    if path == paths::MEMBER_NAMED { return b!(b"core.policy_bytes", b"Member.named", member_named); }
+    if path == paths::OPERATION_CANCEL_REASON { return b!(b"people.words", b"OperationCancel.reason", operation_cancel_reason); }
+    if path == paths::OPERATION_MOVE_REASON { return b!(b"people.words", b"OperationMove.reason", operation_move_reason); }
+    if path == paths::OPERATION_MESSAGE_WORDS { return b!(b"people.words", b"OperationMessage.words", operation_message_words); }
+    if path == paths::ASK_COMPOUND_OPERATIONS { return b!(b"people.operations", b"AskCompound.operations", ask_compound_operations); }
+    if path == paths::ASK_CREATE_BATCH { return b!(b"people.batch", b"AskCreate.batch", ask_create_batch); }
+    if path == paths::ASK_MAKE_SERVICE_NAME { return b!(b"people.words", b"AskMakeService.name", ask_make_service_name); }
+    if path == paths::ACTION_BATCH_MEMBERS { return b!(b"people.batch", b"ActionBatch.members", action_batch_members); }
+    if path == paths::ASK_RESTORE_REASON { return b!(b"people.words", b"AskRestore.reason", ask_restore_reason); }
+    if path == paths::OUTCOME_RESTORED_LEFT_OUT { return b!(b"tasks.SETTINGS_ITEMS + 1", b"OutcomeRestored.left_out", outcome_restored_left_out); }
+    if path == paths::ASK_PROPOSE_REASON { return b!(b"people.words", b"AskPropose.reason", ask_propose_reason); }
+    if path == paths::ASK_CANCEL_REASON { return b!(b"people.words", b"AskCancel.reason", ask_cancel_reason); }
+    if path == paths::ASK_MOVE_REASON { return b!(b"people.words", b"AskMove.reason", ask_move_reason); }
+    if path == paths::ASK_SAY_WORDS { return b!(b"people.words", b"AskSay.words", ask_say_words); }
+    if path == paths::ASK_ANSWER_QUESTION_WORDS { return b!(b"people.words", b"AskAnswerQuestion.words", ask_answer_question_words); }
+    if path == paths::ASK_SET_ROLES_HOLDINGS { return b!(b"people.holdings", b"AskSetRoles.holdings", ask_set_roles_holdings); }
+    if path == paths::ASK_RENAME_NAME { return b!(b"people-v13.AskRename.name", b"AskRename.name", ask_rename_name); }
+    if path == paths::REFUSAL_FULL_TASKS { return b!(b"tasks.circle", b"RefusalFull.tasks", refusal_full_tasks); }
+    if path == paths::ASK_MAKE_PROJECT_NAME { return b!(b"people-v13.AskMakeProject.name", b"AskMakeProject.name", ask_make_project_name); }
+    if path == paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME { return b!(b"people-v13.AccountChangeDeclareProgram.name", b"AccountChangeDeclareProgram.name", account_change_declare_program_name); }
+    if path == paths::ACCOUNT_CHANGE_ADD_KEY_DIGEST { return b!(b"people-v13.AccountChangeAddKey.digest", b"AccountChangeAddKey.digest", account_change_add_key_digest); }
+    if path == paths::ACCOUNT_CHANGE_REPLACE_KEY_DIGEST { return b!(b"people-v13.AccountChangeReplaceKey.digest", b"AccountChangeReplaceKey.digest", account_change_replace_key_digest); }
+    if path == paths::ACCOUNT_CHANGE_SET_USES_USES { return b!(b"people.words", b"AccountChangeSetUses.uses", account_change_set_uses_uses_some); }
+    if path == paths::ACCOUNT_CHANGE_MOVE_IN_DIGEST { return b!(b"people-v13.AccountChangeMoveIn.digest", b"AccountChangeMoveIn.digest", account_change_move_in_digest); }
+    if path == paths::STORED_ROLES_HOLDINGS { return b!(b"people.holdings", b"StoredRoles.holdings", stored_roles_holdings); }
+    if path == paths::MODEL_NAME_NAME { return b!(b"people-v13.ModelName.name", b"ModelName.name", model_name_name); }
+    if path == paths::STORED_POLICY_NAME { return b!(b"people-v13.StoredPolicy.name", b"StoredPolicy.name", stored_policy_name); }
+    if path == paths::STORED_POLICY_MODELS { return b!(b"people-v13.StoredPolicy.models", b"StoredPolicy.models", stored_policy_models); }
+    if path == paths::REFUSAL_CIRCLE_TASKS { return b!(b"tasks.circle", b"RefusalCircle.tasks", refusal_circle_tasks); }
+    if path == paths::REFUSAL_KEPT_PENDING { return b!(b"tasks.dependencies", b"RefusalKept.pending", refusal_kept_pending); }
+    if path == paths::OUTCOME_ACCOUNT_SIGN_IN_STARTED_ADDRESS { return b!(b"people-v13.OutcomeAccountSignInStarted.address", b"OutcomeAccountSignInStarted.address", outcome_account_sign_in_started_address); }
+    if path == paths::ACCOUNT_HOST_FAILURE_NAME { return b!(b"people.program_host_name_bytes", b"AccountHostFailure.name", account_host_failure_name); }
+    if path == paths::OUTCOME_ACCOUNT_PROGRAM_DECLARED_NAME { return b!(b"people-v13.OutcomeAccountProgramDeclared.name", b"OutcomeAccountProgramDeclared.name", outcome_account_program_declared_name); }
+    if path == paths::OUTCOME_ACCOUNT_SIGNED_OUT_FAILED_HOSTS { return b!(b"people.program_hosts", b"OutcomeAccountSignedOut.failed_hosts", outcome_account_signed_out_failed_hosts); }
+    if path == paths::OUTCOME_ACCOUNT_REMOVED_FAILED_HOSTS { return b!(b"people.program_hosts", b"OutcomeAccountRemoved.failed_hosts", outcome_account_removed_failed_hosts); }
+    if path == paths::ACT_CLOSE_REASON { return b!(b"people.words", b"ActClose.reason", act_close_reason); }
+    if path == paths::ACT_MAKE_PROJECT_NAME { return b!(b"people-v13.ActMakeProject.name", b"ActMakeProject.name", act_make_project_name); }
+    if path == paths::STORED_ANSWER_MODELS { return b!(b"people-v13.StoredAnswer.models", b"StoredAnswer.models", stored_answer_models); }
+    None
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn a_non_limit_people_path_has_no_bound() {
-        use jig_protocol_store::people_v17::{CEILINGS, Path};
+        use jig_protocol_store::people_v17::{CEILINGS, paths};
 
-        assert!(super::people_bound(&CEILINGS, Path::SegmentTail).is_none());
+        assert!(super::people_bound(&CEILINGS, paths::SEGMENT_TAIL).is_none());
     }
 }

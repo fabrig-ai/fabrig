@@ -11,8 +11,10 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -27,6 +29,7 @@ fn change_row() -> top::ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 51,
@@ -39,11 +42,13 @@ fn change_row() -> top::ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::from_nanos(100_000_000_000),
             ready_since: None,
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: None,
@@ -53,8 +58,14 @@ fn change_row() -> top::ChangeRow {
         delegate_status: change::Status::Unknown,
         spec_revision: 0,
         gate_revision: 0,
+        delegate_flake: false,
+        delegate_no_test: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -118,6 +129,8 @@ fn change_step_task(
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -492,6 +505,8 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -509,6 +524,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
     });
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive routing of the forge's change outputs")]
 fn land_change(world: &mut Protocol) -> bool {
     let mut finished = false;
     for entry in 4..24 {
@@ -544,6 +560,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
@@ -589,6 +606,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::FollowRun { .. }
@@ -596,8 +614,11 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
+                | top::Request::FileVerdict { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
                 | top::Request::LoadHistory { .. }
@@ -878,8 +899,8 @@ const PENDING_INSTALLATION_REQUESTS_PER_MINUTE: u64 =
 fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     use skein_fake_forge_domain::api::Check;
     use skein_lib::Duration;
-    use temper_engine_service_vocabulary::limits::{Profile, profile};
-    let shipped = profile(Profile::Small).forge;
+    use temper_limits_fixtures::small;
+    let shipped = small().forge;
     let (mut world, pushed, verdict, head) = ci_poll::pending_github_change(1000);
     let deadline =
         Wall::from_nanos(verdict.as_nanos() + shipped.client.poll_max.as_nanos() + Duration::from_secs(1).as_nanos());
@@ -940,6 +961,8 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 entry,
                 heard: change::Heard {
                     delegate_running: false,
+                    flake: false,
+                    no_test: false,
                     delegate_live: false,
                     review_request: None,
                     start_conflict: None,
@@ -1229,6 +1252,8 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 child,
                                 status: change::Status::Passed,
                                 no_change: false,
+                                flake: false,
+                                no_test: false,
                                 failed: false,
                                 cancelled: false,
                                 words: b"passed".as_slice().into(),

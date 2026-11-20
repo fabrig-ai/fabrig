@@ -294,15 +294,9 @@ fn a_result_file_shorter_than_its_bound_reads_exact_bytes() {
 /// temper/docs/design/protocol/tooling.md, 2: a spec or workspace decode failure crosses as Undecodable.
 #[test]
 fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
-    use temper_protocol_worker_wire::v1;
-    let valid = v1::JobSpec::new(
-        &v1::CEILINGS,
-        v1::JobSpecParts { command: b"tool".as_slice().into(), request: b"{}".as_slice().into() },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(valid.measure()).unwrap());
-    valid.encode(&mut writer).unwrap();
-    let valid = writer.finish();
+    use temper_protocol_worker_wire::v1::{self, Record};
+    let valid = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into() };
+    let valid = valid.encode(&v1::CEILINGS).unwrap();
     let mut trailing = Writer::new(valid.len().checked_add(1).unwrap());
     trailing.put(&valid).unwrap();
     trailing.put(&[0]).unwrap();
@@ -520,13 +514,17 @@ fn a_real_job_has_only_its_environment_and_releases_its_group() {
             wires: None,
             root: Fd::new(root_fd.as_raw_fd()),
             path: scratch.path().as_os_str().as_bytes().into(),
-            agent: fixtures::pinned_agent(&settings.jig.agent),
+            agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
     .unwrap();
     let clock = Clock::new();
-    let mut env = Env { now: clock.now().now, wall: Wall::EPOCH, limits: settings.jig.limits.io };
+    let mut env = Env {
+        now: clock.now().now,
+        wall: Wall::EPOCH,
+        limits: settings.jig.limits.as_ref().expect("checked worker limits").io,
+    };
     let operations = io::operations(&env.limits).unwrap();
     let mut kernel = Kernel::open(Config { operations }).unwrap();
     let mut io = io::Io::new(&env.limits);

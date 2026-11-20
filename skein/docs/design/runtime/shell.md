@@ -114,7 +114,9 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   the parent process exits; with io, that thread runs the shell's kernel
   and lives as long as the loop. `parent` must be the PID the caller's
   parent gave it (for example as an argument), so the re-check detects
-  death before the signal was installed. macOS returns `Unsupported`.
+  death before the signal was installed. macOS, which has no such
+  signal, forks a watcher before the exec that sends it when the parent
+  **process** exits (`readiness.md`, 5); the re-check is the same.
 - **A parent-side spawn,** `spawn_dying_with_parent(command: &mut
   std::process::Command, signal) -> std::io::Result<std::process::Child>`,
   for a test kit with no binary of its own to exec through
@@ -122,10 +124,10 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   test"): the same parent-death signal and parent re-check, installed in
   the forked child before its exec, the parent being the spawning
   process. A re-check that fails refuses the spawn as the child-side
-  exec does. The signal fires when the spawning thread exits, as above,
-  so a kit spawns on the thread that keeps the process. Off Linux it
-  spawns without the signal, as smith's program child starts its program
-  directly on macOS.
+  exec does. On Linux the signal fires when the spawning thread exits,
+  as above, so a kit spawns on the thread that keeps the process; on
+  macOS the watcher, forked in the child's pre-exec hook, sends it when
+  the spawning process exits.
 - **Its checks:** the first two broken invariants of the kernel boundary
   (an invalid record, a token already in flight) at submit.
 
@@ -163,6 +165,19 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   at startup, beside the seed and never derived from it, and handed to
   the service's startup as a `Secret`. The service keys each `CryptoRng`
   from it; a world draws it from its own seed instead.
+- **A fixed clock,** for a process a tool walks on a fixed start
+  (lib.md, section 8, `FixedStart`): `Clock::fixed(start: &FixedStart)
+  -> Clock` reads `FixedStart::NOW` and the start's wall, then moves only
+  to the deadlines it is asked for, through a `FixedClock` over
+  `CLOCK_MONOTONIC`'s readings. `Clock::until(&self, deadline:
+  Option<Time>) -> Option<Time>` gives the monotonic instant the kernel
+  waits until for a step's deadline: the deadline itself on the host's
+  clock, and on a fixed one the instant the host's time reaches it
+  (`FixedClock::until`). `Clock::new` is the host's clock, as before, and
+  a wait of the shell's own, `posix::wait_readable`'s, keeps it. A process
+  on a fixed start takes its seed and its cryptographic seed from the
+  start (`FixedStart::draw`), not from `getrandom`: the program's startup
+  chooses both, and the kit reads no setting of its own for them.
 
 ## 6. Startup
 
@@ -194,7 +209,9 @@ Startup is each service's `main`, step by step, with the kit's
 functions: the kit holds no startup function of its own.
 
 A service that starts trees also dispatches its helper before step 1,
-and opens its own cgroup before step 7 (6.4).
+and opens its own cgroup before step 7 (6.4); one whose spawns carry a
+reach dispatches its helper before step 1 too, and checks that it can
+restrict a tree once its kernel is open (6.4).
 
 A service that listens takes the listeners it was given, and opens
 the ones it holds for its children, before step 7 (6.6).
@@ -231,7 +248,7 @@ io's private-file checks (io/files.md, 3) on what it opened before it reads a
 byte:
 
 - a regular file, reached through no link: no component of its path is
-  one;
+  one, but for macOS's own among its parents (`readiness.md`, 5);
 - no group or other permission bits;
 - one link;
 - owned by the process's effective user, which startup reads once
@@ -245,6 +262,14 @@ does, by a path-only open whose stat decides nothing (io/files.md, 3). The
 bytes are a secret's: the caller keeps them out of logs, traces and
 `Debug` (lib.md, section 6).
 
+**The system's links, for a caller's own check.** A caller that checks
+a path's components for links itself first takes
+`resolve_system_links(path: &Path) -> PathBuf`, the path with the
+system's own links among its parents passed by the walk the no-follow
+opens make (`readiness.md`, 5), always, not only on a refusal; on
+Linux, the path as given. What it answers is checked as before, so the
+caller refuses what the shell's opens refuse, and no other link.
+
 **The process's own identity** is read the same way, once, at startup,
 through the ring adapter:
 - `effective_user()`, the effective user ID, for io's private files
@@ -255,6 +280,20 @@ through the ring adapter:
 Neither is read again: a process's identity does not change while it
 runs. A service never reads them itself, with `std::process` or a
 syscall of its own. It takes them from its shell.
+
+**The host's name** is the kernel's, asked at startup only, for a
+service whose defaults name its machine, such as temper's worker
+(`temper/docs/design/protocol/configuration/file.md`, 5).
+`host_name() -> Result<Box<[u8]>, i32>` answers it through `uname`,
+on Linux and macOS alike, one call in `posix` (readiness.md, 5): the
+node name's bytes before its NUL, or the call's error number. On Linux
+that is the UTS namespace's host name, the bytes
+`/proc/sys/kernel/hostname` gives before its line feed; on macOS,
+which has no `/proc`, it is `kern.hostname`, the name `hostname`
+prints. It is the kernel's answer at that moment, neither checked nor
+decoded: the caller says what a name must be, and a later change of
+the name is not seen. A service never reads `/proc` or calls `uname`
+for it itself.
 
 **Whether a directory can be written** is asked the same way, at
 startup only, for a service that confirms a directory something it runs
@@ -406,17 +445,30 @@ a terminal, so that the same stop rule holds on a terminal and on pipes.
 
 ### 6.4 Trees at startup
 
-A service that starts trees (io/processes.md, 2 to 4) does two more things
-at startup, with the kit:
+A service that starts trees (io/processes.md, 2 to 4), or whose spawns
+carry a reach (io/processes.md, 6), does more at startup, with the kit:
 
 - **The helper, first of all.** The first line of `main` hands its
-  arguments to `skein-contain`'s dispatch, before it reads any
-  configuration. It returns at once unless the first argument is the
-  helper's marker. With the marker, the process is a helper the service
-  started (kernel.md, 6.6): it sets up the tree and executes the command,
-  or reports its stage and exits, and never returns into `main`. A
-  service that starts no tree may leave the line out: without it, a
-  helper it never starts is never dispatched.
+  arguments to the helper's dispatch, `skein_shell::helper::dispatch()`,
+  before it reads any configuration. It returns at once unless the first
+  argument is the helper's marker. With the marker, the process is a
+  helper the service started (kernel.md, 6.6): it sets up the tree and
+  executes the command, or reports its stage and exits, and never
+  returns into `main`. A service that starts no tree and spawns with no
+  reach may leave the line out: without it, a helper it never starts is
+  never dispatched. One that needs it and leaves it out has every reached
+  spawn fail `Reach(Helper)`, never run unrestricted.
+- **Whether it can restrict a tree.** A service whose spawns carry a
+  reach (io/processes.md, 6) calls `Kernel::can_restrict` once its kernel
+  is open, before it serves: it spawns a restricted child (kernel.md,
+  6.6) and answers `Ok`, or the `Unenforced` a reach would meet, whose
+  words say what an operator can do. What follows is the service's: a
+  worker refuses the runs that rely on the fence, or runs them
+  unconfined only by its configuration's word
+  (`temper/docs/design/draft/confinement.md`, 6.5). Inside a container,
+  whether its seccomp profile admits Landlock's calls is this check's to
+  find. Under the simulator, the world gives the service the answer it
+  chooses, as it gives its own cgroup.
 - **Its own cgroup,** opened before step 7: the `0::` line of
   `/proc/self/cgroup`, beneath `/sys/fs/cgroup`, which must be a cgroup
   v2 mount (`statfs`) mounted with `nsdelegate` (`/proc/self/mountinfo`),
@@ -575,7 +627,7 @@ and changes no code above io:
   invariants it and the readiness backend assert, their guards'
   included, are untested (../../foundation/programming-model.md, 10.4).
 - **The conformance suite** runs against each backend the host has,
-  each scenario once (`tests/conformance/real`; kernel.md, 8): one test
+  each scenario once (`tests/conformance/real`; ../testing/conformance.md, 1): one test
   binary, a module for each backend over one list of cases, `ring`
   (Linux only, opened with `Backend::Ring`) and `readiness` (opened with
   `Backend::Readiness`, so epoll on Linux and kqueue on macOS).
@@ -655,10 +707,14 @@ and changes no code above io:
 
 ## 9. Open questions
 
-- **A child dying with its parent on macOS** (3, 13): whether to provide
-  an alternative to Linux's parent-death signal. Default:
-  `exec_dying_with_parent` returns `Unsupported` there; a supervisor
-  ends the crashed service's whole tree before restarting it.
+- **A child dying with its parent on macOS** (3, 13): the watcher
+  (`readiness.md`, 5) is written without a macOS machine to run it, so
+  whether a consumer that would start every program through it takes it
+  before a macOS run has shown it. Default: no; smith's agent still
+  starts its programs directly on macOS
+  (`smith/docs/design/protocol/programs.md`, 5.1), and jig-test's
+  program-child test (`jig/testing/jig-test/tests/process.rs`) is the
+  watcher's first proof there.
 - **The remaining identical helpers** (`readiness.md`, 5): `linux` and `darwin` each
   keep `count`, `process::fd` and `files::truncate`, whose only differences
   are a panic's words or a path. Moving them to `posix` waits for a round
@@ -728,8 +784,9 @@ every service's `main`.
   (../../foundation/testing-strategy.md, 6; ../testing/README.md, 5).
 - **`drive(kernel, clock, host)`** is the loop: reap, read the clock,
   iterate, drain; then return the host's exit once it holds nothing
-  (section 12), or else submit, waiting not at all while work is pending,
-  until the earliest deadline, or until a completion. A service's `main`
+  (section 12), or else ask the clock's `until` for the earliest deadline
+  (section 5), at every iteration, and submit, waiting not at all while
+  work is pending, until the instant `until` gave, or until a completion. A service's `main`
   is its startup, then `drive`. It is native, as the kernel and the
   clock it takes are (section 13).
 - **The hook** runs once per iteration, after `iterate` and before the
@@ -782,10 +839,11 @@ every service's `main`.
 - **A crash closes nothing.** A process killed, or aborted by a panic
   (section 6), runs none of this end: the children it started stay in
   their own groups (io/processes.md) and outlive it, since io kills a child's
-  group only when it closes the child. On Linux, a child that execs its
-  program through `exec_dying_with_parent` (`shell.md`, section 3) is the exception: the
-  kernel sends it its signal when the thread that started it ends, so a
-  service whose crash must not leave a child running starts it that way.
+  group only when it closes the child. A child that execs its
+  program through `exec_dying_with_parent` (`shell.md`, section 3) is the exception: it
+  is sent its signal when the thread that started it ends, on Linux, or
+  its process, on macOS, so a service whose crash must not leave a child
+  running starts it that way.
   A supervisor that restarts a crashed service first ends its whole tree,
   every descendant at once, as a systemd unit's control group is by
   default, and starts it again on the same state only once nothing of

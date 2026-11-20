@@ -10,9 +10,11 @@ recommended and Semicolon. `/new` returns to the launchpad; `n` walks
 the question, and Enter takes Comma.
 
 - `01.html` and `01.txt`: the launchpad with `/change Add a CSV export
-  to the report` in the box, before Enter sends it.
+  to the report` in the box, before Enter sends it. Start has `/draft`,
+  `/change` and `/ask`, with "Nothing needs you." above it.
 - `02.html` and `02.txt`: the chat's opening words, its reply and the
-  goal's relayed question; `/new` in the box, before Enter sends it.
+  goal's relayed question, the fake model's greeting and the goal's
+  Running line; `/new` in the box, before Enter sends it.
 - `03.html` and `03.txt`: the launchpad as drawn, with the chat under
   Where you left off, its question under Needs you, Start, and
   "1 needs you · n to walk" in the quiet line; marked by Alt+Shift+M.
@@ -28,8 +30,8 @@ the question, and Enter takes Comma.
 The walk's three requested states are 03, 05 and 07. The other frames
 are marks before keys whose events act, as `../../journeys.md`, 3.3
 requires. The first launchpad mark waits for `/chats 1` as well as
-"n to walk", so the chat's read has answered. With no status agent's
-brief, the header shows Home's headline, "Hello is ready."
+"n to walk", so the chat's read has answered. The framed header has
+no headline.
 
 The walk is recorded by `again launchpad-drawn` from its `walk` after its
 `setup`; Alt+Shift+S saves its end. Its first replay proves every frame

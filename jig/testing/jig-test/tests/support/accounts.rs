@@ -24,6 +24,7 @@ pub fn configuration(directory: &Path) {
             "must_grant":["openid","read"], "resource":"api", "redirect_path":"callback"
         }}
     }]);
+    value["engine"]["llm"]["endpoints"][0]["provider"] = "Fake".into();
     private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 fn client(procs: &mut [Process]) -> Result<&mut NativeClient, String> {
@@ -84,6 +85,14 @@ fn run_world<R: Referee<Process>>(
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(10);
 const SETUP_WAIT: Duration = Duration::from_secs(20);
 const WORLD_WAIT: Duration = Duration::from_secs(40);
+const STDERR_WAIT: Duration = Duration::from_secs(1);
+const STDERR_TAIL: usize = 4096;
+
+struct PrematureExit {
+    status: Exit,
+    seen: Time,
+    milestone: &'static str,
+}
 
 struct Shutdown {
     finding: Option<String>,
@@ -92,6 +101,8 @@ struct Shutdown {
     killed: bool,
     exit: Option<Exit>,
     deadline: Time,
+    milestone: &'static str,
+    premature: Option<PrematureExit>,
 }
 impl Referee<Process> for Shutdown {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
@@ -99,22 +110,28 @@ impl Referee<Process> for Shutdown {
             self.finding = self.check_act(now, procs).err();
         }
     }
-    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         if let Some(why) = &self.finding {
             return Err(why.clone());
+        }
+        self.observe_exit(now, procs)?;
+        if let Some(exit) = &self.premature {
+            let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
+            if binary.stderr_ended() || now >= exit.seen.saturating_add(STDERR_WAIT) {
+                return Err(premature_exit(exit.status, exit.milestone, binary.stderr()));
+            }
+            return Ok(());
         }
         let Process::Visitor(visitor) = procs.get(3).ok_or("browser")? else { return Err(String::from("browser")) };
         if visitor.handed() {
             return Err(String::from("no authorization visit"));
         }
-        let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
-        if binary.exit_status().is_some() && self.sent.is_none() {
-            return Err(String::from("binary exited before SIGTERM"));
-        }
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.exit.is_some() {
+        if let Some(exit) = &self.premature {
+            Some(exit.seen.saturating_add(STDERR_WAIT))
+        } else if self.exit.is_some() {
             None
         } else if let Some(sent) = self.sent {
             Some(if self.killed { self.deadline } else { sent.saturating_add(SHUTDOWN_WAIT) })
@@ -123,10 +140,11 @@ impl Referee<Process> for Shutdown {
         }
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (self.exit.is_none() && now >= self.deadline).then(|| "SIGTERM process setup or cleanup did not settle".into())
+        (self.premature.is_none() && self.exit.is_none() && now >= self.deadline)
+            .then(|| "SIGTERM process setup or cleanup did not settle".into())
     }
     fn passed(&self) -> bool {
-        self.finding.is_none() && self.exit.is_some()
+        self.finding.is_none() && self.premature.is_none() && self.exit.is_some()
     }
 }
 
@@ -142,6 +160,8 @@ pub fn sigterm() {
         killed: false,
         exit: None,
         deadline: clock.now().now.saturating_add(SETUP_WAIT),
+        milestone: "binary started",
+        premature: None,
     };
     let outcome = run_world(directory.path(), judge, &clock, WORLD_WAIT);
     assert!(outcome.procs.iter().all(Host::is_empty), "all SIGTERM test io settles");
@@ -149,9 +169,52 @@ pub fn sigterm() {
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "SIGTERM must end without SIGKILL");
 }
 
+/// Never repeat a printed link or an authorization URL in a failure. Scan before
+/// cutting the tail so a URL crossing its boundary cannot leave its query behind.
+fn premature_exit(status: Exit, milestone: &str, stderr: &[u8]) -> String {
+    let start = stderr.len().saturating_sub(STDERR_TAIL);
+    let mut safe = Vec::new();
+    let mut at = 0;
+    while at < stderr.len() {
+        let rest = &stderr[at..];
+        if rest.starts_with(b"http://") || rest.starts_with(b"https://") {
+            let length = rest
+                .iter()
+                .position(|byte| byte.is_ascii_whitespace() || b"\"'<>".contains(byte))
+                .unwrap_or(rest.len());
+            at += length;
+            if at > start {
+                safe.extend_from_slice(b"[address omitted]");
+            }
+        } else {
+            if at >= start {
+                safe.push(stderr[at]);
+            }
+            at += 1;
+        }
+    }
+    let tail = &safe[safe.len().saturating_sub(STDERR_TAIL)..];
+    format!(
+        "binary exited before SIGTERM: status={status:?}; last milestone={milestone}; stderr tail (up to {STDERR_TAIL} bytes):\n{}",
+        String::from_utf8_lossy(tail)
+    )
+}
+
 impl Shutdown {
+    fn observe_exit(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
+        if self.sent.is_none()
+            && self.premature.is_none()
+            && let Some(status) = binary.exit_status()
+        {
+            self.premature = Some(PrematureExit { status, seen: now, milestone: self.milestone });
+        }
+        Ok(())
+    }
+
     fn check_act(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
-        if self.exit.is_some() {
+        self.observe_exit(now, procs)?;
+        if self.premature.is_some() || self.exit.is_some() {
             return Ok(());
         }
         if let Some(sent) = self.sent {
@@ -176,6 +239,9 @@ impl Shutdown {
             return Err(String::from("native person"));
         };
         let Some(native) = &mut person.client else { return Ok(()) };
+        if !self.asked {
+            self.milestone = "client live";
+        }
         if native.signed_in != 1 || !native.account_sign_in_ready() {
             return Ok(());
         }
@@ -183,6 +249,7 @@ impl Shutdown {
             native
                 .ask_account_sign_in(ACCOUNT_SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 3 });
             self.asked = true;
+            self.milestone = "sign-in asked";
             return Ok(());
         }
         {
@@ -196,6 +263,7 @@ impl Shutdown {
                 return Err(String::from("the pending sign-in has its authorization address"));
             }
         }
+        self.milestone = "AccountSignInStarted seen";
         // Deliberately never hand the address to Visitor.
         client(procs)?.finish_account_sign_in();
         let Process::Binary(binary) = procs.get_mut(0).ok_or("binary")? else { return Err(String::from("binary")) };
@@ -203,5 +271,44 @@ impl Shutdown {
         self.sent = Some(now);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_premature_exit_names_its_status_milestone_and_safe_stderr_tail() {
+        assert_eq!(
+            premature_exit(
+                Exit::Code(1),
+                "sign-in asked",
+                b"jig-test: stopped: Listener: an io event no component owns\n\xff"
+            ),
+            "binary exited before SIGTERM: status=Code(1); last milestone=sign-in asked; stderr tail (up to 4096 bytes):\njig-test: stopped: Listener: an io event no component owns\n\u{fffd}"
+        );
+        assert_eq!(
+            premature_exit(
+                Exit::Signal(9),
+                "client live",
+                b"link=\"https://issuer.example/authorize?secret=private\"\nlast error"
+            ),
+            "binary exited before SIGTERM: status=Signal(9); last milestone=client live; stderr tail (up to 4096 bytes):\nlink=\"[address omitted]\"\nlast error"
+        );
+        let mut stderr = vec![b'x'; STDERR_TAIL];
+        stderr.extend_from_slice(b"last error");
+        let finding = premature_exit(Exit::Code(2), "binary started", &stderr);
+        assert_eq!(
+            finding.split_once('\n').expect("stderr follows heading").1,
+            format!("{}last error", "x".repeat(STDERR_TAIL - 10))
+        );
+        let mut stderr = b"https://issuer.example/authorize?state=".to_vec();
+        stderr.extend(vec![b's'; STDERR_TAIL]);
+        stderr.extend_from_slice(b"\nlast error");
+        assert_eq!(
+            premature_exit(Exit::Code(1), "AccountSignInStarted seen", &stderr),
+            "binary exited before SIGTERM: status=Code(1); last milestone=AccountSignInStarted seen; stderr tail (up to 4096 bytes):\n[address omitted]\nlast error"
+        );
     }
 }

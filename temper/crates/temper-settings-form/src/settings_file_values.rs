@@ -940,7 +940,7 @@ fn task_flags(d: &Decoder<'_>, at: u32) -> Result<c::TaskFlags, Error> {
         ended_by: ended_by(d, field(&fields, b"ended_by")?)?,
     })
 }
-fn llm_choice(d: &Decoder<'_>, at: u32) -> Result<c::LlmChoice, Error> {
+pub(crate) fn llm_choice(d: &Decoder<'_>, at: u32) -> Result<c::LlmChoice, Error> {
     let fields = d.object(at, &[b"account", b"main", b"subagents", b"later"])?;
     Ok(c::LlmChoice {
         later: match optional(&fields, b"later") {
@@ -1414,4 +1414,34 @@ fn catalogue_text(
 ) -> Result<Option<c::Text>, Error> {
     let at = field(fields, member)?;
     if d.kind(at)? == Kind::Null { Ok(None) } else { Ok(Some(d.words(at, bound, member)?)) }
+}
+
+pub(super) fn worker(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::WorkerSetting, Error> {
+    let fields = d.object(at, &[b"number", b"name", b"places", b"digest", b"withdrawn"])?;
+    let digest = match optional(&fields, b"digest") {
+        Some(at) if d.kind(at)? != Kind::Null => {
+            let text = d.string(at)?;
+            for byte in text {
+                if !(byte.is_ascii_digit() || *byte >= b'a' && *byte <= b'f') {
+                    return Err(error(b"digest", b"64 lowercase hex digits required"));
+                }
+            }
+            let bytes = d.hex(at, 32, b"digest")?;
+            Some(<[u8; 32]>::try_from(bytes.as_ref()).or(Err(error(b"digest", b"64 lowercase hex digits required")))?)
+        }
+        Some(_) | None => None,
+    };
+    Ok(c::WorkerSetting {
+        number: match optional(&fields, b"number") {
+            Some(at) => u32::try_from(d.number(at)?).or(Err(error(b"number", b"u32 bound")))?,
+            None => number,
+        },
+        name: d.words(field(&fields, b"name")?, d.limits.worker_setting_name, b"worker_setting_name")?.bytes().into(),
+        places: u32::try_from(d.number(field(&fields, b"places")?)?).or(Err(error(b"places", b"u32 bound")))?,
+        digest,
+        withdrawn: match optional(&fields, b"withdrawn") {
+            Some(at) => d.boolean(at)?,
+            None => false,
+        },
+    })
 }

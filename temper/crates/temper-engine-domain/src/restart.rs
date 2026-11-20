@@ -82,6 +82,10 @@ pub(crate) fn request_load(
         )) => domain.limits.loads.rows.min(domain.limits.notes.load_rows),
     };
     if loads::begin(&mut domain.loads, waiter, range.clone(), after, most, &mut load_out).is_none() {
+        if waiting(domain, waiter) == Some(Waiting::Parts) {
+            domain.work.push(Work::PartsFailed { waiter });
+            return;
+        }
         match range {
             Range::History(_) => {
                 crate::archive::history_failed(domain, waiter);
@@ -187,6 +191,15 @@ pub(crate) fn load_outputs(
                         if cut.is_none() && next.is_none() { Some(rows) } else { None },
                     ),
                     Some(Waiting::History) => crate::archive::history_loaded(domain, waiter, rows, next, cut),
+                    Some(Waiting::Parts) => crate::route::parts::loaded(
+                        domain,
+                        env,
+                        decision.as_mut().expect("part terminal"),
+                        waiter,
+                        rows,
+                        next,
+                        cut,
+                    ),
                     Some(Waiting::Document) => crate::route::document::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
@@ -231,6 +244,13 @@ pub(crate) fn load_outputs(
                         None,
                     ),
                     Some(Waiting::History) => crate::archive::history_failed(domain, waiter),
+                    Some(Waiting::Parts) => crate::route::parts::failed(
+                        domain,
+                        env,
+                        decision.as_mut().expect("part terminal"),
+                        waiter,
+                        jig_domain_core::PartFailure::Unreadable,
+                    ),
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
                     Some(Waiting::Notes) => note_failed(domain, waiter),
@@ -518,6 +538,10 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
             }
         }
         Record::Forge { row } => {
+            if let forge::Stored::LimitHold(row) = *row {
+                crate::route::forge_route::limit_holds::restore(domain, row);
+                return;
+            }
             if let forge::Stored::RefusedSetting(key) = row.as_ref()
                 && domain.start_phase().is_some()
             {

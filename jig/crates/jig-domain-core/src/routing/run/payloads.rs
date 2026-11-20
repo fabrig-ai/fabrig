@@ -11,10 +11,12 @@ pub(crate) struct Answer {
     pub saved: Option<Box<[tasks::SavedResource]>>,
     pub invalid_saved: bool,
     pub unusable_history: bool,
+    pub untooled: bool,
     pub read: Option<u64>,
     pub refused: Box<[u64]>,
 }
 
+/// An account terminal whose source is usable again takes a refusal pause (jig/docs/design/domain/tasks/lifecycle.md, 6).
 pub(crate) fn route_answer_payload(
     core: &mut Core,
     limits: &tasks::Limits,
@@ -23,7 +25,7 @@ pub(crate) fn route_answer_payload(
     attempt: Token,
     answer: Answer,
 ) -> Queue<Request> {
-    let Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused } = answer;
+    let Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, untooled, read, refused } = answer;
     let refused = refused.as_ref();
     if !core.current_proof(run.raw(), attempt.raw()) {
         let mut out = Queue::uncapped();
@@ -57,20 +59,31 @@ pub(crate) fn route_answer_payload(
                     // Only this window's history closes it (jig/docs/design/domain/engine/executors.md, 2).
                     core.close_window(run.raw());
                 }
+                let end = if untooled {
+                    match untooled_place(core, run, attempt) {
+                        Some((reason, fault)) => {
+                            work.push(Work::Event(Event::Fleet(fault)));
+                            tasks::End::RefusedWithReason { reason }
+                        }
+                        None => tasks::End::Failed(tasks::Class::Run),
+                    }
+                } else {
+                    end
+                };
                 (cumulative, end, saved)
             }
         }
     };
     let proof = core.proofs.get(&run.raw()).expect("current proof");
+    let source = match proof.account_failure {
+        Some(source) => core.accounts.source(source),
+        None => None,
+    };
     let account_wait = proof.account_terminal
-        || match proof.account_failure {
-            Some(source) => match core.accounts.source(source) {
-                Some(fact) => !fact.usable,
-                None => true,
-            },
-            None => false,
+        || match source {
+            Some(fact) => !fact.usable,
+            None => proof.account_failure.is_some(),
         };
-    let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
     let end = match end {
         tasks::End::Failed(
             tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run,
@@ -78,7 +91,12 @@ pub(crate) fn route_answer_payload(
         | tasks::End::FailedWithReason {
             class: tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run,
             ..
-        } if account_wait && !unusable_history => tasks::End::Recheck,
+        } if account_wait && !unusable_history => match source {
+            Some(fact) if proof.account_terminal && fact.usable => {
+                tasks::End::RefusedWithReason { reason: account_terminal_reason(fact.account) }
+            }
+            Some(_) | None => tasks::End::Recheck,
+        },
         tasks::End::Finished { .. }
         | tasks::End::FinishedWithFollowups { .. }
         | tasks::End::Exceeded(_)
@@ -89,6 +107,7 @@ pub(crate) fn route_answer_payload(
         | tasks::End::RefusedWithReason { .. }
         | tasks::End::Recheck => end,
     };
+    let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
     proof.terminal =
         Some(crate::TerminalRecord { task: run.raw(), attempt: attempt.raw(), cumulative, end: end.clone() });
     work.push(Work::Event(Event::Tasks(tasks::Event::Activation {
@@ -100,6 +119,104 @@ pub(crate) fn route_answer_payload(
         saved,
     })));
     Queue::uncapped()
+}
+
+/// Fixed words and a u32 account number fit within `REASON_BYTES` (domain/tasks/lifecycle.md, 6).
+fn account_terminal_reason(account: u32) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(u64::from(account));
+    let parts = [b"account ".as_slice(), number.as_bytes(), b"'s source ended the run and is usable again"];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded account terminal reason");
+    }
+    let mut reason = skein_lib::Writer::new(length);
+    for part in parts {
+        reason.put(part).expect("measured account terminal reason");
+    }
+    reason.finish()
+}
+
+/// The main model's program binding and the answering claim's current channel, including adoption.
+fn untooled_place(core: &Core, run: Token, attempt: Token) -> Option<(Box<[u8]>, jig_domain_fleet::Event)> {
+    use jig_domain_fleet as fleet;
+    let proof = core.proofs.get(&run.raw())?;
+    let policy = core.chosen_policy(run.raw());
+    let program = policy.model.program.as_ref()?;
+    let mut source = None;
+    for binding in &proof.accounts {
+        if binding.provider == policy.model.provider
+            && core.accounts.source(binding.source)?.kind == jig_domain_accounts::Kind::Program
+        {
+            let account = core.accounts.account(binding.account)?;
+            source = Some(
+                jig_domain_link::SourceName::new(jig_domain_accounts::programs::name(
+                    &core.accounts,
+                    binding.source,
+                    account.holder(),
+                )?)
+                .expect("issued program source name"),
+            );
+        }
+    }
+    let source = source?;
+    let mut channel = proof.placement;
+    for claim in &core.fleet.attempt_views() {
+        if claim.run == run && claim.attempt == attempt {
+            channel = match claim.placement {
+                fleet::Placement::Connected { channel, .. } => Some(channel),
+                fleet::Placement::Adrift { channel, .. } => channel,
+                fleet::Placement::None => None,
+            };
+        }
+    }
+    let channel = channel?;
+    let mut worker = None;
+    for host in &core.fleet.host_views() {
+        if host.channel == channel {
+            worker = host.worker;
+        }
+    }
+    let worker = worker?;
+    let number = skein_lib::Decimal::of(u64::from(worker).checked_add(1).expect("configured worker number"));
+    let fallback = [b"worker ".as_slice(), number.as_bytes()];
+    let mut unnamed = skein_lib::Writer::new(7_usize.checked_add(number.as_bytes().len()).expect("worker name length"));
+    for part in fallback {
+        unnamed.put(part).expect("worker number fits");
+    }
+    let unnamed = unnamed.finish();
+    let worker = core.fleet.worker_name(worker).unwrap_or(&unnamed);
+    let parts =
+        [program.as_ref(), b" started without smith's tools: account ", source.as_bytes(), b" on worker ", worker];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded place names");
+    }
+    let mut text = skein_lib::Writer::new(length);
+    for part in parts {
+        text.put(part).expect("measured place words");
+    }
+    let text = text.finish();
+    Some((place_reason(&text), fleet::Event::Untooled { run, channel, source }))
+}
+
+/// Diagnostic heads keep the same character boundary and marker as invalid starts (hosts/hub.md, 3).
+fn place_reason(words: &[u8]) -> Box<[u8]> {
+    let mut text = skein_lib::Writer::new(words.len());
+    let utf8 = skein_lib::bytes::is_utf8(words);
+    for byte in words {
+        text.put(&[if utf8 || byte.is_ascii() { *byte } else { b'?' }]).expect("one byte per word byte");
+    }
+    let text = text.finish();
+    let bound = skein_lib::usize_of(tasks::REASON_BYTES);
+    if text.len() <= bound {
+        return text;
+    }
+    let marker = b" [cut]";
+    let head = skein_lib::bytes::utf8_prefix(&text, bound.saturating_sub(marker.len()));
+    let mut reason = skein_lib::Writer::new(head.len().checked_add(marker.len()).expect("bounded reason"));
+    reason.put(head).expect("head leaves room for cut marker");
+    reason.put(marker).expect("marker fits");
+    reason.finish()
 }
 
 fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {

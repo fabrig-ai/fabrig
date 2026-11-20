@@ -1,6 +1,6 @@
 # Passes
 
-Provisional, 2026-11-12, revised 2026-11-16, from
+Provisional, 2026-11-12, revised 2026-11-18, from
 `../../draft/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
 Q6 of `../../draft/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
@@ -89,15 +89,33 @@ The loop's third step (`README.md`, 4), for each free place
   - **What a pass is,** from `../../draft/landed-qa.md`, 7: each case
     from its setup's restored copy, restored between cases, cases on one
     setup sharing a restore where none changes what the next sees, the
-    outcome's notes saying which; the green path only; a page's words
+    outcome's notes saying which. QA judges the happy path alone:
+    v0.1.0's stories and each part's bar, used as intended
+    (`../../draft/v0.1.0.md`, 4). Edge cases are off it: malformed,
+    out-of-range or oversized input, limits and bounds, refusals of bad
+    input and their exit codes, errors, races and recovery. Run a case's
+    intended-use steps alone; an edge case met is a note
+    (`temper-qa pass note`), never a finding. A security hole or lost
+    data still counts wherever it is. A page's words are
     compared where the case gives them (its `see`, as a `web see` line
     for a `web` case and a `tui see` line for a `tui` case), the rest
-    judged against the draft's promises; ctl cases first
+    judged against the draft's promises. A `web` step whose do is `web
+    requests` is that drive line, and its see is compared with the
+    line's last shown line, as a `see` is compared
+    (`../../client/drive.md`, 3.2), in these words: "A `web` step whose
+    do is `web requests` is that drive line: compare its see with the
+    line's last shown line, `N requests in W waves`, which must equal it;
+    one that differs is a finding, its seen the line's whole answer."
+    Ctl cases first
     (`../../draft/landed-qa.md`, 4 and 7): every `ctl` case before any
     `web` or `tui` one, each in a ctl session, `temper-qa pass open
     --ctl`, which starts no browser and no terminal
-    (`../../client/drive.md`, 2.6), its steps `ctl` and `forge` lines, a
-    `see` compared with what ctl printed; at a deployment's place the
+    (`../../client/drive.md`, 2.6), its steps `ctl` and `forge` lines, or
+    `temper help PAGE`, a `see` compared with what ctl printed. A case's
+    `temper help PAGE` is read with the place's own program, its whole
+    path in the brief's pass part, `Help pages: PATH help PAGE`, as the
+    setups' directory is given whole. A help page needs no box; its words are compared
+    as a `see` is. At a deployment's place the
     same, its ctl cases first in a ctl session and then its web and tui
     cases in a full one, `temper-qa pass open`, the browser and the TUI
     on the deployment's engine (`deployment.md`, 5 and 6), its owner's
@@ -109,10 +127,9 @@ The loop's third step (`README.md`, 4), for each free place
     looks are a person's;
     each outcome recorded as reached and each finding as found; a
     finding never stops the pass; blocked, for the pass's own reasons,
-    is not failed, for temper's; what is off the path a note, unless it
-    is a security hole or lost data; a fault beside a case on the
-    landing's surface a finding (`../../draft/landed-qa.md`, 13); the
-    fakes alone: the person's forge is the box's fake Forgejo, and a
+    is not failed, for temper's; what is off the path a note; a fault
+    beside a case on the landing's surface a finding
+    (`../../draft/landed-qa.md`, 13); the fakes alone: the person's forge is the box's fake Forgejo, and a
     case no line or setup can bring to its state is a gap, not blocked:
     `temper-qa pass gap CASE KIND WHY` (`../../draft/landed-qa.md`, 6 and
     12).
@@ -139,9 +156,11 @@ The loop's third step (`README.md`, 4), for each free place
     can reach it, then becomes a recipe (`places.md`, 6). When no line
     or setup can reach it, record a gap (`gaps.md`, 3).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
-    lines in brief (`../../client/drive.md`, 3), among them ctl's box
-    values and the `forge commit`, `forge push` and `forge checks` lines
-    on the fake Forgejo. One line says quoted bytes take printable ASCII
+    lines in brief (`../../client/drive.md`, 3), among them `web
+    requests`, which answers the requests the page has sent since it
+    last loaded, each with its wave, then `N requests in W waves`
+    (`../../client/drive.md`, 3.2), ctl's box values and the `forge
+    commit`, `forge push` and `forge checks` lines on the fake Forgejo. One line says quoted bytes take printable ASCII
     alone, other bytes as `\xHH`, with `\"` and `\\` for quote and
     backslash (`../../client/drive.md`, 3.1). Each file a
     `forge commit` or `forge push` names is written under
@@ -265,7 +284,8 @@ Focused and fuzzy, over the loop's fake world (`README.md`, 6):
   a finding gone closed with the commit; a finding open after two goals
   handed on, with its line.
 - **The brief** written for a start and for a resume, with its parts in
-  section 4's order.
+  section 4's order, holding section 4's words for a `web requests`
+  step and `web requests` among its drive lines.
 
 ## 10. Open questions
 

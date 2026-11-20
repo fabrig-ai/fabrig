@@ -184,6 +184,7 @@ pub fn holder(value: t::EscalationHolder, limits: &w::Limits) -> Result<w::Escal
         )?),
     })
 }
+#[expect(clippy::match_same_arms, reason = "the interim wire projects each decider kind to its number")]
 pub fn escalation(value: &d::EscalationState, limits: &w::Limits) -> Result<w::HoldEscalation, w::Problem> {
     Ok(match value {
         d::EscalationState::Routing => w::HoldEscalation::Routing,
@@ -199,7 +200,14 @@ pub fn escalation(value: &d::EscalationState, limits: &w::Limits) -> Result<w::H
         }
         d::EscalationState::Rejected { by, reason } => w::HoldEscalation::Rejected(w::HoldEscalationRejected::new(
             limits,
-            w::HoldEscalationRejectedParts { by: *by, reason: owner::text(reason, limits)? },
+            // client/domain/contract/documents.md, 1: the next wire carries the decider's kind.
+            w::HoldEscalationRejectedParts {
+                by: match by {
+                    t::EscalationDecider::Task(number) => *number,
+                    t::EscalationDecider::Person(number) => *number,
+                },
+                reason: owner::text(reason, limits)?,
+            },
         )?),
     })
 }

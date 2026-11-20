@@ -224,6 +224,58 @@ Nothing the core decides depends on a view arriving.
   and parent, with the query's keys: a bounded comparison per watch. The
   core gives the views each touched task's keys as they were and as they
   are.
+- **An application's parts, made per row**
+  (`../../client/domain/contract/parts.md`). The application declares its
+  kinds in the core's configuration, each a `PartKind`: its `owner` (the
+  family's number), its `kind`, the `connector` that makes it, its
+  `bytes`, and its `inputs` (`PartInputs`: `line`, `notes`, `delegates`,
+  `delegate_notes`, `records`; `../connectors.md`, 5.5). The core's
+  `TaskQuery` carries the parts the clients' component passed it as
+  served, each a `PartAsk { owner, kind, version }`, and its `TaskLine`
+  their answers, each a `RowPart`: `Made` with its record's bytes,
+  `Unknown`, or `Failed` with a `PartFailure` (`Busy`, `TooLarge`,
+  `Unreadable`); the component puts back, in their places, those it
+  answered `not_served`. Making an answer or a delivery whose query names
+  parts:
+  - the core makes the rows as before, the live ones by its scan and the
+    ended ones once loaded, and answers at once `Unknown` each part whose
+    kind no `PartKind` declares;
+  - for each connector the rest belong to, it asks once,
+    `Ask::Parts(PartsAsk { token, party, kinds, rows })`: the kinds with
+    their versions, in the query's order, and the rows' lines as made;
+  - the connector answers `Event::Parts { connector, token, parts }`, a
+    `MadePart` (`Made` with bytes, or `Failed`) for each row, kind by kind,
+    in the ask's orders, within the decision or after its own loads;
+  - the core keeps the answer pending meanwhile, a read in its `Pending`
+    and a watch in the views' *making*; it checks each part against its
+    kind's `bytes`, answering one past them `TooLarge`, and an answer of
+    the wrong shape `Unreadable` for every part it was to give; then holds
+    the answer or the delivery until durable, as any (`README.md`, 5.2).
+    A read ended or a watch closed while it waits drops the answer when it
+    comes. Each pending answer holds one load slot until its parts are in,
+    so the asks under way are bounded as reads are (`README.md`, 5.3).
+- **Marked by a part's inputs** (`../../client/domain/contract/parts.md`,
+  5): besides the marks above, a task is touched for an input, and marks
+  the watches whose query names a kind with that input and which it
+  matches: for `notes`, a note made, edited or deleted in its scope
+  (`briefs.md`, section 2); for `delegate_notes`, the same in a delegate's
+  scope; for `delegates`, a delegate touched; for `records`, its
+  connector's `Event::PartsMarked { connector, tasks }`, routed by the root
+  from the connector's own mark. Such a touch of a task that has ended
+  grows the ended mark instead (below).
+- **The ended group's mark** (`../../client/domain/contract/parts.md`,
+  6): the core keeps, in a bounded table, the commit position at which
+  each ended index key last changed: a party and a label, a requester task,
+  a project and a label (`../../protocol/store/loads.md`, 3), moved by the
+  decision that ends a task into it and by the one that erases its rows;
+  and per project, or the deployment for a query naming none, the position
+  at which an ended row's part last moved. An entry the table lets go
+  raises its floor, and every key reads at least the floor, which starts
+  at the first position after a restart. A query's mark is the greatest of
+  its index key's entry, its project's part entry and the floor; a query
+  with no ended group has 0. A read takes it as it begins, a delivery as
+  it is made, and the watches whose mark grows are marked changed. The
+  table is kept nowhere.
 
 ## 3. What a task waits on, and its last activity
 

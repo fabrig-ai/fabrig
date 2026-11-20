@@ -120,6 +120,87 @@ fn builds_learn_holds_only_when_the_observed_head_contains_them() {
     assert_eq!(git.calls, ["head refs/heads/main"], "known holds are final");
 }
 
+fn check_landing_base(parents: &[u64], branch_parent: u64, main_parent: u64, previous: bool, base: u64) {
+    let world = World::new();
+    let mut git = baseline();
+    git.commit(1, &[0], "earlier change");
+    git.merge(2, &[0, 1], 7);
+    git.commit(3, &[branch_parent], "branch change\n\nQA: branch behaviour\n");
+    git.commit(4, &[main_parent], "main change\n\nQA: main behaviour\n");
+    git.merge(5, parents, 8);
+    for parent in parents {
+        let path = format!("temper/docs/design/draft/from-{parent}.md");
+        git.file_at(5, &path, b"# Promise\n");
+        git.nodes.get_mut(&id(5)).expect("landing").ranges.insert(
+            id(*parent),
+            super::world::Range {
+                patch: format!("diff from {parent}\n").into_bytes(),
+                stat: vec![Changed { path: format!("from-{parent}.rs"), added: Some(*parent), deleted: Some(0) }],
+                paths: vec![path],
+            },
+        );
+    }
+    world
+        .home
+        .transact(|ledger| {
+            ledger.record_head(&id(if parents.contains(&4) { 4 } else { 2 }));
+            if previous {
+                ledger.record_landing(&id(2), 7, None, "earlier landing", 0);
+                let session = super::session(ledger, 1);
+                ledger.answer_none(session, "already triaged")?;
+                ledger.end_session(session, Exit::Code(0), None, 0, "qa")?;
+            }
+            Ok(())
+        })
+        .expect("previous landing");
+    let mut run = world.start(git, &[]);
+    run.tick();
+    let ledger = world.ledger();
+    let session = ledger.running_sessions().into_iter().next().expect("triage");
+    let directory = world.home.session_directory(session.number);
+    let brief = fs::read_to_string(directory.join("brief")).expect("brief");
+    assert_eq!(fs::read(directory.join("diff.patch")).expect("patch"), format!("diff from {base}\n").as_bytes());
+    assert!(brief.contains(&format!("from-{base}.rs | +{base} -0")), "{brief}");
+    assert!(brief.contains(&format!("temper/docs/design/draft/from-{base}.md")), "{brief}");
+    for other in parents.iter().filter(|parent| **parent != base) {
+        assert!(!brief.contains(&format!("from-{other}.rs")), "{brief}");
+        assert!(!brief.contains(&format!("temper/docs/design/draft/from-{other}.md")), "{brief}");
+    }
+    let (included, excluded) = if base == 3 { ("main", "branch") } else { ("branch", "main") };
+    assert!(brief.contains(&format!("QA: {included} behaviour")), "{brief}");
+    assert!(!brief.contains(&format!("QA: {excluded} behaviour")), "{brief}");
+    for operation in ["diff", "stat", "paths", "qa"] {
+        assert!(run.git.calls.contains(&format!("{operation} {} {}", id(base), id(5))));
+    }
+}
+
+#[test]
+fn by_hand_landing_reads_inputs_against_main_as_second_parent() {
+    check_landing_base(&[3, 2], 0, 2, true, 2);
+    check_landing_base(&[3, 4], 0, 2, true, 4);
+}
+
+#[test]
+fn forge_landing_reads_inputs_against_main_as_first_parent() {
+    check_landing_base(&[2, 3], 0, 2, true, 2);
+    check_landing_base(&[4, 3], 0, 2, true, 4);
+}
+
+#[test]
+fn first_landing_reads_inputs_against_first_parent() {
+    check_landing_base(&[3, 4], 0, 2, false, 3);
+}
+
+#[test]
+fn both_parents_holding_previous_landing_reads_inputs_against_first_parent() {
+    check_landing_base(&[3, 4], 2, 2, true, 3);
+}
+
+#[test]
+fn neither_parent_holding_previous_landing_reads_inputs_against_first_parent() {
+    check_landing_base(&[3, 4], 0, 0, true, 3);
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -132,7 +213,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     land(&mut run, 2, 7);
     land(&mut run, 4, 8);
     run.git.nodes.get_mut(&id(2)).expect("merge").message =
-        "Goal 7's title\n\nDraft: `temper/docs/design/draft/x.execution.md`\n\nGoal: 7\nPull-request: 12\n".into();
+        "Goal 7's title\n\nDraft: `temper/docs/design/draft/x.execution.md`\n\nGoal: 7\nPull-request: 12\nQA: Work lists drafts\nQA: Work lists drafts\n".into();
     for (path, bytes) in [
         ("temper/docs/design/draft/x.md", b"# Promise\n".as_slice()),
         ("temper/docs/design/draft/other.md", b"# Other\n".as_slice()),
@@ -884,6 +965,141 @@ case "$PWD" in */passes/1/requests/1) exit 1;; esac
     assert_eq!(world.ledger().passes[0].requests[0].filed, Some(0));
 }
 
+fn request_answers(run: &mut super::world::Loop, answers: &[(Exit, Option<&str>)]) {
+    run.processes.answers.extend(answers.iter().map(|(exit, stdout)| temper_qa_tool::faces::CommandAnswer {
+        exit: *exit,
+        last_stdout: stdout.map(str::to_owned),
+    }));
+}
+
+fn seed_open_gap(world: &World) {
+    world
+        .home
+        .transact(|ledger| {
+            let landing = u64::try_from(ledger.landings.len()).expect("landing count") + 1;
+            super::landing(ledger, landing);
+            let session = super::session(ledger, landing);
+            ledger.triage_gap(session, "ctl", "no runner tool", "tools", 0)?;
+            ledger.end_session(session, Exit::Code(0), None, 0, "qa")
+        })
+        .expect("open gap");
+}
+
+fn request_git(world: &World) -> Git {
+    let mut git = baseline();
+    for landing in world.ledger().landings {
+        git.commit(landing.number, &[landing.number - 1], "landing");
+    }
+    git
+}
+
+fn unfiled_requests() -> World {
+    let world = World::new();
+    seed_request(&world, 1, 20, "home", &id(0));
+    seed_request(&world, 2, 10, "work", &id(1));
+    world
+}
+
+#[test]
+fn an_older_request_failure_leaves_a_later_success_filed() {
+    let world = unfiled_requests();
+    let mut run = world.start(request_git(&world), &[]);
+    request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(0), Some("goal 42"))]);
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].requests[0].filed, Some(0));
+    assert_eq!(ledger.passes[0].requests[0].goal, Some(42));
+    assert_eq!(ledger.passes[1].requests[0].filed, None);
+    assert_eq!(
+        run.processes.bounded.iter().map(|(command, _)| command.directory.clone()).collect::<Vec<_>>(),
+        [request_directory(&world, 2, 1), request_directory(&world, 1, 1)]
+    );
+    assert!(request_directory(&world, 1, 1).join("tree/temper/docs/development/qa/requests/pass-1-1.md").is_file());
+    run.clock.time = 3600;
+    request_answers(&mut run, &[(Exit::Code(1), None)]);
+    run.tick();
+    assert_eq!(
+        world.ledger().lines[0].words,
+        "requests has failed for an hour: pass 2, request 1: command exited Code(1)"
+    );
+    request_answers(&mut run, &[(Exit::Code(0), Some("goal 41"))]);
+    run.tick();
+    assert_eq!(world.ledger().passes[1].requests[0].goal, Some(41));
+    assert_eq!(run.processes.bounded.len(), 4, "only the failed request is retried");
+}
+
+#[test]
+fn a_gap_is_filed_while_a_findings_request_fails() {
+    let world = World::new();
+    seed_request(&world, 1, 5, "work", &id(0));
+    seed_open_gap(&world);
+    let mut run = world.start(request_git(&world), &[]);
+    request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(0), None)]);
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].requests[0].filed, None);
+    assert_eq!(ledger.gaps[0].state, temper_qa_tool::GapState::Filed);
+    assert_eq!(ledger.gaps[0].filed, Some(0));
+    let directory = world.home.directory.join("gaps/requests/1");
+    assert!(directory.join("tree/temper/docs/development/qa/gaps/gap-1.md").is_file());
+    assert!(!directory.join("goal").exists());
+    assert_eq!(run.processes.bounded[1].0.directory, directory);
+}
+
+#[test]
+fn two_failed_requests_are_named_in_oldest_first_order() {
+    let world = unfiled_requests();
+    let mut run = world.start(request_git(&world), &[]);
+    for time in [0, 3600] {
+        run.clock.time = time;
+        request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(2), None)]);
+        run.tick();
+    }
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].requests[0].filed, None);
+    assert_eq!(ledger.passes[1].requests[0].filed, None);
+    assert_eq!(
+        ledger.lines[0].words,
+        "requests has failed for an hour: pass 2, request 1: command exited Code(1); pass 1, request 1: command exited Code(2)"
+    );
+}
+
+#[test]
+fn every_request_failure_is_reported_while_waiting_goals_are_checked() {
+    let mut world = World::new();
+    seed_request(&world, 0, 5, "home", &id(0));
+    seed_request(&world, 1, 10, "work", &id(1));
+    seed_request(&world, 2, 20, "home", &id(2));
+    world
+        .home
+        .transact(|ledger| {
+            ledger.file_request(2, 1, Some(41), 0)?;
+            ledger.file_request(3, 1, Some(42), 0)
+        })
+        .expect("waiting goals");
+    seed_open_gap(&world);
+    world.home.configuration.request.state = Some(vec!["state".into()]);
+    let mut run = world.start(request_git(&world), &[]);
+    request_answers(
+        &mut run,
+        &[(Exit::Code(1), None), (Exit::Code(2), None), (Exit::Code(3), None), (Exit::Code(0), Some("ended"))],
+    );
+    run.tick();
+    assert_eq!(world.ledger().passes[2].requests[0].ended, Some(0));
+    assert_eq!(run.processes.bounded[2].0.arguments, ["state", "41"]);
+    assert_eq!(run.processes.bounded[3].0.arguments, ["state", "42"]);
+    run.clock.time = 3600;
+    request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(2), None), (Exit::Code(3), None)]);
+    run.tick();
+    assert_eq!(
+        world.ledger().lines[0].words,
+        "requests has failed for an hour: pass 1, request 1: command exited Code(1); gaps 1: command exited Code(2); goal 41: state command exited Code(3)"
+    );
+    assert_eq!(world.ledger().passes[1].requests[0].ended, None);
+    assert_eq!(world.ledger().gaps[0].state, temper_qa_tool::GapState::Open);
+    assert_eq!(run.processes.bounded.len(), 7, "each failure retries; the ended goal is not checked again");
+}
+
 #[test]
 fn bounded_requests_are_not_filed_and_real_commands_are_killed_at_the_bound() {
     use temper_qa_tool::faces::{ProcessCommand, Processes, RealProcesses};
@@ -963,6 +1179,31 @@ fn triage_catalogue(ctl_only: bool) -> (World, super::world::Loop) {
 }
 
 #[test]
+fn triage_brief_says_the_happy_path_and_reads_help() {
+    let (_world, run) = triage_catalogue(true);
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    assert!(brief.contains(super::HAPPY_PATH));
+    assert!(brief.contains("Write no case, step or gap for one, and answer no QA for a landing whose only change a person meets is one, saying so."));
+    assert!(brief.contains("A security hole or lost data still counts wherever it is."));
+    assert!(brief.contains("For ctl steps, write do as ctl or forge drive lines, or `temper help PAGE`. In its pass, a `temper help PAGE` step is read with the place's own program, with no box; compare its words as a `see` is."));
+}
+
+#[test]
+fn triage_brief_offers_web_requests_only_with_web_configured() {
+    let words = "For a web page whose draft promises a request budget, a step's do may be `web requests`, after a step that opens the page cold, such as a reload of its path; its see is that line's last line as the budget counts it, `N requests in W waves`: `2 requests in 2 waves` for two waves of two requests.";
+    for ctl_only in [false, true] {
+        let (_world, run) = triage_catalogue(ctl_only);
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        if ctl_only {
+            assert!(!brief.contains(words), "ctl-only triage has no web request guidance");
+        } else {
+            let commands = brief.split("## Commands\n\n").nth(1).expect("commands");
+            assert!(commands.contains(&format!("{words} Use only the pages and setups above;")), "{commands}");
+        }
+    }
+}
+
+#[test]
 fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
     let (world, run) = triage_catalogue(true);
     let ledger = world.ledger();
@@ -970,7 +1211,7 @@ fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
     assert_eq!(session.pages, [("ctl".into(), vec!["task".into()])].into());
     assert_eq!(session.setups, ["fresh", "ctl-chain", "ctl-root"]);
     let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
-    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the person's acts and temper's account as `temper ctl` gives them. QA judges the happy path alone:"));
     let surfaces =
         brief.split("## Surfaces\n\n").nth(1).expect("surfaces").split("\n## Setups").next().expect("section");
     assert_eq!(
@@ -998,7 +1239,7 @@ fn default_triage_keeps_all_surfaces_and_setup_cases() {
         ["fresh", "ctl-chain", "ctl-root", "cycle", "missing-parent", "tui-chain", "tui-root", "web-chain", "web-root"]
     );
     let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
-    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. QA judges the happy path alone:"));
     assert!(brief.contains("\"surface\":\"web\""));
     assert!(brief.contains("A case's surface is ctl, web or tui; for ctl, page is one of its groups."));
     for (surface, page, setup) in
@@ -1037,7 +1278,7 @@ fn triage_names_only_each_configured_surface_set() {
         run.tick();
         let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
         assert!(brief.starts_with(&format!(
-            "# Triage\n\nJudge what a person now sees or does through {words}. The green path only:"
+            "# Triage\n\nJudge what a person now sees or does through {words}. QA judges the happy path alone:"
         )));
         let ledger = world.ledger();
         let surfaces =
@@ -1138,10 +1379,11 @@ fn triage_offers_only_the_configured_places_kinds() {
         run.tick();
         land(&mut run, 2, 7);
         let setups = "temper/docs/development/qa/setups";
+        let file = temper_config_shell::FILE;
         for name in ["ctl-hello", "turn-landing"] {
             run.git.file_at(2, &format!("{setups}/{name}/recipe"), b"recipe 1\ncheck\nctl task list\n");
         }
-        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/{file}"), &super::engine_file());
         run.tick();
         let mut ledger = world.ledger();
         let session = &ledger.sessions[0];
@@ -1183,6 +1425,7 @@ fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_conf
         run.tick();
         land(&mut run, 2, 7);
         let setups = "temper/docs/development/qa/setups";
+        let file = temper_config_shell::FILE;
         for (name, recipe) in [
             ("root", "recipe 1\ncheck\nctl task list\n"),
             ("turn-landing", "recipe 1\nafter root\ncheck\nctl task list\n"),
@@ -1193,8 +1436,8 @@ fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_conf
         ] {
             run.git.file_at(2, &format!("{setups}/{name}/recipe"), recipe.as_bytes());
         }
-        run.git.file_at(2, &format!("{setups}/root/config/engine/temper.json"), b"{}");
-        run.git.file_at(2, &format!("{setups}/box-child/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/root/config/engine/{file}"), &super::engine_file());
+        run.git.file_at(2, &format!("{setups}/box-child/config/engine/{file}"), &super::engine_file());
         for depth in 1..=9 {
             let parent = if depth == 1 { "root".into() } else { format!("depth-{}", depth - 1) };
             run.git.file_at(

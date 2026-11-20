@@ -10,6 +10,28 @@ fn an_argument_vector_the_builders_did_not_make_exits_129() {
     assert_eq!(check(&spawn).err(), Some(Refusal::Usage));
 }
 #[test]
+fn pack_vectors_are_answered_instead_of_exiting_129() {
+    use temper_fake_git_hosted::answer;
+    for (command, stdout) in [
+        (
+            Command::CountObjects { store: None },
+            b"count: 0\nsize: 0\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0\n"
+                .as_slice(),
+        ),
+        (Command::Repack { store: None }, b"".as_slice()),
+    ] {
+        let mut scenario = fixtures::scenario();
+        let checked = check(&fixtures::spawn_of(&command)).expect("Pack vector admitted");
+        assert_eq!(checked.command, command);
+        assert!(checked.author.is_none());
+        assert!(checked.credential.is_none());
+        let result = answer(&checked, &mut scenario.checkout, &mut scenario.transport);
+        assert_eq!(result.exit, 0);
+        assert_eq!(result.stdout, stdout);
+        assert_eq!(result.stderr, [] as [u8; 0]);
+    }
+}
+#[test]
 fn a_token_outside_the_header_or_a_path_variable_is_refused() {
     for (name, extra) in [("PATH", b"PATH=/usr/bin".as_slice()), ("token", b"HOME=/fake-git-identity-token")] {
         let mut spawn = fixtures::spawn_of(&Command::Fetch {
@@ -157,6 +179,7 @@ mod core {
         ];
         for (args, env, rule) in rows {
             let spawn = k::Spawn {
+                reach: None,
                 program: b"/git".as_slice().into(),
                 args,
                 env,

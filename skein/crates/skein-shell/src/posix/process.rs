@@ -11,6 +11,28 @@ use crate::system::process::resources;
 use skein_io::kernel::{Error, Signal, Usage};
 use std::{ffi::CString, ptr};
 
+/// Negative diagnostics cannot collide with Darwin errno numbers.
+#[cfg(any(target_os = "macos", test))]
+pub(crate) const WAIT_UNEXPECTED_STATUS: i32 = -10_003;
+
+/// Only an exit consumes the child's identity. Stops and continues leave Wait
+/// pending even when the call asked to reap; other codes keep the diagnostic.
+#[cfg(any(target_os = "macos", test))]
+pub(crate) fn decode_child_wait(
+    reap: bool,
+    code: i32,
+    status: i32,
+) -> (Result<Option<skein_io::kernel::Exit>, Error>, bool) {
+    use skein_io::kernel::Exit;
+    let exit = match code {
+        libc::CLD_EXITED => Exit::Code(u8::try_from(status).expect("a child exit code fits in a byte")),
+        libc::CLD_KILLED | libc::CLD_DUMPED => Exit::Signal(u32::try_from(status).expect("a signal is positive")),
+        libc::CLD_STOPPED | libc::CLD_CONTINUED => return (Ok(None), false),
+        _ => return (Err(Error::Other(WAIT_UNEXPECTED_STATUS)), false),
+    };
+    (Ok(Some(exit)), reap)
+}
+
 pub(crate) fn cstring(bytes: &[u8]) -> Result<CString, i32> {
     CString::new(bytes).map_err(|_| libc::EINVAL)
 }
@@ -70,5 +92,30 @@ pub(crate) fn signal_number(signal: Signal) -> i32 {
         Signal::Kill => libc::SIGKILL,
         Signal::Stop => libc::SIGSTOP,
         Signal::Continue => libc::SIGCONT,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_child_wait;
+    use skein_io::kernel::{Error, Exit};
+
+    #[test]
+    fn a_child_wait_marks_reaped_only_for_an_exit() {
+        for reap in [false, true] {
+            for (case, code, status, expected, is_exit) in [
+                ("normal exit", libc::CLD_EXITED, 42, Ok(Some(Exit::Code(42))), true),
+                ("killed", libc::CLD_KILLED, libc::SIGKILL, Ok(Some(Exit::Signal(9))), true),
+                ("dumped", libc::CLD_DUMPED, libc::SIGQUIT, Ok(Some(Exit::Signal(3))), true),
+                ("stopped", libc::CLD_STOPPED, libc::SIGSTOP, Ok(None), false),
+                ("continued", libc::CLD_CONTINUED, libc::SIGCONT, Ok(None), false),
+                ("trapped", libc::CLD_TRAPPED, libc::SIGTRAP, Err(Error::Other(-10_003)), false),
+                ("unknown code", 0, 0, Err(Error::Other(-10_003)), false),
+            ] {
+                let (result, mark_reaped) = decode_child_wait(reap, code, status);
+                assert_eq!(result, expected, "{case}, reap={reap}: only an exit completes Wait");
+                assert_eq!(mark_reaped, reap && is_exit, "{case}, reap={reap}: only a reaping exit marks the handle");
+            }
+        }
     }
 }

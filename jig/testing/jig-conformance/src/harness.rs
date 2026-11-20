@@ -183,7 +183,7 @@ pub trait Application {
 }
 
 /// A finite run's evidence, retained independently of the engine.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Outcome {
     pub commits: u64,
     pub iterations: u64,
@@ -236,6 +236,8 @@ pub struct Harness<A: Application> {
     cut: Cut,
     crashes: Vec<u64>,
     forked: Vec<u64>,
+    forked_at: Option<u64>,
+    fork_only: Option<Vec<u64>>,
     commit_hook: Option<CommitHook<A>>,
 }
 
@@ -283,6 +285,8 @@ impl<A: Application> Harness<A> {
             cut: Cut::None,
             crashes: Vec::new(),
             forked: Vec::new(),
+            forked_at: None,
+            fork_only: None,
             commit_hook: None,
         }
     }
@@ -296,6 +300,19 @@ impl<A: Application> Harness<A> {
     /// Arm one cold restart before its selected durable completion is released.
     pub fn cut(&mut self, cut: Cut) {
         self.cut = cut;
+        self.fork_only = None;
+    }
+
+    /// Fork only these commits, through the same cold restart as `EachCommitFrom`.
+    pub fn fork_cuts(&mut self, commits: &[u64]) {
+        self.cut = Cut::EachCommitFrom(1);
+        self.fork_only = Some(commits.to_vec());
+    }
+
+    /// The selected cut this child took, independent of the story's own restarts.
+    #[must_use]
+    pub fn forked_at(&self) -> Option<u64> {
+        self.forked_at
     }
 
     /// Advance simulated time and fire every application timer through its root.
@@ -432,9 +449,13 @@ impl<A: Application> Harness<A> {
     }
 
     fn fork_cut(&mut self, commit: u64) -> Result<bool, Violation> {
+        if self.fork_only.as_ref().is_some_and(|commits| !commits.contains(&commit)) {
+            return Ok(false);
+        }
         match skein_fork::split() {
             skein_fork::Split::Child => {
                 self.forked.clear();
+                self.forked_at = Some(commit);
                 Ok(true)
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
@@ -611,6 +632,8 @@ where
             cut: Cut::None,
             crashes: snapshot.crashes,
             forked: Vec::new(),
+            forked_at: None,
+            fork_only: None,
             commit_hook: None,
         })
     }

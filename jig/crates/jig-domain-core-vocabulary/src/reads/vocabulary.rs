@@ -350,6 +350,8 @@ pub enum EndedValue {
     Task { document: Box<documents::Task>, result: Box<documents::ResultDoc> },
     /// Immutable task proposal and final routing state.
     Proposal(documents::ProposalHistory),
+    /// Retained party action; the history's proposer is the party's number.
+    PartyProposal(documents::ProposalHistory),
     /// A retained person-origin proposal and its first decision evidence.
     PersonProposal { proposal: Box<tasks::PersonProposal>, decision: Option<crate::ProposalDecisionRecord> },
     /// Kept escalation decision, its task and prior lifecycle story.
@@ -435,6 +437,7 @@ pub struct Page {
 pub struct TaskPage {
     pub live: List<documents::TaskLine>,
     pub live_next: Option<Cursor>,
+    pub ended_mark: u64,
     pub ended: EndedGroup,
 }
 /// An ended index's rows, or no index for these query keys.

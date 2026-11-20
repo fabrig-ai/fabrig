@@ -32,7 +32,7 @@ record Verdict { code: u32 words: u32 followups: u32 fields: bytes 1048576 piece
 record Approval { state: bytes 524288 part: Part }
 record Report { words: u32 }
 record Choices { choices: list 64 Verdict }
-record ChangeContract { connector: u16 kind: u16 words: u32 }
+record ChangeContract { connector: u16 kind: u16 words: u32 choices: list 64 Verdict = [] }
 enum Contract { approval: Approval, report: Report, verdict: Choices, change: ChangeContract, job: JobContract }
 record Tools { bits: u64 }
 record Models { bits: u64 all: bool }
@@ -155,7 +155,7 @@ record ProposedAmendment { task: u64 revision: u64 amendment: Amendment }
 record ProposedWidening { task: u64 authority: Authority }
 record ReleasePlaced { task: u64 hold: u64 revision: u64 }
 record SettingNumber { number: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, model: SettingNumber }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, model: SettingNumber, worker: SettingNumber, provider: SettingNumber, limits }
 enum SettingEdit { set, removed, reset }
 record SettingHead { setting: Setting edit: SettingEdit }
 record ProposedSettings { against: u32 items: list 128 SettingHead projects: list 32 u32 }
@@ -215,7 +215,8 @@ record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: 
 record ActivityWords { message: u64 by: Party kind: MessageKind words: bytes 524288 }
 record HeardMessage { word: Word }
 record NotifiedMessage { recipient: Party word: Word }
-record BeganLine { attempt: u64 why: Why resumed: bool }
+enum Fresh { moved, closed, cut, limit, session }
+record BeganLine { attempt: u64 why: Why resumed: bool fresh: option Fresh = none }
 record EndedLine { attempt: u64 end: EndKind spent: u64 }
 record TurnLine { reply: u64 attempt: u64 turn: u32 read: option u64 }
 record DecidedProposal { number: u64 made: bool }
@@ -240,7 +241,8 @@ enum EscalationHolder { task: EscalationTask, person: EscalationPerson, role: Es
 record UnheldEscalation { revision: u64 }
 record RoutingEscalation { revision: u64 }
 record WaitingEscalation { revision: u64 holder: EscalationHolder entry: u64 since: u64 }
-record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 }
+enum DeciderKind { person, task }
+record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 by_kind: DeciderKind = person }
 enum Escalation { unheld: UnheldEscalation, routing: RoutingEscalation, waiting: WaitingEscalation, rejected: RejectedEscalation }
 record PersonAnswer { by: u64 at: u64 }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }
@@ -327,7 +329,7 @@ record TaskDefinition {
     waiting_on: list 64 Number
     added: list 64 Added
 }
-enum InboxItem { word: Word, credit: QuestionCredit }
+enum InboxItem { word: Word, credit: QuestionCredit, unrecorded: Word }
 record TaskInterests {
     holdings: list 64 Holding
     holds_taken: bool
@@ -359,7 +361,7 @@ record TaskOutcome {
 }
 record Talk { party: u64 opened: u64 last: u64 }
 record Session { first: u64 reasons: u32 last: u64 }
-record BeforeTalk { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 }
+record BeforeTalk { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 words_woken: u64 = 0 }
 record Concluded { by: u64 at: u64 }
 record TaskRecord { record: BeforeTalk talk: option Talk concluded: option Concluded = none }
 record HotHistory {
@@ -400,7 +402,7 @@ record HotDefinition {
     waiting_on: list 64 Number
     added: list 64 Added
 }
-record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 talk: option Talk concluded: option Concluded = none }
+record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 talk: option Talk concluded: option Concluded = none words_woken: u64 = 0 }
 record LiveCold { spec: Spec contract: Contract authority: Authority instructions: option bytes 524288 }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }
@@ -474,7 +476,7 @@ record RefusalHoldOwner { hold: u64 }
 record RefusalHoldRevision { revision: u64 }
 record TalkOpen { party: u64 }
 record RefusalConcluded { at: u64 }
-enum Refusal { goals, grace, unproposable, person_revision: RefusalPersonRevision, resource_unavailable, not_ready, unknown, busy, duplicate, empty, batch, live, project, tree, depth, delegates, reference, subscription, dependencies, circle: RefusalCircle, executor, spec, contract, authority_shape, inputs, state, attempt, live_delegates, restore, read, turn, funding, hold_kind, hold_taken, holds, llm: RefusalLlm, account: RefusalAccount, dependency_ended: RefusalDependencyEnded, kept, placed: RefusalPlaced, hold_owner: RefusalHoldOwner, hold_revision: RefusalHoldRevision, kept_question: AnswerMessage, person_answers: AnswerMessage, not_standing, talk_open: TalkOpen, no_talk, concluded: RefusalConcluded }
+enum Refusal { goals, grace, unproposable, person_revision: RefusalPersonRevision, resource_unavailable, not_ready, unknown, busy, duplicate, empty, batch, live, project, tree, depth, delegates, reference, subscription, dependencies, circle: RefusalCircle, executor, spec, contract, authority_shape, inputs, state, attempt, live_delegates, restore, read, turn, funding, hold_kind, hold_taken, holds, llm: RefusalLlm, account: RefusalAccount, dependency_ended: RefusalDependencyEnded, kept, placed: RefusalPlaced, hold_owner: RefusalHoldOwner, hold_revision: RefusalHoldRevision, kept_question: AnswerMessage, person_answers: AnswerMessage, not_standing, talk_open: TalkOpen, no_talk, concluded: RefusalConcluded, unreported }
 versioned record TaskProblem { task: option u64 why: Refusal blocked_by: option list 8192 Number capacity: option Capacity }
 record ResultFollowupsDelegates { value: bytes 67108864 pieces Creation }
 record ResultFollowupsProposal { value: Proposal }

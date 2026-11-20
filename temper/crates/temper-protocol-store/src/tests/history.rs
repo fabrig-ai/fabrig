@@ -40,8 +40,6 @@ fn kinds() -> Box<[What]> {
             cause: Departure::Landing(temper_engine_domain_forge_landing::Leave::Conflict),
         },
         What::Selected,
-        What::Update { style: skein_forge::api::UpdateStyle::Merge },
-        What::Update { style: skein_forge::api::UpdateStyle::Rebase },
         What::Job { job: Job::Prepare, task: 61 },
         What::Job { job: Job::Merge, task: 62 },
         What::Conflict { with: With::Branch, files: 12 },
@@ -107,7 +105,7 @@ fn history_records_round_trip_every_kind_and_interval() {
         }
     }
     for outcome in [UpdateOutcome::Updated, UpdateOutcome::Conflict, UpdateOutcome::Failed] {
-        check(Stored::HistoryEvent(event(What::Updated { outcome })));
+        check(Stored::HistoryEvent(event(What::Updated { outcome, forge_base: None })));
     }
     for job in [Job::Prepare, Job::Merge] {
         for outcome in
@@ -186,6 +184,66 @@ fn history_records_round_trip_every_kind_and_interval() {
         crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap().limits().history_formed_members,
         fixtures::LIMITS.landing_members
     );
+}
+
+#[test]
+fn update_history_round_trips_the_forges_base_or_its_absence() {
+    for forge_base in [Some([0xa3; 32]), None] {
+        for style in [skein_forge::api::UpdateStyle::Merge, skein_forge::api::UpdateStyle::Rebase] {
+            check(Stored::HistoryEvent(event(What::Update { style, forge_base })));
+        }
+        check(Stored::HistoryEvent(event(What::Updated { outcome: UpdateOutcome::Updated, forge_base })));
+    }
+}
+
+#[test]
+fn update_history_written_without_the_forges_base_reads_with_none() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before =
+        family.current.replace(" forge_base: option fixed 32 = none", "").replace(" forge_base: option fixed 32", "");
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut plans = skein_lib::List::with_capacity(2);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        plans
+            .push(
+                skein_codec::layout::Plan::derive(
+                    source,
+                    source.root(b"HistoryEvent", None).unwrap(),
+                    &[],
+                    target,
+                    target.root(b"HistoryEvent", None).unwrap(),
+                    &[],
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for what in [
+        What::Update { style: skein_forge::api::UpdateStyle::Merge, forge_base: None },
+        What::Updated { outcome: UpdateOutcome::Failed, forge_base: None },
+    ] {
+        let stored = Stored::HistoryEvent(event(what));
+        let bytes = records::encode(&stored);
+        // Keep the row version and value tag; only the history event's layout changes.
+        let mut value: Box<[u8]> = bytes[3..].into();
+        for plan in &plans {
+            let mut work = skein_codec::layout::Workspace::new();
+            assert!(work.fit(plan));
+            let mut out = skein_lib::Buffer::with_capacity(131_072);
+            plan.convert(&value, &mut out, &mut work).unwrap();
+            value = out.as_slice().into();
+        }
+        let restored = skein_lib::bytes::concat(&[&bytes[..3], &value]);
+        assert_eq!(records::decode(&restored, &bounds), Ok(stored));
+    }
 }
 
 fn check_change_history_rows() {

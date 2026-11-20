@@ -6,6 +6,7 @@ use jig_domain_core::reads;
 use jig_domain_notes as notes;
 use serde_json::json;
 use skein_lib::{List, Writer};
+use smith_transcript::Record;
 use temper_engine_domain_world::protocol;
 
 const LINE: &[u8] = b"I want short answers.";
@@ -69,7 +70,7 @@ fn delete(entry: &notes::Entry) -> people::Ask {
 fn read(world: &mut World, session: u64, query: reads::Read) -> reads::Answer {
     let reply_to = ReplyTo::new(Token::new(100));
     let start = world.driver.delivered.len();
-    world.driver.send(Event::Party(PartyInput::Read { reply_to, sign_in: session, read: query }));
+    world.driver.send(Event::Party(PartyInput::Read { reply_to, sign_in: session, read: Box::new(query) }));
     world.driver.settle();
     world.driver.delivered[start..]
         .iter()
@@ -260,68 +261,41 @@ fn a_turn_shows_its_persons_list_to_them_alone() {
 
 fn transcript(run: &engine::Assignment, input: &[u8], answer: &[u8]) -> Box<[u8]> {
     use smith_transcript::v7 as s;
-    let bounds = &s::CEILINGS;
+
     let section = preferences(run);
     let text =
         format!("## Kept about this person\n\n{}", std::str::from_utf8(&section).expect("preferences are UTF-8"));
     let blocks = [
-        s::Block::Text(
-            s::Text::new(bounds, s::TextParts { text: text.into_bytes().into(), replay: None }).expect("brief text"),
-        ),
-        s::Block::Call(
-            s::Call::new(
-                bounds,
-                s::CallParts {
-                    id: b"remember-1".as_slice().into(),
-                    name: b"remember".as_slice().into(),
-                    input: input.into(),
-                    replay: None,
-                },
-            )
-            .expect("remember call"),
-        ),
-        s::Block::Result(
-            s::ToolResult::new(
-                bounds,
-                s::ToolResultParts {
-                    id: b"remember-1".as_slice().into(),
-                    returned: s::Returned::Said(
-                        s::Said::new(bounds, s::SaidParts { text: answer.into(), error: false })
-                            .expect("remember answer"),
-                    ),
-                },
-            )
-            .expect("remember result"),
-        ),
+        s::Block::Text(s::Text { text: text.into_bytes().into(), replay: None }),
+        s::Block::Call(s::Call {
+            id: b"remember-1".as_slice().into(),
+            name: b"remember".as_slice().into(),
+            input: input.into(),
+            replay: None,
+        }),
+        s::Block::Result(s::ToolResult {
+            id: b"remember-1".as_slice().into(),
+            returned: s::Returned::Said(s::Said { text: answer.into(), error: false }),
+        }),
     ];
-    let message = s::Message::new(
-        bounds,
-        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new(blocks)) },
-    )
-    .expect("assistant message");
-    let turn = s::Turn::new(
-        bounds,
-        s::TurnParts {
-            system: None,
-            model: b"scripted".as_slice().into(),
-            effort: None,
-            kind: s::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"scripted".as_slice().into(),
-            dialect: 1,
-            place: 1,
-            usage: s::Usage::new(
-                bounds,
-                s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-            )
-            .expect("unused token counts"),
-            spent: 0,
-            jobs: 0,
-            messages: List::from_boxed(Box::new([message])),
-        },
-    )
-    .expect("scripted turn");
-    let mut out = Writer::new(usize::try_from(turn.measure()).expect("bounded turn"));
-    turn.encode(&mut out).expect("measured transcript");
+    let message = s::Message { role: s::Role::Assistant, blocks: List::from_boxed(Box::new(blocks)) };
+    let turn = s::Turn {
+        system: None,
+        model: b"scripted".as_slice().into(),
+        effort: None,
+        kind: s::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"scripted".as_slice().into(),
+        dialect: 1,
+        place: 1,
+        usage: s::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        spent: 0,
+        jobs: 0,
+        messages: List::from_boxed(Box::new([message])),
+    };
+    let mut out = Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).expect("bounded turn"),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut out).expect("measured transcript");
     out.finish()
 }

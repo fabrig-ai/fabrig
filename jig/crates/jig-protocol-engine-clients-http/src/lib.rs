@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_http::server as http;
 use skein_lib::{Env, List, Map, Queue, Secret, Time, Token};
+mod batch;
 pub mod bundle;
 mod call;
 mod credential;
@@ -19,16 +20,13 @@ pub use public::public_path;
 #[derive(Debug)]
 pub struct Settings {
     pub prefix: Box<[u8]>,
+    /// The application's link page (protocol/client/default-http.md, 1 and 4).
+    pub page: Option<Box<[u8]>>,
     pub max_age: u32,
     /// The public name a TLS proxy serves the application at, as `Host` names it (protocol/client/default-http.md, 3).
     pub public: Option<Box<[u8]>>,
 }
-/// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Via {
-    Public,
-    Listener,
-}
+pub use kit::Via;
 /// `Public` when the call's `Host` is byte-equal to the configured public name,
 /// with no case folding or port normalising; `Listener` otherwise, including a missing `Host`.
 #[must_use]
@@ -53,7 +51,7 @@ pub struct Limits {
 #[derive(Debug)]
 pub enum Event {
     Listening { hosts: List<Box<[u8]>> },
-    Call { call: Token, head: http::Call },
+    Call { call: Token, head: http::Call, peer: Option<core::net::IpAddr> },
     Http { call: Token, event: http::Event },
     Component(kit::ToTransport),
 }
@@ -119,7 +117,7 @@ impl Mount {
     pub fn down(&mut self, env: &Env<Limits>, event: Event) {
         match event {
             Event::Listening { hosts } => self.hosts = hosts,
-            Event::Call { call, head } => {
+            Event::Call { call, head, peer } => {
                 assert!(self.room_for(&head) > 0, "application hands calls only within their room");
                 let mut value = call::Call::new(call, &env.limits);
                 value.method = head.method;
@@ -135,6 +133,10 @@ impl Mount {
                     return;
                 }
                 value.route = dispatch::route(&self.settings.prefix, &head);
+                if value.route.stream() {
+                    let path = head.target.strip_prefix(self.settings.prefix.as_ref()).expect("routed prefix");
+                    value.replaces = dispatch::stream_replaces(path).expect("routed stream");
+                }
                 if value.public {
                     let body = match head.body {
                         http::Body::None => false,
@@ -151,6 +153,7 @@ impl Mount {
                     return;
                 }
                 value.via = via(&self.settings, &head);
+                value.source = call::source(value.via, &head, peer);
                 value.browser = head.header(b"jig-client") == Some(b"browser");
                 let mut forbidden = false;
                 value.credential = match credential::read(&head) {
@@ -171,6 +174,9 @@ impl Mount {
                 if !guards::host(&self.settings, &self.hosts, &head) {
                     value.route = dispatch::Route::Missing;
                     value.respond(421, Box::new([]), &env.limits);
+                } else if value.route == dispatch::Route::BadQuery {
+                    value.route = dispatch::Route::Missing;
+                    value.respond(400, Box::new([]), &env.limits);
                 } else if value.route == dispatch::Route::Missing {
                     value.respond(404, Box::new([]), &env.limits);
                 } else if forbidden {
@@ -184,7 +190,7 @@ impl Mount {
                 {
                     value.route = dispatch::Route::Missing;
                     value.respond(413, Box::new([]), &env.limits);
-                } else if value.route == dispatch::Route::Stream && streams >= env.limits.streams {
+                } else if value.route.stream() && streams >= env.limits.streams {
                     value.route = dispatch::Route::Missing;
                     value.respond(
                         409,
@@ -230,7 +236,10 @@ impl Mount {
     }
     fn component(&mut self, env: &Env<Limits>, message: kit::ToTransport) {
         let name = match &message {
-            kit::ToTransport::Reply { exchange, .. } | kit::ToTransport::Public { exchange, .. } => *exchange,
+            kit::ToTransport::Reply { exchange, .. }
+            | kit::ToTransport::Public { exchange, .. }
+            | kit::ToTransport::Part { exchange, .. }
+            | kit::ToTransport::Done { exchange } => *exchange,
             kit::ToTransport::Streamed { stream, .. } | kit::ToTransport::StreamEnded { stream, .. } => *stream,
         };
         let Some(call) = self.calls.get_mut(&name) else {
@@ -250,6 +259,11 @@ impl Mount {
                 let (body, cookie) =
                     if status == 200 { dispatch::reply(&self.settings, call, env.wall, body) } else { (body, None) };
                 call.respond_with_cookie(status, body, cookie, &env.limits);
+            }
+            kit::ToTransport::Part { message, .. } => call.part(env, message),
+            kit::ToTransport::Done { .. } => {
+                call.reply_owed = false;
+                call.batch_done(env);
             }
             kit::ToTransport::Streamed { message, .. } => call.stream(env, message),
             kit::ToTransport::StreamEnded { why, .. } => call.end(env, why),
@@ -309,18 +323,33 @@ pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {
         u32::try_from(secret.expose().len()).expect("bounded secret"),
     )
     .expect("bounded base64");
-    let route = b"/v1/sign-in/link?secret=";
+    let (target, query): (&[u8], &[u8]) = match &settings.page {
+        Some(page) => {
+            assert!(
+                page.len() <= 64
+                    && page.starts_with(b"/")
+                    && !page.ends_with(b"/")
+                    && !page.contains(&b'?')
+                    && !page.contains(&b'#'),
+                "application link page"
+            );
+            if let Some(rest) = page.strip_prefix(settings.prefix.as_ref()) {
+                assert!(!rest.is_empty() && !rest.starts_with(b"/"), "link page outside prefix");
+            }
+            (page, b"?secret=")
+        }
+        None => (&settings.prefix, b"/v1/sign-in/link?secret="),
+    };
     let mut path = skein_lib::Writer::new(
-        settings
-            .prefix
+        target
             .len()
-            .checked_add(route.len())
+            .checked_add(query.len())
             .expect("path")
             .checked_add(skein_lib::length::usize_of(encoded))
             .expect("path"),
     );
-    path.put(&settings.prefix).expect("prefix");
-    path.put(route).expect("route");
+    path.put(target).expect("target");
+    path.put(query).expect("query");
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, secret.expose(), &mut path).expect("secret");
     path.finish()
 }

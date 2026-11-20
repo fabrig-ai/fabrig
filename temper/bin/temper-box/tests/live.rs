@@ -114,12 +114,12 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     let address = if kept {
         None
     } else {
-        let address = forge_land::live_deployment(&paths, model);
+        forge_land::live_deployment(&paths, model);
         if let forge_land::LiveModel::ChatGpt { .. } = model {
-            forge_land::retain_live_model(&paths[0].join("temper.json"), model.name());
+            forge_land::retain_live_model(&paths[0].join(temper_config_shell::FILE), model.name());
         }
         let _ = forge_land::cache_forgejo_binaries(&paths[2]);
-        Some(address)
+        None
     };
     let tag = forge_land::live_tag();
     let line = format!("Hello from temper, {tag}.");
@@ -225,6 +225,21 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
         clock.now().now.saturating_since(started).as_nanos() / 1_000_000_000
     ));
     result.unwrap_or_else(|message| {
+        let lines = forge_land::run_failure_lines(&paths[1]);
+        if lines.is_empty() {
+            support::live::notice("RUN no failed or refused runs found in serve logs");
+        }
+        let omitted = lines.len().saturating_sub(64);
+        if omitted != 0 {
+            support::live::notice(&format!("RUN {omitted} earlier run lines omitted"));
+        }
+        for line in lines.iter().skip(omitted) {
+            support::live::notice(&format!("RUN {line}"));
+        }
+        match forge_land::keep_box_data(&paths[1], scratch.path()) {
+            Ok(path) => support::live::notice(&format!("KEPT box data {}", path.display())),
+            Err(why) => support::live::notice(&format!("BOX DATA not kept: {why}")),
+        }
         support::live::notice(&format!("FAILURE {message}"));
         panic!("{message}")
     });

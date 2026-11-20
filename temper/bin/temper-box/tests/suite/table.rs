@@ -35,8 +35,28 @@ fn help(text: &str) -> bool {
         .filter_map(|line| line.split_whitespace().next())
         .collect();
     text == TABLE.help()
-        && names == ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]
+        && names
+            == [
+                "init",
+                "serve",
+                "program-login",
+                "help",
+                "versions",
+                "upgrade",
+                "upgrade",
+                "upgrade",
+                "checkpoint",
+                "checkpoint",
+                "checkpoint",
+                "restore",
+            ]
         && text.contains("temper-box [--config DIR]")
+        && text.contains("upgrade --workers")
+        && text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .contains("Judges the workers alone over links and small copies; switches nothing.")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
 
@@ -46,6 +66,10 @@ fn init_help(text: &str) -> bool {
 
 fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(TABLE.binary, &temper_shell::help::Request::Index).expect("index page")
+}
+
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::Standalone).as_ref()
 }
 
 fn commands_page(text: &str) -> bool {
@@ -61,7 +85,23 @@ fn internal_help(text: &str) -> bool {
 
 type Check = fn(&str) -> bool;
 type Case = (&'static [&'static str], i32, Check, &'static str);
+const CHECKPOINT_USAGE: &str = "temper-box checkpoint: invalid arguments\nusage: temper-box checkpoint [DIRECTORIES]\nusage: temper-box checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-box checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
+    (&["checkpoint", "--", "cmd"], 2, empty, CHECKPOINT_USAGE),
+    (
+        &[
+            "checkpoint",
+            "--hold",
+            "00000000000000000012-00000000000000ff",
+            "--remove",
+            "00000000000000000012-00000000000000ff",
+            "--",
+            "cmd",
+        ],
+        2,
+        empty,
+        CHECKPOINT_USAGE,
+    ),
     (&["--version"], 0, version, ""),
     (&["-h"], 0, help, ""),
     (&["--help"], 0, help, ""),
@@ -71,6 +111,7 @@ const ROWS: &[Case] = &[
     (&["forge", "fetch", "--help"], 0, internal_help, ""),
     (&["help", "pages"], 0, pages, ""),
     (&["help", "commands"], 0, commands_page, ""),
+    (&["help", "config"], 0, config_page, ""),
     (&["help", "nope"], 1, empty, "temper-box: no page nope; temper-box help lists them\n"),
     (
         &["help", "--search"],
@@ -98,6 +139,12 @@ const ROWS: &[Case] = &[
         2,
         empty,
         "temper-box upgrade --check: invalid arguments\nusage: temper-box upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--workers"],
+        2,
+        empty,
+        "temper-box upgrade --workers: invalid arguments\nusage: temper-box upgrade --workers [DIRECTORIES] DIRECTORY\n",
     ),
     (
         &["upgrade", "--back", "extra"],

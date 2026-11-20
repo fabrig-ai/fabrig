@@ -17,6 +17,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 mod address;
 #[path = "../stories/note_room.rs"]
 mod note_room;
+#[path = "../stories/widening_funds.rs"]
+mod widening_funds;
 
 const SECOND_CONNECTOR: u16 = 2;
 
@@ -385,6 +387,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
                 author: notes::Author::Task { task: key.task, attempt: key.attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     );
     let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
@@ -445,6 +448,7 @@ fn another_partys_scope_is_refused_to_runs_and_unknown_to_parties() {
                 author: notes::Author::Task { task: key.task, attempt: key.attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     );
     assert_eq!(
@@ -496,6 +500,7 @@ fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
                     author: notes::Author::Task { task: key.task, attempt: key.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         );
     }
@@ -1181,6 +1186,38 @@ fn a_release_after_a_pass_up_keeps_the_hold_revision_and_uses_the_partys_tree() 
 }
 
 #[test]
+fn an_owner_funds_only_the_increase_that_the_task_document_offered_as_made() {
+    use crate::amendment_funding as funding;
+    use jig_client_domain::contract as c;
+    let mut world = World::new(Setup { seed: 8290, ..Setup::default() });
+    let task = world.call_key(1).task;
+    assert_eq!(live_row(&world, task).funder, tasks::Funder::Pool { project: 1, person: 1, period: 1 });
+    let doc = funding::document(&mut world, task);
+    let mut before = doc.authority.whole().expect("whole task authority");
+    before.spend = 100;
+    funding::request(&mut world, task, &before, 99);
+    ask(&mut world, 100, people::Ask::SetPool { project: 1, person: 1, budget: 130 });
+    let doc = funding::document(&mut world, task);
+    let mut after = doc.authority.whole().expect("whole task authority");
+    assert_eq!(after.spend, 100);
+    after.spend = 120;
+    assert_eq!(funding::offer(&doc, &funding::change(after.clone())), c::Admission::Allowed);
+    funding::request(&mut world, task, &after, 101);
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::Amended { task, released: false }))
+    );
+    assert_eq!(live_row(&world, task).numbers.budget, 120);
+}
+
+#[test]
+fn amending_offers_and_direct_requests_agree_at_funding_seeds() {
+    for seed in [0, 1] {
+        crate::amendment_funding::sweep(seed);
+    }
+}
+
+#[test]
 fn an_amendment_and_a_release_are_one_decision() {
     let (configuration, limits) = amendment_world_fixture(152);
     let mut world = World::new(Setup { seed: 152, configuration: Some(configuration), limits, ..Setup::default() });
@@ -1262,28 +1299,6 @@ fn a_party_deciding_a_cancelled_task_hears_who_cancelled_it_and_when() {
             how: people::Ending::Cancelled { by: people::Party::Person(person), at },
         })))
     );
-}
-
-pub(crate) fn person_world_fixture(seed: u64) -> (root::Config, root::Limits) {
-    let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
-    limits.core.tasks.person_stall = skein_lib::Duration::from_secs(1);
-    let kinds: Box<[authority::Executor]> = Box::new([authority::Executor::Charter(1), authority::Executor::Role(0)]);
-
-    let mut rules = configuration.core.defaults.rules.clone();
-    rules.ceiling.delegation.kinds.clone_from(&kinds);
-    let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
-    policy.ceiling.delegation.kinds.clone_from(&kinds);
-    policy.roles[0].authority.delegation.kinds = kinds;
-    let mut domain = authority::Domain::new(rules, limits.core.authority).expect("bounded person-task policy");
-    let mut out = Queue::uncapped();
-    authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
-    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
-    configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
-    configuration.core.defaults.rules = (jig_domain_authority::Domain::new(domain.rules().clone(), *domain.limits())
-        .expect("checked rules"))
-    .rules()
-    .clone();
-    (configuration, limits)
 }
 
 #[test]
@@ -2171,3 +2186,5 @@ fn a_held_chats_delegate_waits_for_its_person_without_a_stall() {
 
 #[path = "../stories/brief_failure.rs"]
 mod brief_failure;
+
+pub(crate) use crate::person_support::person_world_fixture;

@@ -11,10 +11,22 @@ mod fake_opening;
 mod forge;
 mod forge_land;
 mod inbox_reply;
+mod landing_failure;
 mod ports;
 mod relay;
 mod startup;
 mod table;
+
+// Admission exercises the checked start, not its configuration-only ring sizing.
+fn admission(directories: &temper_box_shell::directories::Directories, bytes: &[u8]) -> Result<u32, String> {
+    let mut owned = Vec::new();
+    let result =
+        temper_box_shell::prepare(&[], b"/", directories, bytes, &mut owned).map(|service| service.operations());
+    for fd in owned {
+        skein_shell::close_startup_fd(fd);
+    }
+    result
+}
 
 mod admission_edges;
 mod producer_policy;

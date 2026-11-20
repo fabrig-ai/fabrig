@@ -16,7 +16,7 @@ fn at(minutes: u64) -> Wall {
     Wall::from_nanos((9 * DAY).saturating_add(minutes.saturating_mul(MINUTE)))
 }
 fn began(attempt: u64) -> c::Activity {
-    c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: attempt == 3 }
+    c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: attempt == 3, fresh: None }
 }
 fn ended(attempt: u64, spent: u64) -> c::Activity {
     c::Activity::RunEnded { attempt, end: c::RunEnd::Parked, spent }
@@ -129,7 +129,7 @@ fn opening() -> Reads {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([role])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([role])), more: false })),
     );
     assert_eq!(f.activity.last().unwrap().1, c::Read::Activity { task: 52, before: None });
     f
@@ -208,7 +208,11 @@ fn sessions_read_back_then_merge_a_moving_tail_by_position() {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([first, second])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks {
+            ended_mark: 0,
+            rows: List::from_boxed(Box::new([first, second])),
+            more: false,
+        })),
     );
     page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(41) } });
     assert_eq!(

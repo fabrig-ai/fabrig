@@ -95,8 +95,11 @@ fn charters(domain: &Domain) -> Box<[SeeName]> {
             }
             Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Provider(_)
+            | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::ProjectPolicy { .. }
             | Setting::Application { .. } => {}
         }
@@ -113,6 +116,7 @@ pub(crate) fn repositories(domain: &Domain, project: u32) -> Box<[RepositoryIden
                 host: repository.host.clone(),
                 owner: repository.owner.clone(),
                 name: repository.name.clone(),
+                landing: repository.landing.clone(),
             })
             .expect("one identity per readable repository");
     }

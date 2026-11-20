@@ -4,6 +4,10 @@ use crate::jig::runner::reads::Reading;
 use jig_client::{Readout, contract as c};
 use skein_json::writer::Encoder;
 use skein_ui::phrases::Phrasebook;
+#[expect(
+    clippy::too_many_lines,
+    reason = "read-set dispatch keeps each selected document and its joined limit values together"
+)]
 pub(super) fn text(
     reading: &Reading,
     me: Option<&c::Me>,
@@ -16,6 +20,10 @@ pub(super) fn text(
         super::person_text(person, reading.person_answerer, me, book, out);
     }
     let call = &reading.called.call;
+    if crate::jig::runner::providers::all(call) {
+        super::settings::providers_text(reading, limits, vocabulary, out);
+        return;
+    }
     if call.tool == 1 {
         super::super::lists::inboxes(reading, limits, book, out);
         return;
@@ -24,7 +32,10 @@ pub(super) fn text(
         super::super::activity::chat(thread, call, limits, out);
         return;
     }
-    for (_, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
+    for (&local, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
+        if call.tool == crate::jig::rows::SETTINGS_AT && (local == 2 || local == 3) {
+            continue;
+        }
         match page {
             Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(page))) => {
                 super::super::task_source::text(page, limits, out);
@@ -33,14 +44,24 @@ pub(super) fn text(
                 super::projects::text(project, call, me, limits, vocabulary, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
-                super::census::text(deployment.census.as_deref(), out);
+                if call.tool == crate::jig::rows::WORKER_LIST_AT {
+                    super::workers::text(deployment, out);
+                } else {
+                    super::census::text(deployment.census.as_deref(), out);
+                }
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)
                 | c::ReadValue::Setting(_)
                 | c::ReadValue::Revision(_)
                 | c::ReadValue::Revisions(_)),
-            )) => super::settings::text(value, call, limits, vocabulary, out),
+            )) => {
+                super::settings::text(value, call, limits, vocabulary, out);
+                if call.tool == crate::jig::rows::SETTINGS_AT {
+                    super::settings::inventory_limits(reading, vocabulary, out);
+                }
+                super::settings::provider_marks(value, reading, out);
+            }
 
             Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Proposal(_))) => {
                 super::proposal::text(value, reading, limits, out);
@@ -126,6 +147,10 @@ fn ended_text(
 #[expect(clippy::too_many_lines, reason = "read-set dispatch keeps each selected document's encoding together")]
 pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
+    if crate::jig::runner::providers::all(call) {
+        super::settings::providers_encode(reading, out);
+        return;
+    }
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
         super::subjects::encode_inbox_read(reading, limits, out);
         return;
@@ -139,6 +164,9 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
         super::encode_person_task(person, out, budget);
     }
     for (local, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
+        if call.tool == crate::jig::rows::SETTINGS_AT && (*local == 2 || *local == 3) {
+            continue;
+        }
         if reading.called.call.tool == 1 && *local == 5 && !super::super::lists::updates_fit(reading, limits.rows) {
             continue;
         }
@@ -153,7 +181,11 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
                 super::projects::encode(project, call, me, limits, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
-                super::census::encode(deployment.census.as_deref(), out);
+                if call.tool == crate::jig::rows::WORKER_LIST_AT {
+                    super::workers::encode(deployment, out);
+                } else {
+                    super::census::encode(deployment.census.as_deref(), out);
+                }
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)

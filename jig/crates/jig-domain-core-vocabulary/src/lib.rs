@@ -28,7 +28,10 @@ pub use crate::{
         amendments::TaskAmendDenied,
         policy::{grants_to_authority, snapshot as policy_snapshot},
     },
-    documents::Offered,
+    documents::{
+        Offered,
+        parts::{MadePart, PartAsk, PartFailure, PartInputs, PartKind, PartsAsk, RowPart},
+    },
     effects::{
         EffectKey, EffectOrigin, EffectPurpose,
         connector::PersonSeed,
@@ -90,7 +93,7 @@ pub struct ConfiguredPolicy {
 }
 
 /// One first-start project seed (configuration.md, 3; domain/model.md, 6.1).
-#[derive(Hash, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct SeedProject {
     pub number: u32,
     pub name: Box<str>,
@@ -99,10 +102,8 @@ pub struct SeedProject {
 
 /// Application-supplied initial core state, in jig's vocabulary
 /// (`domain/engine/restart.md`; `configuration.md`, 3).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
-    /// Configured worker names in authenticated protocol position order.
-    pub worker_names: Box<[Box<[u8]>]>,
     /// Identity committed with the first decision.
     pub deployment: [u8; 16],
     /// Deterministic task scheduling seed.
@@ -117,6 +118,8 @@ pub struct Config {
     pub grants: Box<[people::ActGrant]>,
     /// Configured authority and policy.
     pub defaults: settings::Defaults,
+    /// Application constants, checked but never changed.
+    pub fixed_providers: Box<[settings::ProviderSetting]>,
     /// An application's kinds of settings (domain/engine/settings.md, 5).
     pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
@@ -129,10 +132,12 @@ pub struct Config {
     pub jobs: Box<[jig_domain_link::JobBound]>,
     /// Connectors' procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
     pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
+    /// Application task-row parts (domain/engine/views.md, 2).
+    pub parts: Box<[PartKind]>,
 }
 
 /// Deployment and current catalogue settings used by core decisions.
-#[derive(Hash, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Settings {
     pub endpoints: Box<[EndpointFacts]>,
     /// Provider number for the application's services.

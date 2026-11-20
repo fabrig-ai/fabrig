@@ -1,8 +1,13 @@
 //! The box's steps and kind slots (temper/docs/design/protocol/setup/box.md, 1).
+mod group_host;
 use crate::directories::jig_directories;
+use group_host::GroupHost;
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
-use std::{fmt::Write, os::unix::ffi::OsStrExt};
+use std::{
+    fmt::Write,
+    os::{fd::IntoRawFd, unix::ffi::OsStrExt},
+};
 use temper_box_machine::host::{Echo, FirstLink, Front, Service, Settings};
 
 /// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup/box.md, 2).
@@ -52,9 +57,11 @@ pub fn run(
     record: bool,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
-    let (bytes, held, first_run) = configuration(directories, environment)?;
+    let (read, held, first_run) = configuration_read(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, record, opening, environment)
+    read.prepare(|bytes| {
+        run_configuration(directories, bytes, held, Box::new([]), echo, fronted, record, None, opening, environment)
+    })
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
@@ -76,6 +83,7 @@ pub(crate) fn run_configuration(
     echo: Echo,
     fronted: bool,
     record: bool,
+    fixed_start: Option<&[u8]>,
     opening: Opening,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
@@ -83,23 +91,36 @@ pub(crate) fn run_configuration(
     let opened = (|| {
         let inherited = skein_shell::inherited_listeners().map_err(super::listeners_refusal)?;
         owned.extend(inherited.iter().map(|(fd, _)| *fd));
-        let held = held_listeners(held)?;
+        let mut held = held_listeners(held)?;
+        let scripted = crate::scripted::choose()?;
+        let address = scripted.local_addr().map_err(|why| why.to_string())?;
+        let fd = Fd::new(scripted.into_raw_fd());
+        owned.push(fd);
+        held.push((fd, address));
+        let given = crate::scripted::given(directories, &temper_service::stock::Given::Stock, address);
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
         let child_environment: Box<[Box<[u8]>]> = environment
             .iter()
+            .filter(|(name, _)| name.as_ref() != crate::scripted::ADDRESS)
             .map(|(name, value)| {
                 let mut entry = name.to_vec();
                 entry.push(b'=');
                 entry.extend_from_slice(value);
                 entry.into_boxed_slice()
             })
+            .chain(core::iter::once(
+                format!("{}={address}", String::from_utf8_lossy(crate::scripted::ADDRESS))
+                    .into_bytes()
+                    .into_boxed_slice(),
+            ))
             .collect();
-        let (steps, limits) = configuration_steps_recording(directories, bytes, first, record)?;
-        let named = super::setup::check(bytes, &jig_directories(directories))?.named;
+        let deployment = super::setup::check_with(bytes, &jig_directories(directories), &given)?;
+        let (steps, limits) = configuration_steps_checked(directories, &deployment, first, record, fixed_start)?;
+        let named = &deployment.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
-        let mut first_link = first_link(&named, &steps)?;
-        let front = configured_front(fronted, &named, first_link.as_mut())?;
+        let mut first_link = first_link(named, &steps)?;
+        let front = configured_front(fronted, named, first_link.as_mut())?;
         let signals = skein_shell::open_signals(skein_shell::Watch::TerminationAndHangup)
             .map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
@@ -135,14 +156,14 @@ pub(crate) fn run_configuration(
         let kernel = Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string())?;
         Ok((service, kernel))
     })();
-    let (mut service, mut kernel) = match opened {
+    let (service, mut kernel) = match opened {
         Ok(opened) => opened,
         Err(why) => {
             super::close(owned);
             return Err(why);
         }
     };
-    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service))
+    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut GroupHost(service)))
 }
 
 /// Only the explicit internal switch enables the parent's pipes; no terminal is opened.
@@ -220,7 +241,7 @@ fn open_listeners(
         {
             return Err(format!(
                 "{}: inherited listener fd {} at {address}: no step names this listener",
-                directories.document().display(),
+                configuration_path(directories).display(),
                 fd.raw()
             ));
         }
@@ -232,24 +253,21 @@ fn open_listeners(
             if listeners.iter().any(|(_, previous)| previous == addr) {
                 return Err(format!(
                     "{}: port {} ({addr}): two steps name the same listener",
-                    directories.document().display(),
+                    configuration_path(directories).display(),
                     addr.port()
                 ));
             }
             let fd = if let Some((fd, _)) = inherited.iter().chain(&held).find(|(_, address)| address == addr) {
                 *fd
             } else {
-                let (fd, _) = skein_shell::open_listener(
-                    *addr,
-                    jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog,
-                )
-                .map_err(|why| {
-                    format!(
-                        "{}: port {} ({addr}): cannot listen: {why:?}",
-                        directories.document().display(),
-                        addr.port()
-                    )
-                })?;
+                let (fd, _) =
+                    skein_shell::open_listener(*addr, jig_protocol_config::stock().io.backlog).map_err(|why| {
+                        format!(
+                            "{}: port {} ({addr}): cannot listen: {why:?}",
+                            configuration_path(directories).display(),
+                            addr.port()
+                        )
+                    })?;
                 owned.push(fd);
                 fd
             };
@@ -266,19 +284,8 @@ fn open_listeners(
     Ok(listeners)
 }
 
-/// The checked setup supplies the identity and paths; the box keeps only opaque
-/// public lines on the Forgejo step, never credentials or setup configuration.
-fn owned_notices(steps: &mut temper_forge_setup::Steps, owned: &temper_forge_setup::setup::Owned) {
-    let notice = format!(
-        "Forgejo: api http://{}/api/v1\nForgejo: person {}\n",
-        owned.listen,
-        String::from_utf8_lossy(&owned.person.login),
-    );
-    for step in steps.asked.iter_mut().flat_map(|group| group.steps.iter_mut().map(|(_, step)| step)) {
-        if step.ready() == Some(owned.listen) {
-            step.set_started_notice(notice.as_bytes().into());
-        }
-    }
+fn configuration_path(directories: &super::Directories) -> std::path::PathBuf {
+    super::path(&directories.config).join(temper_config_shell::FILE)
 }
 
 type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
@@ -287,6 +294,14 @@ pub fn configuration(
     directories: &super::Directories,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Configuration, String> {
+    configuration_read(directories, environment).map(|(read, held, first)| (read.document, held, first))
+}
+type ConfigurationRead =
+    (temper_service_shell::configuration::Read, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
+fn configuration_read(
+    directories: &super::Directories,
+    environment: &[super::EnvironmentEntry],
+) -> Result<ConfigurationRead, String> {
     let config = super::path(&directories.config);
     let empty = match std::fs::read_dir(config) {
         Ok(mut entries) => match entries.next() {
@@ -303,56 +318,19 @@ pub fn configuration(
         held = written.listeners;
         let mut opening =
             written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
-        writeln!(opening, "First run: wrote the configuration, {}", directories.document().display()).expect("string");
+        writeln!(opening, "First run: wrote the configuration, {}", config.join(temper_config_shell::FILE).display())
+            .expect("string");
         Some(opening.into_bytes().into())
     } else {
         None
     };
-    match directories.read() {
-        Ok(bytes) => Ok((bytes, held, first_run)),
+    match temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone) {
+        Ok(read) => Ok((read, held, first_run)),
         Err(why) => {
             super::close(held.into_iter().map(|(fd, _)| fd).collect());
             Err(why)
         }
     }
-}
-
-/// Reads the machine separately from the deployment's forge records (temper/docs/design/protocol/configuration/engine.md).
-#[cfg(test)]
-pub(crate) fn machine(
-    bytes: &[u8],
-    directories: &super::Directories,
-) -> Result<temper_forge_setup::machine::Machine, String> {
-    use jig_protocol_config as config;
-    use temper_forge_setup::{machine, problem};
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .map_err(|why| format!("{why:?}"))?;
-    let Some(application) =
-        config::read::Object::new(&document, 0).map_err(|why| format!("{why:?}"))?.member(&document, b"application")
-    else {
-        return Err("application.machine: missing member".into());
-    };
-    let Some(at) = config::read::Object::new(&document, application)
-        .map_err(|why| format!("{why:?}"))?
-        .member(&document, b"machine")
-    else {
-        return Err("application.machine: missing member".into());
-    };
-    let mut problems = problem::Problems::empty();
-    let machine = machine::read(
-        &document,
-        at,
-        &temper_forge_setup::limits::small(),
-        &jig_directories(directories),
-        &mut problems,
-    );
-    if !problems.is_empty() {
-        return Err(String::from_utf8_lossy(&problem::lines(&problems)).into_owned());
-    }
-    machine.ok_or("application.machine: invalid form".into())
 }
 
 /// Builds the box's always steps and kind slots from its checked document (7.1).
@@ -361,34 +339,54 @@ pub fn configuration_steps(
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
-    configuration_steps_recording(directories, bytes, first, false)
+    configuration_steps_recording(directories, bytes, first, false, None)
 }
 pub(crate) fn configuration_steps_recording(
     directories: &super::Directories,
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
     record: bool,
+    fixed_start: Option<&[u8]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
-    let super::setup::Deployment { named, demo, limits, .. } =
-        super::setup::check(bytes, &jig_directories(directories))?;
+    let deployment = super::setup::check(bytes, &jig_directories(directories))?;
+    configuration_steps_checked(directories, &deployment, first, record, fixed_start)
+}
+/// Builds steps from the admission already performed for these effective directories.
+pub(crate) fn configuration_steps_checked(
+    directories: &super::Directories,
+    deployment: &super::setup::Deployment,
+    first: Box<[temper_forge_setup::Step]>,
+    record: bool,
+    fixed_start: Option<&[u8]>,
+) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
+    let super::setup::Deployment { named, demo, limits, .. } = deployment;
     let mut serve = vec![super::address(&named.clients)?];
     if let Some(webhooks) = &named.webhooks {
         serve.push(super::address(&webhooks.listener)?);
     }
-    let machine = named.machine;
+    let dirs = jig_directories(directories);
+    let temper_forge_setup::setup_file::SetupFile::Owned(owned) = temper_forge_setup::setup_file::chosen(
+        temper_forge_setup::machine::BoxKind::Owned,
+        0,
+        b"person",
+        named.provider,
+        &dirs,
+    )
+    .expect("stock setup slot") else {
+        unreachable!("owned slot")
+    };
     let steps = {
-        let machine = &machine;
         let mut steps = temper_forge_setup::step::kinds(
-            machine,
+            Some(&owned),
             &directories.flags(),
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
             record,
+            fixed_start,
         );
-        if let Some(fake) = &machine.fake {
-            let demo = demo.as_ref().ok_or("application.machine.fake requires application.demo.llm")?;
+        if let Some(demo) = &demo {
             let mut asked = steps.asked.into_vec();
-            asked.push(temper_fake::steps::fake_slot(fake, demo.llm().listen(), &directories.flags()));
+            asked.push(temper_fake::steps::fake_slot(demo.llm().listen(), &directories.flags()));
             steps.asked = asked.into_boxed_slice();
         }
         let mut always = first.into_vec();
@@ -400,18 +398,7 @@ pub(crate) fn configuration_steps_recording(
                 .expect("bounded insertion");
         }
         steps.always = always.into_boxed_slice();
-        if machine.owned.is_some() {
-            let entry = temper_forge_setup::machine::entry(
-                machine,
-                0,
-                temper_forge_setup::machine::BoxKind::Owned,
-                &jig_directories(directories),
-            )
-            .expect("owned machine");
-            let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { unreachable!("owned kind") };
-            owned_notices(&mut steps, owned);
-        }
         steps
     };
-    Ok((steps, limits))
+    Ok((steps, *limits))
 }

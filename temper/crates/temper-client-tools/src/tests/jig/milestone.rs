@@ -16,7 +16,7 @@ use jig_client::{contract as c, shapes};
 use skein_lib::{List, Wall};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-const NEW: &[&str] = &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "store-shape"];
+const NEW: &[&str] = &["milestone", "new", "--project", "1", "--budget", "4.00", "Store shape", "--key", "store-shape"];
 const WHOLE: &[&str] = &["milestone", "whole", "812", "--key", "whole"];
 pub(super) const KEYED: &[&[&str]] = &[NEW, WHOLE];
 fn me() -> c::Me {
@@ -136,7 +136,7 @@ fn milestone_controls_keep_required_budget_and_jigs_proposal_judgement() {
     assert_eq!(f::chat_task(&root, call).budget, c::NewBudget::AsAllowed { cap: None });
     let mut root = f::choice_root(me());
     let call =
-        root.submit(&["milestone", "new", "--project", "1", "--budget", "501", "Store shape", "--key", "ceiling"]);
+        root.submit(&["milestone", "new", "--project", "1", "--budget", "5.01", "Store shape", "--key", "ceiling"]);
     assert!(root.sends.is_empty());
     assert_eq!(root.answer(call).unwrap().status, 1);
     f::parse(f::extended(NEW, &["--as-allowed"]).as_slice()).unwrap_err();
@@ -201,6 +201,7 @@ fn row(number: u64, name: &[u8], phase: c::Phase) -> c::TaskLine {
 }
 fn tasks(live: Vec<c::TaskLine>, ended: Vec<c::TaskLine>, more: bool) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::from_boxed(live.into_boxed_slice()),
         live_after: if more { Some(f::cursor()) } else { None },
         ended: c::EndedGroup::Rows {
@@ -271,31 +272,19 @@ fn milestone_list_reads_the_offered_label_and_one_group_with_a_cursor() {
     assert_eq!(rows::MILESTONE_LIST.result, b"milestone_list");
 }
 fn totals(ended: bool) -> w::MilestoneResult {
-    w::MilestoneResult::Totals(
-        w::MilestoneTotals::new(
-            &w::CEILINGS,
-            w::MilestoneTotalsParts {
-                task: 812,
-                done: 7,
-                failed: 0,
-                closed: 1,
-                live: u32::from(!ended),
-                ended: if ended { Some(120_000_000_000) } else { None },
-                last_landing: Some(
-                    w::MilestoneLanding::new(
-                        &w::CEILINGS,
-                        w::MilestoneLandingParts { at: 90_000_000_000, goal: 820, change: 821 },
-                    )
-                    .unwrap(),
-                ),
-                spent: 212,
-            },
-        )
-        .unwrap(),
-    )
+    w::MilestoneResult::Totals(w::MilestoneTotals {
+        task: 812,
+        done: 7,
+        failed: 0,
+        closed: 1,
+        live: u32::from(!ended),
+        ended: if ended { Some(120_000_000_000) } else { None },
+        last_landing: Some(w::MilestoneLanding { at: 90_000_000_000, goal: 820, change: 821 }),
+        spent: 212,
+    })
 }
 fn answer(result: w::MilestoneResult) -> jig_client::Readout {
-    let answer = w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result }).unwrap();
+    let answer = w::MilestoneAnswer { result };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
 fn show(json: bool, task: c::Task, result: w::MilestoneResult) -> crate::jig::Printed {
@@ -334,7 +323,7 @@ fn show(json: bool, task: c::Task, result: w::MilestoneResult) -> crate::jig::Pr
 fn milestone_show_joins_facts_totals_and_goals_in_task_order() {
     let printed = show(false, milestone(), totals(false));
     assert_eq!(printed.status, 0);
-    assert_eq!(printed.stdout.as_ref(), b"milestone 812 \xc2\xb7 Store shape \xc2\xb7 whole since 1970-01-01T00:01Z\nThe store's new shape\nmade by person 1, Alice \xc2\xb7 1970-01-01T00:00Z\ngoals: 7 / 8 done \xc2\xb7 0 failed \xc2\xb7 1 closed \xc2\xb7 1 live\nspent: 212 of 400\nlast landing: 1970-01-01T00:01Z, S7 history in task logs (task 820)\ngoals:\n  813  S1 Draft the layout  done\n  820  S7 history in task logs  live\nread on with: task list --project 1 --after 1122 --parent 812\nread on with: task list --project 1 --ended --after 1122 --parent 812\n");
+    assert_eq!(printed.stdout.as_ref(), b"milestone 812 \xc2\xb7 Store shape \xc2\xb7 whole since 1970-01-01T00:01Z\nThe store's new shape\nmade by person 1, Alice \xc2\xb7 1970-01-01T00:00Z\ngoals: 7 / 8 done \xc2\xb7 0 failed \xc2\xb7 1 closed \xc2\xb7 1 live\nspent: 2.12 of 4.00\nlast landing: 1970-01-01T00:01Z, S7 history in task logs (task 820)\ngoals:\n  813  S1 Draft the layout  done\n  820  S7 history in task logs  live\nread on with: task list --project 1 --after 1122 --parent 812\nread on with: task list --project 1 --ended --after 1122 --parent 812\n");
     let printed = show(true, milestone(), totals(false));
     assert_eq!(printed.status, 0);
     let text = String::from_utf8(printed.stdout.into_vec()).unwrap();
@@ -367,4 +356,27 @@ fn milestone_show_prints_absent_totals_open_facts_and_an_ended_outcome() {
 
 fn has(bytes: &[u8], text: &[u8]) -> bool {
     skein_lib::bytes::find(bytes, text).is_some()
+}
+
+#[test]
+fn milestone_budget_argv_and_totals_share_the_amount() {
+    for (amount, spend) in [("130", 13000), ("1.25", 125), ("0.5", 50), ("0", 0), ("130.00", 13000)] {
+        let mut offered = me();
+        let bounds = &mut offered.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within;
+        bounds.budget = 13000;
+        bounds.maximum_budget = 13000;
+        bounds.pool_left = 13000;
+        bounds.authority.authority.spend = 13000;
+        let mut root = f::choice_root(offered);
+        let call = root.submit(&["milestone", "new", "--project", "1", "--budget", amount, "Work", "--key", "amount"]);
+        assert_eq!(f::chat_task(&root, call).authority.spend, spend, "{amount}");
+    }
+    let mut task = milestone();
+    task.budget.numbers.budget = 13000;
+    let w::MilestoneResult::Totals(totals) = totals(false) else { panic!("totals") };
+    let mut parts = totals;
+    parts.spent = 0;
+    let result = w::MilestoneResult::Totals(parts);
+    let printed = show(false, task, result);
+    assert!(skein_lib::bytes::find(&printed.stdout, b"spent: 0.00 of 130.00").is_some());
 }

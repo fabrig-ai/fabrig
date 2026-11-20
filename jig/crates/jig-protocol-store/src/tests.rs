@@ -1,7 +1,11 @@
 //! Store key, interval and codec properties (protocol/store/README.md, section 9).
+const COMPONENT_SCHEMA: &str = crate::STORE_FAMILIES[0].current;
+
 mod admission;
 mod census;
+mod checkpoints;
 mod commits;
+mod dev_store;
 mod directory;
 mod erase_reads;
 pub(crate) mod fixtures;
@@ -21,7 +25,9 @@ mod pages;
 mod preopen;
 mod readers;
 mod reads;
+mod rehearsal;
 mod restore;
+mod restoring;
 mod secrets;
 mod start_pages;
 mod transcripts;
@@ -88,6 +94,7 @@ fn valid_refuses_each_unrepresentable_limit() {
 }
 
 mod sizes;
+mod startup_limits;
 
 #[test]
 fn valid_requires_room_for_transcript_work() {

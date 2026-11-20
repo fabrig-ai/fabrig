@@ -123,6 +123,7 @@ fn a_kept_forgejo_at_its_redirect_gets_its_meta_and_the_page_a_new_etag() {
 #[test]
 fn an_owned_forge_takes_the_machines_public_and_says_owned() {
     let mut service = world();
+    service.engine.as_mut().unwrap().places = None; // Isolate the page's public-origin projection.
     let public = temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port: 443 };
     entries(&mut service, &[(1, b"forgejo")], Some(&public), LIMIT);
     let mut owned = record(1);
@@ -355,9 +356,9 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
     let mut configuration = provider::configuration();
     configuration.provider.addresses = Box::new([1]);
     configuration.provider.clients[0].secret = None;
-    let input = super::stock::generated();
-    let input = fixtures::with(&input, b"engine.clients.provider", br#"{"key":"provider.key","addresses":[1],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]}"#);
-    let input = fixtures::with(&input, b"application.machine.owned", br#"{"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","person":{"login":"ada","email":"ada@localhost"},"forgejo":"fetched","runner":null,"sign_in":"forgejo"}"#);
+    let mut input: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
+    input["engine"]["clients"]["provider"] = serde_json::json!({"key":"provider.key","addresses":[1_u32],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]});
+    let input = serde_json::to_vec(&input).unwrap();
     let named =
         crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
     assert!(named.sign_in.is_none());
@@ -379,7 +380,7 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
         &seeds,
         &config.limits.root.journal,
         None,
-        named.machine.owned.as_ref(),
+        None,
         &configuration.files,
     )
     .unwrap();
@@ -432,12 +433,14 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
 
 fn box_entries(service: &mut crate::Service, key: bool) {
     let mut settings = fixtures::engine();
-    let input = super::stock::generated();
-    let named =
-        crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
-    settings.machine = named.machine;
+    let dirs = jig_protocol_config::Directories::working();
+    let temper_forge_setup::setup_file::SetupFile::Owned(mut owned) =
+        temper_forge_setup::setup_file::chosen(temper_forge_setup::machine::BoxKind::Owned, 3000, b"ada", key, &dirs)
+            .unwrap()
+    else {
+        panic!("owned setup file")
+    };
     if key {
-        settings.machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
         settings.jig.clients.provider = Some(jig_protocol_config::clients::Provider {
             key: b"provider.key".as_slice().into(),
             addresses: Box::new([1]),
@@ -448,11 +451,17 @@ fn box_entries(service: &mut crate::Service, key: bool) {
             }]),
         });
     }
-    settings.machine.owned.as_mut().unwrap().public =
-        Some(temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port: 443 });
+    owned.public = Some(temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port: 443 });
     let engine = service.engine.as_mut().unwrap();
     engine.clients.deployment.owned = true;
     engine.clients.configure_forge_sign_in(&settings);
+    engine
+        .places
+        .as_mut()
+        .unwrap()
+        .files
+        .insert(if key { 9 } else { 7 }, temper_forge_setup::setup_file::SetupFile::Owned(owned))
+        .unwrap();
 }
 #[test]
 fn a_box_owned_forge_has_an_off_fact_until_its_source_is_added_whatever_its_number() {

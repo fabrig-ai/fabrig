@@ -137,7 +137,12 @@ pub(crate) fn quit(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
     let running = super::work::running(root);
     let head = match running.count {
         0 => words.say(Word::QuitNone, &[]),
-        1 => words.say(Word::QuitOne, &[Hole::Name(running.title.expect("one working chat has a title"))]),
+        1 => words.say(
+            Word::QuitOne,
+            &[Hole::Name(temper_client_view_parts::shared::row_title(
+                &running.title.expect("one working chat has a title"),
+            ))],
+        ),
         2.. => words.say(Word::QuitMany, &[Hole::Number(u64::from(running.count))]),
     };
     Some(Options {

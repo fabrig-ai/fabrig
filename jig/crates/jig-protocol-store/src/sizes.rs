@@ -1,4 +1,5 @@
 //! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
+use crate::tasks_v13::Record as _;
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v1, people_v17, tasks_v13};
 use jig_domain_core_vocabulary as core;
 
@@ -188,7 +189,7 @@ fn largest(
     )
     .ok()?;
     // Each journal write can produce a log append and two turn places; the first commit also
-    // inserts Format, Floor, Layouts and the installation's identifier. Each put
+    // inserts Format, Floor and the installation's identifier. Each put
     // uses skein-kv’s exported operation and frame sizes.
     let ops = crate::commits::most_ops(commits.writes, orphan_erases)?;
     let commit = u32::try_from(

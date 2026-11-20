@@ -437,6 +437,59 @@ fn the_surface_state_changes_only_when_its_facts_change() {
     }
 }
 
+#[test]
+#[expect(clippy::manual_map, reason = "state rows read an optional secret without a closure")]
+fn the_printed_link_is_live_until_a_new_sign_in_is_seen() {
+    use crate::BoxLine;
+    use skein_lib::Secret;
+    let url = b"http://127.0.0.1:8367/sign-in?secret=first".as_slice();
+    let fresh = b"http://127.0.0.1:8367/sign-in?secret=fresh".as_slice();
+    let link = Told::BoxLine { line: BoxLine::Link { url: Secret::new(url.into()) } };
+    let new_link = Told::BoxLine { line: BoxLine::Link { url: Secret::new(fresh.into()) } };
+    let yes = Told::Linked { linked: true };
+    let no = Told::Linked { linked: false };
+    for (name, steps, expected) in [
+        ("nothing printed", &[][..], None),
+        ("none told is false", &[link.clone()][..], Some(url)),
+        ("false leaves live", &[link.clone(), no.clone()][..], Some(url)),
+        ("first true spends", &[link.clone(), yes.clone()][..], None),
+        ("false then true spends", &[no.clone(), link.clone(), yes.clone()][..], None),
+        ("true again changes nothing", &[yes.clone(), link.clone(), yes.clone()][..], Some(url)),
+        ("fresh after spending", &[link.clone(), yes.clone(), new_link.clone()][..], Some(fresh)),
+        ("latest replaces live", &[link.clone(), new_link.clone()][..], Some(fresh)),
+        ("restart spends fresh", &[yes, no, new_link, Told::Linked { linked: true }][..], None),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        for step in steps {
+            tui.step(step.clone());
+        }
+        let live = match tui.live_link() {
+            Some(link) => Some(link.expose()),
+            None => None,
+        };
+        assert_eq!(live, expected, "{name}");
+    }
+}
+
+#[test]
+fn the_web_note_stands_until_a_send_or_screen() {
+    for (name, step, standing) in [
+        ("typing", Told::Typed { value: b"words".as_slice().into() }, true),
+        ("box line", Told::BoxLine { line: crate::BoxLine::Log { line: b"a line".as_slice().into() } }, true),
+        ("send", Told::Send, false),
+        ("cleared", Told::Cleared, false),
+        ("screen", Told::Went, false),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::LinkNotOpened);
+        let revision = tui.revision();
+        tui.step(Told::LinkNotOpened);
+        assert_eq!(tui.revision(), revision, "raising again changes nothing");
+        tui.step(step);
+        assert_eq!(tui.link_not_opened(), standing, "{name}");
+    }
+}
+
 // front, printed link, log, box state, question, /log, revision.
 type FrontFacts<'a> = (bool, Option<skein_lib::Secret>, &'a [&'a [u8]], crate::BoxState<'a>, bool, bool, u64);
 

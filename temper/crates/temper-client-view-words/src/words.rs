@@ -208,7 +208,9 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
-    WayBack,
+    WayShown,
+    WayCurrent,
+    WayOwnName,
     WayStock,
     WayOwn,
     WayAskMark,
@@ -326,6 +328,8 @@ pub enum Word {
     DeleteProjectSays,
     CloseTask,
     AcceptTitle,
+    WithdrawTitle,
+    Withdraw,
     RejectTitle,
     ReleaseTitle,
     TasksBelowOne,
@@ -621,6 +625,25 @@ pub enum Word {
     LimitsStoreFill,
     LimitsProject,
     LimitsCut,
+    LimitsSettings,
+    LimitsStock,
+    LimitsSetting,
+    LimitsInForce,
+    LimitsNoSetting,
+    LimitsCount,
+    LimitsBytes,
+    LimitsMilliseconds,
+    LimitsAtOnce,
+    LimitsNextStart,
+    LimitsWaitingStart,
+    LimitsLeftOut,
+    LimitsHeldBytes,
+    LimitsReadRefused,
+    LimitsMore,
+    LimitsFirst,
+    NeedsLimit,
+    NeedsLimitRaise,
+    NeedsLimitOwner,
     LimitsCensusTitle,
     LimitsCensusLede,
     LimitsCensusRow,
@@ -647,6 +670,29 @@ pub enum Word {
     BuildersNone,
     BuildersNoRole,
     BuildersCut,
+    WorkerPlaces,
+    WorkerPlace,
+    WorkerNoRuns,
+    WorkerRun,
+    WorkerRuns,
+    WorkerInBox,
+    WorkerDigest,
+    WorkerUpSince,
+    WorkerDownSince,
+    WorkerPlacesFor,
+    WorkerChange,
+    WorkerRemove,
+    WorkerAddHeading,
+    WorkerName,
+    WorkerNameHint,
+    WorkerPlacesField,
+    WorkerSecretDigest,
+    WorkerDigestHint,
+    WorkerAdd,
+    WorkerDuplicate,
+    WorkerAddHelp,
+    WorkerLinked,
+
     TeamRules,
     TeamChangeProposal,
     TeamWakes,
@@ -1031,6 +1077,7 @@ pub enum Word {
     HomeAddOther,
     HomeAddSheet,
     HomeAddSheetLead,
+    HomeAddCopiesDetail,
     HomeAddLegend,
     HomeAddIt,
     HomeMaking,
@@ -1050,6 +1097,7 @@ pub enum Word {
     HomeLandedNow,
     HomeLandedMany,
     HomeByline,
+    HomeUnpaid,
     HomeTryStopped,
     HomeLanding,
     HomeChatsSentence,
@@ -1244,9 +1292,8 @@ pub enum Word {
     WelcomeForgeConnected,
     WelcomeForgeLine,
     WelcomeModelSigningIn,
-    ForgeConfigCode,
-    ForgeIdentityCode,
-    ForgeSetupCode,
+    ForgeAdminCommand,
+    ForgeBotCommand,
     ForgeConnecting,
     ForgesTitle,
     ForgeHere,
@@ -1256,10 +1303,9 @@ pub enum Word {
     ForgeOwnServerConnect,
     ForgeRunHere,
     ForgeCardConnected,
-    ForgeConfigLead,
-    ForgeConfigStep,
-    ForgeIdentityStep,
-    ForgeSetupStep,
+    ForgeElsewhereLead,
+    ForgeAdminStep,
+    ForgeBotStep,
     ForgeElsewhere,
     ForgeOther,
     ForgePlayground,
@@ -1300,11 +1346,6 @@ pub enum Word {
     ForgeTerminalDetails,
     ForgeTerminalNext,
     ForgeElsewhereDetails,
-    ForgeConfig,
-    ForgeIdentity,
-    ForgeSetupEntry,
-    ForgeBotOnly,
-    ForgeRestart,
     ForgeSettingUpTitle,
     ForgeFetch,
     ForgeMakingFirst,
@@ -1522,6 +1563,11 @@ pub enum Word {
     WaitRefreshing,
     WaitMoving,
     WaitHost,
+    WaitUntooled,
+    WaitUntooledNext,
+    WaitWorker,
+    WaitProgram,
+    WaitSource,
     WaitEmpty,
     WaitEmptyModel,
     WaitCredential,
@@ -1603,6 +1649,12 @@ pub enum Word {
     ChatFailed,
     ChatCancelled,
     RunBegan,
+    RunBeganMoved,
+    RunBeganClosed,
+    RunBeganCut,
+    RunBeganLimit,
+    RunBeganSession,
+
     RunEnded,
     /// A run ended with a result outside its admitted contract.
     RunEndedInvalid,
@@ -2002,6 +2054,8 @@ pub enum Word {
     WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
     WelcomeForgejoStartWith,
+    WelcomeForgejoSample,
+    WelcomeForgejoSampleDetail,
     WelcomeForgejoEmpty,
     WelcomeForgejoEmptyDetail,
     WelcomeForgejoCopies,
@@ -2076,6 +2130,10 @@ pub enum Word {
     ApprovalSizeFiles,
     ProposalOwnedApproval,
     ApproveTitle,
+    ApproveReturnedTitle,
+    ApproveUnknownAddress,
+    ApproveOtherNetwork,
+    ApproveHanding,
     ApproveTyping,
     ApproveUnread,
     ApproveReading,
@@ -2227,7 +2285,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2775;
+const PHRASES: u32 = 2844;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2254,10 +2312,10 @@ const PHRASES: u32 = 2775;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5153;
+const SEGMENTS: u32 = 5284;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65507;
-const ALL: [Word; 2054] = [
+const ENGLISH_BYTES: u32 = 66629;
+const ALL: [Word; 2110] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2418,7 +2476,9 @@ const ALL: [Word; 2054] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
-    Word::WayBack,
+    Word::WayShown,
+    Word::WayCurrent,
+    Word::WayOwnName,
     Word::WayStock,
     Word::WayOwn,
     Word::WayAskMark,
@@ -2534,6 +2594,8 @@ const ALL: [Word; 2054] = [
     Word::DeleteProjectSays,
     Word::CloseTask,
     Word::AcceptTitle,
+    Word::WithdrawTitle,
+    Word::Withdraw,
     Word::RejectTitle,
     Word::ReleaseTitle,
     Word::TasksBelowOne,
@@ -2823,6 +2885,25 @@ const ALL: [Word; 2054] = [
     Word::LimitsStoreFill,
     Word::LimitsProject,
     Word::LimitsCut,
+    Word::LimitsSettings,
+    Word::LimitsStock,
+    Word::LimitsSetting,
+    Word::LimitsInForce,
+    Word::LimitsNoSetting,
+    Word::LimitsCount,
+    Word::LimitsBytes,
+    Word::LimitsMilliseconds,
+    Word::LimitsAtOnce,
+    Word::LimitsNextStart,
+    Word::LimitsWaitingStart,
+    Word::LimitsLeftOut,
+    Word::LimitsHeldBytes,
+    Word::LimitsReadRefused,
+    Word::LimitsMore,
+    Word::LimitsFirst,
+    Word::NeedsLimit,
+    Word::NeedsLimitRaise,
+    Word::NeedsLimitOwner,
     Word::LimitsCensusTitle,
     Word::LimitsCensusLede,
     Word::LimitsCensusRow,
@@ -2849,6 +2930,28 @@ const ALL: [Word; 2054] = [
     Word::BuildersNone,
     Word::BuildersNoRole,
     Word::BuildersCut,
+    Word::WorkerPlaces,
+    Word::WorkerPlace,
+    Word::WorkerNoRuns,
+    Word::WorkerRun,
+    Word::WorkerRuns,
+    Word::WorkerInBox,
+    Word::WorkerDigest,
+    Word::WorkerUpSince,
+    Word::WorkerDownSince,
+    Word::WorkerPlacesFor,
+    Word::WorkerChange,
+    Word::WorkerRemove,
+    Word::WorkerAddHeading,
+    Word::WorkerName,
+    Word::WorkerNameHint,
+    Word::WorkerPlacesField,
+    Word::WorkerSecretDigest,
+    Word::WorkerDigestHint,
+    Word::WorkerAdd,
+    Word::WorkerDuplicate,
+    Word::WorkerAddHelp,
+    Word::WorkerLinked,
     Word::TeamRules,
     Word::TeamChangeProposal,
     Word::TeamWakes,
@@ -3227,6 +3330,7 @@ const ALL: [Word; 2054] = [
     Word::HomeAddOther,
     Word::HomeAddSheet,
     Word::HomeAddSheetLead,
+    Word::HomeAddCopiesDetail,
     Word::HomeAddLegend,
     Word::HomeAddIt,
     Word::HomeMaking,
@@ -3245,6 +3349,7 @@ const ALL: [Word; 2054] = [
     Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
+    Word::HomeUnpaid,
     Word::HomeTryStopped,
     Word::HomeLanding,
     Word::HomeChatsSentence,
@@ -3432,9 +3537,8 @@ const ALL: [Word; 2054] = [
     Word::WelcomeForgeConnected,
     Word::WelcomeForgeLine,
     Word::WelcomeModelSigningIn,
-    Word::ForgeConfigCode,
-    Word::ForgeIdentityCode,
-    Word::ForgeSetupCode,
+    Word::ForgeAdminCommand,
+    Word::ForgeBotCommand,
     Word::ForgeConnecting,
     Word::ForgesTitle,
     Word::ForgeHere,
@@ -3444,10 +3548,9 @@ const ALL: [Word; 2054] = [
     Word::ForgeOwnServerConnect,
     Word::ForgeRunHere,
     Word::ForgeCardConnected,
-    Word::ForgeConfigLead,
-    Word::ForgeConfigStep,
-    Word::ForgeIdentityStep,
-    Word::ForgeSetupStep,
+    Word::ForgeElsewhereLead,
+    Word::ForgeAdminStep,
+    Word::ForgeBotStep,
     Word::ForgeElsewhere,
     Word::ForgeOther,
     Word::ForgePlayground,
@@ -3487,11 +3590,6 @@ const ALL: [Word; 2054] = [
     Word::ForgeTerminalDetails,
     Word::ForgeTerminalNext,
     Word::ForgeElsewhereDetails,
-    Word::ForgeConfig,
-    Word::ForgeIdentity,
-    Word::ForgeSetupEntry,
-    Word::ForgeBotOnly,
-    Word::ForgeRestart,
     Word::ForgeSettingUpTitle,
     Word::ForgeFetch,
     Word::ForgeMakingFirst,
@@ -3702,6 +3800,11 @@ const ALL: [Word; 2054] = [
     Word::WaitRefreshing,
     Word::WaitMoving,
     Word::WaitHost,
+    Word::WaitUntooled,
+    Word::WaitUntooledNext,
+    Word::WaitWorker,
+    Word::WaitProgram,
+    Word::WaitSource,
     Word::WaitEmpty,
     Word::WaitEmptyModel,
     Word::WaitCredential,
@@ -3780,6 +3883,11 @@ const ALL: [Word; 2054] = [
     Word::ChatFailed,
     Word::ChatCancelled,
     Word::RunBegan,
+    Word::RunBeganMoved,
+    Word::RunBeganClosed,
+    Word::RunBeganCut,
+    Word::RunBeganLimit,
+    Word::RunBeganSession,
     Word::RunEnded,
     Word::RunEndedInvalid,
     Word::RunEndedUnreadable,
@@ -4164,6 +4272,8 @@ const ALL: [Word; 2054] = [
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
     Word::WelcomeForgejoStartWith,
+    Word::WelcomeForgejoSample,
+    Word::WelcomeForgejoSampleDetail,
     Word::WelcomeForgejoEmpty,
     Word::WelcomeForgejoEmptyDetail,
     Word::WelcomeForgejoCopies,
@@ -4237,6 +4347,10 @@ const ALL: [Word; 2054] = [
     Word::ApprovalSizeFiles,
     Word::ProposalOwnedApproval,
     Word::ApproveTitle,
+    Word::ApproveReturnedTitle,
+    Word::ApproveUnknownAddress,
+    Word::ApproveOtherNetwork,
+    Word::ApproveHanding,
     Word::ApproveTyping,
     Word::ApproveUnread,
     Word::ApproveReading,
@@ -4380,6 +4494,10 @@ impl Word {
             Self::ApprovalSizeFiles => 5676,
             Self::ProposalOwnedApproval => 4146,
             Self::ApproveTitle => 4147,
+            Self::ApproveReturnedTitle => 4186,
+            Self::ApproveUnknownAddress => 4187,
+            Self::ApproveOtherNetwork => 4188,
+            Self::ApproveHanding => 4189,
             Self::ApproveTyping => 4148,
             Self::ApproveUnread => 4149,
             Self::ApproveReading => 4150,
@@ -4427,6 +4545,8 @@ impl Word {
             Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
+            Self::WithdrawTitle => 4260,
+            Self::Withdraw => 4261,
             Self::RejectTitle => 3756,
             Self::ReleaseTitle => 3757,
             Self::TasksBelowOne => 3758,
@@ -4459,7 +4579,9 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
-            Self::WayBack => 9720,
+            Self::WayShown => 9878,
+            Self::WayCurrent => 9879,
+            Self::WayOwnName => 9880,
             Self::WayStock => 9721,
             Self::WayOwn => 9722,
             Self::WayAskMark => 9723,
@@ -4873,6 +4995,25 @@ impl Word {
             Self::LimitsStoreFill => 4786,
             Self::LimitsProject => 4787,
             Self::LimitsCut => 4788,
+            Self::LimitsSettings => 9859,
+            Self::LimitsStock => 9860,
+            Self::LimitsSetting => 9861,
+            Self::LimitsInForce => 9862,
+            Self::LimitsNoSetting => 9863,
+            Self::LimitsCount => 9864,
+            Self::LimitsBytes => 9865,
+            Self::LimitsMilliseconds => 9866,
+            Self::LimitsAtOnce => 9867,
+            Self::LimitsNextStart => 9868,
+            Self::LimitsWaitingStart => 9869,
+            Self::LimitsLeftOut => 9870,
+            Self::LimitsHeldBytes => 9871,
+            Self::LimitsReadRefused => 9872,
+            Self::LimitsMore => 9873,
+            Self::LimitsFirst => 9874,
+            Self::NeedsLimit => 9875,
+            Self::NeedsLimitRaise => 9876,
+            Self::NeedsLimitOwner => 9877,
             Self::LimitsCensusTitle => 9238,
             Self::LimitsCensusLede => 9239,
             Self::LimitsCensusRow => 9240,
@@ -4899,6 +5040,29 @@ impl Word {
             Self::BuildersNone => 3478,
             Self::BuildersNoRole => 3479,
             Self::BuildersCut => 3480,
+            Self::WorkerPlaces => 9834,
+            Self::WorkerPlace => 9835,
+            Self::WorkerNoRuns => 9836,
+            Self::WorkerRun => 9837,
+            Self::WorkerRuns => 9838,
+            Self::WorkerInBox => 9839,
+            Self::WorkerDigest => 9840,
+            Self::WorkerUpSince => 9841,
+            Self::WorkerDownSince => 9842,
+            Self::WorkerPlacesFor => 9843,
+            Self::WorkerChange => 9844,
+            Self::WorkerRemove => 9845,
+            Self::WorkerAddHeading => 9846,
+            Self::WorkerName => 9847,
+            Self::WorkerNameHint => 9848,
+            Self::WorkerPlacesField => 9849,
+            Self::WorkerSecretDigest => 9850,
+            Self::WorkerDigestHint => 9851,
+            Self::WorkerAdd => 9852,
+            Self::WorkerDuplicate => 9853,
+            Self::WorkerAddHelp => 9854,
+            Self::WorkerLinked => 9855,
+
             Self::TeamRules => 5131,
             Self::TeamChangeProposal => 5132,
             Self::TeamWakes => 5133,
@@ -5321,6 +5485,7 @@ impl Word {
             Self::HomeAddOther => 3352,
             Self::HomeAddSheet => 3353,
             Self::HomeAddSheetLead => 3354,
+            Self::HomeAddCopiesDetail => 9961,
             Self::HomeAddLegend => 3355,
             Self::HomeAddIt => 3356,
             Self::HomeMaking => 3357,
@@ -5340,6 +5505,7 @@ impl Word {
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
+            Self::HomeUnpaid => 4540,
             Self::HomeTryStopped => 3876,
             Self::HomeLanding => 3625,
             Self::HomeChatsSentence => 3626,
@@ -5531,9 +5697,8 @@ impl Word {
             Self::WelcomeForgeConnected => 1708,
             Self::WelcomeForgeLine => 1835,
             Self::WelcomeModelSigningIn => 1832,
-            Self::ForgeConfigCode => 1711,
-            Self::ForgeIdentityCode => 1712,
-            Self::ForgeSetupCode => 1713,
+            Self::ForgeAdminCommand => 1711,
+            Self::ForgeBotCommand => 1712,
             Self::ForgeConnecting => 1717,
             Self::ForgesTitle => 1719,
             Self::ForgeHere => 1720,
@@ -5543,10 +5708,9 @@ impl Word {
             Self::ForgeOwnServerConnect => 3921,
             Self::ForgeRunHere => 3922,
             Self::ForgeCardConnected => 3923,
-            Self::ForgeConfigLead => 3924,
-            Self::ForgeConfigStep => 3925,
-            Self::ForgeIdentityStep => 3926,
-            Self::ForgeSetupStep => 3927,
+            Self::ForgeElsewhereLead => 3924,
+            Self::ForgeAdminStep => 3925,
+            Self::ForgeBotStep => 3926,
             Self::ForgeElsewhere => 1722,
             Self::ForgeOther => 1723,
             Self::ForgePlayground => 1724,
@@ -5587,11 +5751,6 @@ impl Word {
             Self::ForgeTerminalDetails => 1749,
             Self::ForgeTerminalNext => 1843,
             Self::ForgeElsewhereDetails => 1750,
-            Self::ForgeConfig => 1751,
-            Self::ForgeIdentity => 1752,
-            Self::ForgeSetupEntry => 1753,
-            Self::ForgeBotOnly => 1754,
-            Self::ForgeRestart => 1755,
             Self::ForgeSettingUpTitle => 1757,
             Self::ForgeFetch => 1758,
             Self::ForgeMakingFirst => 1847,
@@ -5837,6 +5996,11 @@ impl Word {
             Self::WaitRefreshing => 1012,
             Self::WaitMoving => 1850,
             Self::WaitHost => 1013,
+            Self::WaitUntooled => 4021,
+            Self::WaitUntooledNext => 4022,
+            Self::WaitWorker => 4023,
+            Self::WaitProgram => 4024,
+            Self::WaitSource => 4025,
             Self::WaitEmpty => 1014,
             Self::WaitEmptyModel => 1078,
             Self::WaitCredential => 1015,
@@ -5957,6 +6121,12 @@ impl Word {
             Self::ChatFailed => 1045,
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
+            Self::RunBeganMoved => 4490,
+            Self::RunBeganClosed => 4491,
+            Self::RunBeganCut => 4492,
+            Self::RunBeganLimit => 4493,
+            Self::RunBeganSession => 4494,
+
             Self::RunEnded => 151,
             Self::RunEndedInvalid => 4183,
             Self::RunEndedUnreadable => 4184,
@@ -6304,6 +6474,8 @@ impl Word {
             Self::WelcomeForgeDoneRepository => 3049,
             Self::WelcomeForgejoLead => 3032,
             Self::WelcomeForgejoStartWith => 3033,
+            Self::WelcomeForgejoSample => 9962,
+            Self::WelcomeForgejoSampleDetail => 9963,
             Self::WelcomeForgejoEmpty => 3034,
             Self::WelcomeForgejoEmptyDetail => 3035,
             Self::WelcomeForgejoCopies => 3036,
@@ -6421,15 +6593,23 @@ pub enum Shell {
     Browser,
 }
 #[derive(Clone, Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the vocabulary is read-only so its capacities can be checked once; shell facts remain public"
+)]
 pub struct Words {
     /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
     pub zone_minutes: i32,
     pub shell: Shell,
-    pub book: Phrasebook,
+    pub(crate) book: Phrasebook,
     pub language: u16,
     pub connector: u16,
     /// The checked joined bound of ordinary Name holes.
     pub name_bytes: u32,
+    capacity_connector: u16,
+    ordinary: Option<u32>,
+    classes: Option<u32>,
+    follows: Option<u32>,
 }
 // A refusal joins only this closed vocabulary, bounded numbers and a calendar
 // clock: 256 bytes holds its longest three-sentence explanation whole.
@@ -6462,6 +6642,13 @@ const FOLLOW_WORDS: [Word; 12] = [
 ];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // Limit names and reasons have wire bounds independent of the client's ordinary text projection.
+    if word == Word::LimitsSetting && kind == HoleKind::Name {
+        return Ok(if last { 120 } else { 13 });
+    }
+    if (word == Word::NeedsLimit || word == Word::NeedsLimitRaise) && kind == HoleKind::Name {
+        return Ok(64);
+    }
     // Sixteen area names and Anything else, joined in a role's card head (team.md, 1).
     if word == Word::TeamOwnsSince {
         return Ok(temper_client_protocol_wire::v1::CEILINGS
@@ -6611,6 +6798,9 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
     if word == Word::SwitcherRow && last {
         return switcher_repository_bytes(joined);
+    }
+    if [Word::WorkerPlacesFor, Word::WorkerDuplicate, Word::WorkerLinked].contains(&word) {
+        return Ok(jig_client::contract::PROGRAM_HOST_NAME);
     }
     if word == Word::AdminHost {
         return Ok(temper_client_domain::forge::change::ADDRESS_BYTES);
@@ -6857,11 +7047,31 @@ impl Words {
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { zone_minutes: 0, shell, book, language: 0, connector, name_bytes: joined })
+        let mut words = Words {
+            zone_minutes: 0,
+            shell,
+            book,
+            language: 0,
+            connector,
+            name_bytes: joined,
+            capacity_connector: connector,
+            ordinary: None,
+            classes: None,
+            follows: None,
+        };
+        words.ordinary = words.walk_ordinary_capacity();
+        words.classes = words.walk_classes_capacity();
+        words.follows = words.walk_follows_capacity();
+        Ok(words)
+    }
+    /// The checked vocabulary; its capacities remain valid while words are reused.
+    #[must_use]
+    pub const fn book(&self) -> &Phrasebook {
+        &self.book
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
+        self.book().say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
     #[must_use]
     pub fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
@@ -6870,7 +7080,7 @@ impl Words {
     }
     #[must_use]
     pub fn say_word(&self, word: jig_client::words::Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(), holes).expect("checked jig word").text
+        self.book().say(self.language, word.id(), holes).expect("checked jig word").text
     }
     /// A run's supplied placement time in absolute UTC.
     #[must_use]
@@ -6887,12 +7097,13 @@ impl Words {
         word: temper_client_domain::forge::words::ResourceWord,
         holes: &[Hole],
     ) {
-        let text = self.book.say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
+        let text =
+            self.book().say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
         builder.text(Run::Plain, &text);
     }
     #[must_use]
     pub fn path_bytes(&self) -> u32 {
-        self.book
+        self.book()
             .capacity(temper_client_domain::forge::words::ResourceWord::Path.id(self.connector))
             .expect("checked path word")
     }
@@ -6902,21 +7113,30 @@ impl Words {
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.classes } else { self.walk_classes_capacity() }
+    }
+    fn walk_classes_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut] {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
     pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.follows } else { self.walk_follows_capacity() }
+    }
+    fn walk_follows_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in FOLLOW_WORDS {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.ordinary } else { self.walk_ordinary_capacity() }
+    }
+    fn walk_ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
             if FOLLOW_WORDS.contains(&word)
@@ -6924,10 +7144,10 @@ impl Words {
             {
                 continue;
             }
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         for word in jig_client::words::ALL {
-            most = most.max(self.book.capacity(word.id())?);
+            most = most.max(self.book().capacity(word.id())?);
         }
         Some(most.max(forge::capacity(self)?).max(accounts::capacity(self)?))
     }
@@ -7000,10 +7220,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalSizeFile => (&[b" in 1 file"], &[]),
         Word::ApprovalSizeFiles => (&[b" in ", b" files"], &[Name]),
         Word::ApproveTitle => (&[b"Sign in a terminal?"], &[]),
+        Word::ApproveReturnedTitle => (&[b"Sign in a terminal on this computer?"], &[]),
+        Word::ApproveUnknownAddress => (&[b"an unknown address"], &[]),
+        Word::ApproveOtherNetwork => (&[b"It was asked from another network than this browser's."], &[]),
+        Word::ApproveHanding => (&[b"Handing the sign-in to your terminal\xe2\x80\xa6"], &[]),
         Word::ApproveTyping => (&[b"Type the code your terminal shows."], &[]),
         Word::ApproveUnread => (&[b"That isn\xe2\x80\x99t a terminal\xe2\x80\x99s code. Type the eight letters your terminal shows."], &[]),
         Word::ApproveReading => (&[b"Reading ", b"\xe2\x80\xa6"], &[Name]),
-        Word::ApproveAsked => (&[b"Asked ", b""], &[Name]),
+        Word::ApproveAsked => (&[b"Asked ", b" from ", b""], &[Name, Name]),
         Word::ApproveWarning => (&[b"Approve only a code your own terminal shows."], &[]),
         Word::ApproveApproving => (&[b"Approving\xe2\x80\xa6"], &[]),
         Word::ApproveRefusing => (&[b"Refusing\xe2\x80\xa6"], &[]),
@@ -7047,6 +7271,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DeleteProjectSays => (&[b"", b" leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can\xe2\x80\x99t be undone."], &[Name]),
         Word::CloseTask => (&[b"Close task"], &[]),
         Word::AcceptTitle => (&[b"Accept this proposal?"], &[]),
+        Word::WithdrawTitle => (&[b"Withdraw this proposal?"], &[]),
+        Word::Withdraw => (&[b"Withdraw"], &[]),
         Word::RejectTitle => (&[b"Reject this proposal?"], &[]),
         Word::ReleaseTitle => (&[b"Release this task?"], &[]),
         Word::TasksBelowOne => (&[b"1 task below it is cancelled."], &[]),
@@ -7085,7 +7311,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
         Word::WaysLede => (&[b"How a change is produced and lands in ", b"."], &[Name]),
-        Word::WayBack => (&[b"Back"], &[]),
+        Word::WayShown => (&[b"Way shown: ", b""], &[Name]),
+        Word::WayCurrent => (&[b"current"], &[]),
+        Word::WayOwnName => (&[b"", b"'s own"], &[Name]),
         Word::WayStock => (match shell { Shell::Browser => &[b"Stock ways"], Shell::Terminal => &[b"Stock ways:"] }, &[]),
         Word::WayOwn => (&[b"", b" runs settings of its own."], &[Name]),
         Word::WayAskMark => (match shell { Shell::Browser => &[b"\xe2\x9c\xa6"], Shell::Terminal => &[b"\xe2\x9c\xa6 "] }, &[]),
@@ -7641,6 +7869,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAddOther => (&[b"Adopt another\xe2\x80\xa6"], &[]),
         Word::HomeAddSheet => (&[b"Add a repository to ", b""], &[Name]),
         Word::HomeAddSheetLead => (&[b"Made or copied on your Forgejo, then in this project at once."], &[]),
+        Word::HomeAddCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
         Word::HomeAddLegend => (&[b"A repository"], &[]),
         Word::HomeAddIt => (&[b"Add it"], &[]),
         Word::HomeMaking => (&[b"Making ", b"/", b"\xe2\x80\xa6"], &[Name, Name]),
@@ -7660,6 +7889,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
         Word::HomeTryStopped => (&[b"", b" didn\xe2\x80\x99t answer when tried"], &[Name]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
+        Word::HomeUnpaid => (&[b"No brief: no account pays for your work here."], &[]),
         Word::HomeLanding => (&[b"Landing: "], &[]),
         Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),
         Word::LookedMinute => (&[b"a minute"], &[]),
@@ -7698,7 +7928,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeStartOver => (&[b"Start over"], &[]),
         Word::ForgeGoOn => (&[b"Go on"], &[]),
         Word::ConnectGitHub => (&[b"GitHub"], &[]),
-        Word::ConnectOwned => (&[b"Forgejo on this machine"], &[]),
+        Word::ConnectOwned => (&[b"Local forge"], &[]),
         Word::ConnectManaged => (&[b"Your Forgejo"], &[]),
         Word::ConnectHow => (&[b"How temper connects"], &[]),
         Word::ConnectAdminWay => (&[b"As its admin"], &[]),
@@ -7752,18 +7982,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GitHubReadNotFound => (&[b"GitHub no longer has this installation: install the App again."], &[]),
         Word::GitHubReadReload => (&[b"Reload this page to try again."], &[]),
         Word::GitHubRepositories => (&[b"Repositories"], &[]),
-        Word::WelcomeForgejo => (&[b"Forgejo"], &[]),
+        Word::WelcomeForgejo => (&[b"Local"], &[]),
         Word::WelcomeForgejoDescription => (
-            &[b"A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
+            &[b"A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
             &[],
         ),
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
-        Word::WelcomeForgejoLead => (&[b"temper starts it here and connects to it; you connect your model meanwhile."], &[]),
+        Word::WelcomeForgejoLead => (&[b"temper starts Forgejo here and connects to it; you connect your model meanwhile."], &[]),
         Word::WelcomeForgejoStartWith => (&[b"Start it with"], &[]),
+        Word::WelcomeForgejoSample => (&[b"A sample project"], &[]),
+        Word::WelcomeForgejoSampleDetail => (&[b"A short shell script with tests and CI. Use it to explore temper\xe2\x80\x99s features."], &[]),
         Word::WelcomeForgejoEmpty => (&[b"An empty repository"], &[]),
         Word::WelcomeForgejoEmptyDetail => (&[b"A README and a starter CI check."], &[]),
         Word::WelcomeForgejoCopies => (&[b"Copies of public repositories"], &[]),
-        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
+        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
         Word::WelcomeForgejoAddresses => (&[b"Their addresses, one per line"], &[]),
         Word::WelcomeForgejoAddressHint => (&[b"github.com/owner/name"], &[]),
         Word::WelcomeForgejoNothing => (&[b"Nothing for now"], &[]),
@@ -7890,22 +8122,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
         Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in\xe2\x80\xa6"], &[Name]),
-        Word::ForgeConfigCode => (&[b"{\n  \"number\": ", b",\n  \"kind\": \"forgejo\",\n  \"api\": {\"host\": \"forge.example\", \"port\": 443},\n  \"transport\": {\"tls\": {\n    \"server_name\": \"forge.example\", \"trust\": null\n  }},\n  \"git\": \"https://forge.example\",\n  \"web\": null,\n  \"log_origins\": null\n}"], &[Number]),
-        Word::ForgeIdentityCode => (&[b"{\n  \"number\": ", b", \"forge\": ", b", \"login\": null,\n  \"author\": {\n    \"name\": \"temper\",\n    \"email\": \"temper-bot@forge.example\"\n  }\n}"], &[Number, Number]),
-        Word::ForgeSetupCode => (&[b"{\n  \"forge\": ", b",\n  \"bot\": {\"login\": \"temper\", \"email\": \"temper-bot@forge.example\"},\n  \"mode\": \"managed\"\n}"], &[Number]),
+        Word::ForgeAdminCommand => (&[b"temper ctl DIR forge connect forgejo-admin FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY"], &[]),
+        Word::ForgeBotCommand => (&[b"temper ctl DIR forge connect forgejo FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY"], &[]),
         Word::ForgeConnecting => (&[b"Connecting"], &[]),
         Word::ForgesTitle => (&[b"Forges"], &[]),
         Word::ForgeHere => (&[b"Forgejo on this machine"], &[]),
         Word::ForgeGitHub => (&[b"GitHub"], &[]),
         Word::ForgeOwnServer => (&[b"Or a server of your own"], &[]),
-        Word::ForgeOwnServerDescription => (&[b"temper connects as its admin, or with its bot\xe2\x80\x99s tokens. Needs a change to temper\xe2\x80\x99s configuration and a restart."], &[]),
+        Word::ForgeOwnServerDescription => (&[b"temper connects as its admin, or with its bot's tokens. No restart."], &[]),
         Word::ForgeOwnServerConnect => (&[b"Connect your Forgejo"], &[]),
         Word::ForgeRunHere => (&[b"Run Forgejo here"], &[]),
         Word::ForgeCardConnected => (&[b"\xe2\x9c\x93 Connected"], &[]),
-        Word::ForgeConfigLead => (&[b"In ~/.config/temper/temper.json, with your host and unused numbers:"], &[]),
-        Word::ForgeConfigStep => (&[b"Add it to application.forges:"], &[]),
-        Word::ForgeIdentityStep => (&[b"Add its git identity to application.identities:"], &[]),
-        Word::ForgeSetupStep => (&[b"To connect as its admin, add it to application.setup. Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
+        Word::ForgeElsewhereLead => (&[b"Choose how temper connects. Replace DIR with your client directory, FILE with the private token file, KEY with a fresh request key, and forge.example with your host:"], &[]),
+        Word::ForgeAdminStep => (&[b"As its admin, use forge connect forgejo-admin; temper makes and keeps its bot:"], &[]),
+        Word::ForgeBotStep => (&[b"With its bot's tokens, use forge connect forgejo:"], &[]),
         Word::ForgeElsewhere => (&[b"A Forgejo elsewhere"], &[]),
         Word::ForgeOther => (&[b"Forgejo"], &[]),
         Word::ForgePlayground => (&[b"Playground forge"], &[]),
@@ -7915,7 +8145,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeHereTime => (&[b"Here \xc2\xb7 about a minute"], &[]),
         Word::ForgeCommandsTime => (&[b"Needs four commands and a restart"], &[]),
         Word::ForgeElsewhereDescription => (&[b"Your own Forgejo server. temper connects as its admin, or with its bot\xe2\x80\x99s tokens."], &[]),
-        Word::ForgeElsewhereTime => (&[b"Needs a change to temper\xe2\x80\x99s configuration and a restart"], &[]),
+        Word::ForgeElsewhereTime => (&[b"Connect with a command; no restart"], &[]),
         Word::ForgeShowHow => (&[b"Show how"], &[]),
         Word::ForgeAll => (&[b"Other forges"], &[]),
         Word::ForgeConnectGitHub => (&[b"Connect GitHub"], &[]),
@@ -7945,12 +8175,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeTerminal => (&[b"Set it up under temper box"], &[]),
         Word::ForgeTerminalNext => (&[b"Start temper with temper box to set one up here."], &[]),
         Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself."], &[]),
-        Word::ForgeElsewhereDetails => (&[b"Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot\xe2\x80\x99s tokens."], &[]),
-        Word::ForgeConfig => (&[b"For a forge at forge.example, add this entry to application.forges in ~/.config/temper/temper.json. Replace the example host with yours; use an unused forge number."], &[]),
-        Word::ForgeIdentity => (&[b"Add its git identity to application.identities, using an unused identity number and the same forge number:"], &[]),
-        Word::ForgeSetupEntry => (&[b"To connect as its admin, add its setup entry to application.setup:"], &[]),
-        Word::ForgeBotOnly => (&[b"Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
-        Word::ForgeRestart => (&[b"Restart temper box, then connect it from this page."], &[]),
+        Word::ForgeElsewhereDetails => (&[b"Connect as its admin and temper makes and keeps its bot, or connect with its bot's tokens. No configuration edit or restart."], &[]),
         Word::ForgeSettingUpTitle => (&[b"Setting up Forgejo on this machine"], &[]),
         Word::ForgeFetched => (&[b"Fetched Forgejo"], &[]),
         Word::ForgeConnectingAsTemper => (&[b"Connecting as temper"], &[]),
@@ -8061,6 +8286,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
         Word::WaitHost => (&[b"", b"'s login isn't signed in on a host that can run this."], &[Name]),
+        Word::WaitUntooled => (&[b"", b" started without its tools for '", b"' on ", b"."], &[Name, Name, Name]),
+        Word::WaitUntooledNext => (&[b"This runs on another worker that can take it, or on ", b" once it reconnects or the login is checked again."], &[Name]),
+        Word::WaitWorker => (&[b"worker ", b""], &[Number]),
+        Word::WaitProgram => (&[b"The program"], &[]),
+        Word::WaitSource => (&[b"source ", b""], &[Number]),
         Word::WaitEmpty => (&[b"No account can run this chat yet."], &[]),
         Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
@@ -8377,6 +8607,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatFailed => (&[b"Failed \xc2\xb7 ", b""], &[Name]),
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
+        Word::RunBeganMoved => (&[b"Run ", b" began fresh: its conversation ran on another endpoint"], &[Number]),
+        Word::RunBeganClosed => (&[b"Run ", b" began fresh: its conversation was closed"], &[Number]),
+        Word::RunBeganCut => (&[b"Run ", b" began fresh: a turn was too large to load"], &[Number]),
+        Word::RunBeganLimit => (&[b"Run ", b" began fresh: its conversation passed the resume limit"], &[Number]),
+        Word::RunBeganSession => (&[b"Run ", b" began fresh: its session had ended"], &[Number]),
+
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
         Word::RunEndedInvalid => (&[b"Run ", b" ended: its result broke its contract (", b")"], &[Number, Name]),
         Word::RunEndedUnreadable => (&[b"Run ", b" ended: its result couldn't be read"], &[Number]),
@@ -8520,7 +8756,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::MembersLede => (&[b"Each project\xe2\x80\x99s people and services, and the role each holds there. Who owns an area of a project is its Team\xe2\x80\x99s."], &[]),
         Word::LimitsTab => (&[b"Limits"], &[]),
         Word::LimitsHeading => (&[b"What this deployment holds."], &[]),
-        Word::LimitsLede => (&[b"The capacities temper\xe2\x80\x99s engine runs within, as it reports them. Its owner sets them in its configuration."], &[]),
+        Word::LimitsLede => (&[b"Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a raise applies."], &[]),
         Word::MembersDeployment => (&[b"The deployment"], &[]),
         Word::MembersOwner => (&[b"You are its owner."], &[]),
         Word::MembersNoRole => (&[b"You hold no role in it."], &[]),
@@ -8553,6 +8789,25 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LimitsStoreFill => (&[b"", b" of ", b""], &[Name, Name]),
         Word::LimitsProject => (&[b"Project ", b""], &[Number]),
         Word::LimitsCut => (&[b"Some capacity facts were omitted."], &[]),
+        Word::LimitsSettings => (&[b"Limits by name"], &[]),
+        Word::LimitsStock => (&[b"Stock: ", b""], &[Number]),
+        Word::LimitsSetting => (&[b"", b" (", b": ", b")"], &[Number, Name, Name]),
+        Word::LimitsInForce => (&[b"In force: ", b""], &[Number]),
+        Word::LimitsNoSetting => (&[b"No override"], &[]),
+        Word::LimitsCount => (&[b"count"], &[]),
+        Word::LimitsBytes => (&[b"bytes"], &[]),
+        Word::LimitsMilliseconds => (&[b"milliseconds"], &[]),
+        Word::LimitsAtOnce => (&[b"Raises apply at once"], &[]),
+        Word::LimitsNextStart => (&[b"Raises apply at the next start"], &[]),
+        Word::LimitsWaitingStart => (&[b"Waits for the next start"], &[]),
+        Word::LimitsLeftOut => (&[b"Left out: no limit of this release"], &[]),
+        Word::LimitsHeldBytes => (&[b"Root holds ", b" bytes"], &[Number]),
+        Word::LimitsReadRefused => (&[b"The limit settings could not be read."], &[]),
+        Word::LimitsMore => (&[b"Next limits"], &[]),
+        Word::LimitsFirst => (&[b"First limits"], &[]),
+        Word::NeedsLimit => (&[b"", b" is ", b"; this needed ", b"."], &[Name, Number, Number]),
+        Word::NeedsLimitRaise => (&[b"Raise ", b" to ", b""], &[Name, Number]),
+        Word::NeedsLimitOwner => (&[b"A deployment owner can raise it. You can ask temper."], &[]),
         Word::LimitsCensusTitle => (&[b"What the store holds"], &[]),
         Word::LimitsCensusLede => (&[b"As of commit ", b"; writes since commit ", b", the store's last snapshot."], &[Number, Number]),
         Word::LimitsCensusRow => (&[b"", b" rows \xc2\xb7 ", b" \xc2\xb7 ", b" writes"], &[Name, Name, Name]),
@@ -8563,7 +8818,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LimitsCensusHeadsJoin => (&[b"", b", ", b""], &[Name, Name]),
         Word::SettingsBuildersTab => (&[b"Workers"], &[]),
         Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
-        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
+        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its places and whether it\xe2\x80\x99s up. An owner adds one by its secret\xe2\x80\x99s digest."], &[]),
         Word::RoleReading => (&[b"Reading role ", b"\xe2\x80\xa6"], &[Number]),
         Word::RoleUnreadable => (&[b"This role can't be read now: charter ", b"."], &[Number]),
         Word::RoleRuleReading => (&[b"Reading rule ", b"/", b"\xe2\x80\xa6"], &[Number, Number]),
@@ -8574,11 +8829,34 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BuilderUnnamed => (&[b"Worker ", b""], &[Number]),
         Word::BuilderConnected => (&[b"Connected"], &[]),
         Word::BuilderDraining => (&[b"Draining"], &[]),
-        Word::BuilderNotConnected => (&[b"Not connected"], &[]),
+        Word::BuilderNotConnected => (&[b"Down"], &[]),
         Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which workers it runs on. Ask temper to change it."], &[]),
-        Word::BuildersNone => (&[b"No worker is connected."], &[]),
+        Word::BuildersNone => (&[b"No worker is added yet."], &[]),
         Word::BuildersNoRole => (&[b"Workers are seen by the deployment\xe2\x80\x99s owners."], &[]),
         Word::BuildersCut => (&[b"Some worker facts were omitted."], &[]),
+        Word::WorkerPlaces => (&[b"", b" places"], &[Number]),
+        Word::WorkerPlace => (&[b"1 place"], &[]),
+        Word::WorkerNoRuns => (&[b"no runs"], &[]),
+        Word::WorkerRun => (&[b"1 run"], &[]),
+        Word::WorkerRuns => (&[b"", b" runs"], &[Number]),
+        Word::WorkerInBox => (&[b"in the box"], &[]),
+        Word::WorkerDigest => (&[b"digest ", b"\xe2\x80\xa6"], &[Name]),
+        Word::WorkerUpSince => (&[b"Up since ", b""], &[Name]),
+        Word::WorkerDownSince => (&[b"Down since ", b""], &[Name]),
+        Word::WorkerPlacesFor => (&[b"Places for ", b""], &[Name]),
+        Word::WorkerChange => (&[b"Change"], &[]),
+        Word::WorkerRemove => (&[b"Remove"], &[]),
+        Word::WorkerAddHeading => (&[b"Add a worker"], &[]),
+        Word::WorkerName => (&[b"The worker\xe2\x80\x99s name"], &[]),
+        Word::WorkerNameHint => (&[b"w1"], &[]),
+        Word::WorkerPlacesField => (&[b"Places"], &[]),
+        Word::WorkerSecretDigest => (&[b"Its secret\xe2\x80\x99s digest"], &[]),
+        Word::WorkerDigestHint => (&[b"64 hexadecimal digits"], &[]),
+        Word::WorkerAdd => (&[b"Add"], &[]),
+        Word::WorkerDuplicate => (&[b"", b" is already a worker."], &[Name]),
+        Word::WorkerAddHelp => (&[b"Make its secret on the worker\xe2\x80\x99s machine; temper help server says how. A worker that\xe2\x80\x99s running links once it\xe2\x80\x99s added."], &[]),
+        Word::WorkerLinked => (&[b"", b" is up: stop it first. Its runs end interrupted."], &[Name]),
+
         Word::TeamRules => (&[b"Its rules \xc2\xb7 "], &[]),
         Word::TeamChangeProposal => (&[b"change by proposal"], &[]),
         Word::TeamWakes => (&[b"Wakes on"], &[]),

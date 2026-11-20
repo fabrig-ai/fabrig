@@ -140,12 +140,15 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
     let page = root.pages().goals();
     b.open(Role::Slot);
     b.style(look::GOALS_INTRO);
-    if me.is_some()
+    if ready(root)
         && let Some(page) = page
-        && let Some(live) = page.live(root.client())
     {
+        let live = match page.live(root.client()) {
+            Some(live) => live.rows.as_slice(),
+            None => &[],
+        };
         let mut underway = 0_u32;
-        for line in live.rows.iter().chain(page.ended()) {
+        for line in live.iter().chain(page.ended()) {
             let state = goals::state(
                 &line.chip,
                 page.needs_person(line.chip.task),
@@ -175,14 +178,14 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
             Word::GoalsMany
         };
         let holes = [Hole::Number(u64::from(count)), Hole::Number(u64::from(underway))];
-        if word != Word::GoalsNone || page.known(root.client()) {
-            text(
-                b,
-                Role::Heading { level: 2 },
-                look::GOALS_HEADLINE,
-                &words.say(word, if word == Word::GoalsNone { &[] } else { &holes }),
-            );
-        }
+        text(
+            b,
+            Role::Heading { level: 2 },
+            look::GOALS_HEADLINE,
+            &words.say(word, if word == Word::GoalsNone { &[] } else { &holes }),
+        );
+    } else {
+        super::work::held_heading(b, words, 2, look::GOALS_HEADLINE);
     }
     b.open(Role::Paragraph);
     b.style(look::GOALS_LEDE);
@@ -212,13 +215,26 @@ pub(crate) fn lowercase(name: &[u8]) -> Box<[u8]> {
     String::from_utf8_lossy(name).to_lowercase().into_bytes().into_boxed_slice()
 }
 
+fn ready(root: &Domain) -> bool {
+    if root.pages().me(root.client()).is_none() {
+        return false;
+    }
+    match (root.pages().goals(), root.pages().milestones()) {
+        (Some(goals), Some(milestones)) => goals.shown(root.client(), milestones),
+        (Some(_) | None, None) | (None, Some(_)) => false,
+    }
+}
+
 fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     let me = root.pages().me(root.client());
     let page = root.pages().goals();
-    if me.is_some()
+    if ready(root)
         && let Some(page) = page
-        && let Some(live) = page.live(root.client())
     {
+        let live = match page.live(root.client()) {
+            Some(live) => live.rows.as_slice(),
+            None => &[],
+        };
         b.open(Role::Slot);
         b.style(look::GOALS_SECTION);
         b.open(Role::Slot);
@@ -253,7 +269,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         b.close();
         let names = Names::of(root);
         let mut shown = List::uncapped();
-        for line in live.rows.iter().chain(page.ended()) {
+        for line in live.iter().chain(page.ended()) {
             let report = page.report(line.chip.task);
             let state =
                 goals::state(&line.chip, page.needs_person(line.chip.task), report.is_some(), line.delegates_total);
@@ -261,11 +277,13 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
                 shown.push(line.clone()).expect("held goals fit");
             }
         }
-        if !shown.is_empty() {
+        if shown.is_empty() {
+            text(b, Role::Paragraph, look::GOALS_EMPTY, &words.say(Word::GoalsEmpty, &[]));
+        } else {
             b.open(Role::Slot);
             b.style(look::GOALS_ROWS);
             let milestones = root.pages().milestones();
-            for group in &goals::groups(shown.as_slice(), milestones) {
+            for group in &goals::groups(shown.as_slice(), milestones, page) {
                 match *group {
                     goals::GroupRow::Goal(task) => {
                         if let Some(line) = goals::goal(shown.as_slice(), &[], task) {
@@ -283,7 +301,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
                             b.open(Role::Slot);
                             b.style(look::GOALS_GROUP_ROWS);
                             for goal in &shown {
-                                if milestones.of(goal) == Some(task) {
+                                if milestones.of(goal, page) == Some(task) {
                                     held_row(b, words, bindings, times, page, goal, &names);
                                 }
                             }
@@ -294,8 +312,6 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
                 }
             }
             b.close();
-        } else if page.known(root.client()) {
-            text(b, Role::Paragraph, look::GOALS_EMPTY, &words.say(Word::GoalsEmpty, &[]));
         }
         if page.more() {
             b.open(Role::Button);
@@ -395,7 +411,7 @@ pub(crate) fn row(
             &words.say(Word::ToolSeparator, &[]),
         ])
     };
-    let title = crate::common::chat::cut_title(line.chip.title.bytes(), 80, false);
+    let title = crate::common::chat::row_title(line.chip.title.bytes());
     let name = crate::accounts::words::join(&[&title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
     crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);

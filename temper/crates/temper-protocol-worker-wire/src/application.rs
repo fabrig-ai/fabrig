@@ -15,10 +15,7 @@ pub fn application(limits: &v1::Limits) -> Result<Application, BridgeError> {
     v1::check_limits(limits).or(Err(BridgeError::Room))?;
     let mut spoken_wires = List::with_capacity(1);
     spoken_wires.push(spoken()).expect("one application wire");
-    let mut values = List::uncapped();
-    for value in limits.values() {
-        values.push(value).expect("uncapped limit values");
-    }
+    let values = limits.values();
     let mut kept = List::with_capacity(1);
     kept.push(Kept {
         family: wire::FAMILY,
@@ -26,7 +23,7 @@ pub fn application(limits: &v1::Limits) -> Result<Application, BridgeError> {
         patches: patches::PATCHES,
         floor: wire::FLOOR,
         sites: patches::sites,
-        names: &v1::LIMIT_NAMES,
+        names: v1::LIMIT_NAMES,
         values,
     })
     .expect("one application kept wire");

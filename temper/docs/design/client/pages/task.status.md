@@ -1,10 +1,12 @@
 # task: status
 
-2026-11-12. Where the tree's code lags or departs from [task.md](task.md).
+2026-11-19. Where the tree's code lags or departs from [task.md](task.md).
+
 
 Section 2's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
 these endings. No known gap remains in this line.
+
 
 
 - **Design departs:** 4, from that request, which has an agent's task's "Stop task" and "Stop this task?" become

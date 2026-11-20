@@ -7,6 +7,7 @@
 )]
 //! Connected Forgejo token admission and durable Check sequencing (temper/docs/design/protocol/forge/engine.md, 6).
 use super::*;
+use temper_protocol_worker_wire::v1::Record;
 
 #[test]
 fn incomplete_and_admin_bundles_stop_before_any_plan() {
@@ -113,7 +114,7 @@ fn empty_settings() -> crate::settings::Engine {
     settings
 }
 pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire as j;
     use jig_domain_people as people;
     let mut store = fixtures::records_store();
     fixtures::commit(
@@ -144,33 +145,21 @@ pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
 }
 fn making(new: bool) -> w::Making {
     if !new {
-        return w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 1 }).unwrap());
+        return w::Making::Kept(w::Kept { forge: 1 });
     }
-    let place = w::ManagedForge::new(
-        &w::CEILINGS,
-        w::ManagedForgeParts {
-            host: b"127.0.0.1".as_slice().into(),
-            port: 9,
-            tls: None,
-            git: b"http://127.0.0.1:9".as_slice().into(),
-            web: None,
-            git_program: None,
-        },
-    )
-    .unwrap();
-    w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: w::ForgeAsk::Connected(place) }).unwrap())
+    let place = w::ManagedForge {
+        host: b"127.0.0.1".as_slice().into(),
+        port: 9,
+        tls: None,
+        git: b"http://127.0.0.1:9".as_slice().into(),
+        web: None,
+        git_program: None,
+    };
+    w::Making::New(w::NewForge { forge: w::ForgeAsk::Connected(place) })
 }
 pub(super) fn http_connect(service: &mut crate::Service, bearer: &[u8], key: u8, new: bool, bundle: Secret) {
-    let request = w::Request::Connect(
-        w::Connect::new(
-            &w::CEILINGS,
-            w::ConnectParts {
-                forge: making(new),
-                how: w::How::ForgejoTokens(w::ForgejoTokens::new(&w::CEILINGS, w::ForgejoTokensParts {}).unwrap()),
-            },
-        )
-        .unwrap(),
-    );
+    let request =
+        w::Request::Connect(w::Connect { forge: making(new), how: w::How::ForgejoTokens(w::ForgejoTokens {}) });
     fixtures::forge_connecting(service, bearer, key, request, bundle);
 }
 
@@ -319,9 +308,9 @@ pub(super) fn connected(service: &crate::Service, user: u64, tokens: &Tokens, ge
         &mut Reader::new(value.expose()),
     )
     .unwrap();
-    assert_eq!(identity.login(), b"checked-user");
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(auth) = identity.kind() else { panic!("Forgejo identity") };
-    assert!(auth.token().expose() == tokens.git.expose());
+    assert_eq!(identity.login.as_ref(), b"checked-user");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(auth) = &identity.kind else { panic!("Forgejo identity") };
+    assert!(auth.token.expose() == tokens.git.expose());
     let rows = engine.forge_records.rows.forge(1).unwrap();
     assert!(rows.get(Item::ApiToken).unwrap() == tokens.api.expose());
     assert!(rows.get(Item::GitToken).unwrap() == tokens.git.expose());

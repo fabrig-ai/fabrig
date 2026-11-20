@@ -5,7 +5,8 @@
 //! a scripted agent says, with the charter and transcript an engine gives.
 
 use jig_domain_link::CountKind;
-use skein_lib::{Duration, List, Reader, Token, Writer};
+use skein_lib::{Duration, List, Reader, Token};
+use smith_channel::Record;
 use smith_domain_session::{llm, record};
 use smith_protocol_channel::{Endpoint, Endpoints};
 use temper_worker_domain::{Encodable, Encoded, agent, host};
@@ -13,8 +14,14 @@ use temper_worker_domain::{Encodable, Encoded, agent, host};
 /// smith's agent's one endpoint: what its charter's LLM and its turns name.
 #[must_use]
 pub fn endpoints() -> Endpoints {
+    endpoints_with_dialect(crate::DIALECT)
+}
+
+/// The one-endpoint map for a world's concrete turn dialect.
+#[must_use]
+pub fn endpoints_with_dialect(dialect: u32) -> Endpoints {
     let mut entries = List::with_capacity(1);
-    entries.push(Endpoint { name: Box::new([]), number: 0, dialect: crate::DIALECT }).expect("one endpoint");
+    entries.push(Endpoint { name: Box::new([]), number: 0, dialect }).expect("one endpoint");
     Endpoints::new(entries)
 }
 
@@ -22,42 +29,24 @@ pub fn endpoints() -> Endpoints {
 /// contract and a model.
 #[must_use]
 pub fn charter() -> Box<[u8]> {
-    use smith_charter::{
-        Budget, BudgetParts, CEILINGS, Charter, CharterParts, Contract, ContractParts, Families, FamiliesParts, Llm,
-        LlmParts, Mode, Prices, PricesParts, Reserve, ReserveParts, TextRule, TextRuleParts, Tools, ToolsParts,
+    use smith_charter::{Budget, CEILINGS, Charter, Contract, Families, Llm, Mode, Prices, Reserve, TextRule, Tools};
+    let reserve = Reserve { turns: 0, time: Duration::ZERO };
+    let budget = Budget { turns: 1, spend: 2, time: Duration::from_secs(60), reserve };
+    let report = TextRule { max: 128, fields: List::with_capacity(0) };
+    let contract = Contract { report: Some(report), verdicts: List::with_capacity(0), change: None, failure: None };
+    let prices = Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 };
+    let main = Llm {
+        endpoint: Box::new([]),
+        account: None,
+        model: Box::from(&b"fake"[..]),
+        effort: None,
+        window: 1_048_576,
+        output: 512,
+        prices,
     };
-    let reserve = Reserve::new(&CEILINGS, ReserveParts { turns: 0, time: Duration::ZERO }).expect("reserve");
-    let budget = Budget::new(&CEILINGS, BudgetParts { turns: 1, spend: 2, time: Duration::from_secs(60), reserve })
-        .expect("budget");
-    let report = TextRule::new(&CEILINGS, TextRuleParts { max: 128, fields: List::with_capacity(0) }).expect("report");
-    let contract = Contract::new(
-        &CEILINGS,
-        ContractParts { report: Some(report), verdicts: List::with_capacity(0), change: None, failure: None },
-    )
-    .expect("contract");
-    let prices =
-        Prices::new(&CEILINGS, PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 })
-            .expect("prices");
-    let main = Llm::new(
-        &CEILINGS,
-        LlmParts {
-            endpoint: Box::new([]),
-            account: None,
-            model: Box::from(&b"fake"[..]),
-            effort: None,
-            window: 1_048_576,
-            output: 512,
-            prices,
-        },
-    )
-    .expect("model");
-    let families = Families::new(&CEILINGS, FamiliesParts { skein_bools: [false; 4] }).expect("families");
-    let tools = Tools::new(
-        &CEILINGS,
-        ToolsParts { contract: 1, families, wait: false, deliver: None, save: false, host: List::with_capacity(0) },
-    )
-    .expect("tools");
-    let parts = CharterParts {
+    let families = Families { inspect: false, modify: false, shell: false, agents: false };
+    let tools = Tools { contract: 1, families, wait: false, deliver: None, save: false, host: List::with_capacity(0) };
+    let record = Charter {
         check_timeout: None,
         instructions: Box::new([]),
         brief: List::with_capacity(0),
@@ -71,10 +60,7 @@ pub fn charter() -> Box<[u8]> {
         resume: false,
         mode: Mode::Finite,
     };
-    let record = Charter::new(&CEILINGS, parts).expect("charter");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut writer).expect("measured charter");
-    writer.finish()
+    record.encode(&CEILINGS).expect("bounded charter")
 }
 
 /// A turn of `length` bytes of text, as smith's session settles it: the
@@ -141,7 +127,17 @@ pub fn transcript_turn(sequence: u32, length: usize, first: bool) -> Box<[u8]> {
 ///
 /// What of the start did not decode.
 pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result<Box<agent::Start>, host::Undecoded> {
-    let endpoints = endpoints();
+    decode_with_dialect(run, source, limits, crate::DIALECT)
+}
+
+/// Decode using the world's concrete dialect for both its charter and turns.
+pub fn decode_with_dialect(
+    run: Token,
+    source: host::Start,
+    limits: &agent::Limits,
+    dialect: u32,
+) -> Result<Box<agent::Start>, host::Undecoded> {
+    let endpoints = endpoints_with_dialect(dialect);
     let charter = smith_protocol_channel::decode_charter(&source.charter, &smith_charter::CEILINGS, &endpoints)
         .map_err(|_| host::Undecoded::Charter)?;
     let charter = agent::Charter::new(charter, limits.charter_bytes).ok_or(host::Undecoded::Charter)?;
@@ -207,11 +203,9 @@ pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result
 fn call_name(bytes: &[u8]) -> Result<agent::CallName, host::Undecoded> {
     let mut reader = Reader::new(bytes);
     match smith_channel::CallName::decode(&smith_channel::CEILINGS, &mut reader) {
-        Ok(name) if reader.is_empty() => Ok(agent::CallName {
-            activation: name.activation(),
-            completion: name.completion(),
-            position: name.position(),
-        }),
+        Ok(name) if reader.is_empty() => {
+            Ok(agent::CallName { activation: name.activation, completion: name.completion, position: name.position })
+        }
         Ok(_) | Err(_) => Err(host::Undecoded::CallName),
     }
 }
@@ -222,10 +216,19 @@ fn call_name(bytes: &[u8]) -> Result<agent::CallName, host::Undecoded> {
 /// run, which the root keeps typed.
 #[must_use]
 pub fn encode(value: Encodable) -> Encoded {
+    encode_with_dialect(value, crate::DIALECT)
+}
+
+/// Encode a payload with the same dialect its world's start declared.
+#[must_use]
+pub fn encode_with_dialect(value: Encodable, dialect: u32) -> Encoded {
     match value {
         Encodable::Turn(turn) => {
-            let encoded =
-                smith_protocol_channel::encode_turn(turn.body.value(), &smith_transcript::CEILINGS, &endpoints());
+            let encoded = smith_protocol_channel::encode_turn(
+                turn.body.value(),
+                &smith_transcript::CEILINGS,
+                &endpoints_with_dialect(dialect),
+            );
             match encoded {
                 Ok(body) => Encoded::Turn(host::Turn {
                     opens_window: turn.opens_window,
@@ -239,15 +242,13 @@ pub fn encode(value: Encodable) -> Encoded {
             }
         }
         Encodable::CallName(name) => {
-            let parts = smith_channel::CallNameParts {
+            let parts = smith_channel::CallName {
                 activation: name.activation,
                 completion: name.completion,
                 position: name.position,
             };
-            let record = smith_channel::CallName::new(&smith_channel::CEILINGS, parts).expect("a call name");
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("a call name's size"));
-            record.encode(&mut writer).expect("a measured call name");
-            Encoded::CallName(writer.finish())
+            let record = parts;
+            Encoded::CallName(record.encode(&smith_channel::CEILINGS).expect("fixed call name"))
         }
         Encodable::Result(agent::RunResult::Accepted { outcome }) => {
             match smith_protocol_channel::encode_result(outcome.value(), &smith_charter::CEILINGS) {
@@ -268,7 +269,7 @@ pub fn activity(body: &[u8]) -> Option<host::AgentActivity> {
     if !reader.is_empty() {
         return None;
     }
-    let kind = match fact.kind() {
+    let kind = match fact.kind {
         smith_channel::FactKind::Admitted => CountKind::Admitted,
         smith_channel::FactKind::Ended => CountKind::Ended,
         smith_channel::FactKind::LlmStarted => CountKind::LlmStarted,
@@ -280,7 +281,7 @@ pub fn activity(body: &[u8]) -> Option<host::AgentActivity> {
         smith_channel::FactKind::CheckFinished => CountKind::CheckFinished,
         smith_channel::FactKind::TextArrived => CountKind::TextArrived,
     };
-    Some(host::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
+    Some(host::AgentActivity::Count { kind, elapsed: fact.elapsed, count: fact.count })
 }
 
 /// A delivery the agent asks for: its commit's title and body.

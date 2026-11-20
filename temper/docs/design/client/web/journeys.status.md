@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-13. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 
 
@@ -14,8 +14,7 @@ suppressed state `home-begin-with-needs` (`gallery.md`, 2).
 No known implementation gap remains
 in this drawing route. Temper/ui's rendered comparison of all
 three requests remains `journeys.md`, section 10's after-landing work; replayed prints
-establish no rendered equality. The unrelated retained `chat-draft`
-inventory and redaction gaps below remain.
+establish no rendered equality. The redaction gaps below remain.
 
 Section 8.1 also accepts prebuilt recording inputs through `again --prepared DIR NAME`; its fresh private scratch directory stays beneath DIR and no child build runs.
 
@@ -42,7 +41,7 @@ through the ChatGPT sign-in's new tab; `welcome-playground`'s link is
 redacted. The rendered comparison remains section 10's after-landing
 work; the real-box and `welcome-set-up` redaction gaps below remain.
 
-Section 3.6 has no known gap in the TUI's three kinds of original,
+`journey-redaction.md` has no known gap in the TUI's three kinds of original,
 `Kind::Approval`, `Kind::Credential` and `Kind::Bearer`, or the shared
 `Originals::new`, `redact_field` and separate original and shape scans.
 The TUI uses these with its own records; the browser's redaction and
@@ -75,28 +74,18 @@ measures no box and prints the fallback; existing recordings contain no
 flow. A rendered flow in a chat and its document remains section 10's
 after-landing comparison.
 
-Sections 8.2 and 9 have no known gap in `chat-draft`'s drafts-on start:
-its setup leaves the fresh project's value alone, its recording has no
-drafts toggle, and its account names `again chat-draft` and twenty prints.
-That fake-model walk reaches the goal and its Draft link back to the chat;
-a real-box recording remains the person's later work (section 10).
-
 Section 9's stock removal is reflected in `welcome-set-up`,
 `welcome-playground` and `project-landing`; the TUI's `sign-in-approved`
-is current too (`../tui/journeys.status.md`). `chat-draft` retains its old
-stock inventory, including template 3 and charter 3: its task numbers
-moved, so temper/ui's answer of 2026-11-08 leaves its new walk and
-recording to section 10's after-landing renewal. Its recording also
-predates template 6: its new chat with a draft starts the project's chat
-template, where a box now starts a design session
-(`../pages/README.md`, *A new chat*), which the same renewal records.
+is current too (`../tui/journeys.status.md`).
 
 - **Not yet:**
+  - 3.2 and 8.1: no `fixed` fact, and `walk` judges every key mark by its clocks [in flight: change 7721].
+  - 8.1: `again` gives the box and the page no fixed start [in flight: change 7722].
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
-  - 3.6: `welcome-set-up` was added before the redaction and keeps its fake box's link secret (3.5), until it is next added, because that request left the journey's files to its owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
+  - 9: `project-landing` has its `setup` and no `walk` of version 2, so it is still walked on a box.
+  - 9: `chat-draft` has no `walk`, `scripts.json` or pages.
 - **Departs:**
-  - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
   - 5.1: a `--redact` TEXT that is empty or starts `--` is a table refusal with usage, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
-  - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, and the print's test compares a whole root, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.
+  - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.

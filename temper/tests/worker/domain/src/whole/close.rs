@@ -108,6 +108,8 @@ fn assign(world: &mut World, head: u64) {
                     push: b"topic".as_slice().into(),
                     landing: Some(b"goal".as_slice().into()),
                     expected: Some(translate::commit(head).raw()),
+                    delivered: None,
+                    pin: None,
                 },
                 identity: 7,
                 account: None,

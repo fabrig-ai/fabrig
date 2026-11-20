@@ -136,3 +136,67 @@ fn the_test_service_refuses_clients_provider_because_it_serves_no_provider_route
         }]
     );
 }
+
+#[test]
+fn reference_workers_still_require_agent_and_limits_by_name() {
+    for (name, member) in [
+        (
+            b"agent".as_slice(),
+            br#""agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},"#.as_slice(),
+        ),
+        (
+            b"limits".as_slice(),
+            br#""limits":{"profile":"standard","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},"#
+                .as_slice(),
+        ),
+    ] {
+        let input = fixtures::with(fixtures::WORKER_DOCUMENT, member, b"");
+        let found = crate::named(&input).expect_err("member required by reference worker");
+        assert_eq!(found.problems.len(), 1);
+        let got = found.problems.get(0).expect("missing member");
+        assert_eq!(got.path, Path::root().member(b"workers").child(Segment::Index(0)).member(name));
+        assert_eq!(got.what, What::Missing);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "compare complete admitted service snapshots and initial submissions")]
+fn a_prepared_document_builds_the_same_admitted_service_as_fresh_startup() {
+    let document = fixtures::combined_document();
+    let files = fixtures::combined_files(&document);
+    let prepared = crate::prepare(&document).expect("prepared document");
+    let mut fresh = crate::startup(
+        &document,
+        &files,
+        Some(&fixtures::agent()),
+        &fixtures::seeds(),
+        None,
+        Some(fixtures::worker_runtime()),
+    )
+    .expect("fresh service");
+    let mut cached = prepared
+        .startup(&files, Some(&fixtures::agent()), &fixtures::seeds(), None, Some(fixtures::worker_runtime()))
+        .expect("prepared service");
+    let configuration = |service: &crate::Service| {
+        let engine = service.engine.as_ref().expect("engine");
+        let workers = engine.workers.as_ref().expect("engine workers");
+        format!(
+            "{:?} {:?} {:?} {:?} {:?}",
+            service.io_env.limits,
+            engine.env.limits,
+            engine.domain,
+            workers.host.component.full_schema(),
+            service.workers
+        )
+    };
+    assert_eq!(configuration(&cached), configuration(&fresh));
+    // A reader owns its components; shutting it down cannot change the next startup.
+    cached.shutdown();
+    let mut cached = prepared
+        .startup(&files, Some(&fixtures::agent()), &fixtures::seeds(), None, Some(fixtures::worker_runtime()))
+        .expect("another prepared service");
+    crate::iterate(&mut fresh, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
+    crate::iterate(&mut cached, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
+    assert_eq!(configuration(&cached), configuration(&fresh));
+    assert_eq!(format!("{:?}", cached.submissions), format!("{:?}", fresh.submissions));
+}

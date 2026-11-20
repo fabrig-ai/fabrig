@@ -1,4 +1,4 @@
-family temper-public-wire 2
+family temper-public-wire 4
 
 # The visitor's forge records, apart from the panels.
 # temper/docs/design/client/forge/README.md, 9.1, 9.3 and 9.4.
@@ -9,7 +9,7 @@ record PublicBlamed { gate: u64 red: fixed 32 green: fixed 32 }
 record PublicSearchBound { member: u16 prefix: fixed 32 }
 record PublicSearch { green: PublicSearchBound red: PublicSearchBound probe: option fixed 32 }
 enum PublicRepair { ci, gate: PublicGateNumber, semantic, landing: PublicGateNumber, review }
-enum PublicHold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority, questions }
+enum PublicHold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority, questions, flake, no_test }
 enum PublicCi { unknown, pending, passed, failed }
 enum PublicGateKind { review, approval, check }
 enum PublicVerdict { none, pending, approved, changes }

@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-service-stock.workspace = true
 skein-fake-forge-http.workspace = true
 skein-fake-forge-github.workspace = true
 temper-forge-setup.workspace = true
@@ -29,12 +30,14 @@ skein-lib.workspace = true
 skein-json.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
+temper-limits-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 skein-io.workspace = true
 skein-sim.workspace = true
 jig-domain-core.workspace = true
 smith-domain-run.workspace = true
 smith-agent-world.workspace = true
-temper-engine-service-stock.workspace = true
 temper-engine-service-startup.workspace = true
 temper-init.workspace = true
 skein-forge-client.workspace = true

@@ -1,11 +1,23 @@
 # journeys: status
 
-2026-11-15. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
   change 3434].
+- **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
+  start [in flight: change 7722].
+
+- **Departs:** 7, 8: `design-session`, `launchpad-chat` and
+  `launchpad-drawn` are stale. Their recordings predate the client
+  wire that limits as settings moved, with its `limits` and `limit-holds`
+  reads (`../../protocol/configuration/limit-settings.md`, 7), so the
+  print's test fails on them. The change landed without waiting for them
+  to be recorded again. `again` couldn't record on a fake box, because
+  the owned Forgejo's pinned download couldn't be fetched: codeberg.org didn't resolve anywhere on 2026-11-18. Free decided this on
+  2026-11-18, through temper/dev. temper/tiers records them again after
+  landing, and then deletes this entry.
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
@@ -13,6 +25,10 @@
   `none` (`theme.md`, *The scheme*): Auto draws dark for both
   and no journey opens `/theme`'s list, so their frames are the same.
   They say `none` once a journey's change records them again.
+- **Not yet:** 8.4 and 9's `design-session`, `launchpad-chat` and
+  `launchpad-drawn`: no recording or frames on R4's pages, since `again`
+  stalls at each walk's first `see` after its message is sent [in
+  flight: change 8219].
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
@@ -22,6 +38,8 @@
   `tui-box-front` deferral: the journey is recorded once `again` can start
   the box in the pseudo-terminal. `box-claude-sign-in` waits with it, for
   the same reason.
+
+
 
 - **Not yet:** 9's `role-talk`: recorded once T3 has landed, its fake model scripting a standing role's replies and its rule question, owned by temper/tui (`../../draft/whole-story.execution.md`, T3).
 

@@ -5,6 +5,9 @@
 use alloc::boxed::Box;
 use core::cmp::Ordering;
 
+mod ip;
+pub use ip::ip_text;
+
 /// A copy of `bytes` in a box of exactly their length.
 ///
 /// This is "copy at emission" (programming-model.md, 6.2): data a layer keeps
@@ -41,6 +44,26 @@ pub fn zeroed(len: usize) -> Box<[u8]> {
 #[expect(clippy::disallowed_methods, reason = "the shared UTF-8 check for skein and its users")]
 pub fn is_utf8(bytes: &[u8]) -> bool {
     core::str::from_utf8(bytes).is_ok()
+}
+
+/// Text of the same length, replacing each byte outside a UTF-8 character with `?`.
+#[must_use]
+#[expect(clippy::disallowed_methods, reason = "the shared UTF-8 replacement for skein and its users")]
+pub fn utf8_replaced(bytes: &[u8]) -> Box<[u8]> {
+    let mut text = copy_of(bytes);
+    let mut rest = text.as_mut();
+    while !rest.is_empty() {
+        let Err(problem) = core::str::from_utf8(rest) else { break };
+        let (_, after) = rest.split_at_mut_checked(problem.valid_up_to()).expect("valid prefix inside the rest");
+        let bad = match problem.error_len() {
+            Some(len) => len,
+            None => after.len(),
+        };
+        let (invalid, after) = after.split_at_mut_checked(bad).expect("invalid sequence inside the rest");
+        invalid.fill(b'?');
+        rest = after;
+    }
+    text
 }
 
 /// The longest prefix of valid UTF-8 `bytes` at or below `at_most` bytes

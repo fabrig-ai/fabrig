@@ -166,6 +166,10 @@ pub enum Hold {
     Retargeted,
     /// A delegate or effect failed permanently.
     Failed,
+    /// A landing repair found only flakes; release runs its gate once more.
+    Flake,
+    /// A landing repair found no failed test; release runs its gate once more.
+    NoTest,
     /// A person rejected a required gate.
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
@@ -247,6 +251,14 @@ pub enum Way {
     Turn,
 }
 
+/// Whether a change into a branch a tier follows lives to cleared or ends at landed
+/// (temper/docs/design/domain/after-landing.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Wait {
+    Cleared,
+    Landed,
+}
+
 /// A pending dependency of the change as the top reads it each step
 /// (temper/docs/design/domain/forge/change/questions.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -292,6 +304,8 @@ pub struct Change {
     pub way: Way,
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
     pub landing: Option<u64>,
+    /// An ask handed over as the change leaves or its landing ends (domain/landing.md, 4.3).
+    pub landing_ask: Option<Box<Ask>>,
     pub state: State,
     /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
     pub ended_held: Option<Hold>,
@@ -306,6 +320,8 @@ pub struct Change {
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,
+    /// The first stale refusal of the update outstanding, for its backoff.
+    pub stale: Option<Wall>,
     pub since: Wall,
     /// CI's execution clock at checking (domain/forge/change/stalls.md, 2).
     pub clock: Option<crate::Clock>,
@@ -314,6 +330,8 @@ pub struct Change {
     pub last_head: Option<Commit>,
     /// The last delegate push whose checks passed (questions.md, 1, A checked head).
     pub last_checked: Option<Commit>,
+    /// The delegate task whose checked report set `last_checked` (questions.md, 1, Who pushed it).
+    pub last_checked_by: Option<u64>,
 }
 
 /// Observed state of the change's pull request.
@@ -381,6 +399,7 @@ pub enum Verification {
 pub struct Facts {
     /// The change task's current `revisions.spec`, projected by the root.
     pub revision: u64,
+    pub wait: Wait,
     /// The head selected once from the source (temper/docs/design/domain/forge/change/opened.md, 4).
     pub taken: Option<Commit>,
     /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.
@@ -401,6 +420,8 @@ pub struct Facts {
     pub execution: Option<crate::Reading>,
     pub base_ci: Ci,
     pub base_tip: Commit,
+    /// The base branch's tip as the step read it; `base_tip` is a preparation's pin while preparing.
+    pub base_read: Commit,
     /// Whether the head contains `Updating.base` while updating, otherwise `base_tip`.
     /// The asked base remains the update's even when its landing branch moves on.
     pub contains_base: Status,
@@ -465,6 +486,9 @@ pub enum EffectResult {
     Made,
     /// A mechanical update conflicted with the base.
     Conflict,
+    /// Refused by the client's check before any send: the forge was never asked
+    /// (domain/forge/README.md, 6).
+    Stale,
     /// An effect failed permanently.
     Failed,
 }
@@ -490,6 +514,10 @@ pub struct Heard {
     pub lacking: Option<AuthorityHold>,
     pub spend: Option<DelegateSpend>,
     pub delegate: Status,
+    /// The repair's successful ending was the flake verdict.
+    pub flake: bool,
+    /// The repair found no failed test.
+    pub no_test: bool,
     /// Its delegate has a claimed or running attempt, or is closing: it finishes
     /// as a run does (temper/docs/design/domain/forge/change/repairs.md).
     pub delegate_running: bool,

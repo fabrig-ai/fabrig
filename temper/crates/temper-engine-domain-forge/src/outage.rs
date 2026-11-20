@@ -52,6 +52,9 @@ impl State {
             back: Set::with_capacity(limits.forges),
         }
     }
+    pub(super) fn raise(&mut self, entries: u32) {
+        self.writes.raise(entries);
+    }
     pub(super) fn deadline(&self) -> Option<Time> {
         let mut next = None;
         for (_, reading) in &self.reads {
@@ -196,6 +199,7 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
                     | Error::NothingToMerge
                     | Error::Closed
                     | Error::Stale
+                    | Error::BaseMoved { .. }
                     | Error::Conflict
                     | Error::Protected
                     | Error::Refused
@@ -238,6 +242,7 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
             | Error::NothingToMerge
             | Error::Closed
             | Error::Stale
+            | Error::BaseMoved { .. }
             | Error::Conflict
             | Error::Protected
             | Error::Refused

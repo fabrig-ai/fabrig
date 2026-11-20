@@ -488,9 +488,11 @@ impl Task {
             | Act::Terminal(_)
             | Act::Told(_)
             | Act::Remembered(_)
+            | Act::Builders(_)
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }
@@ -637,9 +639,11 @@ impl Task {
             | Act::Terminal(_)
             | Act::Told(_)
             | Act::Remembered(_)
+            | Act::Builders(_)
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }
@@ -1124,6 +1128,7 @@ impl Task {
         self.next = self.next.checked_add(1).expect("task handles fit");
         self.cards
             .push(Card {
+                withdraw_unread: false,
                 whole: None,
                 task: None,
                 object,
@@ -1159,6 +1164,7 @@ impl Task {
             ended.handle,
             c::Read::Tasks {
                 query: c::TaskQuery {
+                    parts: List::with_capacity(0),
                     project: None,
                     requester: None,
                     root: None,

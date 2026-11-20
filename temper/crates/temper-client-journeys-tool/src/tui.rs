@@ -3,8 +3,7 @@ use crate::{Added, Refusal, io_refusal, names};
 use std::{fs, path::Path};
 use temper_client_shell_tui::journey::{self, Line, Stale};
 
-mod print;
-pub use print::{SCRIPT, beside, pages, stylesheet};
+pub use temper_client_walk_lines::tui_print::{SCRIPT, beside, pages, stylesheet};
 
 pub(crate) fn proof_refusal(name: &str, mut refusal: journey::Refusal) -> Refusal {
     if let journey::Refusal::Stale(stale) = &mut refusal {
@@ -22,12 +21,15 @@ pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]
     let redacted =
         journey::redact(recording, given).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
     let recording = journey::prove(&redacted.recording).map_err(|why| proof_refusal(name, why))?;
-    if let Some(found) = journey::scan(&recording, &redacted.originals).map_err(|why| proof_refusal(name, why))? {
+    let normalised =
+        journey::normalise(&recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    let recording = &normalised.recording;
+    let files = printed(name, recording)?.map_err(|why| proof_refusal(name, journey::Refusal::Stale(why)))?;
+    if let Some(found) = journey::scan(recording, &redacted.originals).map_err(|why| proof_refusal(name, why))? {
         return Err(Refusal::TuiFound { name: name.to_owned(), found, file: None });
     }
-    let lines = journey::lines(&recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    let lines = journey::lines(recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
     let codes = journey::codes(&lines);
-    let files = printed(name, &recording)?.map_err(|why| proof_refusal(name, journey::Refusal::Stale(why)))?;
     let marks: Vec<_> =
         lines.iter().enumerate().filter(|(_, line)| matches!(line, Line::Mark(_) | Line::End(_))).collect();
     for (files, (index, line)) in files.as_chunks::<2>().0.iter().zip(marks) {
@@ -55,11 +57,16 @@ pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]
         credential: redacted.originals.count(journey::Kind::Credential),
         bearer: redacted.originals.count(journey::Kind::Bearer),
         places: redacted.places,
+        build: normalised.build,
+        port: normalised.port,
+        code: normalised.code,
+        placeholder_places: normalised.places,
+        stood: normalised.stood,
     };
     let directory = root.join(name);
     fs::create_dir_all(&directory).map_err(|_| io_refusal(&directory))?;
     let path = directory.join("recording");
-    fs::write(&path, recording).map_err(|_| io_refusal(&path))?;
+    fs::write(&path, &normalised.recording).map_err(|_| io_refusal(&path))?;
     write_files(&directory, files)?;
     beside(root).map_err(|_| io_refusal(root))?;
     Ok(added)
@@ -83,7 +90,7 @@ pub fn reprint(root: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refusal>
     Ok(stale)
 }
 
-fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<crate::print::Printed>, Stale>, Refusal> {
+pub(crate) fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<crate::print::Printed>, Stale>, Refusal> {
     let mut replay =
         journey::Replay::new(recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
     let scheme = journey::lines(recording)

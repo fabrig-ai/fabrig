@@ -53,9 +53,7 @@ pub(crate) fn text(
             None => out.put(b"none"),
         }
         out.put(b"\n");
-        if call.tool != crate::jig::rows::SETTING_AT
-            || crate::jig::call::number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }).is_none()
-        {
+        if call.tool != crate::jig::rows::SETTING_AT || crate::jig::settings_file::revision(call).is_none() {
             settings_form::render::stock_text(&a::form_read_value(value), out);
         }
         if let c::Setting::Application { kind: 9, .. } = document.setting
@@ -71,6 +69,57 @@ pub(crate) fn text(
         return;
     }
     settings_form::render::text(&a::form_read_value(value), crate::jig::call::number(call, 0), &a::limits(limits), out);
+}
+
+pub(super) fn provider_marks(value: &c::ReadValue, reading: &crate::jig::runner::reads::Reading, out: &mut Text) {
+    if let c::ReadValue::Setting(document) = value
+        && let c::Setting::Provider(number) = document.setting
+    {
+        if let Some(c::SettingValue::Provider(provider)) = &document.value
+            && provider.withdrawn
+        {
+            out.put(b"withdrawn\n");
+        }
+        if reading.provider_defaults.contains(&number.number) {
+            out.put(b"the stock's default\n");
+        }
+    }
+}
+pub(super) fn providers_text(
+    reading: &crate::jig::runner::reads::Reading,
+    limits: &Limits,
+    vocabulary: &dyn Parts,
+    out: &mut Text,
+) {
+    let mut any = false;
+    for (_, page) in reading.pages.range(8..) {
+        if let jig_client::Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Setting(_))) = page {
+            text(value, &reading.called.call, limits, vocabulary, out);
+            provider_marks(value, reading, out);
+            any = true;
+        }
+    }
+    if !any {
+        out.put(b"no provider settings\n");
+    }
+}
+pub(super) fn providers_encode(reading: &crate::jig::runner::reads::Reading, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"providers");
+    out.array_start();
+    for (_, page) in reading.pages.range(8..) {
+        if let jig_client::Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Setting(_))) = page {
+            encode(value, out);
+        }
+    }
+    out.array_end();
+    out.key(b"stock");
+    out.array_start();
+    for number in &reading.provider_defaults {
+        out.unsigned(u64::from(*number));
+    }
+    out.array_end();
+    out.object_end();
 }
 
 pub(super) fn edit_word(edit: &c::RevisionItemEdit) -> &'static [u8] {
@@ -212,4 +261,21 @@ fn application_text(state: &c::ApplicationState, out: &mut Text) {
     out.put(b", ");
     out.number(u64::from(state.size));
     out.put(b" bytes\n");
+}
+
+pub(super) fn inventory_limits(reading: &crate::jig::runner::reads::Reading, vocabulary: &dyn Parts, out: &mut Text) {
+    use crate::jig::runner::application::{Answer, Query};
+    let mut values = skein_lib::List::uncapped();
+    if let Some(jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document)))) = reading.pages.get(&2)
+        && let Some(value) = &document.value
+    {
+        values.push((a::form_setting(document.setting), a::form_setting_value(value))).expect("two limit kinds");
+    }
+    let setting = c::Setting::Application { kind: 22, scope: 0, number: 1 };
+    if let Some(page) = reading.pages.get(&3)
+        && let Some(Answer::Setting(Some(value))) = vocabulary.application_answer(Query::Setting(setting), page)
+    {
+        values.push((a::form_setting(setting), a::form_setting_value(&value))).expect("two limit kinds");
+    }
+    settings_form::render::limits_text(values.as_slice(), out);
 }

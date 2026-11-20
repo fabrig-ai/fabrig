@@ -1,7 +1,7 @@
 //! Design edits through the shipped profile (temper/docs/design/protocol/configuration/settings.md, 7).
 #![expect(clippy::disallowed_methods, reason = "ordinary test code inspects the fake checkout's tree")]
 
-use super::fixtures::{self, DIRECTORIES, call, content, parse};
+use super::fixtures::{self, call, parse};
 use serde_json::json;
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Part, Script};
@@ -53,11 +53,13 @@ fn edit_world(document: serde_json::Value, replacement: &str) -> World {
 
 #[test]
 fn stock_and_reference_profiles_accept_a_4487_byte_design_edit() {
-    let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("init files");
     // The reference overlays engine settings and limits, retaining the stock agent.
     // Check the owned profile too: init adds its scripted model to this profile.
     let replacement = "d".repeat(EDIT_BYTES);
-    for document in [parse(content(&generated, b"agent.json")), parse(fixtures::AGENT)] {
+    for document in [
+        temper_agent_fixtures::configuration(&parse(&temper_config_shell::init_document(false))),
+        temper_agent_fixtures::configuration(&parse(fixtures::OWNED)),
+    ] {
         let mut world = edit_world(document, &replacement);
         world.run(10_000);
         for prompt in world.prompts() {

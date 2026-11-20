@@ -367,7 +367,12 @@ fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
     assert!(domain.parties().is_empty());
     assert_eq!(domain.results_seen(1), None);
     assert_eq!(domain.persons(), u32::MAX);
-    assert!(!domain.start_project(&env.limits, RestoreProjection::Waiting { task: 1, entries: Box::new([]) }));
+    assert!(
+        !domain.start_project(
+            &env.limits,
+            RestoreProjection::Waiting { source: NeedSource::Task(1), entries: Box::new([]) }
+        )
+    );
     assert_eq!(domain.restore_failure(), failure);
     assert!(!domain.start_link());
     assert_eq!(domain.restore_failure(), failure);

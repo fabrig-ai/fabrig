@@ -24,14 +24,15 @@ impl Recorder {
             ended: false,
             bound: u64::from(crate::limits::RECORDING_BYTES),
         };
-        for line in [
-            Line::Journey { version: 2 },
-            Line::Seed(facts.seed),
-            Line::Clocks { now: facts.now, wall: facts.wall },
-            Line::Primary(facts.primary),
-        ] {
+        for line in
+            [Line::Journey { version: 2 }, Line::Seed(facts.seed), Line::Clocks { now: facts.now, wall: facts.wall }]
+        {
             this.keep(&line);
         }
+        if facts.fixed {
+            this.keep(&Line::Fixed);
+        }
+        this.keep(&Line::Primary(facts.primary));
         if facts.zone_minutes != 0 {
             this.keep(&Line::Zone(facts.zone_minutes));
         }
@@ -182,9 +183,10 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     }
     for ask in &duties.asked {
         lines.push(match ask {
-            Asked::Exchange { id, call, bound, cache: _, keep: _ } => Line::Exchange {
+            Asked::Exchange { id, call, bound, pieces, cache: _, keep: _ } => Line::Exchange {
                 id: *id,
                 bound: *bound,
+                pieces: *pieces,
                 method: call.method.as_bytes().into(),
                 path: call.path.clone(),
                 body: call.body.clone(),

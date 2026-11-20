@@ -81,6 +81,7 @@ mod payer;
 pub use payer::{Payer, PayerLink};
 mod escalation;
 mod facts;
+mod failed;
 mod failures;
 mod flags;
 pub mod gathering;
@@ -94,6 +95,8 @@ mod funders;
 mod hold_origin;
 mod holds;
 mod inbox;
+mod words;
+pub use words::directing_words;
 mod index;
 mod questions;
 mod reasons;
@@ -144,7 +147,8 @@ mod waits;
 mod wake;
 mod writers;
 pub use activity::{
-    ActivityLine, DecidedProposal, EndKind, Line, NOW_LINE, STOOD_WORDS, Why, line_bytes_limit, lines_per_decision,
+    ActivityLine, DecidedProposal, EndKind, Fresh, Line, NOW_LINE, STOOD_WORDS, Why, line_bytes_limit,
+    lines_per_decision,
 };
 pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
 pub use boundary::{
@@ -165,7 +169,9 @@ pub use control::{
     HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
-pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};
+pub use escalation::{
+    Escalation, EscalationContext, EscalationDecider, EscalationDecision, EscalationHolder, EscalationOutcome,
+};
 pub use facts::Fact;
 pub use failures::{Class, Retries, Retry, Tries};
 pub use funders::FundingRecord;

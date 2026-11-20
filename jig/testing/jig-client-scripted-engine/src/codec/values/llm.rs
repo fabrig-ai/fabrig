@@ -99,6 +99,9 @@ pub(in crate::codec) fn wire_task_wait_why(
             limits,
             w::TaskWaitSourceParts { state: wire_task_source_state(value, limits)? },
         )?),
+        c::TaskWaitWhy::Untooled { worker } => {
+            w::TaskWaitWhy::Untooled(w::TaskWaitUntooled::new(limits, w::TaskWaitUntooledParts { worker: *worker })?)
+        }
         c::TaskWaitWhy::Refreshing => w::TaskWaitWhy::Refreshing,
         c::TaskWaitWhy::Host => w::TaskWaitWhy::Host,
         c::TaskWaitWhy::Empty => w::TaskWaitWhy::Empty,
@@ -223,7 +226,11 @@ pub(in crate::codec) fn wire_provider_offer(
     w::ProviderOffer::new(
         limits,
         w::ProviderOfferParts {
-            skein_bools: [value.sign_in, value.key, value.programs_cut, value.none, value.signed_in_plan],
+            sign_in: value.sign_in,
+            key: value.key,
+            programs_cut: value.programs_cut,
+            none: value.none,
+            signed_in_plan: value.signed_in_plan,
             provider: value.provider,
             name: wire_document_text(&value.name, limits)?,
             programs: list(value.programs.iter().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))))?,

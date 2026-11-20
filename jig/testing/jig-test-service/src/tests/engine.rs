@@ -813,10 +813,10 @@ fn a_program_grant_needs_no_table_entry() {
 
 #[test]
 fn program_names_share_the_wire_and_domain_bounds() {
-    use jig_protocol_worker_wire::v15;
+    use jig_protocol_worker_wire::v18;
     // Schema source names and grant names both admit exactly 32 bytes.
-    let bound = skein_lib::length::usize_of(v15::CEILINGS.program_value_name);
-    assert_eq!(v15::CEILINGS.program_value_name, v15::CEILINGS.program_source_name);
+    let bound = skein_lib::length::usize_of(v18::CEILINGS.program_value_name);
+    assert_eq!(v18::CEILINGS.program_value_name, v18::CEILINGS.program_source_name);
     let past = bound.checked_add(1).expect("small name bound");
     let name = [b'a'; 33]; // The schema's 32-byte name plus one byte.
     for (length, admitted) in [(bound, true), (past, false)] {
@@ -945,6 +945,11 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
     use skein_lib::Duration;
     let document = fixtures::with(&fixtures::engine_document(), br#""sources":{"keys":true}"#, br#""sources":{}"#);
     let mut driven = fixtures::Driven::started(&document);
+    super::workers_settings::change(
+        &mut driven,
+        19,
+        core::settings::Edit::Set(core::settings::Value::Worker(Box::new(super::workers_settings::setting(1)))),
+    );
     // This story withholds pressure commits plus two admitted completions.
     driven.commits = skein_lib::Queue::uncapped();
     let engine = fixtures::engine(&mut driven.service);

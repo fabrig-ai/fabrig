@@ -1,6 +1,6 @@
 # forgejo: status
 
-2026-11-12. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-17. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
 
 
 - **Not yet:** 1.1 to 1.3: `Reviews`, `PullFiles` and a `Remarks` slice sized for real rows and cut at the answer's bytes, read on with `skip`: each holds as many of its listing's largest rows as `answer_bytes` holds (`skein-forge-connection/src/limits.rs`, `page_size`).

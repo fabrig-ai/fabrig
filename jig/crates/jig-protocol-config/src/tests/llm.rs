@@ -380,7 +380,7 @@ fn both_ways_provider() -> Box<[u8]> {
         &document,
         br#""endpoints": [{"#,
         br#""endpoints": [{
-            "name":"anthropic-api","number":4,"dialect":2,"provider":"fake-provider",
+            "name":"anthropic-api","number":4,"dialect":2,"provider":"Fake",
             "address":{"socket":"127.0.0.1:7101"},"transport":"plaintext",
             "headers":[],"connect_ms":10000,"handshake_ms":10000
         }, {"#,
@@ -465,7 +465,7 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         let wire = jig_protocol_engine_clients::translate::llm::models(
             &[jig_domain_core_vocabulary::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
             &models,
-            &jig_client_protocol_wire::v26::CEILINGS,
+            &jig_client_protocol_wire::CEILINGS,
         )
         .unwrap();
         let model = wire.get(0).unwrap();

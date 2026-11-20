@@ -142,7 +142,7 @@ fn failure(failure: llm::Failure) -> run::CompletionFailure {
         llm::Failure::Unavailable => run::CompletionFailure::Unavailable,
         llm::Failure::TimedOut { phase } => run::CompletionFailure::TimedOut { phase: completion_phase(phase) },
         llm::Failure::ContextTooLong => run::CompletionFailure::ContextTooLong,
-        llm::Failure::Invalid | llm::Failure::Program { .. } | llm::Failure::SessionGone => {
+        llm::Failure::Invalid | llm::Failure::Program { .. } | llm::Failure::Untooled | llm::Failure::SessionGone => {
             run::CompletionFailure::Invalid
         }
         llm::Failure::Refused => run::CompletionFailure::Refused,

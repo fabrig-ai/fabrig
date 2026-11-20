@@ -37,7 +37,8 @@ impl MakeProject {
         let limits = temper_client_shell_terminal::limits::native();
         let bounds = limits.client.client;
         let mut shell = Shell::new(Settings {
-            engine: skein_io::Addr::Ip(engine),
+            mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+            engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(engine)),
             directory,
             limits: limits.connections,
             io: limits.io,
@@ -125,6 +126,7 @@ impl Host for MakeProject {
             );
         }
         self.client.fire(now, wall, &mut self.out);
+        self.client.settle(now, wall, &mut self.out);
         self.client.reclaim();
         self.outputs();
         if self.made.is_some() && !self.closing {

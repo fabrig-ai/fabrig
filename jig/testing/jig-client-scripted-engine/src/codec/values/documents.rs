@@ -217,6 +217,7 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
     w::Task::new(
         limits,
         w::TaskParts {
+            tasks_left: value.tasks_left,
             concluded: value
                 .concluded
                 .map(|v| w::Concluded::new(limits, w::ConcludedParts { by: v.by, at: v.at.as_nanos() }))
@@ -304,6 +305,21 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
             kept_account: value.kept_account.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             run_wait: value.run_wait.as_ref().map(|item| wire_task_run_wait(item, limits)).transpose()?,
             dependency_facts: list(value.dependency_facts.iter().map(|item| wire_dependency(item, limits)))?,
+            unread: list(value.unread.iter().map(|word| wire_unread(word, limits)))?,
+        },
+    )
+}
+
+fn wire_unread(value: &c::UnreadWords, limits: &w::Limits) -> Result<w::UnreadWords, w::Problem> {
+    w::UnreadWords::new(
+        limits,
+        w::UnreadWordsParts {
+            message: value.message,
+            by: wire_requester(&value.by, limits)?,
+            at: value.at.as_nanos(),
+            seen: value.seen,
+            head: Box::from(value.head.bytes()),
+            bytes: value.bytes,
         },
     )
 }
@@ -557,6 +573,7 @@ pub(in crate::codec) fn wire_tasks(value: &c::Tasks, limits: &w::Limits) -> Resu
     w::Tasks::new(
         limits,
         w::TasksParts {
+            ended_mark: 0,
             rows: pieces(
                 value.rows.iter().map(|item| wire_task_line(item, limits)),
                 w::TaskLine::measure,

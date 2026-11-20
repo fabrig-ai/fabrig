@@ -144,8 +144,10 @@ pub fn restart() {
 }
 
 fn hook_url(root: &Path) -> String {
-    let value: Value =
-        serde_json::from_slice(&fs::read(root.join("config/temper.json")).expect("configuration")).expect("JSON");
+    let value: Value = super::start_document(
+        &root.join("config").join(temper_config_shell::FILE),
+        temper_config_shell::Shape::Standalone,
+    );
     let socket =
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).expect("listener socket");
     format!("http://{socket}/hooks/1")
@@ -177,30 +179,38 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     let config = root.join("config");
     super::configuration(&config, forge);
     let Forge::Throwaway { api, git, .. } = forge else { panic!("elsewhere fixture") };
-    let path = config.join("temper.json");
-    let bytes = fs::read_to_string(&path).expect("configuration").replace("\"acme\"", "\"elsewhere\"");
-    let mut value: Value = serde_json::from_str(&bytes).expect("JSON");
+    let mut value = super::limit_settings::configuration(&config);
     assert!(
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).is_some(),
         "listener configured for the hooks' URL"
     );
     // The first repository and both outside adoptions are retained across restart.
-    value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
-    value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
-    value["engine"]["deployment"]["directory"] = json!(root.join("data"));
-    let digest = value["engine"]["hosts"]["workers"][0]["digest"].as_str().expect("worker digest");
-    write_private(&root.join("data/worker.digest"), &fs::read(config.join(digest)).expect("fixture digest"));
-    value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();
+    value.temper_over("forge.repositories", 3);
+    value.temper_over("forge.client.repositories", 3);
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
+    let copy = root.join("data/agents.setting");
+    let agents = fs::read(config.join("agents.setting")).expect("fixture agents setting");
+    fs::rename(config.join("agents.setting"), &copy).expect("data agents setting");
+    let mut settings = landing_settings(root);
+    settings["items"]
+        .as_array_mut()
+        .expect("settings items")
+        .push(json!({"setting":{"kind":"agents"},"set":super::agents_value(&agents)}));
+    write_private(
+        &config.join("native-landing-settings.json"),
+        &serde_json::to_vec(&settings).expect("landing and agents settings"),
+    );
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
-    write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));
+    super::limit_settings::remember(&config, &value);
     super::forgejo::bootstrap(&config, &root.join("data"), &root.join("cache"));
+    // Bootstrap restores stock settings; the first life still needs the fixture's startup figures.
+    write_private(&copy, &agents);
     let mut record = temper_real_loop_world::fixtures::forgejo_record(*api);
     record.place.git = git.as_bytes().into();
     record.mode = temper_engine_domain_forge::Mode::Managed;
     record.bot.login = b"elsewhere-bot".as_slice().into();
     record.bot.email = b"elsewhere-bot@example.invalid".as_slice().into();
-    temper_real_loop_world::fixtures::seed_record(&root.join("data"), record, &[]);
+    temper_real_loop_world::fixtures::seed_record(&root.join("data/state"), record, &[]);
 }
 
 fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
@@ -281,6 +291,23 @@ fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
     steps
 }
 
+/// Stage the fixture's whole provider in the data directory and include it in ctl's landing-settings change.
+/// The second life uses the store's kept copy without restaging these inputs.
+pub fn configure_llm(root: &Path, peer: &super::llm::Listening) {
+    let config = root.join("config");
+    let data = root.join("data");
+    let providers = temper_agent_fixtures::providers::read(&config);
+    temper_agent_fixtures::providers::write(&data, &providers);
+    peer.configure(&config);
+    let providers = temper_agent_fixtures::providers::read(&data);
+    let mut settings = landing_settings(root);
+    settings["items"].as_array_mut().expect("settings items").extend(super::provider_setup::items(&providers));
+    write_private(
+        &config.join("native-landing-settings.json"),
+        &serde_json::to_vec(&settings).expect("landing, agents and provider settings"),
+    );
+}
+
 fn life(root: &Path, restarted: bool) {
     let clock = Clock::new();
     let began = clock.now().now;
@@ -288,7 +315,7 @@ fn life(root: &Path, restarted: bool) {
     let peer =
         (!restarted).then(|| super::fake_llm_played(super::llm::requested(scripts("elsewhere/first", b"# first"))));
     if let Some(peer) = &peer {
-        peer.configure(&config);
+        configure_llm(root, peer);
     }
     let command = Command {
         program: skein_scratch::paths::binary("temper-box"),
@@ -302,7 +329,7 @@ fn life(root: &Path, restarted: bool) {
             root.join("cache").into(),
         ],
         directory: root.into(),
-        environment: Vec::new(),
+        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
     };
     let mut engine = Binary::start(command, Mode::Pipes, 65_536).expect("elsewhere engine");
     let streams = engine.take_streams().expect("engine pipes");
@@ -674,7 +701,7 @@ fn no_token(bytes: &[u8], token: &[u8]) {
 }
 fn inspect(root: &Path, token: &[u8]) {
     // jig's initial generation keeps its secrets separately from its store.
-    let excluded = root.join("data/generations/1/secrets");
+    let excluded = root.join("data/state/generations/1/secrets");
     let mut pending = vec![root.join("config"), root.join("data"), root.join("cache")];
     while let Some(path) = pending.pop() {
         if path == excluded {
@@ -687,7 +714,7 @@ fn inspect(root: &Path, token: &[u8]) {
             no_token(&fs::read(path).expect("deployment file"), token);
         }
     }
-    let mut pending = vec![root.join("data/generations/1/store")];
+    let mut pending = vec![root.join("data/state/generations/1/store")];
     let mut files = 0;
     while let Some(path) = pending.pop() {
         let metadata = fs::symlink_metadata(&path).expect("store metadata");

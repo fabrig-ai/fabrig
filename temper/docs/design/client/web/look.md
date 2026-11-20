@@ -137,7 +137,8 @@
   current one filled ink, a done one ticked green, joined by short
   hairlines, hovered ink; below 760 px only the current label shows. After the
   steps, the top bar's end, the link region alone, which takes no room
-  but while it says "Offline" (the look request `welcome-top`). The bar packs its rows to their
+  but while it says "Offline" (the look request `welcome-top`), then the
+  night switch, last (`night-switch-top`). The bar packs its rows to their
   end (`justify-content: flex-end`) and the steps take the free space at
   their left (`margin-left: auto`), so that the steps and the end keep
   to the right, and an end the row cannot hold wraps to the
@@ -224,6 +225,39 @@
   under the `--temper-*` tokens reaches these pages: the old rows' and pages'
   rules go, rather than being overridden. A flow's path takes `Ask`'s
   crumbs' values, its "‹" alone at 760 px and under.
+- **An account's row** (`../pages/accounts.md`, 2) is the look request
+  `accounts-usage`'s (2026-11-18), its overlay's rules in `temper.css`
+  under Settings' rows, the rules they replace removed:
+  - *Usage:* the head's `temper-usage` group, 10 px under the line, its
+    windows 4 px apart; each `temper-usage-window` a grid of its name
+    (`temper-usage-name`), 40 px, its bar, 120 px, its share
+    (`temper-usage-used`), 36 px, right-aligned in ink, and its pace
+    (`temper-usage-pace`), faint, 12 px apart, in 13 px on 1.6, muted, with
+    tabular figures. The bar, `temper-usage-bar`, is skein's meter with its
+    words hidden from sight: 4 px high, 2 px corners, `--gf-ink-2` to
+    `--skein-ui-progress` on `--gf-line`; `--temper-amber` under
+    `temper-usage-warned`, 80% or more; `--temper-red`, whole, under
+    `temper-usage-limited`. "Full in", `temper-usage-fills`, is amber. At
+    760 px and under, the grid is the name, the bar and the share, and the
+    pace takes the row under the bar. The state is a token on the window,
+    where the request's overlay reads a `data-state` no element of skein's
+    carries.
+  - *The check line and the uses:* `temper-account-check` and
+    `temper-account-pays`, 13.5 px, muted.
+  - *Quiet acts,* as `.proposal`'s and Remembered's secondary acts: every
+    button and link in a row, the section head's "+ Connect a model" and
+    "Sign out", no box and no border, 6 px corners, no fill, muted 13.5 px
+    at weight 400, 32 px high on 5 px 10 px of padding; on hover the
+    `--gf-hover` ground and ink; 44 px high at 760 px and under. A row's
+    acts, `temper-account-acts`, are one wrapping line 10 px under its
+    facts, 2 px apart, hung 10 px into the margin so that the first act's
+    words align with the row's, as a source's first act is. "Remove
+    account", `temper-account-remove`, is pushed to the line's end and red
+    on hover. A move, `temper-account-move`, is 32 px wide, its arrow 15 px,
+    "↑" for `temper-account-up` and "↓" for `temper-account-down`, drawn by
+    the stylesheet over its name's words, which a named button shows and
+    a reader reads. Forges' rows, sharing the rows' values, take the quiet
+    acts too, by the overlay's selectors as they are.
 - **The project's frame** is the greenfield mock's `home.html`, in
   the welcome's paper, ink and IBM Plex from temper's files
   (`temper.css`, The project's frame): the rail a 232 px column at the
@@ -439,12 +473,12 @@
   `.temper-way-line` at its left, 15 px in `--gf-ink-2`, its acts
   `.temper-way-acts` at its right, each outlined, 34 px high, 13.5 px
   at 500, "Use this" and "Keep it" filled in ink, at their left on a
-  phone; "Stock ways" `.temper-way-pick`, its button outlined with its
-  words in `--gf-ink-2` and a chevron in `--gf-muted`, its menu
+  phone; the drop-down `.temper-way-pick`, its button outlined with its
+  words in ink (`ways-shown`) and a chevron in `--gf-muted`, its menu
   `.temper-way-menu` the composer's model menu's panel and rows
   (`.temper-model-menu`; `../pages/chat/composer.md`, 1, *The work's
   account and model*), 6 px under its button at its right,
-  the way the project runs ticked at 500 with a "✓" in the good marks'
+  the way shown ticked at 500 with a "✓" in the good marks'
   green; and the last line `.temper-way-ask` under a `--gf-line` rule,
   14 px in `--gf-ink-2`, its mark `.temper-way-ask-mark` in ink. Where
   skein draws the menu otherwise than the request's page (its button
@@ -453,6 +487,32 @@
   keeps the request's declarations. The rules for "Keep it" and "Use
   this" in the foot of Ask temper's page go: the foot holds "How does
   temper work?" alone, at the same height in every state.
+  Both pages take `ways-shown`'s rules (2026-11-19), under the
+  `/* ways-shown */` comment after `ways-current`'s, each selector
+  naming both `#app > .temper-session` and `#app > .temper-settings`
+  but where one page alone is said. The drop-down's button keeps its
+  look, its words in ink. In its menu the way the project runs says
+  "current" in the item's description, `[role=menuitem] >
+  [id^="skein-ui-description-"]`, at the row's right
+  (`margin-left: auto`), `--gf-faint`, 12.5 px; a ticked row holding it
+  takes its "✓" 10 px after it. The acts leave the line's row: on Ask
+  temper's page, the starter holding the ways is their frame
+  (`.temper-starter:has(> .temper-ways)`, `position: relative`), its
+  lede `.temper-ways-lede` leaves them `padding-right: 260px`, and
+  `.temper-starter > .temper-ways .temper-way-acts` sits at the lede's
+  right, `position: absolute; top: -3px; right: 0; margin: 0`. On How
+  work runs, the path's section holding the head is their frame
+  (`.temper-settings-section:has(> .temper-way-head)`), its head
+  `.temper-settings-section-head` leaves them `padding-right: 260px`,
+  and `.temper-settings-section > .temper-way-head > .temper-way-acts`
+  sits at that row's right, `position: absolute; top: -6px; right: 0;
+  margin: 0`, clear of the row's rule. At 760 px and under, each lede or
+  section head takes `padding-right: 0` and the acts `position:
+  static`, so the head wraps as before. Where skein draws the menu
+  otherwise than the request's page (the "current" a description's
+  `<span>` with an id where the page has a class, `.temper-way-current`;
+  a row's name its own text where the page wraps it in a `<span>`), the
+  selector names what is drawn and keeps the request's declarations.
   Ask temper's lede reads "How a change is produced and lands in
   PROJECT.". "How does temper work?" has no style token of its own,
   taking `.temper-ways-acts > button`'s outlined look. Its hint names the
@@ -647,7 +707,20 @@
     layout (`#app:has(> .temper-session)`), where the rail draws no box of its
     own (`display: contents`) and none of its other parts, fixed at the right
     of the chat's bar and centred on its height, the bar's right padding
-    growing by the switch's width and an 8 px gap.
+    growing by the switch's width and an 8 px gap. On the top bar
+    (*Outside a project*, below; the look request `night-switch-top`),
+    `#app > .temper-top > .temper-night-switch`, the bar's last child in its
+    row: `flex: none`, the same 30 px square, icon, colours and hover, its
+    right margin −6 px, at the bar's right edge; the bar stays one row. At 760 px and under it stays in the row, its press
+    target widened to 44 px by a centred `::after`, as the rail's. In every
+    state the mark stays at the bar's left and the switch at its right edge,
+    whatever comes between: the welcome's steps, or before they show the
+    mark alone; outside the welcome the end, packed beside the switch rather
+    than centred by the bar's `space-between`, and the mark alone while `me`
+    is read or the link is signed out or out of date. The request's pages
+    show the welcome's steps alone, so a rule of the landing's own holds the
+    other states, leaving the welcome with its steps drawn as the pages draw
+    it.
   - *What stays:* a chat's terminal keeps its own theme, dark or light, at
     night (`look.md`, *A chat's terminal*); the placeholder's first paint is the
     day's, since it draws before the shell reads the kept look. The rest of the
@@ -686,7 +759,8 @@
   - *The top bar,* `temper-top`, the frame's banner: temper's mark at
     the left, `temper-brand`, "✦" in the signal before "temper", 15 px
     semibold; at the right, `temper-top-end`, the muted 14 px statuses
-    and the person's name, and "Sign out" an outlined 32 px button.
+    and the person's name, and "Sign out" an outlined 32 px button; last,
+    after it, the night switch (*Day and night*, *The switch*).
     22 px by 32 px padding, 14 px by 16 px at 760 px and under, no rule
     under it. While it shows, the page's body takes the paper, the ink
     and IBM Plex Sans at 15 px.

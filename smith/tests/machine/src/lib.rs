@@ -396,6 +396,13 @@ struct Adapter {
 
 impl skein_world::Machine for Adapter {
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<Answer>) {
+        if let Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(Answer {
+                ticket: call.ticket,
+                result: Err(skein_io::kernel::Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if let Ask::Spawn { program, env, .. } = &call.ask {
             self.spawns.borrow_mut().push(Spawned { program: program.clone(), environment: env.clone() });
         }
@@ -415,7 +422,7 @@ impl skein_world::Machine for Adapter {
                 };
                 answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(fixture)) });
             }
-            Ask::Spawn { program, .. } if program.as_ref() == b"/usr/bin/rg" => {
+            Ask::Spawn { program, .. } if program.as_ref() == b"/fixture/bin/rg" => {
                 answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(Program::Exit(1))) });
             }
             Ask::Spawn { program, .. } if program.as_ref() == b"check-ok" => {
@@ -499,6 +506,7 @@ impl Application {
         let mut component = Component::new(
             &limits,
             smith_protocol_machine::Environment::encode(variables, &limits).expect("configured environment fits"),
+            Box::from(b"/fixture/bin/rg".as_slice()),
         );
         component.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
@@ -722,6 +730,7 @@ impl Application {
                         io::Request::Spawn {
                             owner,
                             spawn: io::kernel::Spawn {
+                                reach: None,
                                 program: spawn.program,
                                 args: spawn.args,
                                 env: spawn.env,
@@ -887,7 +896,8 @@ impl Host for Application {
                         FromDomain::Check {
                             owner,
                             program: run::Place { root: self.root, path: Box::from(b"check-hang".as_slice()) },
-                            deadline: self.machine_env.now.saturating_add(Duration::from_secs(1)),
+                            bound: Duration::from_secs(1),
+                            cap: self.machine_env.now.saturating_add(Duration::from_secs(1)),
                             tail: 8,
                         },
                         &mut self.to_domain,

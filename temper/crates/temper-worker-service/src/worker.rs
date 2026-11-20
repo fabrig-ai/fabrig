@@ -51,6 +51,8 @@ pub struct Worker {
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
     link: link::Component,
+    figures: Option<jig_protocol_worker_wire::Figures>,
+    last_figures: Option<jig_protocol_worker_wire::Figures>,
     grace: skein_lib::Duration,
     link_out: Queue<link::Request>,
     out: Queue<root::Request>,
@@ -147,9 +149,10 @@ impl Worker {
             return Err(problem(b"root", What::Bound));
         }
         let config = &settings.jig;
+        let config_limits = config.limits.as_ref().expect("checked worker limits");
         let secret = files.contents(&config.secret).ok_or(problem(b"secret", What::Unreadable))?;
         let bytes = secret.strip_suffix(b"\n").unwrap_or(secret);
-        if bytes.len() > usize::try_from(config.limits.link.secret).expect("secret bound") {
+        if bytes.len() > usize::try_from(config_limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
         let mut credential = worker_settings::credential(settings, secret, &prepared.payload)
@@ -170,7 +173,7 @@ impl Worker {
             grace: prepared.link.grace,
             git,
             jobs: jobs::Jobs::new(slots),
-            sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
+            sources: crate::program_sources::Component::new(config_limits.hub.detail_bytes),
             root: worker_root(&prepared.root),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: prepared.root },
             agent: Agent {
@@ -184,6 +187,8 @@ impl Worker {
             },
             source_files: crate::program_sources::FileStage::new(crate::tokens::worker(0).expect("worker prefix")),
             link,
+            figures: None,
+            last_figures: None,
             link_out: Queue::uncapped(),
             out: Queue::uncapped(),
             events: Queue::uncapped(),
@@ -201,8 +206,8 @@ impl Worker {
             entities: Map::with_capacity(slots.checked_mul(4).expect("process entities")),
             retired: List::with_capacity(slots),
             values: Table::new(
-                config.limits.core.accounts.accounts.checked_add(1).expect("account slots"),
-                worker_settings::credential_bytes(config.limits.token),
+                config_limits.core.accounts.accounts.checked_add(1).expect("account slots"),
+                worker_settings::credential_bytes(config_limits.token),
             ),
             identities: IdentityTable::new(limits.peer.forges),
             undecodable_values: 0,
@@ -237,6 +242,9 @@ impl Worker {
             stopping: false,
             aborted: None,
         })
+    }
+    pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
+        self.figures = Some(figures);
     }
     pub fn reuse_workspaces(&mut self) {
         self.root.reuse_workspaces();
@@ -533,6 +541,15 @@ impl Worker {
             }
             link::Request::Untranslated { kind, halt } => {
                 self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
+            }
+            link::Request::Figures { figures } => {
+                if let Some(built) = &self.figures {
+                    let previous = self.last_figures.as_ref().unwrap_or(built);
+                    if figures != *previous && figures != *built {
+                        self.notes.push(crate::worker_alone::Note::FiguresChanged);
+                    }
+                    self.last_figures = Some(figures);
+                }
             }
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
@@ -843,8 +860,51 @@ impl Worker {
             detail,
         });
     }
+    fn note_agent_stopped(&mut self, run: Token, attempt: Token, failure: hub::AgentFailure) {
+        let no_progress_ms = match failure {
+            hub::AgentFailure::NoProgress => Some(self.agent.host_limits.no_progress.as_millis()),
+            hub::AgentFailure::WallTime
+            | hub::AgentFailure::Rules
+            | hub::AgentFailure::Exited
+            | hub::AgentFailure::Unstarted => None,
+        };
+        self.notes.push(crate::worker_alone::Note::AgentStopped {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure,
+            no_progress_ms,
+        });
+    }
+    #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+    fn note_git(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
+        repository: Box<[u8]>,
+        what: root::Git,
+    ) {
+        let job = match job {
+            Some((kind, verb)) => Some((kind.0, verb)),
+            None => None,
+        };
+        self.notes.push(crate::worker_alone::Note::Git {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            job,
+            repository,
+            what,
+        });
+    }
+    #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Git { run, attempt, job, repository, what } => {
+                self.note_git(run, attempt, job, repository, what);
+            }
+            root::Request::AgentStopped { run, attempt, failure } => {
+                self.note_agent_stopped(run, attempt, failure);
+            }
             root::Request::Unprepared { run, attempt, failure, detail } => {
                 self.note_unprepared(run, attempt, failure, &detail);
             }
@@ -1279,17 +1339,13 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    smith_channel::CredentialValue::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CredentialValueParts {
-            scheme: match scheme {
-                Scheme::Bearer => smith_channel::Scheme::Bearer,
-                Scheme::Key => smith_channel::Scheme::Key,
-            },
-            bytes: value.token.clone(),
+    Some(smith_channel::CredentialValue {
+        scheme: match scheme {
+            Scheme::Bearer => smith_channel::Scheme::Bearer,
+            Scheme::Key => smith_channel::Scheme::Key,
         },
-    )
-    .ok()
+        bytes: value.token.clone(),
+    })
 }
 pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;
@@ -1387,6 +1443,7 @@ fn worker_root(limits: &root::Limits) -> root::Domain {
 mod prepared_tests {
     use crate::tests::fixtures;
     use jig_protocol_worker_link::{Event, Request};
+    use jig_protocol_worker_wire::Record;
     use skein_channel::{Lower, LowerEvent};
     use skein_lib::{List, Queue, Time, Token, stream};
 
@@ -1541,10 +1598,10 @@ mod prepared_tests {
                     else {
                         panic!("open control")
                     };
-                    assert_eq!((lowest, highest), (12, 12));
+                    assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v15::CEILINGS,
+                            &jig_protocol_worker_wire::v18::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),
@@ -1559,21 +1616,21 @@ mod prepared_tests {
             }
         }
         let opening = opening.expect("the worker sent an opening");
-        assert_eq!(opening.wires().len(), 5);
+        assert_eq!(opening.wires.len(), 5);
         let mut charter = None;
-        for wire in opening.wires() {
-            if wire.name() == b"smith-charter" {
+        for wire in &opening.wires {
+            if wire.name.as_ref() == b"smith-charter" {
                 charter = Some(wire);
                 break;
             }
         }
         let charter = charter.expect("charter stated");
-        assert_eq!(charter.lowest(), 5, "the chosen version overrides the floor");
-        for (stated, wire) in opening.wires().iter().zip(expected_jig.iter().chain(expected_application.iter())) {
-            assert_eq!(stated.name(), wire.name.as_bytes());
-            assert_eq!(stated.lowest(), wire.lowest);
-            assert_eq!(stated.layouts().as_slice(), wire.layouts.as_slice());
-            assert_eq!(stated.layouts().len(), 1, "one version of every wire");
+        assert_eq!(charter.lowest, 5, "the chosen version overrides the floor");
+        for (stated, wire) in opening.wires.iter().zip(expected_jig.iter().chain(expected_application.iter())) {
+            assert_eq!(stated.name.as_ref(), wire.name.as_bytes());
+            assert_eq!(stated.lowest, wire.lowest);
+            assert_eq!(stated.layouts.as_slice(), wire.layouts.as_slice());
+            assert_eq!(stated.layouts.len(), 1, "one version of every wire");
         }
     }
 

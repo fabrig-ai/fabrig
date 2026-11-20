@@ -1,5 +1,5 @@
 //! Encode and frame typed channel bodies (smith/docs/design/protocol/channel.md, sections 3–4).
-use crate::{kind, v10};
+use crate::{Record, kind, v11};
 use skein_channel::{Frame, FrameError, frame_writer};
 use skein_lib::Writer;
 
@@ -7,101 +7,109 @@ use skein_lib::Writer;
 #[derive(Debug)]
 pub enum Body {
     /// The `Start` wire body.
-    Start(v10::Start),
+    Start(v11::Start),
     /// The `Message` wire body.
-    Message(v10::Message),
+    Message(v11::Message),
     /// The `HostAnswer` wire body.
-    HostAnswer(v10::HostAnswer),
+    HostAnswer(v11::HostAnswer),
     /// The `Acknowledge` wire body.
-    Acknowledge(v10::Acknowledge),
+    Acknowledge(v11::Acknowledge),
     /// The `GrantRefresh` wire body.
-    GrantRefresh(v10::GrantRefresh),
+    GrantRefresh(v11::GrantRefresh),
     /// The `Cancel` wire body.
-    Cancel(v10::Cancel),
+    Cancel(v11::Cancel),
     /// The `Drain` wire body.
-    Drain(v10::Drain),
+    Drain(v11::Drain),
     /// The `Renewals` wire body.
-    Renewals(v10::Renewals),
+    Renewals(v11::Renewals),
     /// The `Admitted` wire body.
-    Admitted(v10::Admitted),
+    Admitted(v11::Admitted),
     /// The `Call` wire body.
-    Call(v10::Call),
+    Call(v11::Call),
     /// The `Withdraw` wire body.
-    Withdraw(v10::Withdraw),
+    Withdraw(v11::Withdraw),
     /// The `Turn` wire body.
-    Turn(v10::Turn),
+    Turn(v11::Turn),
     /// The `Waiting` wire body.
-    Waiting(v10::Waiting),
+    Waiting(v11::Waiting),
     /// The `Long` wire body.
-    Long(v10::Long),
+    Long(v11::Long),
     /// The `LongDone` wire body.
-    LongDone(v10::LongDone),
+    LongDone(v11::LongDone),
     /// The `Unauthorized` wire body.
-    Unauthorized(v10::Unauthorized),
+    Unauthorized(v11::Unauthorized),
     /// The `Limited` wire body.
-    Limited(v10::Limited),
+    Limited(v11::Limited),
     /// The `Fact` wire body.
-    Fact(v10::Fact),
+    Fact(v11::Fact),
     /// The `Answer` wire body.
-    Answer(v10::Answer),
+    Answer(v11::Answer),
     /// The `MessageRefused` wire body.
-    MessageRefused(v10::MessageRefused),
+    MessageRefused(v11::MessageRefused),
     /// The `Live` wire body.
-    Live(v10::Live),
+    Live(v11::Live),
     /// The `AccountRefused` wire body.
-    AccountRefused(v10::AccountRefused),
+    AccountRefused(v11::AccountRefused),
 }
 
 /// Encode a body with its matching kind and exactly measured frame length.
 pub fn frame(body: Body) -> Result<Frame, FrameError> {
     let (kind, length) = match &body {
-        Body::Start(record) => (kind::START, record.measure()),
-        Body::Message(record) => (kind::MESSAGE, record.measure()),
-        Body::HostAnswer(record) => (kind::HOST_ANSWER, record.measure()),
-        Body::Acknowledge(record) => (kind::ACKNOWLEDGE, record.measure()),
-        Body::GrantRefresh(record) => (kind::GRANT_REFRESH, record.measure()),
-        Body::Cancel(record) => (kind::CANCEL, record.measure()),
-        Body::Drain(record) => (kind::DRAIN, record.measure()),
-        Body::Renewals(record) => (kind::RENEWALS, record.measure()),
-        Body::Admitted(record) => (kind::ADMITTED, record.measure()),
-        Body::Call(record) => (kind::CALL, record.measure()),
-        Body::Withdraw(record) => (kind::WITHDRAW, record.measure()),
-        Body::Turn(record) => (kind::TURN, record.measure()),
-        Body::Waiting(record) => (kind::WAITING, record.measure()),
-        Body::Long(record) => (kind::LONG, record.measure()),
-        Body::LongDone(record) => (kind::LONG_DONE, record.measure()),
-        Body::Unauthorized(record) => (kind::UNAUTHORIZED, record.measure()),
-        Body::Limited(record) => (kind::LIMITED, record.measure()),
-        Body::Fact(record) => (kind::FACT, record.measure()),
-        Body::Answer(record) => (kind::ANSWER, record.measure()),
-        Body::MessageRefused(record) => (kind::MESSAGE_REFUSED, record.measure()),
-        Body::Live(record) => (kind::LIVE, record.measure()),
-        Body::AccountRefused(record) => (kind::ACCOUNT_REFUSED, record.measure()),
+        Body::Start(record) => (kind::START, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Message(record) => (kind::MESSAGE, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::HostAnswer(record) => (kind::HOST_ANSWER, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Acknowledge(record) => (kind::ACKNOWLEDGE, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::GrantRefresh(record) => {
+            (kind::GRANT_REFRESH, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?)
+        }
+        Body::Cancel(record) => (kind::CANCEL, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Drain(record) => (kind::DRAIN, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Renewals(record) => (kind::RENEWALS, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Admitted(record) => (kind::ADMITTED, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Call(record) => (kind::CALL, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Withdraw(record) => (kind::WITHDRAW, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Turn(record) => (kind::TURN, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Waiting(record) => (kind::WAITING, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Long(record) => (kind::LONG, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::LongDone(record) => (kind::LONG_DONE, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Unauthorized(record) => {
+            (kind::UNAUTHORIZED, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?)
+        }
+        Body::Limited(record) => (kind::LIMITED, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Fact(record) => (kind::FACT, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Answer(record) => (kind::ANSWER, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::MessageRefused(record) => {
+            (kind::MESSAGE_REFUSED, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?)
+        }
+        Body::Live(record) => (kind::LIVE, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::AccountRefused(record) => {
+            (kind::ACCOUNT_REFUSED, record.measure(&v11::CEILINGS).or(Err(FrameError::TooLarge))?)
+        }
     };
     let mut writer = Writer::new(usize::try_from(length).or(Err(FrameError::TooLarge))?);
     let encoded = match body {
-        Body::Start(record) => record.encode(&mut writer),
-        Body::Message(record) => record.encode(&mut writer),
-        Body::HostAnswer(record) => record.encode(&mut writer),
-        Body::Acknowledge(record) => record.encode(&mut writer),
-        Body::GrantRefresh(record) => record.encode(&mut writer),
-        Body::Cancel(record) => record.encode(&mut writer),
-        Body::Drain(record) => record.encode(&mut writer),
-        Body::Renewals(record) => record.encode(&mut writer),
-        Body::Admitted(record) => record.encode(&mut writer),
-        Body::Call(record) => record.encode(&mut writer),
-        Body::Withdraw(record) => record.encode(&mut writer),
-        Body::Turn(record) => record.encode(&mut writer),
-        Body::Waiting(record) => record.encode(&mut writer),
-        Body::Long(record) => record.encode(&mut writer),
-        Body::LongDone(record) => record.encode(&mut writer),
-        Body::Unauthorized(record) => record.encode(&mut writer),
-        Body::Limited(record) => record.encode(&mut writer),
-        Body::Fact(record) => record.encode(&mut writer),
-        Body::Answer(record) => record.encode(&mut writer),
-        Body::MessageRefused(record) => record.encode(&mut writer),
-        Body::Live(record) => record.encode(&mut writer),
-        Body::AccountRefused(record) => record.encode(&mut writer),
+        Body::Start(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Message(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::HostAnswer(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Acknowledge(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::GrantRefresh(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Cancel(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Drain(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Renewals(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Admitted(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Call(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Withdraw(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Turn(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Waiting(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Long(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::LongDone(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Unauthorized(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Limited(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Fact(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Answer(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::MessageRefused(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::Live(record) => record.write(&v11::CEILINGS, &mut writer),
+        Body::AccountRefused(record) => record.write(&v11::CEILINGS, &mut writer),
     };
     encoded.or(Err(FrameError::Incomplete))?;
     let mut frame = frame_writer(kind, length)?;

@@ -58,7 +58,7 @@ fn area(name: &[u8], owner: s::AreaOwner) -> s::Area {
 fn world(person: bool, has_area: bool) -> (World, engine::Assignment, u64) {
     world_with_bound(person, has_area, 7_200_000)
 }
-fn configured(verification_bound_ms: u64) -> World {
+fn configured(verification_bound_ms: u64, wait: temper_engine_domain_forge_change::Wait) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -67,6 +67,40 @@ fn configured(verification_bound_ms: u64) -> World {
         Gate::default(),
         None,
         StoryLimits {
+            second_project: true,
+            forge_pages: Some(b"https://forge.example"),
+            project_landing: Some((
+                PROJECT,
+                temper_landing_fixtures::ProjectLanding {
+                    gate_retries: 2,
+                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                    batch: 1,
+                    combine_main: engine::Combine::Merge,
+                    combine_other: engine::Combine::Squash,
+                    check_timeout: None,
+                    close_job: None,
+                    merge_job: None,
+                    by: temper_landing_fixtures::Way::Queue,
+                    repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
+                        repository: TARGET,
+                        gates: Box::new([]),
+                        tiers: Box::new([temper_landing_fixtures::TierCheck {
+                            name: b"fuzz".as_slice().into(),
+                            workflow: b"fuzz.yml".as_slice().into(),
+                            artifact: b"results".as_slice().into(),
+                            format: temper_engine_domain_forge_tiers::Format::Lines,
+                            follows: forge_top::Follows::Landing,
+                            ignored: Box::new([]),
+                            span_ms: 0,
+                            description: Box::new([]),
+                        }]),
+                    }]),
+                    tier_retries: 2,
+                    verification_bound_ms,
+                    wait,
+                    landing_attempts: engine::LANDING_ATTEMPTS,
+                },
+            )),
             kinds: true,
             // A role's follow inherits its owner's grant to dispatch the follow check.
             workflow_dispatch: true,
@@ -74,6 +108,7 @@ fn configured(verification_bound_ms: u64) -> World {
             person_executor: true,
             spec_bytes: Some(4096),
             applications: Some(24),
+            message_bytes: Some(1024),
             inbox_messages: Some(16),
             inbox_bytes: Some(4096),
             tasks_batch: Some(8),
@@ -84,54 +119,21 @@ fn configured(verification_bound_ms: u64) -> World {
             stall: Some(Duration::from_secs(3600)),
             ..StoryLimits::default()
         },
-    )
-    .with_forge_pages(b"https://forge.example")
-    .with_second_project()
-    .with_project_landing(
-        PROJECT,
-        engine::ProjectLanding {
-            gate_retries: 2,
-            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-            batch: 1,
-            combine_main: engine::Combine::Merge,
-            combine_other: engine::Combine::Squash,
-            check_timeout: None,
-            close_job: None,
-            merge_job: None,
-            by: engine::Way::Queue,
-            repositories: Box::new([engine::RepositoryChecks {
-                repository: TARGET,
-                gates: Box::new([]),
-                tiers: Box::new([engine::TierCheck {
-                    name: b"fuzz".as_slice().into(),
-                    workflow: b"fuzz.yml".as_slice().into(),
-                    artifact: b"results".as_slice().into(),
-                    format: temper_engine_domain_forge_tiers::Format::Lines,
-                    follows: forge_top::Follows::Landing,
-                    ignored: Box::new([]),
-                    span_ms: 0,
-                    description: Box::new([]),
-                }]),
-            }]),
-            after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms },
-            landing_attempts: engine::LANDING_ATTEMPTS,
-        },
     );
-    // Keep the automatic red's full header and test id within the existing message bound.
-    world.env.limits.tasks.message_bytes = 1024;
-    let mut limits = temper_engine_domain_world::store::widest();
-    limits.tasks = world.env.limits.tasks;
-    limits.authority = world.env.limits.authority;
-    let mut store = temper_engine_domain_world::store::Store::with_limits(&limits);
-    store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
-    world.store = store;
-    let client = world.env.limits.forge.client;
-    world = world.with_forge_client(client);
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world
 }
 fn world_with_bound(person: bool, has_area: bool, verification_bound_ms: u64) -> (World, engine::Assignment, u64) {
-    let mut world = configured(verification_bound_ms);
+    world_with_wait(person, has_area, verification_bound_ms, temper_engine_domain_forge_change::Wait::Cleared)
+}
+
+fn world_with_wait(
+    person: bool,
+    has_area: bool,
+    verification_bound_ms: u64,
+    wait: temper_engine_domain_forge_change::Wait,
+) -> (World, engine::Assignment, u64) {
+    let mut world = configured(verification_bound_ms, wait);
     world.sign_in();
     world.send(engine::Event::Party(engine::PartyInput::Period {
         project: PROJECT,
@@ -263,7 +265,7 @@ fn land(world: &mut World) -> (u64, Commit) {
     );
     world.send(event);
     until(world, "port landed", |world| {
-        matches!(questions::row(world, change).change.state, temper_engine_domain_forge_change::State::Landed { .. })
+        matches!(tier_runs::change_state(world, change), temper_engine_domain_forge_change::State::Landed { .. })
     });
     assert_eq!(questions::row(world, change).goal, None);
     assert_eq!(questions::row(world, change).follows.as_ref().expect("landed follow member").follow, 1);
@@ -278,21 +280,47 @@ fn judged(world: &mut World, commit: Commit, area: Option<&[u8]>, holder: Holder
     assert_eq!(finding.area.as_deref(), area);
     assert_eq!(finding.kind, forge_top::FindingKind::Red);
     assert_eq!(finding.severity, forge_top::Severity::High);
-    assert_eq!(finding.title.as_ref(), b"Red after landing on main: tier fuzz");
     assert_eq!(engine::finding_holder(&world.root, PROJECT, finding.area.as_deref()), holder);
     let body = String::from_utf8_lossy(&finding.body);
-    assert!(
-        body.starts_with(&format!(
-            "Red after landing: tier fuzz run 2 blames landing {} on main: 1 failing.\nsuite.alpha\n",
-            String::from_utf8_lossy(&forge_top::commit_text(&commit))
-        )),
-        "{body}"
-    );
-    assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
-    for _ in 0..LANDING_TICKS {
-        world.tick();
+    if let Some(blame) = &finding.blame {
+        let short = &forge_top::commit_text(&commit)[..12];
+        assert_eq!(
+            finding.title.as_ref(),
+            format!("1 test fails in fuzz since {} landed", String::from_utf8_lossy(short)).as_bytes()
+        );
+        assert_eq!(blame.strength, forge_top::BlameStrength::Owned);
+        assert_eq!(blame.landings[0].commit, commit);
+        assert!(
+            body.starts_with(&format!("fuzz run 2 on main: landing {}.", String::from_utf8_lossy(short))),
+            "{body}"
+        );
+    } else {
+        assert_eq!(finding.title.as_ref(), b"Red after landing on main: tier fuzz");
+        assert!(
+            body.starts_with(&format!(
+                "Red after landing: tier fuzz run 2 blames landing {} on main: 1 failing.\nsuite.alpha\n",
+                String::from_utf8_lossy(&forge_top::commit_text(&commit))
+            )),
+            "{body}"
+        );
     }
+    assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
+    world.advance_ticks(LANDING_TICKS);
     assert_eq!(findings(world).len(), 1, "once per landing");
+}
+
+#[test]
+fn a_follow_ended_at_landing_files_its_later_red_in_its_owners_area_from_the_log() {
+    let (mut world, role, triager) =
+        world_with_wait(false, true, 7_200_000, temper_engine_domain_forge_change::Wait::Landed);
+    let (change, commit) = land(&mut world);
+    until(&mut world, "follow ended at landing", |world| matches!(task(world, change).phase, tasks::Phase::Ended(_)));
+    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Verification { repository: TARGET, commit })));
+    judged(&mut world, commit, Some(b"port"), Holder::Task(role.task));
+    assert!(findings(&world)[0].blame.is_some(), "landed files the blamed verdict");
+    assert_eq!(news(&world, role.task).len(), 1);
+    assert_eq!(news(&world, triager).len(), 0);
+    world.close();
 }
 
 #[test]

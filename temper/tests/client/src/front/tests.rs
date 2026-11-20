@@ -35,8 +35,8 @@ fn settle_root(
     let mut env = Env { now: front.now, wall: WALL, limits: *limits };
     let mut out = Queue::uncapped();
     Temper::step(root, &env, Temper::start(fixtures::project(), kept, 0), &mut out);
-    assert_eq!(flush(front, root, &env, &mut out), 1, "startup shares the own Me with the UI");
-    for _ in 0..8 {
+    assert_eq!(flush(front, root, &env, &mut out), 0, "startup opens no watch on me");
+    for _ in 0..limits.client.domain.watches.saturating_add(2) {
         let callbacks = front.poll(env.now, env.wall);
         if callbacks.is_empty() {
             return;
@@ -284,7 +284,7 @@ fn a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it() 
         let panel = world.root(client).person().forge().panel().expect("task page panel");
         assert_eq!(panel.handle, Some(handle));
         if let State::Shown(record) = &panel.state {
-            assert_eq!(record.task(), task);
+            assert_eq!(record.task, task);
             assert!(world.front().watching_change(client, task));
             return;
         }

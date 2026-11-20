@@ -13,6 +13,7 @@ pub(crate) const OWNER: Token = Token::new(0x004a_4947);
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Survey {
     Top,
+    Checkpoints,
     Generations,
     First,
     Map(Map),
@@ -25,6 +26,7 @@ pub(crate) enum Making {
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum SweepKind {
+    Restore,
     Generations,
     Temporaries { first: bool },
 }
@@ -42,6 +44,7 @@ pub(crate) enum Opening {
     Idle,
     Locking,
     Reading,
+    Resolving(crate::restoring::roll::Rolling),
     SurveyOpen(Survey),
     SurveyPage { kind: Survey, root: Root },
     SurveyClose(Survey),
@@ -64,7 +67,9 @@ pub(crate) enum Opening {
     SweepFile(Sweep),
     SweepRemoving { sweep: Sweep, removing: Removing },
     SweepSync { root: Root },
+    RestoreSweepSync { root: Root },
     SweepClose(Closing),
+    CheckpointSweep(crate::checkpoints::sweep::Sweep),
     TranscriptsMade,
     TranscriptsOpen,
     Patching(Box<Patching>),
@@ -86,6 +91,7 @@ pub(crate) struct Directory {
     /// The open's verdict survives the copy and its reopen (protocol/store/opening.md, 3).
     pub checked: Option<Result<(), crate::Owner>>,
     pub disk: bool,
+    pub purpose: crate::Purpose,
     pub patch: Option<Box<crate::upgrade::admission::Levels>>,
     pub active: Option<Active>,
     pub transcripts: Option<Root>,
@@ -106,6 +112,7 @@ impl Directory {
         Directory {
             checked: None,
             disk: false,
+            purpose: crate::Purpose::Serve,
             patch: None,
             active: None,
             transcripts: None,
@@ -132,11 +139,13 @@ pub(crate) fn open(
     owner: Token,
     root: Root,
     installation: [u8; 16],
+    purpose: crate::Purpose,
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
     if store.phase == Phase::Closed {
         store.installation = installation;
+        store.directory.purpose = purpose;
     }
     if !store.directory.disk {
         reset_checked(store);
@@ -150,8 +159,25 @@ pub(crate) fn open(
     }
     reset_checked(store);
     store.directory.root = Some(root);
+    if purpose == crate::Purpose::Checkpoint {
+        store.checkpoint_open = Some(crate::checkpoint_open::State::new(root));
+    }
     store.directory.opening = Opening::Locking;
     below.store.push(file::Request::Lock { owner: OWNER, root: root.token });
+}
+pub(crate) fn open_locked(store: &mut Store, owner: Token, root: Root, below: &mut Below) {
+    store.directory.owner = owner;
+    store.directory.purpose = crate::Purpose::Checkpoint;
+    store.directory.root = Some(root);
+    let mut checkpoint = crate::checkpoint_open::State::new(root);
+    checkpoint.keep_root();
+    store.checkpoint_open = Some(checkpoint);
+    reset_checked(store);
+    resolve(store, below);
+}
+fn resolve(store: &mut Store, below: &mut Below) {
+    store.directory.opening =
+        Opening::Resolving(crate::restoring::roll::Rolling::begin(deployment(store), OWNER, &mut below.store));
 }
 fn reset_checked(store: &mut Store) {
     store.directory.checked = None;
@@ -217,6 +243,7 @@ fn close(root: Root, queue: &mut Queue<file::Request>) {
 fn survey(store: &mut Store, kind: Survey, below: &mut Below) {
     let name = match kind {
         Survey::Top => Box::from(b".".as_slice()),
+        Survey::Checkpoints => Box::from(crate::checkpoints::DIRECTORY),
         Survey::Generations => Box::from(generations::GENERATIONS),
         Survey::First => generations::generation(generations::FIRST),
         Survey::Map(map) => generations::map(generations::FIRST, map),
@@ -250,7 +277,8 @@ fn leftover(store: &mut Store, below: &mut Below) {
 }
 fn surveyed(store: &mut Store, kind: Survey, above: &mut Queue<Event>, below: &mut Below) {
     match kind {
-        Survey::Top => match store.directory.generations_kind {
+        Survey::Top => survey(store, Survey::Checkpoints, below),
+        Survey::Checkpoints => match store.directory.generations_kind {
             Some(Kind::Directory) => survey(store, Survey::Generations, below),
             Some(Kind::File | Kind::Symlink | Kind::Other) => generation_refusal(store, Generations::Unnamed, above),
             None => leftover(store, below),
@@ -298,6 +326,9 @@ fn survey_page(store: &mut Store, kind: Survey, root: Root, entries: Box<[file::
                 if entry.name.as_ref() == generations::GENERATIONS {
                     store.directory.generations_kind = Some(entry.kind);
                 }
+            }
+            Survey::Checkpoints => {
+                return refusing(store, root, OpenRefusal::Generations { why: Generations::Checkpoints }, below);
             }
             Survey::Generations => {
                 if entry.name.as_ref() != b"1" || entry.kind != Kind::Directory {
@@ -359,6 +390,10 @@ pub(crate) fn checked(store: &mut Store, above: &mut Queue<Event>, below: &mut B
         crate::transcripts::cut::begin(store, above, below);
         return;
     }
+    if store.directory.purpose == crate::Purpose::Checkpoint {
+        sweep_open(store, SweepKind::Restore, false, below);
+        return;
+    }
     if store.rehearsal.is_some() {
         if store.directory.transcripts.is_some() {
             crate::transcripts::cut::begin(store, above, below);
@@ -378,7 +413,7 @@ pub(crate) fn checked(store: &mut Store, above: &mut Queue<Event>, below: &mut B
 fn sweep_open(store: &mut Store, kind: SweepKind, dirty: bool, below: &mut Below) {
     let name = match kind {
         SweepKind::Generations => generations::GENERATIONS,
-        SweepKind::Temporaries { .. } => b".",
+        SweepKind::Temporaries { .. } | SweepKind::Restore => b".",
     };
     store.directory.opening = Opening::SweepOpen { kind, dirty };
     open_directory(deployment(store), Box::from(name), &mut below.transcripts);
@@ -395,7 +430,14 @@ fn sweep_next(store: &mut Store, mut sweep: Sweep, below: &mut Below) {
                 let number = generations::number(&entry.name);
                 number != Some(active(store)) && !(active(store) > 1 && number == active(store).checked_sub(1))
             }
-            SweepKind::Temporaries { .. } => generations::is_temporary(&entry.name),
+            SweepKind::Temporaries { .. } => {
+                generations::is_temporary(&entry.name) && !entry.name.starts_with(b"restore.skein-")
+            }
+            SweepKind::Restore => {
+                entry.name.as_ref() == crate::restoring::roll::STAGED
+                    || entry.name.as_ref() == crate::restoring::roll::ASIDE
+                    || entry.name.starts_with(b"restore.skein-") && generations::is_temporary(&entry.name)
+            }
         };
         if !remove {
             continue;
@@ -429,7 +471,11 @@ fn sweep_next(store: &mut Store, mut sweep: Sweep, below: &mut Below) {
                 store.directory.swept = Some(Swept { root: sweep.root, dirty: sweep.dirty });
                 sweep_open(store, SweepKind::Temporaries { first: false }, false, below);
             }
-            SweepKind::Temporaries { .. } => {
+            SweepKind::Restore if sweep.dirty => {
+                below.transcripts.push(file::Request::SyncDirectory { owner: OWNER, root: sweep.root.fd });
+                store.directory.opening = Opening::RestoreSweepSync { root: sweep.root };
+            }
+            SweepKind::Temporaries { .. } | SweepKind::Restore => {
                 close(sweep.root, &mut below.transcripts);
                 store.directory.opening =
                     Opening::SweepClose(Closing { kind: sweep.kind, dirty: sweep.dirty, restart: false });
@@ -443,6 +489,12 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
     }
     match core::mem::replace(&mut store.directory.opening, Opening::Idle) {
         Opening::Locking => locked(store, arrived, above, below),
+        Opening::Resolving(mut rolling) => match rolling.arrived(arrived, &mut below.store) {
+            crate::restoring::roll::Progress::Pending => store.directory.opening = Opening::Resolving(rolling),
+            crate::restoring::roll::Progress::Done => read_active(store, below),
+            crate::restoring::roll::Progress::Unmatched => generation_refusal(store, Generations::Unmatched, above),
+            crate::restoring::roll::Progress::Failed => refuse(store, above),
+        },
         Opening::Reading => active_read(store, arrived, above, below),
         Opening::SurveyOpen(kind) => survey_opened(store, kind, arrived, above, below),
         Opening::SurveyPage { kind, root } => survey_listed(store, kind, root, arrived, above, below),
@@ -465,7 +517,20 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
         Opening::SweepFile(sweep) => sweep_file_removed(store, sweep, arrived, above, below),
         Opening::SweepRemoving { sweep, removing } => sweep_tree_removed(store, sweep, removing, arrived, above, below),
         Opening::SweepSync { root } => sweep_synced(store, root, arrived, above, below),
+        Opening::RestoreSweepSync { root } => {
+            let file::Event::Synced { .. } = arrived.event else { return refuse(store, above) };
+            close(root, &mut below.transcripts);
+            store.directory.opening =
+                Opening::SweepClose(Closing { kind: SweepKind::Restore, dirty: true, restart: false });
+        }
         Opening::SweepClose(closing) => sweep_closed(store, closing, arrived, above, below),
+        Opening::CheckpointSweep(mut sweep) => {
+            match crate::checkpoints::sweep::arrived(&mut sweep, arrived, &mut below.transcripts) {
+                Progress::Pending => store.directory.opening = Opening::CheckpointSweep(sweep),
+                Progress::Done => sweep_open(store, SweepKind::Restore, false, below),
+                Progress::Failed => refuse(store, above),
+            }
+        }
         Opening::TranscriptsMade => transcripts_made(store, env, arrived, above, below),
         Opening::TranscriptsOpen => transcripts_opened(store, env, arrived, above, below),
         Opening::Pending(_) => unreachable!("pending routed before taking opening"),
@@ -479,7 +544,7 @@ fn locked(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: 
     let file::Event::Locked { .. } = arrived.event else {
         return refuse(store, above);
     };
-    read_active(store, below);
+    resolve(store, below);
 }
 fn read_active(store: &mut Store, below: &mut Below) {
     let root = deployment(store);
@@ -494,6 +559,9 @@ fn read_active(store: &mut Store, below: &mut Below) {
 }
 fn active_read(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
+        if store.directory.purpose == crate::Purpose::Checkpoint {
+            return refusal(store, OpenRefusal::Unready { why: crate::Unready::Empty }, above);
+        }
         // A first start writes the manifest's counts: its sets fit them first.
         if let Err(why) = crate::upgrade::admission::checked(store) {
             return refusal(store, OpenRefusal::Set { owner: why }, above);
@@ -514,6 +582,12 @@ fn active_read(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, be
     check(store, below);
 }
 fn survey_opened(store: &mut Store, kind: Survey, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
+    if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
+        match kind {
+            Survey::Checkpoints => return surveyed(store, kind, above, below),
+            Survey::Top | Survey::Generations | Survey::First | Survey::Map(_) => {}
+        }
+    }
     let Some(root) = opened(arrived) else {
         return refuse(store, above);
     };
@@ -607,11 +681,8 @@ fn first_secrets_opened(
     let mut counts = skein_lib::List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
     for set in store.owner_sets.sets {
         for family in set.families {
-            let count = crate::codec::component::Count::new(
-                &crate::component_v3::CEILINGS,
-                crate::codec::component::CountParts { family: Box::from(family.name.as_bytes()), before: 0, after: 0 },
-            )
-            .expect("admission::bounds checked each family's name before this first start wrote");
+            let count =
+                crate::codec::component::Count { family: Box::from(family.name.as_bytes()), before: 0, after: 0 };
             counts.push(count).expect("admission::bounds checked the families' count before this first start wrote");
         }
     }
@@ -797,14 +868,17 @@ fn sweep_closed(store: &mut Store, closing: Closing, arrived: Arrived, above: &m
         return;
     }
     match kind {
+        SweepKind::Restore => {
+            if store.directory.purpose == crate::Purpose::Checkpoint {
+                store.directory.opening = Opening::TranscriptsOpen;
+                open_directory(root, Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
+            } else {
+                make_transcripts(store, below);
+            }
+        }
         SweepKind::Generations => {
-            store.directory.opening = Opening::TranscriptsMade;
-            below.transcripts.push(file::Request::MakeDirectory {
-                owner: OWNER,
-                root: root.token,
-                path: Box::from(generations::TRANSCRIPTS),
-                mode: 0o700,
-            });
+            let sweep = crate::checkpoints::sweep::begin(root, &mut below.transcripts);
+            store.directory.opening = Opening::CheckpointSweep(sweep);
         }
         SweepKind::Temporaries { first: true } => make(store, Making::Generations, below),
         SweepKind::Temporaries { first: false } => {
@@ -819,6 +893,15 @@ fn sweep_closed(store: &mut Store, closing: Closing, arrived: Arrived, above: &m
             }
         }
     }
+}
+fn make_transcripts(store: &mut Store, below: &mut Below) {
+    store.directory.opening = Opening::TranscriptsMade;
+    below.transcripts.push(file::Request::MakeDirectory {
+        owner: OWNER,
+        root: deployment(store).token,
+        path: Box::from(generations::TRANSCRIPTS),
+        mode: 0o700,
+    });
 }
 fn transcripts_made(
     store: &mut Store,
@@ -881,6 +964,10 @@ fn open_stores(store: &mut Store, env: &Env<Limits>, opened: Root, above: &mut Q
     events_up(store, true, &mut events, above, below);
 }
 pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    if let Io::Checkpoints(arrived) = io {
+        crate::checkpoints::taking::up(store, env, arrived, above, below);
+        return;
+    }
     if store.phase == Phase::Stopped {
         return;
     }
@@ -889,6 +976,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
         return;
     }
     let (arrived, secret) = match io {
+        Io::Checkpoints(_) => unreachable!("checkpoint file lane routed above"),
         Io::Store(arrived) => (arrived, false),
         Io::Secrets(arrived) => (arrived, true),
         Io::Transcripts(arrived) => {
@@ -951,6 +1039,25 @@ pub(crate) fn events_up(
             phase::event(store, secret, event, above, below);
             continue;
         }
+        if match &event {
+            skein_kv::Event::Held { owner, .. }
+            | skein_kv::Event::Released { owner }
+            | skein_kv::Event::Refused { owner, .. } => *owner == crate::checkpoints::taking::OWNER,
+            skein_kv::Event::Opened { .. }
+            | skein_kv::Event::Committed { .. }
+            | skein_kv::Event::Failed { .. }
+            | skein_kv::Event::Got { .. }
+            | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
+            | skein_kv::Event::Closed { .. }
+            | skein_kv::Event::OpenFailed { .. }
+            | skein_kv::Event::Recovered { .. }
+            | skein_kv::Event::RecoveryFailed { .. } => false,
+        } {
+            crate::checkpoints::taking::event(store, secret, event, above, below);
+            continue;
+        }
         match event {
             skein_kv::Event::Opened { .. } => {
                 store.directory.opened |= if secret { 2 } else { 1 };
@@ -1010,7 +1117,11 @@ pub(crate) fn events_up(
                     crate::view::unread(store, above);
                 }
             }
-            skein_kv::Event::Got { .. } | skein_kv::Event::Loaded { .. } | skein_kv::Event::Closed { .. } => {
+            skein_kv::Event::Got { .. }
+            | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
+            | skein_kv::Event::Closed { .. } => {
                 stopped(store);
             }
         }
@@ -1021,7 +1132,9 @@ pub(crate) fn ready(store: &Store) -> bool {
     store.phase != Phase::Stopped
         && !crate::rehearsal::preparing(store)
         && store.back.is_none()
-        && (phase::ready(store)
+        && (crate::transcripts::drop::ready(store)
+            || crate::checkpoints::taking::ready(store)
+            || phase::ready(store)
             || skein_kv::is_ready(&store.stores.store, &store.limits.store)
             || skein_kv::is_ready(&store.stores.secrets, &store.limits.secrets))
 }
@@ -1048,6 +1161,7 @@ pub(crate) fn patching(store: &Store) -> Option<&Patching> {
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -1069,8 +1183,10 @@ pub(crate) fn patching(store: &Store) -> Option<&Patching> {
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Pending(_) => None,
@@ -1083,6 +1199,7 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::upgrade::switch::Pending>
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -1104,8 +1221,10 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::upgrade::switch::Pending>
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Patching(_) => None,
@@ -1118,6 +1237,7 @@ pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::upgrade::swit
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -1139,8 +1259,10 @@ pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::upgrade::swit
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Patching(_) => None,

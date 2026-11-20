@@ -1,4 +1,4 @@
-//! Retained landing titles (temper/docs/design/domain/after-landing.md, 10).
+//! Pending landings and retained verdicts (temper/docs/design/domain/after-landing.md, 10).
 use crate::{LandingLog, LoggedChange, LoggedLanding};
 use core::mem::size_of;
 
@@ -10,10 +10,23 @@ pub(crate) fn row_bytes(row: &LandingLog) -> Option<u64> {
     for landing in &row.landings {
         held = held.checked_add(skein_lib::len_u64(landing.branch.len()))?;
         held = held.checked_add(
+            skein_lib::len_u64(landing.tiers.len()).checked_mul(u64::try_from(size_of::<crate::LoggedTier>()).ok()?)?,
+        )?;
+        for tier in &landing.tiers {
+            held = held.checked_add(skein_lib::len_u64(tier.tier.len()))?;
+        }
+        held = held.checked_add(
             skein_lib::len_u64(landing.changes.len()).checked_mul(u64::try_from(size_of::<LoggedChange>()).ok()?)?,
         )?;
         for change in &landing.changes {
             held = held.checked_add(skein_lib::len_u64(change.title.len()))?;
+            held = held.checked_add(skein_lib::len_u64(change.fixes.len()).checked_mul(4)?)?;
+            if let Some(words) = &change.goal_title {
+                held = held.checked_add(skein_lib::len_u64(words.len()))?;
+            }
+            if let Some(words) = &change.draft {
+                held = held.checked_add(skein_lib::len_u64(words.len()))?;
+            }
             held = held.checked_add(
                 skein_lib::len_u64(change.signed.len())
                     .checked_mul(u64::try_from(size_of::<crate::SignOff>()).ok()?)?,

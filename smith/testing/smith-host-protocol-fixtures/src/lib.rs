@@ -3,6 +3,7 @@
 
 #![forbid(unsafe_code)]
 
+use smith_channel::Record;
 use smith_host_protocol::Limits;
 
 /// Codec ceilings with a small transport queue and eight outstanding calls.
@@ -15,7 +16,7 @@ pub fn small() -> Limits {
         endpoints: 1,
         calls: 8,
         start_bytes: u32::try_from(
-            smith_channel::v10::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
+            smith_channel::v11::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
         )
         .expect("Start frame range"),
         channel: skein_channel::Limits {

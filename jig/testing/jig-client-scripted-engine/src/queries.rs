@@ -33,6 +33,7 @@ pub(crate) fn line<'a>(
         }
     }
     TaskLine {
+        parts: skein_lib::List::with_capacity(0),
         chip: task.chip.clone(),
         project: task.project,
         requester: task.requester,

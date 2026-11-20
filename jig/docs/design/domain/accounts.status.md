@@ -1,6 +1,7 @@
 # accounts: status
 
-2026-11-11. Where jig's code lags or departs from [accounts.md](accounts.md).
+2026-11-18. Where jig's code lags or departs from [accounts.md](accounts.md).
+
 
 - **Not yet:** 3.7: a list read on the provider's `direct` endpoint; the core reads on the first endpoint naming the provider [in flight: change 927].
 - **Not yet:** 3.4 and 4.3: the source picks the endpoint; a model whose endpoint names a program takes program sources alone, and a charter names each model's stored endpoint [in flight: change 928].

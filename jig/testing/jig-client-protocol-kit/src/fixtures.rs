@@ -3,6 +3,7 @@ use crate::Protocol;
 use jig_client_kit::{Settings, Test, World};
 use jig_protocol_engine_clients::{Limits, Served};
 use skein_lib::{Duration, List, Secret, Time, Wall};
+use smith_transcript::Record;
 pub const PROJECT: u32 = 1;
 pub const WIRE_TASK: u64 = 8;
 pub const SEED: u64 = 8510;
@@ -70,7 +71,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: 26, last: 26 },
+            Served { family: None, first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
         providers: jig_client_kit::test::list([0]),
@@ -118,7 +119,7 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     }])
 }
 // Match this world's HTTP intake and the small profile's component bound.
-pub const MESSAGE_BYTES: u32 = 65536;
+pub const MESSAGE_BYTES: u32 = 131_328;
 #[must_use]
 pub fn engine_limits() -> Limits {
     Limits {
@@ -134,8 +135,10 @@ pub fn engine_limits() -> Limits {
         provider_tokens: 64,
         exchanges: 8,
         exchanges_per_client: 4,
+        reads_per_client: 32,
+        openings_per_client: 31,
         message_bytes: MESSAGE_BYTES,
-        wire: jig_client_protocol_wire::v26::CEILINGS,
+        wire: jig_client_protocol_wire::CEILINGS,
         link_span: Duration::from_secs(300),
     }
 }
@@ -143,8 +146,9 @@ pub fn engine_limits() -> Limits {
 pub fn connections_limits() -> jig_client_shell_native::Limits {
     jig_client_shell_native::Limits {
         exchanges: 8,
-        body_bytes: 65536,
+        body_bytes: MESSAGE_BYTES,
         deadline: Duration::from_secs(1),
+        tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
         http: skein_http::client::Limits { head: 4096, headers: 16, request: 4096, read: 1024, send: 1024 },
     }
 }
@@ -164,7 +168,7 @@ pub fn sign_in_then(
 }
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Protocol> {
-    World::new(Settings { seed, ..Settings::default() }, Protocol::new(seed))
+    World::new(Settings { seed, ..Settings::default() }, Protocol::unseeded(seed))
 }
 
 #[must_use]
@@ -224,7 +228,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
 
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 16;
     limits.http = server_http();
     limits
@@ -254,7 +258,12 @@ pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
 #[must_use]
 pub fn mount() -> jig_protocol_engine_clients_http::Mount {
     let mut mount = jig_protocol_engine_clients_http::Mount::new(
-        jig_protocol_engine_clients_http::Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None },
+        jig_protocol_engine_clients_http::Settings {
+            max_age: 5,
+            prefix: Box::from(b"/jig".as_slice()),
+            page: None,
+            public: None,
+        },
         &http_limits(),
     );
     let mut hosts = skein_lib::List::with_capacity(1);
@@ -265,14 +274,23 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
 }
 #[must_use]
 pub fn server_http() -> skein_http::server::Limits {
-    skein_http::server::Limits { head: 4096, headers: 32, body: 65536, read: 1024, response: 65536, send: 1024 }
+    skein_http::server::Limits {
+        head: 4096,
+        headers: 32,
+        body: u64::from(MESSAGE_BYTES),
+        read: 1024,
+        response: 65536,
+        send: 1024,
+    }
 }
 
-pub const TURN_BYTES: &[u8] =
-    include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
+#[must_use]
+pub fn turn_bytes() -> Box<[u8]> {
+    jig_client_test_records::full_turn()
+}
 // The short call ID leaves eight bytes for the task's asks carrier,
 // within the single-row read budget.
-// One source call in addition to the golden's text block.
+// One source call in addition to the fixture's text block.
 // Blocks are numbered from one; the call follows the text.
 pub const TURN_CALL_NUMBER: u64 = 2;
 pub const TURN_CALL_ID: &[u8] = b"src";
@@ -293,9 +311,11 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The task's closer and optional session each occupy 32 bytes in the task owner.
 // The optional talk occupies another 32 bytes in the task owner.
 // The question wake watermark occupies eight bytes in the task owner.
+// Unrecorded words and their wake watermark occupy 24 inline bytes.
 // The task owner's open attempt and optional summary join occupy 64 inline bytes.
+// Its loaded row carriers include the saved main endpoint.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2809;
+pub const TURN_OVERLAP_BYTES: u64 = 2865;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
@@ -306,37 +326,29 @@ pub fn turn_overlap_limits() -> jig_test_domain::Limits {
 pub fn callable_turn() -> Box<[u8]> {
     use smith_transcript::v7 as s;
     let mut blocks = List::with_capacity(2);
+    blocks.push(s::Block::Text(s::Text { text: TURN_TEXT.into(), replay: None })).expect("source text block");
     blocks
-        .push(s::Block::Text(
-            s::Text::new(&s::CEILINGS, s::TextParts { text: TURN_TEXT.into(), replay: None }).expect("source text"),
-        ))
-        .expect("source text block");
-    blocks
-        .push(s::Block::Call(
-            s::Call::new(
-                &s::CEILINGS,
-                s::CallParts {
-                    id: TURN_CALL_ID.into(),
-                    name: TURN_TOOL.into(),
-                    input: TURN_INPUT.into(),
-                    replay: None,
-                },
-            )
-            .expect("source call"),
-        ))
+        .push(s::Block::Call(s::Call {
+            id: TURN_CALL_ID.into(),
+            name: TURN_TOOL.into(),
+            input: TURN_INPUT.into(),
+            replay: None,
+        }))
         .expect("source call block");
     turn_with_blocks(blocks)
 }
 fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
     use smith_transcript::v7 as s;
-    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, TURN_BYTES).expect("v7 fixture").into_parts();
-    let mut message = turn.messages.get(0).expect("person message").clone().into_parts();
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture");
+    let mut message = turn.messages.get(0).expect("person message").clone();
     message.blocks = blocks;
     turn.messages = List::with_capacity(1);
-    turn.messages.push(s::Message::new(&s::CEILINGS, message).expect("source message")).expect("one message");
-    let turn = s::Turn::new(&s::CEILINGS, turn).expect("source turn");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
-    turn.encode(&mut writer).expect("v7 encoding");
+    turn.messages.push(message).expect("one message");
+    let turn = turn;
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("v7 encoding");
     writer.finish()
 }
 
@@ -357,16 +369,10 @@ pub fn large_turn() -> Box<[u8]> {
     use smith_transcript::v7 as s;
     let mut blocks = List::with_capacity(1);
     blocks
-        .push(s::Block::Text(
-            s::Text::new(
-                &s::CEILINGS,
-                s::TextParts {
-                    text: vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_TEXT_BYTES)].into_boxed_slice(),
-                    replay: None,
-                },
-            )
-            .expect("large bounded text"),
-        ))
+        .push(s::Block::Text(s::Text {
+            text: vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_TEXT_BYTES)].into_boxed_slice(),
+            replay: None,
+        }))
         .expect("one block");
     turn_with_blocks(blocks)
 }
@@ -375,7 +381,7 @@ pub fn large_turn() -> Box<[u8]> {
 /// (jig/docs/design/protocol/client/public-reads.md).
 #[must_use]
 pub fn public_service_limits() -> jig_test_service::limits::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small());
     limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
     limits.clients.public = jig_protocol_engine_clients::PublicLimits {
         reads: 2,

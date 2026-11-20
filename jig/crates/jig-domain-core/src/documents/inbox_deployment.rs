@@ -1,7 +1,7 @@
 //! Party pages (`client/domain/pages.md`, sections 3 and 4;
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
-//! `client/domain/contract/documents.md` and `client/domain/contract/README.md`, 5.1). Entries are bounded cache views;
-//! needs count all live task projections across the party's projects. Reply
+//! `client/domain/contract/documents.md` and `client/domain/contract/README.md`, 5.1). Needs page over all live
+//! task projections across the party's projects; updates use a bounded cache. Reply
 //! read positions and stored inbox rows are supplied by their owners.
 
 use crate::{
@@ -16,16 +16,10 @@ use skein_lib::{List, Map};
 pub(super) fn line_bound(limits: &Limits) -> usize {
     skein_lib::length::usize_of(limits.documents.lines)
 }
-fn object(core: &Core, task: u64, kind: people::EntryKind) -> InboxObject {
+fn object(kind: people::EntryKind) -> InboxObject {
     match kind {
         people::EntryKind::Question { message } => InboxObject::Question { message },
-        people::EntryKind::Proposal { number } => {
-            let proposer = match core.tasks.person_proposals().get(&number) {
-                Some(row) if row.first() == task => Proposer::Party(row.proposer),
-                Some(_) | None => Proposer::Task(task),
-            };
-            InboxObject::Proposal { proposer, number }
-        }
+        people::EntryKind::Proposal { proposer, number } => InboxObject::Proposal { proposer, number },
         people::EntryKind::Escalation { revision } => InboxObject::Escalation { revision },
         people::EntryKind::PersonTask => InboxObject::PersonTask,
         people::EntryKind::Reply { message } | people::EntryKind::ChatReply { message } => {
@@ -131,13 +125,13 @@ fn inbox_reply(
 #[expect(clippy::too_many_lines, reason = "one bounded projection preserves both groups and their parallel contexts")]
 pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -> Result<Inbox, Missing> {
     super::inbox_selection_bound(window.rows, limits.tasks.depth).ok_or(Missing::TooLarge)?;
-    let entries = core.people.inbox_needs(&limits.people, party).ok_or(Missing::Unknown)?;
+    let entries = core.people.inbox_needs(party).ok_or(Missing::Unknown)?;
     let recent = core.people.cached_updates(&limits.people, party).ok_or(Missing::Unknown)?;
     let mut ordered = Map::with_capacity(
-        limits
-            .people
-            .inbox_entries
-            .checked_mul(2)
+        u32::try_from(entries.len())
+            .ok()
+            .ok_or(Missing::TooLarge)?
+            .checked_add(limits.people.inbox_entries)
             .ok_or(Missing::TooLarge)?
             .checked_add(limits.settings.proposals)
             .ok_or(Missing::TooLarge)?,
@@ -193,11 +187,11 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         {
             continue;
         }
-        let value = object(core, entry.task, entry.kind);
+        let value = object(entry.kind);
         let cursor = Cursor::Inbox { task: entry.task, object: value, at: Some(entry.at) };
         ordered
             .insert(key(cursor)?, (entry.task, entry.project, value, None, entry.at, false, cursor, false))
-            .expect("bounded need prefix");
+            .expect("bounded live need census");
     }
     for update in &recent {
         let (task, project, value, activity, at, chat) = match *update {
@@ -205,17 +199,12 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
                 (row.task, row.project, InboxObject::Result { position: row.position }, None, row.at, false)
             }
             people::Update::Reply(row) => {
-                let value = object(core, row.task, row.kind);
+                let value = object(row.kind);
                 (row.task, row.project, value, reply_activity(core, row.task, value), row.at, false)
             }
-            people::Update::ChatReply(row) => (
-                row.entry.task,
-                row.entry.project,
-                object(core, row.entry.task, row.entry.kind),
-                Some(row.activity),
-                row.entry.at,
-                true,
-            ),
+            people::Update::ChatReply(row) => {
+                (row.entry.task, row.entry.project, object(row.entry.kind), Some(row.activity), row.entry.at, true)
+            }
         };
         if (project != people::DEPLOYMENT && !core.open_project(project)) || core.people.role(party, project).is_none()
         {

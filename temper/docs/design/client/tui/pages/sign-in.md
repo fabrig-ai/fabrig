@@ -2,6 +2,7 @@
 
 ## 1. Signing in
 
+At an engine on loopback (`../README.md`, 1); at a name, section 3.
 Illustrative:
 
 ```
@@ -21,8 +22,9 @@ Illustrative:
 
 - **The paste:** one text field, "Link", a secret, drawn masked (skein's
   `ui/screen.md`, 5.4), that submits on Enter, its placeholder the
-  link's shape at the TUI's address, and the focus asked for it as the
-  screen opens. A paste fills it whole (skein's `ui/screen.md`, 6.2). A
+  link's shape at the TUI's address, in the form temper prints it,
+  `http://HOST:PORT/sign-in?secret=…` (`../../README.md`, section 4),
+  and the focus asked for it as the screen opens. A paste fills it whole (skein's `ui/screen.md`, 6.2). A
   `q` types in it, so the bottom row says "Ctrl+C to quit".
 - **Enter** checks the field with jig's parser of the printed link
   (`jig-client-protocol-http`'s `printed`, under the default mapping's
@@ -57,7 +59,10 @@ Illustrative:
 ## 2. Signed in from the engine's link
 
 (`../README.md`, 2, *The engine's link, kept at
-rest*), with nothing pasted and no key pressed:
+rest*), with nothing pasted and no key pressed. At a name the TUI reads
+no link file (`Start.local` false), so none of this section holds
+there: a sign-in that expires opens the screen, which asks again
+(section 3).
 
 - **When:** the link is signed out, the TUI has not closed, it has an
   engine's link file to read (`Start.local`), and its note for the
@@ -109,3 +114,96 @@ rest*), with nothing pasted and no key pressed:
 - **Never shown:** the file's secret is never drawn, logged or kept in
   the TUI's state; a recording keeps it in the person's private file, and
   `add` redacts it (`../journeys.md`, section 5).
+
+## 3. At a name
+
+(`../../../draft/tui-remote.md`, 5.2 and 5.5.) At an `https://` origin
+(`../README.md`, 1), signed out. Illustrative, a tab opened:
+
+```
+╭─ temper ──────────────────────────────────────────────────────────╮
+│ Sign in this terminal to dev.fabrig.ai                            │
+│ A tab opened in your browser: type WDJB-MJHT there,               │
+│ then press Approve.                                               │
+│ No tab? Open                                                      │
+│ https://dev.fabrig.ai/terminal                                    │
+│ The code expires in 10 min.                                       │
+╰───────────────────────────────────────────────────────────────────╯
+
+ ● Signed out                                       Ctrl+C to quit
+```
+
+and with no browser to open:
+
+```
+│ Sign in this terminal to dev.fabrig.ai                            │
+│ Open                                                              │
+│ https://dev.fabrig.ai/terminal                                    │
+│ in a browser signed in to temper, type WDJB-MJHT,                 │
+│ then press Approve.                                               │
+│ The code expires in 10 min.                                       │
+```
+
+- **The approval alone,** with no paste: no "Paste the link…" line and
+  no field, since a deployment elsewhere prints no link the person
+  holds (`../../../protocol/sign-in.md`, 2.3). The first line names the
+  place, "Sign in this terminal to PLACE", `place(origin, false)`
+  (`chat.md`, 1, *The place*).
+- **It asks** as on loopback, once each time the screen opens signed
+  out (`../../README.md`, 4.1, *The TUI's flow*): at its start with no
+  credential kept, after a sign-out or a kept credential the engine
+  refused, and after a sign-in expired, since there is no link file to
+  renew from (section 2).
+- **A typed code:** the ask has no loopback return, so the code is
+  typed on the page, which asks for it (`../../../draft/tui-remote.md`,
+  5.3); the one click, with a listener on loopback, comes later (5.1
+  there). The ask is jig-client's `AskApproval`, as on loopback.
+- **The tab:** with an opener (`../../README.md`, 4.1, *The opener*),
+  once for each ask answered, the origin's approval page with no code,
+  `https://NAME/terminal` (`approval_address`, `../../README.md`, 4.1),
+  so that no code is carried in an address; without one, or with one
+  that failed, nothing is opened and the lines say where to go.
+- **Its lines,** under the first: "Asking temper for a code…" until
+  the engine answers; then, with a tab opened, "A tab opened in your
+  browser: type CODE there, then press Approve." and "No tab? Open"
+  with the address; with none, "Open", the address, then "in a browser
+  signed in to temper, type CODE, then press Approve."; then "The code
+  expires in SPAN." (`../../view.md`, 6's *span*, with its tick). The
+  address stands on a line of its own, so that a long name is cut at
+  its end and the words around it stay whole. No tunnel's line: a
+  deployment by name is reached from any browser.
+- **An "Ask again" button,** with no field: once the approval has
+  ended or was not asked (`may_ask_again`), a button of its own stands
+  under the lines, labelled "Ask again", with the focus while it
+  stands; Enter or Space presses it, making `SignIn`
+  (`../README.md`, 3, the events' table), which asks again. While an
+  ask is in flight or a typed code's ask waits, there is no button and
+  no key does anything. Every other key does nothing but Ctrl+C, which
+  closes. The first line stays a heading, so that a screen reader
+  doesn't read the screen's name as a button, and the outcome lines'
+  "Press Enter to ask again." stays true. A button, not a region acting
+  on Enter alone as the draft has it: skein's UI vocabulary has no
+  region that acts on a key (`skein/docs/design/ui/README.md`, 4.1),
+  and a button presses on Space too (`skein/docs/design/ui/screen.md`,
+  the keys' table; `tui-remote.status.md`, *Design departs*). The
+  one-click ask (`../../../draft/tui-remote.md`, 5.1) later puts "Type
+  a code instead" in the same place while its ask waits.
+- **The outcomes** are loopback's, each in place of the lines after the
+  first (`../../README.md`, 4.1, *Each outcome's line*), but for not
+  asked: refused, which at a name says "PLACE doesn't sign terminals in
+  from the browser.", since there is no link to paste instead.
+- **Signed in:** the credential kept in the origin's directory
+  (`../README.md`, 2), the note `Until` the sign-in's expiry, and the
+  launchpad drawn, as on loopback.
+- **The bottom row** is section 1's; where the native shell's last
+  handshake failed, its state says why (`README.md`, *The link's
+  state*).
+- **Its tests:** the host's: an `https://` start asks at once and opens
+  `https://NAME/terminal`, no code in it; no opener opens nothing;
+  the button's press asks again once the approval ended, and no key
+  does anything while a code waits; an expiry opens the screen and
+  asks again; refused's line. The view's rows for each line, the
+  button with the focus once the approval ended and none while a code
+  waits, a 253-byte name with a port of its own among them; golden
+  frames at 80 by 24, dark and light, of the screen
+  with a tab opened and with none.

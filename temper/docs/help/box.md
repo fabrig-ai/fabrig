@@ -11,28 +11,27 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **Host actions:** `temper-host` needs compatible Node.js on the host
   as `node` for JavaScript `uses:` actions: `actions/checkout@v4`,
   `actions/upload-artifact@v3`. Put it on
-  `application.machine.owned.runner.path` (default
+  `--runner-path` at forge preparation (default
   `/usr/local/bin:/usr/bin:/bin`); restart after edits.
-  Availability in an interactive shell is insufficient.
-- **Host delivery checks:** `.temper/pre-pr` tools inherit the
-  box process's `PATH` captured at startup: the box unit's `PATH` in a
-  service. Install there before step 2.
+  A shell's PATH alone is insufficient.
+- **Host delivery checks:** `.temper/pre-pr` tools inherit the box's
+  startup `PATH` (its unit's `PATH` in a service). Install there before step 2.
   For fabrig: `cargo`, rustfmt (`cargo fmt` and `rustfmt`), `python3`.
   Kit PATH: `W/bin:/usr/local/bin:/usr/bin:/bin`.
   Unit example:
   `PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`;
   use absolute paths for Cargo's bin and the kit's `W/bin`.
   Stop (step 8); restart the box unit after changing its environment.
-  `application.machine.owned.runner.path` configures the runner alone.
+  `--runner-path` at forge preparation configures the runner alone.
 - **Capacity:** CI and tiers on `temper-host` share
-  `application.machine.owned.runner.capacity`, which defaults to 1,
-  its minimum. Slow tiers block CI and landings. Use 2
+  `--runner-capacity` at forge preparation (default and minimum 1). Slow tiers block CI and landings. Use 2
   for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count concurrent jobs in multi-job workflows and other repositories
   too (temper help tier). Stop real backends with Ctrl-C or SIGTERM;
-  closing the terminal stops the box too. Then wait for it to exit.
-  Edit only this setting in `CONFIG/temper.json`; restart (step 2) with the
-  same `CONFIG`, `DATA` and `CACHE`, keeping runners' registration and secrets.
+  closing the terminal stops the box too. Wait for exit.
+  A forge's place is chosen when it is set up, and kept with the forge.
+  Existing prepared runners keep their registration and secrets in the same directories;
+  this is not a `temper.toml` key.
 - **Backends:** choose before step 2; never mix. Real: account required,
   Forgejo and runner fetched. Fake: no account; local Forgejo real;
   GitHub, model, sign-in, remote Forgejo on loopback fakes. Build:
@@ -66,33 +65,33 @@ Plain `temper-box init` then `temper box` has no playground; `--fake-backends`
 refuses it.
 
 Expect: `init: wrote DATA/worker.secret`; last line: box command.
+Default worker: `local`, 4 places, no digest. Workers are settings in the store; init writes no `worker.digest`.
 
 **Claude Code:** init adds Anthropic's provider and endpoint beside
-OpenAI's, using `claude` on `PATH` when init runs, else fetching its pinned
+OpenAI's, using `claude` on the worker's `PATH` at start, else fetching its pinned
 build on first use. Logins: `DATA/programs`, apart from your Claude Code configuration.
-`PROGRAMS`: that directory or an existing login's parent;
-`CONFIG/agent.json`'s `programs.claude_code.directory` (step 5).
+`PROGRAMS`: `DATA/programs` or an existing login’s parent (step 5).
 
 Expect: `me` lists provider 2, Anthropic, `claude_code`.
 Use it in step 5; keep the demo model within init's limits.
 
-If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
+If not: `temper-box init: CONFIG/temper.toml: already exists` (exit 1): empty directories needed.
 
-**Coding runs:** edit `CONFIG/agent.json`'s `environment` before step 2;
-preserve the rest of the document. Init's array is empty. Commands and
-checks get exactly the configured environment, independent of unit and
-runner PATHs. Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
+**Coding runs:** edit `[environment]` in `CONFIG/temper.toml` before step 2;
+preserve the rest of the document. Absent: the worker's own
+`HOME` and `PATH`. A table gives exactly its entries, with the worker's own
+`HOME` and `PATH` added where it omits them; no other process variables.
+Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
 
-```json
-{"environment": [
-  {"name":"PATH","value":"/home/coder/.cargo/bin:/usr/local/bin:/usr/bin:/bin"},
-  {"name":"HOME","value":"/home/coder"}
-]}
+```toml
+[environment]
+PATH = "/home/coder/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+HOME = "/home/coder"
 ```
 
-Install project tools on this PATH: Rust's `cargo` in `.cargo/bin` and
+Install tools on this PATH: Rust's `cargo` in `.cargo/bin` and
 its toolchain. Run user: usable `HOME`; exclude credentials.
-After edits, stop (step 8); restart the box (step 2).
+Stop (step 8); restart the box (step 2).
 
 ## 2. Start the box
 
@@ -121,7 +120,7 @@ Expect:
 ```text
 Open this link in a browser on this machine.
 
-http://127.0.0.1:PORT/jig/v1/sign-in/link?secret=...
+http://127.0.0.1:PORT/sign-in?secret=...
 
 It signs you in as this temper's owner, once, within 2 hours.
 Opened after that, it prints a fresh one here.
@@ -317,7 +316,7 @@ If not: `account export: not signed in` (exit 2): add a key.
 `temper ctl: the engine holds its N answers of the last day; room again
 at TIME` (exit 2): no room for move's answers; nothing moved. Keep running;
 export after TIME. `temper ctl: unsent` (exit 1): engine busy, nothing moved;
-export later. Other failures: keep running; account stays; export after its deadline.
+export later. Other failures: keep running; export later.
 
 ## Clean up
 

@@ -1,4 +1,5 @@
 //! The once-made floor deployment (temper/docs/design/protocol/floor.md, 5).
+mod dev;
 pub(crate) mod files;
 use crate::{
     ctl, fixtures,
@@ -6,6 +7,7 @@ use crate::{
     stories,
     world::{self, HarnessProcess, Person, ServiceObserver, Story},
 };
+pub use dev::read_dev;
 use jig_domain_core::{CoreRecord, Record};
 use jig_domain_tasks::{self as tasks, TaskRecord};
 use skein_fake_person::{Find, Step};
@@ -176,6 +178,7 @@ struct Judge {
     released: bool,
     opening: Opening,
     checked: bool,
+    in_flight: Option<(u64, bool)>,
     ticks: u32,
 }
 impl Judge {
@@ -199,6 +202,18 @@ impl Judge {
     }
 }
 impl Judge {
+    fn coding_in_flight(&mut self) -> bool {
+        // Both presence and absence stay the same between durable commits.
+        let store = self.store.borrow();
+        if let Some((at, found)) = self.in_flight
+            && at == store.applied
+        {
+            return found;
+        }
+        let found = in_flight(&store).is_some();
+        self.in_flight = Some((store.applied, found));
+        found
+    }
     fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.ticks += 1;
         let (first, others) = procs.split_at_mut(1);
@@ -231,19 +246,20 @@ impl Judge {
             }
             self.checked = true;
         }
-        let complete = match self.opening {
-            Opening::Make => self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some(),
-            Opening::Read => {
-                if !self.stopped
-                    && let Some(end) = service.service.end()
-                {
-                    return Err(format!("floor start refused: {end:?}"));
+        let complete = !self.stopped
+            && match self.opening {
+                Opening::Make => self.coding_in_flight() && self.forge.forge_complete(),
+                Opening::Read => {
+                    if !self.stopped
+                        && let Some(end) = service.service.end()
+                    {
+                        return Err(format!("floor start refused: {end:?}"));
+                    }
+                    others.iter().any(
+                        |proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3),
+                    )
                 }
-                others
-                    .iter()
-                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3))
-            }
-        };
+            };
         if !self.stopped && complete {
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
@@ -402,26 +418,39 @@ fn assert_history(store: &Store) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
-    let mut document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment");
-    document["engine"]["limits"]["overrides"]["people.inbox_tasks"] = 16.into();
-    let mut provider = document["engine"]["llm"]["providers"][0].clone();
+pub(crate) fn configuration(
+    deployment: &temper_playground::documents::Configuration,
+) -> temper_playground::documents::Configuration {
+    let mut document = deployment.clone();
+    document.jig_over("people.inbox_tasks", 16);
+    if document["world_settings"]["llm"].is_null() {
+        let source: serde_json::Value =
+            serde_json::from_slice(temper_playground::stories::A.deployment).expect("story deployment");
+        document["world_settings"]["llm"] = source["world_settings"]["llm"].clone();
+    }
+    let mut provider = document["world_settings"]["llm"]["providers"][0].clone();
     provider["number"] = 2.into();
     provider["name"] = "golden-provider".into();
     provider["models"] = serde_json::json!(["fake-key"]);
+    provider["endpoint"] = "golden".into();
+    let mut endpoint = document["world_settings"]["llm"]["endpoints"][0].clone();
+    endpoint["name"] = "golden".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "golden-provider".into();
+    document["world_settings"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
     let catalogue: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../crates/temper-playground/stories/a/catalogue.json"))
             .expect("story catalogue");
-    document["engine"]["llm"]["models"] = catalogue["models"].clone();
+    document["world_settings"]["llm"]["models"] = catalogue["models"].clone();
     let mut model = catalogue["models"][0].clone();
     model["name"] = "fake-key".into();
-    document["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
-    document["engine"]["llm"]["providers"][0]["models"] = serde_json::json!(["fake"]);
-    document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
+    document["world_settings"]["llm"]["models"].as_array_mut().expect("models").push(model);
+    document["world_settings"]["llm"]["providers"][0]["models"] = serde_json::json!(["fake"]);
+    document["world_settings"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
     for name in ["tasks.tasks", "tasks.project_tasks"] {
-        document["engine"]["limits"]["overrides"][name] = 8.into();
+        document.jig_over(name, 8);
     }
-    serde_json::to_vec(&document).expect("golden configuration").into()
+    document
 }
 
 /// An ordinary world story; the caller supplies only its test's temporary directory.
@@ -430,15 +459,15 @@ pub fn make(directory: &Path) {
     stories::setup_settings(world::Phase::Story);
     let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     start.deployment = configuration(&start.deployment);
-    let document = serde_json::from_slice(&start.deployment).expect("golden configuration JSON");
+    let document = start.deployment.clone();
     let mut disk = machine::fresh();
-    temper_playground::story::prepare(&mut disk, temper_playground::stories::A.deployment, start.seed);
+    temper_playground::story::prepare(&mut disk, &start.deployment, start.seed);
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let client = disk.reopen_root(2);
     let machine = Machine::new(disk);
     let params = programs::Parameters {
-        deployment: start.deployment.clone(),
+        deployment: start.deployment.clone().into(),
         seed: start.seed,
         links: Links::Keep,
         forge: start.fakes.forge.clone(),
@@ -459,6 +488,7 @@ pub fn make(directory: &Path) {
                 released: false,
                 opening: Opening::Make,
                 checked: false,
+                in_flight: None,
                 ticks: 0,
             },
         )
@@ -502,7 +532,7 @@ impl Harness for Refusal {
     fn files() -> temper_service::settings::Files {
         Golden::files()
     }
-    fn given(_: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(_: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         READ_DEFAULTS.with(|defaults| defaults.borrow_mut().take().expect("one floorless open"))
     }
 }
@@ -539,11 +569,9 @@ pub fn read(directory: &Path) {
     stories::setup_settings(world::Phase::Story);
     UPGRADED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
-    let configuration = read_configuration(directory);
-    let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
-    let mut disk = files::load(directory);
+    let (mut disk, configuration) = load_reader(directory);
+    let document = configuration.clone();
     let active = files::active(&mut disk);
-    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let machine = Machine::new(disk);
     let store = Rc::new(RefCell::new(Store::new()));
     store.borrow_mut().recovering();
@@ -571,6 +599,7 @@ pub fn read(directory: &Path) {
                 released: false,
                 opening: Opening::Read,
                 checked: false,
+                in_flight: None,
                 ticks: 0,
             },
         )
@@ -607,7 +636,8 @@ pub fn read(directory: &Path) {
         "the current layouts register in one new generation"
     );
     let upgraded = std::fs::read_to_string(directory.join("upgraded.txt")).expect("kept upgrade events");
-    assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), upgraded);
+    let jobs = "jig escalation-deciders 4 2 tasks=0\ntemper test-ids-landing 0 1\ntemper test-ids-receipt 0 1 many=0\ntemper test-ids-tier 0 1 many=0 flakes=0 posted=0\ntemper test-ids-verification 0 1 many=0\n";
+    assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), format!("{jobs}{upgraded}"));
     world::lower_store(None);
 }
 
@@ -666,8 +696,13 @@ pub fn refuse(directory: &Path) {
 
 fn assert_served(caller: &ctl::Caller) {
     assert_eq!(caller.answers.len(), 3);
-    for answer in &caller.answers {
-        assert_eq!(answer.exit, skein_io::kernel::Exit::Code(0), "{}", String::from_utf8_lossy(&answer.error));
+    for (index, answer) in caller.answers.iter().enumerate() {
+        assert_eq!(
+            answer.exit,
+            skein_io::kernel::Exit::Code(0),
+            "read {index}: {}",
+            String::from_utf8_lossy(&answer.error)
+        );
     }
     let identity: serde_json::Value = serde_json::from_slice(&caller.answers[0].output).expect("me JSON");
     assert_eq!(identity["party"]["number"], 1);
@@ -693,17 +728,78 @@ fn assert_served(caller: &ctl::Caller) {
     assert_eq!(task["chip"]["title"]["bytes"], "Export widget's table as CSV");
 }
 
+/// The readers share the floor's loaded configuration and operator prepare step.
+fn load_reader(directory: &Path) -> (skein_fake_machine::Machine, temper_playground::documents::Configuration) {
+    let mut document = read_configuration(directory);
+    // The reader holds the playground reset while inspecting the permanent history.
+    document["world_settings"] = temper_playground::documents::world_document()["world_settings"].clone();
+    document["world_settings"]["adopt_only"] = true.into();
+    let mut disk = files::load(directory);
+    // Kept deployments use the current operator's prepare step in the loaded copy only.
+    let directories =
+        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+    let setup = temper_forge_setup::setup_file::chosen(
+        temper_forge_setup::machine::BoxKind::Fake,
+        temper_playground::documents::FORGE.port(),
+        b"owner",
+        false,
+        &directories,
+    )
+    .expect("kept fake forge setup");
+    let setup_path = directories
+        .join(jig_protocol_config::Directory::Data, &temper_forge_setup::setup_file::path(1, setup.kind()))
+        .expect("world setup path");
+    machine::lay_handover(&mut disk, &setup_path, &temper_forge_setup::setup_file::encode(&setup));
+    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
+    (disk, document)
+}
+
 /// The kept world configuration with current admission bounds for its defaults.
-pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
+pub(crate) fn read_configuration(directory: &Path) -> temper_playground::documents::Configuration {
     startup_configuration(directory).0
 }
 
-fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
+fn startup_configuration(
+    directory: &Path,
+) -> (temper_playground::documents::Configuration, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
-    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
-    let sections =
-        document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
-    *sections = sections.as_u64().expect("brief section count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
+    let document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let mut document = if document.pointer("/engine/limits/profile").is_some_and(|profile| profile == "small") {
+        bridge_kept_profiles(document)
+    } else if document.pointer("/engine/limits").is_some() {
+        temper_playground::documents::Configuration::from_jig(document)
+    } else {
+        let mut configured = self::configuration(&temper_playground::stories::A.configuration());
+        configured.document = document;
+        configured
+    };
+    // Kept document inputs become current startup facts; the generation stays untouched.
+    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
+    if let Some(legacy) = document["engine"].as_object_mut().expect("kept engine").remove("llm") {
+        document["world_settings"]["llm"] = legacy;
+    }
+    // The kept providers share a dial; each provider setting owns its numbered endpoint.
+    let llm = &mut document["world_settings"]["llm"];
+    if llm["endpoints"].as_array().expect("kept endpoints").len() == 1 {
+        let mut endpoint = llm["endpoints"][0].clone();
+        endpoint["name"] = "golden".into();
+        endpoint["number"] = 2.into();
+        endpoint["provider"] = "golden-provider".into();
+        llm["endpoints"].as_array_mut().expect("kept endpoints").push(endpoint);
+        llm["providers"][1]["endpoint"] = "golden".into();
+    }
+    // Kept deployment inputs use the current box shape; the stored generation stays untouched.
+    document["world_settings"]["playground"] = true.into();
+    for worker in document["workers"].as_array_mut().expect("kept workers") {
+        worker["name"] = "local".into();
+        for member in ["agent", "limits", "memory_bytes"] {
+            worker.as_object_mut().expect("kept worker").remove(member);
+        }
+    }
+    document.jig_over("fleet.slots", 4);
+    document.agent_bounds(&temper_playground::documents::agent());
+    temper_playground::documents::settings::strip_fixed(&mut document);
+    document.jig.core.brief.sections = document.jig.core.brief.sections.max(jig_domain_core::CORE_SECTIONS);
     let given = temper_playground::documents::given(&document);
     let temper_service::stock::Given::Own { jig, .. } = &given else { panic!("golden world defaults") };
     for (name, count) in [
@@ -712,10 +808,10 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
         ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
     ] {
         let count = u64::try_from(count).expect("configured default count");
-        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
-        *bound = bound.as_u64().expect("count override").max(count).into();
+        let row = jig_protocol_config::names::NAMES.iter().find(|row| row.name == name).expect("kept count limit");
+        document.jig_over(name, (row.value)(&document.jig).max(count));
     }
-    (serde_json::to_vec(&document).expect("startup configuration"), given)
+    (document, given)
 }
 
 fn restart_history(store: &Store) -> Result<(), String> {
@@ -760,4 +856,20 @@ fn restart_history(store: &Store) -> Result<(), String> {
         return Err(String::from("signal-stopped coding task due at the same attempt on a plain reopen"));
     }
     Ok(())
+}
+
+/// The permanent floor keeps its bytes; only its working copy spells out
+/// the fixture figures that its retired profile selected (protocol/floor.md, 5).
+pub(crate) fn bridge_kept_profiles(mut document: serde_json::Value) -> temper_playground::documents::Configuration {
+    let jig = jig_protocol_config_fixtures::small();
+    let limits = document.pointer_mut("/workers/0/limits").expect("kept worker limits");
+    assert_eq!(limits["profile"], "small");
+    limits.as_object_mut().expect("worker limits").remove("profile");
+    let overrides = limits["overrides"].as_object_mut().expect("worker overrides");
+    for name in &jig_protocol_config::names::NAMES {
+        if name.name != "views.watchers" && name.name != "views.watchers_per_party" {
+            overrides.entry(name.name).or_insert_with(|| (name.value)(&jig).into());
+        }
+    }
+    temper_playground::documents::Configuration::from_jig_over(document, &jig, &temper_limits_fixtures::small())
 }

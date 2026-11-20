@@ -35,11 +35,10 @@ fn keep(world: &mut World, release: bool) -> Reply {
     let amendment = amendment(world, release);
     let message = world.record(KEPT).last_message + 1;
     response(world, |reply_to| Event::Amend {
-        operation: tasks::Amend { task: KEPT, message, stop_run: false, amendment: Box::new(amendment) },
+        operation: tasks::Amend { funder: None, task: KEPT, message, stop_run: false, amendment: Box::new(amendment) },
         places: Box::new([]),
         reply_to,
         by: PERSON_PARTY,
-        funder: None,
     })
 }
 
@@ -49,6 +48,7 @@ fn unclaimable(world: &mut World) {
     assert!(!world.runs.contains_key(&KEPT));
     let attempt = world.record(KEPT).attempt + 1;
     assert!(matches!(response(world, |reply_to| Event::Claim {
+            fresh: None,
             session_end: None, offered: jig_domain_tasks::Reasons::ALL, reasons: jig_domain_tasks::Reasons::FIRST,
         reply_to, task: KEPT, attempt, resumed: false, budget: 1, account: None, writes: Box::new([]),
     }), Reply::Refused(problem) if problem.why == Refusal::State));
@@ -96,6 +96,7 @@ fn a_compound_amendment_then_release_keeps_the_agent_idle() {
     let mut operations = List::with_capacity(PAIR);
     operations
         .push(Operation::Amend(tasks::Amend {
+            funder: None,
             task: KEPT,
             message: 1,
             stop_run: false,
@@ -175,7 +176,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
         reply_to,
         task: WAITER,
         revision,
-        by: PERSON,
+        by: jig_domain_tasks::EscalationDecider::Person(PERSON),
         entry: None,
         decision: EscalationDecision::Release,
     });
@@ -192,11 +193,10 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     remove.dependencies = Some(Box::new([]));
     let message = world.record(KEPT).last_message + 1;
     response(&mut world, |reply_to| Event::Amend {
-        operation: tasks::Amend { task: KEPT, message, stop_run: false, amendment: Box::new(remove) },
+        operation: tasks::Amend { funder: None, task: KEPT, message, stop_run: false, amendment: Box::new(remove) },
         places: Box::new([]),
         reply_to,
         by: PERSON_PARTY,
-        funder: None,
     });
     assert_eq!(world.record(WAITER).phase, Phase::Waiting);
     assert_eq!(world.record(WAITER).hold_wait_since, place);

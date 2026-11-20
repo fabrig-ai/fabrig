@@ -3,11 +3,11 @@ use crate::{translate, worker_route};
 use jig_domain_host as host;
 use jig_protocol_worker_wire::Part;
 use skein_lib::Token;
-use temper_protocol_worker_wire::{self as payload, v1};
+use temper_protocol_worker_wire as payload;
 const RUN: Token = Token::new(43);
 #[test]
 fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
-    // Standard hub, smith's floor, and the reference agent
+    // Standard hub, smith's floor, and the stock agent's reference-sized allowance
     // (temper/docs/design/domain/agent/tools.md; temper/docs/design/protocol/configuration/settings.md, 7).
     // The smaller hub proves its bound still holds.
     const STANDARD: u64 = 262_144;
@@ -15,21 +15,32 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
     const REFERENCE: u64 = 127_480;
     // Both sides of a large generated file, past each receiving allowance.
     const PULL_BYTES: usize = 200_000;
-    const STOCK_PAYLOAD: u32 = 10_662;
-    const STOCK_OUTPUT: u32 = 8192;
+    const STOCK_PAYLOAD: u32 = 63_740;
+    const STOCK_OUTPUT: u32 = 48_000;
     let stock = fixtures::parsed_agent(fixtures::stock_configuration(STOCK_PAYLOAD, STOCK_OUTPUT).unwrap());
-    assert_eq!(crate::assignment::WORKER_CHARTER_BYTES, stock.host_limits.charter_bytes);
+    assert_eq!(crate::assignment::WORKER_CHARTER_BYTES, FLOOR);
+    assert_eq!(stock.host_limits.charter_bytes, REFERENCE);
     // The smaller hub holds the fixture's fixed charter, title and one cut line.
     let mut minimum = temper_engine_smith::charter(&fixtures::resolution_with_pull(PULL_BYTES));
-    minimum.brief.sections.first_mut().unwrap().text =
-        b"[cut 200000 bytes; whole: read_pull/read_pull_files]\n".as_slice().into();
+    minimum.brief.sections.first_mut().unwrap().text = b"\n[cut 200000 bytes; whole: read_issues]\n".as_slice().into();
     let encoded = smith_protocol_translate::encode_charter(
         &minimum,
         &smith_charter::CEILINGS,
         &fixtures::encoding(&fixtures::engine()).endpoints,
     )
     .unwrap();
-    let smaller_hub = minimum.owned_bytes().unwrap().max(skein_lib::len_u64(encoded.len()));
+    let owned = minimum.owned_bytes().unwrap();
+    minimum.brief.sections = Box::new([]);
+    let fixed_owned = minimum.owned_bytes().unwrap();
+    let fixed_encoded = smith_protocol_translate::encode_charter(
+        &minimum,
+        &smith_charter::CEILINGS,
+        &fixtures::encoding(&fixtures::engine()).endpoints,
+    )
+    .unwrap();
+    // Fitting reserves the fixed encoded overhead before it admits section ownership.
+    let overhead = skein_lib::len_u64(fixed_encoded.len()).saturating_sub(fixed_owned);
+    let smaller_hub = owned.checked_add(overhead).unwrap().max(skein_lib::len_u64(encoded.len()));
     assert!(smaller_hub < FLOOR);
     let rows = [
         ("engine_alone_under_standard", STANDARD, None, FLOOR, FLOOR, 0),
@@ -67,7 +78,7 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
                     panic!("{name}: pull section retained")
                 };
                 assert_eq!(section.title.as_ref(), b"Pull request", "{name}");
-                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"), "{name}");
+                assert!(section.text.ends_with(b" bytes; whole: read_issues]\n"), "{name}");
                 outcomes.push((name, Ok(()))).unwrap();
             }
             Err(why) => outcomes.push((name, Err(why))).unwrap(),
@@ -89,15 +100,15 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
     .unwrap()
     .unwrap();
     for program in [None, Some(Box::from(b"/fake/git".as_slice()))] {
-        let mut fields = items.clone().into_parts();
+        let mut fields = items.clone();
         let mut repositories = skein_lib::List::with_capacity(1);
         for repository in fields.repositories.into_boxed() {
-            let mut fields = repository.into_parts();
+            let mut fields = repository;
             fields.git = program.clone();
-            repositories.push(v1::Repository::new(&limits, fields).unwrap()).unwrap();
+            repositories.push(fields).unwrap();
         }
         fields.repositories = repositories;
-        let record = v1::Items::new(&limits, fields).unwrap();
+        let record = fields;
         let parts = [Part { token: Token::new(9), bytes: payload::items(&record) }];
         let workspace = worker_route::items(&fixtures::worker_assignment(), &parts, &limits).unwrap();
         let mut expected = fixtures::one_repository();

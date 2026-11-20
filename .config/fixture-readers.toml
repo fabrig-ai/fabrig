@@ -922,6 +922,31 @@ paths = ["temper/tests/one-process/golden/floor/README.md"]
 disposition = "provenance"
 reason = "Floor commit, making story and once-only export provenance."
 
+# Dev's build's immutable deployment; roots share the floor's loader.
+[[fixture]]
+paths = [
+    "temper/tests/one-process/golden/dev/state/**",
+    "temper/tests/one-process/golden/dev/worker/**",
+    "temper/tests/one-process/golden/dev/client/**",
+    "temper/tests/one-process/golden/dev/setup/**",
+    "temper/tests/one-process/golden/dev/configuration.json",
+    "temper/tests/one-process/golden/dev/modes.txt",
+]
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=golden::dev_image_opens_and_serves_on_this_build)"
+
+[[fixture]]
+paths = [
+    "temper/tests/one-process/golden/dev/README.md",
+    "temper/tests/one-process/golden/dev/forge.image",
+    "temper/tests/one-process/golden/dev/outside.json",
+    "temper/tests/one-process/golden/dev/ledger.jsonl",
+]
+disposition = "provenance"
+reason = "Unchanged deployed-build image and making story; the startup reader needs only machine roots."
+
 # The current build's settled upgrade stop and every case that loads it.
 [[fixture]]
 paths = [
@@ -954,7 +979,7 @@ paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/scripts.json"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-real-loop-world"
-filter = "binary(=suite) & test(/^turn_landing::/)"
+filter = "binary(=suite) & test(=turn_landing::a_failing_member_turns_the_dispatched_top_red)"
 
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/README.md"]

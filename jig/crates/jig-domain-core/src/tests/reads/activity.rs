@@ -86,7 +86,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     let mut records =
         activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 7, 7, None, jig_domain_fleet::HostKind::Worker)).unwrap();
-    core.claiming.insert(1, (7, tasks::Reasons::ALL, None)).unwrap();
+    core.claiming.insert(1, (7, tasks::Reasons::ALL, None, None)).unwrap();
     records.extend(activity_decision(
         &mut core,
         &env,
@@ -170,6 +170,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
             saved: None,
             invalid_saved: false,
             unusable_history: false,
+            untooled: false,
         },
     ));
     let lines: Vec<_> = records
@@ -180,7 +181,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
         })
         .collect();
     assert_eq!(lines.iter().map(|row| row.position).collect::<Vec<_>>(), (first + 1..=first + 6).collect::<Vec<_>>());
-    assert_eq!(lines[0].line, tasks::Line::RunBegan { attempt: 7, why: tasks::Why::Made, resumed: false });
+    assert_eq!(lines[0].line, tasks::Line::RunBegan { attempt: 7, why: tasks::Why::Made, resumed: false, fresh: None });
     assert_eq!(lines[1].line, tasks::Line::Turn { reply: 1, attempt: 7, turn: 1, read: None });
     assert_eq!(lines[2].line, tasks::Line::Words { message: 1, by: word.from, kind: word.kind, words: word.words });
     assert_eq!(lines[3].line, tasks::Line::Turn { reply: 2, attempt: 7, turn: 2, read: Some(1) });
@@ -219,6 +220,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
             saved: None,
             invalid_saved: false,
             unusable_history: false,
+            untooled: false,
         },
     );
     assert!(repeated.iter().all(|row| match row {
@@ -249,7 +251,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     );
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 8, 7, Some(3), jig_domain_fleet::HostKind::Worker)).unwrap();
-    core.claiming.insert(1, (8, tasks::Reasons::ALL, None)).unwrap();
+    core.claiming.insert(1, (8, tasks::Reasons::ALL, None, None)).unwrap();
     let resumed = activity_decision(
         &mut core,
         &env,
@@ -257,7 +259,13 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     );
     assert!(resumed.iter().any(|row| match row {
         Record::Tasks(tasks::Stored::Activity(row)) =>
-            row.line == (tasks::Line::RunBegan { attempt: 8, why: tasks::Why::Message { message: 3 }, resumed: true }),
+            row.line
+                == (tasks::Line::RunBegan {
+                    fresh: None,
+                    attempt: 8,
+                    why: tasks::Why::Message { message: 3 },
+                    resumed: true
+                }),
         _ => false,
     }));
 }
@@ -280,7 +288,7 @@ fn cumulative_read_core() -> (Core, Env<Limits>) {
     );
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 7, 7, None, jig_domain_fleet::HostKind::Worker)).unwrap();
-    core.claiming.insert(1, (7, tasks::Reasons::ALL, None)).unwrap();
+    core.claiming.insert(1, (7, tasks::Reasons::ALL, None, None)).unwrap();
     activity_decision(&mut core, &env, Event::ClaimPrepared { task: 1, attempt: 7, budget: 10, writes: Box::new([]) });
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Started { task: 1, attempt: 7 }));
     for number in [1, 2] {
@@ -403,6 +411,7 @@ fn an_answers_refusals_are_committed_with_its_terminal() {
             saved: None,
             invalid_saved: false,
             unusable_history: false,
+            untooled: false,
         },
     );
     assert!(records.iter().any(|row| match row {

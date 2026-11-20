@@ -21,7 +21,7 @@
   at the landing that changes it: a request, an outcome, a read, a
   subject or a field added to the family (the FORGE requests of
   `../engine.md`, the picker's ids in `Adopt`, a change's panel) changes
-  its schema, generated code and one set of golden bytes, and moves its
+  its schema and generated records, and moves its
   version by one, its layouts' list taking the new version's line;
   `PUBLIC_VERSION` does the same for the visitors' records (jig's
   `protocol/client/README.md`, section 6).
@@ -39,6 +39,10 @@
   `Answer`, whose outcome is one of either request's (below); the client
   refuses as undecodable an outcome that does not fit the request it
   sent.
+- **`Checkpoint`,** with no field: a deployment owner's checkpoint of
+  the serving deployment, answered `Checkpointed` with its name and
+  figures or `CheckpointRefused` with why
+  (`../../protocol/checkpoints.md`, 3).
 - **`Adopt`:** the project (u32); the forge's number
   (u16); the owner, the name, the prefix and the landing branch (byte
   strings); the role (owned, fork or context); home and ci (booleans);
@@ -48,6 +52,8 @@
 - **Its outcome,** `Answer`'s:
   - *adopted,* with the repository as the forge connector recorded it:
     its forge's number, its kind and its id; its owner and name; its role;
+    its landing branch, `landing`, at most 1,024 bytes, empty for an
+    outcome kept before it (`../../domain/forge/adoption.md`, 8);
     whether it is the project's home; what temper may do there (the
     forge's `Kinds`: read, push, open, land, review, status, comment,
     issue, branch); whether branch protection was read (unknown,
@@ -88,7 +94,10 @@
   org and the name (byte strings, bounded as `Adopt`'s owner and name), made
   unadopted, and `playground`, a bool, the repository made as the
   playground's copy, `playground/widget` with its files, the org and name then
-  `playground` and `widget`; `copies`, `CopyAddresses`, at most
+  `playground` and `widget`, and `sample`, a bool, appended, the
+  repository made as the sample with its files, the org and name then
+  `work` and `hello`, as the welcome's sheet sends it; neither set, the
+  starter workflow alone (`../../protocol/setup/owned.md`, 7); `copies`, `CopyAddresses`, at most
   `FIRST_COPIES` (16) addresses, each at most 512 bytes in the form the
   client's check gives (`../../draft/repository-copies.md`, 5.4), which make no
   repository at set up; or `nothing`. Its outcome, `Answer`'s: *setting up*, the box asked
@@ -230,9 +239,17 @@
   refused*; or *unknown*.
 - **`TriageFinding`:** of the project it names, from the same: `project`,
   u32; `number`, u32; `act`, a `Triage`: `route`, the goal's task (u64);
-  `backlog`, no fields; or `drop`, its reason, 1 to 400 bytes
-  (`../../domain/findings.md`, section 6). Its outcome: *triaged*,
-  `triaged`, no fields, once committed; *finding refused*; or *unknown*.
+  `backlog`, no fields; `drop`, its reason, 1 to 400 bytes
+  (`../../domain/findings.md`, section 6); `repair`, `more`, the
+  findings after `number`, at most 15 u32s, and `words`, 1 to 4,096
+  bytes (`../../domain/red-repairs.md`, section 4); or `blame`,
+  `landing`, option, a commit of 20 or 32 bytes, none for no landing,
+  and `why`, 1 to 200 bytes (`../../domain/red-repairs.md`, section
+  3). Its outcome: *triaged*, `triaged`, with `goal`, option u64, the
+  goal a `repair` made, none for the other acts, once committed;
+  *finding refused*; or *unknown*. `repair`, `blame` and `goal` came
+  with the wire's next layout, unbridged (`../../protocol/wires.md`,
+  section 9).
 - **`TierActRequest`,** `tier_act`, appended after `TriageFinding`: of
   the project it names, from a project owner or the deployment's owner,
   as `FollowActRequest` (`../../domain/after-landing.md`, section 3, *A
@@ -253,7 +270,8 @@
   `repository`, an option of `DraftRepository`, none for the project's
   only repository; `branch`, 1 to 1024 bytes; `at`, an option of 40 or
   64 bytes, lowercase hexadecimal digits; `into`, an option of 1 to 1024
-  bytes, none for the repository's default branch; `title`, 1 to 256
+  bytes, none for the repository's landing branch
+  (`../../domain/forge/adoption.md`, 8); `title`, 1 to 256
   bytes; `body`, an option of 1 to 16,384 bytes; and `budget`,
   `OpenBudget`: `amount`, u64, or `as_allowed`, no fields. Its outcomes,
   appended after the family's last: *opened*, `opened`, `Opened`, its
@@ -271,8 +289,10 @@
   16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
   `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a
   route's task not a live goal of the project; `ended`, the finding
-  already `routed` or `dropped`; or `words`, a field past its bounds or
-  not UTF-8, naming it.
+  already `routed` or `dropped`; or `words`, at most 1,024 bytes: a
+  field past its bounds or not UTF-8, naming it, or a `repair`'s or
+  `blame`'s refusal in its words (`../../domain/red-repairs.md`, 4.2
+  and section 3).
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -452,6 +472,8 @@
     request closed; its pull request retargeted; a delegate or effect
     failed; a person rejected a gate. A held change's step is the one it
     was held at;
+  - its wait: none, or why it waits, `ChangeWait`: for room in the
+    forge's outbox, `outbox_room` (`../../domain/forge/room.md`, 7);
   - the task its step runs: none, or its number (u64);
   - CI at its head: unknown, pending, passed or failed;
   - its gates, at most 64, each with its number (u64), its kind (review,
@@ -501,7 +523,8 @@
   unmarked, or other. The diagnostic `ended` stays separate; the client
   selects its stop's words from this typed fact, never its text;
   its first repository, `first`: none, or the set up's org, name,
-  whether it is the playground's copy (`playground`, appended), runner
+  whether it is the playground's copy (`playground`, appended) or the
+  sample (`sample`, appended after it), runner
   label (at most 64 bytes) and its state, `FirstState`, with no project:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
@@ -648,8 +671,8 @@
   document, `ChangesPanel`:
   - `project`;
   - `landing`, the branch to name while nothing is queued: the newest
-    landing's, else the default branch of the project's home repository,
-    else of its first, else empty;
+    landing's, else the landing branch of the project's home repository
+    (`../../domain/forge/adoption.md`, 8), else of its first, else empty;
   - `queues`, at most 32, by repository then branch, one per landing branch
     with ready changes, a change owning its queue, or red (`README.md`, section 3), each a
     `ChangesQueue`: `repository`, `owner/name`; `branch`; `red`; and
@@ -665,7 +688,9 @@
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
     log's (`../../domain/after-landing.md`, section 10); `commit`, the
     landing's, 32 bytes; `default_branch`, whether the branch the
-    landing moved is its repository's default branch; and `signed`, at
+    landing moved is its repository's landing branch, the main one
+    (`../../domain/forge/adoption.md`, 8), whatever the forge's default
+    branch; and `signed`, at
     most 8, the landing log's sign-offs of the change, in its order, each
     a `ChangesSigned`: `party`; `head`, the commit their review named, 32
     bytes; and `at`, when they reviewed, nanoseconds since the epoch
@@ -677,6 +702,27 @@
     into goal branches never push them out (`../pages/work.md`, 1, *Work*);
     a landing with no change, a push from outside temper, gives no row;
   - `landed_default_more`, what `landed_default` cut.
+
+  *Where each row came from* (`../../draft/page-round-trips.md`, section
+  4), from version 29: `ChangesQueued`, the in-flight `TrainLanding` (of
+  its `member`) and `ChangesLanded` each end with `goal`, `chat` and
+  `milestone`, each an option of `ChangeFrom { task: u64, title: bytes
+  256 }`, the task's number and its chip's title: its goal, the change
+  task's nearest tracked ancestor, as its task document's `goal` names it;
+  the chat it came from, the root of its lineage where that root is on the
+  charter of the project's chat template (`pages.md`, *Changes*); and its
+  milestone, its goal's requester where that is a milestone
+  (`../../domain/milestones.md`, section 7). The engine's root knows them
+  from the change's task: from the core's live tasks, held memory-only by
+  change task, at most 4,096, the least recently used dropped first; for
+  a change whose task or an ancestor has ended and isn't held, it loads
+  their ended rows, as an ended task read loads, and marks the subject
+  when they arrive. Until then, and where a load fails, the row names
+  none. `ChangesSigned` ends with `name`, an option of at most 256 bytes:
+  the party as the project's people name it, its member's name or, where
+  that is empty, its login (`../pages/team.md`, 1); none where the
+  project's document doesn't list the party. Names are made with the
+  document, so a member renamed shows at the subject's next mark.
 
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each
@@ -706,7 +752,12 @@
   - `landed`, u64, the changes landed into every landing branch of the
     project; `last_landed`, the time of the latest, option;
   - `brief`, option, `StatusBrief`: `sentence` (at most 200 bytes), `lede`
-    (at most 600), `at`, and `landed`, the count it covers;
+    (at most 600), `at`, and `landed`, the count it covers: the
+    watcher's own brief;
+  - `unpaid`, bool, appended after `branch`: whether the watcher's last
+    status run found nothing to pay for it (`../../domain/forge/attention.md`,
+    3, *When nothing pays*). Its field moves the client wire's version,
+    unbridged (`../../draft/redeploys.md`);
   - `previous`, option, the party's last look of the sitting before; and
     `seen`, u64, the `landed` count then;
   - `queued`, u32, what the subject `changes` counts; `red`, whether the

@@ -26,10 +26,13 @@ pub enum RunAdmission {
 /// Each retained turn counts its four-byte length beside its opaque body
 /// (domain/engine/executors.md, 2).
 #[derive(Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent load and resume facts for one saved window")]
 pub struct Transcript {
     pub window: Option<(u64, u32)>,
     /// An upgrade closed the loaded window or crossed its claim.
     pub closed: bool,
+    /// Activation found that this window ran on another endpoint.
+    pub moved: bool,
     /// A loaded turn was past its store page room (domain/engine/executors.md, 2).
     pub cut: bool,
     /// The preparation has received its final store page.
@@ -152,13 +155,15 @@ impl Core {
         }
         let writes = current.into_boxed();
         let numbers = translate::authority_numbers(self.tasks.claim_numbers(number).unwrap_or(task_numbers));
+        let authority = translate::tasks_authority(task_authority);
+        let budget = authority::run_spend(self.authority.rules(), &authority, numbers);
         authority::check_run(
             &self.authority,
             &authority::RunAsk {
                 project,
-                authority: translate::tasks_authority(task_authority),
+                authority,
                 numbers,
-                budget: authority::left(numbers).min(self.authority.rules().maximum_run_spend),
+                budget,
                 reserve: self.run_reserve(number),
                 wall,
                 main_provider: match choice {
@@ -247,6 +252,7 @@ impl Core {
                     Transcript {
                         window,
                         closed,
+                        moved: false,
                         cut: false,
                         loaded: false,
                         previous_attempt,
@@ -399,6 +405,8 @@ pub enum RoutedCall {
     Withdraw { key: CallKey, proposal: u64, moved: Option<(u64, people::Moved)> },
     Accepting { key: CallKey, proposer: u64, proposal: u64, message: u64 },
     Message(CallKey),
+    MarkRead(CallKey),
+    RecordNote { key: CallKey, name: u64, revision: u32, change: jig_domain_notes::LineChange },
     Introduce(CallKey),
     Subscribe { key: CallKey, subscription: u64 },
     Unsubscribe(CallKey),

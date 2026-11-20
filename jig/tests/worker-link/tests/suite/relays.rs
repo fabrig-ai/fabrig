@@ -1,5 +1,6 @@
 use jig_domain_host as host;
 use jig_protocol_worker_link::{Event, Request};
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{Duration, Reader};
 fn world() -> World {
@@ -51,6 +52,7 @@ fn answers(world: &World) -> Vec<&host::Relayed> {
             | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
+            | Request::Figures { .. }
             | Request::RelayCancelled { .. } => None,
         })
         .collect()
@@ -96,6 +98,7 @@ fn a_relay_cancelled_while_the_link_is_down_is_never_sent_again() {
             | Request::Refused { .. }
             | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
+            | Request::Figures { .. }
             | Request::Fact { .. } => None,
         })
         .collect();
@@ -127,7 +130,7 @@ fn relays_go_again_after_the_hello_before_the_hubs_resends() {
     assert_eq!(records.iter().map(|record| record.kind).collect::<Vec<_>>(), [0x0100, 0x0102, 0x0102, 0x0102, 0x0101]);
     for (record, name) in records[1..4].iter().zip([b"third".as_slice(), b"first", b"second"]) {
         let call = decoded_call(record);
-        assert_eq!(call.name(), name);
+        assert_eq!(call.name.as_ref(), name);
     }
 }
 #[test]
@@ -154,7 +157,7 @@ fn a_full_relay_replay_keeps_one_hello_steps_outputs_bounded() {
     assert_eq!(channels[1][0].kind, 0x0100);
     for (record, name) in channels[1][1..].iter().zip(0_u32..40) {
         let call = decoded_call(record);
-        assert_eq!(call.name(), name.to_be_bytes());
+        assert_eq!(call.name.as_ref(), name.to_be_bytes());
     }
 }
 
@@ -318,7 +321,7 @@ fn replay_capacity_is_retryable_without_losing_the_retained_call() {
     let records = world.records();
     let replayed: Vec<_> = records[1].iter().filter(|record| record.kind == 0x0102).map(decoded_call).collect();
     assert_eq!(replayed.len(), 1);
-    assert_eq!(replayed[0].name(), b"retained");
+    assert_eq!(replayed[0].name.as_ref(), b"retained");
     cancel(&mut world, b"retained");
     call(&mut world, b"retry");
     assert_eq!(kinds(&world, 1).iter().filter(|kind| **kind == 0x0102).count(), 2);

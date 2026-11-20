@@ -14,6 +14,7 @@ use crate::{
 };
 use jig_client::contract as c;
 use skein_lib::{Duration, List, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 fn list<T, I: IntoIterator<Item = T>>(values: I) -> List<T> {
     let values: Vec<T> = values.into_iter().collect();
@@ -218,6 +219,9 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
+                | c::Setting::Limits
+                | c::Setting::Provider(_)
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }
                 | c::Setting::ProjectPolicy { .. } => panic!("charter or template"),
@@ -567,8 +571,11 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
     }
     serve_review(&mut root, call, value);
     while let Some((_, c::Read::Setting(request))) = root.reads.get(&call).cloned() {
-        let (_, value) =
-            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting");
+        let value = if request.setting == c::Setting::Limits {
+            c::SettingValue::Limits(Box::new([]))
+        } else {
+            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting").1
+        };
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
@@ -585,10 +592,15 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         root.serve(call, c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Unknown))));
     }
     while root.family_reads.contains_key(&call) {
+        if let temper_client_protocol_wire::v1::Read::Setting(query) = forge_query(&root, call) {
+            assert_eq!(query.kind, 21, "inventory limit read");
+            root.serve_readout(call, forge_setting_page(None));
+            continue;
+        }
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("revision value")
         };
-        root.serve_readout(call, forge_setting_page(Some(forge_value(query.kind()))));
+        root.serve_readout(call, forge_setting_page(Some(forge_value(query.kind))));
     }
     root.answer(call).expect("read completed")
 }
@@ -886,6 +898,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Template(c::SettingNumber { number: 9 }),
+                    c::SettingFault::Range,
+                ),
+            },
+            "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -899,6 +921,13 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             {
                 let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
                 assert!(text.contains(r#""detail":{"member":"stored_policy","rule":"maximum","document":0,"segment":0,"supplied":70112,"bound":65536}"#), "{text}");
+            }
+            if json
+                && let c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } = &refusal
+                && value.fault == c::SettingFault::Range
+            {
+                let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
+                assert!(text.contains(r#""setting":{"kind":"template","number":9},"fault":"range""#), "{text}");
             }
             if !json && expected != "role" {
                 let text = core::str::from_utf8(&answer.stderr).expect("text");
@@ -1004,7 +1033,7 @@ fn settings_reads_request_the_exact_contract_and_do_not_watch_settings() {
     ] {
         let (root, call) = fixtures::read_call(&argv);
         assert_eq!(root.reads.get(&call).expect("one read").1, expected);
-        assert_eq!(root.watches.len(), 1, "only shared me watch");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -1026,7 +1055,7 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
         );
         root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
         assert_eq!(root.answer(call).expect("value refusal").status, 2);
-        assert_eq!(root.watches.len(), 1, "only the shared me watch");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -1056,8 +1085,12 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
-            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
+            c::Setting::Limits
+            | c::Setting::Provider(_)
+            | c::Setting::Application { .. }
+            | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
+            c::Setting::Worker(_) => vec!["settings", "show", "worker", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
@@ -1524,7 +1557,7 @@ fn proposal_reads_use_one_exact_read_and_keep_not_served_and_role_statuses() {
         root.reads.get(&call).expect("exact read").1,
         c::Read::Proposal { proposal: c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 } }
     );
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     for (page, status) in [
         (jig_client::Readout::NotServed { family: None, served: None }, 1),
         (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
@@ -2150,7 +2183,11 @@ fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
 }
 
 fn forge_value(kind: u32) -> Box<[u8]> {
-    let json = if kind == 8 {
+    let json = if kind == 4 {
+        br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4}}]}"#.as_slice()
+    } else if kind == 5 {
+        br#"{"items":[{"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}}]}"#.as_slice()
+    } else if kind == 8 {
         br#"{"items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"wording","class":"decide"},{"kind":"implementation","words":"keep the format","class":"ask"},{"set":2,"class":"ask-away"}],"sets":[{"number":2,"name":"protocol","patterns":["src/protocol.*","docs/protocol/**"]}]}}]}"#.as_slice()
     } else if kind == 7 {
         br#"{"items":[{"setting":{"kind":"project-ways","project":7},"set":{"drafts":true,"goals":false,"changes":false,"way":0}}]}"#.as_slice()
@@ -2162,6 +2199,8 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
     } else if kind == 14 {
         br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
+    } else if kind == 21 {
+        br#"{"items":[{"setting":{"kind":"agents"},"set":{"profile":{"policy.max_turns":900},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"drop"}}}]}"#.as_slice()
     } else if kind == 15 {
         br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
     } else if kind == 3 {
@@ -2188,9 +2227,7 @@ fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     jig_client::Readout::Family {
         family: wire::FORGE,
-        record: Some(wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
-        )),
+        record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value })),
     }
 }
 fn forge_query(root: &fixtures::Harness, call: u32) -> temper_client_protocol_wire::v1::Read {
@@ -2201,7 +2238,7 @@ fn forge_query(root: &fixtures::Harness, call: u32) -> temper_client_protocol_wi
     };
     assert_eq!(*scope, c::Scope::Deployment);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read
+    wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
 }
 fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
@@ -2239,10 +2276,16 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             false,
         ),
         (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1", false),
+        (vec!["settings", "show", "project-landing", "1"], 4, 1, "project-landing 1", false),
+        (vec!["settings", "show", "project-gates", "1"], 5, 1, "project-gates 1", false),
+        (vec!["settings", "show", "project-landing", "shop"], 4, fixtures::PROJECT, "project-landing", false),
+        (vec!["settings", "show", "project-gates", "shop"], 5, fixtures::PROJECT, "project-gates", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
         (vec!["settings", "show", "project-areas", "7"], 14, 7, "project-areas 7", false),
         (vec!["settings", "show", "project-triager", "7"], 15, 7, "project-triager 7", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", true),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
@@ -2284,10 +2327,10 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(root.answer(call).is_none());
             if historical {
                 let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("revision query") };
-                assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+                assert_eq!((query.kind, query.scope, query.number, query.revision), (kind, scope, 1, 5));
             } else {
                 let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting query") };
-                assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, 1));
+                assert_eq!((query.kind, query.scope, query.number), (kind, scope, 1));
             }
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
             let answer = root.answer(call).expect("joined setting");
@@ -2296,6 +2339,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",
+                    4 => "\"value\":{\"by\":\"turn\",\"batch\":4",
+                    5 => "\"value\":{\"repositories\":[{\"forge\":1,\"repository\":7",
                     6 => "\"value\":\"up\"",
                     7 => "\"drafts\":true",
                     8 => "\"class\":\"ask-away\"",
@@ -2305,6 +2350,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     12 => "\"workflow\":\"tests.yml\"",
                     14 => "\"owner\":{\"task\":42}",
                     15 => "\"owner\":{\"charter\":14}",
+                    21 => "\"profile\":{\"policy.max_turns\":900}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2358,7 +2404,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 );
                 assert_eq!(text.contains("the stock"), stock, "{text}");
             }
-            assert_eq!(root.watches.len(), 1);
+            assert_eq!(root.watches.len(), 0);
             if historical {
                 continue;
             }
@@ -2367,7 +2413,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             historical.extend_from_slice(&["--revision", "5"]);
             let call = root.submit_prepared(fixtures::call(&historical), json, None);
             let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("historical setting query") };
-            assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+            assert_eq!((query.kind, query.scope, query.number, query.revision), (kind, scope, 1, 5));
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
             let answer = root.answer(call).expect("historical setting");
             assert_eq!(answer.status, 0);
@@ -2375,6 +2421,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
             let expected = match kind {
                 3 => "6",
+                4 => "\"by\":\"turn\",\"batch\":4",
+                5 => "\"repositories\":[{\"forge\":1,\"repository\":7",
                 6 => "\"up\"",
                 7 => "\"drafts\":true",
                 8 => {
@@ -2390,6 +2438,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 12 => "\"workflow\":\"tests.yml\"",
                 14 => "\"owner\":{\"task\":42}",
                 15 => "\"owner\":{\"charter\":14}",
+                21 => "\"policy.max_turns\":900",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");
@@ -2407,6 +2456,8 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
                 (8, 2, 1, vec!["settings", "show", "project-classes", "2"]),
                 (9, 0, 1, vec!["settings", "show", "charter-words", "1"]),
                 (10, 7, 1, vec!["settings", "show", "project-words", "7"]),
+                (4, 1, 1, vec!["settings", "show", "project-landing", "1"]),
+                (5, 1, 1, vec!["settings", "show", "project-gates", "1"]),
             ] {
                 let mut root = fixtures::signed_in(fixtures::PARTY);
                 let call = root.submit_prepared(fixtures::call(&argv), json, None);
@@ -2415,7 +2466,17 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
                 let answer = root.answer(call).unwrap();
                 assert_eq!(answer.status, 0);
                 let text = core::str::from_utf8(&answer.stdout).unwrap();
-                if kind == 3 || kind == 9 || kind == 10 || kind == 11 {
+                if !json && (kind == 4 || kind == 5) {
+                    assert!(
+                        text.starts_with(if kind == 4 {
+                            "project-landing 1, revision 5\nnone\n"
+                        } else {
+                            "project-gates 1, revision 5\nnone\n"
+                        }),
+                        "{text}"
+                    );
+                }
+                if kind == 3 || kind == 4 || kind == 5 || kind == 9 || kind == 10 || kind == 11 {
                     assert!(
                         text.contains(if json {
                             "\"value\":null"
@@ -2480,6 +2541,8 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         (1, 0, 1, c::ApplicationFollows::Default),
         (2, 7, 2, c::ApplicationFollows::Changed { revision: 5 }),
         (3, 0, 1, c::ApplicationFollows::Removed { revision: 5 }),
+        (4, 7, 1, c::ApplicationFollows::Changed { revision: 5 }),
+        (5, 7, 1, c::ApplicationFollows::Default),
         (9, 0, 2, c::ApplicationFollows::Default),
         (10, 7, 1, c::ApplicationFollows::Changed { revision: 5 }),
         (11, 0, 4, c::ApplicationFollows::Default),
@@ -2506,6 +2569,8 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         "landing-rule 1: default",
         "landing-rule 2 --project 7: changed in revision 5",
         "forge-charter 1: changed in revision 5, removed",
+        "project-landing 7: changed in revision 5",
+        "project-gates 7: default",
         "charter-words 2: default",
         "project-words 7: changed in revision 5",
         "template-goal 4: default",
@@ -2540,25 +2605,17 @@ fn forge_state_review(setting: c::Setting, follows: Option<c::ApplicationFollows
 }
 fn forge_set_items(kind: u32) -> jig_client::Readout {
     use temper_client_protocol_wire::v1 as w;
-    let item = w::ProposalItem::new(
-        &w::CEILINGS,
-        w::ProposalItemParts {
-            kind,
-            scope: 0,
-            number: 1,
-            edit: w::SettingEdit::Set(
-                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(kind) }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let item = w::ProposalItem {
+        kind,
+        scope: 0,
+        number: 1,
+        edit: w::SettingEdit::Set(w::SettingValue { value: forge_value(kind) }),
+    };
     forge_items_page(list([item]))
 }
 fn forge_items_page(items: List<temper_client_protocol_wire::v1::ProposalItem>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record =
-        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: false })
-            .unwrap();
+    let record = w::ProposalItemsAnswer { items, owned_approval: false };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) }
 }
 fn forge_proposed_review(kind: u32, follows: Option<c::ApplicationFollows>, json: bool) -> jig::Printed {
@@ -2656,35 +2713,21 @@ fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
         let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
         serve_review(&mut root, call, forge_review());
         let w::Read::ProposalItems(query) = forge_query(&root, call) else { panic!("proposal items") };
-        assert_eq!(query.key(), u64::MAX, "the review's key, not proposer 73's number 7");
+        assert_eq!(query.key, u64::MAX, "the review's key, not proposer 73's number 7");
         let items = list([
-            w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts {
-                    kind: 1,
-                    scope: 0,
-                    number: 1,
-                    edit: w::SettingEdit::Set(
-                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) }).unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-            w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
-            )
-            .unwrap(),
-            w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
-            )
-            .unwrap(),
+            w::ProposalItem {
+                kind: 1,
+                scope: 0,
+                number: 1,
+                edit: w::SettingEdit::Set(w::SettingValue { value: forge_value(1) }),
+            },
+            w::ProposalItem { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
+            w::ProposalItem { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
         ]);
         root.serve_readout(call, forge_items_page(items));
         for (kind, scope, number) in [(1, 0, 1), (2, 7, 2), (3, 0, 1)] {
             let w::Read::Setting(query) = forge_query(&root, call) else { panic!("current setting") };
-            assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, number));
+            assert_eq!((query.kind, query.scope, query.number), (kind, scope, number));
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
         }
         let answer = root.answer(call).unwrap();
@@ -3314,7 +3357,7 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
     for json in [false, true] {
         let (mut root, call) =
             fixtures::read_call(if json { &["revision", "show", "5", "--json"] } else { &["revision", "show", "5"] });
-        let items = [(2, 1), (3, 0), (9, 0), (10, 7)].map(|(kind, scope)| c::RevisionItem {
+        let items = [(2, 1), (3, 0), (4, 7), (5, 7), (9, 0), (10, 7)].map(|(kind, scope)| c::RevisionItem {
             setting: c::Setting::Application { kind, scope, number: 1 },
             edit: c::RevisionEdit::Application(c::SizedEdit::Set {
                 size: u32::try_from(forge_value(kind).len()).unwrap(),
@@ -3328,12 +3371,12 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
                 items: list(items),
             })))),
         );
-        for (kind, scope) in [(2, 1), (3, 0), (9, 0), (10, 7)] {
+        for (kind, scope) in [(2, 1), (3, 0), (4, 7), (5, 7), (9, 0), (10, 7)] {
             assert!(root.answer(call).is_none(), "revision must read historical forge values before printing");
             let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
                 panic!("revision-qualified read")
             };
-            assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+            assert_eq!((query.kind, query.scope, query.number, query.revision), (kind, scope, 1, 5));
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
         }
         let answer = root.answer(call).expect("historical values joined");
@@ -3342,12 +3385,20 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
         for needle in [
             "\"ci\":false",
             "charter-words",
+            "project-landing",
+            "project-gates",
+            "\"by\":\"turn\",\"batch\":4",
+            "\"repositories\":[{\"forge\":1,\"repository\":7",
             "project-words",
             "reviews every change",
             "Our way",
             "We review every change.",
         ] {
             assert!(text.contains(needle), "{text}");
+        }
+        if !json {
+            assert!(text.contains("project-landing 7"), "{text}");
+            assert!(text.contains("project-gates 7"), "{text}");
         }
         assert!(text.contains(if json { "\"set\":6" } else { "\n6\n" }), "{text}");
         assert!(text.contains(if json { "\"replaced\":\"default\"" } else { "was: default" }), "{text}");
@@ -3386,7 +3437,7 @@ fn revision_show_large_temper_values_name_a_working_historical_read() {
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("qualified historical read")
         };
-        assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (2, 1, 1, 5));
+        assert_eq!((query.kind, query.scope, query.number, query.revision), (2, 1, 1, 5));
         root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
         let answer = root.answer(call).expect("whole historical value");
         assert_eq!(answer.status, 0);
@@ -3503,7 +3554,7 @@ fn revision_show_hydrates_replaced_values_for_every_edit() {
                 let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
                     panic!("historical read")
                 };
-                assert_eq!(query.revision(), revision);
+                assert_eq!(query.revision, revision);
                 root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
             }
             let answer = root.answer(call).expect("hydrated replaced value");
@@ -3796,3 +3847,53 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
 
 #[path = "settings_overlays.rs"]
 mod overlays;
+#[path = "settings_providers.rs"]
+mod providers;
+
+#[test]
+fn ctl_applies_proposes_and_shows_a_worker_setting() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let value = c::SettingValue::Worker(Box::new(c::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([0xab; 32]),
+        withdrawn: false,
+    }));
+    let file = file_from_setting(&setting_json(setting, value.clone()));
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).unwrap();
+    assert_eq!(
+        decoded.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig change") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(change.items, decoded);
+    let (root, call) = proposed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig proposal") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items, decoded);
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "worker", "2", "--revision", "5"]);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 5,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    let text = core::str::from_utf8(&answer.stdout).unwrap();
+    assert!(text.starts_with("worker 2, revision 5\n"), "{text}");
+    assert!(text.contains("abababababababababababababababababababababababababababababababab"), "{text}");
+}

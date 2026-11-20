@@ -3,6 +3,7 @@ use crate::Limits;
 use crate::view as c;
 use crate::{Text, values};
 use skein_json::writer::Encoder;
+use temper_client_protocol_wire::v1::Record;
 use temper_protocol_reaches::{Class, Subject, classes_from};
 
 pub fn setting_text(setting: c::Setting, out: &mut Text) {
@@ -11,6 +12,8 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
+        c::Setting::Provider(n) => (b"provider".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));
@@ -36,13 +39,27 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(scope));
             return;
         }
+        c::Setting::Application { kind: 22, .. } => {
+            out.put(b"temper-limits");
+            return;
+        }
+        c::Setting::Application { kind: 21, .. } => {
+            out.put(b"agents");
+            return;
+        }
+        c::Setting::Application { kind: 20, .. } => {
+            out.put(b"welcome");
+            return;
+        }
         c::Setting::Application { kind: 11, number, .. } => {
             out.put(b"template-goal ");
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
+        c::Setting::Application { kind: kind @ (4 | 5 | 6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
             out.put(match kind {
+                4 => b"project-landing ",
+                5 => b"project-gates ",
                 6 => b"project-questions ",
                 7 => b"project-ways ",
                 8 => b"project-classes ",
@@ -64,6 +81,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             return;
         }
         c::Setting::ProjectPolicy { project } => (b"project-policy".as_slice(), Some(project)),
+        c::Setting::Limits => (b"limits".as_slice(), None),
         c::Setting::Rules => (b"rules".as_slice(), None),
     };
     out.put(kind);
@@ -75,7 +93,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
 /// Mark a project's fallback value when its inventory has no explicit change.
 pub fn stock_text(value: &c::ReadValue, out: &mut Text) {
     if let c::ReadValue::Setting(document) = value
-        && let c::Setting::Application { kind: 6..=8, .. } = document.setting
+        && let c::Setting::Application { kind: 6..=8 | 20 | 21 | 22, .. } = document.setting
     {
         let stock = match &document.application {
             None => true,
@@ -95,6 +113,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
+        c::Setting::Provider(n) => (b"provider".as_slice(), Some(n.number)),
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
@@ -104,6 +124,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 11 => out.string(b"template-goal"),
                 12 => out.string(b"follow"),
                 13 => out.string(b"dependency"),
+                4 => out.string(b"project-landing"),
+                5 => out.string(b"project-gates"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
                 8 => out.string(b"project-classes"),
@@ -111,9 +133,14 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 10 => out.string(b"project-words"),
                 14 => out.string(b"project-areas"),
                 15 => out.string(b"project-triager"),
+                20 => out.string(b"welcome"),
+                21 => out.string(b"agents"),
+                22 => out.string(b"temper-limits"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2
+            if kind == 4
+                || kind == 5
+                || kind == 2
                 || kind == 6
                 || kind == 7
                 || kind == 8
@@ -125,11 +152,22 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {
+            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 && kind != 20 && kind != 21 && kind != 22 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 14 && kind != 15 {
+            if kind != 4
+                && kind != 5
+                && kind != 6
+                && kind != 7
+                && kind != 8
+                && kind != 10
+                && kind != 14
+                && kind != 15
+                && kind != 20
+                && kind != 21
+                && kind != 22
+            {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }
@@ -137,6 +175,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             return;
         }
         c::Setting::ProjectPolicy { project } => (b"project-policy".as_slice(), Some(project)),
+        c::Setting::Limits => (b"limits".as_slice(), None),
         c::Setting::Rules => (b"rules".as_slice(), None),
     };
     out.object_start();
@@ -173,6 +212,20 @@ fn named_value_text(
     limits: &Limits,
     out: &mut Text,
 ) {
+    if let c::Setting::Application { kind: 22, .. } = setting
+        && let c::SettingValue::Application(bytes) = value
+        && application_value_text(22, bytes, out)
+    {
+        out.put(b"\n");
+        return;
+    }
+    if let c::SettingValue::Limits(values) = value {
+        for value in values {
+            limit_line(value, out);
+            out.put(b"\n");
+        }
+        return;
+    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);
@@ -185,7 +238,9 @@ fn named_value_text(
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
+        c::SettingValue::Provider(value) => crate::providers::encode(value, out),
         c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
+        c::SettingValue::Worker(v) => values::encode_worker(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
@@ -197,10 +252,20 @@ pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
             }
             out.array_end();
         }
+        c::SettingValue::Limits(v) => crate::kinds::limits::encode(v, out),
         c::SettingValue::Rules(v) => values::encode_rules(v, out),
     }
 }
 pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
+    if let c::SettingValue::Limits(values) = value {
+        for (at, value) in values.iter().enumerate() {
+            if at != 0 {
+                out.put(b"\n");
+            }
+            limit_line(value, out);
+        }
+        return;
+    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);
@@ -263,10 +328,13 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
             }
         }
         c::SettingValue::Overlay(_)
+        | c::SettingValue::Provider(_)
+        | c::SettingValue::Worker(_)
         | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
-        | c::SettingValue::Rules(_) => {}
+        | c::SettingValue::Rules(_)
+        | c::SettingValue::Limits(_) => {}
     }
 }
 pub fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
@@ -373,9 +441,12 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
                     c::Setting::Charter(_)
                     | c::Setting::Template(_)
                     | c::Setting::Policy(_)
+                    | c::Setting::Provider(_)
+                    | c::Setting::Worker(_)
                     | c::Setting::Model(_)
                     | c::Setting::ProjectPolicy { .. }
                     | c::Setting::Rules
+                    | c::Setting::Limits
                     | c::Setting::Application { .. } => {}
                 }
             }
@@ -487,6 +558,39 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
     }
     out.object_end();
 }
+/// Word a fault with the setting's kind and number (jig/docs/design/domain/engine/settings.md, 1).
+pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text) {
+    if fault != c::SettingFault::Range {
+        out.put(fault_word(fault));
+        return;
+    }
+    let (number, kinds) = match setting {
+        c::Setting::Charter(n) => (n.number, b"charters".as_slice()),
+        c::Setting::Template(n) => (n.number, b"templates".as_slice()),
+        c::Setting::Policy(n) => (n.number, b"policies".as_slice()),
+        c::Setting::Model(n) => (n.number, b"models".as_slice()),
+        c::Setting::Worker(n) | c::Setting::Provider(n) => (n.number, b"items".as_slice()),
+        c::Setting::Application { number, .. } => (number, b"items".as_slice()),
+        c::Setting::ProjectPolicy { project } => (project, b"items".as_slice()),
+        c::Setting::Rules | c::Setting::Limits => (0, b"items".as_slice()),
+    };
+    if number <= c::STOCK_NUMBERS {
+        out.put(b"is among the stock's numbers, 1 to ");
+        out.number(u64::from(c::STOCK_NUMBERS));
+        out.put(b"; your own ");
+        out.put(kinds);
+        out.put(b" take ");
+    } else {
+        out.put(b"is past the ");
+        out.put(kinds);
+        out.put(b"' numbers: the stock's take 1 to ");
+        out.number(u64::from(c::STOCK_NUMBERS));
+        out.put(b", your own ");
+    }
+    out.number(u64::from(c::STOCK_NUMBERS.checked_add(1).expect("deployment range starts after stock")));
+    out.put(b" to ");
+    out.number(u64::from(c::NUMBERS));
+}
 #[must_use]
 pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
     match fault {
@@ -498,6 +602,9 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Grace => b"grace",
         c::SettingFault::Judged => b"refused by its owner",
         c::SettingFault::Owner => b"owner",
+        c::SettingFault::Linked => b"linked: stop it first",
+        c::SettingFault::Accounts => b"provider still has accounts: remove its accounts first",
+        c::SettingFault::Range => b"range",
     }
 }
 
@@ -554,6 +661,7 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
     match answer {
         c::RevisionAnswer::Revision(document) => {
             head_text(&document.head, out);
+            let mut overrides = skein_lib::List::uncapped();
             for item in &document.items {
                 out.put(b"  ");
                 setting_text(item.setting, out);
@@ -561,7 +669,11 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                 match &item.edit {
                     c::RevisionEdit::Set(set) => {
                         out.put(b"set\n");
-                        named_value_text(item.setting, &set.value, None, limits, out);
+                        if limit_values(item.setting, &set.value).is_some() {
+                            overrides.push((item.setting, set.value.clone())).expect("revision limit kinds");
+                        } else {
+                            named_value_text(item.setting, &set.value, None, limits, out);
+                        }
                     }
                     c::RevisionEdit::TooLarge(size) => {
                         revision_size_text(item.setting, document.head.number, size, out);
@@ -572,6 +684,7 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                 }
                 replaced_text(item.setting, &item.replaced, limits, out);
             }
+            limits_text(overrides.as_slice(), out);
         }
         c::RevisionAnswer::Forgotten(f) => {
             out.put(b"revision ");
@@ -587,10 +700,13 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
 fn historical_setting(setting: c::Setting) -> bool {
     match setting {
         c::Setting::Charter(_) | c::Setting::Application { .. } => true,
-        c::Setting::Model(_)
+        c::Setting::Provider(_)
+        | c::Setting::Worker(_)
+        | c::Setting::Model(_)
         | c::Setting::Template(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules
+        | c::Setting::Limits
         | c::Setting::ProjectPolicy { .. } => false,
     }
 }
@@ -901,8 +1017,18 @@ pub fn setting_detail(detail: &c::SettingDetail, out: &mut Text) {
 pub fn application_value(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     crate::kinds::render(kind, bytes, out)
 }
-/// Render a project's classes in words; other application kinds use inline JSON.
+/// Render classes and limit overrides in words; other application kinds use inline JSON.
 pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
+    if kind == 22 {
+        let Some(values) = crate::kinds::limits::decoded(bytes) else { return false };
+        for (at, value) in values.iter().enumerate() {
+            if at != 0 {
+                out.put(b"\n");
+            }
+            limit_line(value, out);
+        }
+        return true;
+    }
     if kind != 8 {
         return false;
     }
@@ -981,4 +1107,66 @@ fn overlay_marks(overlay: &c::Overlay, out: &mut Text) {
         out.put(b" bytes of instructions");
     }
     out.put(b"\n");
+}
+
+fn limit_line(value: &c::Override, out: &mut Text) {
+    crate::kinds::limits::line(value, out);
+}
+
+/// The two disjoint kinds read as one list by name, with their origin retained
+/// (protocol/configuration/limit-settings.md, 2.4).
+#[must_use]
+pub fn limit_values(setting: c::Setting, value: &c::SettingValue) -> Option<alloc::boxed::Box<[c::Override]>> {
+    match setting {
+        c::Setting::Limits => match value {
+            c::SettingValue::Limits(values) => Some(values.clone()),
+            c::SettingValue::Application(_)
+            | c::SettingValue::Charter(_)
+            | c::SettingValue::Overlay(_)
+            | c::SettingValue::Worker(_)
+            | c::SettingValue::Provider(_)
+            | c::SettingValue::Model(_)
+            | c::SettingValue::Template(_)
+            | c::SettingValue::Policy(_)
+            | c::SettingValue::Rules(_) => None,
+        },
+        c::Setting::Application { kind: 22, .. } => match value {
+            c::SettingValue::Application(bytes) => crate::kinds::limits::decoded(bytes),
+            c::SettingValue::Limits(_)
+            | c::SettingValue::Charter(_)
+            | c::SettingValue::Overlay(_)
+            | c::SettingValue::Worker(_)
+            | c::SettingValue::Provider(_)
+            | c::SettingValue::Model(_)
+            | c::SettingValue::Template(_)
+            | c::SettingValue::Policy(_)
+            | c::SettingValue::Rules(_) => None,
+        },
+        c::Setting::Charter(_)
+        | c::Setting::Template(_)
+        | c::Setting::Worker(_)
+        | c::Setting::Provider(_)
+        | c::Setting::Model(_)
+        | c::Setting::Policy(_)
+        | c::Setting::Rules
+        | c::Setting::ProjectPolicy { .. }
+        | c::Setting::Application { .. } => None,
+    }
+}
+
+pub fn limits_text(values: &[(c::Setting, c::SettingValue)], out: &mut Text) {
+    let mut ordered = skein_lib::Map::uncapped();
+    for (setting, value) in values {
+        let Some(overrides) = limit_values(*setting, value) else { continue };
+        let kind: &[u8] = if *setting == c::Setting::Limits { b"limits" } else { b"temper-limits" };
+        for value in overrides {
+            ordered.insert((value.name.clone(), kind), value).expect("bounded override lists");
+        }
+    }
+    for ((_, kind), value) in &ordered {
+        limit_line(value, out);
+        out.put(b" [");
+        out.put(kind);
+        out.put(b"]\n");
+    }
 }

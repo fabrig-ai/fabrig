@@ -16,44 +16,37 @@ impl Frame {
         frame
     }
     pub(super) fn deliver_change(&mut self) {
-        let used = f::Used::new(&f::CEILINGS, f::UsedParts { used: 0, limit: 3 }).expect("repair limit");
-        let panel = f::ChangePanel::new(
-            &f::CEILINGS,
-            f::ChangePanelParts {
-                source: None,
-                way: f::Way::Queue,
-                in_landing: None,
-                task: TASK,
-                forge: 3,
-                owner: b"qa".as_slice().into(),
-                name: b"restart".as_slice().into(),
-                branch: b"temper/7".as_slice().into(),
-                landing: b"main".as_slice().into(),
-                head: None,
-                pull: None,
-                step: f::Step::Gating,
-                hold: Some(f::Hold::Stalled),
-                runs: None,
-                ci_required: true,
-                ci: f::Ci::Pending,
-                approvals: skein_lib::List::with_capacity(0),
-                unmapped_reviews: skein_lib::List::with_capacity(0),
-                gates: skein_lib::List::with_capacity(0),
-                repairs: used.clone(),
-                resolutions: used.clone(),
-                updates: used,
-                questions: f::Questions::new(
-                    &f::CEILINGS,
-                    f::QuestionsParts {
-                        route: f::Route::None,
-                        taken: f::Used::new(&f::CEILINGS, f::UsedParts { used: 0, limit: 4 }).expect("question limit"),
-                        open: skein_lib::List::with_capacity(0),
-                    },
-                )
-                .expect("no questions"),
+        let used = f::Used { used: 0, limit: 3 };
+        let panel = f::ChangePanel {
+            wait: None,
+            source: None,
+            way: f::Way::Queue,
+            in_landing: None,
+            task: TASK,
+            forge: 3,
+            owner: b"qa".as_slice().into(),
+            name: b"restart".as_slice().into(),
+            branch: b"temper/7".as_slice().into(),
+            landing: b"main".as_slice().into(),
+            head: None,
+            pull: None,
+            step: f::Step::Gating,
+            hold: Some(f::Hold::Stalled),
+            runs: None,
+            ci_required: true,
+            ci: f::Ci::Pending,
+            approvals: skein_lib::List::with_capacity(0),
+            unmapped_reviews: skein_lib::List::with_capacity(0),
+            gates: skein_lib::List::with_capacity(0),
+            repairs: used.clone(),
+            resolutions: used.clone(),
+            updates: used,
+            questions: f::Questions {
+                route: f::Route::None,
+                taken: f::Used { used: 0, limit: 4 },
+                open: skein_lib::List::with_capacity(0),
             },
-        )
-        .expect("held panel");
+        };
         let document = w::Owned::new(
             &w::CEILINGS,
             w::OwnedParts {

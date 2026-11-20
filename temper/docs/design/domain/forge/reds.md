@@ -149,14 +149,17 @@ section 9.
 - **In each writable repository of the run's checkout with a pin,**
   `refs/temper/landing` (`../worker/checkouts.md`, *The landing pin*),
   the worker finds the check's base as the check does before stepping
-  past unchecked saves (`../../../../../tools/pre-pr/design.md`, 2):
+  past unchecked saves (`../../../../../tools/pre-pr/design.md`, 2), in its
+  own git directory, whose HEAD and pin the run's holds too
+  (`../../protocol/git.md`, 4.13):
   `git merge-base refs/temper/landing HEAD`, with `MERGE_HEAD` as a third
   where a merge is in progress, the first it prints. It keeps each red
   whose head is an ancestor of that base or is that base
   (`git merge-base --is-ancestor HEAD_OF_RED BASE`). A head the checkout
   doesn't have is not contained; with no base, it keeps none.
 - **`temper/reds`,** at `git rev-parse --git-path temper/reds` in that
-  repository: the line `temper-reds 1`, then one line `- KEY` for each red
+  repository, the run's `.git/temper/reds`, which the worker writes by that
+  path, never asking git: the line `temper-reds 1`, then one line `- KEY` for each red
   it kept, in key order, each key once; every line ends with a line
   feed. A file of the header alone is no reds. It is written to
   `temper/reds.tmp` beside it and renamed over it, so the check reads a
@@ -428,8 +431,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   replacements, ends and goal releases over a few goals and keys keep each
   goal within `forge.branch_reds`, each key once, its generations
   increasing, and every answer naming only the live records of its goal.
-- **The store:** the families' current golden bytes and registered
-  value types, with no patch
+- **The store:** the families' records drift, pinned constructs, built-value
+  round trips and registered value types, with no patch
   (`../../protocol/floor.md`, 6).
 - **The tool:** each act decoded, each refusal, each answer rendered,
   and the host tools' contract moved (`../../protocol/wires.md`, 7); the

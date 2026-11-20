@@ -1,7 +1,7 @@
 //! Structural adapters between neutral forms and the shared client wire.
 use crate::{Limits, view as c};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Reader, Wall, Writer, bytes};
 pub fn restore_revisions_page(value: &w::RevisionsPage, limits: &Limits) -> Result<c::RevisionsPage, w::Problem> {
     let mut rows = List::with_capacity(value.rows().len());
@@ -80,7 +80,10 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
         w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
         w::Setting::Rules => c::Setting::Rules,
+        w::Setting::Limits => c::Setting::Limits,
         w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item, limits)),
+        w::Setting::Worker(item) => c::Setting::Worker(settings_restore_setting_number(item, limits)),
+        w::Setting::Provider(item) => c::Setting::Provider(settings_restore_setting_number(item, limits)),
     }
 }
 
@@ -201,6 +204,7 @@ pub(crate) fn settings_restore_setting_value(
     limits: &Limits,
 ) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
+        w::SettingValue::Provider(item) => c::SettingValue::Provider(Box::new(providers::decode(item))),
         w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item, limits)?)),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(settings_restore_charter(item, limits)?)),
         w::SettingValue::Template(item) => c::SettingValue::Template(Box::new(documents_me_template(item, limits)?)),
@@ -208,7 +212,23 @@ pub(crate) fn settings_restore_setting_value(
             c::SettingValue::Policy(Box::new(settings_restore_setting_policy(item, limits)?))
         }
         w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
+        w::SettingValue::Worker(item) => c::SettingValue::Worker(Box::new(c::WorkerSetting {
+            number: item.number(),
+            name: item.name().into(),
+            places: item.places(),
+            digest: *item.digest(),
+            withdrawn: item.withdrawn(),
+        })),
         w::SettingValue::Model(item) => c::SettingValue::Model(Box::new(restore_catalogue(item, limits)?)),
+        w::SettingValue::Limits(value) => {
+            let mut overrides = List::with_capacity(value.overrides().len());
+            for item in value.overrides() {
+                overrides
+                    .push(c::Override { name: item.name().into(), value: item.value(), reason: item.reason().into() })
+                    .expect("override count");
+            }
+            c::SettingValue::Limits(overrides.into_boxed())
+        }
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(settings_restore_rules(item, limits)?)),
     })
 }
@@ -1133,7 +1153,30 @@ pub(crate) fn settings_wire_setting_value(
             limits,
             w::ApplicationValueParts { bytes: v.clone() },
         )?),
+        c::SettingValue::Provider(item) => w::SettingValue::Provider(Box::new(providers::encode(item, limits)?)),
+        c::SettingValue::Worker(item) => w::SettingValue::Worker(Box::new(w::WorkerSetting::new(
+            limits,
+            w::WorkerSettingParts {
+                number: item.number,
+                name: item.name.clone(),
+                places: item.places,
+                digest: item.digest,
+                withdrawn: item.withdrawn,
+            },
+        )?)),
         c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item, limits)?)),
+        c::SettingValue::Limits(values) => {
+            let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+            for item in values {
+                overrides
+                    .push(w::Override::new(
+                        limits,
+                        w::OverrideParts { name: item.name.clone(), value: item.value, reason: item.reason.clone() },
+                    )?)
+                    .expect("override count");
+            }
+            w::SettingValue::Limits(w::LimitsValue::new(limits, w::LimitsValueParts { overrides })?)
+        }
         c::SettingValue::Rules(item) => w::SettingValue::Rules(Box::new(settings_wire_rules(item, limits)?)),
     })
 }
@@ -1715,7 +1758,12 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
+            rest: value.rest,
+            resume: value.resume(),
+            inspect: value.inspect(),
+            modify: value.modify(),
+            shell: value.shell(),
+            agents: value.agents(),
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -1781,7 +1829,10 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
             w::ApplicationSettingParts { kind, scope, number },
         )?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::Limits => w::Setting::Limits,
         c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
+        c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item, limits)?),
+        c::Setting::Provider(item) => w::Setting::Provider(settings_wire_setting_number(item, limits)?),
         c::Setting::ProjectPolicy { project } => {
             w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
         }
@@ -1944,3 +1995,5 @@ fn restore_catalogue(value: &w::CatalogueEntry, limits: &Limits) -> Result<c::Ca
         },
     })
 }
+
+mod providers;

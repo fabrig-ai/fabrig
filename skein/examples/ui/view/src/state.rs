@@ -1,8 +1,9 @@
 //! The page's facts and platform reports (examples.md, 9.2).
 use crate::{Place, places, records};
+use records::Record as _;
 mod events;
 use alloc::boxed::Box;
-use skein_lib::{List, Queue, Reader, Time, Wall, Writer, usize_of};
+use skein_lib::{List, Queue, Reader, Time, Wall, Writer};
 use skein_ui::{Act, Binding, BoundAct, Patch, View};
 
 #[derive(Debug)]
@@ -78,12 +79,11 @@ impl State {
     pub fn start(seed: u64, path: &[u8], records: &[Record], _offset: i32, _languages: &[u8]) -> State {
         #[cfg(debug_assertions)]
         assert!(places::parse(path) != Place::Panic, "the test address panics at start");
-        let notes = records::Notes::new(&records::CEILINGS, records::NotesParts { notes: List::with_capacity(64) })
-            .expect("empty notes fit");
+        let notes = records::Notes { notes: List::with_capacity(64) };
         let mut pending = List::with_capacity(8);
         for record in records {
             if let Ok(add) = records::Add::decode(&records::CEILINGS, &mut Reader::new(&record.value))
-                && record.key == add_key(add.key())
+                && record.key == add_key(add.key)
                 && pending.room() > 0
             {
                 pending.push(Some(add)).expect("pending capacity checked");
@@ -150,7 +150,7 @@ impl State {
                 if exchange == 0 && status == 200 {
                     let mut reader = Reader::new(&body);
                     if let Ok(notes) = records::Notes::decode(&records::CEILINGS, &mut reader) {
-                        for note in notes.notes() {
+                        for note in &notes.notes {
                             self.accept(note.clone());
                         }
                         self.live = self.stream_open;
@@ -226,9 +226,9 @@ impl State {
         if binding == crate::view::BACK {
             return Some(Place::List);
         }
-        for note in self.notes.notes() {
-            if note.number() == binding.token.raw() {
-                return Some(Place::Note { number: note.number() });
+        for note in &self.notes.notes {
+            if note.number == binding.token.raw() {
+                return Some(Place::Note { number: note.number });
             }
         }
         None
@@ -375,18 +375,14 @@ impl State {
         };
         let key = self.seed ^ self.serial;
         self.serial = self.serial.checked_add(1).expect("add serial cannot exhaust");
-        let add = records::Add::new(
-            &records::CEILINGS,
-            records::AddParts {
-                key,
-                title: self.title.clone(),
-                body: self.body.clone(),
-                due: self.due.clone(),
-                minutes,
-                label: self.label.clone(),
-            },
-        )
-        .expect("title within its ceiling");
+        let add = records::Add {
+            key,
+            title: self.title.clone(),
+            body: self.body.clone(),
+            due: self.due.clone(),
+            minutes,
+            label: self.label.clone(),
+        };
         let exchange = add_exchange(index.checked_add(1).expect("eight pending slots"), &add);
         duties.writes.push(Record { key: add_key(key), value: exchange.body.clone() });
         duties.exchanges.push(exchange);
@@ -407,20 +403,18 @@ impl State {
             return;
         };
         let add = slot.take().expect("pending add exists");
-        duties.removes.push(add_key(add.key()));
+        duties.removes.push(add_key(add.key));
         self.accept(note);
     }
     fn accept(&mut self, note: records::Note) {
-        let mut parts = self.notes.clone().into_parts();
-        for held in &parts.notes {
-            if held.number() == note.number() {
+        for held in &self.notes.notes {
+            if held.number == note.number {
                 return;
             }
         }
-        if parts.notes.room() > 0 {
-            parts.notes.push(note).expect("note capacity checked");
+        if self.notes.notes.room() > 0 {
+            self.notes.notes.push(note).expect("note capacity checked");
         }
-        self.notes = records::Notes::new(&records::CEILINGS, parts).expect("bounded notes");
     }
 }
 fn add_key(key: u64) -> Box<[u8]> {
@@ -434,13 +428,12 @@ fn add_key(key: u64) -> Box<[u8]> {
     out.finish()
 }
 fn add_exchange(id: u32, add: &records::Add) -> Exchange {
-    let mut writer = Writer::new(usize_of(add.measure()));
-    add.encode(&mut writer).expect("measured record fits");
+    let body = add.encode(&records::CEILINGS).expect("title within its ceiling");
     Exchange {
         id,
         post: true,
         path: Box::from(&b"/api/notes"[..]),
-        body: writer.finish(),
+        body,
         bound: u32::try_from(records::Note::encoded_bound(&records::CEILINGS).expect("record bound fits"))
             .expect("record bound fits u32"),
     }

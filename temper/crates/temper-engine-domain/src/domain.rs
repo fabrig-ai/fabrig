@@ -1,5 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
+use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::Core;
 use jig_domain_fleet as fleet;
-use jig_domain_link::{Membership, Problem};
+use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -66,6 +66,9 @@ pub struct Domain {
     pub(crate) core: Core,
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
+    pub(crate) trial_waits: Map<u64, Option<jig_domain_core::documents::TaskRunWait>>,
+    pub(crate) parts: crate::route::parts::Memory,
+    pub(crate) changes_from: crate::changes_from::Memory,
     pub(crate) journal: Journal,
     pub(crate) journal_stop: Option<crate::JournalStop>,
     /// Store credit: sent and cumulatively answered commit numbers.
@@ -95,6 +98,7 @@ pub struct Domain {
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
+    pub(crate) forge_limit_holds: Map<u64, forge_route::limit_holds::Waiting>,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) kinds: Box<[crate::KindValue]>,
     pub(crate) settings_parts: Map<u64, crate::route::settings_parts::Held>,
@@ -113,6 +117,7 @@ pub struct Domain {
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
+    pub(crate) checkpoints: crate::route::checkpoints::State,
     pub(crate) try_answers: Map<Token, (crate::TryAnswer, Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
@@ -129,6 +134,12 @@ pub struct Domain {
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
+    /// One forming drains its make before admission (domain/landing-forming.md, 2).
+    pub(crate) forge_forming: Option<(u64, Option<jig_domain_tasks::Refusal>)>,
+    /// Refusal time, last reason and whether expiry was judged (domain/landing-forming.md, 3).
+    #[expect(clippy::type_complexity, reason = "a train maps directly to its unstored refusal time and reason")]
+    pub(crate) forge_refused:
+        Map<(skein_forge::api::Repository, Box<[u8]>), (Wall, Option<jig_domain_tasks::Refusal>, bool)>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,
@@ -137,6 +148,8 @@ pub struct Domain {
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
+    /// Ended tasks wait for archive and load room, in the core's read-flight bound (root.md, 7).
+    pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
     pub(crate) call_renders: Map<Token, host_route::Flight>,
@@ -164,6 +177,15 @@ impl RunDiagnostics {
 }
 
 impl Domain {
+    /// Supply the shell's start fact before the first input (domain/landing-settings.md, 1.3).
+    pub fn hold_landings(&mut self, held: bool) {
+        self.forge.hold_landings(held);
+    }
+    #[must_use]
+    pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
+        self.forge.landing_way(project)
+    }
+
     /// The phase the start is in, none before the start and once decisions open.
     #[must_use]
     pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
@@ -225,6 +247,7 @@ impl Domain {
                     host: repository.host.clone(),
                     owner: repository.owner.clone(),
                     name: repository.name.clone(),
+                    landing: repository.landing.clone(),
                 })
                 .expect("one identity per readable repository");
         }
@@ -269,6 +292,23 @@ impl Domain {
         tasks
     }
 
+    /// Last store commit confirmed durable, restored with the deployment.
+    #[must_use]
+    pub const fn commit_position(&self) -> u64 {
+        self.durable_commit
+    }
+
+    /// Retained live conversation source, without copying provisional text or calls.
+    /// A new attempt and every retained source change have distinct positions.
+    #[must_use]
+    pub fn live_text_revision(&self, task: u64) -> Option<(u64, u64)> {
+        let token = Token::new(task);
+        Some((
+            jig_domain_views::retained_attempt(&self.core.views, token)?,
+            jig_domain_views::revision(&self.core.views, token)?,
+        ))
+    }
+
     /// Conservative mutation revision, including refused inputs, empty probes,
     /// observation drains and reclamation. Nested public calls may bump twice.
     /// Owners checkpoint it only after their release and reclaim pass settles.
@@ -300,10 +340,26 @@ impl Domain {
     pub fn forge_connection(&self, forge: u16) -> forge::Connection {
         self.forge.connection(forge)
     }
+    /// The kept forge's public addresses and setup choice, whatever its state.
+    #[must_use]
+    pub fn forge_record(&self, forge: u16) -> Option<&forge::ForgeRecord> {
+        self.forge.record(forge)
+    }
     /// The current deployment document, including volatile setup progress.
     #[must_use]
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
+    }
+    /// The restored settings head; service admission keeps this revision with its lists.
+    #[must_use]
+    pub fn settings_revision(&self) -> u32 {
+        self.core.current.newest()
+    }
+
+    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    #[must_use]
+    pub fn welcome(&self) -> bool {
+        self.forge.welcome()
     }
     /// The playground row as the service reads it (temper/docs/design/protocol/setup/playground.md).
     #[must_use]
@@ -387,7 +443,6 @@ impl Domain {
                 && limits.forge.judge_criteria >= limits.authority.requirements,
             "forge judge table covers authority policy bounds"
         );
-        assert!(config.landings.capacity() <= limits.authority.projects, "landing project table fits the policy bound");
         assert!(
             config.core.seed_projects.len() <= usize::try_from(limits.authority.projects).expect("project bound"),
             "permission policy project bound"
@@ -454,12 +509,7 @@ impl Domain {
             ),
             "standing landing requirements fit authority configuration"
         );
-        for (&project, landing) in &config.landings {
-            assert!(
-                crate::translate::project_landing(&mut forge, project, landing),
-                "project landing configuration bounded and supported"
-            );
-        }
+        forge.hold_landings(config.landing_held);
         let mut declares_forge_kinds = false;
         for kind in &config.core.kinds {
             declares_forge_kinds |= kind.connector == forge_connector;
@@ -492,11 +542,12 @@ impl Domain {
             forge.close_kind(bound.spec, bound.result);
         }
         let root_config = RootConfig {
+            prepare_capacity: (limits.tasks.spec_bytes, limits.tasks.result_bytes),
+            turn_capacity: turn_capacity(limits),
             prepare_kind,
             merge_kind,
             close_kind,
             forge_connector,
-            landings: config.landings,
             ways_stock: config.ways_stock,
         };
         let link_rng = skein_lib::Rng::new(config.core.seed);
@@ -591,8 +642,12 @@ impl Domain {
             playground_provider,
             playground_policy,
             next_application_owner: 1,
+            checkpoints: crate::route::checkpoints::State::new(limits.people.requests),
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
+            trial_waits: Map::with_capacity(crate::limits::trial_limits(limits).rows),
+            parts: crate::route::parts::Memory::new(),
+            changes_from: crate::changes_from::Memory::new(),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
@@ -600,6 +655,7 @@ impl Domain {
             forge_reading: Map::with_capacity(limits.fleet.calls),
             status_reading: Map::uncapped(),
             next_status_owner: 0,
+            forge_limit_holds: Map::with_capacity(limits.tasks.tasks),
             forge_left: Map::with_capacity(limits.tasks.tasks),
             forge_effecting: Map::with_capacity(limits.fleet.calls),
             forge_effects: Map::with_capacity(
@@ -610,6 +666,8 @@ impl Domain {
                 limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
+            forge_forming: None,
+            forge_refused: Map::with_capacity(limits.forge.changes),
             closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
@@ -624,6 +682,7 @@ impl Domain {
             answer_parts: Map::uncapped(),
             refused_calls: Map::uncapped(),
             archive_reads: Slab::with_capacity(limits.loads.loads),
+            ended_waiting: Queue::with_capacity(limits.tasks.tasks),
             store_answers: Queue::with_capacity(limits.loads.loads),
             call_renders: Map::with_capacity(limits.fleet.calls),
             work: Queue::uncapped(),
@@ -674,6 +733,12 @@ impl Domain {
         backlog(self)
     }
 
+    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings.md, 7).
+    #[must_use]
+    pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
+        self.core.settings_kept()
+    }
+
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).
     #[must_use]
     pub fn ready(&self) -> bool {
@@ -722,6 +787,7 @@ impl Domain {
 
     pub(crate) fn stop_start(&mut self, stop: StartStop) {
         if self.start_stop.is_none() {
+            self.ended_waiting.clear();
             self.start_stop = Some(stop);
             self.stop_pending = true;
         }
@@ -751,6 +817,7 @@ impl Domain {
             && self.refused_calls.is_empty()
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
+            && self.ended_waiting.is_empty()
             && self.revision_reads.is_empty()
             && self.history_reads.is_empty()
             && self.view_reads.is_empty()
@@ -787,7 +854,8 @@ impl Domain {
 
     /// Retired IO/body/child slots are reclaimed at iteration end, after every event and ready
     /// pass. Bounded child/slab bookkeeping releases only retired entries; issued loads still
-    /// awaiting a terminal remain owned. Emits no request or terminal.
+    /// awaiting a terminal remain owned. Waiting ended reads reserve freed slots for their next
+    /// held-output pass. Emits no request or terminal.
     pub fn reclaim(&mut self) {
         self.changed();
         self.settled = None;
@@ -796,6 +864,7 @@ impl Domain {
         self.forge.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
+        crate::archive::reclaim_ended(self);
     }
 
     /// Shell/root caller discards every currently queued child observation, scanning at most each
@@ -878,7 +947,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 /// turn bytes are under the budget (domain/root.md, 4.1). Only an
 /// activation asks; nothing else waits on bytes.
 pub(crate) fn within_budget(domain: &Domain, limits: &Limits) -> bool {
-    domain.held_bytes() < limits.memory_bytes
+    domain.held_bytes() < limits.transcript_memory
 }
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
@@ -940,6 +1009,9 @@ fn finish_close(
         domain.sent_commit = commits;
         domain.durable_commit = commits;
     }
+    if domain.core.stopping() || domain.journal.stopped() {
+        domain.ended_waiting.clear();
+    }
     if domain.journal.stopped() {
         domain.journal_stop = journal_stop;
         // Immediate outputs assembled alongside this failed cohort must not
@@ -956,7 +1028,8 @@ fn finish_close(
 pub(crate) fn invalidate_input(domain: &mut Domain, event: &Event) {
     match event {
         Event::Resume => {}
-        Event::Setup { .. }
+        Event::LimitsRaised
+        | Event::Setup { .. }
         | Event::Released(_)
         | Event::Forge(_)
         | Event::Stop
@@ -1012,6 +1085,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Setup { .. }
             | Request::ForgeKept(_)
             | Request::ForgeGone { .. }
+            | Request::ChoosePlace { .. }
             | Request::BoxGroup { .. }
             | Request::PlaygroundActs { .. }
             | Request::ResetAct { .. }
@@ -1021,15 +1095,18 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Bound { .. }
             | Request::Forge { .. }
             | Request::Store(
-                crate::StoreRequest::Catalogue { .. }
+                crate::StoreRequest::Checkpoint { .. }
+                | crate::StoreRequest::Catalogue { .. }
                 | crate::StoreRequest::Switch
                 | crate::StoreRequest::Load { .. }
-                | crate::StoreRequest::Read { .. },
+                | crate::StoreRequest::Read { .. }
+                | crate::StoreRequest::PartRead { .. },
             )
             | Request::ToChild(_)
             | Request::Busy(_)
             | Request::Unsettled(_)
             | Request::Restarting { .. }
+            | Request::LimitSettingsCommitted { .. }
             | Request::Drained
             | Request::Account(_)) => {
                 assert!(now(domain, request), "root door reserves one route's immediate outputs");
@@ -1363,6 +1440,8 @@ fn released_into(
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::Push(_)
+        | Delivery::Providers(..)
+        | Delivery::WorkerFigures { .. }
         | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
         | Delivery::AssignedJob { .. }
@@ -1383,10 +1462,12 @@ fn released_into(
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
+        | Delivery::PartLoad { .. }
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
         | Delivery::Restarting { .. }
+        | Delivery::LimitSettingsCommitted { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }
@@ -1435,6 +1516,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::Parts(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }
@@ -1457,12 +1539,9 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     let room = u32::try_from(config.core.defaults.charters.len().saturating_add(config.core.owners.len()))
         .expect("bounded configuration")
         .saturating_add(u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2))
-        .saturating_add(config.landings.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
-    if let Err(problem) =
-        Membership::check(&config.core.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
-    {
+    if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
         refused.push(Refused::Workers(problem)).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {
@@ -1525,7 +1604,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
     );
     forge_config.namespace = Box::from(config.core.deployment);
-    let Ok(mut forge) = forge::Domain::new(
+    let Ok(_forge) = forge::Domain::new(
         &limits.forge,
         config.core.seed,
         forge_config,
@@ -1542,14 +1621,6 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         &limits.authority,
     ) {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    if config.landings.capacity() > limits.authority.projects {
-        refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    for (&project, landing) in &config.landings {
-        if !crate::translate::project_landing(&mut forge, project, landing) {
-            refused.push(Refused::Landing { project: Some(project) }).expect("counted refusals");
-        }
     }
     for seed in &config.core.seed_projects {
         let bytes = match jig_domain_core::policy_snapshot(
@@ -1602,4 +1673,20 @@ fn brief_connector_capacity(limits: &Limits) -> u32 {
         .expect("validated brief count")
         .checked_mul(2)
         .expect("validated brief connector room")
+}
+
+// A turn needs its carriers and resource slots before it may be selected by settings.
+fn turn_capacity(limits: &Limits) -> Option<&'static [u8]> {
+    let members = limits.forge.landing_members;
+    if limits.authority.writes < members {
+        Some(b"batch: forge.landing_members passes authority.writes")
+    } else if limits.forge.resources_per_task <= members {
+        Some(b"batch: forge.resources_per_task must hold forge.landing_members + 1")
+    } else if limits.forge.holds < limits.forge.landings.saturating_mul(members) {
+        Some(b"batch: forge.holds must hold forge.landings * forge.landing_members")
+    } else if limits.tasks.holdings < members {
+        Some(b"batch: forge.landing_members passes tasks.holdings")
+    } else {
+        None
+    }
 }

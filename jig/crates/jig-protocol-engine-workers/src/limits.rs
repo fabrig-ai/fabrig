@@ -1,4 +1,5 @@
 //! Checked channel capacity (protocol/channel/README.md, section 10).
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{
     self as wire,
     sizes::{self, Sizes},
@@ -76,10 +77,12 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     if smallest > limits.room {
         return false;
     }
+    // Starts and whole owner figures are checked against the stream room when sent.
     for rule in wire::KINDS {
         let required = rule.direction == skein_channel::Direction::FromResponder
             && rule.body != wire::Kind::Assignment
-            && rule.body != wire::Kind::Job;
+            && rule.body != wire::Kind::Job
+            && rule.body != wire::Kind::Figures;
         if required {
             let Some(body) = sizes::largest_body(&limits.sizes, rule.body) else { return false };
             let Some(bytes) = body.checked_add(8) else { return false };
@@ -90,5 +93,5 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(schema, Role::Responder, &channel)
-        && wire::v15::decoded_bound(&codec).is_some()
+        && wire::v18::decoded_bound(&codec).is_some()
 }

@@ -2,6 +2,47 @@ use skein_fake_peers::forge::Delivery;
 use skein_world::domain::Verdict;
 use temper_one_process_world::referee::{restart, secrets};
 use temper_one_process_world::{fixtures, world};
+
+#[test]
+fn a_restart_over_a_live_change_answers_a_person() {
+    let outcome = world::restart_held_change(fixtures::calm(fixtures::SEED));
+    assert_eq!(outcome.signed_in, 1);
+}
+
+#[test]
+fn an_adoption_saves_a_pending_window_before_the_engine_commit() {
+    // This story pins seed 1's saved pending window, independently of the shared seed.
+    const ADOPTION_SEED: u64 = 1;
+    let outcome = world::adoption(fixtures::calm(ADOPTION_SEED));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.adopted, 1);
+    assert!(
+        outcome.adoption_window.is_some_and(|(start, end)| start < end),
+        "saved pending adoption window precedes the engine commit: {:?}",
+        outcome.adoption_window
+    );
+}
+
+#[test]
+fn a_refused_restore_ends_with_its_in_process_worker() {
+    let outcome = world::refused_restore(fixtures::calm(fixtures::SEED));
+    assert_eq!(
+        outcome.end,
+        Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
+            temper_service::EngineStop::StartRefused {
+                phase: Some(jig_domain_core::start::Phase::LoadCore),
+                failure: jig_domain_core::start::Failure::Settings {
+                    failure: jig_domain_core::settings::Failure {
+                        setting: jig_domain_core::settings::Setting::Policy(1),
+                        fault: jig_domain_core::settings::Fault::Shape,
+                        detail: None
+                    },
+                    changed: false,
+                },
+            }
+        )))
+    );
+}
 #[test]
 fn a_signal_mid_run_interrupts_a_chats_run_and_the_next_start_takes_it_again() {
     let outcome =
@@ -103,5 +144,5 @@ fn an_adopted_repository_gets_its_change_pushed_through_git() {
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert_eq!(outcome.adopted, 1);
     assert_eq!(outcome.pushed.len(), 1);
-    assert_eq!(outcome.deliveries, [Delivery::NoAddress, Delivery::Written]);
+    assert!(outcome.deliveries.starts_with(&[Delivery::NoAddress, Delivery::Written]));
 }

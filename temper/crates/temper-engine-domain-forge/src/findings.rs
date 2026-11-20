@@ -45,6 +45,40 @@ impl Domain {
     pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
         self.finding_rows().range((project, 0)..=(project, u32::MAX))
     }
+    /// One open flake per test suffices; count each chosen finding once (landing-regate.md, 2).
+    pub(crate) fn gate_flakes(
+        &self,
+        project: u32,
+        repository: skein_forge::api::Repository,
+        gate: &[u8],
+        tests: &[crate::ReceiptTest],
+    ) -> Option<Box<[u32]>> {
+        if tests.is_empty() || tests.len() > 64 {
+            return None;
+        }
+        let mut numbers = List::with_capacity(64);
+        for test in tests {
+            let mut matched = None;
+            for (_, row) in self.findings(project) {
+                if row.kind != FindingKind::Flake || row.state == FindingState::Dropped {
+                    continue;
+                }
+                let Some(signature) = &row.signature else { continue };
+                if signature.repository == repository
+                    && (signature.source.as_ref() == gate || signature.source.as_ref() == b"check")
+                    && signature.ids.contains(&test.key)
+                {
+                    matched = Some(row.number);
+                    break;
+                }
+            }
+            let number = matched?;
+            if !numbers.as_slice().contains(&number) {
+                numbers.push(number).expect("one finding per test");
+            }
+        }
+        Some(numbers.into_boxed())
+    }
     fn finding_area(&self, project: u32, name: &[u8]) -> Result<(), FindingRefusal> {
         let areas = self.project_areas(project);
         let mut names = List::with_capacity(16);
@@ -82,7 +116,7 @@ impl Domain {
             if row.state == FindingState::New {
                 new = new.saturating_add(1);
             }
-            if row.state.ended() {
+            if row.erasable() {
                 match oldest {
                     Some((at, _)) if at <= row.at => {}
                     Some(_) | None => oldest = Some((row.at, row.number)),
@@ -121,9 +155,55 @@ impl Domain {
                 reason: None,
                 signature: None,
                 seen: None,
+                blame: None,
+                cleared: None,
             },
             erase,
         })
+    }
+    /// Free slots followed by erasable rows, matching `prepare_file_finding`'s admission.
+    pub(crate) fn verdict_room(&self, limits: &Limits, project: u32) -> u32 {
+        let mut count = 0_u32;
+        let mut erasable = 0_u32;
+        for (_, finding) in self.findings(project) {
+            count = count.saturating_add(1);
+            erasable = erasable.saturating_add(u32::from(finding.erasable()));
+        }
+        let free = limits.findings_per_project.saturating_sub(count);
+        let global = limits.findings().saturating_sub(self.finding_rows().len());
+        // Replacement is admitted only once the project's own bound is reached.
+        if global < free { global } else { free.saturating_add(erasable) }
+    }
+    /// A landing tier supplies its signature and blame (domain/red-findings.md, 9).
+    pub fn prepare_verdict_filing(
+        &self,
+        limits: &Limits,
+        wall: Wall,
+        filer: Filer,
+        filing: &VerdictFiling,
+    ) -> Result<FindingWrite, FindingRefusal> {
+        if !filing.signature.fits() {
+            return Err(FindingRefusal::Words(b"signature".as_slice().into()));
+        }
+        let mut write = self.prepare_file_finding(
+            limits,
+            wall,
+            filer,
+            FileFinding {
+                project: filing.project,
+                kind: filing.kind,
+                severity: filing.severity,
+                area: None,
+                title: filing.title.clone(),
+                body: filing.body.clone(),
+            },
+        )?;
+        write.row.signature = Some(filing.signature.clone());
+        write.row.blame.clone_from(&filing.blame);
+        if filing.kind == FindingKind::Flake {
+            write.row.seen = Some(1);
+        }
+        Ok(write)
     }
     /// A delivery check counts only an equal, non-dropped flake of this project (findings.md, 4).
     #[expect(clippy::too_many_arguments, reason = "the check report supplies its filing identity and words")]

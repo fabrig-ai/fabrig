@@ -3,6 +3,7 @@ use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -65,11 +66,11 @@ pub enum State {
 #[must_use]
 pub fn watch(limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let record = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Away }).ok()?;
+    let record = w::Watching { watch: w::Watch::Away };
     Some(Watchable::Family {
         scope: c::Scope::Own,
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 
@@ -81,11 +82,11 @@ pub fn ask(project: u32, on: bool, until: Option<Wall>, limits: &Limits) -> Opti
         Some(wall) => Some(wall.as_nanos()),
         None => None,
     };
-    let value = w::SetAway::new(&bounds, w::SetAwayParts { project, on, until }).ok()?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::SetAway(value) }).ok()?;
+    let value = w::SetAway { project, on, until };
+    let record = w::Requesting { request: w::Request::SetAway(value) };
     Some(Ask::Family {
         scope: c::Scope::Project(project),
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 impl Side {
@@ -125,7 +126,7 @@ pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some()
+    if side.link == Link::Live
         && !side.away_open
         && let State::Unknown = side.away
     {
@@ -191,8 +192,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[AwayRow]>> {
     }
     let document = wire::decode_aways(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
-    for row in document.into_parts().rows.into_boxed() {
-        let row = row.into_parts();
+    for row in document.rows.into_boxed() {
         let until = match row.until {
             Some(wall) => Some(Wall::from_nanos(wall)),
             None => None,
@@ -249,7 +249,7 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
     if !reader.is_empty() {
         return None;
     }
-    Some(match answer.into_parts().outcome {
+    Some(match answer.outcome {
         w::Outcome::Away => Answer::Away,
         w::Outcome::Unknown => Answer::Unknown,
         w::Outcome::Looked
@@ -284,6 +284,8 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::DeviceAdded(_)

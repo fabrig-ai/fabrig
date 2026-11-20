@@ -10,16 +10,16 @@ use smith_host_domain::channel as host;
 use crate::Error;
 
 pub(crate) fn decode_answer(record: &wire::Answer, limits: &smith_charter::v5::Limits) -> Result<host::Answer, Error> {
-    let result = match record.result() {
+    let result = match &record.result {
         wire::RunResult::Refused(refused) => {
-            let refusal = match refused.reason() {
+            let refusal = match &refused.reason {
                 wire::StartRefusal::Busy => host::Refusal::Busy,
-                wire::StartRefusal::Invalid(invalid) => host::Refusal::Invalid(invalid_start(invalid.value())),
+                wire::StartRefusal::Invalid(invalid) => host::Refusal::Invalid(invalid_start(&invalid.value)),
             };
             host::RunResult::Refused { refusal }
         }
         wire::RunResult::Accepted(accepted) => {
-            let Ok(value) = smith_protocol_translate::decode_declared(accepted.result(), limits) else {
+            let Ok(value) = smith_protocol_translate::decode_declared(accepted.result.as_ref(), limits) else {
                 return Err(Error::InvalidAnswer);
             };
             host::RunResult::Accepted {
@@ -27,15 +27,15 @@ pub(crate) fn decode_answer(record: &wire::Answer, limits: &smith_charter::v5::L
             }
         }
         wire::RunResult::Parked => host::RunResult::Parked,
-        wire::RunResult::Failed(failed) => host::RunResult::Failed { failure: failure(failed.reason())? },
+        wire::RunResult::Failed(failed) => host::RunResult::Failed { failure: failure(&failed.reason)? },
     };
     Ok(host::Answer {
-        read: match record.last_read() {
+        read: match &record.last_read {
             Some(name) => Some(skein_lib::Token::new(*name)),
             None => None,
         },
-        turns: record.turns(),
-        spent: record.spent(),
+        turns: record.turns,
+        spent: record.spent,
         result,
     })
 }
@@ -51,13 +51,13 @@ fn invalid_start(invalid: &wire::InvalidStart) -> host::RunInvalid {
         wire::InvalidStart::Workspace => host::RunInvalid::Workspace,
         wire::InvalidStart::Grants => host::RunInvalid::Grants,
         wire::InvalidStart::Outcome => host::RunInvalid::Outcome,
-        wire::InvalidStart::Budget(record) => host::RunInvalid::Budget(budget_refusal(record.value())),
-        wire::InvalidStart::Price(record) => host::RunInvalid::Price(price_rate(record.value())),
+        wire::InvalidStart::Budget(record) => host::RunInvalid::Budget(budget_refusal(&record.value)),
+        wire::InvalidStart::Price(record) => host::RunInvalid::Price(price_rate(&record.value)),
         wire::InvalidStart::Llm => host::RunInvalid::Llm,
         wire::InvalidStart::Effort => host::RunInvalid::Effort,
         wire::InvalidStart::Conversation => host::RunInvalid::Conversation,
-        wire::InvalidStart::HostPart(bound) => host::RunInvalid::HostPart { bound: bound.bound() },
-        wire::InvalidStart::Room(bound) => host::RunInvalid::Room { bound: bound.bound() },
+        wire::InvalidStart::HostPart(bound) => host::RunInvalid::HostPart { bound: bound.bound },
+        wire::InvalidStart::Room(bound) => host::RunInvalid::Room { bound: bound.bound },
         wire::InvalidStart::Endpoint => host::RunInvalid::Endpoint,
         wire::InvalidStart::Messages => host::RunInvalid::Messages,
     }
@@ -66,7 +66,7 @@ fn invalid_start(invalid: &wire::InvalidStart) -> host::RunInvalid {
 fn failure(source: &wire::RunFailure) -> Result<host::RunFailure, Error> {
     let result = match source {
         wire::RunFailure::Transcript(record) => {
-            let reason = match record.value() {
+            let reason = match &record.value {
                 wire::TranscriptRefusal::Version => host::TranscriptRefusal::Version,
                 wire::TranscriptRefusal::Malformed => host::TranscriptRefusal::Malformed,
                 wire::TranscriptRefusal::Unresolved => host::TranscriptRefusal::Unresolved,
@@ -76,23 +76,23 @@ fn failure(source: &wire::RunFailure) -> Result<host::RunFailure, Error> {
         }
         wire::RunFailure::Model(record) => host::RunFailure::Model(model_fault(record)?),
         wire::RunFailure::Budget(record) => {
-            let exhausted = budget(record.value());
+            let exhausted = budget(&record.value);
             match exhausted {
                 host::Exhausted::Turns | host::Exhausted::Spend | host::Exhausted::Time => {
-                    if record.used().is_none() || record.bound().is_none() {
+                    if record.used.is_none() || record.bound.is_none() {
                         return Err(Error::InvalidAnswer);
                     }
                 }
                 host::Exhausted::Tokens(_) | host::Exhausted::Overflow(_) => {
-                    if record.used().is_some() || record.bound().is_some() {
+                    if record.used.is_some() || record.bound.is_some() {
                         return Err(Error::InvalidAnswer);
                     }
                 }
             }
-            host::RunFailure::Budget { exhausted, used: *record.used(), bound: *record.bound() }
+            host::RunFailure::Budget { exhausted, used: record.used, bound: record.bound }
         }
         wire::RunFailure::Policy(record) => {
-            host::RunFailure::Policy(host::Policy::Unfinished { nudges: record.nudges(), rejected: record.rejected() })
+            host::RunFailure::Policy(host::Policy::Unfinished { nudges: record.nudges, rejected: record.rejected })
         }
         wire::RunFailure::Cancelled => host::RunFailure::Cancelled,
         wire::RunFailure::Stale => host::RunFailure::Stale,
@@ -101,11 +101,11 @@ fn failure(source: &wire::RunFailure) -> Result<host::RunFailure, Error> {
 }
 
 fn model_fault(record: &wire::ModelFaultValue) -> Result<host::ModelFault, Error> {
-    let result = match record.value() {
+    let result = match &record.value {
         wire::ModelFault::Completion(record) => {
-            let failure = match record.failure() {
+            let failure = match &record.failure {
                 wire::CompletionFailure::Limit(record) => {
-                    host::CompletionFailure::Limit { which: completion_limit(record.which()), bound: record.bound() }
+                    host::CompletionFailure::Limit { which: completion_limit(&record.which), bound: record.bound }
                 }
                 wire::CompletionFailure::ApplicationLimit => host::CompletionFailure::ApplicationLimit,
                 wire::CompletionFailure::Protocol => host::CompletionFailure::Protocol,
@@ -113,7 +113,7 @@ fn model_fault(record: &wire::ModelFaultValue) -> Result<host::ModelFault, Error
                 wire::CompletionFailure::Overloaded => host::CompletionFailure::Overloaded,
                 wire::CompletionFailure::Unavailable => host::CompletionFailure::Unavailable,
                 wire::CompletionFailure::TimedOut(record) => {
-                    host::CompletionFailure::TimedOut { phase: completion_phase(record.phase()) }
+                    host::CompletionFailure::TimedOut { phase: completion_phase(&record.phase) }
                 }
                 wire::CompletionFailure::ContextTooLong => host::CompletionFailure::ContextTooLong,
                 wire::CompletionFailure::Refused => host::CompletionFailure::Refused,
@@ -121,41 +121,44 @@ fn model_fault(record: &wire::ModelFaultValue) -> Result<host::ModelFault, Error
                 wire::CompletionFailure::Invalid => host::CompletionFailure::Invalid,
                 wire::CompletionFailure::Unauthorized => host::CompletionFailure::Unauthorized,
                 wire::CompletionFailure::RateLimited => host::CompletionFailure::RateLimited {
-                    retry_after: (*record.retry_after()).ok_or(Error::InvalidAnswer)?,
+                    retry_after: record.retry_after.ok_or(Error::InvalidAnswer)?,
                 },
                 wire::CompletionFailure::Exhausted => {
-                    host::CompletionFailure::Exhausted { retry_after: *record.retry_after() }
+                    host::CompletionFailure::Exhausted { retry_after: record.retry_after }
                 }
             };
-            let evidence = match record.evidence() {
+            let evidence = match &record.evidence {
                 wire::CompletionEvidence::Unsent => host::CompletionEvidence::Unsent,
                 wire::CompletionEvidence::Unknown => host::CompletionEvidence::Unknown,
                 wire::CompletionEvidence::Response(record) => {
-                    host::CompletionEvidence::Response { status: *record.status() }
+                    host::CompletionEvidence::Response { status: record.status }
                 }
             };
             host::ModelFault::Completion {
                 failure,
                 evidence,
-                model: record.model(),
-                attempts: record.attempts(),
+                model: record.model,
+                attempts: record.attempts,
                 report: host::Report {
-                    status: *record.status(),
-                    code: record.code().into(),
-                    request: record.request_id().into(),
-                    field: record.field().into(),
+                    status: record.status,
+                    code: record.code.as_ref().into(),
+                    request: record.request_id.as_ref().into(),
+                    field: record.field.as_ref().into(),
                 },
             }
         }
-        wire::ModelFault::Limited(value) => {
-            host::ModelFault::Limited { account: value.account(), reset: *value.reset() }
-        }
+        wire::ModelFault::Limited(value) => host::ModelFault::Limited { account: value.account, reset: value.reset },
         wire::ModelFault::Refused(value) => {
-            host::ModelFault::Refused { account: value.account(), code: value.code().into() }
+            host::ModelFault::Refused { account: value.account, code: value.code.as_ref().into() }
         }
-        wire::ModelFault::Unauthorized(value) => host::ModelFault::Unauthorized { account: value.account() },
-        wire::ModelFault::Program(value) => {
-            host::ModelFault::Program { name: value.name().into(), exit: *value.exit(), detail: value.detail().into() }
+        wire::ModelFault::Unauthorized(value) => host::ModelFault::Unauthorized { account: value.account },
+        wire::ModelFault::Program(value) => host::ModelFault::Program {
+            name: value.name.as_ref().into(),
+            exit: value.exit,
+            detail: value.detail.as_ref().into(),
+        },
+        wire::ModelFault::Untooled(value) => {
+            host::ModelFault::Untooled { name: value.name.as_ref().into(), detail: value.detail.as_ref().into() }
         }
         wire::ModelFault::Provider => host::ModelFault::Provider,
         wire::ModelFault::Declined => host::ModelFault::Declined,
@@ -171,7 +174,7 @@ fn budget(source: &wire::BudgetFailure) -> host::Exhausted {
         wire::BudgetFailure::Spend => host::Exhausted::Spend,
         wire::BudgetFailure::Time => host::Exhausted::Time,
         wire::BudgetFailure::Tokens(record) => {
-            let limit = match record.value() {
+            let limit = match &record.value {
                 wire::ReceivingLimit::Input => host::ReceivingLimit::Input,
                 wire::ReceivingLimit::Output => host::ReceivingLimit::Output,
                 wire::ReceivingLimit::CacheRead => host::ReceivingLimit::CacheRead,
@@ -180,7 +183,7 @@ fn budget(source: &wire::BudgetFailure) -> host::Exhausted {
             host::Exhausted::Tokens(limit)
         }
         wire::BudgetFailure::Overflow(record) => {
-            let overflow = match record.value() {
+            let overflow = match &record.value {
                 wire::BudgetOverflow::Spend => host::Overflow::Spend,
                 wire::BudgetOverflow::Usage => host::Overflow::Usage,
             };
@@ -208,24 +211,24 @@ fn budget_part(part: &wire::BudgetPart) -> host::Part {
 
 fn budget_refusal(refusal: &wire::BudgetRefusal) -> host::BudgetRefusal {
     match refusal {
-        wire::BudgetRefusal::Ceiling(record) => host::BudgetRefusal::Ceiling(match record.value() {
-            wire::BudgetCeiling::Turns(record) => host::Ceiling::Turns(record.value()),
-            wire::BudgetCeiling::Spend(record) => host::Ceiling::Spend(record.value()),
-            wire::BudgetCeiling::Time(record) => host::Ceiling::Time(record.value()),
+        wire::BudgetRefusal::Ceiling(record) => host::BudgetRefusal::Ceiling(match &record.value {
+            wire::BudgetCeiling::Turns(record) => host::Ceiling::Turns(record.value),
+            wire::BudgetCeiling::Spend(record) => host::Ceiling::Spend(record.value),
+            wire::BudgetCeiling::Time(record) => host::Ceiling::Time(record.value),
         }),
-        wire::BudgetRefusal::Empty(record) => host::BudgetRefusal::Empty(budget_part(record.value())),
-        wire::BudgetRefusal::Reserve(record) => host::BudgetRefusal::Reserve(budget_part(record.value())),
-        wire::BudgetRefusal::Completion(record) => host::BudgetRefusal::Completion { most: record.most() },
+        wire::BudgetRefusal::Empty(record) => host::BudgetRefusal::Empty(budget_part(&record.value)),
+        wire::BudgetRefusal::Reserve(record) => host::BudgetRefusal::Reserve(budget_part(&record.value)),
+        wire::BudgetRefusal::Completion(record) => host::BudgetRefusal::Completion { most: record.most },
         wire::BudgetRefusal::Checks(record) => {
-            host::BudgetRefusal::Checks { reserve: record.reserve(), checks: record.checks() }
+            host::BudgetRefusal::Checks { reserve: record.reserve, checks: record.checks }
         }
     }
 }
 
 fn completion_limit(which: &wire::CompletionLimit) -> host::Limit {
     match which {
-        wire::CompletionLimit::Pool(record) => host::Limit::Pool { reservation: record.reservation() },
-        wire::CompletionLimit::Path(record) => host::Limit::Path(completion_cap(record.value())),
+        wire::CompletionLimit::Pool(record) => host::Limit::Pool { reservation: record.reservation },
+        wire::CompletionLimit::Path(record) => host::Limit::Path(completion_cap(&record.value)),
         wire::CompletionLimit::History => host::Limit::History,
         wire::CompletionLimit::Window => host::Limit::Window,
         wire::CompletionLimit::Call => host::Limit::Call,

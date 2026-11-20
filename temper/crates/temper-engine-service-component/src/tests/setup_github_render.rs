@@ -43,6 +43,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
         client::Event::SignIn { with: client::With::Transport },
         client::Event::Up { up: client::Up::Served { served: true, versions: None } },
+        client::Event::Up { up: client::Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(me()) } },
     ] {
         cli::step(&mut root, &env, cli::Event::Client { event }, &mut out);
     }
@@ -52,12 +53,6 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
         let Some(request) = out.pop() else { break };
         let event = match request {
             cli::Request::Printed { printed, .. } => return printed,
-            cli::Request::Unlinked {
-                request:
-                    client::UnlinkedRequest::Down {
-                        down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => Some(client::Event::Up { up: client::Up::Watched { watch, event: c::WatchEvent::Delivered(me()) } }),
             cli::Request::Unlinked {
                 request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, .. } },
             } => {
@@ -77,8 +72,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
                 request: client::UnlinkedRequest::Down { down: client::Down::Send { attempt, .. } },
             } => {
                 let Record::Answer(outcome) = record else { panic!("family answer") };
-                let bytes =
-                    wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: outcome.clone() }).unwrap());
+                let bytes = wire::answer(&w::Answer { outcome: outcome.clone() });
                 Some(client::Event::Up {
                     up: client::Up::Answer {
                         attempt,
@@ -123,6 +117,6 @@ fn retained_install_link_renders_in_human_and_json_replays() {
     assert_eq!(replay, answer);
     assert_eq!((human.status, json.status), (0, 0));
     assert!(contains(&human.stdout, b"Open this address in a browser on the engine's machine:"));
-    assert!(contains(&human.stdout, link.address()));
-    assert!(contains(&json.stdout, link.address()));
+    assert!(contains(&human.stdout, &link.address));
+    assert!(contains(&json.stdout, &link.address));
 }

@@ -29,6 +29,13 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
         b"propose_settings" => return settings(value, limits),
         b"delegate" => return Ok(Decoded::Delegate(delegates(value.required(b"batch")?, limits)?)),
         b"message" => message(value)?,
+        b"mark_read" => {
+            let messages = notes::numbers(value.required(b"messages")?, b"messages")?;
+            if messages.is_empty() {
+                return Err(Problem { field: b"messages", why: Why::Range });
+            }
+            core::NamedAction::MarkRead { messages: messages.into_boxed() }
+        }
         b"cancel" => core::NamedAction::Control {
             cancel: tasks::Cancel {
                 task: value.required(b"target")?.number()?,
@@ -275,6 +282,7 @@ fn settings_read(value: json::Node<'_>) -> Result<core::SettingsRead, Problem> {
                 b"template" => core::settings::Setting::Template(value.required(b"number")?.small()?),
                 b"policy" => core::settings::Setting::Policy(value.required(b"number")?.small()?),
                 b"rules" => core::settings::Setting::Rules,
+                b"limits" => core::settings::Setting::Limits,
                 _ => return Err(Problem { field: b"setting", why: Why::Range }),
             };
             core::SettingsRead::Setting { setting, revision: value.required(b"revision")?.small()? }

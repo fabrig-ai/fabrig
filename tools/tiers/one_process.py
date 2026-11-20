@@ -36,6 +36,13 @@ LEAK_S = 0.1
 EVENT = 'tiers-one-process: '
 
 
+def default_lanes():
+    """Count affinity CPUs, else machine CPUs, else one (tools/tiers/design.md, 11.4)."""
+    if hasattr(os, 'sched_getaffinity'):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
 def filterset(expression):
     """Compile precisely the filterset subset in design.md, 11.3."""
     position = 0
@@ -198,9 +205,13 @@ def configuration(config, profile, env, limits, caller_filter):
             raise ValueError('slow-timeout terminate-after is unsupported')
     compiled = []
     for override in overrides:
-        for key in ('threads-required', 'run-extra-args', 'platform'):
+        for key in ('threads-required', 'run-extra-args'):
             if key in override:
                 raise ValueError(f'unsupported override {key}')
+        if 'platform' in override:
+            if 'priority' in override or 'test-group' in override:
+                raise ValueError('unsupported override platform')
+            continue
         compiled.append((filterset(override['filter']), override))
     default_filter = None if caller_filter else filterset(merged.get('default-filter', 'all()'))
     groups = {name: value['max-threads'] for name, value in data.get('test-groups', {}).items()}
@@ -340,7 +351,7 @@ def binary_environment(env, cargo, suite, package, build, profile, host_libdir):
     directories = []
     for base in build.get('base-output-directories', ['debug']):
         directories.extend([str(target / base / 'deps'), str(target / base)])
-    directories.extend(str(target / path) for path in build.get('linked-paths', {}))
+    directories.extend(str(target / path) for path in build.get('linked-paths', []))
     directories.append(host_libdir)
     key = 'DYLD_FALLBACK_LIBRARY_PATH' if sys.platform == 'darwin' else 'LD_LIBRARY_PATH'
     if result.get(key):
@@ -355,9 +366,33 @@ def place(binary_id, manifest_path, workspace_root, table):
     tree = relative.parts[0]
     if tree not in ('skein', 'smith', 'jig', 'temper', 'hearth'):
         return 'repository', 'checks'
-    if '::' not in binary_id or '::bin/' in binary_id or binary_id.endswith('::generated'):
+    if '::' not in binary_id or '::bin/' in binary_id:
         return tree, 'step'
     return tree, table.get(tree, {}).get(binary_id) if table is not None else None
+
+
+def target_binary_id(package, target):
+    """Name a test target as nextest does (tools/tiers/layers.md, 3)."""
+    if target['test']:
+        for kind in target['kind']:
+            if kind in ('lib', 'rlib', 'cdylib', 'dylib', 'staticlib', 'proc-macro'):
+                return package['name']
+            if kind == 'test':
+                return f"{package['name']}::{target['name']}"
+            if kind in ('bin', 'example', 'bench'):
+                return f"{package['name']}::{kind}/{target['name']}"
+    return None
+
+
+def target_flags(binary_id):
+    """Cargo selection for one binary id (tools/tiers/references.md, 5)."""
+    _, separator, target = binary_id.partition('::')
+    if not separator:
+        return ['--lib']
+    kind, slash, name = target.partition('/')
+    if slash and kind in ('bin', 'example', 'bench'):
+        return ['--' + kind, name]
+    return ['--test', target]
 
 
 def workspace_binaries(metadata, listing, table):
@@ -365,21 +400,11 @@ def workspace_binaries(metadata, listing, table):
     workspace = []
     for package in metadata['packages']:
         for target in package['targets']:
-            if not target['test']:
-                continue
-            for kind in target['kind']:
-                if kind in ('lib', 'rlib', 'cdylib', 'dylib', 'staticlib', 'proc-macro'):
-                    binary_id = package['name']
-                elif kind == 'test':
-                    binary_id = f"{package['name']}::{target['name']}"
-                elif kind in ('bin', 'example', 'bench'):
-                    binary_id = f"{package['name']}::{kind}/{target['name']}"
-                else:
-                    continue
+            binary_id = target_binary_id(package, target)
+            if binary_id is not None:
                 tree, layer = place(binary_id, package['manifest_path'], metadata['workspace_root'], table)
                 listed = listing['rust-suites'].get(binary_id, {}).get('status') == 'listed'
                 workspace.append(dict(binary_id=binary_id, tree=tree, layer=layer, listed=listed))
-                break
     return sorted(workspace, key=lambda binary: binary['binary_id'])
 
 
@@ -663,7 +688,7 @@ class BinaryProcess:
 
 
 def lanes(plan):
-    count = plan['lanes'] or len(os.sched_getaffinity(0))
+    count = plan['lanes'] or default_lanes()
     jobs = split_jobs(plan, count)
     active, processes = [], plan.get('process_offset', 0)
     cancelled, first, kill_at = None, plan.get('first_start'), None
@@ -679,8 +704,10 @@ def lanes(plan):
         with selectors.DefaultSelector() as selector:
             while jobs or active:
                 now = time.monotonic()
-                if cancelled is None and (terminated or (first is not None and plan['global_timeout'] is not None and now - first >= plan['global_timeout'])):
-                    cancelled = 'wall-hard' if terminated else 'global-timeout'
+                hard = plan.get('wall_hard_s')
+                wall_expired = first is not None and hard is not None and now - first >= hard
+                if cancelled is None and (terminated or wall_expired or (first is not None and plan['global_timeout'] is not None and now - first >= plan['global_timeout'])):
+                    cancelled = 'wall-hard' if terminated or wall_expired else 'global-timeout'
                     jobs.clear()
                     emit('cancel', reason=cancelled, at_s=now)
                     kill_at = now + plan['term_grace_s']
@@ -775,7 +802,31 @@ def write_junit(directory, results):
     ET.ElementTree(root).write(directory / 'junit.xml', encoding='utf-8', xml_declaration=True)
 
 
-def listed_plan(command, env, profile, limits, config, walls, layers, picks=None):
+def merge_listings(listings):
+    """Unite package listings and their build environments (references.md, 5)."""
+    listing = listings[0]
+    build = listing['rust-build-meta']
+    for other in listings[1:]:
+        extra = other['rust-build-meta']
+        if build['target-directory'] != extra['target-directory']:
+            raise ValueError('nextest listings have different target directories')
+        listing['rust-suites'].update(other['rust-suites'])
+        directories = build.setdefault('base-output-directories', ['debug'])
+        for directory in extra.get('base-output-directories', ['debug']):
+            if directory not in directories:
+                directories.append(directory)
+        binaries = build.setdefault('non-test-binaries', {})
+        for name, values in extra.get('non-test-binaries', {}).items():
+            entries = binaries.setdefault(name, [])
+            entries.extend(value for value in values if value not in entries)
+        paths = build.setdefault('linked-paths', [])  # nextest lists them
+        paths.extend(path for path in extra.get('linked-paths', []) if path not in paths)
+        build.setdefault('build-script-out-dirs', {}).update(extra.get('build-script-out-dirs', {}))
+    return listing
+
+
+def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
+                metadata=None, selections=None):
     """Build and plan a listing; base picks use any filter match (references.md, 5)."""
     prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
     settings, overrides, default_filter, groups = configuration(
@@ -797,24 +848,28 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
     # Listing and build belong to the caller's prefix; metadata builds nothing.
-    listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
-                               '--profile', profile, '--config-file', str(Path(config).resolve()), *selection], env=env, stdin=subprocess.DEVNULL,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
-    listing_output = bytearray()
-    try:
-        with listed.stdout:
-            for line in iter(listed.stdout.readline, b''):
-                listing_output.extend(line)
-                forward(line.decode('utf-8', 'backslashreplace'))
-        if listed.wait():
-            raise ValueError(f'nextest listing exited with {listed.returncode}')
-    except BaseException:
-        signal_group(listed, signal.SIGTERM)
-        stop(listed, time.monotonic() + WALL_GRACE_S)
-        raise
-    listing = json_listing(listing_output.decode('utf-8', 'backslashreplace'))
-    metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
-                                                env=env, stdin=subprocess.DEVNULL, text=True))
+    listings = []
+    for selected in [selection] if selections is None else selections:
+        listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
+                                   '--profile', profile, '--config-file', str(Path(config).resolve()), *selected], env=env, stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+        listing_output = bytearray()
+        try:
+            with listed.stdout:
+                for line in iter(listed.stdout.readline, b''):
+                    listing_output.extend(line)
+                    forward(line.decode('utf-8', 'backslashreplace'))
+            if listed.wait():
+                raise ValueError(f'nextest listing exited with {listed.returncode}')
+        except BaseException:
+            signal_group(listed, signal.SIGTERM)
+            stop(listed, time.monotonic() + WALL_GRACE_S)
+            raise
+        listings.append(json_listing(listing_output.decode('utf-8', 'backslashreplace')))
+    listing = merge_listings(listings)
+    if metadata is None:
+        metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
+                                                    env=env, stdin=subprocess.DEVNULL, text=True))
     if picks is not None:
         wanted = {(binary, name) for binary, name, _ in picks}
         listing['rust-suites'] = {
@@ -857,17 +912,30 @@ def alone_at_base(head_directory, command, env, directory, config=Path('.config/
                 wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S)
     present = set()
     if picks:
-        packages = sorted({binary.split('::', 1)[0] for binary, _, _ in picks})
         prefix, cargo, selection, _, _ = arguments(command, profile)
-        command = [*prefix, cargo, 'nextest', 'run', '--profile', profile,
-                   *(argument for package in packages for argument in ('-p', package)), *selection]
-        plan, prefix, _, output = listed_plan(command, env, profile, {}, config, None, layers, picks)
+        metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
+                                                    env=env, stdin=subprocess.DEVNULL, text=True))
+        wanted = {binary for binary, _, _ in picks}
+        packages = {}
+        for package in metadata['packages']:
+            if package['id'] not in metadata['workspace_members']:
+                continue
+            found = wanted.intersection(target_binary_id(package, target) for target in package['targets'])
+            if found:
+                packages[package['name']] = sorted(found)
+        selections = [['-p', package, *(flag for binary in packages[package] for flag in target_flags(binary)),
+                       *selection] for package in sorted(packages)]
+        if selections:
+            found = {binary for binaries in packages.values() for binary in binaries}
+            found_picks = [pick for pick in picks if pick[0] in found]
+            plan, prefix, _, output = listed_plan(command, env, profile, {}, config, None, layers, found_picks,
+                                                  metadata=metadata, selections=selections)
         names = {(binary['binary_id'], test['name']) for binary in plan['binaries'] for test in binary['tests']}
         present = {pick for pick in picks if pick[:2] in names}
     results = execute_plan(reference_plan(plan, present), prefix, env, directory, {},
-                           output=output, keep_times=False, junit=False)
+                           output=output, keep_times=False, junit=False, at_base=True)
     missing = [dict(binary_id=binary, test_name=name, why=why, outcome='missing',
-                    process=None, empty_process=None, cpu_s=None)
+                    process=None, empty_process=None, cpu_s=None, runs=[], run_limit_s=None)
                for binary, name, why in picks if (binary, name, why) not in present]
     if missing:
         results['references'] = sorted(results['references'] + missing,
@@ -963,7 +1031,7 @@ def again(plan, prefix, env, directory):
 
 
 def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', output=None, keep_times=True, ledger=None,
-                 junit=True):
+                 junit=True, at_base=False):
     """Collect the lanes' events into the run directory (design.md, 11.8)."""
     profile = plan['profile']
     output = bytearray() if output is None else output
@@ -972,6 +1040,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
         print(text, end='', flush=True)
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
+    plan = dict(plan, wall_hard_s=limits.get(profile, {}).get('wall_hard_s'))
     save(directory / 'plan.json', plan)
     selected = 0 if 'reference_picks' in plan else sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None,
@@ -981,35 +1050,49 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     reasons = {(binary, name): why for binary, name, why in picks}
     reference_indices, empty_indices = {}, {}
     starts, active = {}, set()
-    lane_count = plan['lanes'] or len(os.sched_getaffinity(0))
+    lane_count = plan['lanes'] or default_lanes()
     code, kill_at = None, None
     wall_starved = False
     forced_at, cancelled_at = None, None
 
     reported = set()
+    round_index = 0
+    run_counts, run_limits = {}, {}
 
-    def reference_rows(candidates, final=False):
+    def reference_run(binary, name, why, round_number, final=False):
+        key = round_number, binary, name
+        test = reference_tests.get(key)
+        reference = reference_indices.get(key)
+        empty = empty_indices.get((round_number, binary))
+        if not final and (reference is None or empty is None):
+            return None
+        outcome = test['outcome'] if test is not None else 'unobserved'
+        if reference is None and outcome not in ('passed', 'failed', 'starved'):
+            outcome = 'unobserved'
+        cpu = None
+        if outcome == 'passed' and reference is not None and empty is not None:
+            process, baseline = results['processes'][reference], results['processes'][empty]
+            if baseline['exit_code'] == 0:
+                cpu = round(max(0.0, process['user_s'] + process['system_s']
+                                - baseline['user_s'] - baseline['system_s']), 3)
+        if key not in reported:
+            forward(f"REFERENCE {binary} {name}: {why}, round {round_number + 1}, {outcome}, "
+                    f"CPU {cpu if cpu is not None else 'unmeasured'} s\n")
+            reported.add(key)
+        return dict(outcome=outcome, process=reference, empty_process=empty, cpu_s=cpu)
+
+    def reference_rows():
         rows = []
-        for binary, name, why in candidates:
-            test = reference_tests.get((binary, name))
-            reference = reference_indices.get((binary, name))
-            empty = empty_indices.get(binary)
-            if not final and (reference is None or empty is None):
-                continue
-            outcome = test['outcome'] if test is not None else 'unobserved'
-            if reference is None and outcome not in ('passed', 'failed', 'starved'):
-                outcome = 'unobserved'
-            cpu = None
-            if outcome == 'passed' and reference is not None and empty is not None:
-                process, baseline = results['processes'][reference], results['processes'][empty]
-                if baseline['exit_code'] == 0:
-                    cpu = round(max(0.0, process['user_s'] + process['system_s']
-                                    - baseline['user_s'] - baseline['system_s']), 3)
-            rows.append(dict(binary_id=binary, test_name=name, why=why, outcome=outcome,
-                             process=reference, empty_process=empty, cpu_s=cpu))
-            if (binary, name) not in reported:
-                forward(f"REFERENCE {binary} {name}: {why}, {outcome}, CPU {cpu if cpu is not None else 'unmeasured'} s\n")
-                reported.add((binary, name))
+        for binary, name, why in picks:
+            runs = [reference_run(binary, name, why, number, final=True)
+                    for number in range(run_counts.get((binary, name), 1))]
+            measured = [run for run in runs if run['cpu_s'] is not None]
+            figure = (max if at_base else min)(measured, key=lambda run: run['cpu_s']) if measured else runs[0]
+            rows.append(dict(binary_id=binary, test_name=name, why=why, runs=runs,
+                             run_limit_s=run_limits.get((binary, name)), **figure))
+            if len(runs) > 1:
+                forward(f"REFERENCE FIGURE {binary} {name}: {'highest' if at_base else 'lowest'}, "
+                        f"CPU {figure['cpu_s'] if measured else 'unmeasured'} s\n")
         return rows
 
     def event(item):
@@ -1030,11 +1113,13 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
             binary = record['binary_id']
             if record['kind'] == 'reference':
                 name = record['reference_name']
-                reference_indices[binary, name] = index
-                reference_rows([(binary, name, reasons[binary, name])])
+                reference_indices[round_index, binary, name] = index
+                reference_run(binary, name, reasons[binary, name], round_index)
             elif record['kind'] == 'empty':
-                empty_indices[binary] = index
-                reference_rows([pick for pick in picks if pick[0] == binary])
+                empty_indices[round_index, binary] = index
+                for picked_binary, name, why in picks:
+                    if picked_binary == binary:
+                        reference_run(binary, name, why, round_index)
         elif kind == 'test':
             test = item['item']
             tests[(test['binary_id'], test['test_name'])] = test
@@ -1044,7 +1129,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
                 forward(test['output'] + '\n')
         elif kind == 'reference':
             test = item['item']
-            reference_tests[(test['binary_id'], test['test_name'])] = test
+            reference_tests[(round_index, test['binary_id'], test['test_name'])] = test
         elif kind == 'alone':
             test = tests[(item['binary_id'], item['test_name'])]
             test['alone'] = item['outcome']
@@ -1125,6 +1210,36 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
             phase['process_offset'] = len(results['processes'])
             save(directory / 'references-plan.json', phase)
             run_lanes(directory / 'references-plan.json')
+    if picks:
+        placements = {entry['binary_id']: (entry.get('tree'), entry.get('layer'))
+                      for entry in results['workspace']}
+        for process in results['processes']:
+            if process is not None and process['kind'] in ('tests', 'fresh', 'alone'):
+                placements[process['binary_id']] = process.get('tree'), process.get('layer')
+        repeated = []
+        for binary, name, why in picks:
+            first = reference_run(binary, name, why, 0, final=True)
+            limit = None
+            if not at_base and first['cpu_s'] is not None:
+                history = (ledger or {}).get('binaries', {}).get(binary, {}).get('alone', {}).get(name, [])
+                main_cpu = statistics.median(history) if history else None
+                tree, layer = placements.get(binary, (None, None))
+                limit = CPU['reference_limit'](limits.get('gate', {}).get(profile, {}), tree, layer,
+                                               binary, name, why, main_cpu, running=True)
+            run_limits[binary, name] = limit
+            if at_base or (limit is not None and first['cpu_s'] > limit):
+                repeated.append((binary, name, why))
+                run_counts[binary, name] = 3
+        for round_index in (1, 2):
+            if not repeated or results['cancelled'] is not None:
+                break
+            phase = reference_plan(plan, repeated, min(starts.values()) if starts else None)
+            phase['process_offset'] = len(results['processes'])
+            path = directory / ('plan.json' if at_base else 'references-plan.json')
+            save(path, phase)
+            run_lanes(path)
+        if at_base:
+            save(directory / 'plan.json', plan)
     if forced_at is not None:
         recorded = {}
         for index, item in enumerate(results['processes']):
@@ -1141,7 +1256,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
         for test in binary['tests']:
             if (binary['binary_id'], test['name']) not in tests:
                 results['unobserved'].append(dict(binary_id=binary['binary_id'], test_name=test['name']))
-    results['references'] = reference_rows(picks, final=True)
+    results['references'] = reference_rows()
     save(directory / 'results.json', results)
     if junit:
         write_junit(directory, results)

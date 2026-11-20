@@ -13,7 +13,7 @@ use jig_domain_link::{Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Record, Write};
 
@@ -235,6 +235,7 @@ impl World {
             period_sent: false,
             settings,
         };
+        crate::escalation_referee::store_rules(&world.store.rows).expect("initial escalation store oracle");
         world.queue(engine::Event::Restart { pending: world.store.pending_generation }, 0);
         world.hello();
         world
@@ -257,6 +258,7 @@ impl World {
     fn sign_in(&mut self, index: usize) {
         self.queue(
             engine::Event::Party(engine::PartyInput::SignedIn {
+                until: None,
                 held: None,
                 reply_to: ReplyTo::new(Token::new(101 + u64::try_from(index).expect("two people"))),
                 identity: people::Identity {
@@ -466,7 +468,7 @@ impl World {
                 0,
                 tasks::Escalation::Rejected {
                     revision,
-                    by: self.people[owner].expect("winner"),
+                    by: tasks::EscalationDecider::Person(self.people[owner].expect("winner")),
                     reason: REASON.into(),
                 },
             );
@@ -592,8 +594,11 @@ impl World {
                         )))
                     )
                 });
+                let keys: BTreeSet<_> = writes.iter().map(Write::key).collect();
+                let previous = self.store.header();
                 let number = self.store.apply();
-                crate::escalation_referee::store_rules(&self.store.rows).expect("escalation writer store oracle");
+                crate::escalation_referee::store_rules_changed(&self.store.rows, previous, &keys)
+                    .expect("escalation writer store oracle");
                 self.trace.push(format!("applied {number}"));
                 self.commit_wait = self.settings.commit_delay;
                 if self.restarts == 0
@@ -652,6 +657,10 @@ impl World {
                         return;
                     }
                 }
+                engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
@@ -669,13 +678,16 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("escalation root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }
@@ -694,6 +706,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Store(engine::StoreRequest::Checkpoint { .. })
                 | engine::Request::Restarting { .. }
                 | engine::Request::Drained) => panic!("unexpected escalation output {other:?}"),
             }
@@ -810,7 +823,9 @@ impl World {
                 assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
                 assert_eq!(self.worker_answer, WorkerAnswer::Retained, "the worker keeps its terminal until ACK");
             }
-            Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::Providers(..)
+            | Delivery::WorkerFigures { .. }
+            | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::PlaygroundNote { .. }
             | Delivery::Application { .. }
             | Delivery::Forges { .. }
@@ -830,6 +845,7 @@ impl World {
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
@@ -840,6 +856,7 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
@@ -916,6 +933,9 @@ impl World {
 pub fn run_replayed(settings: Settings) -> World {
     let mut first = World::new(settings);
     let mut replay = World::new(settings);
+    same_digest(&first, &replay, &format_args!("initial escalation: {settings:?}"));
+    let mut trace_prefix = first.trace.len();
+    let mut transaction_prefix = first.transactions.len();
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled(), "replay settled at same cut: {settings:?}; {}", replay.unsettled());
@@ -929,10 +949,22 @@ pub fn run_replayed(settings: Settings) -> World {
         replay.iterate();
         let first_trace = std::mem::take(&mut first.trace);
         let replay_trace = std::mem::take(&mut replay.trace);
-        assert_eq!(first_trace, replay_trace, "escalation trace: {settings:?}");
-        same_digest(&first, &replay, &format_args!("escalation iteration {}: {settings:?}", first.iteration));
+        // These histories only append. Their equal prefixes are already proven;
+        // the mutable world and each new suffix are checked at every iteration.
+        let first_transactions = std::mem::take(&mut first.transactions);
+        let replay_transactions = std::mem::take(&mut replay.transactions);
+        assert_eq!(&first_trace[trace_prefix..], &replay_trace[trace_prefix..], "escalation trace: {settings:?}");
+        same_digest(
+            &(&first, &first_transactions[transaction_prefix..]),
+            &(&replay, &replay_transactions[transaction_prefix..]),
+            &format_args!("escalation iteration {}: {settings:?}", first.iteration),
+        );
+        trace_prefix = first_trace.len();
+        transaction_prefix = first_transactions.len();
         first.trace = first_trace;
         replay.trace = replay_trace;
+        first.transactions = first_transactions;
+        replay.transactions = replay_transactions;
     }
     panic!("escalation replay did not settle: {}", first.unsettled());
 }

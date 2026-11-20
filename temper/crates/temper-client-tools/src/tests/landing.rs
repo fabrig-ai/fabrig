@@ -8,79 +8,59 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 fn panel(phase: w::LandingPhase) -> w::LandingPanel {
     let mut gates = List::with_capacity(1);
     gates
-        .push(
-            w::GateProof::new(
-                &w::CEILINGS,
-                w::GateProofParts {
-                    name: b"gate".as_slice().into(),
-                    blocking: true,
-                    key: Some([0x33; 32]),
-                    proof: w::Proof::Dispatched(
-                        w::Dispatched::new(&w::CEILINGS, w::DispatchedParts { attempt: 1, run: Some(7) }).unwrap(),
-                    ),
-                    faults: 0,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::GateProof {
+            name: b"gate".as_slice().into(),
+            blocking: true,
+            key: Some([0x33; 32]),
+            proof: w::Proof::Dispatched(w::Dispatched { attempt: 1, run: Some(7) }),
+            faults: 0,
+        })
         .unwrap();
     let mut members = List::with_capacity(1);
     members
-        .push(
-            w::Member::new(
-                &w::CEILINGS,
-                w::MemberParts {
-                    head: None,
-                    left: None,
-                    judgement: None,
-                    change: 51,
-                    forge: 1,
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    branch: b"temper/51".as_slice().into(),
-                    landing: b"main".as_slice().into(),
-                    pull: Some(
-                        w::Pull::new(
-                            &w::CEILINGS,
-                            w::PullParts {
-                                number: 3,
-                                address: b"http://127.0.0.1:3000/work/hello/pulls/3".as_slice().into(),
-                            },
-                        )
-                        .unwrap(),
-                    ),
-                    base: Some([0x22; 32]),
-                    candidate: Some([0x11; 32]),
-                    landed: if phase == w::LandingPhase::Landed { Some([0x11; 32]) } else { None },
-                    gates,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::Member {
+            head: None,
+            left: None,
+            judgement: None,
+            change: 51,
+            forge: 1,
+            owner: b"work".as_slice().into(),
+            name: b"hello".as_slice().into(),
+            branch: b"temper/51".as_slice().into(),
+            landing: b"main".as_slice().into(),
+            pull: Some(w::Pull { number: 3, address: b"http://127.0.0.1:3000/work/hello/pulls/3".as_slice().into() }),
+            base: Some([0x22; 32]),
+            candidate: Some([0x11; 32]),
+            landed: if phase == w::LandingPhase::Landed { Some([0x11; 32]) } else { None },
+            gates,
+        })
         .unwrap();
     let hold = if phase == w::LandingPhase::Held {
-        Some(w::LandingHold::Faults(
-            w::HeldFaults::new(&w::CEILINGS, w::HeldFaultsParts { member: 0, gate: 0 }).unwrap(),
-        ))
+        Some(w::LandingHold::Faults(w::HeldFaults { member: 0, gate: 0 }))
     } else {
         None
     };
-    w::LandingPanel::new(
-        &w::CEILINGS,
-        w::LandingPanelParts {
-            train: None,
-            round: None,
-            task: 61,
-            project: 1,
-            phase,
-            hold,
-            members,
-            preparation: 1,
-            stale_proofs: 0,
-            turn: None,
+    w::LandingPanel {
+        waits: if phase == w::LandingPhase::Landed || phase == w::LandingPhase::Cancelled {
+            None
+        } else {
+            Some(wait(if phase == w::LandingPhase::Held {
+                w::LandingWaitFor::Release
+            } else {
+                w::LandingWaitFor::Close
+            }))
         },
-    )
-    .unwrap()
+        train: None,
+        round: None,
+        task: 61,
+        project: 1,
+        phase,
+        hold,
+        members,
+        preparation: 1,
+        stale_proofs: 0,
+        turn: None,
+    }
 }
 fn deliver(root: &mut f::Harness, subject: client::Watchable, bytes: Box<[u8]>) {
     let token = root.watch_token(&subject);
@@ -102,7 +82,7 @@ fn read_panel(panel: &w::LandingPanel, json: bool) -> jig::Printed {
     deliver(&mut root, subject, wire::landing_panel(panel));
     let answer = root.answer(call).unwrap();
     assert_eq!(answer.status, 0);
-    assert_eq!(root.watches.len(), 1, "only me remains watched");
+    assert_eq!(root.watches.len(), 0, "no application watch remains");
     answer
 }
 #[test]
@@ -118,25 +98,21 @@ fn a_held_landing_names_its_gate() {
     f::check_golden("landing_held", &read_panel(&panel(w::LandingPhase::Held), false).stdout);
 }
 fn with_gate(proof: w::Proof, key: Option<[u8; 32]>, blocking: bool, faults: u32) -> w::LandingPanel {
-    let mut parts = panel(w::LandingPhase::Proving).into_parts();
-    let mut member = parts.members.get(0).unwrap().clone().into_parts();
-    let mut gate = member.gates.get(0).unwrap().clone().into_parts();
+    let mut parts = panel(w::LandingPhase::Proving);
+    let mut member = parts.members.get(0).unwrap().clone();
+    let mut gate = member.gates.get(0).unwrap().clone();
     gate.proof = proof;
     gate.key = key;
     gate.blocking = blocking;
     gate.faults = faults;
     member.gates = List::with_capacity(1);
-    member.gates.push(w::GateProof::new(&w::CEILINGS, gate).unwrap()).unwrap();
+    member.gates.push(gate).unwrap();
     parts.members = List::with_capacity(1);
-    parts.members.push(w::Member::new(&w::CEILINGS, member).unwrap()).unwrap();
-    w::LandingPanel::new(&w::CEILINGS, parts).unwrap()
+    parts.members.push(member).unwrap();
+    parts
 }
 fn receipt() -> w::Receipted {
-    w::Receipted::new(
-        &w::CEILINGS,
-        w::ReceiptedParts { run: 7, number: 3, address: b"http://127.0.0.1:3000/work/hello/pulls/3".as_slice().into() },
-    )
-    .unwrap()
+    w::Receipted { run: 7, number: 3, address: b"http://127.0.0.1:3000/work/hello/pulls/3".as_slice().into() }
 }
 #[test]
 fn a_gate_passed_by_receipt_prints_its_run_and_address() {
@@ -159,9 +135,7 @@ fn every_gate_proof_prints_its_state_and_runner_faults() {
         (w::Proof::Keyed, Some([0x33; 32]), "key 3333333333333333, keyed"),
         (w::Proof::Waiting, Some([0x33; 32]), "key 3333333333333333, waiting on another landing's run"),
         (
-            w::Proof::Dispatched(
-                w::Dispatched::new(&w::CEILINGS, w::DispatchedParts { attempt: 1, run: None }).unwrap(),
-            ),
+            w::Proof::Dispatched(w::Dispatched { attempt: 1, run: None }),
             Some([0x33; 32]),
             "key 3333333333333333, dispatched (try 1)",
         ),
@@ -186,7 +160,7 @@ fn a_landing_the_engine_does_not_know_fails_with_exit_2() {
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 2);
         assert_eq!(answer.stderr.as_ref(), b"no landing for task 61\n");
-        assert_eq!(root.watches.len(), 1);
+        assert_eq!(root.watches.len(), 0);
     }
 }
 #[test]
@@ -196,11 +170,11 @@ fn a_landed_queue_change_has_no_landing_in_text_or_json() {
         root.pending_reads.push(1);
         let call = root.submit_prepared(f::call(&["landing", "show", "3"]), json, None);
         root.serve(call, f::task_result(f::goal(3, c::WaitsOn::Nothing)));
-        let step = w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [34; 32] }).unwrap());
-        let mut parts = super::change::panel(step).into_parts();
+        let step = w::Step::Landed(w::Landed { merge: [34; 32] });
+        let mut parts = super::change::panel(step);
         parts.task = 3;
         let subject = landing::subject(Some(3), 1, false, &root.limits);
-        deliver(&mut root, subject, wire::change_panel(&w::ChangePanel::new(&w::CEILINGS, parts).unwrap()));
+        deliver(&mut root, subject, wire::change_panel(&parts));
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 2, "json={json}");
         assert!(answer.stdout.is_empty());
@@ -208,7 +182,7 @@ fn a_landed_queue_change_has_no_landing_in_text_or_json() {
             answer.stderr.as_ref(),
             if json { b"{\"error\":\"no landing for task 3\"}".as_slice() } else { b"no landing for task 3\n" }
         );
-        assert_eq!(root.watches.len(), 1, "only me remains watched");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
@@ -223,35 +197,31 @@ fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
             landed.push([0x11; 32]).unwrap();
         }
         landings
-            .push(
-                w::LandingLine::new(
-                    &w::CEILINGS,
-                    w::LandingLineParts {
-                        train: Some(
-                            w::Train::new(
-                                &w::CEILINGS,
-                                w::TrainParts {
-                                    forge: 1,
-                                    repository: 9,
-                                    owner: b"work".as_slice().into(),
-                                    name: b"hello".as_slice().into(),
-                                    branch: b"release".as_slice().into(),
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        task: *task,
-                        phase: if *task == 61 { w::LandingPhase::Turn } else { w::LandingPhase::Landed },
-                        changes,
-                        repositories,
-                        landed,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::LandingLine {
+                step: if *task == 61 { Some(w::LandingStep::Turn) } else { None },
+                last_event: if *task == 61 { Some(1_000_000_000) } else { None },
+                train: Some(w::Train {
+                    forge: 1,
+                    repository: 9,
+                    owner: b"work".as_slice().into(),
+                    name: b"hello".as_slice().into(),
+                    branch: b"release".as_slice().into(),
+                }),
+                task: *task,
+                phase: if *task == 61 { w::LandingPhase::Turn } else { w::LandingPhase::Landed },
+                changes,
+                repositories,
+                landed,
+            })
             .unwrap();
     }
-    w::LandingsPanel::new(&w::CEILINGS, w::LandingsPanelParts { project: 1, turn, landings }).unwrap()
+    w::LandingsPanel {
+        now: if turn.is_some() { 16_261_000_000_000 } else { 0 },
+        turn_since: if turn.is_some() { Some(1_000_000_000) } else { None },
+        project: 1,
+        turn,
+        landings,
+    }
 }
 fn read_list(panel: &w::LandingsPanel, json: bool) -> jig::Printed {
     let mut root = f::signed_in(f::PARTY);
@@ -264,16 +234,16 @@ fn read_list(panel: &w::LandingsPanel, json: bool) -> jig::Printed {
     deliver(&mut root, subject, wire::landings_panel(panel));
     let answer = root.answer(call).unwrap();
     assert_eq!(answer.status, 0);
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     answer
 }
 #[test]
 fn landings_print_live_first_then_newest() {
-    let mut parts = list(Some(61), &[62, 60, 61, 63]).into_parts();
-    let mut newest = parts.landings.get(3).unwrap().clone().into_parts();
+    let mut parts = list(Some(61), &[62, 60, 61, 63]);
+    let mut newest = parts.landings.get(3).unwrap().clone();
     newest.phase = w::LandingPhase::Waiting;
-    *parts.landings.get_mut(3).unwrap() = w::LandingLine::new(&w::CEILINGS, newest).unwrap();
-    let answer = read_list(&w::LandingsPanel::new(&w::CEILINGS, parts).unwrap(), false);
+    *parts.landings.get_mut(3).unwrap() = newest;
+    let answer = read_list(&parts, false);
     assert!(contains(&answer.stdout, "train: work/hello on forge 1 into release"));
     let mut previous = 0;
     for prefix in ["\nlanding 63 ·", "\nlanding 61 ·", "\nlanding 62 ·", "\nlanding 60 ·"] {
@@ -379,24 +349,24 @@ fn phases_preparation_and_each_turn_holder_print_in_the_owners_words() {
     for (turn, words) in
         [(None, "turn: free\n"), (Some(61), "turn: this landing's\n"), (Some(60), "turn: landing 60's\n")]
     {
-        let mut parts = panel(w::LandingPhase::Waiting).into_parts();
+        let mut parts = panel(w::LandingPhase::Waiting);
         parts.turn = turn;
-        let mut member = parts.members.get(0).unwrap().clone().into_parts();
+        let mut member = parts.members.get(0).unwrap().clone();
         member.candidate = None;
         member.base = None;
         member.pull = None;
         parts.members = List::with_capacity(1);
-        parts.members.push(w::Member::new(&w::CEILINGS, member).unwrap()).unwrap();
-        let answer = read_panel(&w::LandingPanel::new(&w::CEILINGS, parts).unwrap(), false);
+        parts.members.push(member).unwrap();
+        let answer = read_panel(&parts, false);
         assert!(contains(&answer.stdout, "  candidate: not prepared\n"));
         assert!(contains(&answer.stdout, words));
-        assert!(!contains(&answer.stdout, "pull request"));
+        assert!(!contains(&answer.stdout, "\n  pull request #"));
     }
 }
 #[test]
 fn a_line_can_name_several_changes_repositories_and_landed_commits() {
-    let mut parts = list(None, &[61]).into_parts();
-    let mut line = parts.landings.get(0).unwrap().clone().into_parts();
+    let mut parts = list(None, &[61]);
+    let mut line = parts.landings.get(0).unwrap().clone();
     line.changes = List::with_capacity(2);
     line.changes.push(51).unwrap();
     line.changes.push(52).unwrap();
@@ -407,9 +377,9 @@ fn a_line_can_name_several_changes_repositories_and_landed_commits() {
     line.landed.push([0x11; 32]).unwrap();
     line.landed.push([0x22; 32]).unwrap();
     parts.landings = List::with_capacity(1);
-    parts.landings.push(w::LandingLine::new(&w::CEILINGS, line).unwrap()).unwrap();
-    let answer = read_list(&w::LandingsPanel::new(&w::CEILINGS, parts).unwrap(), false);
-    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · change 51, 52 · work/hello, work/lib · train: work/hello on forge 1 into release · landed at 111111111111 · landed at 222222222222\n".as_bytes());
+    parts.landings.push(line).unwrap();
+    let answer = read_list(&parts, false);
+    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · turn · last event 0s ago · change 51, 52 · work/hello, work/lib · train: work/hello on forge 1 into release · landed at 111111111111 · landed at 222222222222\n".as_bytes());
 }
 
 #[test]
@@ -433,21 +403,17 @@ fn unknown_task_and_malformed_panels_finish_the_read_and_close_the_watch() {
     for wrong_task in [false, true] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(&["landing", "show", "61", "--project", "1"]);
-        let mut parts = panel(w::LandingPhase::Proving).into_parts();
+        let mut parts = panel(w::LandingPhase::Proving);
         if wrong_task {
             parts.task = 60;
         }
-        let bytes = if wrong_task {
-            wire::landing_panel(&w::LandingPanel::new(&w::CEILINGS, parts).unwrap())
-        } else {
-            Box::default()
-        };
+        let bytes = if wrong_task { wire::landing_panel(&parts) } else { Box::default() };
         let subject = landing::subject(Some(61), 1, false, &root.limits);
         deliver(&mut root, subject, bytes);
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 1);
         assert_eq!(answer.stderr.as_ref(), b"unexpected landing document\n");
-        assert_eq!(root.watches.len(), 1);
+        assert_eq!(root.watches.len(), 0);
     }
 }
 #[test]
@@ -483,7 +449,7 @@ fn an_invalid_direct_call_prints_invalid_landing_call() {
             answer.stderr.as_ref(),
             if json { b"{\"error\":\"invalid landing call\"}".as_slice() } else { b"invalid landing call\n" }
         );
-        assert_eq!(root.watches.len(), 1, "only me remains watched");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -505,7 +471,7 @@ fn a_refused_landing_or_landings_watch_prints_not_allowed() {
                 answer.stderr.as_ref(),
                 if json { b"{\"error\":\"not_allowed\"}".as_slice() } else { b"not_allowed\n" }
             );
-            assert_eq!(root.watches.len(), 1, "only me remains watched");
+            assert_eq!(root.watches.len(), 0, "no application watch remains");
         }
     }
 }
@@ -513,9 +479,9 @@ fn a_refused_landing_or_landings_watch_prints_not_allowed() {
 #[test]
 fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
     let change = wire::change_panel(&super::change::panel(w::Step::Checking));
-    let mut parts = panel(w::LandingPhase::Landed).into_parts();
+    let mut parts = panel(w::LandingPhase::Landed);
     parts.project = 2;
-    let wrong_project = wire::landing_panel(&w::LandingPanel::new(&w::CEILINGS, parts).unwrap());
+    let wrong_project = wire::landing_panel(&parts);
     for json in [false, true] {
         for bytes in [change.clone(), wrong_project.clone(), Box::default()] {
             let mut root = f::signed_in(f::PARTY);
@@ -533,52 +499,33 @@ fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
                     b"unexpected landing document\n"
                 }
             );
-            assert_eq!(root.watches.len(), 1);
+            assert_eq!(root.watches.len(), 0);
         }
     }
 }
 
 fn probing_panel(tests: w::SearchTests) -> w::LandingPanel {
-    let mut parts = panel(w::LandingPhase::Proving).into_parts();
-    parts.round = Some(
-        w::LandingRound::new(
-            &w::CEILINGS,
-            w::LandingRoundParts {
-                number: 1,
-                branch: b"temper/61/1".as_slice().into(),
-                pull: None,
-                combined: None,
-                step: w::LandingStep::Probing,
-                upstream: Some([0x22; 32]),
-                failure: Box::default(),
-                search: Some(
-                    w::LandingSearch::new(
-                        &w::CEILINGS,
-                        w::LandingSearchParts {
-                            tests,
-                            green: w::SearchBound::new(
-                                &w::CEILINGS,
-                                w::SearchBoundParts { member: 0, prefix: [0x22; 32] },
-                            )
-                            .unwrap(),
-                            red: w::SearchBound::new(
-                                &w::CEILINGS,
-                                w::SearchBoundParts { member: 3, prefix: [0x33; 32] },
-                            )
-                            .unwrap(),
-                            probe: Some([0x11; 32]),
-                        },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    );
-    w::LandingPanel::new(&w::CEILINGS, parts).unwrap()
+    let mut parts = panel(w::LandingPhase::Proving);
+    parts.round = Some(w::LandingRound {
+        number: 1,
+        branch: b"temper/61/1".as_slice().into(),
+        pull: None,
+        combined: None,
+        step: w::LandingStep::Probing,
+        upstream: Some([0x22; 32]),
+        failure: Box::default(),
+        search: Some(w::LandingSearch {
+            tests,
+            green: w::SearchBound { member: 0, prefix: [0x22; 32] },
+            red: w::SearchBound { member: 3, prefix: [0x33; 32] },
+            probe: Some([0x11; 32]),
+        }),
+    });
+    parts
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary test assembles expected round and wait lines")]
 fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_json() {
     let panel = probing_panel(w::SearchTests::Whole);
     let text = read_panel(&panel, false);
@@ -586,6 +533,10 @@ fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_jso
     for words in ["step: probing at 11111111", "search: green member 0 at 22222222", "red member 3 at 33333333"] {
         assert!(contains(&text.stdout, words), "{words}");
     }
+    assert!(contains(
+        &text.stdout,
+        &format!("upstream: {}\nwaits for: the round's pull request to close\nmember:", "22".repeat(32))
+    ));
     let json = read_panel(&panel, true);
     assert_eq!(json.status, 0);
     for words in [
@@ -601,51 +552,32 @@ fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_jso
 #[test]
 fn a_search_by_test_shows_its_selections_and_passes_in_text_and_json() {
     let gates = List::from_boxed(Box::new([
-        w::SearchSelection::new(
-            &w::CEILINGS,
-            w::SearchSelectionParts {
-                gate: 0,
-                name: b"unit".as_slice().into(),
-                count: 2,
-                ids: List::from_boxed(Box::new([b"crate.a".as_slice().into(), b"crate.b".as_slice().into()])),
-            },
-        )
-        .unwrap(),
-        w::SearchSelection::new(
-            &w::CEILINGS,
-            w::SearchSelectionParts {
-                gate: 1,
-                name: b"lint".as_slice().into(),
-                count: 4,
-                ids: List::from_boxed(Box::new([
-                    b"crate.a".as_slice().into(),
-                    b"crate.b".as_slice().into(),
-                    b"crate.c".as_slice().into(),
-                ])),
-            },
-        )
-        .unwrap(),
+        w::SearchSelection {
+            gate: 0,
+            name: b"unit".as_slice().into(),
+            count: 2,
+            ids: List::from_boxed(Box::new([b"crate.a".as_slice().into(), b"crate.b".as_slice().into()])),
+        },
+        w::SearchSelection {
+            gate: 1,
+            name: b"lint".as_slice().into(),
+            count: 4,
+            ids: List::from_boxed(Box::new([
+                b"crate.a".as_slice().into(),
+                b"crate.b".as_slice().into(),
+                b"crate.c".as_slice().into(),
+            ])),
+        },
     ]));
     let passes = List::from_boxed(Box::new([
-        w::SearchPass::new(
-            &w::CEILINGS,
-            w::SearchPassParts { member: 1, prefix: [0x11; 32], gate: 0, name: b"unit".as_slice().into(), run: 7 },
-        )
-        .unwrap(),
-        w::SearchPass::new(
-            &w::CEILINGS,
-            w::SearchPassParts { member: 1, prefix: [0x11; 32], gate: 1, name: b"lint".as_slice().into(), run: 8 },
-        )
-        .unwrap(),
+        w::SearchPass { member: 1, prefix: [0x11; 32], gate: 0, name: b"unit".as_slice().into(), run: 7 },
+        w::SearchPass { member: 1, prefix: [0x11; 32], gate: 1, name: b"lint".as_slice().into(), run: 8 },
     ]));
-    let mut parts = probing_panel(w::SearchTests::ByTest(
-        w::SearchByTest::new(&w::CEILINGS, w::SearchByTestParts { gates, passes }).unwrap(),
-    ))
-    .into_parts();
-    let mut round = parts.round.take().unwrap().into_parts();
+    let mut parts = probing_panel(w::SearchTests::ByTest(w::SearchByTest { gates, passes }));
+    let mut round = parts.round.take().unwrap();
     round.step = w::LandingStep::ProbingByTest;
-    parts.round = Some(w::LandingRound::new(&w::CEILINGS, round).unwrap());
-    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    parts.round = Some(round);
+    let panel = parts;
     let text = read_panel(&panel, false);
     for words in [
         "step: probing by test at 11111111",
@@ -678,15 +610,12 @@ fn a_search_by_test_shows_its_selections_and_passes_in_text_and_json() {
 
 #[test]
 fn an_ended_landing_shows_blame_with_both_prefixes_in_text_and_json() {
-    let mut parts = panel(w::LandingPhase::Landed).into_parts();
-    let mut member = parts.members.get(0).unwrap().clone().into_parts();
+    let mut parts = panel(w::LandingPhase::Landed);
+    let mut member = parts.members.get(0).unwrap().clone();
     member.landed = None;
-    member.left = Some(w::LandingLeave::Blamed(
-        w::BlamedGate::new(&w::CEILINGS, w::BlamedGateParts { gate: 2, run: 7, red: [0x33; 32], green: [0x22; 32] })
-            .unwrap(),
-    ));
-    parts.members = List::from_boxed(Box::new([w::Member::new(&w::CEILINGS, member).unwrap()]));
-    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    member.left = Some(w::LandingLeave::Blamed(w::BlamedGate { gate: 2, run: 7, red: [0x33; 32], green: [0x22; 32] }));
+    parts.members = List::from_boxed(Box::new([member]));
+    let panel = parts;
     let text = read_panel(&panel, false);
     assert_eq!(text.status, 0);
     for words in ["left: blamed by gate 2 in run 7", "red at 33333333", "green at 22222222"] {
@@ -702,65 +631,34 @@ fn an_ended_landing_shows_blame_with_both_prefixes_in_text_and_json() {
 
 #[test]
 fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
-    let mut parts = panel(w::LandingPhase::Landed).into_parts();
-    parts.train = Some(
-        w::Train::new(
-            &w::CEILINGS,
-            w::TrainParts {
-                forge: 1,
-                repository: 9,
-                owner: b"work".as_slice().into(),
-                name: b"hello".as_slice().into(),
-                branch: b"release".as_slice().into(),
-            },
-        )
-        .unwrap(),
-    );
-    parts.round = Some(
-        w::LandingRound::new(
-            &w::CEILINGS,
-            w::LandingRoundParts {
-                search: None,
-                number: 2,
-                branch: b"temper/61/2".as_slice().into(),
-                pull: Some(
-                    w::Pull::new(
-                        &w::CEILINGS,
-                        w::PullParts {
-                            number: 8,
-                            address: b"https://forge.example/work/hello/pulls/8".as_slice().into(),
-                        },
-                    )
-                    .unwrap(),
-                ),
-                combined: Some(w::Combined::Squash),
-                step: w::LandingStep::Landed,
-                upstream: Some([0x44; 32]),
-                failure: Box::default(),
-            },
-        )
-        .unwrap(),
-    );
-    let mut member = parts.members.get(0).unwrap().clone().into_parts();
+    let mut parts = panel(w::LandingPhase::Landed);
+    parts.train = Some(w::Train {
+        forge: 1,
+        repository: 9,
+        owner: b"work".as_slice().into(),
+        name: b"hello".as_slice().into(),
+        branch: b"release".as_slice().into(),
+    });
+    parts.round = Some(w::LandingRound {
+        search: None,
+        number: 2,
+        branch: b"temper/61/2".as_slice().into(),
+        pull: Some(w::Pull { number: 8, address: b"https://forge.example/work/hello/pulls/8".as_slice().into() }),
+        combined: Some(w::Combined::Squash),
+        step: w::LandingStep::Landed,
+        upstream: Some([0x44; 32]),
+        failure: Box::default(),
+    });
+    let mut member = parts.members.get(0).unwrap().clone();
     member.head = Some([0x55; 32]);
     member.landing = b"release".as_slice().into();
-    member.judgement = Some(
-        w::PrefixJudgement::new(
-            &w::CEILINGS,
-            w::PrefixJudgementParts {
-                prefix: [0x11; 32],
-                verdict: w::Ci::Passed,
-                gates: List::from_boxed(Box::new([w::PrefixGate::new(
-                    &w::CEILINGS,
-                    w::PrefixGateParts { number: 3, blocking: true, verdict: w::Ci::Passed },
-                )
-                .unwrap()])),
-            },
-        )
-        .unwrap(),
-    );
-    parts.members = List::from_boxed(Box::new([w::Member::new(&w::CEILINGS, member.clone()).unwrap()]));
-    let landed = w::LandingPanel::new(&w::CEILINGS, parts.clone()).unwrap();
+    member.judgement = Some(w::PrefixJudgement {
+        prefix: [0x11; 32],
+        verdict: w::Ci::Passed,
+        gates: List::from_boxed(Box::new([w::PrefixGate { number: 3, blocking: true, verdict: w::Ci::Passed }])),
+    });
+    parts.members = List::from_boxed(Box::new([member.clone()]));
+    let landed = parts.clone();
     let text = read_panel(&landed, false);
     for words in [
         "train: work/hello on forge 1 into release",
@@ -789,11 +687,9 @@ fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
     }
     parts.phase = w::LandingPhase::Cancelled;
     member.landed = None;
-    member.left = Some(w::LandingLeave::Failed(
-        w::FailedGate::new(&w::CEILINGS, w::FailedGateParts { gate: 0, run: 7 }).unwrap(),
-    ));
-    parts.members = List::from_boxed(Box::new([w::Member::new(&w::CEILINGS, member).unwrap()]));
-    let left = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    member.left = Some(w::LandingLeave::Failed(w::FailedGate { gate: 0, run: 7 }));
+    parts.members = List::from_boxed(Box::new([member]));
+    let left = parts;
     assert!(contains(&read_panel(&left, false).stdout, "left: gate 0 failed in run 7"));
     assert!(contains(&read_panel(&left, true).stdout, "\"left\":{\"failed\":{\"gate\":0,\"run\":7}}"));
 }
@@ -805,8 +701,8 @@ fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
     reason = "the test formats text and JSON expectations for each batch member"
 )]
 fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
-    let mut parts = panel(w::LandingPhase::Proving).into_parts();
-    let template = parts.members.get(0).unwrap().clone().into_parts();
+    let mut parts = panel(w::LandingPhase::Proving);
+    let template = parts.members.get(0).unwrap().clone();
     parts.members = List::with_capacity(3);
     for offset in 0_u8..3 {
         let mut member = template.clone();
@@ -815,17 +711,12 @@ fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
         member.head = Some([0x30 + offset; 32]);
         member.candidate = Some([0x40 + offset; 32]);
         member.landed = if offset == 0 { member.candidate } else { None };
-        member.left = if offset == 2 {
-            Some(w::LandingLeave::HeadMoved(
-                w::MovedHead::new(&w::CEILINGS, w::MovedHeadParts { head: [0x99; 32] }).unwrap(),
-            ))
-        } else {
-            None
-        };
+        member.left =
+            if offset == 2 { Some(w::LandingLeave::HeadMoved(w::MovedHead { head: [0x99; 32] })) } else { None };
         member.gates = List::with_capacity(0);
-        parts.members.push(w::Member::new(&w::CEILINGS, member).unwrap()).unwrap();
+        parts.members.push(member).unwrap();
     }
-    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     let text = read_panel(&panel, false);
     let text = core::str::from_utf8(&text.stdout).unwrap();
     let json = read_panel(&panel, true);
@@ -851,4 +742,147 @@ fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
     assert!(text.contains("left: head moved to 99999999"));
     assert!(json.contains("\"landed\":\"40404040"));
     assert!(json.contains("\"head_moved\":\"99999999"));
+}
+
+fn wait(on: w::LandingWaitFor) -> w::LandingWait {
+    w::LandingWait { on, change: None, gate: None, run: None, landing: None }
+}
+
+#[test]
+fn landing_ages_use_engine_time_and_two_units() {
+    use crate::jig::render::Text;
+    for (seconds, expected) in [
+        (183_600, "2d 3h"),
+        (86_400, "1d 0h"),
+        (16_260, "4h 31m"),
+        (3_600, "1h 0m"),
+        (3_599, "59m 59s"),
+        (2_232, "37m 12s"),
+        (60, "1m 0s"),
+        (59, "59s"),
+        (12, "12s"),
+        (0, "0s"),
+    ] {
+        let mut out = Text::measure();
+        landing::waits::age(seconds * 1_000_000_000, 0, &mut out);
+        let mut out = Text::writing_exact(out);
+        landing::waits::age(seconds * 1_000_000_000, 0, &mut out);
+        assert_eq!(out.finish().as_ref(), expected.as_bytes());
+    }
+    let mut out = Text::measure();
+    landing::waits::age(0, 1_000_000_000, &mut out);
+    let mut out = Text::writing_exact(out);
+    landing::waits::age(0, 1_000_000_000, &mut out);
+    assert_eq!(out.finish().as_ref(), b"0s");
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary test assembles expected wait words and JSON")]
+fn landing_waits_name_the_needed_fact_or_the_next_step() {
+    for (on, words, key) in [
+        (w::LandingWaitFor::Release, "its release", "release"),
+        (w::LandingWaitFor::Prepare, "the round's prepare job", "prepare"),
+        (w::LandingWaitFor::Prefixes, "the prepared prefixes on the members' branches", "prefixes"),
+        (w::LandingWaitFor::Open, "the round's pull request to open", "open"),
+        (w::LandingWaitFor::Close, "the round's pull request to close", "close"),
+        (w::LandingWaitFor::Merge, "the turn's merge", "merge"),
+        (w::LandingWaitFor::Room, "room in the forge's outbox", "room"),
+        (w::LandingWaitFor::Read, "a fresh read of its facts from the forge", "read"),
+        (w::LandingWaitFor::Nothing, "nothing; it steps next", "nothing"),
+    ] {
+        let mut parts = panel(w::LandingPhase::Proving);
+        parts.waits = Some(wait(on));
+        let panel = parts;
+        assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
+        assert!(contains(
+            &read_panel(&panel, true).stdout,
+            &format!("\"waits\":{{\"for\":\"{key}\",\"change\":null,\"gate\":null,\"run\":null,\"landing\":null}}")
+        ));
+    }
+    let mut parts = panel(w::LandingPhase::Proving);
+    parts.waits = Some(w::LandingWait {
+        on: w::LandingWaitFor::Run,
+        change: Some(8414),
+        gate: Some(b"tests".as_slice().into()),
+        run: Some(412),
+        landing: None,
+    });
+    let running = parts.clone();
+    assert!(contains(&read_panel(&running, false).stdout, "waits for: gate tests's run 412 at change 8414's prefix"));
+    assert!(contains(
+        &read_panel(&running, true).stdout,
+        "\"waits\":{\"for\":\"run\",\"change\":8414,\"gate\":\"tests\",\"run\":412,\"landing\":null}"
+    ));
+    let mut waiting = parts.waits.take().unwrap();
+    waiting.run = None;
+    parts.waits = Some(waiting);
+    let unknown = parts.clone();
+    assert!(contains(&read_panel(&unknown, false).stdout, "waits for: gate tests's run at change 8414's prefix"));
+    parts.waits = None;
+    let next = parts.clone();
+    assert!(contains(&read_panel(&next, false).stdout, "waits for: nothing; it steps next\n"));
+    assert!(contains(&read_panel(&next, true).stdout, "\"waits\":{\"for\":\"nothing\""));
+    parts.waits = Some(wait(w::LandingWaitFor::Close));
+    parts.phase = w::LandingPhase::Landed;
+    let ended = parts;
+    assert!(!contains(&read_panel(&ended, false).stdout, "waits for:"));
+    assert!(contains(&read_panel(&ended, true).stdout, "\"waits\":null"));
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary test assembles expected wait lines")]
+fn landing_waits_resolve_member_gate_and_turn_names() {
+    for (on, words, gate) in [
+        (w::LandingWaitFor::Ready, "change 8414 to be ready", false),
+        (w::LandingWaitFor::Delete, "change 8414's branch in the landing to be deleted", false),
+        (w::LandingWaitFor::Judgement, "change 8414's judgement at its prefix", false),
+        (w::LandingWaitFor::Record, "the record of change 8414's pull request as merged", false),
+        (w::LandingWaitFor::Ancestry, "whether the branch holds change 8414's head", false),
+        (w::LandingWaitFor::Post, "gate tests's status at change 8414's prefix", true),
+        (w::LandingWaitFor::Receipt, "gate tests's receipt for change 8414's prefix", true),
+    ] {
+        let mut parts = panel(w::LandingPhase::Proving);
+        let mut waiting = wait(on);
+        waiting.change = Some(8414);
+        waiting.gate = if gate { Some(b"tests".as_slice().into()) } else { None };
+        parts.waits = Some(waiting);
+        let panel = parts;
+        assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
+    }
+    for (holder, words, json) in
+        [(None, "the turn", "\"landing\":null"), (Some(8458), "the turn, held by landing 8458", "\"landing\":8458")]
+    {
+        let mut parts = panel(w::LandingPhase::Proving);
+        let mut waiting = wait(w::LandingWaitFor::Turn);
+        waiting.landing = holder;
+        parts.waits = Some(waiting);
+        let panel = parts;
+        assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
+        assert!(contains(&read_panel(&panel, true).stdout, json));
+    }
+}
+#[test]
+fn landing_list_shows_unknown_last_event_and_engine_relative_ages() {
+    let mut parts = list(Some(61), &[61]);
+    parts.now = 16_261_000_000_000;
+    parts.turn_since = Some(1_000_000_000);
+    let mut row = parts.landings.get(0).unwrap().clone();
+    row.step = Some(w::LandingStep::Probing);
+    row.phase = w::LandingPhase::Proving;
+    row.last_event = Some(parts.now - 2_232_000_000_000);
+    *parts.landings.get_mut(0).unwrap() = row.clone();
+    let known = parts.clone();
+    let text = read_list(&known, false);
+    assert!(contains(&text.stdout, "turn: landing 61 for 4h 31m"));
+    assert!(contains(&text.stdout, "proving · probing · last event 37m 12s ago · change 51"));
+    row.last_event = None;
+    *parts.landings.get_mut(0).unwrap() = row;
+    let unknown = parts;
+    assert!(contains(&read_list(&unknown, false).stdout, "last event unknown"));
+    assert!(contains(&read_list(&unknown, true).stdout, "\"step\":\"probing\",\"last_event\":null"));
+    let mut parts = known;
+    let mut row = parts.landings.get(0).unwrap().clone();
+    row.phase = w::LandingPhase::Landed;
+    *parts.landings.get_mut(0).unwrap() = row;
+    let ended = parts;
+    assert!(!contains(&read_list(&ended, false).stdout, "last event"));
+    assert!(contains(&read_list(&ended, true).stdout, "\"step\":null,\"last_event\":14029000000000"));
 }

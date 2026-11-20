@@ -50,6 +50,14 @@ pub(crate) fn route(
             Ok(_) => {}
             Err(why) => return refused(work, route.request, at, people::Outcome::Refused(why)),
         }
+        if let tasks::Operation::Amend(amendment) = &operation
+            && amendment.funder.is_some()
+            && let Err(why) = admission.opening_pool(context)
+        {
+            let problem = tasks::Problem::new(Some(amendment.task), why);
+            let outcome = crate::routing::refusals::person_problem_refusal(core, problem);
+            return refused(work, route.request, at, outcome);
+        }
         if let Err(problem) = admission.check(&child_env, context, operation.clone()) {
             if let Some(capacity) = problem.capacity {
                 core.tasks.remember_capacity(env.wall, capacity);
@@ -58,6 +66,18 @@ pub(crate) fn route(
             return refused(work, route.request, at, outcome);
         }
         operations.push(operation).expect("same operation count");
+    }
+    let mut opens = false;
+    for operation in &operations {
+        if let tasks::Operation::Amend(operation) = operation {
+            opens |= operation.funder.is_some();
+        }
+    }
+    if opens {
+        let (period, pool) = core.open_person_pool(route.project, route.person);
+        for event in [period, pool].into_iter().flatten() {
+            work.push(Work::Event(Event::Tasks(event)));
+        }
     }
     let token = core.fly_person_task(
         route.request,
@@ -184,7 +204,16 @@ fn check(
                 core.party_hold_admit(route.person, hold)?;
             }
             amendment.release = release;
-            Ok(tasks::Operation::Amend(tasks::Amend { task, message: 0, stop_run, amendment: Box::new(amendment) }))
+            let giver =
+                tasks::Funder::Pool { project: row.project, person: route.person, period: core.period(row.project) };
+            let funder = crate::routing::amendment_funder(core, row.authority, &amendment, giver);
+            Ok(tasks::Operation::Amend(tasks::Amend {
+                funder,
+                task,
+                message: 0,
+                stop_run,
+                amendment: Box::new(amendment),
+            }))
         }
         people::Operation::Message { words, .. } => {
             crate::acts::write_in(core, &env.limits, route.person, task, admission)?;

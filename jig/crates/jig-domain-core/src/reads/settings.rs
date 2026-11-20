@@ -71,6 +71,7 @@ pub(crate) fn run_proposal(
         party: 0,
         range: range.clone(),
         tasks: None,
+        parts: None,
     };
     let load = core.reads.insert(pending).expect("proposal read room checked").token();
     let mut out = Queue::uncapped();
@@ -276,8 +277,11 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         settings::Setting::Charter(_)
         | settings::Setting::Template(_)
         | settings::Setting::Policy(_)
+        | settings::Setting::Provider(_)
+        | settings::Setting::Worker(_)
         | settings::Setting::Model(_)
-        | settings::Setting::Rules => {}
+        | settings::Setting::Rules
+        | settings::Setting::Limits => {}
     }
     if let settings::Setting::Charter(number) = setting {
         return match core.charter_at(number, revision) {
@@ -545,6 +549,7 @@ pub fn project_proposal(
             party,
             range,
             tasks: None,
+            parts: None,
         },
     )
 }
@@ -734,6 +739,7 @@ fn load(
             party: recipient.party,
             range,
             tasks: None,
+            parts: None,
         },
     )
 }

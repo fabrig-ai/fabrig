@@ -1,6 +1,5 @@
 //! Real channel fixture with explicit transport credit and decoded live records.
 #![expect(
-    clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
@@ -11,6 +10,7 @@ use super::*;
 use alloc::collections::VecDeque;
 use skein_channel::{Control, Direction, Lower, LowerEvent, StreamMode, Term};
 use skein_lib::{Queue, Reader, stream};
+use smith_channel::Record;
 
 // One piece may use the frame credit beyond the authoritative and fact reserves.
 const CHANNEL_FRAMES: u32 = 16;
@@ -76,28 +76,18 @@ impl Room {
             }
         }
         let terms = skein_channel::control_frame(&Control::Terms { entries }, &self.limits.channel).unwrap();
-        let start = smith_channel::Start::new(
-            &self.limits.bodies,
-            smith_channel::StartParts {
-                identity: None,
-                activation: 1,
-                charter: Box::from(
-                    include_bytes!("../../../../smith-charter/golden/v5/record_charter_smallest.bin").as_slice(),
-                ),
-                workspace: None,
-                transcript: smith_protocol_translate::transcript_piece(&[]).unwrap(),
-                answered: List::with_capacity(0),
-                grants: List::with_capacity(0),
-                messages: List::with_capacity(0),
-                window: smith_channel::Window::new(
-                    &self.limits.bodies,
-                    smith_channel::WindowParts { turns: 1, bytes: u64::MAX },
-                )
-                .unwrap(),
-                live: Some(ask(true, false, true)),
-            },
-        )
-        .unwrap();
+        let start = smith_channel::Start {
+            identity: None,
+            activation: 1,
+            charter: charter_fixture(),
+            workspace: None,
+            transcript: smith_protocol_translate::transcript_piece(&[]).unwrap(),
+            answered: List::with_capacity(0),
+            grants: List::with_capacity(0),
+            messages: List::with_capacity(0),
+            window: smith_channel::Window { turns: 1, bytes: u64::MAX },
+            live: Some(ask(true, false, true)),
+        };
         let start = smith_channel::frame(smith_channel::Body::Start(start)).unwrap();
         for frame in [open, terms, start] {
             self.incoming.extend(frame.bytes());
@@ -184,8 +174,7 @@ impl Room {
                         if header.kind == smith_channel::kind::LIVE {
                             let live =
                                 smith_channel::Live::decode(&smith_channel::CEILINGS, &mut Reader::new(&bytes[8..]))
-                                    .unwrap()
-                                    .into_parts();
+                                    .unwrap();
                             self.sent
                                 .push(Sent {
                                     turn: live.turn,
@@ -218,4 +207,14 @@ impl Room {
         }
         offsets
     }
+}
+
+fn charter_fixture() -> Box<[u8]> {
+    let values = skein_codegen::values(smith_charter::SCHEMA);
+    for value in values.goldens.clone() {
+        if value.name == "record_charter_smallest.bin" {
+            return value.bytes.into_boxed_slice();
+        }
+    }
+    panic!("smallest charter")
 }

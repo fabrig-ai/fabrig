@@ -1,6 +1,8 @@
 //! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup/box.md, 2).
+//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 //! Source retries follow temper/docs/design/protocol/openid-provider.md, 9.
-use crate::machine::{BoxKind, Machine};
+use crate::machine::{BoxKind, OwnedMachine};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 /// The word carried by a group's step lines (protocol/setup/box.md, 3).
@@ -59,6 +61,7 @@ pub struct Step {
     ignore_ending: bool,
     ready: Option<core::net::SocketAddr>,
     listeners: Box<[core::net::SocketAddr]>,
+    group_listener: bool,
     started_notice: Box<[u8]>,
 }
 impl Step {
@@ -72,8 +75,15 @@ impl Step {
             ignore_ending: false,
             ready: None,
             listeners: Box::new([]),
+            group_listener: false,
             started_notice: Box::new([]),
         }
+    }
+    #[must_use]
+    pub fn with_command(mut self, name: Box<[u8]>, arguments: Box<[Box<[u8]>]>) -> Self {
+        self.name = name;
+        self.arguments = arguments;
+        self
     }
     /// Its group goes on however it ends (protocol/setup/box.md, 2).
     #[must_use]
@@ -111,6 +121,25 @@ impl Step {
     pub fn listeners(&self) -> &[core::net::SocketAddr] {
         &self.listeners
     }
+    /// A kind slot receives its listener from its forge's setup file at start.
+    #[must_use]
+    pub fn listening_group(mut self) -> Self {
+        self.group_listener = true;
+        self.listeners = Box::new([]);
+        self
+    }
+    #[must_use]
+    pub fn takes_group_listener(&self) -> bool {
+        self.group_listener
+    }
+    pub fn bind_group_listener(&mut self, address: core::net::SocketAddr) {
+        if self.group_listener {
+            self.listeners = Box::new([address]);
+        }
+        if self.ready.is_some() {
+            self.ready = Some(address);
+        }
+    }
     /// Wait for this owned process to answer its version route before continuing.
     #[must_use]
     pub fn with_ready(mut self, address: core::net::SocketAddr) -> Self {
@@ -138,9 +167,14 @@ impl Step {
         &self.arguments
     }
 }
-fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>, record: bool) -> Step {
+fn serve(
+    flags: &[Box<[u8]>],
+    listeners: Box<[core::net::SocketAddr]>,
+    record: bool,
+    fixed_start: Option<&[u8]>,
+) -> Step {
     let mut arguments = List::with_capacity(
-        u32::try_from(flags.len()).expect("bounded flags").checked_add(4).expect("bounded arguments"),
+        u32::try_from(flags.len()).expect("bounded flags").checked_add(6).expect("bounded arguments"),
     );
     arguments.push(bytes::copy_of(b"internal")).expect("command");
     arguments.push(bytes::copy_of(b"serve")).expect("command");
@@ -151,6 +185,10 @@ fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>, record: b
     if record {
         arguments.push(bytes::copy_of(b"--record")).expect("record flag");
     }
+    if let Some(start) = fixed_start {
+        arguments.push(bytes::copy_of(b"--fixed-start")).expect("fixed start flag counted");
+        arguments.push(bytes::copy_of(start)).expect("fixed start counted");
+    }
     Step::new(bytes::copy_of(b"serve"), arguments.into_boxed(), Kind::Long).listening(listeners)
 }
 
@@ -160,14 +198,15 @@ pub const FORGE_ARGUMENT: &[u8] = b"$forge";
 /// The owned kind's slot and serve (temper/docs/design/protocol/setup/box.md, 1).
 #[must_use]
 pub fn kinds(
-    machine: &Machine,
+    owned: Option<&OwnedMachine>,
     flags: &[Box<[u8]>],
     listeners: Box<[core::net::SocketAddr]>,
     forgejo_listens: bool,
     record: bool,
+    fixed_start: Option<&[u8]>,
 ) -> Steps {
-    let mut result = Steps { always: Box::new([serve(flags, listeners, record)]), asked: Box::new([]) };
-    if let Some(owned) = &machine.owned {
+    let mut result = Steps { always: Box::new([serve(flags, listeners, record, fixed_start)]), asked: Box::new([]) };
+    if let Some(owned) = owned {
         let mut group = List::with_capacity(5);
         if owned.fetch.forgejo || owned.fetch.runner {
             group.push((Stage::Fetch, slot(b"fetch", flags, None))).expect("fetch");
@@ -175,7 +214,7 @@ pub fn kinds(
         group.push((Stage::Prepare, slot(b"prepare", flags, None))).expect("prepare");
         let mut forgejo = slot(b"run", flags, Some(b"forgejo")).with_ready(owned.listen);
         if forgejo_listens {
-            forgejo = forgejo.listening(Box::new([owned.listen]));
+            forgejo = forgejo.listening_group();
         }
         group.push((Stage::Run, forgejo)).expect("forgejo");
         if owned.runner.is_some() {

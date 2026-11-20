@@ -1,4 +1,6 @@
 //! Deployment values (temper/docs/design/playground.md, 3).
+pub mod configuration;
+pub use configuration::Configuration;
 mod channel;
 pub mod hosted_git;
 pub mod settings;
@@ -58,7 +60,7 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("tasks.authority_grants", 4),
     ("tasks.authority_segments", 4),
     ("tasks.authority_bytes", 128),
-    ("core.policy_bytes", 8192),
+    ("core.policy_bytes", 8192_u32),
     ("authority.segments", 8),
     ("core.call_answer_bytes", 2048),
 ];
@@ -127,7 +129,7 @@ pub fn visitor(document: &serde_json::Value) -> skein_playground::visitor::Confi
 pub const KEY: &[u8] = b"test-key";
 /// The base engine deployment document.
 #[must_use]
-pub fn engine_document() -> Vec<u8> {
+pub fn engine_document() -> Configuration {
     channel::engine_document()
 }
 /// The base worker deployment document.
@@ -136,29 +138,31 @@ pub const WORKER_DOCUMENT: &[u8] = channel::WORKER_DOCUMENT;
 #[must_use]
 pub fn document() -> Vec<u8> {
     let mut value = world_document();
-    value.as_object_mut().expect("deployment").remove("world_settings");
     settings::strip_models(&mut value);
+    value.as_object_mut().expect("deployment").remove("world_settings");
     serde_json::to_vec(&value).expect("deployment JSON")
 }
 /// The deployment value before harness edits: the chat stories' policy.
 #[must_use]
-pub fn world_document() -> serde_json::Value {
+pub fn world_document() -> Configuration {
     world_document_with(chat_policy)
 }
 /// The deployment value with `edit` applied after the staged policies and before the
 /// composition's shared limits, where a harness's own policy goes.
 #[must_use]
-pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_json::Value {
-    let mut value: serde_json::Value = serde_json::from_slice(&channel::engine_document()).expect("engine JSON");
+pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configuration {
+    let mut value = channel::engine_document();
     value.as_object_mut().expect("object").remove("service");
     let worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"] = serde_json::json!({"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]});
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
+    value["workers"][0]["name"] = "local".into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.event_bytes", 1024);
+    value.jig_over("hub.run_calls", 1);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     for (name, count) in [
         ("core.load_slots", 8),
         ("core.run_bytes", 32_768),
@@ -168,22 +172,35 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("documents.text_bytes", 128),
         ("people.sign_ins", 2),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, u64::from(count));
     }
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
-        "machine":{},"demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}},
-        "workers":[{"root":"worker","git":"/usr/bin/git"}]});
+        "sign_in":null});
+    for (name, figure) in [
+        ("forge.client.answer_bytes", 65_536_u64),
+        ("forge.client.op_bytes", 512),
+        ("forge_component.body_bytes", 16_384),
+        ("checkout.name_bytes", 256),
+        ("checkout.repositories", 2),
+        ("checkout.message_bytes", 4096),
+        ("forge.name_bytes", 64),
+        ("forge.landing_members", 2),
+        ("forge.resources_per_task", 3),
+        ("git_component.stdout_bytes", 131_072),
+    ] {
+        value.temper_over(name, figure);
+    }
     settings::stage_policies(&mut value);
+    value["world_settings"]["llm"] = serde_json::from_slice(channel::CATALOGUE).expect("world catalogue");
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
     edit(&mut value);
     for (name, count) in [
         // Stock owner authority: 1,187 bytes, plus the longest 31-byte story cue.
-        ("people.amendment_bytes", 1218),
+        ("people.amendment_bytes", 1218_u32),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
@@ -196,20 +213,18 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("people.pending", 5),
         ("people.waiters", 2),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, u64::from(count));
     }
-    value["engine"]["limits"]["overrides"]["people.projects"] = 2.into();
-    value["engine"]["limits"]["overrides"]["authority.projects"] = 2.into();
-    value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
+    value.jig_over("people.projects", 2);
+    value.jig_over("authority.projects", 2);
+    value.jig_over("tasks.funders", 4);
     turn_bounds::apply(&mut value, agent().limits.bodies.turn_body);
+    settings::strip_models(&mut value);
     value
 }
 /// The chat stories' policy: seed projects on the world's policy 2, delegation depth 4, and the
 /// chat limits.
-pub fn chat_policy(value: &mut serde_json::Value) {
-    for seed in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-        seed["policy"] = 2.into();
-    }
+pub fn chat_policy(value: &mut Configuration) {
     for project in value["world_settings"]["policies"].as_array_mut().expect("world policies") {
         project["policy"]["ceiling"]["delegation"]["depth"] = 4.into();
         for role in project["policy"]["roles"].as_array_mut().expect("roles") {
@@ -217,7 +232,7 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         }
     }
     for (name, count) in [
-        ("core.policy_bytes", 8192),
+        ("core.policy_bytes", 8192_u32),
         ("authority.grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
         ("authority.executors", 22),
@@ -229,7 +244,7 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, u64::from(count));
     }
 }
 /// The composition's startup file contents.
@@ -269,7 +284,7 @@ pub fn agent_profile() -> smith_agent_service::profile::Profile {
     profile.policy.max_turns = 800;
     profile.policy.max_time = Duration::from_secs(28_800);
     profile.policy.check_timeout = Duration::from_secs(5);
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
+    let hub = jig_protocol_config::stock().hub;
     profile.policy.inbox = hub.held.max(hub.inbox);
     profile.policy.sections = 8;
     profile
@@ -334,12 +349,17 @@ pub fn agent_configuration_for(profile: &smith_agent_service::profile::Profile) 
 /// The forge runtime destinations.
 #[must_use]
 pub fn forges() -> List<temper_service::ForgeRuntime> {
+    forges_at(FORGE)
+}
+/// The forge runtime destinations at the start's address.
+#[must_use]
+pub fn forges_at(address: SocketAddr) -> List<temper_service::ForgeRuntime> {
     let mut forges = List::with_capacity(1);
     forges
         .push(temper_service::ForgeRuntime {
             log_origins: skein_lib::List::with_capacity(0),
             number: 1,
-            address: FORGE,
+            address,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
         })
         .expect("one loopback forge");
@@ -353,8 +373,10 @@ pub fn agent() -> temper_service::settings::Agent {
 /// Service metadata derived from the profile used by the hosted agent.
 #[must_use]
 pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_service::settings::Agent {
-    let limits = agent_limits_for(profile);
-    let host_limits = smith_local_service::profile::host_limits(profile, &limits).expect("agent host limits");
+    let configuration = agent_configuration_for(profile);
+    let limits = configuration.limits;
+    let host_limits = smith_local_service::profile::host_limits(profile, &limits, &configuration.domain.limits)
+        .expect("agent host limits");
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
@@ -391,14 +413,15 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
     }
 }
 /// Apply the repository composition's policies and worker settings.
-pub fn configure(value: &mut serde_json::Value) {
+pub fn configure(value: &mut Configuration) {
     value["workers"][0]["slots"] = AGENTS.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = AGENTS.into();
+    value.jig_over("hub.slots", AGENTS);
+    let forge = value.forge.to_string();
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
         .map(|kind| {
             serde_json::json!({
-                "connector":FORGE_CONNECTOR,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}
+                "connector":FORGE_CONNECTOR,"kind":kind,"pattern":{"segments":["forge",forge],"last":"open","value":"acme"}
             })
         })
         .collect();
@@ -412,9 +435,9 @@ pub fn configure(value: &mut serde_json::Value) {
     value["world_settings"]["policies"][0]["policy"]["ceiling"] = ceiling.clone();
     value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"] = ceiling;
     for (name, count) in ENGINE_OVERRIDES {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, u64::from(count));
     }
-    let overrides = value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
+    let stock = jig_protocol_config::stock();
     for name in [
         "tasks.funders",
         "tasks.dependencies",
@@ -431,36 +454,62 @@ pub fn configure(value: &mut serde_json::Value) {
         "people.goals",
         "people.pending",
     ] {
-        overrides.remove(name);
+        if let Some(row) = jig_protocol_config::names::NAMES.iter().find(|row| row.name == name) {
+            value.jig_over(name, (row.value)(&stock));
+        }
     }
 }
 /// The stock charter settings file with the composition's wait.
 #[must_use]
 pub fn settings_file() -> Vec<u8> {
-    let document: serde_json::Value = serde_json::from_slice(&document()).expect("deployment JSON");
+    let document = world_document();
     let stock = settings::stock(&document);
     let mut charter = stock["charter"].clone();
     charter["waiting"] = (u64::from(CHAT_WAIT_MS) * 1_000_000 / 2).into();
     serde_json::to_vec(&serde_json::json!({"items":[settings::item("charter", 1, charter)]})).expect("settings FILE")
 }
+/// The story composition's playground is typed configuration, not a document member.
+#[must_use]
+pub fn playground(document: &serde_json::Value) -> Option<temper_service::settings::Demo> {
+    if document["world_settings"]["playground"] != true {
+        return None;
+    }
+    let scripts = temper_fake::demo::scripts().expect("binary scripts");
+    Some(temper_service::settings::Demo {
+        provider: 1,
+        key_file: b"/setup/demo/llm.key".as_slice().into(),
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: scripts.asked.into_vec().into_iter().map(|script| script.cue).collect(),
+    })
+}
 /// Typed defaults from the stock settings and composition policy.
 #[must_use]
-pub fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+pub fn given(document: &Configuration) -> temper_service::stock::Given {
     given_with(document, true, false)
 }
 /// Typed defaults with the composition's stock or repository policy and waiting mode.
 #[must_use]
-pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) -> temper_service::stock::Given {
+pub fn given_with(document: &Configuration, stock: bool, read_wait: bool) -> temper_service::stock::Given {
     let mut document = document.clone();
     if document["world_settings"].is_null() {
-        document["world_settings"] = world_document()["world_settings"].clone();
+        document["world_settings"] = serde_json::json!({});
+    }
+    for (name, value) in world_document()["world_settings"].as_object().expect("world defaults") {
+        document["world_settings"]
+            .as_object_mut()
+            .expect("world settings")
+            .entry(name)
+            .or_insert_with(|| value.clone());
     }
     let engine = settings::configuration(&document);
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = jig_protocol_config::llm::provider_values(&engine.llm);
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
-    } else if document["application"]["demo"].is_null() {
+    } else if document["world_settings"]["playground"] != true {
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
     }
     let seed = engine.projects.first().expect("world policy");
@@ -501,15 +550,12 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         charter.policy.turns = CHARTER_TURNS;
         charter.spend = PRODUCER_SPEND;
     }
-    let forge = if document["application"]["demo"].is_null() {
-        settings::forge(&document)
-    } else {
-        let limits = temper_service::limits::engine(
-            &engine.limits,
-            &temper_service::limits::profile(temper_service::limits::Profile::Small),
-        )
-        .expect("playground engine limits");
+    let forge = if document["world_settings"]["playground"] == true {
+        let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
+            .expect("playground engine limits");
         temper_service::stock::forge(&limits)
+    } else {
+        settings::forge(&document)
     };
     temper_service::stock::Given::Own { jig: defaults, forge, ways: temper_service::stock::ways() }
 }

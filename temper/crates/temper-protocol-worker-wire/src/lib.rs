@@ -3,15 +3,21 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/worker-wire-v1.schema");
+
 #[rustfmt::skip]
 mod generated {
+    #[path = "worker_wire.rs"]
     pub mod v1;
 }
 
 pub use generated::v1;
 
 use alloc::boxed::Box;
-use skein_lib::{Secret, Writer};
+use skein_lib::Secret;
+use v1::Record;
 
 /// Domain bounds shared by both sides of the channel (protocol/channel.md,
 /// section 8).
@@ -116,49 +122,37 @@ fn narrow(bytes: u64) -> Option<u32> {
 /// Encode Items into exactly its measured room.
 #[must_use]
 pub fn items(value: &v1::Items) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode Left into exactly its measured room.
 #[must_use]
 pub fn left(value: &v1::Left) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode Saved into exactly its measured room.
 #[must_use]
 pub fn saved(value: &v1::Saved) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode Preparation into exactly its measured room.
 #[must_use]
 pub fn preparation(value: &v1::Preparation) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode an Ask into exactly its measured room.
 #[must_use]
 pub fn ask(value: &v1::Ask) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode an Answer into exactly its measured room.
 #[must_use]
 pub fn answer(value: &v1::Answer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Commit lengths admitted by the application (domain/forge/reds.md, 5.4 and 5.6).
@@ -170,20 +164,18 @@ pub fn red_head(head: &[u8]) -> bool {
 /// Encode an identity directly into a secret (protocol/channel.md, section 6).
 #[must_use]
 pub fn identity(value: &v1::Identity) -> Secret {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    Secret::new(writer.finish())
+    Secret::new(value.encode(&v1::CEILINGS).expect("identity within ceilings"))
 }
 
 /// Check configuration's login and author rules (protocol/channel.md, section 6).
 #[must_use]
 pub fn valid(identity: &v1::Identity) -> bool {
-    for byte in identity.login() {
+    for byte in &identity.login {
         if *byte == b':' || byte.is_ascii_control() {
             return false;
         }
     }
-    author(identity.name()) && author(identity.email())
+    author(&identity.name) && author(&identity.email)
 }
 
 fn author(text: &[u8]) -> bool {
@@ -210,14 +202,13 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 9;
+    pub const VERSION: u16 = crate::v1::VERSION;
 
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
 
     #[cfg(test)]
-    #[expect(clippy::disallowed_macros, reason = "the wire identity test embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/worker-wire-v1.schema");
+    const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

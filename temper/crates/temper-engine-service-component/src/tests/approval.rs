@@ -1,6 +1,7 @@
 //! The service passes on the approval setting (temper/docs/design/protocol/configuration/engine.md).
 use super::fixtures;
-use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, v26 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS};
 use skein_lib::{Reader, Time, Wall, Writer, bytes};
 
 // jig/docs/design/protocol/client/sign-in.md: 32 secret bytes, valid for ten minutes.
@@ -8,8 +9,8 @@ const SECRET_BYTES: usize = 32;
 const SPAN_NANOS: u64 = 600_000_000_000;
 
 #[test]
-fn an_ask_is_answered_as_the_document_enables_the_approval() {
-    for (approval, asked) in [(Some(true), true), (None, false), (Some(false), false)] {
+fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
+    for (approval, asked) in [(Some(true), true), (None, true), (Some(false), false)] {
         let mut service = match approval {
             Some(enabled) => fixtures::started_with_approval(enabled),
             None => fixtures::started(),
@@ -17,7 +18,7 @@ fn an_ask_is_answered_as_the_document_enables_the_approval() {
         fixtures::listening(&mut service);
         let engine = service.engine.as_mut().expect("engine");
         let limits = &engine.clients.env.limits.wire;
-        let ask = w::ApprovalAsk::new(limits, w::ApprovalAskParts {}).unwrap();
+        let ask = w::ApprovalAsk::new(limits, w::ApprovalAskParts { port: None }).unwrap();
         let mut body = Writer::new(usize::try_from(ask.measure()).unwrap());
         ask.encode(&mut body).unwrap();
         let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/approval/ask", &body.finish(), None);

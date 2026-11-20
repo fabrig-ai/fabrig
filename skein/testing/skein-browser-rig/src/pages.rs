@@ -10,12 +10,33 @@ const CSP: &[u8] = br"<!doctype html><html><body><h1>CSP page</h1><script>docume
 const LEAVE: &[u8] = br#"<!doctype html><html><body><button onclick="window.onbeforeunload=event=>{event.preventDefault();event.returnValue='';};document.querySelector('h1').textContent='Held'">Hold</button><button onclick="document.querySelector('h1').textContent='Answer: '+confirm('Delete it?')">Ask</button><h1>Before</h1></body></html>"#;
 const WORDS: &[u8] = br"<!doctype html><html><body><p>Checks: 3 failing, 2 passed</p></body></html>";
 const FIGURE: &[u8] = br#"<!doctype html><html><body><figure aria-label="Error rate"><svg aria-hidden="true" width="200" height="100"><rect id="bar" x="20" y="15" width="30" height="25" fill="blue" /></svg></figure><h1>Before</h1><script src="/press.js"></script></body></html>"#;
+// The origin signals only after the reload's document request, before answering it (browser.md, 9).
+const REQUESTS: &[u8] = br"<!doctype html><h1>Requests</h1><script>
+fetch('/request-stream').then(async response => {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    for (;;) {
+        const {value, done} = await reader.read();
+        if (done) return;
+        text += decoder.decode(value, {stream: true});
+        if (text.includes('leave\n')) {
+            fetch('/request-leave', {keepalive: true});
+            return;
+        }
+    }
+});
+</script>";
+
 const PRESS: &[u8] = br"document.querySelector('#bar').addEventListener('click', () => { document.querySelector('h1').textContent = 'Pressed shape'; });";
 
 #[must_use]
 pub fn pages() -> Vec<skein_fake_person_browser::origins::Page> {
     use skein_fake_person_browser::origins::Page;
     [
+        (b"/requests".as_slice(), REQUESTS),
+        (b"/request-stream".as_slice(), b"first bytes\n"),
+        (b"/request-leave".as_slice(), b"left"),
         (b"/download".as_slice(), DOWNLOAD),
         (b"/letter".as_slice(), LETTER),
         (b"/leave".as_slice(), LEAVE),

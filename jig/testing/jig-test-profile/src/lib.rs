@@ -169,7 +169,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 26, maximum: 26 },
+                versions: core::documents::Versions { minimum: 39, maximum: 39 },
             },
             connectors: 2,
             resume_bytes: 256,
@@ -344,9 +344,11 @@ pub fn config(seed: u64) -> root::Config {
         first,
         second,
         core: core::Config {
+            fixed_providers: Box::new([]),
+            parts: Box::new([]),
             jobs: Box::new([]),
             kept_starts: Box::new([]),
-            worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+
             deployment: [31; 16],
             seed,
             workers_in_process: false,
@@ -399,6 +401,24 @@ pub fn config(seed: u64) -> root::Config {
             },
             kinds: Box::default(),
             defaults: core::settings::Defaults {
+                limits: Box::default(),
+                providers: Box::new([crate::fixtures::provider_setting(1, b"Fake", 1)]),
+                workers: Box::new([
+                    jig_domain_core::settings::WorkerSetting {
+                        number: 1,
+                        name: b"alpha".as_slice().into(),
+                        places: 1,
+                        digest: Some([7; 32]),
+                        withdrawn: false,
+                    },
+                    jig_domain_core::settings::WorkerSetting {
+                        number: 2,
+                        name: b"beta".as_slice().into(),
+                        places: 1,
+                        digest: Some([7; 32]),
+                        withdrawn: false,
+                    },
+                ]),
                 models: Box::default(),
                 charters: Box::new([core::Charter {
                     parts: Box::new([]),

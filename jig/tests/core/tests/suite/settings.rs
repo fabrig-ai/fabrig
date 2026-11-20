@@ -240,6 +240,38 @@ fn changes_past_their_kinds_bound_refuse_before_the_overflow_value_is_retained()
 }
 
 #[test]
+fn an_owners_stock_hole_refusal_keeps_range_in_its_keyed_answer_across_restart() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let mut value = world.domain.settings().template(1).expect("stock template").clone();
+    value.number = 9;
+    let item = settings::Item {
+        setting: settings::Setting::Template(9),
+        edit: settings::Edit::Set(settings::Value::Template(Box::new(value))),
+    };
+    let expected = people::Outcome::Refused(people::Refusal::NotWellFormed {
+        at: 0,
+        why: people::Malformed::Settings {
+            setting: settings::Setting::Template(9),
+            fault: settings::Fault::Range,
+            detail: None,
+        },
+    });
+    let before = settings_rows(&world);
+    assert_eq!(
+        change_key(&mut world, signed, request_key(41), 1, Box::new([item.clone()])),
+        people::Reply::Outcome(expected.clone())
+    );
+    assert_eq!(settings_rows(&world), before);
+    assert_answer(&world.store.rows, 41, &expected);
+    restart(&mut world, configuration().0);
+    assert_answer(&world.store.rows, 41, &expected);
+    let signed = sign_in(&mut world);
+    assert_eq!(change_key(&mut world, signed, request_key(41), 1, Box::new([item])), people::Reply::Outcome(expected));
+    assert_eq!(world.domain.settings().newest(), 1);
+}
+
+#[test]
 fn an_owner_changes_a_template_once_me_serves_it_and_restart_restores_revision_two() {
     let mut world = start(64);
     let signed = sign_in(&mut world);
@@ -433,7 +465,7 @@ fn refused_changes_preserve_all_settings_rows_and_the_newest() {
     let mut charter = world.domain.settings().charter(1).expect("configured charter").clone();
     charter.policy.instructions = b"Changed by review".as_slice().into();
     let mut invalid_charter = charter.clone();
-    invalid_charter.number = 2;
+    invalid_charter.number = 33;
     invalid_charter.policy.model.name = b"not-configured".as_slice().into();
     let cases: [(u32, Box<[settings::Item]>, people::Refusal); 4] = [
         (0, Box::new([template_edit(&world, 7)]), people::Refusal::Stale { newest: 1 }),
@@ -466,14 +498,14 @@ fn refused_changes_preserve_all_settings_rows_and_the_newest() {
                     edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
                 },
                 settings::Item {
-                    setting: settings::Setting::Charter(2),
+                    setting: settings::Setting::Charter(33),
                     edit: settings::Edit::Set(settings::Value::Charter(Box::new(invalid_charter))),
                 },
             ]),
             people::Refusal::NotWellFormed {
                 at: 2,
                 why: people::Malformed::Settings {
-                    setting: settings::Setting::Charter(2),
+                    setting: settings::Setting::Charter(33),
                     fault: settings::Fault::Reference,
                     detail: None,
                 },
@@ -986,7 +1018,7 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
 
 #[test]
 fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
@@ -1058,6 +1090,35 @@ fn held_run_with_history(history: u32) -> (World, u64, u64) {
     assert_eq!(world.assigned.as_ref().expect("live goal").task, goal);
     (world, signed, goal)
 }
+#[test]
+fn keyed_agreement_evidence_matches_a_whole_scan_through_a_restart() {
+    let (mut world, signed, _) = held_run_with_history(2);
+    let check = |world: &World| {
+        let scanned: Vec<_> = world
+            .store
+            .rows
+            .values()
+            .filter(|row| {
+                matches!(
+                    row,
+                    root::Record::Core(
+                        core::Record::Core(core::CoreRecord::Settings(_))
+                            | core::Record::Tasks(jig_domain_tasks::Stored::Live(_))
+                    )
+                )
+            })
+            .collect();
+        assert_eq!(agreement_rows(world).collect::<Vec<_>>(), scanned);
+    };
+    check(&world);
+    change_instructions(&mut world, signed);
+    check(&world);
+    world.park_for_message(0);
+    restart(&mut world, held_restart_configuration());
+    check(&world);
+    world.close();
+}
+
 fn instructions_edit(world: &World, instructions: &[u8]) -> settings::Item {
     let mut charter = world.domain.settings().charter(1).expect("offered charter").clone();
     charter.policy.instructions = instructions.into();
@@ -1104,7 +1165,9 @@ fn a_delegate_is_made_on_the_newest_whatever_its_parents_revision() {
     let (mut world, signed, goal) = held_run();
     let attempt = world.assigned.as_ref().expect("goal run").attempt;
     change_instructions(&mut world, signed);
-    let member = fixtures::member(&world, jig_domain_tasks::Executor::Agent { charter: 1 }, b"A fresh delegate");
+    let mut member = fixtures::member(&world, jig_domain_tasks::Executor::Agent { charter: 1 }, b"A fresh delegate");
+    // This leaf needs its twenty units for a run, not for further delegation.
+    member.authority.delegation = jig_domain_tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let delegate = fixtures::delegate(&mut world, (goal, attempt), 1, member);
     assert_eq!(fixtures::live_row(&world, delegate).settings.task, 2);
     assert_eq!(fixtures::live_row(&world, goal).settings.task, 1);
@@ -2124,7 +2187,7 @@ fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documen
 
 #[test]
 fn a_small_profile_s_whole_room_of_answers_holds_and_restarts() {
-    support::whole_room_of_answers(jig_protocol_config::Profile::Small);
+    support::whole_room_of_answers(&jig_protocol_config_fixtures::small());
 }
 
 fn request_world(config: root::Config, limits: &root::Limits) -> World {
@@ -2319,7 +2382,7 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
     model.name = b"person:model-9".as_slice().into();
     let value = settings::Value::Model(Box::new(settings::CatalogueModel {
         first_read: None,
-        number: 9,
+        number: 33,
         model,
         shown: Some(b"Personal model".as_slice().into()),
         description: Some(b"Kept whole across a restart".as_slice().into()),
@@ -2328,7 +2391,7 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
         source: settings::ModelSource::Person,
         estimated: true,
     }));
-    let item = settings::Item { setting: settings::Setting::Model(9), edit: settings::Edit::Set(value.clone()) };
+    let item = settings::Item { setting: settings::Setting::Model(33), edit: settings::Edit::Set(value.clone()) };
     changed(&change(&mut world, signed, 41, 1, Box::new([item.clone()])), 2);
     assert_eq!(revision(&world, 2, false).items[0].edit, item.edit);
     restart(&mut world, config);
@@ -2337,14 +2400,14 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
     let reads::Answer::Setting(document) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Model(9), revision: 2, proposal: None },
+        reads::Read::Setting { setting: settings::Setting::Model(33), revision: 2, proposal: None },
     ) else {
         panic!("whole model setting")
     };
     assert_eq!(document.value, Some(value));
     assert_eq!(revision(&world, 2, false).items[0].edit, item.edit);
     let list = inventory(&mut world, signed);
-    assert!(list.settings.iter().any(|row| row.setting == settings::Setting::Model(9)));
+    assert!(list.settings.iter().any(|row| row.setting == settings::Setting::Model(33)));
     let mut next = item.clone();
     let settings::Edit::Set(settings::Value::Model(model)) = &mut next.edit else { panic!("model item") };
     model.picker = !model.picker;
@@ -2449,4 +2512,170 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     assert_eq!(world.domain.settings().newest(), 3);
     // Engine 6 settles the dead in-process claim at the cold restart, as the held-version stories above do.
     world.broken();
+}
+
+fn worker_value(number: u32) -> settings::WorkerSetting {
+    settings::WorkerSetting {
+        number,
+        name: b"w1".as_slice().into(),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }
+}
+#[test]
+fn worker_defaults_revisions_withdrawal_return_and_release_route_as_settings() {
+    let (mut config, mut limits) = configuration();
+    limits.core.fleet.slots = 2;
+    peers::journal(&mut limits);
+    let first = settings::WorkerSetting { places: limits.core.fleet.slots, ..worker_value(1) };
+    config.core.defaults.workers = Box::new([first.clone()]);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
+    world.client_peer = Some(ClientPeer::default());
+    assert_eq!(revision(&world, 1, false).head.by, settings::Decider::FirstStart);
+    let setting = settings::Setting::Worker(1);
+    assert_eq!(world.domain.settings().default_value(setting), Some(&settings::Value::Worker(Box::new(first.clone()))));
+    let signed = sign_in(&mut world);
+    let refused = change(
+        &mut world,
+        signed,
+        40,
+        1,
+        Box::new([
+            settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Reset },
+            settings::Item {
+                setting,
+                edit: settings::Edit::Set(settings::Value::Worker(Box::new(settings::WorkerSetting {
+                    places: 0,
+                    ..first.clone()
+                }))),
+            },
+        ]),
+    );
+    assert_eq!(
+        refused,
+        people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
+            at: 1,
+            why: people::Malformed::Settings { setting, fault: settings::Fault::Shape, detail: None }
+        }))
+    );
+    let remove = settings::Item { setting, edit: settings::Edit::Removed };
+    changed(&change(&mut world, signed, 41, 1, Box::new([remove])), 2);
+    assert_eq!(
+        world.domain.settings().value(setting).unwrap().as_worker().unwrap(),
+        &settings::WorkerSetting { withdrawn: true, ..first.clone() }
+    );
+    let returned = settings::WorkerSetting { places: 1, digest: Some([8; 32]), ..first.clone() };
+    changed(
+        &change(
+            &mut world,
+            signed,
+            42,
+            2,
+            Box::new([settings::Item {
+                setting,
+                edit: settings::Edit::Set(settings::Value::Worker(Box::new(returned.clone()))),
+            }]),
+        ),
+        3,
+    );
+    assert_eq!(world.domain.settings().value(setting).unwrap().as_worker(), Some(&returned));
+    changed(&change(&mut world, signed, 43, 3, Box::new([settings::Item { setting, edit: settings::Edit::Reset }])), 4);
+    let mut config = configuration().0;
+    let release = settings::WorkerSetting { digest: Some([9; 32]), ..first };
+    config.core.defaults.workers = Box::new([release.clone()]);
+    restart(&mut world, config);
+    assert_eq!(revision(&world, 5, false).head.by, settings::Decider::Release);
+    assert_eq!(world.domain.settings().value(setting).unwrap().as_worker(), Some(&release));
+    assert_eq!(world.domain.settings().defaults.get(&setting).unwrap().revision, 5);
+}
+#[test]
+fn stored_workers_past_a_lowered_bound_refuse_start_with_the_number() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let value = worker_value(2);
+    let setting = settings::Setting::Worker(2);
+    changed(
+        &change(
+            &mut world,
+            signed,
+            41,
+            1,
+            Box::new([settings::Item { setting, edit: settings::Edit::Set(settings::Value::Worker(Box::new(value))) }]),
+        ),
+        2,
+    );
+    seed_restart_accounts(&mut world);
+    let (mut config, mut limits) = configuration();
+    config.core.defaults.workers = Box::new([config.core.defaults.workers[0].clone()]);
+    limits.core.fleet.configured_workers = 1;
+    peers::journal(&mut limits);
+    world.restart_with_limits(config, limits);
+    assert_eq!(
+        world.domain.start_failure(),
+        Some((
+            Some(core::start::Phase::LoadCore),
+            core::start::Failure::Settings {
+                failure: settings::Failure { setting, fault: settings::Fault::Count, detail: None },
+                changed: true
+            }
+        ))
+    );
+    assert!(!world.domain.ready());
+    world.broken();
+}
+
+#[test]
+fn worker_start_checks_a_digestless_default_and_refuses_its_removal() {
+    for in_process in [true, false] {
+        let mut world = start(64);
+        seed_restart_accounts(&mut world);
+        let mut config = configuration().0;
+        config.core.workers_in_process = in_process;
+        config.core.defaults.workers = Box::new([settings::WorkerSetting { digest: None, ..worker_value(1) }]);
+        world.restart_with(config);
+        if in_process {
+            assert!(world.domain.ready());
+            let signed = sign_in(&mut world);
+            assert_eq!(
+                change(
+                    &mut world,
+                    signed,
+                    41,
+                    2,
+                    Box::new([settings::Item { setting: settings::Setting::Worker(1), edit: settings::Edit::Removed }])
+                ),
+                people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
+                    at: 0,
+                    why: people::Malformed::Settings {
+                        setting: settings::Setting::Worker(1),
+                        fault: settings::Fault::Shape,
+                        detail: None
+                    }
+                }))
+            );
+        } else {
+            assert_eq!(
+                world.domain.start_failure(),
+                Some((
+                    Some(core::start::Phase::LoadCore),
+                    core::start::Failure::Settings {
+                        failure: settings::Failure {
+                            setting: settings::Setting::Worker(1),
+                            fault: settings::Fault::Shape,
+                            detail: None
+                        },
+                        changed: false
+                    }
+                ))
+            );
+            assert!(!world.domain.ready());
+            world.broken();
+        }
+    }
 }

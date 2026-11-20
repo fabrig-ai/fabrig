@@ -1,8 +1,10 @@
 //! Settings values cross the protocol boundary whole and within its bounds
 //! (temper/docs/design/domain/routing.md, 6).
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings};
 
 use crate::kinds::{Bounds, decode, encode, size};
+use skein_lib::Writer;
 
 const BOUNDS: Bounds = Bounds { segments: 5, segment_bytes: 12, gates: 2, approvals: 2 };
 
@@ -117,7 +119,6 @@ fn values() -> [(u32, settings::Value); 21] {
 
 #[test]
 fn each_kind_round_trips_its_value() {
-    assert_eq!(temper_client_protocol_wire::CLIENT_VERSION, 28);
     for (kind, value) in values() {
         let bytes = encode(&value);
         let back = decode(kind, &bytes, &BOUNDS).expect("whole value at its receiving bounds");
@@ -143,7 +144,12 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Dependency(_) => 13,
             settings::Value::Goal(_) => 11,
             settings::Value::ProjectAreas(_) => 14,
+            settings::Value::Landing(_) => 4,
+            settings::Value::Gates(_) => 5,
             settings::Value::ProjectTriager(_) => 15,
+            settings::Value::AgentFigures(_) => 21,
+            settings::Value::Welcome(_) => 20,
+            settings::Value::Limits(_) => 22,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
@@ -176,7 +182,7 @@ fn a_value_past_its_bounds_or_cut_short_is_out_of_shape() {
             let prefix = bytes.get(..end).expect("prefix within the encoding");
             assert!(decode(kind, prefix, &BOUNDS).is_none(), "kind {kind}, cut at {end}");
         }
-        let mut writer = skein_lib::Writer::new(bytes.len().checked_add(1).expect("one extra byte"));
+        let mut writer = Writer::new(bytes.len().checked_add(1).expect("one extra byte"));
         writer.put(&bytes).expect("encoding room");
         writer.put(&[0]).expect("trailing byte room");
         let trailing = writer.finish();
@@ -234,9 +240,64 @@ fn follows_round_trip_all_members_and_require_a_whole_record() {
         for end in 0..bytes.len() {
             assert!(decode(12, &bytes[..end], &BOUNDS).is_none());
         }
-        let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+        let mut trailing = Writer::new(bytes.len().checked_add(1).unwrap());
         trailing.put(&bytes).unwrap();
         trailing.put(&[0]).unwrap();
         assert!(decode(12, &trailing.finish(), &BOUNDS).is_none());
     }
+}
+
+#[test]
+fn project_gates_refuse_unfinished_pieces_at_both_levels() {
+    use temper_client_protocol_wire::v1 as w;
+
+    let mut cases = skein_lib::List::with_capacity(3);
+    cases.push(Box::from([0, 0, 0, 5, 0].as_slice())).expect("three malformed pieces");
+    for gates in [Box::from([0, 0, 0].as_slice()), Box::from([0, 0, 0, 7, 0].as_slice())] {
+        let repository = w::RepositoryGates { forge: 1, repository: 2, gates, tiers: Box::new([]) };
+        let mut item = Writer::new(skein_lib::usize_of(
+            repository.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        ));
+        repository.write(&temper_client_protocol_wire::v1::CEILINGS, &mut item).expect("measured repository");
+        let mut out = Writer::new(skein_lib::usize_of(
+            repository.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings") + 4,
+        ));
+        skein_codec::piece::write(&mut out, &item.finish()).expect("measured piece");
+        cases.push(out.finish()).expect("three malformed pieces");
+    }
+    for repositories in cases.into_boxed() {
+        let record = w::ProjectGates { repositories };
+        let mut out = Writer::new(skein_lib::usize_of(
+            record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        ));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut out).expect("measured project gates");
+        assert!(decode(5, &out.finish(), &BOUNDS).is_none(), "an unfinished repository or check piece is malformed");
+    }
+}
+
+#[test]
+fn temper_limits_wire_keeps_the_largest_list() {
+    use jig_domain_core::settings::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override};
+    let mut values = skein_lib::List::with_capacity(OVERRIDES);
+    for n in 0..OVERRIDES {
+        let prefix = format!("limit.{n:03}.");
+        let mut name = Writer::new(usize::try_from(OVERRIDE_NAME_BYTES).unwrap());
+        name.put(prefix.as_bytes()).unwrap();
+        for _ in prefix.len()..usize::try_from(OVERRIDE_NAME_BYTES).unwrap() {
+            name.put(b"x").unwrap();
+        }
+        values
+            .push(Override {
+                name: name.finish(),
+                value: u64::MAX,
+                reason: vec![b'r'; usize::try_from(OVERRIDE_REASON_BYTES).unwrap()].into_boxed_slice(),
+            })
+            .unwrap();
+    }
+    let value = settings::Value::Limits(values.into_boxed());
+    let bytes = encode(&value);
+    assert_eq!(bytes.len(), 51_204);
+    assert_eq!(size(&value), 51_204);
+    assert!(decode(22, &bytes, &BOUNDS).unwrap().value == value, "all 256 overrides survive the wire");
+    assert!(decode(22, &bytes[..bytes.len() - 1], &BOUNDS).is_none());
 }

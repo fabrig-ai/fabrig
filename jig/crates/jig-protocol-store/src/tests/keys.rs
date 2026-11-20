@@ -101,6 +101,15 @@ fn every_generated_own_key_decodes_to_itself() {
     }
 }
 #[test]
+fn the_old_layouts_tag_is_reserved_and_has_no_census_name() {
+    assert_eq!(keys::decode_own(&[0, 3]), None);
+    assert_eq!(crate::census::name(&[0, 3], crate::Keyspaces::NONE), "");
+    for (prefix, _) in keys::KEYSPACES {
+        assert_ne!(*prefix, [0, 3]);
+    }
+}
+
+#[test]
 fn a_key_with_bytes_left_over_does_not_decode() {
     assert_eq!(keys::decode(&[1, 0, 0, 0]), None);
     assert_eq!(keys::decode_own(&[0, 0, 0]), None);
@@ -256,6 +265,9 @@ fn settings_subfamilies_and_history_follow_their_domain_order() {
         SettingKey::Default(Setting::Application { kind: 1, scope: 0, number: 1 }),
         SettingKey::Default(Setting::ProjectPolicy { project: 1 }),
         SettingKey::Default(Setting::Model(1)),
+        SettingKey::Default(Setting::Worker(1)),
+        SettingKey::Default(Setting::Provider(1)),
+        SettingKey::Default(Setting::Limits),
         SettingKey::Changed(Setting::Charter(1)),
         SettingKey::Changed(Setting::Model(1)),
         SettingKey::Held(1),

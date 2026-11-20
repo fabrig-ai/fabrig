@@ -10,14 +10,14 @@ pub(super) fn credential() -> skein_lib::Secret {
     skein_lib::Secret::new(TOKEN_BYTES.into())
 }
 
-pub(super) const LINK: &[u8] =
-    b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+pub(super) const LINK: &[u8] = b"http://127.0.0.1:7100/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, skein_lib::Token, skein_lib::Token) {
     let mut host = common::native();
     host.address = domain::Address::Chat { task: TASK };
     host.sign_in(LINK).expect("fixture link to the configured engine");
     host.loaded(stored, Vec::new());
+    settle(&mut host);
     assert!(host.with.is_none(), "the queued explicit link was consumed once");
     assert!(host.root.client().link().credential.is_none(), "stored Held must not precede the explicit Link");
     let mut signing = None;
@@ -39,7 +39,8 @@ pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, ske
                 }
                 // M4's Authorize place answers it
                 jig_client::Message::Authorize(_) => {}
-                jig_client::Message::ApprovalAsk(_)
+                jig_client::Message::LinkAsk(_)
+                | jig_client::Message::ApprovalAsk(_)
                 | jig_client::Message::ApprovalRead(_)
                 | jig_client::Message::ApprovalDecide(_)
                 | jig_client::Message::SignInApproval(_)
@@ -47,6 +48,7 @@ pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, ske
                 | jig_client::Message::SignOut
                 | jig_client::Message::Request(_)
                 | jig_client::Message::Watch(_)
+                | jig_client::Message::Batch(_)
                 | jig_client::Message::Unwatch(_)
                 | jig_client::Message::StreamGone(_) => panic!("unexpected startup exchange"),
             }
@@ -78,6 +80,7 @@ pub(super) fn loaded_chat() -> NativeClient {
     let mut host = common::native();
     host.address = domain::Address::Chat { task: TASK };
     host.loaded(Some(credential()), Vec::new());
+    settle(&mut host);
     host
 }
 
@@ -88,6 +91,7 @@ pub(super) fn activity_read(host: &mut NativeClient) -> (skein_lib::Token, Optio
 }
 
 pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, Option<skein_lib::Secret>)> {
+    settle(host);
     let mut found = Vec::new();
     while let Some(request) = host.out.pop() {
         if let domain::Request::Client {
@@ -110,7 +114,7 @@ pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
     let event = w::Activity::RunBegan(
         w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None },
         )
         .expect("run marker"),
     );
@@ -160,19 +164,8 @@ pub(super) fn started_kept() -> (NativeClient, skein_lib::Token) {
     host.event(domain::Event::Client {
         event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
     });
-    let mut frame = None;
-    while let Some(request) = host.out.pop() {
-        if let domain::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: Down::Open { watch, subject: Watchable::Jig(jig_client::contract::Subject::Me) },
-                },
-        } = request
-        {
-            frame = Some(watch);
-        }
-    }
-    (host, frame.expect("frame watch"))
+    while host.out.pop().is_some() {}
+    (host, skein_lib::Token::new(0))
 }
 
 pub(super) fn recovered_link_chat() -> (NativeClient, skein_lib::Token) {
@@ -188,6 +181,7 @@ pub(super) fn lost_sign_out(host: &mut NativeClient) {
     assert_eq!(host.root.client().link().state, jig_client::Link::Starting);
     assert!(!host.root.client().link().sign_out_lost);
     host.event(domain::Event::Act { action: domain::Action::Pages(domain::pages::Act::SignOut) });
+    settle(host);
     let mut signing = None;
     while let Some(request) = host.out.pop() {
         if let domain::Request::Client {
@@ -302,7 +296,7 @@ pub(super) fn activity_done(host: &mut NativeClient, read: skein_lib::Token, non
 // The delivery announces the fourth activity while the initial read is pending.
 pub(super) const COMMITTED: u64 = 4;
 pub(super) fn committed_activity_answer() -> Box<[u8]> {
-    let row = jig_client_test_records::turn_line(COMMITTED, 1, 1, jig_client_test_records::FULL_TURN);
+    let row = jig_client_test_records::turn_line(COMMITTED, 1, 1, &jig_client_test_records::full_turn());
     let mut page = jig_client_test_records::activity_rows(&[row]).into_parts();
     page.cut = false;
     page.after = None;
@@ -354,32 +348,82 @@ pub(super) fn committed_chat() -> NativeClient {
             .expect("served jig");
     let mut versions = List::with_capacity(1);
     versions.push(served).expect("one owner");
-    let hello = w::StreamEvent::Hello(
+    let hello = jig_client_test_records::opened(
         w::Hello::new(
             &w::CEILINGS,
             w::HelloParts { stream: [7; 16], served: versions, heartbeat: host.env.limits.client.domain.heartbeat },
         )
         .expect("stream hello"),
+        jig_client_test_records::frame_record(),
     );
     host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&hello)) });
+    settle(&mut host);
     let mut work = Queue::with_capacity(host.out.capacity());
     let mut task_watch = None;
     while let Some(request) = host.out.pop() {
-        if let domain::Request::Client {
-            request: Request::Exchange { message: jig_client::Message::Watch(bytes), .. },
-        } = &request
-        {
-            let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch open");
-            if open.subject().owner() == &w::Owner::Jig {
-                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
-                    .expect("watch subject");
-                if let w::Subject::Task(task) = subject {
-                    assert_eq!(task.task(), TASK);
-                    task_watch = Some(open.watch());
+        if let domain::Request::Client { request: Request::Exchange { exchange, message, .. } } = &request {
+            let mut opens = skein_lib::List::with_capacity(64);
+            if let jig_client::Message::Watch(bytes) = message {
+                opens
+                    .push(w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("opening"))
+                    .expect("one opening");
+            } else if let jig_client::Message::Batch(bytes) = message {
+                for member in w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes))
+                    .expect("batch")
+                    .into_parts()
+                    .members
+                    .into_boxed()
+                {
+                    if let w::Member::Open(open) = member {
+                        opens.push(open).expect("bounded openings");
+                    }
                 }
             }
+            if opens.is_empty() {
+                work.push(request);
+                continue;
+            }
+            for open in &opens {
+                if open.subject().owner() == &w::Owner::Jig {
+                    let subject =
+                        w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                            .expect("watch subject");
+                    if let w::Subject::Task(task) = subject {
+                        assert_eq!(task.task(), TASK);
+                        task_watch = Some(open.watch());
+                    }
+                }
+            }
+            let answer = w::OpenAnswer::Admitted;
+            let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer length"));
+            answer.encode(&mut body).expect("opening answer");
+            let body = body.finish();
+            if let jig_client::Message::Batch(bytes) = message {
+                let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch");
+                for (index, member) in batch.members().into_iter().enumerate() {
+                    if let w::Member::Open(_) = member {
+                        let part = w::BatchReply::new(
+                            &w::CEILINGS,
+                            w::BatchReplyParts {
+                                member: u16::try_from(index).expect("batch index"),
+                                reply: Some(body.clone()),
+                            },
+                        )
+                        .expect("opening part");
+                        let mut bytes = skein_lib::Writer::new(usize::try_from(part.measure()).expect("part size"));
+                        part.encode(&mut bytes).expect("opening part fits");
+                        host.transport(jig_client::Event::Part { exchange: *exchange, message: bytes.finish() });
+                    }
+                }
+                if batch.members().len() == opens.len() {
+                    host.transport(jig_client::Event::Done { exchange: *exchange });
+                }
+            } else {
+                host.transport(jig_client::Event::Reply { exchange: *exchange, message: body });
+            }
+        } else {
+            work.push(request);
         }
-        work.push(request);
     }
     host.out = work;
     let value = w::DeliveryValue::Task(Box::new(committed_task()));
@@ -396,4 +440,8 @@ pub(super) fn committed_chat() -> NativeClient {
     );
     host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&delivery)) });
     host
+}
+
+pub(super) fn settle(host: &mut NativeClient) {
+    domain::settle(&mut host.root, &host.env, &mut host.out);
 }

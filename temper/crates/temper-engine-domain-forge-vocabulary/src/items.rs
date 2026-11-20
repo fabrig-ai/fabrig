@@ -45,6 +45,11 @@ pub struct Item {
     pub start: Start,
     pub push: Option<Box<[u8]>>,
     pub landing: Option<Box<[u8]>>,
+    /// The commit a writable checkout pins as `refs/temper/landing`
+    /// (temper/docs/design/domain/worker/checkouts.md, A named pin).
+    pub pin: Option<api::Commit>,
+    /// This task's last checked push (temper/docs/design/protocol/channel.md, 4).
+    pub delivered: Option<api::Commit>,
     pub holder: Option<u64>,
     /// The repository's git identity, which the run's grants carry.
     pub credential: Option<u32>,

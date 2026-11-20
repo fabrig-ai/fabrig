@@ -19,7 +19,19 @@ The table grows area by area, each with its stories (`testing.md`).
    characters, is its title") and in its notes, at most 60 characters
    naming the work for a person, with an example, the rest of TEXT on
    the lines below (`../../domain/agent/charter.md`, 4, *Words a person
-   reads first*). Nothing checks it.
+   reads first*). A longer first line is a warning, never a refusal:
+   where TEXT's first line, everything before its first line feed as
+   jig takes the title, runs past 60 characters, counted as Unicode
+   scalar values, `goal start` still sends the goal, and its answer,
+   when it prints with status 0 (done or proposed), adds one line on
+   stderr: `warning: TEXT's first line, the title the pages show, is N
+   characters, past 60; temper ctl help goal start`, N the line's
+   characters. Under `--json` the line is one JSON object, `{"warning":
+   WORDS}`, WORDS the text line's after `warning: `, as the `kept:`
+   lines are (`results.md`, 2). Its stdout and its exit status are the
+   answer's; an answer of another status, and a TEXT whose first line
+   is at most 60, print no warning. TEXT read from stdin (`-`) is
+   checked once read; `--call` alike.
 
    `goal start` defaults to stock template 2; `--template` names an
    offered template, including its charter, contract, tracking, label,
@@ -45,12 +57,46 @@ The table grows area by area, each with its stories (`testing.md`).
    `--priority` replaces a tracked template's priority. Model controls
    are area 5's; absent sub-agent flags preserve the template's list.
 
+   **A budget is ctl's amount** (`results.md`, 1), as `task show`
+   prints it: `goal start --budget 130` gives the goal 13,000 spend
+   units, which `task show` prints `of 130.00`; `milestone new --budget
+   130` makes a milestone that `task show` and `milestone show` both
+   print `of 130.00`; `--budget 1.005` is usage, nothing sent. **`--as-allowed`
+   takes all the party may give from its pool,** what the pool has
+   left up to its role's spend (jig's `domain/authority.md`, section
+   7), or, with `--milestone`, all the milestone has left
+   (`milestones.md`, 3). Its reservation holds that while the work is
+   live, so the party's next start finds none left. Its line in `help`
+   says so, `goal start`'s: `--as-allowed: a switch. Take all you may
+   give from your pool, or with --milestone all the milestone has
+   left, instead of a named budget: none is left for the next start
+   while this goal is live`; `milestone new`'s: `--as-allowed: a
+   switch. Take all you may give from your pool instead of a named
+   budget: none is left for your next start while this milestone is
+   live`. A start then refused for its pool says why and names
+   `--budget`, in the `reserved:` line of `README.md`, section 5.
+
    The general `proposal show PROPOSAL` reads every proposal kind. For
    settings it prints the engine's current/origin/would-be review and its
    newest revision; retained ended and withdrawn records keep their state.
    An automatically replaced task proposal is unknown (7). It
    uses the same read vocabulary independently of the first area's
-   settings proposal act.
+   settings proposal act. An amendment's, a task's or a party's, prints
+   its target task and the authority before and after, as the engine's
+   document gives them (jig's `client/domain/contract/documents.md`, 1).
+
+   **`proposal withdraw PROPOSAL --project PROJECT`,** keyed, withdraws
+   the party's own pending proposal: PROPOSAL is `pN/K`, as `propose`,
+   `task amend` and the inbox print it, and PROJECT the project they
+   name. It sends `Withdraw` at once, reading nothing first, so a
+   proposal no read can show is still withdrawn. A `tN/K` is usage,
+   exit 1, nothing sent: a task's proposal is its run's to withdraw; so
+   is a `pN/K` naming a party other than the signed-in one. It prints
+   `done: withdraw`, and as `proposal decide` does otherwise: asked again
+   under its key, its first answer; a retained decision, its withdrawal
+   included, `decided first:`, exit 0, changing nothing; an unknown
+   proposal, or one of another project, exit 2. A proposal's `acts:`
+   line copies it, the engine offering `Withdraw` to its maker alone.
 
    - **`task amend`'s changes,** one or more, each a control of the task,
      the rest kept as the task's document shows them (jig's
@@ -65,18 +111,29 @@ The table grows area by area, each with its stories (`testing.md`).
      | `--spec FILE` | its spec's words, whole; its parameters and inputs kept |
      | `--dependency TASK`... \| `--no-dependencies` | its dependencies, whole: those named, in order; what it names anew is added, what it leaves out removed |
      | `--model MODEL [--effort EFFORT]` | its main model and effort (area 5) |
-     | `--budget AMOUNT` | its authority's spend, AMOUNT in the unit the client shows budgets in, the rest of its authority restated as shown |
+     | `--budget AMOUNT` | its authority's spend, AMOUNT in ctl's amount (`results.md`, 1), the rest of its authority restated as shown |
      | `--tasks N` | the tasks its subtree may make over its life, the rest of its authority restated as shown |
+     | `--to-party PARTY` \| `--to-role ROLE` | a person task's address: party PARTY, or the project's role ROLE, at the person revision the tool's read shows |
 
-     FILE is a path, or `-` for stdin, used once, as TEXT is.
+     FILE is a path, or `-` for stdin, used once, as TEXT is. The form's
+     positions keep their numbers: `--to-party` and `--to-role` follow
+     `--tasks`, and `--budget` is its last, after `--to-role`; the help's
+     synopsis names `[--budget AMOUNT]` before `[--tasks N]`, as the
+     table does. Its line in `help`: `--budget AMOUNT: an amount with at
+     most two decimals, as 130 or 1.25; optional. Its budget, as task
+     show prints it; the rest of its authority kept`.
    - **A budget or tasks raised is a widening,** funded by the party who
      gives it, who becomes the task's funder (jig's `domain/authority.md`,
      section 7, "Whoever widens a task funds it"): from their role's pool,
      within what the policy lets them give alone, or proposed past it, as
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks/lifecycle.md`, 6; `../../domain/forge/change/repairs.md`
-     ): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
-     then `task release 41 --hold 3`; for tasks, the hold prints
+     ): `task amend 41 --rev 8 --budget 20 "room for its review"`,
+     then `task release 41 --hold 3`. `--budget 20` restates the task's
+     authority with spend 2,000 units, which `task show` then prints `of
+     20.00`; JSON's `budget` names spend units, as `goal start`'s does;
+     `--budget 1.005` is usage, nothing sent. A budget lower than the
+     task's is a narrowing, sent as any narrowing is. For tasks, the hold prints
      `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
      a replacement lifetime allowance with room for a repair and review;
      release never erases tasks already made. A hold whose lack the task's
@@ -93,11 +150,51 @@ The table grows area by area, each with its stories (`testing.md`).
      the document's revision is no longer REV: `temper ctl: task 41
      moved: its spec revision is 9, not 7; read again: task show 41`,
      exit 1.
+   - **An address passes a person task up** to whoever can settle it,
+     such as the project's owner: `task amend 41 --to-party 1 "over to
+     the owner"`, or `--to-role ROLE` for a role of the task's project.
+     It is jig's `Amendment.addressed`, an `AddressChange` (jig's
+     `domain/tasks/changes.md`, *What an amendment may change*):
+     - **Its revision is the person task's,** `Task::person_revision` of
+       the document the tool reads, never `--rev`'s. A document with no
+       person revision is no person task: the tool sends nothing and
+       exits 1, `temper ctl: task 41 is not a person task: only a person
+       task takes --to-party or --to-role`, before any other check of
+       the call's changes.
+     - **It needs no `--rev`.** jig compares the spec revision of every
+       amendment but a priority alone, so the tool names the spec
+       revision of the same read; `--rev`, given, is compared with it
+       as for any change. A priority beside an address needs none
+       either, the read's spec revision named for both; the call's
+       other changes need it, as the bullet above says, refused as
+       usage without it. `--rev REV`'s line says it is not needed for
+       a priority or an address alone.
+     - **It is a change,** even naming the address the task has now: jig
+       then lets go of a party who took it. An amendment naming an
+       address alone is sent, never `amend changes nothing`, and the
+       amendment editor never compares an address away (`../README.md`,
+       3.7).
+     - **A person revision moved** since the read is jig's refusal,
+       `Moved`, printed as any moved refusal is: `task amend: ` and its
+       words, then `read again: task show 41`, exit 2 (`results.md`, 3).
+     - **Both paths send it:** the drafted one, and the keyed one
+       (`--key KEY`), which names its changes whole. A keyed retry made
+       after the change took effect reads the moved person revision, so
+       it is no longer the request its key holds, and jig answers it as
+       that key's conflict, not as done; `task show TASK` says where the
+       task waits now.
+     - **Who may** is jig's admission of the task's `amend` act (jig's
+       `domain/tasks/changes.md`, *Who may*): its requester and those
+       above it in the tree, and a party whose role in the project
+       allows it, the project's owners and maintainers among them. The
+       party a person task waits on holds no `amend` act for that alone,
+       and the tool says `amendment not offered`, as for any act it is
+       not offered.
    - **What the document must hold whole:** a deadline, a budget or
      tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
      `temper ctl: task 41's authority is cut in this read; amend its
-     deadline or tasks from a client with wider bounds` (or `spec`, `words`).
+     deadline, budget or tasks from a client with wider bounds` (or `spec`, `words`).
    - **Beyond the party's bounds,** an amendment follows `tools.md`, 3, compared
      by jig's admission for the task's offered `amend` act: within,
      sent; past what the party holds but proposable, a deadline later
@@ -108,7 +205,8 @@ The table grows area by area, each with its stories (`testing.md`).
      circle, a goal past the project's goals) is the engine's refusal,
      exit 2.
    - **The same flag twice, or both of a pair,** exits 1 as usage;
-     `--dependency` alone may repeat.
+     `--dependency` alone may repeat. `--to-party` and `--to-role` are a
+     pair, as `--priority` and `--untracked` are.
 3. **Several parties:** `party make --project PROJECT --role ROLE --out
    FILE` (jig's `MakeService`, keyed; `README.md`, section 7), `sign-in --service
    FILE`, `deployment show`, `deployment census` (`tools.md`, 2), `task move TASK REASON`, a person task's
@@ -194,6 +292,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host with its directories, `temper-box program-login --config CONFIG --data DATA --cache CACHE NAME`; CONFIG, DATA and CACHE stand for that box's directories, and skips it where the programs directory's NAME is already signed in, then `account verify ACCOUNT --source program`, ACCOUNT as `account list` shows it (`../../protocol/credentials.md`, section 3) | declare a program's login | yes |
    | `account verify ACCOUNT [--source SOURCE]` | has each host check a program source's login now; answered once asked, then `account list --until settled` | check | |
    | `account rank ACCOUNT POSITION [--source SOURCE]` | the account's place among its holder's accounts of its LLM provider, from 1; with `--source`, the source's place in the account's order | order | |
+   | `account uses ACCOUNT [--party N]... [--project N]...` | sets exactly the named parties and projects, at most 16 together; `account uses ACCOUNT --default` restores jig's defaults; prints `done: uses` (`README.md`, section 5) | set uses | |
    | `account retry ACCOUNT [--source SOURCE]` | resumes a limited source, so that the runs it holds start again | resume | |
    | `account export ACCOUNT FILE` | moves a signed-in account out, by its holder: FILE made new and private before anything is sent; the signed-in source withdrawn, so that no run takes it and no refresh follows; its record written to FILE and synced; then *written*, and the engine erases it. Prints `moved out: account N to FILE`. FILE already there, exit 1, nothing sent. Refused, exit 2, FILE removed: "not signed in" (no signed-in source: a key is added again, a program's login is per host), "moving", "cancelled" (*written* past the move's deadline). A record not written, or lost on its way, is not erased: exit 1, FILE removed, and the engine cancels the move at its deadline | move out, then *written* | |
    | `account import FILE` | moves a record in from FILE, read as a key's file is: taken into the secrets' store, checked as this application's and its subject held by no other holder, the account made or the one of its subject renewed; prints `moved in: account N`, `, renewed` after it for a renewal, then removes FILE. FILE refused (not private, a link, empty, past the bound), exit 1, nothing sent. Refused, exit 2, FILE kept: "not ours" (another application's or LLM provider's record), "held" (its subject held by another holder), "moving" (its subject's account moving out here) | move in | yes |
@@ -382,8 +481,6 @@ The table grows area by area, each with its stories (`testing.md`).
      the model, adds `flag` (`--model` or `--sub-agent`) and `value`, as
      a refused account act adds `next`. Other acts keep jig's words for
      the refusal, `This model cannot be chosen: MODEL`.
-   - **An account's uses** have no tool: each takes jig's default (jig's
-     `domain/accounts.md`, 4.2; `README.md`, section 12).
    - **An account moved,** `account export` and `account import`, is
      jig's move (jig's `domain/accounts.md`, section 6) through
      `jig-client`'s `move_out`, `written` and `move_in` (jig's
@@ -488,7 +585,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `playground start` | starts the playground (`../../protocol/setup/playground.md`): the engine makes its fake forge, the box starts its fakes, and the engine adds the scripted model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (a real forge kept). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartPlayground` | |
    | `playground end` | resets the playground (`../../protocol/setup/playground.md`), as the banner's "set up temper" does (`../forge/family.md`, 7): its project deleted, its fake forge removed and the scripted model's account removed, each a kept act the engine resumes at its next start if one is cut; waits for the answer, then prints `reset` and exits 0, once the playground is gone. Refused, exit 2: "not offered" (no playground) | `EndPlayground` | |
    | `forge remove FORGE` | removes forge FORGE (`../../domain/forge/adoption.md`, 1): ended at once, then, by kept acts, its live work cancelled, its box group stopped and its directory removed, its records erased; on the forge itself only what temper ran is undone, a managed Forgejo's bot and hooks and a GitHub App staying the person's. Prints `removed` and exits 0 once the forge is ended. Refused, exit 2, in `ForgeRefusal`'s words: not the deployment's owner, no such forge, or not taken by this forge (the playground's, which `playground end` removes) | `RemoveForge { forge }` | |
-   | `change open --project PROJECT [--repository OWNER/NAME] --branch BRANCH [--at COMMIT] [--into BRANCH] --title TEXT [--body TEXT] (--budget AMOUNT \| --as-allowed)` | opens a change from BRANCH, a branch the person pushed, as their own change task, which temper lands as any change (`../../domain/forge/change/opened.md`): in OWNER/NAME, the project's only repository when none is named; at COMMIT, the branch's head when the change takes it where none is named; into BRANCH, the repository's default branch where none is named; TEXT its pull request's title, and its body's words after the opening line; AMOUNT what its reviews, resolutions and repairs may spend, or what the person's role allows. Prints `task N`, exit 0, which `change show` and `landing history --change` then read. Usage, exit 1, nothing sent: the controls missing, named together, `change open needs: --branch BRANCH; --title TEXT; --budget AMOUNT or --as-allowed`, only those absent; `--budget` and `--as-allowed` both given; `--repository` not `OWNER/NAME`; `--at` not 40 or 64 hexadecimal digits, sent lowercase; a title past 256 bytes, a body past 16,384, a branch or `--into` past 1,024, each naming its bound. Refused, exit 2, nothing made, one line `temper ctl: change open: WHY`: `project P has several repositories, R1, R2: name one with --repository`; `project P has no repository a change lands into`; `R is not a repository of project P`; `BRANCH is under R's prefix PREFIX: a change lands into one of its landing branches`; `BRANCH is past the forge's N-byte name bound`; and the core's refusals, the builder's among them, in jig's words as `goal start` prints them (area 2). A replay under its key answers the first. A change that fails later was opened, and `change show TASK` says why | the forge family's `OpenChange` (`../forge/records.md`) | yes |
+   | `change open --project PROJECT [--repository OWNER/NAME] --branch BRANCH [--at COMMIT] [--into BRANCH] --title TEXT [--body TEXT] (--budget AMOUNT \| --as-allowed)` | opens a change from BRANCH, a branch the person pushed, as their own change task, which temper lands as any change (`../../domain/forge/change/opened.md`): in OWNER/NAME, the project's only repository when none is named; at COMMIT, the branch's head when the change takes it where none is named; into BRANCH, the repository's landing branch, the one its adoption names (`../../domain/forge/adoption.md`, 8), where none is named; TEXT its pull request's title, and its body's words after the opening line; AMOUNT what its reviews, resolutions and repairs may spend, or what the person's role allows. Prints `task N`, exit 0, which `change show` and `landing history --change` then read. Usage, exit 1, nothing sent: the controls missing, named together, `change open needs: --branch BRANCH; --title TEXT; --budget AMOUNT or --as-allowed`, only those absent; `--budget` and `--as-allowed` both given; `--repository` not `OWNER/NAME`; `--at` not 40 or 64 hexadecimal digits, sent lowercase; a title past 256 bytes, a body past 16,384, a branch or `--into` past 1,024, each naming its bound. Refused, exit 2, nothing made, one line `temper ctl: change open: WHY`: `project P has several repositories, R1, R2: name one with --repository`; `project P has no repository a change lands into`; `R is not a repository of project P`; `BRANCH is under R's prefix PREFIX: a change lands into one of its landing branches`; `BRANCH is past the forge's N-byte name bound`; and the core's refusals, the builder's among them, in jig's words as `goal start` prints them (area 2). A replay under its key answers the first. A change that fails later was opened, and `change show TASK` says why | the forge family's `OpenChange` (`../forge/records.md`) | yes |
    | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../forge/served.md`, 2; `../forge/records.md`), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; for a change opened from a pushed branch, its source: the branch, the commit named or `its head`, and the head taking kept; its pull request's number and address on the forge; its step in `../forge/README.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; its questions (`../forge/served.md`, 2): its route, the questions taken used of its bound, and one line per open question, its asker's task and the question's number, where it stands (`taken`, `asked of requester`, `answered, held`) and the first line of its words; then the call that follows it, `change show TASK --until landed` while it is live and has not landed, `change show TASK --until cleared` while it is verifying or red. An ended step points to `task show TASK` for its report; a successful no-change report adds `completed, no change`. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`../forge/served.md`, 2) | |
    | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`../forge/family.md`, 4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 

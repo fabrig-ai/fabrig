@@ -1,5 +1,6 @@
 //! Gather a project's branch path in the answering decision
 //! (temper/docs/design/domain/forge/change/branch-path.md; temper/docs/design/protocol/configuration/settings.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Work, ways};
 use alloc::boxed::Box;
 use jig_domain_people::TemplateExecutor;
@@ -24,7 +25,7 @@ pub(crate) fn inputs(
         None => repositories.first(),
     };
     let landing = match repository {
-        Some(repository) => repository.settings.default_branch.clone(),
+        Some(repository) => repository.landing.clone(),
         None => b"main".as_slice().into(),
     };
     let branch = match branch {
@@ -134,6 +135,11 @@ fn path_sets(domain: &Domain, project: u32, items: &[ways::Item]) -> Box<[temper
                 | settings::Value::Dependency(_)
                 | settings::Value::Follow(_)
                 | settings::Value::ProjectAreas(_)
+                | settings::Value::AgentFigures(_)
+                | settings::Value::Landing(_)
+                | settings::Value::Gates(_)
+                | settings::Value::Limits(_)
+                | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_) => {}
             },
         }
@@ -205,6 +211,11 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
                 | settings::Value::ProjectAreas(_)
+                | settings::Value::AgentFigures(_)
+                | settings::Value::Landing(_)
+                | settings::Value::Gates(_)
+                | settings::Value::Limits(_)
+                | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_)
                 | settings::Value::Dependency(_)
                 | settings::Value::Follow(_)
@@ -382,6 +393,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         forge::Key::Call(_)
         | forge::Key::ProposedEffect(_)
         | forge::Key::Hold(_)
+        | forge::Key::LimitHold(_)
         | forge::Key::Names(_)
         | forge::Key::Subscription { .. }
         | forge::Key::BranchHead(_)
@@ -410,6 +422,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::LandingLog { .. }
         | forge::Key::Dismissed { .. }
         | forge::Key::Making(_)
+        | forge::Key::PersonBrief { .. }
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
         | forge::Key::Device { .. }

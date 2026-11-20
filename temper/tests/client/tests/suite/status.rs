@@ -270,7 +270,12 @@ impl Story {
             .rows
             .iter()
             .filter_map(|(key, record)| {
-                if matches!(key, StoreKey::Forge(forge::Key::ProjectFacts { .. } | forge::Key::Looked { .. })) {
+                if matches!(
+                    key,
+                    StoreKey::Forge(
+                        forge::Key::ProjectFacts { .. } | forge::Key::Looked { .. } | forge::Key::PersonBrief { .. }
+                    )
+                ) {
                     Some((key.clone(), record.clone()))
                 } else {
                     None
@@ -429,7 +434,7 @@ fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
     );
     story.go(CLIENT, Address::Home { project: PROJECT });
     story.event(CLIENT, Event::Act { action: Action::Pages(Act::SkipToBegin) }.into());
-    assert_eq!(story.shown().previous(), &None);
+    assert_eq!(&story.shown().previous, &None);
     assert_eq!(story.facts().brief(), None);
     assert!(!story.words().contains("Written by the status agent"));
     story.go(CLIENT, fixtures::inbox());
@@ -447,7 +452,7 @@ fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
         .assignments
         .iter()
         .find(|run| run.charter == 9)
-        .expect("the stock period funds the status worker beyond the owner's open pool")
+        .expect("the owner's pool funds the status worker")
         .clone();
     assert_eq!(story.front.hosted_attempt(run.task), Some(run.attempt), "the worker received its assignment");
     assert!(run.grants.iter().any(|grant| grant.account == source), "the status worker borrows the person's plan");
@@ -467,8 +472,8 @@ fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
     );
     story.pump();
     let brief = story.facts().brief().expect("production procedure published the brief").clone();
-    assert_eq!(brief.sentence(), b"1 change landed on the local forge.");
-    assert_eq!(brief.lede(), b"The README now records the local status change.");
+    assert_eq!(brief.sentence.as_ref(), b"1 change landed on the local forge.");
+    assert_eq!(brief.lede.as_ref(), b"The README now records the local status change.");
     let words = story.words();
     for expected in [
         "1 change landed on the local forge.",
@@ -488,7 +493,7 @@ fn entering_home_looks_once_and_shows_status() {
     assert_eq!(row.previous, None);
     assert_eq!(row.latest, story.env.wall);
     assert_eq!((row.seen, row.next_seen), (0, 0));
-    assert_eq!(story.shown().previous(), &None);
+    assert_eq!(&story.shown().previous, &None);
     assert_eq!(story.facts().landed_since(), 0);
     assert_eq!(story.facts().brief(), None);
     assert_eq!(story.front.status_looks(CLIENT), 1);
@@ -533,8 +538,6 @@ impl Story {
                             project,
                             landed: u64::from(project),
                             last_landed: Wall::EPOCH,
-                            brief: None,
-                            running: None,
                         })),
                     },
                     Record::Forge {
@@ -613,7 +616,7 @@ fn all_home_looks_per_entry_and_joins_both_status_procedures_briefs() {
     assert_eq!(facts.projects.iter().map(|row| row.project).collect::<Vec<_>>(), [PROJECT, OTHER_PROJECT]);
     for row in &facts.projects {
         let Status::Shown(document) = &row.status else { panic!("project {} has its status", row.project) };
-        assert_eq!((document.project(), document.landed(), document.seen()), (row.project, u64::from(row.project), 0));
+        assert_eq!((document.project, document.landed, document.seen), (row.project, u64::from(row.project), 0));
     }
     let intro = all_home::intro(&facts);
     assert_eq!(intro.landed, all_home::Landed::Across { count: 3, projects: 2 });
@@ -657,7 +660,7 @@ fn a_refused_projects_status_leaves_the_other_project_shown() {
     );
     let facts = all_home::facts(story.probes[CLIENT.0].root.person(), story.env.wall);
     assert_eq!(facts.projects.len(), 2);
-    assert!(matches!(&facts.projects[0].status, Status::Shown(document) if document.project() == PROJECT));
+    assert!(matches!(&facts.projects[0].status, Status::Shown(document) if document.project == PROJECT));
     assert_eq!((facts.projects[1].project, &facts.projects[1].status), (OTHER_PROJECT, &Status::Unknown));
 }
 
@@ -691,7 +694,7 @@ fn a_second_entry_within_the_sitting_keeps_its_last_looked() {
     story.go(CLIENT, fixtures::inbox());
     story.after(Duration::from_secs(31 * 60));
     story.go(CLIENT, Address::Home { project: PROJECT });
-    assert_eq!(*story.shown().previous(), Some(first.latest.as_nanos()));
+    assert_eq!(story.shown().previous, Some(first.latest.as_nanos()));
     let before = story.facts();
     let sitting = story.looked(fixtures::PARTY).expect("new sitting");
     story.go(CLIENT, fixtures::inbox());
@@ -701,7 +704,7 @@ fn a_second_entry_within_the_sitting_keeps_its_last_looked() {
     assert_eq!(after.previous, sitting.previous, "29 minutes keeps the previous sitting's last look");
     assert_eq!(after.seen, sitting.seen);
     assert_eq!(after.latest, story.env.wall, "this sitting's last look advances");
-    assert_eq!(story.shown().previous(), &Some(first.latest.as_nanos()));
+    assert_eq!(&story.shown().previous, &Some(first.latest.as_nanos()));
     assert_eq!(story.facts().landed_since(), before.landed_since());
     assert_eq!(story.front.status_looks(CLIENT), 3, "one look per entry");
 }
@@ -719,8 +722,8 @@ fn coming_back_after_a_landing_says_what_landed() {
     story.after(Duration::from_secs(31 * 60));
     story.go(CLIENT, Address::Home { project: PROJECT });
     let document = story.shown();
-    assert_eq!(document.previous(), &Some(first.latest.as_nanos()));
-    assert_eq!((document.landed(), document.seen()), (1, 0));
+    assert_eq!(&document.previous, &Some(first.latest.as_nanos()));
+    assert_eq!((document.landed, document.seen), (1, 0));
     assert_eq!(story.facts().landed_since(), 1, "seen is the count at the previous sitting's last look");
     let second = story.looked(fixtures::PARTY).expect("second sitting");
     assert_eq!((second.seen, second.next_seen), (0, 1));
@@ -750,7 +753,7 @@ fn a_skip_sends_it() {
     assert_eq!(story.front.status_looks(CLIENT), 0);
     story.event(CLIENT, Event::Act { action: Action::Pages(Act::SkipToBegin) }.into());
     assert!(!story.facts().to_begin());
-    assert_eq!(story.shown().previous(), &None);
+    assert_eq!(&story.shown().previous, &None);
     assert_eq!(story.facts().landed_since(), 0);
     let row = story.looked(fixtures::PARTY).expect("Skip sends the entry's look");
     assert_eq!(row.latest, story.env.wall);
@@ -779,18 +782,18 @@ fn a_look_reaches_another_device_of_the_party() {
     story.after(Duration::from_secs(31 * 60));
     story.look(OTHER_CLIENT, 2204);
     let other = story.looked(OTHER_PARTY).expect("member's second sitting");
-    assert_eq!(story.watched(OTHER_CLIENT).previous(), &Some(other_first.latest.as_nanos()));
-    assert_eq!(story.watched(SECOND_DEVICE).previous(), &None, "the owner's sitting has not moved");
+    assert_eq!(&story.watched(OTHER_CLIENT).previous, &Some(other_first.latest.as_nanos()));
+    assert_eq!(&story.watched(SECOND_DEVICE).previous, &None, "the owner's sitting has not moved");
     // The source needs no Home page's watches to publish its next entry look.
     story.look(CLIENT, 2205);
     assert_eq!(story.looked(fixtures::PARTY).expect("owner's second sitting").previous, Some(first.latest));
     assert_eq!(
-        story.watched(SECOND_DEVICE).previous(),
+        &story.watched(SECOND_DEVICE).previous,
         &Some(first.latest.as_nanos()),
         "the first device's look marks the second device's open watch"
     );
     assert_eq!(
-        story.watched(OTHER_CLIENT).previous(),
+        &story.watched(OTHER_CLIENT).previous,
         &Some(other_first.latest.as_nanos()),
         "another party's watch keeps that party's previous sitting"
     );
@@ -811,7 +814,7 @@ fn a_restart_keeps_the_rows() {
     let document = story.shown();
     let looked = story.looked(fixtures::PARTY).expect("look before restart");
     let rows = story.rows();
-    assert_eq!(rows.len(), 2, "one ProjectFacts and one Looked row");
+    assert_eq!(rows.len(), 3, "one ProjectFacts, one Looked and one PersonBrief row");
     story.front.restart_dismissal_people(OFFLINE);
     assert_eq!(story.rows(), rows, "the committed rows survive the engine restart");
     story.front.reload(CLIENT, story.env.now);
@@ -845,7 +848,7 @@ fn a_restart_keeps_the_rows() {
 }
 
 #[test]
-fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
+fn an_unpaid_status_run_leaves_home_saying_when_the_last_change_landed_and_why_no_brief() {
     use temper_engine_domain_world::{store::Store, walking};
     let mut story = Story::new();
     let mut limits = story.front.engine.env.limits;
@@ -856,6 +859,8 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
         let policy = &mut config.core.seed_projects[0].policy;
         policy.policy.period_spend = policy.policy.roles[0].period_spend;
         period = policy.policy.period_spend;
+        // No room in the looking person's pool, though the period has room.
+        policy.policy.roles[0].period_spend = 0;
         config.core.defaults.rules.period_spend = period;
         policy.permissions = Box::new([]);
         policy.templates = Box::new([]);
@@ -872,8 +877,6 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
                 project: PROJECT,
                 landed: 1,
                 last_landed: Wall::EPOCH,
-                brief: None,
-                running: None,
             })),
         }]),
         Box::new([]),
@@ -887,7 +890,7 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
     }));
     story.front.engine.settle();
     story.enter();
-    assert_eq!((story.shown().landed(), story.shown().seen()), (1, 1));
+    assert_eq!((story.shown().landed, story.shown().seen), (1, 1));
     story.go(CLIENT, fixtures::inbox());
     story.after(Duration::from_secs(31 * 60));
     let before = story.front.engine.transactions.len();
@@ -897,22 +900,23 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
             .iter()
             .flatten()
             .any(|write| matches!(write, temper_engine_domain::Write::Save(Record::Forge { row })
-            if matches!(row.as_ref(), forge::Stored::ProjectFacts(facts) if facts.running.is_none()))),
+            if matches!(row.as_ref(), forge::Stored::PersonBrief(row) if row.party == fixtures::PARTY && row.running.is_none() && row.unpaid.is_some()))),
         "the new sitting attempted a status run and saved its refusal"
     );
-    assert!(story.shown().previous().is_some(), "return advances the sitting");
-    assert_eq!((story.shown().landed(), story.shown().seen()), (1, 1));
-    assert_eq!(story.shown().brief(), &None);
+    assert!(story.shown().previous.is_some(), "return advances the sitting");
+    assert_eq!((story.shown().landed, story.shown().seen), (1, 1));
+    assert_eq!(&story.shown().brief, &None);
     let record = story
         .front
         .engine
         .store
         .rows
-        .get(&StoreKey::Forge(forge::Key::ProjectFacts { project: PROJECT }))
-        .expect("facts");
+        .get(&StoreKey::Forge(forge::Key::PersonBrief { party: fixtures::PARTY, project: PROJECT }))
+        .expect("person brief");
     let Record::Forge { row } = record else { panic!("forge record") };
-    let forge::Stored::ProjectFacts(facts) = row.as_ref() else { panic!("facts record") };
+    let forge::Stored::PersonBrief(facts) = row.as_ref() else { panic!("person brief record") };
     assert_eq!(facts.running, None, "the unfunded run was refused");
+    assert!(facts.unpaid.is_some(), "no room in the reader's pool makes the brief unpaid");
     let (_, mut view) = Temper::new(fixtures::SEED);
     let temper_client_world::app::View::Person(person) = &mut view else { panic!("person view") };
     temper_client_view::build(person, story.probes[CLIENT.0].root.person(), story.env.wall, &mut Queue::uncapped());
@@ -922,7 +926,8 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
     let text: Vec<u8> =
         tree.nodes().iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
     let text = String::from_utf8(text).expect("Home words");
-    for forbidden in ["Written by the status agent", "brief", "refused", "failed", "unfunded"] {
+    assert!(text.contains("No brief: no account pays for your work here."), "Home explains the missing brief: {text}");
+    for forbidden in ["Written by the status agent", "refused", "failed", "unfunded"] {
         assert!(!text.contains(forbidden), "Home names no status-run failure: {text}");
     }
 }

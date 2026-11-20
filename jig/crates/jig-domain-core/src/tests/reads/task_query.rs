@@ -13,28 +13,33 @@ const REPLY: u64 = 60;
 const CHILD: u64 = 4;
 const QUESTION: u64 = 1;
 const FIRST_GENERATED: u64 = 100;
-const ALL: TaskQuery = TaskQuery {
-    project: Some(1),
-    requester: None,
-    root: None,
-    parent: None,
-    label: None,
-    phase: None,
-    executor: None,
-    tracked: None,
-    order: QueryOrder::Number,
-};
-const QUERIES: [TaskQuery; 4] = [
-    ALL,
-    TaskQuery { requester: Some(tasks::Party::Person(REQUESTER)), ..ALL },
-    TaskQuery { phase: Some(PhaseClass::Working), ..ALL },
-    TaskQuery { order: QueryOrder::Activity, ..ALL },
-];
+fn all() -> TaskQuery {
+    TaskQuery {
+        parts: List::with_capacity(0),
+        project: Some(1),
+        requester: None,
+        root: None,
+        parent: None,
+        label: None,
+        phase: None,
+        executor: None,
+        tracked: None,
+        order: QueryOrder::Number,
+    }
+}
+fn queries() -> [TaskQuery; 4] {
+    [
+        all(),
+        TaskQuery { requester: Some(tasks::Party::Person(REQUESTER)), ..all() },
+        TaskQuery { phase: Some(PhaseClass::Working), ..all() },
+        TaskQuery { order: QueryOrder::Activity, ..all() },
+    ]
+}
 
 #[test]
 fn a_query_by_requester_party_selects_only_their_tasks() {
     let (core, limits) = query_fixture();
-    let query = TaskQuery { requester: Some(tasks::Party::Person(REQUESTER)), ..ALL };
+    let query = TaskQuery { requester: Some(tasks::Party::Person(REQUESTER)), ..all() };
     let value = lines(&core, &limits, REQUESTER, &query, &Window { rows: 4, after: None }).unwrap();
     assert_eq!(value.lines.len(), 2);
     assert_eq!(value.lines.get(0).unwrap().chip.number, FIRST);
@@ -50,24 +55,24 @@ fn a_query_naming_no_project_admits_only_the_requester_themself() {
         (Some(tasks::Party::Person(OTHER_REQUESTER)), Err(Missing::NotAllowed)),
         (Some(tasks::Party::Deployment { project: 1 }), Err(Missing::Unknown)),
     ] {
-        let query = TaskQuery { project: None, requester, ..ALL };
+        let query = TaskQuery { project: None, requester, ..all() };
         let answer = match lines(&core, &limits, REQUESTER, &query, &window()) {
             Ok(_) => Ok(()),
             Err(why) => Err(why),
         };
         assert_eq!(answer, expected, "{requester:?}");
     }
-    let mine = TaskQuery { project: None, requester: Some(tasks::Party::Person(REQUESTER)), ..ALL };
+    let mine = TaskQuery { project: None, requester: Some(tasks::Party::Person(REQUESTER)), ..all() };
     assert_eq!(lines(&core, &limits, REQUESTER, &mine, &window()).unwrap().lines.get(0).unwrap().chip.number, FIRST);
 }
 
 #[test]
 fn a_window_resumes_after_its_cursors_task() {
     let (core, limits) = query_fixture();
-    let first = lines(&core, &limits, REQUESTER, &ALL, &window()).unwrap();
+    let first = lines(&core, &limits, REQUESTER, &all(), &window()).unwrap();
     assert_eq!(first.lines.get(0).unwrap().chip.number, FIRST);
     assert_eq!(first.next, Some(Cursor::Number { number: FIRST }));
-    let next = lines(&core, &limits, REQUESTER, &ALL, &Window { rows: 4, after: first.next }).unwrap();
+    let next = lines(&core, &limits, REQUESTER, &all(), &Window { rows: 4, after: first.next }).unwrap();
     assert_eq!(next.lines.len(), 2);
     assert_eq!(next.lines.get(0).unwrap().chip.number, SECOND);
     assert_eq!(next.lines.get(1).unwrap().chip.number, THIRD);
@@ -82,7 +87,7 @@ fn last_activity_order_puts_the_latest_first() {
     let second = core.tasks.task(SECOND).unwrap().clone();
     let third = core.tasks.task(THIRD).unwrap().clone();
     restore(&mut core, &limits, Box::new([first, second, third]));
-    let query = TaskQuery { order: QueryOrder::Activity, ..ALL };
+    let query = TaskQuery { order: QueryOrder::Activity, ..all() };
     let value = lines(&core, &limits, REQUESTER, &query, &Window { rows: 4, after: None }).unwrap();
     assert_eq!(value.lines.get(0).unwrap().chip.number, FIRST);
     assert_eq!(value.lines.get(1).unwrap().chip.number, THIRD);
@@ -98,7 +103,7 @@ fn priority_order_puts_tracked_tasks_first_by_priority() {
     let mut third = core.tasks.task(THIRD).unwrap().clone();
     third.tracked = Some(2);
     restore(&mut core, &limits, Box::new([first, second, third]));
-    let query = TaskQuery { order: QueryOrder::Priority, ..ALL };
+    let query = TaskQuery { order: QueryOrder::Priority, ..all() };
     let value = lines(&core, &limits, REQUESTER, &query, &Window { rows: 4, after: None }).unwrap();
     assert_eq!(value.lines.get(0).unwrap().chip.number, THIRD);
     assert_eq!(value.lines.get(1).unwrap().chip.number, FIRST);
@@ -114,7 +119,7 @@ fn a_task_in_another_project_does_not_mark_the_query() {
         Event::Watch {
             watcher: Token::new(WATCHER),
             sign_in: SIGN_IN,
-            subject: Watched::Query { query: ALL },
+            subject: Watched::Query { query: all() },
             window: window(),
         },
     );
@@ -134,7 +139,7 @@ fn a_delegates_question_marks_a_query_listing_its_parent() {
     let child = new_row(&core, CHILD, tasks::Funder::Task(FIRST), None);
     make_batch(&mut core, &limits, tasks::Party::Task(FIRST), Box::new([child]));
     finish_watch_outputs(&mut core, &limits);
-    let query = TaskQuery { tracked: Some(true), ..ALL };
+    let query = TaskQuery { tracked: Some(true), ..all() };
     watch_outputs(
         &mut core,
         &limits,
@@ -187,6 +192,7 @@ fn generated_event(core: &Core, draw: u64, iteration: u64) -> Event {
         }),
         1 => Event::Tasks(tasks::Event::Amend {
             operation: tasks::Amend {
+                funder: None,
                 task,
                 message: FIRST_GENERATED.checked_add(iteration).unwrap(),
                 stop_run: false,
@@ -210,7 +216,6 @@ fn generated_event(core: &Core, draw: u64, iteration: u64) -> Event {
                 }),
             },
             places: Box::new([]),
-            funder: None,
             reply_to,
             by: tasks::Party::Person(REQUESTER),
         }),
@@ -231,7 +236,7 @@ fn generated_commits_mark_each_query_whose_lines_change() {
     core.people = auth.people;
     limits.people = auth_limits.people;
     finish_watch_outputs(&mut core, &limits);
-    for (offset, query) in QUERIES.into_iter().enumerate() {
+    for (offset, query) in queries().into_iter().enumerate() {
         let watcher = Token::new(WATCHER + u64::try_from(offset).unwrap());
         watch_outputs(
             &mut core,
@@ -242,7 +247,7 @@ fn generated_commits_mark_each_query_whose_lines_change() {
     }
     let mut rng = skein_lib::Rng::new(5);
     for iteration in 0..32 {
-        let before = QUERIES.map(|query| lines(&core, &limits, REQUESTER, &query, &window()).unwrap());
+        let before = queries().map(|query| lines(&core, &limits, REQUESTER, &query, &window()).unwrap());
         let draw = rng.below(4);
         let event = generated_event(&core, draw, iteration);
         let ending = if let Event::Tasks(tasks::Event::EffectsSettled { task }) = &event { Some(*task) } else { None };
@@ -250,7 +255,7 @@ fn generated_commits_mark_each_query_whose_lines_change() {
         if let Some(task) = ending {
             watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Settled { task }));
         }
-        for (offset, query) in QUERIES.iter().enumerate() {
+        for (offset, query) in queries().iter().enumerate() {
             let after = lines(&core, &limits, REQUESTER, query, &window()).unwrap();
             if before[offset] != after {
                 let watcher = Token::new(WATCHER + u64::try_from(offset).unwrap());
@@ -259,7 +264,7 @@ fn generated_commits_mark_each_query_whose_lines_change() {
             }
         }
         finish_watch_outputs(&mut core, &limits);
-        for offset in 0..QUERIES.len() {
+        for offset in 0..queries().len() {
             watch_outputs(
                 &mut core,
                 &limits,

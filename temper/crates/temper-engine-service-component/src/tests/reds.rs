@@ -4,11 +4,13 @@ use jig_domain_host as host;
 use skein_lib::{Queue, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+use temper_protocol_worker_wire::v1::Record;
 use temper_protocol_worker_wire::{self as payload, v1};
 
 pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
     let repository = forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::new([]),
         project: 1,
         home: true,
@@ -51,6 +53,7 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
         },
         task,
         writer: None,
+        beside: None,
         design_writers: Box::new([]),
         drift: None,
     };
@@ -79,11 +82,21 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
 }
 
 pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
-    use temper_engine_domain_forge_change as change;
     seed_reds(service, 77);
-    let row = forge::ChangeRow {
+    let row = check_change_row(task);
+    for record in [forge::Stored::Change(Box::new(row)), forge::Stored::RedNumber { last: 2 }] {
+        service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(forge::Event::Restore { record })));
+    }
+    fixtures::settle_root(service, &mut Queue::uncapped());
+}
+
+fn check_change_row(task: u64) -> forge::ChangeRow {
+    use temper_engine_domain_forge_change as change;
+    forge::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -98,6 +111,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: change::Way::Queue,
             landing: None,
             task,
@@ -110,11 +124,13 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: skein_lib::Wall::EPOCH,
             ready_since: None,
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: None,
@@ -124,8 +140,14 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
         delegate_status: change::Status::Unknown,
         spec_revision: 0,
         gate_revision: 0,
+        delegate_flake: false,
+        delegate_no_test: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -151,11 +173,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
         merge_result: None,
         history: None,
         follow_check: None,
-    };
-    for record in [forge::Stored::Change(Box::new(row)), forge::Stored::RedNumber { last: 2 }] {
-        service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(forge::Event::Restore { record })));
     }
-    fixtures::settle_root(service, &mut Queue::uncapped());
 }
 
 pub(super) fn answer(
@@ -205,14 +223,14 @@ fn an_admitted_reds_ask_reads_the_goal_in_key_order_without_a_commit() {
     else {
         panic!("reds answer")
     };
-    let rows = reds.reds();
+    let rows = reds.reds;
     assert_eq!(rows.len(), 2);
     assert_eq!(
-        (rows.get(0).unwrap().key(), rows.get(0).unwrap().head()),
+        (rows.get(0).unwrap().key.as_ref(), rows.get(0).unwrap().head.as_ref()),
         (b"lint p c f".as_slice(), [1; 20].as_slice())
     );
     assert_eq!(
-        (rows.get(1).unwrap().key(), rows.get(1).unwrap().head()),
+        (rows.get(1).unwrap().key.as_ref(), rows.get(1).unwrap().head.as_ref()),
         (b"test a::t x".as_slice(), [2; 32].as_slice())
     );
     assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
@@ -228,3 +246,62 @@ fn a_run_without_a_goal_gets_empty_reds_and_malformed_asks_are_refused() {
     }
     assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
 }
+
+#[test]
+fn landed_values_round_trip_between_worker_and_engine() {
+    use temper_worker_domain::wire as worker;
+    use temper_worker_service::translate as worker_translate;
+    let head = [37; 32];
+    let bytes = worker_translate::ask(worker::Ask::Landed { head });
+    assert_eq!(crate::translate::ask(&bytes, &v1::CEILINGS), Some(root::wire::Ask::Landed { head }));
+    let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
+    for malformed in [bytes.get(..32).unwrap(), trailing.as_ref()] {
+        assert_eq!(crate::translate::ask(malformed, &v1::CEILINGS), None);
+    }
+    for (engine, worker) in
+        [(root::wire::Answer::Landed, worker::Answer::Landed), (root::wire::Answer::Unlanded, worker::Answer::Unlanded)]
+    {
+        let bytes = crate::translate::answer(engine, &v1::CEILINGS).unwrap();
+        assert_eq!(worker_translate::answer(&bytes, &v1::CEILINGS), Some(worker));
+    }
+}
+
+#[test]
+fn an_admitted_landed_ask_answers_from_the_domain_without_a_commit() {
+    use temper_engine_domain_forge_change as change;
+    let (mut service, run) = fixtures::claimed_chat();
+    seed_reds(&mut service, 77);
+    let head = [37; 32];
+    let dependency = 78;
+    let mut asking = check_change_row(run.task);
+    asking.change.early = change::Early::Started(Box::new([change::StartedFrom { task: dependency, head }]));
+    let mut upstream = check_change_row(dependency);
+    upstream.change.state = change::State::Landed { merge: [38; 32], since: skein_lib::Wall::EPOCH };
+    for row in [asking, upstream] {
+        service
+            .engine
+            .as_mut()
+            .unwrap()
+            .step(root::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })));
+    }
+    let before = service.engine.as_ref().unwrap().domain.deployment().commits;
+    for (head, expected) in [(head, root::wire::Answer::Landed), ([39; 32], root::wire::Answer::Unlanded)] {
+        assert_eq!(
+            root::wire::answer(
+                &service.engine.as_ref().unwrap().domain,
+                run.task,
+                run.attempt,
+                root::wire::Ask::Landed { head }
+            ),
+            expected
+        );
+        let bytes = payload::ask(&v1::Ask::Landed(v1::Head { head }));
+        assert_eq!(
+            answer(&mut service, &run, &bytes, 19),
+            host::AskAnswer::Bytes(crate::translate::answer(expected, &v1::CEILINGS).unwrap())
+        );
+    }
+    assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
+}
+
+// State-only landed reads use the domain step fixture in route/forge_route/tests/reds.rs.

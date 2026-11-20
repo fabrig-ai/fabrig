@@ -71,7 +71,7 @@ mod questions;
 mod rulings;
 
 #[path = "forge_routes/goal_closer.rs"]
-mod goal_closer;
+pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
 mod goal_closes;
 #[path = "forge_routes/status.rs"]
@@ -86,8 +86,10 @@ mod paths;
 #[path = "forge_routes/delegates.rs"]
 mod delegates;
 
+mod branch_reads;
 #[path = "forge_routes/change_tool.rs"]
 mod change_tool;
+mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
 mod light_rules;
@@ -109,7 +111,7 @@ mod contained_landing;
 #[path = "forge_routes/held_change.rs"]
 mod held_change;
 #[path = "forge_routes/landing.rs"]
-mod landing;
+pub(crate) mod landing;
 mod milestones;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
@@ -126,6 +128,7 @@ mod stall_hold;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+mod findings_cleared;
 mod red_findings;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
@@ -290,9 +293,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
         world.out.push(read);
     }
     world.collect();
-    for _ in 0..80 {
-        world.tick();
-    }
+    world.advance_ticks(80);
     assert_eq!(world.merges, 0, "a kept merge never reaches the fake forge");
     let problem = std::iter::from_fn(|| world.root.pop_fact())
         .find_map(|fact| match fact {
@@ -343,7 +344,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     world.close();
 }
 
-fn live_task(world: &World, task: u64) -> &tasks::TaskRecord {
+pub(super) fn live_task(world: &World, task: u64) -> &tasks::TaskRecord {
     match world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))) {
         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) => row,
         _ => panic!("live task {task}"),
@@ -493,11 +494,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
 
 #[test]
 fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
-    let stall =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .forge
-            .change_policy
-            .stall;
+    let stall = temper_limits_fixtures::small().forge.change_policy.stall;
     let world = World::configured_limits(
         true,
         true,
@@ -534,9 +531,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
     );
     world.send(event);
     // Three minutes of pending CI pass on the virtual clock, without a real wait.
-    for _ in 0..1800 {
-        world.tick();
-    }
+    world.advance_ticks(1800);
     assert_eq!(world.merges, 0, "pending CI cannot land");
     let waiting = world
         .store
@@ -936,6 +931,17 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
 }
 
 #[test]
+fn a_failed_ci_repair_keeps_its_branch_start_without_a_named_pin() {
+    let (mut world, _chat, producer, branch) = change_world(false, 0, None);
+    let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
+    let repository = &repair.workspace.repositories[0];
+    assert_eq!(repository.pin, None);
+    assert_eq!(repository.start, engine::ForgeStart::Branch(branch));
+    assert_eq!(repository.landing, None);
+    world.close();
+}
+
+#[test]
 fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     let mut brief = World::configured_policy(true, true, false, 0, Gate::default(), None).env.limits.brief;
     // The required change context leaves the runner account and pull identity their room.
@@ -1107,9 +1113,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
             assert_eq!(row.attempt, 0, "old preparation was not claimed");
             assert_eq!(row.tries, tasks::Tries::NONE);
             assert_eq!(world.assigned.len(), 2);
-            for _ in 0..250 {
-                world.tick();
-            }
+            world.advance_ticks(250);
             // The amended repair may retry; the abandoned preparation may never claim.
             for assignment in &world.assigned[boundary..] {
                 assert_eq!(assignment.task, repair, "only the revised repair may be assigned");
@@ -1132,10 +1136,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one slow blocking review, its preparation and landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1256,10 +1257,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one delayed blocking review, wakes during preparation and its landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1470,7 +1468,7 @@ fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
             if source.as_ref() == branch.as_ref() && expected == translate::commit(base)));
     let limit = world.env.limits.forge.client.answer_bytes;
     let omitted = format!(
-        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]",
+        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]",
         u64::from(limit) + 1
     );
     let pull = resolver
@@ -1774,9 +1772,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
     ));
     let repaired = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired", 1)
         .expect("repair pushed new head");
-    for _ in 0..5 {
-        world.tick();
-    }
+    world.advance_ticks(5);
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {
@@ -1805,9 +1801,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert!(
         !world.store.rows.values().any(|stored| matches!(stored,
             Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
@@ -1907,9 +1901,7 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     let landed = world
         .store
         .rows
@@ -2083,7 +2075,7 @@ fn adoption_chat(world: &World) -> people::Ask {
     people::Ask::Create { project, batch }
 }
 
-fn assigned_chat(world: &mut World, key: u8, ask: people::Ask) -> engine::Assignment {
+pub(super) fn assigned_chat(world: &mut World, key: u8, ask: people::Ask) -> engine::Assignment {
     let before = world.assigned.len();
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
@@ -2169,8 +2161,7 @@ fn task_brief(assignment: &engine::Assignment) -> &[u8] {
 
 #[test]
 fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut world =
         World::configured_brief(true, true, false, 1000, paths::Gate::default(), None, Some(small.root.brief));
     assert_eq!(world.env.limits.brief.budgets.task, 4608);
@@ -2437,9 +2428,7 @@ fn a_saved_repository_tag_becomes_a_concrete_checkout_in_the_next_attempt() {
         engine::Parts { saved: Some(Box::new([forge_top::tag(1, 3)])), pushed: Box::new([]), preparation: None },
     );
     world.send(event);
-    for _ in 0..30 {
-        world.tick();
-    }
+    world.advance_ticks(30);
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(100)),
@@ -2519,12 +2508,24 @@ fn a_goal_can_subscribe_to_main_without_guessing_repository_ids() {
 
 #[test]
 fn a_stock_goal_can_subscribe_to_main_with_its_held_branches() {
-    for repository in [r#", "repository":{"forge":1,"repository":2}"#, r#", "repository":"org/repo""#, ""] {
-        let (world, goal) = stock_subscription_goal();
-        let branch = format!("temper/{}/g{}", goal.task, goal.task);
-        let json = format!(r#"{{"topic":{{"kind":"landings","branch":"main"{repository}}},"paths":["file"]}}"#);
-        subscription_after_first_batch(world, &goal, branch.as_bytes(), json.as_bytes());
-    }
+    stock_subscription(r#", "repository":{"forge":1,"repository":2}"#);
+}
+
+#[test]
+fn a_stock_goal_can_subscribe_to_main_by_repository_name() {
+    stock_subscription(r#", "repository":"org/repo""#);
+}
+
+#[test]
+fn a_stock_goal_can_subscribe_to_main_by_implicit_repository() {
+    stock_subscription("");
+}
+
+fn stock_subscription(repository: &str) {
+    let (world, goal) = stock_subscription_goal();
+    let branch = format!("temper/{}/g{}", goal.task, goal.task);
+    let json = format!(r#"{{"topic":{{"kind":"landings","branch":"main"{repository}}},"paths":["file"]}}"#);
+    subscription_after_first_batch(world, &goal, branch.as_bytes(), json.as_bytes());
 }
 
 fn stock_subscription_goal() -> (World, engine::Assignment) {
@@ -2923,9 +2924,7 @@ fn a_goal_subscription_receives_the_connectors_landing_news() {
     );
     world.send(event);
     world.until(Until::Subscribed);
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     let result = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"changed", 1);
     assert!(result.is_ok(), "external landing in the fake forge");
     world.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Hint {
@@ -3023,9 +3022,7 @@ fn a_pull_subscription_receives_the_connectors_state_news() {
         panic!("pull opened")
     };
     let task = subscribe_chat(&mut world, forge_top::Topic::Pull { repository: forge_world::REPO, number: pull }, 94);
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     let before = news_count(&world, task);
     assert!(matches!(world.external(2, raw::Op::Write(raw::Write::Close { number: pull })), raw::Answer::Done));
     world.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Hint {
@@ -3065,14 +3062,10 @@ fn ci_subscription_story(restart: bool) {
         forge_top::Topic::Ci { repository: forge_world::REPO, head: translate::commit(head) },
         96,
     );
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     if restart {
         world.restart(false, false);
-        for _ in 0..20 {
-            world.tick();
-        }
+        world.advance_ticks(20);
     }
     let before = news_count(&world, task);
     assert!(matches!(
@@ -3132,9 +3125,7 @@ fn a_participation_subscription_receives_the_connectors_comment_news() {
     };
     let task =
         subscribe_chat(&mut world, forge_top::Topic::Participation { repository: forge_world::REPO, number: pull }, 98);
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     let before = news_count(&world, task);
     assert!(matches!(
         world.external(2, raw::Op::Write(raw::Write::Comment { number: pull, body: Box::from(&b"please check"[..]) })),
@@ -3282,9 +3273,7 @@ fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
         } => entry,
         ref other => panic!("unexpected effect answer: {other:?}"),
     };
-    for _ in 0..30 {
-        world.tick();
-    }
+    world.advance_ticks(30);
     let key = temper_engine_domain::CallKey {
         task: assignment.task,
         attempt: assignment.attempt,
@@ -3314,9 +3303,7 @@ fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
         },
     );
     world.send(event);
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     assert!(
         matches!(world.answers.last(), Some(temper_engine_domain::CallAnswer::ForgeEffect { entry: observed, outcome: Some(skein_forge_client::Outcome::Made { .. }), .. }) if *observed == entry)
     );
@@ -3384,9 +3371,7 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
     }));
     world.until(Until::Ready);
     assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ProposedEffect(effect) if effect.number == proposal))));
-    for _ in 0..30 {
-        world.tick();
-    }
+    world.advance_ticks(30);
     assert_eq!(issue_count(&mut world), 1);
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
@@ -3402,9 +3387,7 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
         },
     }));
     world.until(Until::Ready);
-    for _ in 0..30 {
-        world.tick();
-    }
+    world.advance_ticks(30);
     assert_eq!(issue_count(&mut world), 1);
     world.close();
 }
@@ -3496,9 +3479,7 @@ fn issue_count(world: &mut World) -> usize {
 fn a_settled_stop_says_its_configured_restart_wait_after_commit_before_drained() {
     let wait = Duration::from_secs(900);
     let mut world = World::new().with_restart_wait(wait, false);
-    for _ in 0..80 {
-        world.tick();
-    }
+    world.advance_ticks(80);
     let commits = world.store.header().commits;
     world.send(engine::Event::Stop);
     assert!(world.restarting.is_empty(), "the word waits for its decision");
@@ -3513,9 +3494,7 @@ fn a_settled_stop_says_its_configured_restart_wait_after_commit_before_drained()
 fn a_zero_wait_or_in_process_workers_says_no_restart() {
     for (wait, in_process) in [(Duration::ZERO, false), (Duration::from_secs(900), true)] {
         let mut world = World::new().with_restart_wait(wait, in_process);
-        for _ in 0..80 {
-            world.tick();
-        }
+        world.advance_ticks(80);
         world.send(engine::Event::Stop);
         drain_stop(&mut world);
         assert!(world.restarting.is_empty(), "wait {wait:?}, in process {in_process}");
@@ -3533,9 +3512,7 @@ fn a_stop_with_a_committed_forge_effect_only_commits_the_restart_word_and_makes_
     let number = world.store.apply();
     world.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
     let commits = world.store.header().commits;
-    for _ in 0..30 {
-        world.tick();
-    }
+    world.advance_ticks(30);
     assert_eq!(world.store.header().commits, commits + 1, "the stop keeps its word in one decision");
     assert_eq!(world.store.header().restart_wait_ms, Some(1_200_000));
     assert!(world.store.pending.is_empty());
@@ -3543,14 +3520,10 @@ fn a_stop_with_a_committed_forge_effect_only_commits_the_restart_word_and_makes_
     assert!(world.events.is_empty() && world.immediate.is_empty(), "the drain leaves no continuation to retry");
     assert_eq!(issue_count(&mut world), 0);
     world.restart(true, false);
-    for _ in 0..40 {
-        world.tick();
-    }
+    world.advance_ticks(40);
     let event = issue_effect_call(&mut world, &assignment);
     world.send(event);
-    for _ in 0..40 {
-        world.tick();
-    }
+    world.advance_ticks(40);
     assert_eq!(issue_count(&mut world), 1, "the retried call settles its durable outbox entry once");
 }
 
@@ -3622,9 +3595,7 @@ fn goal_branch_survives_cut(cut: u8) {
     }
     world.restart(true, true);
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(
         goal_branch_creations(&world, &branch),
         1,
@@ -3711,9 +3682,7 @@ fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
         world.until(Until::Ready);
         let event = issue_effect_call(&mut world, &assignment);
         world.send(event);
-        for _ in 0..40 {
-            world.tick();
-        }
+        world.advance_ticks(40);
         assert_eq!(issue_count(&mut world), 1, "cut {cut} created one keyed issue");
         let key = temper_engine_domain::CallKey {
             task: assignment.task,
@@ -3790,9 +3759,7 @@ fn a_tracked_goals_changes_install_their_landing_topic_alone_without_agent_calls
         },
     );
     world.send(event);
-    for _ in 0..180 {
-        world.tick();
-    }
+    world.advance_ticks(180);
     assert!(world.store.rows.values().any(|stored| matches!(stored,
         Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::BranchHead(head) if head.commit == translate::commit(pushed)))));
     let current = subscriptions(&world);
@@ -3825,9 +3792,7 @@ fn a_tracked_goals_changes_install_their_landing_topic_alone_without_agent_calls
     let answer = world.answers.get(before).expect("timer subscription answered");
     assert!(matches!(answer, engine::CallAnswer::Subscribed { .. }), "room for the goal's timer: {answer:?}");
     world.restart(true, true);
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert_eq!(
         subscriptions(&world)
             .iter()
@@ -3864,9 +3829,7 @@ fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
         let event =
             world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
         world.send(event);
-        for _ in 0..30 {
-            world.tick();
-        }
+        world.advance_ticks(30);
         let assigned = world.assigned.len();
         assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"changed", 1).is_ok());
         world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
@@ -3876,9 +3839,7 @@ fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
                 key: None,
             },
         })));
-        for _ in 0..200 {
-            world.tick();
-        }
+        world.advance_ticks(200);
         assert!(
             live_task(&world, goal.task)
                 .inbox
@@ -3947,9 +3908,7 @@ fn drain_stop(world: &mut World) {
 fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
     let (mut world, assignment, entry) = held_issue_write();
     world.send(engine::Event::Stop);
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     assert!(world.drained.is_none(), "the stop waits for the held answer");
     assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))));
     world.release_write_answers();
@@ -3962,14 +3921,10 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
     assert!(flights::rows(&world).is_empty(), "a settled stop leaves no flight");
     assert_eq!(issue_count(&mut world), 1);
     world.restart(true, false);
-    for _ in 0..40 {
-        world.tick();
-    }
+    world.advance_ticks(40);
     let event = issue_effect_call(&mut world, &assignment);
     world.send(event);
-    for _ in 0..40 {
-        world.tick();
-    }
+    world.advance_ticks(40);
     assert_eq!(issue_count(&mut world), 1);
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))), "nothing to find after restart");
     world.close();
@@ -4131,9 +4086,7 @@ fn settling_places_no_run_and_answers_a_call_busy() {
         world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
         "the forge still owes its outcome"
     );
-    for _ in 0..30 {
-        world.tick();
-    }
+    world.advance_ticks(30);
     assert_eq!(world.assigned.len(), assigned, "freeing the slot makes no assignment while settling");
     assert!(
         matches!(live_task(&world, queued).phase, tasks::Phase::Active(tasks::Active::Claimed { .. })),
@@ -4189,14 +4142,10 @@ fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
     assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))));
     assert_eq!(issue_count(&mut world), 1);
     world.restart(true, false);
-    for _ in 0..80 {
-        world.tick();
-    }
+    world.advance_ticks(80);
     let event = issue_effect_call(&mut world, &assignment);
     world.send(event);
-    for _ in 0..40 {
-        world.tick();
-    }
+    world.advance_ticks(40);
     assert_eq!(issue_count(&mut world), 1, "the next start finds the issue rather than writing twice");
     assert!(flights::rows(&world).is_empty(), "restart settles and erases the flight");
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))));
@@ -4253,9 +4202,7 @@ fn a_stop_waits_for_a_sent_merge_to_be_proved() {
         })
         .expect("durable merge attempt");
     world.send(engine::Event::Stop);
-    for _ in 0..10 {
-        world.tick();
-    }
+    world.advance_ticks(10);
     assert!(world.drained.is_none());
     let calls = world.forge_calls;
     world.release_write_answers();

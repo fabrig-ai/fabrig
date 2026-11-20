@@ -75,7 +75,7 @@ pub fn decision(b: &mut Builder, words: &Words, page: Option<&c::ReadValue>, act
     if act == c::ActKind::Cancel {
         facts.effect = None;
     }
-    for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
+    for fact in &jig_client::words::decision(&facts, words.book(), words.language) {
         text(b, Role::Paragraph, fact);
     }
 }
@@ -206,7 +206,27 @@ pub fn specification(b: &mut Builder, value: &c::SpecificationDocument, words: &
     document(b, &value.specification.words);
     specification_facts(b, value, words);
 }
-pub(super) fn specification_facts(b: &mut Builder, value: &c::SpecificationDocument, words: &Words) {
+/// A card's words follow its title only when they add more (client/pages/README.md, 2).
+pub fn specification_after_title(b: &mut Builder, value: &c::SpecificationDocument, words: &Words) {
+    if !crate::common::chat::only_title(&value.specification.words) {
+        document(b, &value.specification.words);
+    }
+    specification_facts(b, value, words);
+}
+/// Card words omit a title already named in their from line; the inbox keeps whole words.
+/// temper/docs/design/client/pages/needs-you.md, 1, Its title once.
+pub fn specification_words(b: &mut Builder, value: &c::SpecificationDocument, words: &Words, title_in_from: bool) {
+    let text = &value.specification.words;
+    if title_in_from {
+        skein_ui::markdown::read(crate::shared::after_title(text), 3, b);
+    } else if !crate::shared::only_title(text) {
+        document(b, text);
+    }
+    if text.cut {
+        status(b, words, P::Cut, &[]);
+    }
+}
+pub fn specification_facts(b: &mut Builder, value: &c::SpecificationDocument, words: &Words) {
     for parameter in &value.specification.parameters {
         match parameter {
             c::ParameterDocument::Number { name, value } => {
@@ -262,7 +282,7 @@ pub fn value(b: &mut Builder, result: &c::ResultValue, _words: &Words) {
     }
 }
 pub fn result(b: &mut Builder, result: &c::Result, words: &Words) {
-    text(b, Role::Heading { level: 3 }, result.task.title.bytes());
+    text(b, Role::Heading { level: 3 }, &crate::common::chat::row_title(result.task.title.bytes()));
     ending(b, &result.ending, words);
     if let Some(result) = &result.value {
         value(b, result, words);

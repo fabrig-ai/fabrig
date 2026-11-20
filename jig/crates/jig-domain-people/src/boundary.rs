@@ -19,13 +19,22 @@ pub enum Whom {
     Role { project: u32, role: u32 },
 }
 
+/// The source whose volatile needs a projection replaces (domain/people/README.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum NeedSource {
+    /// A durable task: its questions, escalation, person task, replies and its own proposal.
+    Task(u64),
+    /// A party's proposal, whatever task it names.
+    Proposal { party: u64, number: u64 },
+}
+
 /// The reason a task currently appears in a person's inbox.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum EntryKind {
     /// A numbered question in a task requested by the person.
     Question { message: u64 },
     /// A pending action waiting for a decision.
-    Proposal { number: u64 },
+    Proposal { proposer: Proposer, number: u64 },
     /// A held task waiting for a decision at this revision.
     Escalation { revision: u64 },
     /// An active person-executed task.
@@ -1196,7 +1205,7 @@ pub enum Event {
     /// Add previously unknown collaborators and their first project role in one decision.
     Seed { project: u32, collaborators: Box<[Seed]> },
     /// Replace the volatile inbox projection of one durable task after its row changes.
-    Waiting { task: u64, entries: Box<[Entry]> },
+    Waiting { source: NeedSource, entries: Box<[Entry]> },
     /// Root's synchronous application after authority/revision/capacity preflight. Reads the
     /// original admitted roster, preserves membership on refusal and returns exactly one
     /// `RolesApplied`.
@@ -1225,6 +1234,8 @@ pub enum Event {
         kind: Kind,
         /// Authenticated sign-in to keep if it is live and belongs to this identity.
         held: Option<u64>,
+        /// Cap on a new sign-in's expiry; a live held sign-in keeps its saved expiry.
+        until: Option<Wall>,
     },
     /// Read the live sign-in's identity and kind without writing or spending admission room.
     Whose { reply_to: ReplyTo, sign_in: u64 },

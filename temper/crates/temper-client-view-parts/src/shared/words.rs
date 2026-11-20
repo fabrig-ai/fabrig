@@ -92,6 +92,26 @@ pub fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]
 pub fn heading(title: &[u8]) -> Box<[u8]> {
     crate::common::chat::short_title(title)
 }
+/// A task's title on a line (temper/docs/design/client/pages/README.md, 2).
+#[must_use]
+pub fn row_title(title: &[u8]) -> Box<[u8]> {
+    crate::common::chat::row_title(title)
+}
+/// Whether a task's words are only its title (temper/docs/design/client/pages/README.md, 2).
+#[must_use]
+pub fn only_title(words: &c::DocumentText) -> bool {
+    crate::common::chat::only_title(words)
+}
+/// The words after a title named by a card's from line (client/pages/needs-you.md, 1).
+#[must_use]
+pub fn after_title(words: &c::DocumentText) -> &[u8] {
+    crate::common::chat::after_title(words)
+}
+/// Why a task is held, as one sentence (client/pages/needs-you.md, 1).
+#[must_use]
+pub fn hold_sentence(task: Option<&c::Task>, w: &Words) -> Box<[u8]> {
+    crate::common::ask::hold_sentence(task, w)
+}
 /// A command's words (temper/docs/design/client/pages/README.md, Commands).
 #[must_use]
 pub fn description(command: Command) -> &'static [u8] {

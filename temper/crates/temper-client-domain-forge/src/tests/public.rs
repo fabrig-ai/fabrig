@@ -6,6 +6,7 @@ use crate::{
 use jig_client_protocol_wire::public_v1 as jig;
 use skein_lib::{Duration, List, Queue, Time, Writer};
 use temper_client_protocol_wire::public_v1 as forge;
+use temper_client_protocol_wire::v1::Record;
 const PROJECT: u64 = 0x1234_5678_0000_0001;
 const TASK: u64 = 0xabcd_ef01_0000_0002;
 fn at(seconds: u64) -> Time {
@@ -176,13 +177,10 @@ fn board() -> Box<[u8]> {
     writer.finish()
 }
 fn landings() -> Box<[u8]> {
-    let record = forge::PublicLandings::new(
-        &forge::CEILINGS,
-        forge::PublicLandingsParts { turn: None, landings: List::with_capacity(0), queues: List::with_capacity(0) },
-    )
-    .expect("landings");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small record"));
-    record.encode(&mut writer).expect("record");
+    let record = forge::PublicLandings { turn: None, landings: List::with_capacity(0), queues: List::with_capacity(0) };
+    let mut writer =
+        Writer::new(usize::try_from(record.measure(&forge::CEILINGS).expect("within ceilings")).expect("small record"));
+    record.write(&forge::CEILINGS, &mut writer).expect("record");
     let record = jig::PublicApplication::new(
         &jig::CEILINGS,
         jig::PublicApplicationParts { tasks: List::with_capacity(0), record: writer.finish() },

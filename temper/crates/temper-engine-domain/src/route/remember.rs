@@ -65,6 +65,7 @@ pub(crate) fn call(
                 Read::Escalation(_)
                 | Read::Proposal(_)
                 | Read::TaskProposal { .. }
+                | Read::Parts(_)
                 | Read::Ended(_)
                 | Read::Transcript { .. }
                 | Read::InputCheck(_)
@@ -248,6 +249,7 @@ fn write(domain: &mut Domain, read: &RememberRead, entry: Option<notes::Entry>) 
                         author: notes::Author::Task { task: 0, attempt: 0 },
                     },
                     recalled: None,
+                    records: Box::new([]),
                 },
                 read.lines.len().checked_add(1).expect("admitted list"),
             )
@@ -266,6 +268,7 @@ fn write(domain: &mut Domain, read: &RememberRead, entry: Option<notes::Entry>) 
                         author: notes::Author::Task { task: 0, attempt: 0 },
                     },
                     recalled: Some(recalled),
+                    records: Box::new([]),
                 },
                 *line,
             )

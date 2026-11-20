@@ -716,7 +716,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     service.engine.as_mut().expect("engine").setup = fixture_setup(&config, &mut endpoints).unwrap();
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.end().is_some());
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms"] {
         assert_eq!(crate::limits::apply(&mut own, name, 0), Err(crate::limits::Refused::Range));
     }
@@ -945,6 +945,7 @@ fn local_repository() -> domain::Repository {
     use temper_engine_domain_forge::{Kinds, Protection, Repository, Role};
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -1101,6 +1102,7 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert!(face.done.is_some(), "the host completed Reconcile");
         assert!(service.engine.as_ref().unwrap().setup.writes.is_empty(), "no Origin before Done");
         assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+        crate::engine::answer(service.engine.as_mut().unwrap()); // Drain root reads before holding the Origin write.
         service.engine.as_mut().unwrap().setup.above.push(face.done.take().unwrap());
         advance(service.engine.as_mut().unwrap());
         let engine = service.engine.as_mut().unwrap();
@@ -1110,8 +1112,9 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert_eq!(write.number, records::number(1, Item::Origin), "never writes AdminToken");
         assert!(engine.forge.starts.is_empty(), "Origin Kept is held");
         assert!(engine.values.identities.newest(1).is_none());
-        let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else {
-            panic!("durable Origin");
+        let durable = engine.store.host.above.pop();
+        let Some(StoreEvent::Kept { owner }) = durable else {
+            panic!("durable Origin: {durable:?}");
         };
         answer(engine, StoreEvent::Kept { owner });
         assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
@@ -1119,10 +1122,10 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         let (generation, value) = engine.values.identities.newest(1).unwrap();
         assert_eq!(generation, 1);
         let value = fixtures::decoded_identity(value);
-        assert_eq!(value.login(), if fake { b"temper".as_slice() } else { b"temper" });
+        assert_eq!(value.login.as_ref(), if fake { b"temper".as_slice() } else { b"temper" });
         assert_eq!(
-            match value.kind() {
-                temper_protocol_worker_wire::v1::Kind::Forgejo(token) => token.token(),
+            match &value.kind {
+                temper_protocol_worker_wire::v1::Kind::Forgejo(token) => &token.token,
                 temper_protocol_worker_wire::v1::Kind::Github(_) => panic!("Forgejo identity"),
             },
             &Secret::new(b"test-git".as_slice().into())
@@ -1432,8 +1435,8 @@ fn takeover_waits_for_kept_done_and_correlated_removal_before_restored_reconcile
     lifecycle::connect_local(engine, 1);
     assert_eq!(engine.values.identities.newest(1).unwrap().0, 2, "every local connect puts the current git token");
     let identity = fixtures::decoded_identity(engine.values.identities.newest(1).unwrap().1);
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = identity.kind() else { panic!("local git identity") };
-    assert!(token.token().expose() == b"replacement-git", "the next generation serves the replacement");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = &identity.kind else { panic!("local git identity") };
+    assert!(token.token.expose() == b"replacement-git", "the next generation serves the replacement");
     for generation in [1, 2] {
         let mut count = 0_u32;
         for event in &engine.events {
@@ -1988,8 +1991,9 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
     use temper_forge_setup::{machine, setup};
     let mut config = fixtures::configured_engine();
     let setup::Mode::Owned(owned) = fixtures::owned_setup(2).entry.mode else { panic!("owned fixture") };
-    config.machine = machine::Machine {
-        owned: Some(machine::OwnedMachine {
+    config.setups = Box::new([(
+        2,
+        temper_forge_setup::setup_file::SetupFile::Owned(machine::OwnedMachine {
             sign_in: None,
             listen: owned.listen,
             remote: b"http://127.0.0.1:9".as_slice().into(),
@@ -1999,13 +2003,7 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
             forgejo: owned.forgejo,
             runner: owned.runner,
         }),
-        fake: Some(machine::FakeMachine {
-            listen: ([127, 0, 0, 1], 9).into(),
-            remote: b"http://127.0.0.1:9".as_slice().into(),
-            git: b"/data/fake/git".as_slice().into(),
-        }),
-        github: None,
-    };
+    )]);
     config.directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     fixtures::fill_files(&mut config);
     config
@@ -2054,6 +2052,9 @@ fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::For
         root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })),
     );
 }
+#[path = "setup_start.rs"]
+mod start_tests;
+
 #[test]
 fn a_kept_owned_record_is_served_by_the_host_with_its_entry() {
     let mut service = local_service(runtime_config(), local_store(false));
@@ -2119,6 +2120,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
         let mut record = runtime_record(domain::Kind::Forgejo, mode);
         record.first = Some(domain::FirstIntent::Empty(domain::EmptyIntent {
             playground: true,
+            sample: true,
             org: b"kept-org".as_slice().into(),
             repository: b"kept-repository".as_slice().into(),
             label: b"kept-label".as_slice().into(),
@@ -2134,6 +2136,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             assert_eq!(first.repository.as_ref(), b"kept-repository");
             assert_eq!(first.label.as_ref(), b"kept-label");
             assert!(first.playground);
+            assert!(first.sample);
             if mode == domain::Mode::Fake {
                 assert_eq!(local.trigger, lifecycle::Trigger::StartFake);
             }
@@ -2162,6 +2165,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             let first = active.first.as_ref().unwrap();
             assert_eq!(first.org.as_ref(), b"kept-org");
             assert_eq!(first.repository.as_ref(), b"kept-repository");
+            assert!(first.sample);
             keep(engine, &record);
             assert!(
                 engine.setup.lifecycle.local(2).unwrap().first.is_none(),
@@ -2401,7 +2405,19 @@ fn forgetting_before_the_host_starts_does_not_restore_the_forge() {
 
 #[test]
 fn a_kept_fake_reads_at_start_then_waits_for_the_box_when_the_handover_is_absent() {
-    let mut service = local_service(runtime_config(), local_store(false));
+    let mut config = runtime_config();
+    config.setups = Box::new([(
+        2,
+        temper_forge_setup::setup_file::chosen(
+            temper_forge_setup::machine::BoxKind::Fake,
+            9,
+            b"ada",
+            false,
+            &config.directories,
+        )
+        .unwrap(),
+    )]);
+    let mut service = local_service(config, local_store(false));
     let record = runtime_record(domain::Kind::Forgejo, domain::Mode::Fake);
     let engine = service.engine.as_mut().unwrap();
     insert_runtime_forge(engine, &record);

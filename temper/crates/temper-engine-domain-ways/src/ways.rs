@@ -42,6 +42,13 @@ pub struct Item {
     pub edit: Edit,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "settings edits own their typed value, including named repair settings"
+    )
+)]
 pub enum Edit {
     Set(Value),
     Remove,
@@ -159,6 +166,11 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
+                | Value::AgentFigures(_)
+                | Value::Landing(_)
+                | Value::Gates(_)
+                | Value::Limits(_)
+                | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::Dependency(_)
                 | Value::Follow(_)
@@ -200,6 +212,11 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
+                | Value::AgentFigures(_)
+                | Value::Landing(_)
+                | Value::Gates(_)
+                | Value::Limits(_)
+                | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::Dependency(_)
                 | Value::Follow(_)
@@ -231,6 +248,11 @@ pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> T
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
+                | Value::AgentFigures(_)
+                | Value::Landing(_)
+                | Value::Gates(_)
+                | Value::Limits(_)
+                | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::Dependency(_)
                 | Value::Follow(_)
@@ -254,6 +276,11 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
             | Value::CharterWords(_)
             | Value::Classes(_)
             | Value::ProjectAreas(_)
+            | Value::AgentFigures(_)
+            | Value::Landing(_)
+            | Value::Gates(_)
+            | Value::Limits(_)
+            | Value::Welcome(_)
             | Value::ProjectTriager(_)
             | Value::Dependency(_)
             | Value::Follow(_)

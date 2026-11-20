@@ -82,7 +82,7 @@ impl Before {
         };
         let mut expected = BTreeSet::from([chat.join("state")]);
         let marker = chat.join("format");
-        let current = smith_local_protocol::format::file();
+        let current = smith_local_protocol::format::file(&smith_local_protocol::format::layouts());
         assert_eq!(
             after.get(&marker).and_then(|entry| entry.bytes.as_deref()),
             Some(current.bytes.as_ref()),
@@ -220,14 +220,10 @@ impl Before {
 
 /// Outside observation after the loop drained: no git, rg, sh or check
 /// child remains, including a zombie awaiting wait. Hosted agents use the
-/// shared world's own process/descriptor ledger and exit assertions.
+/// shared world's own process/descriptor ledger and exit assertions
+/// (smith/docs/design/testing.md, 6).
 pub fn assert_no_children() {
-    for task in std::fs::read_dir("/proc/self/task").expect("Linux task observations") {
-        let path = task.expect("task entry").path().join("children");
-        match std::fs::read_to_string(path) {
-            Ok(children) => assert!(children.trim().is_empty(), "every child was reaped: {children}"),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => panic!("child observation: {error}"),
-        }
-    }
+    let children =
+        skein_shell::unreaped_children().unwrap_or_else(|errno| panic!("child observation: error number {errno}"));
+    assert!(children.is_empty(), "every child was reaped: {children:?}");
 }

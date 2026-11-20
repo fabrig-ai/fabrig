@@ -8,11 +8,15 @@ use std::collections::BTreeMap;
 pub(in crate::world) struct Terminals {
     pub(super) revision: u64,
     pub(in crate::world) ended: Vec<u64>,
-    #[cfg(test)]
-    pub(super) last_sync: Option<skein_lib::Token>,
+    pub(in crate::world) last_sync: Option<skein_lib::Token>,
     logs: BTreeMap<i32, Vec<u64>>,
 }
 impl Terminals {
+    pub(in crate::world) fn opened_logs(&mut self, logs: &[skein_io::kernel::Fd]) {
+        for fd in logs {
+            self.logs.entry(fd.raw()).or_default();
+        }
+    }
     pub(in crate::world) fn observe(&mut self, completions: &Queue<Complete>) {
         self.revision = self.revision.saturating_add(1);
         self.ended.clear();
@@ -39,7 +43,6 @@ impl Terminals {
                 }
                 (Op::Sync { fd }, Ok(Done::Nothing)) => {
                     if let Some(pending) = self.logs.get_mut(&fd.raw()) {
-                        #[cfg(test)]
                         if !pending.is_empty() {
                             self.last_sync = Some(completion.op);
                         }

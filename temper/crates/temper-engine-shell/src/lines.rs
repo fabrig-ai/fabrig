@@ -1,4 +1,5 @@
-//! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7).
+//! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7;
+//! jig/docs/design/domain/engine/settings.md, 7).
 use temper_engine_service::{CommitStop, End, RouteStop, Stop};
 use temper_shell::directories::Directories;
 
@@ -6,6 +7,10 @@ pub fn read_handover(
     read: &temper_engine_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_engine_service::HandoverUnread> {
     use temper_engine_service::HandoverUnread;
+    if read.forge == 0 {
+        make_playground_key(super::path(&read.path))
+            .map_err(|why| HandoverUnread::Kernel(why.raw_os_error().expect("key io returns an errno")))?;
+    }
     match skein_shell::read_private_file(super::path(&read.path), read.max, skein_shell::effective_user()) {
         Ok(value) => {
             let bytes = value.expose();
@@ -19,6 +24,34 @@ pub fn read_handover(
         Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(temper_shell::directories::errno(error))),
     }
 }
+/// The scripted account's key is made before its read and the playground's group start
+/// (temper/docs/design/protocol/configuration/providers.md, 4).
+fn make_playground_key(path: &std::path::Path) -> std::io::Result<()> {
+    use std::{
+        fs,
+        io::Write as _,
+        os::unix::fs::{DirBuilderExt as _, OpenOptionsExt as _},
+    };
+    let directory = path.parent().expect("the playground key is in demo");
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(directory)?;
+    let random = skein_shell::crypto_seed().map_err(std::io::Error::from_raw_os_error)?;
+    let mut key = Vec::with_capacity(65);
+    for byte in random.expose() {
+        const HEX: &[u8] = b"0123456789abcdef";
+        key.push(HEX[usize::from(byte >> 4)]);
+        key.push(HEX[usize::from(byte & 15)]);
+    }
+    key.push(b'\n');
+    let key = skein_lib::Secret::new(key.into_boxed_slice());
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(why),
+    }
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+    file.write_all(key.expose())
+}
+
 pub fn remove_handover(remove: &temper_engine_service::HandoverRemoval) -> Result<(), i32> {
     match std::fs::remove_file(super::path(&remove.path)) {
         Ok(()) => Ok(()),
@@ -66,6 +99,12 @@ pub fn ending_with_binary(
                 binary,
                 &temper_engine_service::startup::Problems::jig(found.clone(), &jig_protocol_config::Path::root()),
             ),
+            Stop::LimitRestore { name, kind, configured, held } => format!(
+                "{binary} serve: {} (setting {}): its figure is {configured}, but the store holds {held}; put limits-held in the data directory to start at the stock\n",
+                String::from_utf8_lossy(name),
+                String::from_utf8_lossy(kind.name())
+            ),
+            Stop::CodecRestore { bound, kind, row } => codec_restore(binary, bound, *kind, row.as_ref()),
             Stop::Room(short) => {
                 format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
             }
@@ -148,6 +187,25 @@ pub fn ending_with_binary(
         }
     }
     (lines, u8::from(output_failed || end != Some(&End::Drained)))
+}
+
+fn codec_restore(
+    binary: &str,
+    bound: &jig_protocol_store::codec::Lowered,
+    kind: temper_engine_service::startup::LimitKind,
+    row: Option<&jig_protocol_store::restore::RowSite>,
+) -> String {
+    let site = match row {
+        Some(row) => format!(", key {:02x?}", row.key),
+        None => String::new(),
+    };
+    format!(
+        "{binary} serve: {} (setting {}): its figure is {}, but the store holds a record that needs {}{site}; put limits-held in the data directory to start at the stock\n",
+        String::from_utf8_lossy(bound.name),
+        String::from_utf8_lossy(kind.name()),
+        bound.configured,
+        bound.held
+    )
 }
 
 /// Bounded causes without record contents (temper/docs/design/protocol/store.md, 4).
@@ -265,7 +323,7 @@ fn grouped(figure: u64) -> String {
     grouped
 }
 
-fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
+pub(crate) fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
     use std::fmt::Write as _;
     let lines = String::from_utf8(lines.into_vec()).expect("refusal is UTF-8");
     let mut named = String::new();
@@ -300,9 +358,57 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::History => "history",
     }
 }
+fn numbered_setting(setting: jig_domain_core::settings::Setting) -> (&'static str, u32) {
+    use jig_domain_core::settings::Setting;
+    match setting {
+        Setting::Charter(n) => ("charter", n),
+        Setting::Template(n) => ("template", n),
+        Setting::Policy(n) => ("policy", n),
+        Setting::Model(n) => ("model", n),
+        Setting::Worker(_)
+        | Setting::Provider(_)
+        | Setting::Rules
+        | Setting::Limits
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal or taken refusal"),
+    }
+}
+
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
     use jig_domain_core::start::Failure;
     match failure {
+        Failure::Numbers { settings } => {
+            use jig_domain_core::settings::{NUMBERS, STOCK_NUMBERS};
+            use std::fmt::Write as _;
+            let own = STOCK_NUMBERS.checked_add(1).expect("own numbers follow stock");
+            let mut line = format!(
+                "settings out of their numbers (the stock's 1 to {STOCK_NUMBERS}, a deployment's own {own} to {NUMBERS}): "
+            );
+            for (at, numbered) in settings.iter().enumerate() {
+                if at != 0 {
+                    line.push_str(", ");
+                }
+                let source = if numbered.changed { "changed" } else { "default" };
+                let (kind, number) = numbered_setting(numbered.setting);
+                write!(line, "{source} {kind} {number}").expect("format numbered setting");
+            }
+            line
+        }
+        Failure::Taken { settings } => {
+            use std::fmt::Write as _;
+            let mut line = String::from(
+                "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): ",
+            );
+            for (at, setting) in settings.iter().enumerate() {
+                if at != 0 {
+                    line.push_str(", ");
+                }
+                let (kind, number) = numbered_setting(*setting);
+                write!(line, "{kind} {number}").expect("format taken setting");
+            }
+            line.push_str("; move each to 33 to 64 on the build that runs now, then start this one");
+            line
+        }
         Failure::Settings { failure, changed } => {
             let source = if *changed { "changed" } else { "default" };
             format!("{source} setting {:?}: {:?}", failure.setting, failure.fault)
@@ -342,7 +448,11 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
 fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> String {
     use std::fmt::Write as _;
     let Some(failure) = failure else { return "store load failed".into() };
-    let mut line = format!("{:?}", failure.cause);
+    let mut line = if let jig_protocol_store::restore::Cause::History { task, failure } = failure.cause {
+        format!("task {task} history fetch: {}", history_failure(failure))
+    } else {
+        format!("{:?}", failure.cause)
+    };
     if let Some(row) = &failure.row {
         if let Some(family) = row.family {
             write!(line, ", family {family:?}").expect("format restore family");
@@ -353,6 +463,27 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
         }
     }
     line
+}
+
+fn history_failure(failure: jig_protocol_store::restore::HistoryFailure) -> &'static str {
+    use jig_protocol_store::restore::HistoryFailure;
+    match failure {
+        HistoryFailure::LogId => "task has no history log id",
+        HistoryFailure::ExtentMissing => "history extent missing",
+        HistoryFailure::ExtentMalformed => "history extent malformed or unreadable",
+        HistoryFailure::PlaceMissing => "history place missing",
+        HistoryFailure::PlaceMalformed => "history place malformed or unreadable",
+        HistoryFailure::Unread => "generation cannot give the history frame",
+        HistoryFailure::Empty => "history fetch returned no frame",
+        HistoryFailure::FramePosition => "history frame position invalid",
+        HistoryFailure::FramePastExtent => "history frame past the extent",
+        HistoryFailure::FramePastPage => "history frame past the fetch page",
+        HistoryFailure::Record => "history record does not parse",
+        HistoryFailure::RecordTask => "history record names another task",
+        HistoryFailure::Incomplete => "history fetch ended before its extent",
+        HistoryFailure::Continuation => "history fetch continuation disagrees with its frame",
+        HistoryFailure::Arithmetic => "history fetch accounting overflow",
+    }
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps the engine vocabulary beside its words")]
@@ -367,6 +498,29 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
+            let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended; its changes {changes} wait again\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
+        temper_engine_service::Note::HoldDropped { name, task } => {
+            let branch = match name.what {
+                temper_engine_domain_forge::What::Branch(segments) => {
+                    segments.iter().map(|segment| String::from_utf8_lossy(segment)).collect::<Vec<_>>().join("/")
+                }
+                temper_engine_domain_forge::What::Repository => "repository".to_owned(),
+                temper_engine_domain_forge::What::Pull(number) => format!("pull {number}"),
+                temper_engine_domain_forge::What::Issue(number) => format!("issue {number}"),
+            };
+            format!(
+                "{binary} serve: warning: hold on {branch} of repository {}/{} by task {task}, which has no task: dropped\n",
+                name.forge, name.repository
+            )
+        }
         temper_engine_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -375,6 +529,26 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 temper_engine_domain_forge::LinkNote::Cleared => "cleared",
             };
             format!("forge {forge}'s person: {words}\n")
+        }
+        temper_engine_service::Note::LandingRefused { task, repository, branch, why, changes } => {
+            use std::fmt::Write as _;
+            let why = match why {
+                Some(why) => format!("{why:?}"),
+                None => "unknown".to_owned(),
+            };
+            let mut members = String::new();
+            for (index, change) in changes.iter().enumerate() {
+                if index != 0 {
+                    members.push_str(", ");
+                }
+                write!(members, "{change}").expect("format landing members");
+            }
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} not formed: jig refused its task: {why}; its changes {members} wait\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
         }
         temper_engine_service::Note::RunFailed(diagnostic) => run_failure_line(
             binary,
@@ -465,6 +639,14 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("listening {name} {addr}\n")
         }
 
+        temper_engine_service::Note::WorkerFigures { limits, endpoints, revision } => {
+            format!(
+                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, agents setting revision {revision}\n"
+            )
+        }
+        temper_engine_service::Note::WorkerFiguresTaken { worker } => {
+            format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
+        }
         temper_engine_service::Note::WorkerTold { worker, version, wait } => {
             let worker = String::from_utf8_lossy(&worker);
             match wait {
@@ -536,6 +718,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::SignedOut => "signed-out",
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
+                Kind::Figures => "figures",
                 Kind::Wires => "wires",
                 Kind::Ask => "ask",
                 Kind::Restarting => "restarting",
@@ -790,7 +973,7 @@ fn listener_failed_line(
         Some(skein_io::Error::TimedOut) => "timed out",
         Some(skein_io::Error::Reset) => "reset",
         Some(skein_io::Error::Busy) => "busy",
-        Some(skein_io::Error::Other) => "other",
+        Some(skein_io::Error::Reach(_) | skein_io::Error::Other) => "other",
         None => "closed",
     };
     format!("{binary} serve: {name} listener {address} failed: {why}\n")
@@ -853,6 +1036,7 @@ fn refusal(reason: temper_engine_service::Refusal) -> String {
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),
             Some(Reason::Stopping) => "stopping".into(),
+            Some(Reason::Starting) => "starting".into(),
             None => format!("code-{code}"),
         },
     }

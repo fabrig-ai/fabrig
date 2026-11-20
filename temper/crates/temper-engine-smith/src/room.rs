@@ -9,7 +9,12 @@ use temper_engine_domain::room::{Cost, HostPart};
 
 /// Measure the frame, models and declarations independently of either receiving bound.
 #[must_use]
-pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpoints) -> HostPart {
+pub fn host_part(
+    limits: Option<&run::Limits>,
+    allowance: u64,
+    endpoints: &Endpoints,
+    budgets: &jig_domain_core::CoreBriefBudgets,
+) -> HostPart {
     let mut longest = b"".as_slice();
     for endpoint in endpoints.entries() {
         if endpoint.name.len() > longest.len() {
@@ -24,7 +29,28 @@ pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpo
     charter.models = Box::new([charter.llm.clone()]);
     let model = difference(measure(&charter, limits, &endpoints), fixed);
     charter.models = Box::new([]);
-    let mut table = HostPart { allowance, fixed, model, ..HostPart::EMPTY };
+    let mut sections = List::with_capacity(6);
+    for (kind, budget) in [
+        (jig_domain_brief::Core::Task, budgets.task),
+        (jig_domain_brief::Core::TranscriptTail, budgets.tail),
+        (jig_domain_brief::Core::Results, budgets.dependencies),
+        (jig_domain_brief::Core::Attempts, budgets.attempts),
+        (jig_domain_brief::Core::Plan, budgets.plan),
+        (jig_domain_brief::Core::NotesIndex, budgets.notes),
+    ] {
+        let section = crate::section(&temper_engine_domain::BriefSection {
+            kind: temper_engine_domain::BriefKind::Core(kind),
+            body: temper_engine_domain::BriefBody::Text(skein_lib::bytes::zeroed(
+                usize::try_from(budget).expect("brief budget fits usize"),
+            )),
+        });
+        sections.push(section).expect("six floor sections");
+    }
+    charter.brief.sections = sections.into_boxed();
+    let mut floor = difference(measure(&charter, limits, &endpoints), fixed);
+    floor.rendered = 0;
+    charter.brief.sections = Box::new([]);
+    let mut table = HostPart { allowance, fixed, model, floor, ..HostPart::EMPTY };
     if let Some(limits) = limits {
         table.bound = Some(limits.host_part);
     }
@@ -40,22 +66,26 @@ pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpo
             table.asking = table.asking.plus(cost);
         }
     }
-    for mut tool in crate::calls::tools_for(
-        Duration::from_secs(1),
-        temper_engine_domain::RunPolicy::EVERY_FAMILY,
-        temper_engine_domain::RunPolicy::EVERY_FAMILY,
-    ) {
-        let family = match tool.name.as_ref() {
-            b"delegate" | b"goal" | b"change" | b"finding" | b"red" | b"follow" => Some(0),
-            b"settings" | b"propose_settings" => Some(10),
-            _ => None,
+    let widest = temper_engine_domain::RunPolicy::EVERY_FAMILY;
+    for spec in crate::calls::SPECS {
+        use crate::calls::Offer;
+        if !spec.offer.allows(widest, widest) {
+            continue;
+        }
+        let family = match spec.offer {
+            Offer::Every => None,
+            Offer::Family(family) => Some(family.0),
+            Offer::Settings { asking: _ } => Some(jig_domain_core::ToolFamilies::JIG.settings),
+            Offer::Asking => unreachable!("asking tools are measured separately"),
         };
+        let mut tool = crate::calls::declaration(spec, Duration::from_secs(1), true);
         // Charter 1's finite runs carry the reserved message and its wind-down words.
         tool.reserve = tool.name.as_ref() == b"message";
         charter.grants.host_tools = Box::new([tool]);
         let cost = difference(measure(&charter, limits, &endpoints), fixed);
         match family {
-            Some(index) => {
+            Some(family) => {
+                let index = usize::try_from(family.trailing_zeros()).expect("JIG family bit index");
                 let slot = table.families.get_mut(index).expect("JIG family slot");
                 *slot = slot.plus(cost);
             }

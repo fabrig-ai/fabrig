@@ -72,6 +72,10 @@ impl Joint {
     /// Carry an unlinked client's contract operation to the real core.
     /// # Errors
     /// Returns work outside this transport's declared Jig owner intact.
+    #[expect(
+        clippy::result_large_err,
+        reason = "unsupported client work is returned intact; task queries own their parts"
+    )]
     pub fn down(
         &mut self,
         client: ClientId,
@@ -386,12 +390,12 @@ mod tests {
         let mut front = front();
         let client = ClientId(0);
         Front::<Test>::bind(&mut front, client, 1);
-        Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let first = front.session.driver.transport.sign_in(client).expect("bound session");
         Front::<Test>::sign_out(&mut front, client, Time::ZERO, clock(Time::ZERO));
         for _ in 0..20 {
             let now = Front::<Test>::next_due(&front).unwrap_or(Time::ZERO);
-            let callbacks = Front::<Test>::poll(&mut front, now, clock(now));
+            let callbacks = poll(&mut front, now, clock(now));
             if callbacks.iter().any(|(owner, event)| *owner == client && matches!(event, Event::SignedOut)) {
                 return (front, first);
             }
@@ -407,7 +411,7 @@ mod tests {
         Front::<Test>::sign_in(&mut front, client, now, clock(now));
         for _ in 0..20 {
             let now = Front::<Test>::next_due(&front).unwrap_or(now);
-            Front::<Test>::poll(&mut front, now, clock(now));
+            poll(&mut front, now, clock(now));
             if front.session.driver.transport.sign_in(client).is_some_and(|sign_in| sign_in != first) {
                 break;
             }
@@ -472,12 +476,15 @@ mod tests {
     }
 
     use crate::joint::take_signed_in;
+    fn poll(front: &mut Joint, now: Time, wall: Wall) -> Vec<(ClientId, Event)> {
+        crate::joint::business_callbacks(Front::<Test>::poll(front, now, wall))
+    }
 
     #[test]
     fn the_generic_real_front_binds_a_supplied_identity_and_transfers_actual_durability_before_owner_callbacks() {
         let mut front = front();
         Front::<Test>::bind(&mut front, ClientId(0), 1);
-        let callbacks = take_signed_in(ClientId(0), Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO)));
+        let callbacks = take_signed_in(ClientId(0), poll(&mut front, Time::ZERO, clock(Time::ZERO)));
         assert_eq!(callbacks.len(), 1);
         assert!(matches!(
             &callbacks[0],
@@ -488,7 +495,7 @@ mod tests {
         assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         assert!(front.session.driver.transport.sign_in(ClientId(0)).is_some());
         Front::<Test>::fault(&mut front, Time::ZERO, FrontFault::SignedOut);
-        let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let callbacks = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(matches!(callbacks.as_slice(), [(ClientId(0), Event::SignedOut)]));
         assert_eq!(front.session.driver.transport.sign_in(ClientId(0)), None);
     }
@@ -533,7 +540,7 @@ mod tests {
         owner_limits.core.people.request_retention = Duration::from_secs(1);
         let mut front = front_with_limits(&owner_limits);
         Front::<Test>::bind(&mut front, ClientId(0), 1);
-        let initial = take_signed_in(ClientId(0), Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO)));
+        let initial = take_signed_in(ClientId(0), poll(&mut front, Time::ZERO, clock(Time::ZERO)));
         assert!(matches!(
             initial.as_slice(),
             [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { .. } } })]
@@ -545,7 +552,7 @@ mod tests {
         assert!(party.quiescent());
         assert_eq!(party.replies.len(), 2);
         assert_eq!(party.replies[1], (1_000_001, jig_fake_parties::Reply::Refused(jig_fake_parties::Refusal::Unknown)));
-        assert!(Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
+        assert!(poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
         let pressure = Front::<Test>::observed(&mut front);
         assert!(pressure.iter().any(|value| matches!(value, Observed::Made { key, .. } if *key == [61; 16])));
         let applied = front.session.driver.world.store.applied;
@@ -569,7 +576,7 @@ mod tests {
                 ..
             })
         )));
-        let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let callbacks = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
             attempt, envelope: RequestEnvelope::Again, answer: None, why: Some(jig_client::Retry::Full { held: 1, room_at }) } } })] if *attempt == Token::new(31) && *room_at == Wall::from_nanos(1_001_000_000_000))
@@ -578,9 +585,9 @@ mod tests {
         assert_eq!(front.session.driver.world.store.applied, applied);
         assert!(Front::<Test>::observed(&mut front).is_empty(), "Busy did not make or keep the client key");
         let later = Time::ZERO.saturating_add(Duration::from_secs(1));
-        assert!(Front::<Test>::poll(&mut front, later, clock(later)).is_empty(), "owner expiry is not a final answer");
+        assert!(poll(&mut front, later, clock(later)).is_empty(), "owner expiry is not a final answer");
         Front::<Test>::wire(&mut front, ClientId(0), later, clock(later), request(Token::new(32)));
-        let callbacks = Front::<Test>::poll(&mut front, later, clock(later));
+        let callbacks = poll(&mut front, later, clock(later));
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
             attempt, envelope: RequestEnvelope::Final, answer: Some(_), why: None } } })] if *attempt == Token::new(32))
@@ -601,7 +608,7 @@ mod tests {
         let mut front = front();
         front.unsigned_on_bind();
         Front::<Test>::bind(&mut front, ClientId(0), 1);
-        let _ = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let _ = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
         let rows = front.session.driver.world.store.rows.clone();
         let applied = front.session.driver.world.store.applied;
@@ -618,7 +625,7 @@ mod tests {
                 ..
             })
         )));
-        assert!(Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
+        assert!(poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
         assert_eq!(front.session.sign_in_again(ClientId(0)), Some(people::Again::NotReady));
         assert_eq!(front.session.driver.transport.sign_in(ClientId(0)), None);
         assert_eq!(front.session.driver.world.store.rows, rows);
@@ -626,7 +633,7 @@ mod tests {
         assert_eq!(front.session.driver.world.commits.len(), commits);
         assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         let later = Time::ZERO.saturating_add(delay);
-        assert!(Front::<Test>::poll(&mut front, later, clock(later)).is_empty());
+        assert!(poll(&mut front, later, clock(later)).is_empty());
         assert!(!front.session.driver.world.store.loading());
         assert_eq!(front.session.driver.transport.sign_in(ClientId(0)), None);
         assert_eq!(front.session.sign_in_again(ClientId(0)), Some(people::Again::NotReady));
@@ -634,7 +641,7 @@ mod tests {
         assert_eq!(front.session.driver.world.store.applied, applied + 1);
         assert_eq!(front.session.driver.world.commits.len(), commits + 1);
         Front::<Test>::sign_in(&mut front, ClientId(0), later, clock(later));
-        assert!(take_signed_in(ClientId(0), Front::<Test>::poll(&mut front, later, clock(later))).is_empty());
+        assert!(take_signed_in(ClientId(0), poll(&mut front, later, clock(later))).is_empty());
         assert!(front.session.driver.transport.sign_in(ClientId(0)).is_some());
         assert_eq!(front.session.sign_in_again(ClientId(0)), None);
         assert!(front.session.driver.world.store.applied > applied);
@@ -646,7 +653,7 @@ mod tests {
         use skein_lib::RequestEnvelope;
         let mut front = front();
         Front::<Test>::bind(&mut front, ClientId(0), 1);
-        let _ = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let _ = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
         let session = front.session.driver.transport.sign_in(ClientId(0)).expect("actual authenticated source");
         let rows = front.session.driver.world.store.rows.clone();
@@ -677,7 +684,7 @@ mod tests {
                 })
             )
         ));
-        let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let callbacks = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
             attempt, envelope: RequestEnvelope::Again, answer: None, why: Some(jig_client::Retry::NotReady) } } })] if *attempt == Token::new(41))
@@ -689,14 +696,14 @@ mod tests {
         assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         assert_eq!(front.session.driver.transport.sign_in(ClientId(0)), Some(session));
         let later = Time::ZERO.saturating_add(delay);
-        assert!(Front::<Test>::poll(&mut front, later, clock(later)).is_empty(), "page release is not a final reply");
+        assert!(poll(&mut front, later, clock(later)).is_empty(), "page release is not a final reply");
         assert!(!front.session.driver.world.store.loading());
         assert!(!front.session.driver.world.hold_restore_pages);
         assert_eq!(front.session.driver.world.store.rows, jig_core_kit::store_peer::with_start_mark(&rows));
         assert_eq!(front.session.driver.world.store.applied, applied + 1);
         assert_eq!(Front::<Test>::observed(&mut front), vec![Observed::Durable { commit: applied + 1, at: later }]);
         Front::<Test>::wire(&mut front, ClientId(0), later, clock(later), request(Token::new(42)));
-        let callbacks = Front::<Test>::poll(&mut front, later, clock(later));
+        let callbacks = poll(&mut front, later, clock(later));
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
             attempt, envelope: RequestEnvelope::Final, answer: Some(_), why: None } } })] if *attempt == Token::new(42))
@@ -717,13 +724,13 @@ mod tests {
     fn the_real_front_version_fault_uses_the_supplied_whole_protocol_range_independently_of_business_frames() {
         let mut front = front();
         Front::<Test>::bind(&mut front, ClientId(0), 1);
-        let _ = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let _ = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
         let rows = front.session.driver.world.store.rows.clone();
         let supplied = client::VersionRange { first: u32::MAX, last: u32::MAX };
         front.version_fault(supplied);
         Front::<Test>::fault(&mut front, Time::ZERO, FrontFault::Versions);
-        let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let callbacks = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(matches!(
             callbacks.as_slice(),
             [(
@@ -743,17 +750,18 @@ mod tests {
         let mut front = front();
         front.restart_configuration(|| jig_test_profile::config(8455));
         Front::<Test>::bind(&mut front, ClientId(0), 1);
-        let _ = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
+        let _ = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
         let span = skein_lib::Duration::from_secs(1);
         Front::<Test>::fault(&mut front, Time::ZERO, FrontFault::Restart { offline: span });
         let observed = Front::<Test>::observed(&mut front);
         assert!(matches!(observed.first(), Some(Observed::Reachable { live: false })));
+        assert!(poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty(), "the stream's me ends first");
         assert_eq!(Front::<Test>::next_due(&front), Some(Time::ZERO.saturating_add(span)));
-        assert!(Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
+        assert!(poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
         assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         let until = Time::ZERO.saturating_add(span);
-        let callbacks = Front::<Test>::poll(&mut front, until, clock(until));
+        let callbacks = poll(&mut front, until, clock(until));
         assert!(matches!(
             callbacks.as_slice(),
             [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { .. } } })]
@@ -768,7 +776,7 @@ mod tests {
 fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     use crate::harness::Front;
     use jig_client::contract as c;
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     use skein_lib::Writer;
     let now = Time::ZERO;
     let wall = super::fixture::clock(now);

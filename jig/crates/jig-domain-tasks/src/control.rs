@@ -265,6 +265,8 @@ pub struct DependencyPlace {
 /// Amend a task with its root-issued message (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Amend {
+    /// The giver's source for a widening or an accepted proposal (domain/authority.md, 7 and 9).
+    pub funder: Option<crate::Funder>,
     pub task: u64,
     pub message: u64,
     pub stop_run: bool,
@@ -292,7 +294,7 @@ pub(crate) fn amend(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    (by, funder): (Party, Option<crate::Funder>),
+    by: Party,
     change: Amend,
     places: &[DependencyPlace],
     out: &mut Queue<Request>,
@@ -302,7 +304,7 @@ pub(crate) fn amend(
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    match check_amend(domain, &Staged::new(0), env, by, change, places, funder) {
+    match check_amend(domain, &Staged::new(0), env, by, change, places) {
         Ok(plan) => {
             apply_amend(domain, env, by, plan, out);
             out.push(Request::Done { reply_to: to });
@@ -319,10 +321,9 @@ pub(crate) fn check_amend(
     by: Party,
     amendment: Amend,
     places: &[DependencyPlace],
-    funder: Option<crate::Funder>,
 ) -> Result<AmendPlan, Box<crate::Problem>> {
     let number = amendment.task;
-    let mut plan = match check_amend_fields(domain, staged, env, by, amendment, funder) {
+    let mut plan = match check_amend_fields(domain, staged, env, by, amendment) {
         Ok(plan) => plan,
         Err(why) => return Err(Box::new(crate::Problem::new(Some(number), why))),
     };
@@ -482,10 +483,9 @@ fn check_amend_fields(
     env: &Env<Limits>,
     by: Party,
     amendment: Amend,
-    funder: Option<crate::Funder>,
 ) -> Result<AmendPlan, Refusal> {
-    let Amend { task: number, message, stop_run, amendment } = amendment;
-    let amendment = *amendment;
+    let Amend { task: number, message, stop_run, amendment, funder } = amendment;
+    let mut amendment = *amendment;
     if !domain.ready() {
         return Err(Refusal::NotReady);
     }
@@ -663,6 +663,12 @@ fn check_amend_fields(
                 .expect("authenticated amendment has a merged inbox slot"),
         )
     };
+    if let Some((_, budget)) = funding
+        && let Some(authority) = &mut amendment.authority
+    {
+        let spent = crate::funders::total(old.numbers).expect("refunding checked spend");
+        authority.budget.spend = budget.checked_sub(spent).expect("refunding checked budget");
+    }
     Ok(AmendPlan {
         funding,
         number,
@@ -879,12 +885,26 @@ fn control_entrance(
     let to = entrance(domain, to, number)?;
     let permitted = match by {
         Party::Deployment { project } => match record(domain, number) {
-            Some(task) => task.project == project && (cancelling || own_hold(task)),
+            Some(task) => task.project == project && (cancelling || own_hold(task) || connector_resource_hold(task)),
             None => false,
         },
         Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
     };
     if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
+}
+
+// A connector's resource account is released after the application checks its kept revision
+// (`jig/docs/design/domain/tasks/changes.md`, *Who may*).
+fn connector_resource_hold(task: &crate::TaskRecord) -> bool {
+    if task.placed.is_some() {
+        return false;
+    }
+    if let Phase::Held { why: crate::Hold::ResourceUnavailable, source: Some(source), .. } = &task.phase
+        && let crate::HoldSource::Account { .. } = source.as_ref()
+    {
+        return true;
+    }
+    false
 }
 
 // A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks/changes.md).

@@ -534,6 +534,8 @@ pub enum Contract {
         kind: u16,
         /** Maximum change-report bytes, no greater than `Limits::result_bytes`. */
         words: u32,
+        /// Successful no-resource verdicts; distinct codes bounded as a verdict contract's choices.
+        choices: Box<[Verdict]>,
     },
 }
 
@@ -1270,6 +1272,9 @@ pub struct TaskRecord {
     pub last_message: u64,
     /// Whole unread words in increasing root message order.
     pub inbox: Box<[Word]>,
+    /// Directing words taken by a run but not recorded, in increasing message order
+    /// (jig/docs/design/domain/tasks/messages.md, 2).
+    pub unrecorded: Box<[Word]>,
     /// Resource names with saved state, ordered and unique.
     pub saved: Box<[SavedResource]>,
     /// Some attempt of this task committed a turn, so its next preparation must read its transcript.
@@ -1296,6 +1301,9 @@ pub struct TaskRecord {
     pub asked_requester: bool,
     /// Newest open question that woke it at a park with a timer or live task watch; never lowered.
     pub question_woken: u64,
+    /// Newest unrecorded words that woke an idle park; 0 for none, never lowered
+    /// (jig/docs/design/domain/tasks/lifecycle.md, 2).
+    pub words_woken: u64,
     /// Current attempt (domain/tasks/lifecycle.md, 12.1).
     pub open_attempt: Option<crate::OpenAttempt>,
 }
@@ -1433,6 +1441,9 @@ pub enum Refusal {
     },
     /// A required resource is unavailable in this project.
     ResourceUnavailable,
+    /// A batch's reports did not all come within `tasks.hold_wait`;
+    /// `blocked_by` names its missing members in batch order (domain/tasks/holds.md, 2).
+    Unreported,
     /// Startup is restoring, checked or failed; no mutation is admitted.
     NotReady,
     /// Named creator/task is not in the live arena.
@@ -1535,7 +1546,8 @@ pub struct Problem {
     /// The tasks the refusal names: the live delegates that prevented a finish, in the requester's
     /// current order; a circle's tasks; an unreachable dependency; an ended dependency;
     /// omitted dependencies marked started from; or the
-    /// pending dependencies keeping the task. Absent for every other refusal.
+    /// pending dependencies keeping the task; or `Unreported` members whose resources
+    /// lack reports, in batch order. Absent for every other refusal.
     pub blocked_by: Option<Box<[u64]>>,
     /// Exact room check metadata; absent for shape, state and other refusals.
     pub capacity: Option<crate::Capacity>,
@@ -1583,6 +1595,13 @@ pub enum Accepted {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
+    /// Record a live task's kept words. Root checks that the caller is its run
+    /// (jig/docs/design/domain/tasks/messages.md, 2).
+    RecordWords {
+        reply_to: ReplyTo,
+        task: u64,
+        messages: Box<[u64]>,
+    },
     /// Root-authorized concluding word (domain/tasks/gatherings.md, 3).
     Conclude {
         reply_to: ReplyTo,
@@ -1780,8 +1799,6 @@ pub enum Event {
         reply_to: ReplyTo,
         by: Party,
         operation: crate::Amend,
-        /// The accepter's source; a direct amendment keeps its present funding.
-        funder: Option<Funder>,
     },
     /// Root-authorized person adoption of one live task, with its reservation moved to that person's pool.
     Move {
@@ -1800,6 +1817,13 @@ pub enum Event {
     },
     /// Root-authorized connector topic interest with the same durable task subscription.
     SubscribeTopic {
+        reply_to: ReplyTo,
+        task: u64,
+        subscription: Subscription,
+    },
+    /// Root-authorized connector topic admitted one past the task's `subscriptions`
+    /// (domain/tasks/messages.md, 4).
+    SubscribeTopicApart {
         reply_to: ReplyTo,
         task: u64,
         subscription: Subscription,
@@ -1909,8 +1933,8 @@ pub enum Event {
         task: u64,
         /// Waiting revision, never a root transport receipt.
         revision: u64,
-        /// Positive authenticated deciding person.
-        by: u64,
+        /// Positive authenticated deciding task or person.
+        by: crate::EscalationDecider,
         /// Root-numbered next holder entry on pass only.
         entry: Option<u64>,
         /// Bounded authorized release/reject/pass choice.
@@ -2063,6 +2087,8 @@ pub enum Event {
         attempt: u64,
         /// Whether the prepared run includes an earlier committed transcript.
         resumed: bool,
+        /// Why the claim's preparation began fresh with an earlier window.
+        fresh: Option<crate::Fresh>,
         /// Root-checked allowance reserved from the task at this claim.
         budget: u64,
         /// Checked main account; success keeps it in this same claim decision.
@@ -2226,6 +2252,9 @@ pub enum Event {
 /// saves/erases with effects and delays outward replies until durability. (domain/tasks/lifecycle.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Numbers recorded, and numbers naming none of this task's unrecorded words
+    /// (jig/docs/design/domain/tasks/messages.md, 2).
+    WordsRecorded { reply_to: ReplyTo, task: u64, recorded: Box<[u64]>, unknown: Box<[u64]> },
     /// Placed hold lifted; count of tasks released from their held phase.
     Lifted { reply_to: ReplyTo, released: u32 },
     /// The selected live agent tasks moved to the newest, and those that could not move.

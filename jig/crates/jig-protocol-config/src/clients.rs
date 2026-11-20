@@ -20,9 +20,19 @@ pub(crate) fn parse(
     at: u32,
     path: &Path,
     directories: &Directories,
+    fixed: Option<&crate::FixedClients>,
     problems: &mut Problems,
 ) -> Option<Clients> {
     let mut object = check::object(document, at, path, problems, "clients")?;
+    if let Some(given) = fixed {
+        for name in [b"heartbeat_ms".as_slice(), b"link", b"approval"] {
+            crate::fixed::refuse(&mut object, document, name, path, problems);
+        }
+        let mut clients = given.clients();
+        clients.provider = provider::parse(&mut object, document, path, directories, problems);
+        object.finish(document, path, problems);
+        return Some(clients);
+    }
     let heartbeat = check::duration(&mut object, document, b"heartbeat_ms", path, problems);
     let mut link = None;
     if let Some(at) = object.required(document, b"link", path, problems) {
@@ -161,7 +171,7 @@ pub(crate) fn check_provider(engine: &crate::Engine, problems: &mut Problems) {
     }
 }
 
-/// Refuse configurations whose admitted settings exceed client wire 23.
+/// Refuse configurations whose admitted settings exceed the client wire.
 pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     let core = &limits.core;
     let wire = &limits.clients.wire;
@@ -176,9 +186,9 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     if core.settings.proposals > wire.settings_document_pending {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
-    // Defaults and changes may name disjoint settings; model numbers share one 64-row range.
+    // Defaults and changes may name disjoint settings; model, worker and provider numbers each share their bounded range.
     let inventory = match jig_domain_core_vocabulary::settings::capacity(core) {
-        Some(count) => inventory_settings(count),
+        Some(count) => inventory_settings(count, core.fleet.configured_workers),
         None => None,
     };
     if match inventory {
@@ -189,7 +199,22 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"core.templates"), crate::What::Bound);
         problems.push(path.member(b"authority.projects"), crate::What::Bound);
     }
+    // A task may hold one connector topic past its ordinary subscription bound.
+    let subscriptions_ceiling =
+        wire.subscriptions_entries.min(jig_protocol_store::tasks_v13::CEILINGS.task_interests_subscriptions);
+    if match core.tasks.subscriptions.checked_add(1) {
+        Some(count) => count > subscriptions_ceiling,
+        None => true,
+    } {
+        problems.push(path.member(b"tasks.subscriptions"), crate::What::Bound);
+    }
     for (name, value, maximum) in [
+        (b"fleet.configured_workers".as_slice(), core.fleet.configured_workers, wire.deployment_worker_settings),
+        (
+            b"fleet.worker_name_bytes".as_slice(),
+            core.fleet.worker_name_bytes,
+            wire.worker_setting_name.min(wire.worker_state_name),
+        ),
         (b"accounts.accounts".as_slice(), core.accounts.accounts, wire.me_model_accounts),
         (b"core.templates".as_slice(), core.templates, wire.me_project_defaults),
         (b"authority.roles".as_slice(), core.authority.roles, wire.setting_policy_roles),
@@ -216,15 +241,19 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         }
     }
 }
-fn inventory_settings(count: u32) -> Option<u32> {
-    count.checked_mul(2)?.checked_sub(jig_domain_tasks::MODELS)
+fn inventory_settings(count: u32, workers: u32) -> Option<u32> {
+    count
+        .checked_mul(2)?
+        .checked_sub(jig_domain_tasks::MODELS)?
+        .checked_sub(workers)?
+        .checked_sub(jig_domain_core_vocabulary::settings::PROVIDERS)
 }
 
 #[cfg(test)]
 mod settings_tests {
     use super::*;
     fn ceiling(name: &[u8], maximum: u32) {
-        let mut limits = crate::profile(crate::Profile::Small);
+        let mut limits = crate::stock();
         crate::overrides::apply(&mut limits, name, u64::from(maximum)).unwrap();
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
@@ -236,7 +265,7 @@ mod settings_tests {
     }
     #[test]
     fn settings_proposal_reasons_fit_the_wire() {
-        let mut limits = crate::profile(crate::Profile::Small);
+        let mut limits = crate::stock();
         limits.clients.wire.document_text_bytes = limits.core.people.words;
         limits.core.documents.text_bytes = 128;
         limits.core.notes.body_bytes = 128;
@@ -252,15 +281,30 @@ mod settings_tests {
         );
     }
     #[test]
+    fn subscriptions_leave_room_for_one_apart_topic_in_both_codecs() {
+        ceiling(b"tasks.subscriptions", 31);
+        let mut limits = crate::stock();
+        limits.clients.wire.subscriptions_entries = 0;
+        limits.core.tasks.subscriptions = 0;
+        let mut problems = Problems::empty();
+        check_settings(&limits, &mut problems);
+        assert_eq!(problems.problems.len(), 1, "even a zero ordinary bound needs the apart slot");
+        assert_eq!(
+            problems.problems.get(0).unwrap().path,
+            Path::root().member(b"limits").member(b"tasks.subscriptions")
+        );
+    }
+
+    #[test]
     fn pending_settings_fit_the_wire_inventory() {
-        let maximum = crate::profile(crate::Profile::Small).clients.wire.settings_document_pending;
+        let maximum = crate::stock().clients.wire.settings_document_pending;
         ceiling(b"core.settings.proposals", maximum);
     }
     #[test]
     fn offer_accounts_and_template_previews_fit_the_wire() {
         for (name, field) in [(b"accounts.accounts".as_slice(), "accounts"), (b"core.templates".as_slice(), "defaults")]
         {
-            let mut limits = crate::profile(crate::Profile::Small);
+            let mut limits = crate::stock();
             let value = if field == "accounts" { limits.core.accounts.accounts } else { limits.core.templates };
             if field == "accounts" {
                 limits.clients.wire.me_model_accounts = value;
@@ -333,22 +377,20 @@ mod settings_tests {
     }
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
-        let mut limits = crate::profile(crate::Profile::Small);
-        // Small has eleven other slots in each set and one shared 64-row model range.
-        limits.core.tasks.charters = 85;
+        let mut limits = crate::stock();
+        // Stock has 26 other slots per set and shared ranges of 64 models, 64 workers and 16 providers.
+        limits.core.tasks.charters = 158;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 86;
+        limits.core.tasks.charters = 159;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }
     #[test]
     fn profile_core_shares_remain_representable() {
-        for profile in [crate::Profile::Small, crate::Profile::Standard] {
-            let limits = crate::profile(profile);
-            assert!(jig_domain_core_vocabulary::valid(&limits.core), "a profile's core limits are representable");
-        }
+        let limits = crate::stock();
+        assert!(jig_domain_core_vocabulary::valid(&limits.core), "a profile's core limits are representable");
     }
 }
 
@@ -359,27 +401,27 @@ mod proposal_settings_tests {
     fn proposal_heads_and_review_fit_their_wire_ceilings() {
         // settings-v1's proposal holds 128 heads; the review shares Owned.record's document ceiling.
         for (proposal, retained, review, expected) in [
-            (128, 128, jig_client_protocol_wire::v26::CEILINGS.owned_record, None),
+            (128, 128, jig_client_protocol_wire::CEILINGS.owned_record, None),
             (
                 127,
                 128,
-                jig_client_protocol_wire::v26::CEILINGS.owned_record,
+                jig_client_protocol_wire::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 127,
-                jig_client_protocol_wire::v26::CEILINGS.owned_record,
+                jig_client_protocol_wire::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 128,
-                jig_client_protocol_wire::v26::CEILINGS.owned_record - 1,
+                jig_client_protocol_wire::CEILINGS.owned_record - 1,
                 Some(b"clients.wire.settings_review".as_slice()),
             ),
         ] {
-            let mut limits = crate::profile(crate::Profile::Small);
+            let mut limits = crate::stock();
             limits.clients.wire.proposal_action_settings_items = proposal;
             limits.clients.wire.retained_action_settings_items = retained;
             limits.clients.wire.settings_review_items = review;

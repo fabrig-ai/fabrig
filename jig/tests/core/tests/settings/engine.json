@@ -1,6 +1,6 @@
 {
   "limits": {
-    "profile": "small"
+    "profile": "standard"
   },
   "llm": {
     "providers": [
@@ -20,7 +20,7 @@
         "name": "fake",
         "number": 1,
         "dialect": 3,
-        "provider": "fake-provider",
+        "provider": "Fake",
         "address": {
           "socket": "127.0.0.1:7101"
         },
@@ -46,16 +46,6 @@
     ]
   },
   "hosts": {
-    "workers": [
-      {
-        "name": "worker-a",
-        "digest": "secrets/worker-a.digest"
-      },
-      {
-        "name": "worker-b",
-        "digest": "secrets/worker-b.digest"
-      }
-    ],
     "listener": [
       {
         "in_process": "workers"

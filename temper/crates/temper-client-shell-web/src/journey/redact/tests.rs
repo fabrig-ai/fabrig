@@ -33,6 +33,31 @@ fn changed(lines: &[Line], given: &[Box<[u8]>]) -> (Redacted, Vec<Line>) {
 fn lines_of(result: &Redacted) -> Vec<Line> {
     lines(&result.recording).expect("redacted lines read")
 }
+#[test]
+fn a_replacement_query_redacts_to_the_hex_of_its_kept_stream_name() {
+    let hex = "61622f2b3d223c265c73616d706c6521";
+    for (prefix, suffix) in [("?", ""), ("?version=32&", ""), ("?", "&version=32")] {
+        let source = [
+            Line::Stored { key: jig_client::STREAM_KEY.into(), value: kept(VALUE) },
+            Line::Open {
+                piece: 64,
+                path: format!("/jig/v1/stream{prefix}replaces={hex}{suffix}").into_bytes().into(),
+                headers: vec![],
+            },
+        ];
+        let (_, redacted) = changed(&source, &[]);
+        let [Line::Stored { value, .. }, Line::Open { path, .. }] = redacted.as_slice() else {
+            panic!("stored name and opening")
+        };
+        let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(value)).expect("kept name");
+        assert_eq!(kept.record(), HIDDEN);
+        assert_eq!(
+            path.as_ref(),
+            format!("/jig/v1/stream{prefix}replaces=78787878787878787878787878787878{suffix}").as_bytes()
+        );
+    }
+}
+
 fn input(value: &[u8]) -> Line {
     Line::Act {
         act: Act::Input { value: value.into() },
@@ -51,6 +76,7 @@ fn exchange(body: &[u8]) -> Line {
     Line::Exchange {
         id: 1,
         bound: 256,
+        pieces: None,
         method: b"POST".as_slice().into(),
         path: b"/".as_slice().into(),
         body: body.into(),
@@ -102,7 +128,7 @@ type TextField = (&'static str, fn(Box<[u8]>) -> Line);
 
 #[expect(
     clippy::too_many_lines,
-    reason = "the table names each field, form and piece boundary of client/web/journeys.md, 3.6"
+    reason = "the table names each field, form and piece boundary of client/web/journey-redaction.md"
 )]
 fn places() -> Vec<Case> {
     let mut cases = vec![
@@ -217,7 +243,15 @@ fn places() -> Vec<Case> {
 }
 
 fn request(path: Box<[u8]>, headers: Vec<skein_ui_web::transport::Header>) -> Line {
-    Line::Exchange { id: 1, bound: 256, method: b"POST".as_slice().into(), path, body: Box::default(), headers }
+    Line::Exchange {
+        id: 1,
+        bound: 256,
+        pieces: None,
+        method: b"POST".as_slice().into(),
+        path,
+        body: Box::default(),
+        headers,
+    }
 }
 
 #[test]
@@ -274,6 +308,27 @@ fn each_kind_goes_from_each_place() {
     }
     eprintln!("kind/place table: {rows} rows, {failures} failures");
     assert_eq!(failures, 0, "each kind must go from each place");
+}
+
+#[test]
+fn a_batch_part_redacts_as_an_answered_body() {
+    // Percent forms keep their own encoded length in either kind of body.
+    let body = framed(UPPER);
+    let expected = framed(&vec![b'x'; UPPER.len()]);
+    let (_, lines) = changed(
+        &[
+            Line::Heard(Heard::Part { exchange: 7, bytes: body.clone() }),
+            Line::Heard(Heard::Answered { exchange: 8, status: 200, body, headers: Vec::new() }),
+        ],
+        &[VALUE.into()],
+    );
+    assert_eq!(
+        lines,
+        vec![
+            Line::Heard(Heard::Part { exchange: 7, bytes: expected.clone() }),
+            Line::Heard(Heard::Answered { exchange: 8, status: 200, body: expected, headers: Vec::new() }),
+        ]
+    );
 }
 
 #[test]
@@ -379,27 +434,30 @@ fn an_undecodable_data_line_refuses() {
 }
 
 #[test]
-fn the_committed_recordings_redact() {
-    let journeys = skein_scratch::paths::tree().join("docs/design/client/web/journeys");
-    let mut count = 0;
-    for entry in std::fs::read_dir(journeys).expect("journeys") {
-        let path = entry.expect("journey").path().join("recording");
-        if !path.is_file() {
-            continue;
-        }
-        count += 1;
-        let recording = std::fs::read(path).expect("recording");
-        let output = redact(&recording, &[]).expect("committed recording redacts");
-        for line in lines(&recording).expect("committed lines") {
-            if let Line::Secret(value) = line
-                && !value.iter().all(|byte| *byte == b'x')
-            {
-                assert!(find(&output.recording, &value).is_none(), "committed secret gone");
-            }
+fn a_host_walk_redacts_its_link_secret() {
+    use crate::{
+        host::Report,
+        journey::{Recorder, tests::facts},
+    };
+    let secret = ["walk", "-secret"].concat().into_bytes();
+    let facts = crate::journey::Facts { secret: Some(secret.clone().into()), ..facts() };
+    let (mut host, mut page) = facts.start();
+    let mut recorder = Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    let recording = recorder.save(&page);
+    let records = lines(&recording).expect("host lines");
+    assert!(records.iter().any(|line| matches!(line, Line::Secret(value) if value.as_ref() == secret)));
+    let output = redact(&recording, &[]).expect("host walk redacts");
+    assert_eq!(output.originals.count(Kind::Link), 1);
+    assert!(find(&output.recording, &secret).is_none(), "link secret gone");
+    for line in lines(&output.recording).expect("redacted host lines") {
+        if let Line::Secret(value) = line {
+            assert!(value.iter().all(|byte| *byte == b'x'), "no Secret original remains");
         }
     }
-    eprintln!("committed recordings checked: {count}");
-    assert!(count > 0, "committed recordings checked");
 }
 
 #[test]

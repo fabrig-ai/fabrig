@@ -108,7 +108,10 @@ fn activity(rng: &mut Rng, now: Wall) -> Wall {
 }
 
 fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
-    let mut facts = work::Facts::default();
+    let mut facts = work::Facts {
+        known: work::Known { goals: true, needs: true, milestones: true, chats: true, changes: true, drafts: true },
+        ..work::Facts::default()
+    };
     for _ in 0..rng.between(0, ROWS) {
         facts
             .milestones
@@ -145,7 +148,16 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         };
         let parties = if rng.chance(500) { vec![1, 5] } else { vec![] };
         let signed = if matches!(at, Where::Landed { .. }) {
-            let words = work::signed(1, &parties, Some(&jig_client_kit::stories::project()));
+            let signers: Vec<_> = parties
+                .iter()
+                .map(|party| temper_client_protocol_wire::v1::ChangesSigned {
+                    party: *party,
+                    name: Some(b"Sam".as_slice().into()),
+                    head: [0; 32],
+                    at: 0,
+                })
+                .collect();
+            let words = work::signed(1, &signers);
             assert_eq!(words.is_some(), !parties.is_empty(), "only nonempty sign-offs have words");
             words
         } else {

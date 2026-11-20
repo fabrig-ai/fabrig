@@ -23,6 +23,7 @@ fn preparing() -> Harness {
 }
 fn claim(h: &mut Harness, attempt: u64, account: u32, budget: u64) {
     h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,
@@ -89,6 +90,7 @@ fn amend_choice(h: &mut Harness, account: Option<u32>) {
     choice.account = account;
     h.send(Event::Amend {
         operation: crate::Amend {
+            funder: None,
             task: TASK,
             message,
             stop_run: false,
@@ -106,7 +108,6 @@ fn amend_choice(h: &mut Harness, account: Option<u32>) {
             }),
         },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: crate::Party::Person(9),
     });

@@ -18,6 +18,7 @@ use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
 mod admission;
 mod constructors;
+mod sweep;
 mod walking;
 pub use walking::{Scenario, Walking};
 mod deliveries;
@@ -39,6 +40,8 @@ pub struct Setup {
     pub disk_store: bool,
     pub peers: Option<crate::peers::Peers>,
     pub cut: Option<Cut>,
+    /// Fork these cuts during the real first start and the following story.
+    pub sweep: Vec<Cut>,
     pub clock: Option<(Time, Wall)>,
     pub boot: Boot,
     pub require_assignment: bool,
@@ -66,6 +69,7 @@ impl Default for Setup {
             disk_store: false,
             peers: None,
             cut: None,
+            sweep: Vec::new(),
             clock: None,
             boot: Boot::Caller,
             require_assignment: true,
@@ -81,6 +85,8 @@ pub enum Cut {
     Submitted(u64),
     /// The rows are durable but the root has not received the completion.
     Durable(u64),
+    /// Fail this submitted commit through the store's ordinary failure path.
+    Failed(u64),
     /// Stop the simulated disk from a submission or restart open.
     Disk { from: jig_test_store_files::KillFrom, operation: u32 },
 }
@@ -227,6 +233,11 @@ pub struct World {
     pub cut: Option<Cut>,
     /// The boundary at which the last drain paused.
     pub reached_cut: Option<Cut>,
+    /// Cuts whose children completed their checks and closing oracle, in order.
+    pub forked: Vec<Cut>,
+    sweep: Vec<Cut>,
+    fork_child: Option<Cut>,
+    case_child: bool,
     hold_kinds: Vec<(u16, Box<[tasks::Kind]>)>,
     wall: u64,
     wall_lag: u64,
@@ -234,13 +245,6 @@ pub struct World {
 }
 
 impl World {
-    fn configure_disk(&mut self, selected: bool, sets: jig_protocol_store::OwnerSets) {
-        if selected {
-            assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
-            self.store = Store::on_disk(&self.limits, &self.restart_config.0.core.settings.models);
-        }
-    }
-
     /// A scripted worker declares the job kinds it can host (domain/engine/executors.md, 5).
     pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[JobBound]>) {
         let mut bounds = jig_test_profile::fixtures::bounds();
@@ -476,7 +480,9 @@ impl World {
                     self.trace.push(format!("output {request:?}"));
                 }
                 match request {
-                    root::Request::StoreCatalogue { .. } | root::Request::ClientsCatalogue { .. } => {}
+                    root::Request::Workers(_)
+                    | root::Request::StoreCatalogue { .. }
+                    | root::Request::ClientsCatalogue { .. } => {}
                     root::Request::Start { phase, census } => self.start_step(phase, census),
 
                     root::Request::Commit { number, mut writes } => {
@@ -500,7 +506,14 @@ impl World {
                         self.commits.push(rows.clone());
                         self.store.submit(number, rows.into_boxed_slice(), self.store_delay);
                         self.observer.submitted(self.wall, &self.store)?;
-                        if self.cut == Some(Cut::Submitted(number)) {
+                        if self.cut == Some(Cut::Failed(number))
+                            || (!self.sweep.is_empty() && self.fork_cut(Cut::Failed(number))?)
+                        {
+                            self.store.fault(jig_test_store_files::Fault::Fail { commit: number });
+                        }
+                        if self.cut == Some(Cut::Submitted(number))
+                            || (!self.sweep.is_empty() && self.fork_cut(Cut::Submitted(number))?)
+                        {
                             self.reached_cut = self.cut.take();
                             return Ok(());
                         }
@@ -622,11 +635,16 @@ impl World {
                 if let Some(peer) = &mut self.store_peer {
                     peer.capture(Time::from_nanos(self.wall), &self.store);
                 }
+                if !self.sweep.is_empty() {
+                    self.collect_disk_forks();
+                }
                 if self.store.reached_kill() {
                     self.reached_cut = self.cut.take();
                     return Ok(());
                 }
-                if self.cut == Some(Cut::Durable(self.store.applied)) {
+                if self.cut == Some(Cut::Durable(self.store.applied))
+                    || (!self.sweep.is_empty() && self.fork_cut(Cut::Durable(self.store.applied))?)
+                {
                     self.reached_cut = self.cut.take();
                     return Ok(());
                 }

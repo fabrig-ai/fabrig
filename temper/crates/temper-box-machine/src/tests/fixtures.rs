@@ -44,7 +44,7 @@ impl Rig {
         rig
     }
     pub fn running() -> Self {
-        let mut rig = Self::new(&limits::small());
+        let mut rig = Self::new(&limits::stock());
         rig.completed(PREPARE);
         rig.started(FORGEJO);
         rig.started(RUNNER);
@@ -149,11 +149,14 @@ pub struct HeldEndings {
     pub completions: Queue<Complete>,
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "Independent faults held at the simulated shell boundary")]
 pub struct Harness {
     pub sim: Sim,
     pub pid: Pid,
     pub service: Service,
     pub launches: List<Launch>,
+    pub group_opens: List<(u16, core::net::SocketAddr, u32)>,
+    pub open_groups: bool,
     pub machine: FakeMachine,
     pub signals: Fd,
     pub stderr: Fd,
@@ -168,6 +171,7 @@ pub struct Harness {
     pub hold_spawn: Option<Box<[u8]>>,
     pub held_spawn: Option<Call>,
     pub refuse_log: Option<Box<[u8]>>,
+    pub refuse_remove: Option<Box<[u8]>>,
     pub hold_log_write: bool,
     pub held_log_write: Option<Call>,
     pub wall: Wall,
@@ -203,7 +207,7 @@ impl Harness {
         stubborn: bool,
         buffer: u32,
     ) -> Self {
-        Self::configured(steps, items, stubborn, buffer, &limits::small())
+        Self::configured(steps, items, stubborn, buffer, &limits::stock())
     }
     pub fn configured(
         steps: temper_forge_setup::Steps,
@@ -321,7 +325,9 @@ impl Harness {
             sim,
             pid,
             service,
-            launches: List::with_capacity(128),
+            launches: List::uncapped(),
+            open_groups: true,
+            group_opens: List::with_capacity(128),
             machine,
             signals,
             stderr,
@@ -329,13 +335,14 @@ impl Harness {
             calls: Queue::with_capacity(64),
             answers: Queue::with_capacity(64),
             stubborn,
-            hosted: List::with_capacity(64),
-            pending: List::with_capacity(64),
+            hosted: List::uncapped(),
+            pending: List::uncapped(),
             control_fds: List::with_capacity(64),
-            replies: List::with_capacity(128),
+            replies: List::uncapped(),
             hold_spawn: None,
             held_spawn: None,
             refuse_log: None,
+            refuse_remove: None,
             hold_log_write: false,
             held_log_write: None,
             wall: Wall::EPOCH,
@@ -379,6 +386,15 @@ impl Harness {
         }
     }
     fn answer_call(&mut self, mut call: Call) {
+        if let Some(name) = &self.refuse_remove
+            && let Ask::Remove { name: asked, .. } = &call.ask
+            && name == asked
+        {
+            self.refuse_remove = None;
+            self.answers.push(Answer { ticket: call.ticket, result: Err(skein_io::kernel::Error::Permission) });
+            self.sim.answer(&mut self.answers);
+            return;
+        }
         if self.hold_log_write
             && let Ask::Write { .. } = &call.ask
         {
@@ -397,7 +413,15 @@ impl Harness {
             return;
         }
 
-        if let Ask::Spawn { args, .. } = &mut call.ask {
+        if let Ask::Spawn { args, reach, .. } = &mut call.ask {
+            if reach.is_some() {
+                self.answers.push(Answer {
+                    ticket: call.ticket,
+                    result: Err(skein_io::kernel::Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+                });
+                self.sim.answer(&mut self.answers);
+                return;
+            }
             // The fake executes the wrapped fixture; launches retain the whole exec boundary.
             *args = Box::from(fixture_arguments(args));
         }
@@ -538,6 +562,13 @@ impl Harness {
         let would_wait = self.service.completions().is_empty() && !due && !self.service.work_pending(self.sim.now());
         self.service.iterate(self.sim.now(), self.wall);
         self.service.drain();
+        while self.open_groups
+            && let Some((forge, address)) = self.service.take_group_listener()
+        {
+            self.group_opens.push((forge, address, self.launches.len())).unwrap();
+            let descriptor = try_listener(&mut self.sim, self.pid, address);
+            self.service.group_listener_opened(forge, descriptor);
+        }
         assert!(
             !would_wait || self.service.submissions().is_empty(),
             "box submitted work on a turn with no completion, due deadline or work_pending"
@@ -838,6 +869,15 @@ fn open_step_listeners(sim: &mut Sim, pid: Pid, step: &Step, held: &mut List<(Fd
         held.push((fd, *address)).unwrap();
     }
 }
+pub fn try_listener(sim: &mut Sim, pid: Pid, address: core::net::SocketAddr) -> Option<Fd> {
+    let fd = socket(sim, pid);
+    if call(sim, pid, Op::Bind { fd, addr: address }).result != Ok(Done::Bound(address)) {
+        assert_eq!(call(sim, pid, Op::Close { fd }).result, Ok(Done::Nothing));
+        return None;
+    }
+    assert_eq!(call(sim, pid, Op::Listen { fd, backlog: 4 }).result, Ok(Done::Nothing));
+    Some(fd)
+}
 fn open_listener(sim: &mut Sim, pid: Pid, address: core::net::SocketAddr) -> Fd {
     let fd = socket(sim, pid);
     assert_eq!(call(sim, pid, Op::Bind { fd, addr: address }).result, Ok(Done::Bound(address)));
@@ -950,7 +990,7 @@ pub fn kind_steps() -> temper_forge_setup::Steps {
             recorded: true,
             forge: 0,
             before: 0,
-            steps: Box::new([(Stage::Run, long(b"fake-forge", &[b"never", FORGE_ARGUMENT]))]),
+            steps: Box::new([(Stage::Run, long(b"fake-forge", &[b"never", FORGE_ARGUMENT]).listening_group())]),
         }]),
     }
 }
@@ -962,4 +1002,27 @@ fn fixture_arguments(args: &[Box<[u8]>]) -> &[Box<[u8]>] {
         }
         Some(_) | None => args,
     }
+}
+
+/// The world supplies each kept setup, not an application document's place.
+pub fn setup_items(forge: u16, port: u16) -> Box<[skein_fake_machine::Item]> {
+    with_setup(&[], temper_forge_setup::machine::BoxKind::Fake, forge, port)
+}
+
+pub fn with_setup(
+    items: &[skein_fake_machine::Item],
+    kind: temper_forge_setup::machine::BoxKind,
+    forge: u16,
+    port: u16,
+) -> Box<[skein_fake_machine::Item]> {
+    use temper_forge_setup::{machine, setup_file};
+    let dirs = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    let setup = setup_file::chosen(kind, port, b"ada", false, &dirs).unwrap();
+    let mut found = List::uncapped();
+    for item in items {
+        found.push(item.clone()).unwrap();
+    }
+    found.push(skein_fake_machine::Item::directory(&machine::directory(forge, kind))).unwrap();
+    found.push(skein_fake_machine::Item::file(&setup_file::path(forge, kind), &setup_file::encode(&setup))).unwrap();
+    found.into_boxed()
 }

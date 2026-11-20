@@ -1,9 +1,5 @@
 //! The workers' host and temper's typed root handoff (jig/docs/design/protocol/service.md, 11.3).
-use crate::{
-    assignment::Encoding,
-    settings::{Files, Forge},
-    values::Values,
-};
+use crate::{assignment::Encoding, settings::Forge, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_protocol_config::{self as config, Problems, What};
@@ -13,6 +9,7 @@ use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
+use temper_protocol_worker_wire::v1::Record;
 /// Temper's roots, bridge and spoken entry, without constructing the other
 /// families in the engine's statement (temper/docs/design/protocol/wires.md, 4 and 10).
 pub fn application(
@@ -29,16 +26,32 @@ pub struct Workers {
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
-    worker_names: List<Box<[u8]>>,
+    figures: temper_engine_service_vocabulary::figures::Composer,
+    copy: Option<AgentsCopy>,
+    local: Option<LocalCopy>,
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
+}
+/// The box's shell keeps this copy after restore and each committed change.
+#[derive(Debug)]
+struct AgentsCopy {
+    path: Box<[u8]>,
+    initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
+    restored: bool,
+    writes: Queue<Box<[u8]>>,
+}
+/// The box's local worker setting, copied without changing the running worker.
+#[derive(Debug)]
+struct LocalCopy {
+    path: Box<[u8]>,
+    value: Option<jig_client_protocol_wire::WorkerSetting>,
+    writes: Queue<Box<[u8]>>,
 }
 impl Workers {
     pub fn new(
         config: &config::Engine,
-        files: &Files,
         encoding: Encoding,
         forges: Box<[Forge]>,
-        forge_limit: u32,
+        own: &crate::limits::Limits,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
@@ -46,26 +59,97 @@ impl Workers {
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
         let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
-        let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
-        let mut table = crate::forges::Forges::with_capacity(forge_limit);
+        let host = kit::host::Workers::new(config, tokens, application, limits)?;
+        let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
-        let mut worker_names = List::with_capacity(limits.names);
-        for worker in &config.hosts.workers {
-            worker_names.push(worker.name.clone()).expect("configured worker names fit the host");
-        }
-        let opening_names = worker_names.len().checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
+        let opening_names = limits.names.checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
         Ok(Self {
             host,
+            figures: temper_engine_service_vocabulary::figures::Composer::new(config, own),
             encoding,
             forges: table,
             bad_parts: 0,
             notes: Queue::uncapped(),
             opening_limits: *limits,
-            worker_names,
+            copy: None,
+            local: None,
             opening_ends: Map::with_capacity(opening_names),
         })
+    }
+    pub(crate) fn keep_agents(
+        &mut self,
+        path: Box<[u8]>,
+        initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
+    ) {
+        self.copy = Some(AgentsCopy { path, initial, restored: false, writes: Queue::uncapped() });
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub(crate) fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        let copy = self.copy.as_mut()?;
+        Some((copy.path.clone(), copy.writes.pop()?))
+    }
+    pub(crate) fn keep_local(&mut self, path: Box<[u8]>, value: Option<jig_client_protocol_wire::WorkerSetting>) {
+        self.local = Some(LocalCopy { path, value, writes: Queue::uncapped() });
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub(crate) fn take_local_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        let copy = self.local.as_mut()?;
+        Some((copy.path.clone(), copy.writes.pop()?))
+    }
+    /// Keep the box's setting after restore and each committed worker change (configuration/figures.md, 4).
+    pub(crate) fn local(&mut self, workers: &[jig_domain_core::settings::WorkerSetting]) {
+        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+        let Some(copy) = &mut self.local else { return };
+        for worker in workers {
+            if worker.number != 1 || worker.name.as_ref() != b"local" || worker.withdrawn {
+                continue;
+            }
+            let value = WorkerSetting::new(
+                &CEILINGS,
+                WorkerSettingParts {
+                    number: worker.number,
+                    name: worker.name.clone(),
+                    places: worker.places,
+                    digest: worker.digest,
+                    withdrawn: worker.withdrawn,
+                },
+            )
+            .expect("checked worker setting fits its wire");
+            if copy.value.as_ref() != Some(&value) {
+                let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
+                value.encode(&mut writer).expect("measured local value");
+                copy.writes.push(writer.finish());
+                copy.value = Some(value);
+            }
+            break;
+        }
+    }
+    /// Give restored or changed agents figures to every worker (protocol/configuration/figures.md, 2).
+    pub(crate) fn figures(
+        &mut self,
+        now: Time,
+        agents: &temper_client_protocol_wire::v1::AgentFigures,
+        revision: u32,
+        events: &mut Queue<root::Event>,
+    ) {
+        if let Some(copy) = &mut self.copy {
+            if copy.restored || copy.initial.as_ref() != Some(agents) {
+                copy.writes.push(
+                    agents.encode(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted agents within ceilings"),
+                );
+            }
+            copy.initial = None;
+            copy.restored = true;
+        }
+        let figures = self.figures.compose(agents);
+        self.notes.push(crate::Note::WorkerFigures {
+            limits: figures.limits.len(),
+            endpoints: figures.agents.endpoints.len(),
+            revision,
+        });
+        self.down(now, kit::Event::Figures { figures }, events);
     }
     pub fn down(&mut self, now: Time, event: kit::Event, events: &mut Queue<root::Event>) {
         self.host.down(now, event);
@@ -150,11 +234,7 @@ impl Workers {
         self.pull(events);
     }
     pub(crate) fn judgement(&self) -> crate::upgrade::Workers {
-        crate::upgrade::Workers {
-            names: self.worker_names.clone().into_boxed(),
-            room: self.opening_limits.room,
-            schema: self.host.component.full_schema().clone(),
-        }
+        crate::upgrade::Workers { room: self.opening_limits.room, schema: self.host.component.full_schema().clone() }
     }
     fn pull(&mut self, events: &mut Queue<root::Event>) {
         for _ in 0..self.host.pending() {
@@ -176,12 +256,16 @@ impl Workers {
                     statement: statement_to_root(statement),
                 }));
             }
+            kit::host::Output::FiguresTaken { worker } => {
+                self.notes.push(crate::Note::WorkerFiguresTaken { worker });
+            }
             kit::host::Output::Refused { worker, reason, text } => {
                 self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
             }
             kit::host::Output::Hello { channel, worker, hello } => {
-                let name = self.worker_names.get(worker).expect("hello's configured worker position");
-                let _last = self.opening_ends.remove(&Some(name.clone()));
+                let name =
+                    skein_lib::bytes::copy_of(self.host.component.worker_name(worker).expect("hello worker position"));
+                let _last = self.opening_ends.remove(&Some(name));
                 events.push(root::Event::Worker(root::WorkerInput::Link {
                     channel,
                     link: root::Link::Hello { worker, hello },
@@ -221,6 +305,7 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Figures
                         | jig_protocol_worker_wire::Kind::Restarting
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events
@@ -490,7 +575,6 @@ impl Workers {
         }
         let workers = Self::new(
             &settings.jig,
-            &settings.files,
             Encoding {
                 limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
                 endpoints: smith_protocol_translate::Endpoints::new(endpoints),
@@ -501,7 +585,7 @@ impl Workers {
                 ),
             },
             Box::new([]),
-            settings.limits.forge.forges,
+            &settings.limits,
             &worker_limits,
         )?;
         Ok(workers)
@@ -534,6 +618,11 @@ mod tests {
             bounds: crate::tests::fixtures::worker_agent().bounds,
         };
         let mut events = Queue::uncapped();
+        service.engine.as_mut().expect("engine").workers.down(
+            Time::ZERO,
+            kit::Event::Workers(crate::tests::fixtures::opening_workers()),
+            &mut events,
+        );
         service
             .engine
             .as_mut()

@@ -29,10 +29,14 @@ pub(super) fn config(seed: u64) -> engine::Config {
             })
             .collect(),
     };
+    let workers = config.core.defaults.workers.clone();
+    let providers = config.core.defaults.providers.clone();
     config.core.defaults = temper_engine_service_stock::stock::with_models(
         llm.models.clone(),
         temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
     );
+    config.core.defaults.workers = workers;
+    config.core.defaults.providers = providers;
     config.core.connectors = Box::new([1]);
     let mut policy = config.core.defaults.policies.get(&1).expect("stock policy").clone();
     let mut roles = policy.policy.roles.to_vec();
@@ -69,7 +73,7 @@ impl World {
         for turn in &mut script.turns {
             for line in &mut turn.lines {
                 if let Line::Call { name, arguments } = line
-                    && name.as_ref() == b"read_file"
+                    && name.as_ref() == b"read_forge"
                 {
                     *arguments = String::from_utf8(arguments.to_vec())
                         .expect("fixture JSON")

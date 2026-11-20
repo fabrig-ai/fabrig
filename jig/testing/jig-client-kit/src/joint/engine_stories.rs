@@ -20,7 +20,7 @@ struct LongTextStory {
 impl LongTextStory {
     fn new(field_text: u32) -> Self {
         let (mut configuration, mut limits) = jig_core_kit::peers::fixture(8530, 0);
-        limits.core = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
+        limits.core = jig_protocol_config::stock().core;
         jig_core_kit::peers::journal(&mut limits);
         configuration.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes::PROJECT;
         let policy = &mut configuration.core.seed_projects[0].policy.policy;
@@ -145,6 +145,7 @@ fn a_large_document_and_a_large_goal_cross_the_wire() {
                     author: jig_domain_notes::Author::Task { task: chat, attempt: assignment.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         }),
     );
@@ -198,7 +199,7 @@ fn a_large_document_and_a_large_goal_cross_the_wire() {
 
 #[test]
 fn a_message_still_stops_at_people_words() {
-    let words = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.people.words;
+    let words = jig_protocol_config::stock().core.people.words;
     let mut story = LongTextStory::new(words + 1);
     let chat = story.chat();
     let message = vec![b'm'; usize::try_from(words + 1).unwrap()].into_boxed_slice();
@@ -283,6 +284,7 @@ fn a_note_written_corrected_by_a_person_and_recalled() {
                 author: jig_domain_notes::Author::Task { task: assignment.task, attempt: assignment.attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     );
     let name = match world.front().session.driver.world.answers.last().expect("committed note answer").2 {

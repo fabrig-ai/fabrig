@@ -52,9 +52,7 @@ impl Default for Serving {
     fn default() -> Self {
         Self {
             server: server(),
-            pages: crate::server::Pages::new(
-                &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
-            ),
+            pages: crate::server::Pages::new(&crate::limits::small(&jig_protocol_config_fixtures::small()).server),
         }
     }
 }
@@ -113,7 +111,7 @@ fn pump(
 ) -> ServerResponse {
     use crate::server::Routed;
     use skein_lib::stream::{Down, Up};
-    let limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server.http;
+    let limits = crate::limits::small(&jig_protocol_config_fixtures::small()).server.http;
     let capacity =
         limits.send.checked_mul(2).expect("fixture body").checked_add(limits.response).expect("fixture head");
     let mut wire = Intake::with_capacity(capacity);
@@ -135,7 +133,7 @@ fn pump(
                         pages.event(server, call, event, out);
                     }
                 }
-                Routed::Call { call, head } => {
+                Routed::Call { call, head, .. } => {
                     let Some(pages) = pages.as_mut() else { panic!("server forwarded its own route") };
                     pages.call(server, call, &head, pages.route(&head), out);
                 }

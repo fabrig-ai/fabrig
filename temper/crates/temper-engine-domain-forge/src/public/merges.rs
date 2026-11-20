@@ -4,6 +4,7 @@ use crate::{ChangeRow, Domain, Limits, LoggedLanding};
 use core::cmp::Reverse;
 use skein_forge::api::{Commit, Repository};
 use skein_lib::{List, Map, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_change::Way;
 
 type MergeKey = (Reverse<Wall>, Repository, Commit);
@@ -11,7 +12,9 @@ type MergeKey = (Reverse<Wall>, Repository, Commit);
 impl Domain {
     /// The project's public queue merges, newest first.
     pub(super) fn queue_merges(&self, ask: &PublicAsk<'_>, limits: &Limits) -> Option<Map<MergeKey, &LoggedLanding>> {
-        let mut recent = Map::with_capacity(limits.repositories.checked_mul(limits.landings_kept)?);
+        let mut recent = Map::with_capacity(
+            limits.repositories.checked_mul(limits.landings_kept.checked_add(limits.landings_pending)?)?,
+        );
         for (repository, log) in &self.landing_logs {
             if self.repositories.get(repository)?.project != ask.project {
                 continue;
@@ -53,11 +56,11 @@ impl Domain {
         }
         let mut landed = List::with_capacity(l.public_landing_line_landed);
         landed.push(logged.commit).ok()?;
-        w::PublicLandingLine::new(
-            l,
-            w::PublicLandingLineParts { members, phase: w::PublicLandingPhase::Landed, landed },
-        )
-        .ok()
+        {
+            let value = w::PublicLandingLine { members, phase: w::PublicLandingPhase::Landed, landed };
+            value.measure(l).ok()?;
+            Some(value)
+        }
     }
 
     /// The merge `change` is in, read from its repository's log; `None` is unknown.
@@ -79,25 +82,20 @@ impl Domain {
                 let l = &w::CEILINGS;
                 let mut members = List::with_capacity(l.public_landing_members);
                 for member in &logged.changes {
-                    let member = w::PublicMember::new(
-                        l,
-                        w::PublicMemberParts {
-                            head: None,
-                            left: None,
-                            judgement: None,
-                            task: names.name(member.task)?,
-                            base: None,
-                            candidate: None,
-                            landed: Some(logged.commit),
-                            gates: List::with_capacity(0),
-                        },
-                    )
-                    .ok()?;
+                    let member = w::PublicMember {
+                        head: None,
+                        left: None,
+                        judgement: None,
+                        task: names.name(member.task)?,
+                        base: None,
+                        candidate: None,
+                        landed: Some(logged.commit),
+                        gates: List::with_capacity(0),
+                    };
                     members.push(member).ok()?;
                 }
-                return w::PublicLanding::new(
-                    l,
-                    w::PublicLandingParts {
+                return {
+                    let value = w::PublicLanding {
                         search: None,
                         combined: None,
                         step: None,
@@ -107,9 +105,10 @@ impl Domain {
                         members,
                         stale_proofs: 0,
                         holds_turn: false,
-                    },
-                )
-                .ok();
+                    };
+                    value.measure(l).ok()?;
+                    Some(value)
+                };
             }
         }
         None

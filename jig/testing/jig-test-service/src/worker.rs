@@ -74,17 +74,20 @@ impl Worker {
         directory: Fd,
         index: u32,
         seed: u64,
+        schema: Option<skein_channel::Schema>,
     ) -> Result<Self, Problems> {
+        let configured_agent = config.agent.as_ref().ok_or(problem(index, b"agent", What::Missing))?;
+        let settings = config.limits.as_ref().ok_or(problem(index, b"limits", What::Missing))?;
         let config::Address::Addr(address) = config.engine else { return Err(problem(index, b"engine", What::Form)) };
         let secret = files.contents(&config.secret).ok_or(problem(index, b"secret", What::Unreadable))?;
-        if secret.len() > skein_lib::length::usize_of(config.limits.link.secret) {
+        if secret.len() > skein_lib::length::usize_of(settings.link.secret) {
             return Err(problem(index, b"secret", What::Bound));
         }
         let bodies = &agent.limits.bodies;
-        if config.limits.token > bodies.credential_value_bytes {
+        if settings.token > bodies.credential_value_bytes {
             return Err(problem(index, b"limits", What::Bound));
         }
-        let mut limits = config.limits.hub;
+        let mut limits = settings.hub;
         limits.slots = config.slots;
         limits.source_interval = config.check_interval;
         let root_limits = root::Limits {
@@ -101,16 +104,17 @@ impl Worker {
         host::Process::new(Token::new(0), &agent.limits, agent.host_limits.detail_bytes, agent.endpoints.clone())
             .or(Err(problem(index, b"agent", What::Bound)))?;
         let link_limits = crate::limits::worker_link(&config);
-        let link = link::Component::new(
-            &link_limits,
-            jig_protocol_worker_wire::spoken(),
-            link::Credential {
-                name: config.name,
-                secret: config::secret(secret.into()),
-                application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
-            },
-            seed,
-        )
+        let credential = link::Credential {
+            opening: jig_protocol_worker_wire::Opening::Link,
+            name: config.name,
+            secret: config::secret(secret.into()),
+            application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
+        };
+        let spoken = jig_protocol_worker_wire::spoken();
+        let link = match schema {
+            Some(schema) => link::Component::with_schema(&link_limits, spoken, credential, seed, schema),
+            None => link::Component::new(&link_limits, spoken, credential, seed),
+        }
         .or(Err(problem(index, b"limits", What::Bound)))?;
         let slots = config.slots;
         let prefix = crate::tokens::worker(index).ok_or(problem(index, b"slots", What::Bound))?;
@@ -133,22 +137,19 @@ impl Worker {
             owners: Map::with_capacity(slots),
             entities: Map::with_capacity(slots.checked_mul(4).expect("process entities")),
             retired: List::with_capacity(slots),
-            values: Table::new(
-                config.limits.core.accounts.accounts.checked_add(1).expect("account slots"),
-                config.limits.token,
-            ),
+            values: Table::new(settings.core.accounts.accounts.checked_add(1).expect("account slots"), settings.token),
             application: Table::new(
-                config.limits.core.accounts.credentials.checked_add(1).expect("credential slots"),
-                config.limits.token,
+                settings.core.accounts.credentials.checked_add(1).expect("credential slots"),
+                settings.token,
             ),
             io: Queue::uncapped(),
             address,
             socket: None,
             prefix,
             next: 2,
-            program: config.agent.program,
-            arguments: config.agent.arguments,
-            configuration: config.agent.configuration,
+            program: configured_agent.program.clone(),
+            arguments: configured_agent.arguments.clone(),
+            configuration: configured_agent.configuration.clone(),
             directory: Some(directory),
             root_close: None,
             submitted: Queue::with_capacity(1),
@@ -375,7 +376,8 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Refused { .. }
+                link::Request::Figures { .. }
+                | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
                 | link::Request::Restarting { .. }
                 | link::Request::CannotSendWhole { .. }
@@ -1029,7 +1031,7 @@ mod admission_tests {
 
     use jig_domain_host::LinkDown;
     use jig_domain_link::SourceName;
-    use jig_protocol_worker_wire as wire;
+    use jig_protocol_worker_wire::{self as wire, Record};
     use skein_fake_channel::ScriptedPeer;
     use skein_lib::{Duration, Intake, Reader};
 
@@ -1063,7 +1065,9 @@ mod admission_tests {
                 &config::DocumentLimits { bytes: WIRE_BYTES, tokens: WIRE_BYTES, depth: 32 },
             )
             .expect("worker document");
-            let worker = config::worker(&document, 0, &config::Directories::working()).expect("worker config");
+            let worker =
+                config::worker(&document, 0, &config::Directories::working(), &jig_protocol_config::FixedWorker::NONE)
+                    .expect("worker config");
             let limits = crate::limits::worker_link(&worker);
             let codec = wire::sizes::limits(&limits.sizes).expect("codec");
             let mut channel_limits = link::channel_limits(&limits).expect("channel limits");
@@ -1085,19 +1089,17 @@ mod admission_tests {
             let mut wires = List::with_capacity(4);
             for spoken in &wire::spoken() {
                 wires
-                    .push(
-                        wire::AgreedWire::new(
-                            &codec,
-                            wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
-                        )
-                        .expect("agreed wire"),
-                    )
+                    .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                     .expect("four wires");
             }
-            let record = wire::v15::Agreed::new(&codec, wire::v15::AgreedParts { wires }).expect("statement");
-            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut body).expect("statement body");
-            let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");
+            let record = wire::v18::Agreed { wires };
+            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
+                record.measure(&wire::CEILINGS).expect("statement within limits"),
+            ));
+            record.write(&wire::CEILINGS, &mut body).expect("statement body");
+            let mut frame =
+                skein_channel::frame_writer(0x018d, record.measure(&wire::CEILINGS).expect("statement within limits"))
+                    .expect("statement frame");
             frame.put(&body.finish()).expect("measured body");
             peer.channel.play(frame.finish().expect("measured frame"));
             layer.socket = Some(SOCKET);
@@ -1181,9 +1183,7 @@ mod admission_tests {
             for frame in self.channel.observed() {
                 if frame.kind == wire::Kind::Turn.number() {
                     turns
-                        .push(
-                            wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number(),
-                        )
+                        .push(wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number)
                         .expect("frame count");
                 }
             }
@@ -1380,10 +1380,10 @@ mod admission_tests {
             }
         }
         assert_eq!(answers.len(), 1);
-        let wire::Ending::Failed(failure) = answers.get(0).expect("one answer").ending() else {
+        let wire::Ending::Failed(failure) = &answers.get(0).expect("one answer").ending else {
             panic!("cancelled answer");
         };
-        let wire::Failure::Cancelled(_) = failure.failure() else { panic!("cancelled failure") };
+        let wire::Failure::Cancelled(_) = &failure.failure else { panic!("cancelled failure") };
         layer.step(root::Event::Link(LinkDown::Acknowledge { run: OTHER_RUN, attempt: ATTEMPT }));
         layer.root.reclaim();
         assert_eq!(layer.root.hosted(), 1, "acknowledgement releases only the cancelled run");
@@ -1530,15 +1530,11 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    smith_channel::CredentialValue::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CredentialValueParts {
-            scheme: match scheme {
-                Scheme::Bearer => smith_channel::Scheme::Bearer,
-                Scheme::Key => smith_channel::Scheme::Key,
-            },
-            bytes: value.token.clone(),
+    Some(smith_channel::CredentialValue {
+        scheme: match scheme {
+            Scheme::Bearer => smith_channel::Scheme::Bearer,
+            Scheme::Key => smith_channel::Scheme::Key,
         },
-    )
-    .ok()
+        bytes: value.token.clone(),
+    })
 }

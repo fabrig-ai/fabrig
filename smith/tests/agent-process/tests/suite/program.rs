@@ -18,7 +18,7 @@ fn no_credential_variable_reaches_the_program() {
         ..Story::default()
     };
     let run = program_world::run(Case::Credentials, &story, Some(b"claude.ai"), &charter(), &program(b"source"), None);
-    assert!(matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)));
+    assert!(matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)));
     assert_eq!(run.invocations.len(), 2, "status and print both ran");
     assert_eq!(run.invocations[0].arguments, ["auth", "status"]);
     assert_eq!(
@@ -45,9 +45,9 @@ fn no_credential_variable_reaches_the_program() {
 }
 
 fn fault(run: &Run) -> Option<ModelFault> {
-    match run.answer()?.result() {
-        RunResult::Failed(failed) => match failed.reason() {
-            RunFailure::Model(model) => Some(model.value().clone()),
+    match &run.answer()?.result {
+        RunResult::Failed(failed) => match &failed.reason {
+            RunFailure::Model(model) => Some(model.value.clone()),
             RunFailure::Transcript(_)
             | RunFailure::Budget(_)
             | RunFailure::Policy(_)
@@ -132,7 +132,7 @@ fn a_program_grant_starts_claude_with_its_command() {
 fn a_program_start_reaches_its_init() {
     let run = scenario();
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Failed(failed) if matches!(failed.reason(), RunFailure::Cancelled))
+        matches!( &run.answer().expect("answer").result, RunResult::Failed(failed) if matches!( &failed.reason, RunFailure::Cancelled))
     );
     assert!(
         matches!(run.seen.first(), Some(smith_fake_claude::Seen::Settings { .. })),
@@ -143,7 +143,7 @@ fn a_program_start_reaches_its_init() {
 
 fn unauthorized(login: Option<&[u8]>) {
     let run = program_world::run(Case::default(), &Story::default(), login, &charter(), &program(b"source"), None);
-    assert!(matches!(fault(&run), Some(ModelFault::Unauthorized(fault)) if fault.account() == 0));
+    assert!(matches!(fault(&run), Some(ModelFault::Unauthorized(fault)) if fault.account == 0));
     assert!(run.frames.iter().any(|frame| frame.kind == 0x010d), "the unauthorized notice reaches the host");
     assert_eq!(run.invocations.len(), 1, "only the source status was run");
 }
@@ -169,15 +169,15 @@ fn a_failed_status_check_fails_with_its_exit() {
         None,
     );
     assert!(
-        matches!(fault(&run), Some(ModelFault::Program(fault)) if *fault.exit() == Some(0) && fault.name() == b"claude_code")
+        matches!(fault(&run), Some(ModelFault::Program(fault)) if fault.exit == Some(0) && fault.name.as_ref() == b"claude_code")
     );
     assert!(!run.frames.iter().any(|frame| frame.kind == 0x010d));
 }
 
 fn refused(case: Case, charter: &[u8], value: &smith_channel::GrantValue) {
     let run = program_world::run(case, &Story::default(), Some(b"claude.ai"), charter, value, None);
-    assert!(matches!(run.answer().expect("refusal").result(), RunResult::Refused(refused)
-        if matches!(refused.reason(), smith_channel::StartRefusal::Invalid(invalid) if invalid.value() == &smith_channel::InvalidStart::Grants)));
+    assert!(matches!( &run.answer().expect("refusal").result, RunResult::Refused(refused)
+        if matches!( &refused.reason, smith_channel::StartRefusal::Invalid(invalid) if invalid.value == smith_channel::InvalidStart::Grants)));
     assert!(run.invocations.is_empty(), "the start is refused before any program starts");
 }
 
@@ -191,7 +191,7 @@ fn a_credential_grant_for_a_program_endpoint_is_refused() {
     refused(Case::default(), &charter(), &smith_agent_process_world::bearer(b"value"));
 }
 
-fn changed_charter(change: impl FnOnce(&mut smith_charter::CharterParts)) -> Box<[u8]> {
+fn changed_charter(change: impl FnOnce(&mut smith_charter::Charter)) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
         change(parts);
     })
@@ -202,9 +202,9 @@ fn a_program_grant_for_a_sub_agent_is_refused() {
     let charter = changed_charter(|parts| {
         parts.models = skein_lib::List::with_capacity(1);
         parts.models.push(parts.main.clone()).expect("sub-agent model");
-        let mut main = parts.main.clone().into_parts();
+        let mut main = parts.main.clone();
         main.account = None;
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("main without account");
+        parts.main = main;
     });
     refused(Case::default(), &charter, &program(b"source"));
 }
@@ -220,7 +220,7 @@ fn a_later_grant_of_the_same_source_renews_it() {
         Some(&program(b"source")),
     );
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Failed(failed) if matches!(failed.reason(), RunFailure::Cancelled))
+        matches!( &run.answer().expect("answer").result, RunResult::Failed(failed) if matches!( &failed.reason, RunFailure::Cancelled))
     );
     assert_eq!(run.invocations.len(), 2);
 }
@@ -249,8 +249,9 @@ fn an_init_without_the_server_fails_the_run() {
         &program(b"source"),
         None,
     );
-    assert!(matches!(fault(&run), Some(ModelFault::Program(fault)) if fault.exit().is_none()
-        && fault.detail() == b"smith: the program started without smith's tools"));
+    assert!(matches!(fault(&run), Some(ModelFault::Untooled(fault)) if fault.exit.is_none()
+        && fault.name.as_ref() == b"claude_code"
+        && fault.detail.as_ref() == b"smith: the program started without smith's tools"));
 }
 
 #[test]
@@ -264,7 +265,7 @@ fn a_program_that_exits_before_its_init_fails_the_run() {
         None,
     );
     assert!(
-        matches!(fault(&run), Some(ModelFault::Program(fault)) if *fault.exit() == Some(2) && !fault.detail().is_empty())
+        matches!(fault(&run), Some(ModelFault::Program(fault)) if fault.exit == Some(2) && !fault.detail.as_ref().is_empty())
     );
 }
 
@@ -277,7 +278,7 @@ fn a_program_main_may_share_its_account_with_a_declared_child() {
     let run =
         program_world::run(Case::Ordinary, &Story::default(), Some(b"claude.ai"), &charter, &program(b"source"), None);
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Failed(failed) if matches!(failed.reason(), RunFailure::Cancelled))
+        matches!( &run.answer().expect("answer").result, RunResult::Failed(failed) if matches!( &failed.reason, RunFailure::Cancelled))
     );
     assert_eq!(run.invocations.len(), 2, "the account shared with main admits the program start");
 }

@@ -8,6 +8,59 @@ fn a_task_read_prints_its_document() {
     assert_eq!(answer.status, 0);
     fixtures::check_golden("task_goal_waiting", &answer.stdout);
 }
+fn task_with_unread_words() -> jig_client::contract::Task {
+    use jig_client::contract as c;
+    let mut task = fixtures::goal(
+        41,
+        c::WaitsOn::Party { whom: c::Whom::Person(42), entries: 1, task: 42, kind: c::WaitedFor::Question },
+    );
+    task.requester = c::Requester::Person(42);
+    task.unread = skein_lib::List::with_capacity(2);
+    for (message, at, seen, head, bytes) in [
+        (77, 1_794_996_120_000_000_000, true, b"Also add a /ready endpoint\nbeside /health.".as_slice(), 42),
+        (80, 1_795_002_000_000_000_000, false, b"And keep the old route for".as_slice(), 300),
+    ] {
+        task.unread
+            .push(c::UnreadWords {
+                message,
+                by: c::Requester::Person(42),
+                at: skein_lib::Wall::from_nanos(at),
+                seen,
+                head: c::Text::new(Box::from(head), 256).unwrap(),
+                bytes,
+            })
+            .unwrap();
+    }
+    task
+}
+
+#[test]
+fn a_task_read_prints_unread_words_after_its_wait() {
+    let mut root = fixtures::signed_in(42);
+    let call = root.submit(fixtures::TASK_CALL);
+    root.serve(call, fixtures::task_result(task_with_unread_words()));
+    let answer = root.answer(call).expect("task answered");
+    assert_eq!(answer.status, 0);
+    fixtures::check_golden("task_goal_unread", &answer.stdout);
+    // The existing empty document's golden has no unread header.
+    let empty = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(fixtures::task_read().2));
+    fixtures::check_golden("task_goal_waiting", &empty.stdout);
+}
+
+#[test]
+fn a_task_json_read_keeps_unread_words_and_an_empty_array() {
+    let mut root = fixtures::signed_in(42);
+    let call = root.submit(fixtures::TASK_JSON_CALL);
+    root.serve(call, fixtures::task_result(task_with_unread_words()));
+    let answer = root.answer(call).expect("task answered");
+    assert_eq!(answer.status, 0);
+    fixtures::unique_keys(&answer.stdout).expect("valid task JSON");
+    let expected = br#""unread":[{"message":77,"by":{"person":42},"at":1794996120000000000,"seen":true,"head":"Also add a /ready endpoint\nbeside /health.","bytes":42},{"message":80,"by":{"person":42},"at":1795002000000000000,"seen":false,"head":"And keep the old route for","bytes":300}]"#;
+    assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some());
+    let empty = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(fixtures::task_read().2));
+    assert!(skein_lib::bytes::find(&empty.stdout, br#""unread":[]"#).is_some());
+}
+
 #[test]
 fn a_tool_heavy_chat_keeps_its_conversation_words() {
     for json in [false, true] {
@@ -418,6 +471,33 @@ fn a_task_read_retains_its_account_wait_reason() {
     let answer = root.answer(call).expect("read answered");
     let field = br#""run_wait":{"account":{"account":43,"source":17,"why":{"invalid":"limited"}}}"#;
     assert!(skein_lib::bytes::find(&answer.stdout, field).is_some());
+}
+
+#[test]
+fn an_untooled_wait_names_its_account_source_and_worker_in_text_and_json() {
+    use jig_client::contract as c;
+    for (argv, expected) in [
+        (
+            fixtures::TASK_JSON_CALL,
+            br#""run_wait":{"account":{"account":4,"source":7,"why":{"untooled":{"worker":2}}}}"#.as_slice(),
+        ),
+        (fixtures::TASK_CALL, b"next run: account 4 source 7: untooled on worker 2".as_slice()),
+    ] {
+        let mut task = fixtures::goal(fixtures::TASK, fixtures::waiting_on_me());
+        task.run_wait = Some(c::TaskRunWait::Account {
+            account: Some(4),
+            source: Some(7),
+            why: c::TaskWaitWhy::Untooled { worker: 2 },
+        });
+        let answer = fixtures::read_answer(argv, fixtures::task_result(task));
+        assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some(), "{:?}", answer.stdout);
+        if argv == fixtures::TASK_CALL {
+            assert!(
+                skein_lib::bytes::find(&answer.stdout, b"its program started without its tools on worker 2").is_some()
+            );
+            assert!(skein_lib::bytes::find(&answer.stdout, b"account verify 4 --source program").is_some());
+        }
+    }
 }
 
 #[test]
@@ -1330,7 +1410,7 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
                 why: Some(c::AgentShortfall::Spend),
                 figures: Some(c::Figures { required: 5000, offered: 2000 }),
             }),
-            "  no worker can take this: a run here may spend 5000, and the largest worker takes 2000",
+            "  no worker can take this: a run here may spend 50.00, and the largest worker takes 20.00",
             &[],
         ),
         (

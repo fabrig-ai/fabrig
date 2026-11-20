@@ -1,14 +1,35 @@
 //! Approval's disabled surface and stopping answers (protocol/client/sign-in.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Settings};
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Secret, Writer, length::usize_of};
+
+#[test]
+fn an_exchange_keeps_its_way_and_source_on_the_component_record() {
+    let mut world = Exchange::new();
+    let owner = skein_lib::Token::new(900);
+    let source = Some(core::net::Ipv4Addr::new(203, 0, 113, 7).into());
+    world.component.down(
+        &world.env,
+        Event::Transport(crate::FromTransport::Exchange {
+            exchange: owner,
+            credential: None,
+            browser: false,
+            via: crate::Via::Public,
+            source,
+            message: Message::ApprovalAsk(Box::new([])),
+        }),
+        &mut world.out,
+    );
+    let connection = world.component.connections.get(&owner).expect("received exchange");
+    assert_eq!((connection.via, connection.source), (crate::Via::Public, source));
+}
 
 type ApprovalCase = (&'static str, fn(Box<[u8]>) -> Message, Box<[u8]>, Box<[u8]>);
 
 fn cases(stopping: bool) -> [ApprovalCase; 4] {
     let limits = f::wire();
-    let ask = w::ApprovalAsk::new(&limits, w::ApprovalAskParts {}).expect("ask");
+    let ask = w::ApprovalAsk::new(&limits, w::ApprovalAskParts { port: None }).expect("ask");
     let mut ask_bytes = Writer::new(usize_of(ask.measure()));
     ask.encode(&mut ask_bytes).expect("ask bytes");
     let read = w::ApprovalRead::new(&limits, w::ApprovalReadParts { code: *b"WDJBMJHT" }).expect("read");
@@ -18,8 +39,9 @@ fn cases(stopping: bool) -> [ApprovalCase; 4] {
         .expect("decision");
     let mut decide_bytes = Writer::new(usize_of(decide.measure()));
     decide.encode(&mut decide_bytes).expect("decision bytes");
-    let take = w::ApprovalSignIn::new(&limits, w::ApprovalSignInParts { secret: Secret::new(Box::new([7; 32])) })
-        .expect("take");
+    let take =
+        w::ApprovalSignIn::new(&limits, w::ApprovalSignInParts { secret: Secret::new(Box::new([7; 32])), grant: None })
+            .expect("take");
     let mut take_bytes = Writer::new(usize_of(take.measure()));
     take.encode(&mut take_bytes).expect("take bytes");
 

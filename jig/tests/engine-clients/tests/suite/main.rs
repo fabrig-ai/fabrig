@@ -1,6 +1,7 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
+mod asked_link;
 mod authorize;
 mod closing;
 mod gone;
@@ -18,4 +19,10 @@ mod public_http;
 
 mod fuzzy {
     mod cursor;
+    mod source;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

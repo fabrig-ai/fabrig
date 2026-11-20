@@ -5,22 +5,32 @@ mod milestones;
 mod roles;
 pub(crate) use roles::{Reading, indexed as notes_indexed, recalled as notes_recalled, refused as notes_refused};
 
+#[expect(clippy::too_many_arguments, reason = "carry the status request's party through the existing root plumbing")]
 pub(super) fn start_status_run(
     domain: &mut Domain,
     env: &Env<Limits>,
     project: u32,
+    party: u64,
     since: skein_lib::Wall,
     words: Box<[u8]>,
     findings: &[u8],
     signers: &[u64],
 ) {
     let words = goal_words(domain, env, project, since, &words, findings, signers);
-    roles::start(domain, env, project, words);
+    roles::start(domain, env, project, party, words);
 }
 
-fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]) {
-    let Some(seed) = domain.core.repair_seed(project) else {
-        domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
+pub(crate) fn admission(domain: &Domain, project: u32, party: u64, task: u64) -> forge::Event {
+    // ConnectorRepair drains OpenPeriod and Make before the queued StatusTask.
+    match domain.core.tasks.task(task) {
+        Some(_) => forge::Event::StatusTask { project, party, task },
+        None => forge::Event::StatusRefused { project, party },
+    }
+}
+
+fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, party: u64, words: &[u8]) {
+    let Some(seed) = domain.core.pool_seed(project, party) else {
+        domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
         return;
     };
     let task = seed.number();
@@ -32,7 +42,7 @@ fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
         holdings: Box::new([]),
     }));
-    domain.work.push(Work::Forge(forge::Event::StatusTask { project, task }));
+    domain.work.push(Work::Forge(forge::Event::StatusTask { project, party, task }));
 }
 
 fn goal_words(
@@ -67,7 +77,9 @@ fn goal_words(
         super::append(&mut words, b" of ");
         let total = delegate_total(row);
         super::append(&mut words, skein_lib::Decimal::of(u64::from(total)).as_bytes());
-        super::append(&mut words, b" delegates done\n");
+        super::append(&mut words, b" parts done");
+        append_open_questions(&mut words, open_to_a_person(domain, row));
+        super::append(&mut words, b"\n");
     }
     milestones::append(domain, env, project, since, &mut words);
     if !signers.is_empty() {
@@ -89,6 +101,27 @@ fn delegate_total(row: &tasks::TaskRecord) -> u32 {
         .expect("bounded live delegates")
         .saturating_add(row.ended_delegates.done)
         .saturating_add(row.ended_delegates.failed)
+}
+
+fn open_to_a_person(domain: &Domain, row: &tasks::TaskRecord) -> u32 {
+    let mut count = 0_u32;
+    for number in &row.delegates {
+        if let Some(delegate) = domain.core.tasks.task(*number)
+            && let tasks::Executor::Person(_) = delegate.executor
+        {
+            count = count.checked_add(1).expect("bounded live delegates");
+        }
+    }
+    count
+}
+
+fn append_open_questions(words: &mut super::List<u8>, count: u32) {
+    if count == 0 {
+        return;
+    }
+    super::append(words, b", ");
+    super::append(words, skein_lib::Decimal::of(u64::from(count)).as_bytes());
+    super::append(words, if count == 1 { b" question open to a person" } else { b" questions open to a person" });
 }
 
 fn milestone_parent(domain: &Domain, requester: tasks::Party) -> Option<&tasks::TaskRecord> {
@@ -166,6 +199,26 @@ pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context:
         decision.batch = Box::new([delegate]);
     }
     step(domain, task, decision);
+}
+
+pub(crate) fn check_account(domain: &mut Domain, procedure: u64) {
+    let Some(row) = domain.core.tasks.task(procedure) else { return };
+    let Some(delegate) = row.delegates.first() else { return };
+    let Err(jig_domain_core::RunWait::Account { account: None, .. }) = domain.core.run_choice(*delegate) else {
+        return;
+    };
+    let Some((party, project)) = domain.forge.status_owner(procedure) else { return };
+    domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
+    domain.work.push(Work::Tasks(tasks::Event::Cancel {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(procedure)),
+        by: tasks::Party::Deployment { project },
+        operation: tasks::Cancel {
+            task: procedure,
+            reason: b"no account pays for the person's brief".as_slice().into(),
+            grace: None,
+            message: None,
+        },
+    }));
 }
 
 fn delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {

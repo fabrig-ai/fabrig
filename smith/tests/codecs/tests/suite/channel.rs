@@ -1,27 +1,44 @@
 //! Channel kind and body checks (protocol/channel.md, sections 2-4).
 
-use crate::support::goldens::assert_measured;
+use crate::support::goldens::Goldens;
+use smith_channel::Record;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V10, schema};
+use smith_channel::{Answer, CEILINGS, Start, V11, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", smith_channel::wire::VERSION, "list_ask", |bytes| {
-        smith_channel::ListAsk::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list ask decodes").measure()
+    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
+    goldens.assert_measured("list_ask", |bytes| {
+        smith_channel::ListAsk::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("list ask decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "list_row", |bytes| {
-        smith_channel::ListRow::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list row decodes").measure()
+    goldens.assert_measured("list_row", |bytes| {
+        smith_channel::ListRow::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("list row decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "start", |bytes| {
-        Start::decode(&CEILINGS, &mut Reader::new(bytes)).expect("start decodes").measure()
+    goldens.assert_measured("start", |bytes| {
+        Start::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("start decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "drain", |bytes| {
-        smith_channel::Drain::decode(&CEILINGS, &mut Reader::new(bytes)).expect("drain decodes").measure()
+    goldens.assert_measured("drain", |bytes| {
+        smith_channel::Drain::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("drain decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "answer", |bytes| {
-        Answer::decode(&CEILINGS, &mut Reader::new(bytes)).expect("answer decodes").measure()
+    goldens.assert_measured("answer", |bytes| {
+        Answer::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("answer decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
 }
 
@@ -33,7 +50,7 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     assert_eq!(table.versions.len(), 1);
     let version = table.version(smith_channel::wire::VERSION).expect("current version");
     assert_eq!(version.kinds.len(), 22);
-    for (index, rule) in V10.iter().enumerate() {
+    for (index, rule) in V11.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);
@@ -53,8 +70,12 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 
 #[test]
 fn message_refusal_goldens_keep_each_typed_reason() {
-    assert_measured("channel", smith_channel::wire::VERSION, "message_refused", |bytes| {
-        smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes)).expect("refusal decodes").measure()
+    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
+    goldens.assert_measured("message_refused", |bytes| {
+        smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("refusal decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
 }
 
@@ -62,38 +83,42 @@ fn message_refusal_goldens_keep_each_typed_reason() {
 fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
     let absent = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v9/record_start_smallest.bin")),
+        &mut Reader::new(&crate::support::goldens::bytes("channel", 9, "record_start_smallest.bin")),
     )
     .expect("absent identity golden");
-    assert_eq!(absent.identity(), &None);
+    assert_eq!((&absent.identity), &None);
     let present = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v9/record_start_full.bin")),
+        &mut Reader::new(&crate::support::goldens::bytes("channel", 9, "record_start_full.bin")),
     )
     .expect("present identity golden");
-    assert_eq!(present.identity(), &Some([165; 16]));
+    assert_eq!((&present.identity), &Some([165; 16]));
 }
 
 #[test]
 fn channel_turn_goldens_keep_the_declared_window_flag() {
     let first = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v9/record_turn_full.bin")),
+        &mut Reader::new(&crate::support::goldens::bytes("channel", 9, "record_turn_full.bin")),
     )
     .expect("window flag golden");
-    assert!(first.opens_window());
+    assert!(first.opens_window);
     let ordinary = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v9/record_turn_smallest.bin")),
+        &mut Reader::new(&crate::support::goldens::bytes("channel", 9, "record_turn_smallest.bin")),
     )
     .expect("ordinary flag golden");
-    assert!(!ordinary.opens_window());
+    assert!(!ordinary.opens_window);
 }
 
 #[test]
 fn live_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", smith_channel::wire::VERSION, "live", |bytes| {
-        smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes)).expect("live decodes").measure()
+    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
+    goldens.assert_measured("live", |bytes| {
+        smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("live decodes")
+            .measure(&CEILINGS)
+            .expect("bounded record")
     });
 }
 
@@ -103,15 +128,13 @@ fn each_grant_value_form_reads_back_by_its_tag() {
     let rows = [
         (credential_value(Scheme::Bearer), (0, Some(Scheme::Bearer))),
         (credential_value(Scheme::Key), (0, Some(Scheme::Key))),
-        (program_value(b"program").expect("bounded program"), (1, None)),
+        (program_value(b"program"), (1, None)),
     ];
     for (value, expected) in rows {
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixture size"));
-        value.encode(&mut writer).expect("measured grant");
-        let bytes = writer.finish();
+        let bytes = value.encode(&CEILINGS).expect("bounded record");
         let read = GrantValue::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("grant decodes");
         let scheme = match read {
-            GrantValue::Credential(value) => Some(value.scheme().clone()),
+            GrantValue::Credential(value) => Some(value.scheme.clone()),
             GrantValue::Program(_) => None,
         };
         assert_eq!((bytes[0], scheme), expected);
@@ -119,18 +142,14 @@ fn each_grant_value_form_reads_back_by_its_tag() {
 }
 
 fn credential_value(scheme: smith_channel::Scheme) -> smith_channel::GrantValue {
-    smith_channel::GrantValue::Credential(
-        smith_channel::CredentialValue::new(
-            &CEILINGS,
-            smith_channel::CredentialValueParts { scheme, bytes: skein_lib::Secret::new(Box::from(*b"fixture")) },
-        )
-        .expect("bounded credential"),
-    )
+    smith_channel::GrantValue::Credential(smith_channel::CredentialValue {
+        scheme,
+        bytes: skein_lib::Secret::new(Box::from(*b"fixture")),
+    })
 }
 
-fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v10::Problem> {
-    smith_channel::ProgramValue::new(&CEILINGS, smith_channel::ProgramValueParts { name: Box::from(name) })
-        .map(smith_channel::GrantValue::Program)
+fn program_value(name: &[u8]) -> smith_channel::GrantValue {
+    smith_channel::GrantValue::Program(smith_channel::ProgramValue { name: Box::from(name) })
 }
 
 #[test]
@@ -138,8 +157,8 @@ fn a_grant_value_past_its_bounds_is_refused() {
     use skein_codec::Reason;
     let program_bound = usize::try_from(CEILINGS.program_value_name).expect("program ceiling");
     let rows = [
-        ("long program", program_value(&vec![b'a'; program_bound + 1]), Reason::Bound),
-        ("invalid program text", program_value(&[255]), Reason::Utf8),
+        ("long program", program_value(&vec![b'a'; program_bound + 1]).encode(&CEILINGS), Reason::Bound),
+        ("invalid program text", program_value(&[255]).encode(&CEILINGS), Reason::Utf8),
     ];
     for (name, result, reason) in rows {
         assert_eq!(result.err().map(|problem| problem.reason), Some(reason), "{name}");
@@ -149,20 +168,17 @@ fn a_grant_value_past_its_bounds_is_refused() {
 #[test]
 fn grant_values_at_their_bounds_are_admitted() {
     let program_bound = usize::try_from(CEILINGS.program_value_name).expect("program ceiling");
-    assert!(program_value(&vec![b'a'; program_bound]).is_ok(), "program");
+    assert!(program_value(&vec![b'a'; program_bound]).encode(&CEILINGS).is_ok(), "program");
 }
 
 #[test]
 fn limited_resets_distinguish_zero_one_and_not_said() {
-    use skein_lib::{Duration, Writer};
+    use skein_lib::Duration;
     for reset in [Some(Duration::ZERO), Some(Duration::from_nanos(1)), None] {
-        let value = smith_channel::Limited::new(&CEILINGS, smith_channel::LimitedParts { account: 7, reset })
-            .expect("bounded limited notice");
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("notice size"));
-        value.encode(&mut writer).expect("measured notice");
-        let bytes = writer.finish();
+        let value = smith_channel::Limited { account: 7, reset };
+        let bytes = value.encode(&CEILINGS).expect("bounded record");
         let read = smith_channel::Limited::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("limited decodes");
-        assert_eq!((read.account(), *read.reset()), (7, reset));
+        assert_eq!((read.account, read.reset), (7, reset));
     }
 }
 
@@ -171,20 +187,17 @@ fn refused_notice_fields_read_back_at_both_bounds() {
     let code_bound = usize::try_from(CEILINGS.account_refused_code).expect("code ceiling");
     let reason_bound = usize::try_from(CEILINGS.account_refused_reason).expect("reason ceiling");
     for (code_length, reason_length) in [(0, 0), (code_bound, reason_bound)] {
-        let value = smith_channel::AccountRefused::new(
-            &CEILINGS,
-            smith_channel::AccountRefusedParts {
-                account: 7,
-                code: vec![b'c'; code_length].into_boxed_slice(),
-                reason: vec![b'r'; reason_length].into_boxed_slice(),
-            },
-        )
-        .expect("bounded refusal");
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("notice size"));
-        value.encode(&mut writer).expect("measured notice");
-        let bytes = writer.finish();
+        let value = smith_channel::AccountRefused {
+            account: 7,
+            code: vec![b'c'; code_length].into_boxed_slice(),
+            reason: vec![b'r'; reason_length].into_boxed_slice(),
+        };
+        let bytes = value.encode(&CEILINGS).expect("bounded record");
         let read = smith_channel::AccountRefused::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("refusal decodes");
-        assert_eq!((read.account(), read.code().len(), read.reason().len()), (7, code_length, reason_length));
+        assert_eq!(
+            (read.account, read.code.as_ref().len(), read.reason.as_ref().len()),
+            (7, code_length, reason_length)
+        );
     }
 }
 
@@ -192,16 +205,8 @@ fn refused_notice_fields_read_back_at_both_bounds() {
 fn a_list_asks_debug_keeps_the_credentials_value_private() {
     const VALUE: &[u8] = b"private-list-value";
     for scheme in [smith_channel::Scheme::Key, smith_channel::Scheme::Bearer] {
-        let credential = smith_channel::CredentialValue::new(
-            &CEILINGS,
-            smith_channel::CredentialValueParts { scheme, bytes: skein_lib::Secret::new(VALUE.into()) },
-        )
-        .expect("bounded credential");
-        let ask = smith_channel::ListAsk::new(
-            &CEILINGS,
-            smith_channel::ListAskParts { endpoint: 17, credential: Some(credential) },
-        )
-        .expect("list ask");
+        let credential = smith_channel::CredentialValue { scheme, bytes: skein_lib::Secret::new(VALUE.into()) };
+        let ask = smith_channel::ListAsk { endpoint: 17, credential: Some(credential) };
         let words = format!("{ask:?}");
         assert!(!words.contains(std::str::from_utf8(VALUE).expect("fixture text")), "no secret text in Debug");
         assert!(!words.contains(&format!("{VALUE:?}")), "no secret bytes in Debug");

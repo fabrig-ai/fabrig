@@ -10,22 +10,30 @@ mod tell;
 #[path = "tests/own.rs"]
 mod own;
 
+#[path = "tests/events.rs"]
+mod events;
 #[path = "tests/goal.rs"]
 mod goal;
 #[path = "tests/lending.rs"]
 mod lending;
-pub(crate) use lending::terminal_document;
+#[path = "tests/named.rs"]
+mod named;
+#[path = "tests/playground.rs"]
+mod playground;
+#[path = "tests/refused.rs"]
+mod refused;
 
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
     limits,
 };
 use jig_client::{Message, Request};
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
+use smith_transcript::Record;
 use temper_client_domain::{
     self as root, Address, Place,
     pages::{
@@ -35,8 +43,76 @@ use temper_client_domain::{
 };
 use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Scheme, Told, WalkStep};
 
+fn settings() -> Settings {
+    let mut limits = limits::tui();
+    // The largest frames in these fixtures are the 120 by 40 launchpad open checks.
+    limits.most = Size { columns: 120, rows: 40 };
+    Settings { limits }
+}
+
 fn host() -> Host {
-    Host::new(&Settings { limits: limits::tui() }, 7, Time::ZERO, Wall::EPOCH)
+    Host::new(&settings(), 7, Time::ZERO, Wall::EPOCH)
+}
+
+/// Fresh hosts sharing only the settings and words checked by the first host.
+struct Hosts {
+    settings: Settings,
+    host: Host,
+    first: bool,
+}
+impl Hosts {
+    fn new() -> Self {
+        let settings = settings();
+        let host = Host::new(&settings, 7, Time::ZERO, Wall::EPOCH);
+        Self { settings, host, first: true }
+    }
+
+    fn next(&mut self) -> &mut Host {
+        if self.first {
+            self.first = false;
+        } else {
+            let words = self.host.view.words().clone();
+            self.host = Host::with_checked_words(&self.settings, words, 7, Time::ZERO, Wall::EPOCH);
+        }
+        &mut self.host
+    }
+}
+
+#[test]
+fn a_fixed_tuis_first_request_key_is_not_the_browser_setups() {
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
+    let (seed, _) = crate::start::fixed_run(&start);
+    assert_ne!(
+        first_request_key(seed),
+        first_request_key(start.seed),
+        "the TUI's first request must not reuse the browser setup's request key"
+    );
+}
+
+fn first_request_key(seed: u64) -> [u8; 16] {
+    let mut host = Host::new(&Settings { limits: limits::tui() }, seed, Time::ZERO, Wall::EPOCH);
+    start(&mut host, Some(Secret::new(Box::new([7; 40]))));
+    let hello = hello_for_me(&host, launchpad_me(false));
+    let duties =
+        host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+    admit(&mut host, duties);
+    host.step(root::Event::Client {
+        event: jig_client::Event::Send {
+            key: jig_client::Key { asker: jig_client::Asker::JIG, number: 1 },
+            name: None,
+            request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop { project: 3, task: 9 })),
+        },
+    });
+    let duties = host.report(Report::Due);
+    let duties = stored(&mut host, duties);
+    duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Request(bytes), .. } = request else { return None };
+            Some(*w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed request").key())
+        })
+        .expect("the saved first request is sent")
 }
 
 fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
@@ -44,6 +120,22 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 }
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
+    start_at(
+        host,
+        credential,
+        background,
+        boxed,
+        temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
+    )
+}
+
+fn start_at(
+    host: &mut Host,
+    credential: Option<Secret>,
+    background: Option<Rgb>,
+    boxed: bool,
+    address: temper_client_tui::Origin,
+) -> Duties {
     host.report(Report::Start(Start {
         set_up: false,
         box_log: Box::default(),
@@ -54,7 +146,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
         plain: false,
         version: Box::default(),
         boxed,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address,
         local: false,
         note: None,
         kept: Vec::new(),
@@ -84,6 +176,43 @@ fn empty(duties: &Duties) {
     assert!(duties.stop.is_none());
     assert!(duties.lend.is_none());
     assert!(!duties.unlend);
+}
+
+#[test]
+fn a_handshake_report_changes_the_hosts_bottom_row_and_clearing_restores_it() {
+    use temper_client_tui::{Handshake, Origin};
+    for signed_in in [false, true] {
+        let mut host = host();
+        start_at(
+            &mut host,
+            signed_in.then(|| Secret::new(Box::new([7; 40]))),
+            None,
+            false,
+            Origin::parse(b"https://dev.fabrig.ai").expect("origin"),
+        );
+        if signed_in {
+            let hello = hello_for_me(&host, launchpad_me(true));
+            let duties = host
+                .report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+            admit(&mut host, duties);
+            host.report(Report::Heard(jig_client::Event::StreamGone));
+        }
+        let before = text(&mut host);
+        empty(&host.report(Report::Handshake { failed: Some(Handshake::Untrusted) }));
+        assert_eq!(host.state.as_ref().expect("started").handshake(), Some(Handshake::Untrusted));
+        let frame = text(&mut host);
+        assert!(
+            frame
+                .lines()
+                .last()
+                .expect("bottom row")
+                .trim_start()
+                .starts_with("● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            "signed in {signed_in}: {frame}"
+        );
+        empty(&host.report(Report::Handshake { failed: None }));
+        assert_eq!(text(&mut host), before);
+    }
 }
 
 #[test]
@@ -144,7 +273,7 @@ fn the_fronts_setup_and_log_path_reach_the_tui() {
             scheme: Some(Scheme::Dark),
             background: None,
             boxed: front,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             local: front,
             note: None,
             kept: Vec::new(),
@@ -161,6 +290,22 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
         (vec![Key::Paste(b"not a link".as_slice().into()), Key::Enter], false, "That is not a sign-in link"),
         (link("127.0.0.1:9000"), false, "That link is for 127.0.0.1:9000"),
         (link("127.0.0.1:8367"), true, "Signing in…"),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            true,
+            "Signing in…",
+        ),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:9000/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            false,
+            "That link is for 127.0.0.1:9000",
+        ),
     ];
     for (keys, sends, line) in rows {
         let mut host = host();
@@ -176,7 +321,9 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
             assert_eq!(asked.len(), 1);
             assert!(matches!(
                 asked.first(),
-                Some(Request::Exchange { credential: None, message: Message::SignInLink(_), .. })
+                Some(Request::Exchange { credential: None, message: Message::SignInLink(secret), .. })
+                    if w::LinkSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(secret))
+                        .expect("link record").secret().expose() == [0; 32]
             ));
             assert!(!text(&mut host).contains(&"A".repeat(43)));
         } else {
@@ -195,7 +342,7 @@ fn the_credential_is_kept_and_erased_as_the_link_says() {
         assert!(duties.keep.is_none());
         if held {
             assert!(duties.asked.iter().any(|request| matches!(request,
-                Request::OpenStream { credential: offered } if offered == &credential
+                Request::OpenStream { credential: offered, .. } if offered == &credential
             )));
         } else {
             ask(&duties);
@@ -290,7 +437,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -346,6 +493,7 @@ fn approval_is_asked_once_per_opening() {
 
 #[test]
 fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
+    let mut hosts = Hosts::new();
     for (address, code, tail, opens) in [
         ("127.0.0.1:8367", "WDJB-MJHT", "", true),
         ("127.0.0.1:9000", "WDJB-MJHT", "", true),
@@ -354,7 +502,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         ("127.0.0.1:8367", "WDJB-MJHT&next=http://x", "", false),
         ("127.0.0.1:8367", "WDJB-MJHT", "http://evil.example/", false),
     ] {
-        let mut host = host();
+        let host = hosts.next();
         let duties = host.report(Report::Start(Start {
             set_up: false,
             box_log: Box::default(),
@@ -365,14 +513,14 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
             plain: false,
             version: Box::default(),
             boxed: false,
-            address: address.as_bytes().into(),
+            address: temper_client_tui::Origin::Http(address.parse().expect("fixture socket")),
             local: false,
             note: None,
             kept: Vec::new(),
             credential: None,
         }));
         let exchange = ask(&duties);
-        let duties = reply(&mut host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
+        let duties = reply(host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
         let expected =
             opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
         assert_eq!(duties.open, expected, "{address} {code} {tail}");
@@ -384,7 +532,8 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
+    let mut hosts = Hosts::new();
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -397,9 +546,9 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         w::ApprovalSignInAnswer::Waiting,
     ] {
         let waiting = answer == w::ApprovalSignInAnswer::Waiting;
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
-        let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
+        let duties = reply(host, exchange, approval_bytes(b"WDJBMJHT", b""));
         let take = duties
             .asked
             .iter()
@@ -413,7 +562,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             .expect("approval take");
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("test length"));
         answer.encode(&mut writer).expect("take answer");
-        reply(&mut host, take, writer.finish());
+        reply(host, take, writer.finish());
         host.frame();
         let duties = host.report(Report::Key(Key::Enter));
         if waiting {
@@ -429,7 +578,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             ask(&host.report(Report::Key(Key::Enter)));
         } else {
             let exchange = ask(&duties);
-            let duties = reply(&mut host, exchange, approval_bytes(b"BCDFGHJK", b""));
+            let duties = reply(host, exchange, approval_bytes(b"BCDFGHJK", b""));
             assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/terminal?code=BCDF-GHJK".as_slice()));
             assert!(!host.state().pasted());
         }
@@ -440,12 +589,12 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         Some(w::ApprovalAskAnswer::Busy),
         None,
     ] {
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
         if let Some(answer) = answer {
             let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
             answer.encode(&mut writer).expect("answer");
-            reply(&mut host, exchange, writer.finish());
+            reply(host, exchange, writer.finish());
         } else {
             host.report(Report::Heard(jig_client::Event::Lost { exchange }));
         }
@@ -456,7 +605,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -577,6 +726,10 @@ pub(crate) fn signed_in_answer() -> w::SignInAnswer {
 }
 
 fn local_link(address: &str, secret: &str) -> Secret {
+    Secret::new(format!("http://{address}/sign-in?secret={secret}").into_bytes().into())
+}
+
+fn route_link(address: &str, secret: &str) -> Secret {
     Secret::new(format!("http://{address}/jig/v1/sign-in/link?secret={secret}").into_bytes().into())
 }
 
@@ -620,8 +773,8 @@ struct LocalRow {
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
     use LocalWant::{Ask, Connecting, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
-    let found = || Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET)));
-    let fresh = || Found(Some(local_link("127.0.0.1:8367", FRESH_SECRET)));
+    let found = || Found(Some(route_link("127.0.0.1:8367", LOCAL_SECRET)));
+    let fresh = || Found(Some(route_link("127.0.0.1:8367", FRESH_SECRET)));
     let row = |name, steps| LocalRow { front: false, name, local: true, note: None, held: false, first: Read, steps };
     let mut rows = vec![
         row("fresh", vec![]),
@@ -637,8 +790,16 @@ fn the_engines_link_signs_in_and_falls_back() {
         },
         row("no file", vec![(Found(None), Ask)]),
         row("garbage", vec![(Found(Some(Secret::new(b"garbage".as_slice().into()))), Ask)]),
-        row("other address", vec![(Found(Some(local_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
+        row("other address", vec![(Found(Some(route_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
         row("signed in", vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Until)]),
+        row(
+            "page signed in",
+            vec![
+                (Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET))), Send),
+                (Answer(signed_in_answer()), Keep),
+                (Connect, Until),
+            ],
+        ),
         row(
             "used then same then fresh",
             vec![
@@ -879,8 +1040,9 @@ fn the_engines_link_signs_in_and_falls_back() {
         },
     ]);
     let mut failures = Vec::new();
+    let settings = settings();
     for row in rows {
-        local_row(row, &mut failures);
+        local_row(&settings, row, &mut failures);
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -896,7 +1058,7 @@ fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Sec
         plain: false,
         version: Box::default(),
         boxed: false,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local,
         kept: Vec::new(),
         credential,
@@ -904,8 +1066,8 @@ fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Sec
     }))
 }
 
-fn local_row(row: LocalRow, failures: &mut Vec<String>) {
-    let mut host = host();
+fn local_row(settings: &Settings, row: LocalRow, failures: &mut Vec<String>) {
+    let mut host = Host::new(settings, 7, Time::ZERO, Wall::EPOCH);
     let duties =
         start_local(&mut host, row.front, row.local, row.held.then(|| Secret::new(Box::new([7; 40]))), row.note);
     if host.state().front() != row.front {
@@ -929,7 +1091,7 @@ fn local_row(row: LocalRow, failures: &mut Vec<String>) {
             LocalAct::Approve => reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b"")),
             LocalAct::Paste => {
                 host.frame();
-                host.report(Report::Key(Key::Paste(local_link("127.0.0.1:8367", LOCAL_SECRET).into_exposed())));
+                host.report(Report::Key(Key::Paste(route_link("127.0.0.1:8367", LOCAL_SECRET).into_exposed())));
                 host.report(Report::Key(Key::Enter))
             }
             LocalAct::Connect => connect(&mut host),
@@ -1014,6 +1176,7 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
     }
     let frame = host.frame();
     let print = frame.print();
+    let print = core::str::from_utf8(&print).expect("UTF-8 print");
     let text = String::from_utf8(frame.text().into_vec()).expect("UTF-8 frame");
     if matches!(want, LocalWant::Connecting) && !text.contains("Connecting") {
         failures.push(format!("{name}: connecting text"));
@@ -1034,7 +1197,7 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
         failures.push(format!("{name}: file's exchange told the paste UI"));
     }
     for secret in [LOCAL_SECRET, FRESH_SECRET] {
-        if text.contains(secret) || print.windows(secret.len()).any(|part| part == secret.as_bytes()) {
+        if text.contains(secret) || print.contains(secret) {
             failures.push(format!("{name}: file's secret drawn"));
         }
     }
@@ -1046,45 +1209,11 @@ pub(crate) fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
     writer.finish()
 }
 pub(crate) fn hello_bytes() -> Box<[u8]> {
-    let limits = &w::CEILINGS;
-    let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served::new(
-                limits,
-                w::ServedParts {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-            )
-            .expect("Jig version"),
-        )
-        .expect("one owner");
-    let hello = w::StreamEvent::Hello(
-        w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-    );
-    stream_bytes(&hello)
+    hello_for_owners(limits::tui().native.client.client.domain.owners, records::frame_record())
 }
-pub(crate) fn me_bytes(duties: &Duties) -> Box<[u8]> {
+pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
-    let watch = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(limits, &mut Reader::new(bytes)).expect("watch request");
-                if open.subject().owner() == &w::Owner::Jig
-                    && w::Subject::decode(limits, &mut Reader::new(open.subject().record())).expect("Jig subject")
-                        == w::Subject::Me
-                {
-                    return Some(open.watch());
-                }
-            }
-            None
-        })
-        .expect("Me watch");
+    let watch = 0;
     let text = |bytes: &[u8]| {
         w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
     };
@@ -1129,9 +1258,7 @@ fn connect(host: &mut Host) -> Duties {
     if host.root.client().link().credential.is_none() {
         return host.report(Report::Due);
     }
-    let duties = host
-        .report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello_bytes()) }));
-    host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(me_bytes(&duties)) }))
+    host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello_bytes()) }))
 }
 
 fn pieces(items: &[Box<[u8]>]) -> Box<[u8]> {
@@ -1253,18 +1380,59 @@ fn project_bytes(project: &w::MeProject) -> Box<[u8]> {
 pub(crate) fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
     maybe_watch(duties, subject).unwrap_or_else(|| panic!("requested watch {subject:?}: {:?}", duties.asked))
 }
+fn openings(message: &Message) -> Vec<w::Open> {
+    match message {
+        Message::Watch(bytes) => vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch")],
+        Message::Batch(bytes) => w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes))
+            .expect("batch")
+            .into_parts()
+            .members
+            .into_boxed()
+            .into_vec()
+            .into_iter()
+            .filter_map(|member| match member {
+                w::Member::Open(open) => Some(open),
+                w::Member::Read(_) | w::Member::Close(_) => None,
+            })
+            .collect(),
+        Message::LinkAsk(_)
+        | Message::Authorize(_)
+        | Message::ApprovalAsk(_)
+        | Message::ApprovalRead(_)
+        | Message::ApprovalDecide(_)
+        | Message::SignInApproval(_)
+        | Message::Request(_)
+        | Message::Read(_)
+        | Message::Unwatch(_)
+        | Message::StreamGone(_)
+        | Message::SignInLink(_)
+        | Message::SignInService
+        | Message::SignOut => vec![],
+    }
+}
+fn all_openings(duties: &Duties) -> Vec<w::Open> {
+    duties
+        .asked
+        .iter()
+        .flat_map(|request| if let Request::Exchange { message, .. } = request { openings(message) } else { vec![] })
+        .collect()
+}
 fn maybe_watch(duties: &Duties, subject: &w::Subject) -> Option<u64> {
+    if *subject == w::Subject::Me {
+        return Some(0);
+    }
     duties.asked.iter().rev().find_map(|request| {
-        if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+        let Request::Exchange { message, .. } = request else { return None };
+        openings(message).into_iter().rev().find_map(|open| {
             if open.subject().owner() == &w::Owner::Jig
                 && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
                     == *subject
             {
-                return Some(open.watch());
+                Some(open.watch())
+            } else {
+                None
             }
-        }
-        None
+        })
     })
 }
 
@@ -1293,13 +1461,11 @@ fn signed_host(projects: bool) -> (Host, u64, Duties) {
 fn signed_host_look(projects: bool, background: Option<Rgb>, boxed: bool) -> (Host, u64, Duties) {
     let mut host = host();
     start_look(&mut host, Some(Secret::new(Box::new([7; 40]))), background, boxed);
-    let hello = hello_for(&host);
+    let hello = hello_for_me(&host, launchpad_me(projects));
     let duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     let duties = admit(&mut host, duties);
     let me = watch(&duties, &w::Subject::Me);
-    let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
-    let duties = admit(&mut host, duties);
     (host, me, duties)
 }
 
@@ -1399,7 +1565,8 @@ fn goal_tasks() -> w::Tasks {
     let row = w::TaskLine::new(&w::CEILINGS, row).expect("goal row");
     let mut writer = Writer::new(usize::try_from(row.measure()).expect("goal size"));
     row.encode(&mut writer).expect("goal fits");
-    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).expect("goal")
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
+        .expect("goal")
 }
 
 fn goal_host() -> Host {
@@ -1408,12 +1575,9 @@ fn goal_host() -> Host {
     let mut duties = admit(&mut host, duties);
     let tasks = goal_tasks();
     for _ in 0..host.env.limits.client.domain.watches {
-        let subjects: Vec<_> = duties
-            .asked
-            .iter()
-            .filter_map(|request| {
-                let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+        let subjects: Vec<_> = all_openings(&duties)
+            .into_iter()
+            .filter_map(|open| {
                 if open.subject().owner() != &w::Owner::Jig {
                     return None;
                 }
@@ -1424,7 +1588,9 @@ fn goal_host() -> Host {
             .collect();
         for subject in subjects {
             let watched = watch(&duties, &subject);
-            let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+            let w::Subject::Tasks(query) = subject else { unreachable!("task subject") };
+            let rows = tasks_with_parts(&tasks, query.query().parts().len());
+            let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(rows));
             duties.asked.extend(admit(&mut host, arrived).asked);
         }
         if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some())
@@ -1501,7 +1667,7 @@ fn a_kept_theme_starts_the_next_host_in_it() {
                 plain: false,
                 version: Box::default(),
                 boxed: false,
-                address: b"127.0.0.1:8367".as_slice().into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 local: false,
                 note: None,
                 kept,
@@ -1710,7 +1876,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
         plain: false,
         version: Box::default(),
         boxed: true,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local: false,
         note: None,
         kept,
@@ -1878,27 +2044,21 @@ fn reply_host_draft(draft: bool) -> Host {
         let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
-    let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
-    let text = s::Block::Text(
-        s::Text::new(
-            &s::CEILINGS,
-            s::TextParts {
-                text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
-                    .as_bytes()
-                    .into(),
-                replay: None,
-            },
-        )
-        .unwrap(),
-    );
-    turn.messages = List::from_boxed(Box::new([s::Message::new(
-        &s::CEILINGS,
-        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
-    )
-    .unwrap()]));
-    let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
-    let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
+    let text = s::Block::Text(s::Text {
+        text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
+            .as_bytes()
+            .into(),
+        replay: None,
+    });
+    turn.messages = List::from_boxed(Box::new([s::Message {
+        role: s::Role::Assistant,
+        blocks: List::from_boxed(Box::new([text])),
+    }]));
+    let turn = turn;
+    let mut writer =
+        Writer::new(usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap());
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     let mut page = records::activity_rows(&[records::turn_line(1, 0, 1, &writer.finish())]).into_parts();
     page.after = None;
     page.cut = false;
@@ -1934,8 +2094,8 @@ fn typed(host: &mut Host, words: &[u8]) {
 
 fn key_words(host: &mut Host, words: &str) {
     let mut echoed = String::from_utf8(host.words().to_vec()).expect("UTF-8 composer");
+    host.frame();
     for character in words.chars() {
-        host.frame();
         empty(&host.report(Report::Key(Key::Char(character))));
         echoed.push(character);
         assert!(text(host).contains(&format!("❯ {echoed}")), "composer must echo {echoed:?}");
@@ -2037,16 +2197,14 @@ fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
         let duties = reply(&mut host, exchange, sign_in_bytes(&signed_in_answer()));
         admit(&mut host, duties);
         assert_eq!(host.words(), b"a", "the sign-in's link change keeps words");
-        let hello = hello_for(&host);
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a", "Enter before the hello keeps words");
+        assert!(text(&mut host).contains("Still signing in"));
+        let hello = hello_for_me(&host, launchpad_me(false));
         let duties =
             host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
         let duties = admit(&mut host, duties);
         let me = watch(&duties, &w::Subject::Me);
-        empty(&host.report(Report::Key(Key::Enter)));
-        assert_eq!(host.words(), b"a", "Enter before me keeps words");
-        assert!(text(&mut host).contains("Still signing in"));
-        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
-        admit(&mut host, duties);
         assert_eq!(host.words(), b"a", "no project keeps words");
         assert!(text(&mut host).contains("❯ a"));
         let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
@@ -2082,7 +2240,7 @@ fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
             plain: false,
             version: Box::default(),
             boxed: true,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             local: true,
             kept: Vec::new(),
             credential: None,
@@ -2104,14 +2262,12 @@ fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
         admit(&mut host, duties);
         assert!(text(&mut host).contains("✓ temper started"));
         assert!(text(&mut host).contains("▸ Signing in…"));
-        let hello = hello_for(&host);
+        let hello = hello_for_me(&host, launchpad_me(projects));
         let duties =
             host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
         let duties = admit(&mut host, duties);
-        let me = watch(&duties, &w::Subject::Me);
-        assert!(text(&mut host).contains("Starting temper"));
-        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
-        admit(&mut host, duties);
+        let _ = duties;
+        assert!(!text(&mut host).contains("Starting temper"));
         let drawn = text(&mut host);
         assert!(!drawn.contains("Starting temper"), "{drawn}");
         assert_eq!(host.words(), b"a");
@@ -2318,7 +2474,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                     plain: false,
                     version: Box::default(),
                     boxed: false,
-                    address: b"127.0.0.1:8367".as_slice().into(),
+                    address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                     local: false,
                     kept: vec![],
                     credential: None,
@@ -2368,10 +2524,13 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                     let duties = reply(&mut host, *exchange, created_bytes(9));
                     host.root.pages().address() == &Address::Chat { task: 9 }
                         && host.state().focus() > before
-                        && duties
-                            .asked
-                            .iter()
-                            .any(|request| matches!(request, Request::Exchange { message: Message::Watch(_), .. }))
+                        && duties.asked.iter().any(|request| {
+                            if let Request::Exchange { message, .. } = request {
+                                !openings(message).is_empty()
+                            } else {
+                                false
+                            }
+                        })
                 } else {
                     false
                 }
@@ -2614,420 +2773,101 @@ fn the_launchpad_takes_its_own_words() {
     }
 }
 
-#[test]
-#[expect(clippy::too_many_lines, reason = "one table holds the host's TUI event translations")]
-fn each_event_becomes_its_acts() {
-    let page = b"http://127.0.0.1:8367/projects/3".as_slice();
-    for (event, words, brief, walking, open) in [
-        (Event::Own { command: Own::Draft }, b"".as_slice(), false, false, None),
-        (Event::Own { command: Own::Change }, b"".as_slice(), false, false, None),
-        (Event::Own { command: Own::Ask }, b"".as_slice(), false, false, None),
-        (Event::Own { command: Own::Brief }, b"".as_slice(), true, false, None),
-        (Event::Own { command: Own::Needs }, b"".as_slice(), false, true, None),
-        (Event::Own { command: Own::Open }, b"".as_slice(), false, false, Some(page)),
-        (Event::Open { address: page.into() }, b"".as_slice(), false, true, Some(page)),
-        (Event::EndWalk, b"".as_slice(), false, false, None),
-    ] {
-        let (mut host, _, _) = signed_host(true);
-        host.tell(Told::Walk { by_key: true });
-        let before = host.state().box_written();
-        let mut duties = Duties::default();
-        host.event(event.clone(), &mut duties);
-        if let Event::Own { command: command @ (Own::Draft | Own::Change | Own::Ask) } = event {
-            assert_eq!(host.state().place(), Some(command));
-            assert!(host.state().box_written() > before);
-        }
-        assert_eq!(host.words(), words, "{event:?}");
-        assert!(words.is_empty() || host.state().box_written() > before, "{event:?}: box write count");
-        assert_eq!(host.state().brief_shown(), brief, "{event:?}");
-        assert_eq!(host.state().walk().is_some(), walking, "{event:?}");
-        assert_eq!(duties.open.as_deref(), open, "{event:?}");
-        assert!(duties.asked.is_empty(), "{event:?}");
-    }
-    for (projects, chat, selected, linked, address) in [
-        (false, false, false, false, None),
-        (true, false, false, false, Some(b"http://127.0.0.1:8367/projects/3".as_slice())),
-        (true, true, false, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
-        (true, false, true, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
-        (true, true, false, true, Some(b"http://127.0.0.1:8367/tasks/25".as_slice())),
-    ] {
-        let mut host = if linked {
-            goal::host(true, false)
-        } else if projects {
-            left_off_host()
+#[derive(Clone, Copy)]
+struct ReplySlot {
+    exchange: skein_lib::Token,
+    member: Option<u16>,
+}
+impl ReplySlot {
+    fn report(self, message: Box<[u8]>) -> Report {
+        let event = if let Some(member) = self.member {
+            let part =
+                w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(message) }).expect("part");
+            let mut writer = Writer::new(usize::try_from(part.measure()).expect("part size"));
+            part.encode(&mut writer).expect("part bytes");
+            jig_client::Event::Part { exchange: self.exchange, message: writer.finish() }
         } else {
-            signed_host(false).0
+            jig_client::Event::Reply { exchange: self.exchange, message }
         };
-        if chat && !linked {
-            give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
-        }
-        if selected {
-            host.report(Report::Key(Key::Down));
-        }
-        assert_eq!(give(&mut host, Event::Own { command: Own::Open }).open.as_deref(), address);
+        Report::Heard(event)
     }
-    for (chat, words, after, event, walking, expected) in [
-        (false, b"".as_slice(), None, Event::Own { command: Own::Needs }, true, b"".as_slice()),
-        (false, b"a".as_slice(), None, Event::Typed { value: b"an".as_slice().into() }, false, b"an".as_slice()),
-        (true, b"".as_slice(), None, Event::Typed { value: b"n".as_slice().into() }, false, b"n".as_slice()),
-        (false, b"".as_slice(), Some('o'), Event::Own { command: Own::Needs }, false, b"no".as_slice()),
-    ] {
-        let mut host = waiting_at(chat);
-        typed(&mut host, words);
-        host.frame();
-        assert_eq!(host.event_of(&Key::Char('n')), Some(event.clone()), "chat={chat}, words={words:?}");
-        host.report(Report::Key(Key::Char('n')));
-        if let Some(character) = after {
-            host.frame();
-            host.report(Report::Key(Key::Char(character)));
-        }
-        assert_eq!(host.words(), expected, "chat={chat}, words={words:?}, after={after:?}");
-        assert_eq!(host.state().walk().is_some_and(|walk| walk.by_key() && !walk.taken()), walking);
-    }
-    for (by_key, taken, expected) in
-        [(false, false, b"o".as_slice()), (true, true, b"o".as_slice()), (true, false, b"no".as_slice())]
-    {
-        let mut host = waiting_at(false);
-        host.tell(Told::Walk { by_key });
-        if taken {
-            host.tell(Told::Walked { object: shared_question(&host) });
-        }
-        host.typed(b"o".as_slice().into());
-        assert_eq!(host.words(), expected, "by_key={by_key}, taken={taken}");
-        assert!(host.state().walk().is_none(), "typing ends the prompt");
-        assert!(host.state().field().is_empty(), "walking keys belong only to the box");
-    }
-    for (step, label, open) in [
-        (
-            WalkStep::Choose { words: b"Comma".as_slice().into() },
-            Some(root::pages::needs::Label::Choice(b"Comma".as_slice().into())),
-            None,
-        ),
-        (WalkStep::Open { address: page.into() }, None, Some(page)),
-        (WalkStep::Next, None, None),
-    ] {
-        let mut host = waiting_host();
-        let object = shared_question(&host);
-        host.tell(Told::Walk { by_key: false });
-        let duties = give(&mut host, Event::Walk { object, step: step.clone() });
-        let answered = host.root.pages().needs().answered(Wall::EPOCH, root::pages::needs::ANSWERED_ON_HOME, Some(3));
-        assert_eq!(
-            answered.iter().find(|line| line.object == object).map(|line| &line.label),
-            label.as_ref(),
-            "{step:?}: only a choice answers, in its words"
-        );
-        assert_eq!(duties.open.as_deref(), open, "{step:?}: page opened");
-        assert!(host.state().walk().is_some_and(|walk| walk.shown(&object) && walk.taken()), "{step:?}: need shown");
-    }
-    for (own, brief, walk) in [(Own::Brief, true, false), (Own::Needs, false, true), (Own::Open, false, false)] {
-        let mut host = waiting_at(false);
-        give(&mut host, Event::Command { command: Command::Model });
-        typed(&mut host, own.name());
-        let before = host.state().box_written();
-        give(&mut host, Event::Own { command: own });
-        assert!(host.words().is_empty(), "{own:?}: command box cleared");
-        assert!(host.root.pages().listing().is_none(), "{own:?}: standing list dismissed");
-        assert!(host.state().box_written() > before, "{own:?}: box write advances");
-        assert_eq!(host.state().brief_shown(), brief, "{own:?}");
-        assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
-    }
-    pane_events();
-    reply_events();
-    goal::events();
-    let mut failures = Vec::new();
-    for row in [
-        "stop",
-        "stay",
-        "front log",
-        "bare log",
-        "home words",
-        "left off arrows",
-        "left off enter",
-        "left off escape",
-        "left off typed",
-        "left off commands",
-        "chat words",
-        "chat send",
-        "create",
-        "unknown",
-        "unknown send",
-        "unknown went",
-        "no project",
-        "help",
-        "dismiss",
-        "escape",
-        "aside",
-        "reply words",
-        "reply choice",
-        "act",
-        "size",
-    ] {
-        let (mut host, _, _) = signed_host(row != "no project");
-        let passed = match row {
-            "left off arrows" => {
-                let mut host = left_off_host();
-                let mut passed = true;
-                for (key, task, title) in
-                    [(Key::Down, NEWEST, "Newest"), (Key::Down, OLDER, "Older"), (Key::Up, NEWEST, "Newest")]
-                {
-                    passed &= host.event_of(&key) == Some(Event::LeftOff { task: Some(task) });
-                    host.report(Report::Key(key));
-                    passed &= host.state().left_off() == Some(task)
-                        && text(&mut host)
-                            .lines()
-                            .any(|line| line.starts_with(&format!(" ❯ Project   {title}, a chat")));
-                }
-                passed
-            }
-            "left off enter" => {
-                let mut host = left_off_host();
-                let event = host.event_of(&Key::Down).expect("first chat");
-                give(&mut host, event);
-                host.frame();
-                let selected = host.state().left_off() == Some(NEWEST)
-                    && host.event_of(&Key::Enter)
-                        == Some(Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
-                let duties = host.report(Report::Key(Key::Enter));
-                read_exchange(&duties, "activity");
-                watch(
-                    &duties,
-                    &w::Subject::Task(
-                        w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: NEWEST }).expect("task subject"),
-                    ),
-                );
-                selected && host.root.pages().address() == &Address::Chat { task: NEWEST }
-            }
-            "left off escape" | "left off typed" | "left off commands" => {
-                let mut host = left_off_host();
-                host.report(Report::Key(Key::Down));
-                host.frame();
-                if row == "left off escape" {
-                    let event = host.event_of(&Key::Escape);
-                    host.report(Report::Key(Key::Escape));
-                    event == Some(Event::LeftOff { task: None }) && host.state().left_off().is_none()
-                } else if row == "left off typed" {
-                    host.report(Report::Key(Key::Char('a')));
-                    host.state().left_off().is_none() && host.event_of(&Key::Down).is_none()
-                } else {
-                    host.report(Report::Key(Key::Char('/')));
-                    host.frame();
-                    let event = host.event_of(&Key::Down);
-                    host.report(Report::Key(Key::Down));
-                    host.state().left_off() == Some(NEWEST)
-                        && event.is_none()
-                        && text(&mut host).lines().any(|line| line.starts_with("❯ /change"))
-                }
-            }
-            "stop" => give(&mut host, Event::Stop).close,
-            "stay" => {
-                host.tell(temper_client_tui::Told::Quitting);
-                !give(&mut host, Event::Stay).close && !host.state().quitting()
-            }
-            "front log" | "bare log" => {
-                let front = row == "front log";
-                if front {
-                    host.tell(temper_client_tui::Told::Front { set_up: false, box_log: Box::default() });
-                }
-                typed(&mut host, b"/log");
-                let before = host.state().box_written();
-                let duties = give(&mut host, Event::Log);
-                duties.asked.is_empty()
-                    && host.state().log_shown() == front
-                    && host.root.pages().chats().is_some_and(|chats| chats.words.is_empty() == front)
-                    && (host.state().box_written() > before) == front
-            }
-            "home words" | "create" => {
-                typed(&mut host, b"Please help");
-                if row == "home words" {
-                    host.root.pages().chats().is_some_and(|chats| chats.words.as_ref() == b"Please help")
-                } else {
-                    let duties = give(&mut host, Event::Send);
-                    let asks = sent_ask(&duties);
-                    asks.len() == 1
-                        && matches!(&asks[0].1, w::Ask::Create(create) if create.project() == 3 && one_asking_task(create.tasks()))
-                        && host.state().box_written() > 0
-                }
-            }
-            "chat words" => {
-                host.step(root::Event::Went { place: Place::Address(Address::Chat { task: 9 }) });
-                host.report(Report::Due);
-                typed(&mut host, b"Chat words");
-                host.root.pages().chat().is_some_and(|chat| chat.words.as_ref() == b"Chat words")
-            }
-            "chat send" => {
-                let mut host = waiting_host();
-                let object = temper_client_view::shared::question(&host.root, host.view.words().view())
-                    .expect("question")
-                    .object;
-                give(
-                    &mut host,
-                    Event::Act {
-                        act: Act::Needs(root::pages::needs::Act::Choose { object, words: b"Comma".as_slice().into() }),
-                    },
-                );
-                typed(&mut host, b"Continue");
-                let before = host.state().box_written();
-                let duties = give(&mut host, Event::Send);
-                let asks = sent_ask(&duties);
-                asks.len() == 1
-                    && matches!(&asks[0].1, w::Ask::Message(message) if message.task() == 7 && message.words() == b"Continue")
-                    && host.state().box_written() > before
-            }
-            "unknown" => {
-                typed(&mut host, b"/zz");
-                let before = host.state().box_written();
-                let duties = give(&mut host, Event::Send);
-                duties.asked.is_empty()
-                    && host.state().notice()
-                        == Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
-                    && host.root.pages().chats().is_some_and(|chat| chat.words.is_empty())
-                    && host.state().box_written() > before
-            }
-            "unknown send" | "unknown went" => {
-                host.tell(temper_client_tui::Told::Notice {
-                    notice: Some(temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() }),
-                });
-                if row == "unknown send" {
-                    give(&mut host, Event::Send);
-                } else {
-                    host.out.push(root::Request::Show { address: Address::Chat { task: 9 }, replace: false });
-                    host.report(Report::Due);
-                }
-                host.state().notice().is_some()
-            }
-            "no project" => {
-                typed(&mut host, b"Please help");
-                let before = host.state().box_written();
-                give(&mut host, Event::Send).asked.is_empty() && host.state().box_written() == before
-            }
-            "help" => {
-                typed(&mut host, b"/help");
-                let before = host.state().box_written();
-                give(&mut host, Event::Command { command: Command::Help });
-                host.root.pages().notes().last() == Some(&terminal::Note::Help)
-                    && host.root.pages().chats().is_some_and(|chats| chats.words.is_empty())
-                    && host.state().box_written() > before
-            }
-            "dismiss" => {
-                typed(&mut host, b"/");
-                let before = host.state().box_written();
-                give(&mut host, Event::Dismiss);
-                host.root.pages().chats().is_some_and(|chats| chats.words.is_empty())
-                    && host.state().box_written() > before
-            }
-            "escape" => {
-                typed(&mut host, b"/");
-                host.frame();
-                let expected = temper_client_tui::escape(&host.view);
-                let event = host.event_of(&Key::Escape);
-                let mut direct = host;
-                let (mut keyed, _, _) = signed_host(true);
-                typed(&mut keyed, b"/");
-                keyed.frame();
-                if let Some(event) = expected.clone() {
-                    give(&mut direct, event);
-                } else {
-                    direct.report(Report::Due);
-                }
-                keyed.report(Report::Key(Key::Escape));
-                event == expected
-                    && keyed.root.pages().chats().map(|chats| &chats.words)
-                        == direct.root.pages().chats().map(|chats| &chats.words)
-                    && keyed.state().box_written() == direct.state().box_written()
-                    && keyed.state().aside() == direct.state().aside()
-            }
-            "aside" => {
-                let object = jig_client::contract::ObjectKey::Task(9);
-                host.event(Event::Aside { object }, &mut Duties::default());
-                let aside = host.state().aside() == Some(object);
-                // No question stands: an aside expires in the same report.
-                host.report(Report::Due);
-                aside && host.state().aside().is_none()
-            }
-            "reply words" | "reply choice" => {
-                let mut host = waiting_host();
-                let object = temper_client_view::shared::question(&host.root, host.view.words().view())
-                    .expect("question")
-                    .object;
-                let mut aside = true;
-                let duties = if row == "reply words" {
-                    let mut duties = Duties::default();
-                    host.event(Event::Aside { object }, &mut duties);
-                    aside = host.state().aside() == Some(object);
-                    typed(&mut host, b"Use a comma");
-                    give(&mut host, Event::Send)
-                } else {
-                    give(
-                        &mut host,
-                        Event::Act {
-                            act: Act::Needs(root::pages::needs::Act::Choose {
-                                object,
-                                words: b"Comma".as_slice().into(),
-                            }),
-                        },
-                    )
-                };
-                assert!(duties.asked.is_empty(), "answers wait through the undo hold");
-                host.clocks(Time::from_nanos(root::pages::needs::HOLD.as_nanos()), Wall::EPOCH);
-                let duties = host.report(Report::Due);
-                let duties = stored(&mut host, duties);
-                let asks = sent_ask(&duties);
-                aside
-                    && asks.len() == 1
-                    && matches!(&asks[0].1, w::Ask::Answer(answer) if answer.project() == 3 && matches!(answer.on(), w::AnswerOn::Question(question) if question.words() == if row == "reply words" { b"Use a comma".as_slice() } else { b"Comma".as_slice() }))
-                    && host.root.pages().chat().is_some_and(|chat| chat.words.is_empty())
-                    && host.state().aside().is_none()
-            }
-            "act" => {
-                give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 9 } } });
-                host.root.pages().address() == &Address::Chat { task: 9 }
-            }
-            "size" => {
-                let at_start = host.state().columns() == 80;
-                host.report(Report::Resize(Size { columns: 40, rows: 12 }));
-                at_start && host.state().columns() == 40
-            }
-            _ => unreachable!("named row"),
-        };
-        if !passed {
-            failures.push(row);
-        }
-    }
-    assert!(failures.is_empty(), "event rows: {failures:?}");
 }
-
-fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
-    duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            if let Request::Exchange { exchange, message: Message::Read(bytes), .. } = request {
-                let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
-                if owned.owner() == &w::Owner::Jig {
-                    let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
-                    if wanted == "updates"
-                        && matches!(&read, w::Read::Inbox(read) if read.group() == &w::InboxReadGroup::Updates)
-                    {
-                        return Some(*exchange);
-                    }
-                    if matches!(
-                        (&read, wanted),
-                        (w::Read::Inbox(_), "inbox")
-                            | (w::Read::Question(_), "question")
-                            | (w::Read::Activity(_), "activity")
-                            | (w::Read::Notes(_), "notes")
-                            | (w::Read::Proposal(_), "proposal")
-                    ) {
-                        return Some(*exchange);
-                    }
+fn batch_members(bytes: &[u8]) -> Vec<(u16, Message)> {
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch");
+    batch
+        .into_parts()
+        .members
+        .into_boxed()
+        .into_vec()
+        .into_iter()
+        .enumerate()
+        .map(|(place, record)| {
+            let mut writer = Writer::new(usize::try_from(record.measure() - 1).expect("member size"));
+            let message = match record {
+                w::Member::Read(record) => {
+                    record.encode(&mut writer).expect("read");
+                    Message::Read(writer.finish())
                 }
-            }
-            None
+                w::Member::Open(record) => {
+                    record.encode(&mut writer).expect("open");
+                    Message::Watch(writer.finish())
+                }
+                w::Member::Close(record) => {
+                    record.encode(&mut writer).expect("close");
+                    Message::Unwatch(writer.finish())
+                }
+            };
+            (u16::try_from(place).expect("member"), message)
         })
-        .unwrap_or_else(|| panic!("fixture read {wanted}: {:?}", duties.asked))
+        .collect()
+}
+fn reply_slot(host: &mut Host, slot: ReplySlot, bytes: Box<[u8]>) -> Duties {
+    host.report(slot.report(bytes))
 }
 
-fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue) -> Duties {
+fn wanted_read(message: &Message, wanted: &str) -> bool {
+    if let Message::Read(bytes) = message {
+        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
+        if owned.owner() == &w::Owner::Jig {
+            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
+            if wanted == "updates"
+                && matches!(&read, w::Read::Inbox(read) if read.group() == &w::InboxReadGroup::Updates)
+            {
+                return true;
+            }
+            if matches!(
+                (&read, wanted),
+                (w::Read::Inbox(_), "inbox")
+                    | (w::Read::Question(_), "question")
+                    | (w::Read::Activity(_), "activity")
+                    | (w::Read::Notes(_), "notes")
+                    | (w::Read::Proposal(_), "proposal")
+            ) {
+                return true;
+            }
+        }
+    }
+    false
+}
+fn read_exchange(duties: &Duties, wanted: &str) -> ReplySlot {
+    for request in &duties.asked {
+        if let Request::Exchange { exchange, message, .. } = request {
+            if wanted_read(message, wanted) {
+                return ReplySlot { exchange: *exchange, member: None };
+            }
+            if let Message::Batch(bytes) = message {
+                for (member, message) in batch_members(bytes) {
+                    if wanted_read(&message, wanted) {
+                        return ReplySlot { exchange: *exchange, member: Some(member) };
+                    }
+                }
+            }
+        }
+    }
+    panic!("fixture read {wanted}: {:?}", duties.asked)
+}
+
+fn read_reply(host: &mut Host, exchange: ReplySlot, value: &w::ReadValue) -> Duties {
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("read size"));
     value.encode(&mut writer).expect("read fits");
     let answer = w::ReadAnswer::Value(
@@ -3039,10 +2879,11 @@ fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue)
     );
     let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
     answer.encode(&mut writer).expect("answer fits");
-    reply(host, exchange, writer.finish())
+    reply_slot(host, exchange, writer.finish())
 }
 
-fn reply_events() {
+#[test]
+fn reply_keys_send_choices_or_keep_the_composer() {
     for (case, typed_words, keys, message, typed_aside, aside, kept) in [
         ("menu", b"".as_slice(), &[Key::Enter][..], Some(b"Move it at once".as_slice()), false, false, b"".as_slice()),
         ("menu two", b"", &[Key::Down, Key::Enter][..], Some(b"Side by side"), false, false, b""),
@@ -3251,14 +3092,32 @@ fn waiting_at(chat: bool) -> Host {
 fn admit_watches(host: &mut Host, mut duties: Duties) -> Duties {
     let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
     while let Some(request) = pending.pop_front() {
-        if matches!(
+        if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = &request {
+            let mut finished = true;
+            for (member, message) in batch_members(bytes) {
+                if matches!(message, Message::Read(_)) {
+                    finished = false;
+                    continue;
+                }
+                let single = Request::Exchange { exchange: *exchange, credential: None, message };
+                let Some(Report::Heard(jig_client::Event::Reply { message, .. })) = background_single(&single) else {
+                    panic!("watch reply")
+                };
+                pending
+                    .extend(host.report(ReplySlot { exchange: *exchange, member: Some(member) }.report(message)).asked);
+            }
+            if finished {
+                pending.extend(host.report(Report::Heard(jig_client::Event::Done { exchange: *exchange })).asked);
+            }
+        } else if matches!(
             &request,
             Request::Exchange { message: Message::Watch(_) | Message::Unwatch(_), .. }
                 | Request::Save { .. }
                 | Request::Erase { .. }
-        ) && let Some(report) = background_reply(&request)
-        {
-            pending.extend(host.report(report).asked);
+        ) {
+            for report in background_reply(&request) {
+                pending.extend(host.report(report).asked);
+            }
         }
         duties.asked.push(request);
     }
@@ -3268,7 +3127,7 @@ fn admit_watches(host: &mut Host, mut duties: Duties) -> Duties {
 fn admit(host: &mut Host, mut duties: Duties) -> Duties {
     let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
     while let Some(request) = pending.pop_front() {
-        if let Some(report) = background_reply(&request) {
+        for report in background_reply(&request) {
             pending.extend(host.report(report).asked);
         }
         duties.asked.push(request);
@@ -3276,7 +3135,22 @@ fn admit(host: &mut Host, mut duties: Duties) -> Duties {
     duties
 }
 
-pub(crate) fn background_reply(request: &Request) -> Option<Report> {
+pub(crate) fn background_reply(request: &Request) -> Vec<Report> {
+    if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = request {
+        let mut reports = Vec::new();
+        for (member, message) in batch_members(bytes) {
+            let reply = background_single(&Request::Exchange { exchange: *exchange, credential: None, message })
+                .expect("batch member reply");
+            let Report::Heard(jig_client::Event::Reply { message, .. }) = reply else { panic!("member reply") };
+            reports.push(ReplySlot { exchange: *exchange, member: Some(member) }.report(message));
+        }
+        reports.push(Report::Heard(jig_client::Event::Done { exchange: *exchange }));
+        reports
+    } else {
+        background_single(request).into_iter().collect()
+    }
+}
+fn background_single(request: &Request) -> Option<Report> {
     let Request::Exchange { exchange, message, .. } = request else {
         return matches!(request, Request::Save { .. } | Request::Erase { .. })
             .then_some(Report::Heard(jig_client::Event::Stored));
@@ -3285,12 +3159,10 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
         && owned.owner() != &w::Owner::Jig
         && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("family read")
-        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
+        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(|record| &record.read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind == 7)
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
-        let record = wire::setting_answer(
-            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: None }).expect("stock ways"),
-        );
+        let record = wire::setting_answer(&f::SettingAnswer { revision: None, value: None });
         w::ReadAnswer::Value(
             w::Owned::new(
                 &w::CEILINGS,
@@ -3308,7 +3180,9 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         Message::Watch(_) => w::OpenAnswer::Admitted.measure(),
         Message::Unwatch(_) => w::CloseAnswer::Closed.measure(),
         Message::Read(_) => read.measure(),
-        Message::Authorize(_)
+        Message::Batch(_)
+        | Message::Authorize(_)
+        | Message::LinkAsk(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)
@@ -3324,7 +3198,9 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         Message::Watch(_) => w::OpenAnswer::Admitted.encode(&mut writer).expect("watch admitted"),
         Message::Unwatch(_) => w::CloseAnswer::Closed.encode(&mut writer).expect("watch closed"),
         Message::Read(_) => read.encode(&mut writer).expect("read answer"),
-        Message::Authorize(_)
+        Message::Batch(_)
+        | Message::Authorize(_)
+        | Message::LinkAsk(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)
@@ -3378,8 +3254,11 @@ fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
     writer.finish()
 }
 
-fn hello_for(host: &Host) -> Box<[u8]> {
-    let owners = host.env.limits.client.domain.owners;
+fn hello_for_me(host: &Host, me: w::Me) -> Box<[u8]> {
+    hello_for_owners(host.env.limits.client.domain.owners, me)
+}
+
+fn hello_for_owners(owners: &[jig_client::Spoken], me: w::Me) -> Box<[u8]> {
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
         .push(
@@ -3406,9 +3285,10 @@ fn hello_for(host: &Host) -> Box<[u8]> {
             )
             .expect("family owner");
     }
-    stream_bytes(&w::StreamEvent::Hello(
+    stream_bytes(&jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        me,
     ))
 }
 
@@ -3552,6 +3432,7 @@ fn in_front_quitting_asks_while_work_runs() {
 #[test]
 fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
     use crate::host::Stop;
+    let settings = settings();
     let ended = BoxStage::Ended { end: BoxEnd::Exited { code: 0 } };
     for stage in [
         BoxStage::Finding,
@@ -3565,7 +3446,7 @@ fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
         BoxStage::Ended { end: BoxEnd::Killed { signal: 9 } },
     ] {
         for command in [false, true] {
-            let mut host = host();
+            let mut host = Host::new(&settings, 7, Time::ZERO, Wall::EPOCH);
             let duties = host.report(Report::Start(Start {
                 set_up: true,
                 box_log: Box::default(),
@@ -3575,7 +3456,7 @@ fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
                 background: None,
                 plain: false,
                 version: Box::default(),
-                address: b"127.0.0.1:8367".as_slice().into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 local: true,
                 boxed: false,
                 kept: Vec::new(),
@@ -3661,6 +3542,7 @@ fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
     let mut subject = subject.into_parts();
     let mut query = subject.query.into_parts();
     query.project = None;
+    query.parts = skein_lib::List::with_capacity(0);
     subject.query = w::TaskQuery::new(&w::CEILINGS, query).expect("across query");
     let subject = w::Subject::Tasks(w::SubjectTasks::new(&w::CEILINGS, subject).expect("across subject"));
     for _ in 0..host.env.limits.client.domain.watches {
@@ -3673,7 +3555,7 @@ fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
         duties.asked.extend(admit(&mut host, again).asked);
     }
     let across = watch(&duties, &subject);
-    let arrived = delivery(&mut host, across, &w::DeliveryValue::Tasks(tasks.clone()));
+    let arrived = delivery(&mut host, across, &w::DeliveryValue::Tasks(tasks_with_parts(tasks, 0)));
     duties.asked.extend(admit(&mut host, arrived).asked);
     let window = host.root.pages().inbox().expect("launchpad inbox").window;
     let inbox_watch = watch(
@@ -3704,12 +3586,9 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
     else {
         panic!("family watch")
     };
-    let watched = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+    let watched = all_openings(duties)
+        .into_iter()
+        .find_map(|open| {
             if open.subject().owner() == &w::Owner::Jig {
                 return None;
             }
@@ -3718,12 +3597,9 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
             (envelope.record() == record.bytes.as_ref()).then_some(open.watch())
         })
         .expect("status watched");
-    let ended = duties
-        .asked
-        .iter()
-        .filter_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+    let ended = all_openings(duties)
+        .into_iter()
+        .filter_map(|open| {
             if open.watch() == watched {
                 return None;
             }
@@ -3760,7 +3636,7 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
         let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request else { continue };
         let ask = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed ask");
         if ask.owner() != &w::Owner::Jig {
-            let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Looked }).expect("looked");
+            let answer = f::Answer { outcome: f::Outcome::Looked };
             let document = w::Owned::new(
                 &w::CEILINGS,
                 w::OwnedParts {
@@ -3777,32 +3653,23 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
 
 fn brief_document() -> w::Owned {
     use temper_client_protocol_wire::{self as wire, v1 as f};
-    let status = f::ProjectStatus::new(
-        &f::CEILINGS,
-        f::ProjectStatusParts {
-            project: 3,
+    let status = f::ProjectStatus {
+        project: 3,
+        landed: 1,
+        last_landed: Some(1),
+        previous: Some(0),
+        seen: 0,
+        queued: 0,
+        red: false,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: Some(f::StatusBrief {
+            sentence: b"One change landed.".as_slice().into(),
+            lede: b"The CSV export landed.".as_slice().into(),
+            at: 1,
             landed: 1,
-            last_landed: Some(1),
-            previous: Some(0),
-            seen: 0,
-            queued: 0,
-            red: false,
-            branch: b"main".as_slice().into(),
-            brief: Some(
-                f::StatusBrief::new(
-                    &f::CEILINGS,
-                    f::StatusBriefParts {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: b"The CSV export landed.".as_slice().into(),
-                        at: 1,
-                        landed: 1,
-                    },
-                )
-                .expect("brief"),
-            ),
-        },
-    )
-    .expect("project status");
+        }),
+    };
     w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {
@@ -3825,6 +3692,7 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
             row.waits_on = w::WaitsOn::Nothing;
         }
         row.project = 3;
+        row.parts = skein_lib::List::from_boxed(Box::new([w::RowPart::Unknown]));
         row.last_activity = activity;
         row.ended_at = None;
         let row = w::TaskLine::new(&w::CEILINGS, row).expect("chat line");
@@ -3832,16 +3700,32 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
         row.encode(&mut writer).expect("chat fits");
         rows.push(writer.finish());
     }
-    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats")
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&rows), more: false }).expect("two chats")
+}
+
+fn tasks_with_parts(tasks: &w::Tasks, count: u32) -> w::Tasks {
+    let mut tasks = tasks.clone().into_parts();
+    let mut reader = Reader::new(&tasks.rows);
+    let mut rows = Vec::new();
+    while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("row piece") {
+        let mut row = w::TaskLine::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("row").into_parts();
+        row.parts = skein_lib::List::with_capacity(count);
+        for _ in 0..count {
+            row.parts.push(w::RowPart::Unknown).expect("part slot");
+        }
+        let row = w::TaskLine::new(&w::CEILINGS, row).expect("row parts");
+        let mut writer = Writer::new(row.measure().try_into().expect("row size"));
+        row.encode(&mut writer).expect("row encodes");
+        rows.push(writer.finish());
+    }
+    tasks.rows = pieces(&rows);
+    w::Tasks::new(&w::CEILINGS, tasks).expect("tasks parts")
 }
 
 pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
-    duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+    all_openings(duties)
+        .into_iter()
+        .find_map(|open| {
             if open.subject().owner() != &w::Owner::Jig {
                 return None;
             }
@@ -3870,18 +3754,19 @@ fn the_terminal_control_p_cycles_the_pane() {
     }
 }
 
-fn pane_events() {
+#[test]
+fn pane_keys_preserve_words_and_choose_the_visible_mode() {
     use root::pages::chat::document::Mode;
-    for (name, draft, columns, mode, words, next) in [
-        ("no pane", false, 80, Mode::Split, "", None),
-        ("folded", true, 80, Mode::Chat, "", Some(Mode::Split)),
-        ("writing", true, 80, Mode::Split, "", Some(Mode::Draft)),
-        ("typed words", true, 80, Mode::Split, "my words", Some(Mode::Draft)),
-        ("list", true, 80, Mode::Draft, "/", Some(Mode::Chat)),
-        ("narrow", true, 79, Mode::Chat, "/", Some(Mode::Draft)),
+    for (name, draft, writing, columns, mode, words, next) in [
+        ("no pane", false, false, 80, Mode::Split, "", None),
+        ("folded", true, false, 80, Mode::Chat, "", Some(Mode::Split)),
+        ("writing", true, true, 80, Mode::Split, "", Some(Mode::Draft)),
+        ("typed words", true, false, 80, Mode::Split, "my words", Some(Mode::Draft)),
+        ("list", true, false, 80, Mode::Draft, "/", Some(Mode::Chat)),
+        ("narrow", true, false, 79, Mode::Chat, "/", Some(Mode::Draft)),
     ] {
-        let mut host = reply_host_draft(draft && name != "writing");
-        if name == "writing" {
+        let mut host = reply_host_draft(draft && !writing);
+        if writing {
             give(&mut host, Event::Act { act: Act::AddDraft });
         }
         give(&mut host, Event::Act { act: Act::Mode { mode } });
@@ -3894,6 +3779,12 @@ fn pane_events() {
         assert_eq!(host.root.pages().chat().unwrap().mode, next.unwrap_or(mode), "{name}");
         assert_eq!(host.words(), words.as_bytes(), "{name}: composer unchanged");
     }
+}
+
+#[test]
+fn a_pane_switch_changes_follow_and_starts_drafts_at_the_head() {
+    use root::pages::chat::document::Mode;
+    let mut host = reply_host_draft(true);
     for (before, after, columns, all) in [
         (Mode::Chat, Mode::Draft, 80, true),
         (Mode::Split, Mode::Draft, 80, true),
@@ -3901,7 +3792,6 @@ fn pane_events() {
         (Mode::Draft, Mode::Split, 80, false),
         (Mode::Chat, Mode::Split, 79, true),
     ] {
-        let mut host = reply_host_draft(true);
         host.report(Report::Resize(Size { columns, rows: 24 }));
         give(&mut host, Event::Act { act: Act::Mode { mode: before } });
         host.frame();
@@ -3914,6 +3804,10 @@ fn pane_events() {
             assert_eq!(host.focus.scroll, 0, "draft begins at its head");
         }
     }
+}
+
+#[test]
+fn resizing_the_pane_starts_drafts_then_follows_the_chat() {
     let mut host = reply_host_draft(true);
     host.report(Report::Resize(Size { columns: 80, rows: 24 }));
     host.frame();

@@ -1,6 +1,8 @@
 //! Two engine lives that end without admitting the worker, after a restart cut
 //! (jig/docs/design/protocol/channel/README.md, 9.1 and 11).
 use crate::{fixtures, processes::ServiceHost};
+use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::Queue;
 
@@ -34,7 +36,21 @@ impl Starts {
                     // Wrong credentials make the real responder refuse the opening.
                     // The calm story delivers this small opening in one receive.
                     assert!(bytes.len() > 22, "opening carries credentials");
-                    *bytes.last_mut().expect("credential byte") ^= 1;
+                    let mut parts =
+                        wire::Credential::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(&bytes[22..]))
+                            .expect("whole opening credential");
+                    let mut secret = parts.secret.expose().to_vec();
+                    *secret.first_mut().expect("nonempty fixture secret") ^= 1;
+                    parts.secret = skein_lib::Secret::new(secret.into_boxed_slice());
+                    let credential = parts;
+                    let mut encoded = skein_lib::Writer::new(
+                        usize::try_from(
+                            credential.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+                        )
+                        .expect("credential length"),
+                    );
+                    credential.write(&jig_protocol_worker_wire::CEILINGS, &mut encoded).expect("measured credential");
+                    bytes[22..].copy_from_slice(&encoded.finish());
                 }
             }
             input.push(complete);
@@ -73,15 +89,9 @@ pub(crate) fn advance(host: &mut ServiceHost) -> Result<(), String> {
         }
     }
     host.failed_starts.ended += 1;
-    host.service = jig_test_service::startup(
-        &fixtures::engine_document(),
-        &fixtures::files(false),
-        None,
-        &fixtures::seeds(),
-        None,
-        None,
-    )
-    .map_err(|why| format!("next engine start: {why:?}"))?;
+    host.service = crate::processes::engine_prepared()
+        .startup_with_workers(&fixtures::files(false), None, &fixtures::seeds(), None, None, fixtures::workers())
+        .map_err(|why| format!("next engine start: {why:?}"))?;
     let root = host.failed_starts.roots.pop().ok_or("independent root for next start")?;
     host.service.adopt_store(root, 1000).map_err(|why| format!("next start store: {why:?}"))?;
     host.files.root(root);

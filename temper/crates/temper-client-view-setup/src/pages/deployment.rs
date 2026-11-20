@@ -1,4 +1,6 @@
 //! Deployment's read-only pages (temper/docs/design/client/pages/settings.md, 1).
+#[cfg(test)]
+mod tests;
 use super::settings::{self, Tab};
 use crate::{
     bindings::Bindings,
@@ -119,6 +121,7 @@ fn project_members(b: &mut Builder, w: &Words, doc: &c::Project) {
 
 pub fn limits(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     open(b, root, w, bindings, Tab::Limits);
+    limit_rows(b, root, w, bindings);
     let read = match root.pages().builders() {
         Some(page) => page.read(root.client()),
         None => builders::Read::Unknown,
@@ -137,6 +140,83 @@ pub fn limits(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         }
     }
     b.close();
+    b.close();
+}
+fn limit_rows(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    use temper_client_domain::pages::{Act, limit_settings};
+    let Some(page) = root.pages().limit_settings().page() else { return };
+    section(b, &w.say(Word::LimitsSettings, &[]));
+    if page.refused {
+        crate::cards::text(b, Role::Paragraph, &w.say(Word::LimitsReadRefused, &[]));
+    }
+    if let Some(answer) = &page.rows {
+        for row in &answer.rows {
+            limit_row(b, w, row);
+        }
+        if answer.next.is_some() {
+            limit_button(
+                b,
+                &w.say(Word::LimitsMore, &[]),
+                bindings.insert(Act::LimitSettings(limit_settings::Act::Next)),
+            );
+        }
+    }
+    limit_button(b, &w.say(Word::LimitsFirst, &[]), bindings.insert(Act::LimitSettings(limit_settings::Act::First)));
+    b.close();
+}
+fn limit_button(b: &mut Builder, label: &[u8], binding: skein_ui::Binding) {
+    b.open(Role::Button);
+    b.name(label);
+    b.bind(binding);
+    b.close();
+}
+fn limit_row(b: &mut Builder, w: &Words, row: &temper_client_protocol_wire::v1::LimitRow) {
+    use temper_client_protocol_wire::v1 as wire;
+    b.open(Role::Slot);
+    crate::cards::text(b, Role::Heading { level: 3 }, &row.name);
+    crate::cards::text(b, Role::Paragraph, &row.line);
+    if let Some(stock) = &row.stock {
+        crate::cards::text(b, Role::Text, &w.say(Word::LimitsStock, &[Hole::Number(*stock)]));
+    }
+    let setting = match &row.setting {
+        Some(setting) => w.say(
+            Word::LimitsSetting,
+            &[
+                Hole::Number(setting.value),
+                Hole::Name(Box::from(match &setting.kind {
+                    wire::LimitKind::Jig => b"limits".as_slice(),
+                    wire::LimitKind::Temper => b"temper-limits".as_slice(),
+                })),
+                Hole::Name(setting.reason.clone()),
+            ],
+        ),
+        None => w.say(Word::LimitsNoSetting, &[]),
+    };
+    crate::cards::text(b, Role::Text, &setting);
+    if let Some(figure) = &row.in_force {
+        crate::cards::text(b, Role::Text, &w.say(Word::LimitsInForce, &[Hole::Number(*figure)]));
+    }
+    if row.left_out {
+        crate::cards::text(b, Role::Text, &w.say(Word::LimitsLeftOut, &[]));
+    } else {
+        let unit = match &row.unit {
+            wire::LimitUnit::Count => Word::LimitsCount,
+            wire::LimitUnit::Bytes => Word::LimitsBytes,
+            wire::LimitUnit::Milliseconds => Word::LimitsMilliseconds,
+        };
+        crate::cards::text(b, Role::Text, &w.say(unit, &[]));
+        let applies = match &row.applies {
+            wire::LimitApplies::AtOnce => Word::LimitsAtOnce,
+            wire::LimitApplies::NextStart => Word::LimitsNextStart,
+        };
+        crate::cards::text(b, Role::Text, &w.say(applies, &[]));
+    }
+    if row.waiting {
+        crate::cards::text(b, Role::Text, &w.say(Word::LimitsWaitingStart, &[]));
+    }
+    if let Some(held) = &row.held {
+        crate::cards::text(b, Role::Text, &w.say(Word::LimitsHeldBytes, &[Hole::Number(*held)]));
+    }
     b.close();
 }
 fn line(b: &mut Builder, title: &[u8], value: &[u8]) {

@@ -8,6 +8,8 @@ use std::collections::{BTreeMap, VecDeque};
 
 pub const OLD: &str = "0123456789ab";
 pub const NEW: &str = "abcdef012345";
+const DEFAULT_VERDICT: &str =
+    "temper-engine upgrade: rehearsal linked 12 files, copied 3\ntemper-engine upgrade: workers may stay: yes\n";
 pub const WIRES: &str = "jig-worker-wire 13, smith-pieces 1, smith-charter 5, smith-transcript 3, temper-worker-wire 9";
 #[derive(Clone, Debug)]
 pub struct Machine {
@@ -39,6 +41,8 @@ pub struct Deployment {
     pub engine: Machine,
     pub workers: Vec<Machine>,
     pub at: u64,
+    /// Extra virtual time each sleep takes, for a poll returning after its deadline.
+    pub sleep_lag: u64,
     pub lines: Vec<Call>,
     /// Commands submitted together, separately from the ordered line log.
     pub batches: Vec<Vec<(Part, String)>>,
@@ -46,6 +50,9 @@ pub struct Deployment {
     /// Lines logged by each settled engine stop, in stop order.
     pub stop_logs: VecDeque<Vec<String>>,
     pub check: Output,
+    /// Per-call verdicts; the last repeats, or exit 0 with a rehearsal count and
+    /// `workers may stay: yes` when none are scripted.
+    pub verdict: VecDeque<Output>,
     pub openings: Vec<Opening>,
     /// Optional per-start openings, consumed before falling back to `openings`.
     pub opening_rounds: BTreeMap<usize, VecDeque<Opening>>,
@@ -56,6 +63,7 @@ pub struct Deployment {
     /// Override a binary's version response, even after fetching it.
     pub versions: BTreeMap<(Part, String), Output>,
     pending: Vec<(usize, u64, String)>,
+    checkpoints: u64,
 }
 #[must_use]
 pub fn output(code: i32, stdout: &str) -> Output {
@@ -72,8 +80,9 @@ pub fn description(count: usize) -> Description {
             stop: "stop engine".into(),
             start: "start engine".into(),
             log: "log engine {since}".into(),
-            check: "check {binary}".into(),
-            backup: "backup {name}".into(),
+            check: "check {binary} {checkpoint}".into(),
+            checkpoint: "checkpoint {binary}".into(),
+            verdict: "verdict {binary} {checkpoint}".into(),
             swap: "swap {from} {to}".into(),
             ctl: "ctl engine".into(),
         },
@@ -108,10 +117,13 @@ impl Deployment {
             .workers
             .iter()
             .map(|worker| {
-                output(
-                    0,
-                    &serde_json::json!({"workers": [{"name": worker.name, "graces": {"grace_ms": 30000}}]}).to_string(),
-                )
+                let file = temper_config_shell::File {
+                    engine: Some(([127, 0, 0, 1], 7200).into()),
+                    name: Some(worker.name.clone()),
+                    ..temper_config_shell::File::default()
+                };
+                let text = temper_config_shell::render(&file, temper_config_shell::Shape::WorkerAlone);
+                output(0, std::str::from_utf8(&text).expect("rendered UTF-8"))
             })
             .collect();
         Self {
@@ -122,19 +134,29 @@ impl Deployment {
             workers,
             documents,
             at: 1_000_000_000,
+            sleep_lag: 0,
             lines: Vec::new(),
             batches: Vec::new(),
             log: Vec::new(),
             stop_logs: VecDeque::new(),
             check: output(0, "temper-engine upgrade: workers may stay: yes\n"),
+            verdict: VecDeque::new(),
             ctl: BTreeMap::new(),
             failures: BTreeMap::new(),
             versions: BTreeMap::new(),
             pending: Vec::new(),
+            checkpoints: 0,
         }
     }
     pub fn check_answer(&mut self, code: i32, lines: &str) {
         self.check = output(code, lines);
+    }
+    pub fn verdict_answer(&mut self, code: i32, lines: &str) {
+        self.verdict.push_back(output(code, lines));
+    }
+    fn checkpoint_name(&mut self) -> String {
+        self.checkpoints += 1;
+        format!("{:020}-0123456789abcdef", self.checkpoints)
     }
     pub fn opening(&mut self, worker: usize, opening: Opening) {
         self.openings[worker] = opening;
@@ -261,14 +283,34 @@ impl Deployment {
         if captures(&self.description.engine.check, line).is_some() {
             return self.check.clone();
         }
-        if captures(&self.description.engine.backup, line).is_some() {
-            return output(0, "");
+        if captures(&self.description.engine.verdict, line).is_some() {
+            return if self.verdict.len() > 1 {
+                self.verdict.pop_front().expect("more than one verdict")
+            } else {
+                self.verdict.front().cloned().unwrap_or_else(|| output(0, DEFAULT_VERDICT))
+            };
+        }
+        if captures(&self.description.engine.checkpoint, line).is_some() {
+            if self.engine.running {
+                return output(1, "temper-engine checkpoint: deployment is in use by another process");
+            }
+            let name = self.checkpoint_name();
+            return output(
+                0,
+                &format!(
+                    "temper-engine checkpoint: {name} at commit 42, secrets at 7: 12 files linked, 3 copied (4096 bytes) in 15 ms; 4096 bytes held; 0 older removed, 0 skipped\n"
+                ),
+            );
         }
         if let Some(arguments) = line.strip_prefix(&format!("{} ", self.description.engine.ctl)) {
             let arguments = shell_words(arguments.strip_suffix(" </dev/null").unwrap_or(arguments)).join(" ");
             return match self.ctl.get_mut(&arguments) {
                 Some(answers) if answers.len() > 1 => answers.pop_front().expect("more than one answer"),
                 Some(answers) => answers.front().cloned().expect("ctl answer exists"),
+                None if arguments == "deployment checkpoint --json" => {
+                    let name = self.checkpoint_name();
+                    output(0, &serde_json::json!({"name": name}).to_string())
+                }
                 None => Output { code: Some(1), stdout: String::new(), stderr: format!("unscripted ctl: {arguments}") },
             };
         }
@@ -354,7 +396,7 @@ impl Hosts for Deployment {
         self.at
     }
     fn sleep(&mut self, nanoseconds: u64) {
-        self.at += nanoseconds;
+        self.at += nanoseconds + self.sleep_lag;
         self.flush();
     }
 }

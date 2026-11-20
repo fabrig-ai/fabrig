@@ -26,7 +26,7 @@ impl Story {
         }
         let provider = |number| accounts::Provider {
             list: None,
-            name: b"Fake".as_slice().into(),
+            name: if number == 3 { b"Fake".as_slice().into() } else { b"Other".as_slice().into() },
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number,
@@ -39,6 +39,7 @@ impl Story {
             charter.policy.model.provider = 3;
         }
         config.core.settings.llm_providers = accounts::Providers { providers };
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         let mut limits = fixtures::owner_limits();
         limits.core.accounts.accounts = 2;
         limits.core.people.sign_ins = 3;
@@ -171,7 +172,17 @@ impl Story {
         for charter in &mut config.core.defaults.charters {
             charter.policy.model.provider = 3;
         }
-        config.core.worker_names = Box::new([b"unavailable".as_slice().into()]);
+        config.core.defaults.workers = [Box::<[u8]>::from(b"unavailable".as_slice())]
+            .into_iter()
+            .enumerate()
+            .map(|(index, name)| jig_domain_core::settings::WorkerSetting {
+                number: u32::try_from(index + 1).expect("fixture worker count"),
+                name,
+                places: 4,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            })
+            .collect();
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {
                 list: None,
@@ -186,13 +197,19 @@ impl Story {
                 },
             }]),
         };
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         let mut limits = fixtures::owner_limits();
         limits.core.people.sign_ins = 3;
         limits.core.accounts.accounts = 2;
         limits.core.accounts.holder_accounts = 2;
         limits.core.people.requests = 8;
-        let mut story =
-            Self::configured_peers(seed, &limits, config, jig_core_kit::peers::Peers::new(Vec::new(), Vec::new()));
+        let mut story = Self::configured_peers(
+            seed,
+            &limits,
+            config,
+            jig_core_kit::peers::Peers::new(Vec::new(), Vec::new()),
+            fixtures::domain_limits(),
+        );
         story.sign_in();
         assert!(story.run_until(|s| s.client.link().state == client::Link::Live, Duration::from_secs(1)));
         story

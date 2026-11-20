@@ -130,6 +130,10 @@ application root            routes between the core and every connector
   the name it resolves to and the hold it takes, and which tasks may name
   it (tracked ones only, say); it refuses a batch naming a symbol it does
   not offer that task, naming the symbol (tasks/holds.md, 2).
+  The connector is asked for a member's holdings with its number and its
+  tree's root: a member of a batch made beneath a task, by a person or by
+  a delegating task, has that task's root, and a member made as a root its
+  own number.
 
 ### 3.2 Roles
 
@@ -155,7 +159,13 @@ connector says what they apply to:
 - **whether a taken hold refuses or waits** (tasks/holds.md, 2);
 - **what a taking does** to the resource, as effects of its own (4.7):
   a branch made at its base's tip, say;
-- **what a release does** to the resource, per way its task ended (4.6).
+- **what a release does** to the resource, per way its task ended (4.6);
+- **each held resource's report,** its role and hold kind, for every
+  resource a batch member holds, sent before or with its holdings
+  answer (3.1's symbols, tasks/holds.md, 2). The core keeps those a
+  waiting batch names, refuses a batch whose reports its table cannot
+  hold, and refuses one whose reports have not all come within
+  `tasks.hold_wait`, without asking again (tasks/holds.md, 2).
 
 Shared resources take no hold: writing into them is ordered by the
 connector's own mechanics, such as a landing queue. A held resource may
@@ -463,6 +473,16 @@ documents, beside jig's (`../client/domain/contract/documents.md`):
   the connector's records keep it (a procedure's result, while it keeps
   that procedure's record); past that, the part is unknown, and its
   connector answers so;
+- **its parts of jig's task rows**
+  (`../client/domain/contract/parts.md`): the kinds it makes, which the
+  application declares in the core's configuration, each with its bytes
+  and its inputs, among its task's line, its task's notes, its delegates'
+  lines, its delegates' notes and the connector's own records of the task
+  (engine/views.md, 2). Asked for a page of rows' parts, it makes each from
+  its state, the core's and the store's, loading as a read loads, and
+  answers each made or failed, within the decision or after its loads. It
+  marks a task's parts through the root when its own records of that task
+  change. jig reads none of a part's bytes;
 - **its keyed requests:** a request about one of its own objects comes
   to it through the root, keyed by the people child; it decides it
   within the decision, asks the core for what it needs on the party's

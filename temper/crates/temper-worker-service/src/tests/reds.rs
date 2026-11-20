@@ -2,6 +2,7 @@
 use crate::worker::translate;
 use skein_lib::Writer;
 use temper_protocol_worker_wire::v1;
+use temper_protocol_worker_wire::v1::Record;
 use temper_worker_domain::wire;
 
 #[test]
@@ -31,5 +32,21 @@ fn reds_answers_validate_heads_and_consume_the_whole_payload() {
         } else {
             assert_eq!(decoded, None, "head length {length}");
         }
+    }
+}
+
+#[test]
+fn landed_asks_and_answers_keep_their_wire_forms() {
+    let head = [37; 32];
+    let bytes = translate::ask(wire::Ask::Landed { head });
+    let expected = v1::Ask::Landed(v1::Head { head });
+    assert_eq!(v1::Ask::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)), Ok(expected));
+    for (encoded, typed) in [(v1::Answer::Landed, wire::Answer::Landed), (v1::Answer::Unlanded, wire::Answer::Unlanded)]
+    {
+        let bytes = temper_protocol_worker_wire::answer(&encoded);
+        assert_eq!(translate::answer(&bytes, &v1::CEILINGS), Some(typed));
+        let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
+        assert_eq!(translate::answer(&trailing, &v1::CEILINGS), None);
+        assert_eq!(translate::answer(&[], &v1::CEILINGS), None);
     }
 }

@@ -14,7 +14,7 @@ fn opening(text: &str) -> String {
 
 fn help(text: &str) -> bool {
     opening(text) == "temper-client-journeys: recorded walks, replayed through the shipped hosts and printed."
-        && !text.split_whitespace().any(|word| ["add", "again"].contains(&word))
+        && !text.split_whitespace().any(|word| ["add", "normalise", "again", "pages"].contains(&word))
         && text
             .split_once("environment:\n")
             .is_some_and(|(_, environment)| environment.contains("PATH") && environment.contains("CARGO_TARGET_DIR"))
@@ -29,6 +29,30 @@ fn add_help(text: &str) -> bool {
     internal(text)
         && words.contains("These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.")
         && words.contains("FILE keeps every original: keep it out of the repository and remove it once added.")
+}
+
+fn normalise_help(text: &str) -> bool {
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    internal(text)
+        && words.contains("temper-client-journeys normalise")
+        && words.contains("Normalise every browser and TUI recording, then reprint both directories.")
+        && words.contains("Write each changed recording only after its normalised replay holds, naming each written.")
+        && words.contains("A stale recording is named with its turn and line kind and left as it was; after writing the others and reprinting, exit 1.")
+        && words.contains("Reads no configuration, environment, clock or network.")
+}
+
+fn pages_help(text: &str) -> bool {
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    internal(text)
+        && words.contains("temper-client-journeys pages [--prepared DIR] [--within DURATION]")
+        && words.contains("temper-client-journeys pages --check")
+        && words.contains("Digits then s, m or h (90m).")
+        && words.contains("Every other word goes to stderr.")
+        && words.contains("Walk each stale journey again")
+        && words.contains("Directory holding temper-box, fake-claude, temper-client for TUI, and bundle/index.html.")
+        && words.contains(
+            "Exit 0: every journey printed; 1: a journey left unprinted; 2: usage; 3: a root unreadable or unwritable.",
+        )
 }
 
 fn version(text: &str) -> bool {
@@ -49,6 +73,33 @@ const ROWS: &[Case] = &[
     (&["--version"], 0, version, ""),
     (&["add", "--help"], 0, add_help, ""),
     (&["again", "--help"], 0, internal, ""),
+    (&["pages", "--help"], 0, pages_help, ""),
+    (
+        &["pages", "extra"],
+        2,
+        empty,
+        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
+    ),
+    (
+        &["pages", "--within", "90"],
+        2,
+        empty,
+        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
+    ),
+    (
+        &["pages", "--check", "--prepared", "DIR"],
+        2,
+        empty,
+        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
+    ),
+    (&["normalise", "--help"], 0, normalise_help, ""),
+    (&["normalise", "-h"], 0, normalise_help, ""),
+    (
+        &["normalise", "extra"],
+        2,
+        empty,
+        "temper-client-journeys normalise: unexpected arguments\nusage:\n  temper-client-journeys normalise\n",
+    ),
     (
         &["again"],
         2,

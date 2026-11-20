@@ -1,5 +1,6 @@
 //! The member's goal hears every committed transition (domain/landing.md, 4.2).
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 fn produced_goal() -> (World, u64, u64) {
     produced_goal_with_checks(1000)
@@ -221,7 +222,7 @@ fn a_landing_repair_reads_gate_checks_at_its_head_and_candidate_and_follows_the_
     assert_ne!(head, failure.candidate);
     let job = failure.jobs.first().expect("failed job");
     let expected_pin = format!(
-        "read_job head {} run {} job {} attempt {}",
+        "read_ci what=job commit {} run {} job {} attempt {}",
         hex(&failure.candidate),
         failure.run.id,
         job.job,
@@ -258,9 +259,10 @@ fn a_landing_repair_reads_gate_checks_at_its_head_and_candidate_and_follows_the_
         assert!(text.contains(&expected_status), "{text}");
         assert!(text.contains(std::str::from_utf8(&failure.run.url).unwrap()), "{text}");
         let pin = text.lines().find(|line| *line == expected_pin).expect("candidate job pin");
+        let pin = pin.strip_prefix("read_ci what=job ").expect("job read");
         let fields: Vec<_> = pin.split_ascii_whitespace().collect();
         let input =
-            format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+            format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[1], fields[3], fields[5], fields[7]);
         let answer =
             named_read(&mut world, &repair, 510 + u32::try_from(index).unwrap(), b"read_job", input.as_bytes());
         let rendered = temper_engine_smith::answer(&answer);
@@ -347,9 +349,7 @@ fn joined_batch_with_tests(by_test: bool) -> (World, engine::Assignment, Vec<u64
     for call in [94, 95, 96] {
         changes.push(ready_goal_change_with_failure(&mut world, &goal, call, by_test && call == 96));
     }
-    for _ in 0..600 {
-        world.tick();
-    }
+    world.advance_ticks(600);
     assert!(landing_rows(&world).is_empty(), "full room leaves all three waiting");
     for change in &changes {
         assert!(matches!(
@@ -357,7 +357,7 @@ fn joined_batch_with_tests(by_test: bool) -> (World, engine::Assignment, Vec<u64
             temper_engine_domain_forge_change::State::Ready { .. }
         ));
     }
-    world.restart_with_batch(3);
+    restart_waiting_batch(&mut world, 3, &changes);
     for _ in 0..600 {
         world.tick();
         if !landing_rows(&world).is_empty() {
@@ -389,7 +389,12 @@ fn ready_goal_change_with_failure(world: &mut World, goal: &engine::Assignment, 
             ]),
             inputs: Box::new([]),
         },
-        contract: tasks::Contract::Change { connector: 0, kind: 1, words: world.env.limits.tasks.result_bytes },
+        contract: tasks::Contract::Change {
+            connector: 0,
+            kind: 1,
+            words: world.env.limits.tasks.result_bytes,
+            choices: Box::new([]),
+        },
         authority,
         ..temper_engine_domain_world::fixtures::report_delegate(b"fix", Box::new([]))
     };
@@ -421,9 +426,7 @@ fn ready_goal_change_with_failure(world: &mut World, goal: &engine::Assignment, 
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"failures", b"a\n", 1).expect("red top");
     }
     finish_producer(world, &producer, forge_world::REPO);
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     change
 }
 
@@ -453,7 +456,7 @@ fn a_batch_request_grants_every_prefix_and_each_goal_hears_its_own_prefix() {
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("job spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("worker request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("worker request");
     assert_eq!(request["from"], hex(&row.landing.members[0].base.expect("base")));
     let members = request["members"].as_array().expect("members");
     assert_eq!(members.len(), 3);

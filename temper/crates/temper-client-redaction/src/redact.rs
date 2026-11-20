@@ -1,18 +1,23 @@
-//! Pure recording redaction (temper/docs/design/client/web/journeys.md, 3.6).
+//! Pure recording redaction (temper/docs/design/client/web/journey-redaction.md).
 use crate::Originals;
 use skein_lib::bytes::find_from;
-use std::{cmp::Reverse, collections::BTreeMap};
+use std::collections::BTreeMap;
 
-/// Whether a length prefix counts a field's bytes (client/web/journeys.md, 3.6).
+/// Whether a length prefix counts a field's bytes (client/web/journey-redaction.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Framing {
     Framed,
     Text,
 }
 
+#[derive(Clone, Copy)]
+enum Output {
+    Digest([u8; 32]),
+    Xs(usize),
+}
 struct Replacement {
     end: usize,
-    bytes: Box<[u8]>,
+    output: Output,
 }
 
 /// Replace every original's forms and digests in one field; return the places replaced.
@@ -20,17 +25,15 @@ pub fn redact_field(field: &mut Box<[u8]>, framing: Framing, originals: &Origina
     let mut replacements = BTreeMap::new();
     for original in originals.sought() {
         for (from, to) in original.digests() {
-            seek(field, from, to, &mut replacements);
+            seek(field, from, &Output::Digest(*to), &mut replacements);
         }
-        // An escaped form can contain its bytes as a prefix: a& in a&amp;.
-        let mut forms: Vec<_> = original.forms().iter().collect();
-        forms.sort_by_key(|form| Reverse(form.len()));
-        for form in forms {
+        for &index in original.form_order() {
+            let form = &original.forms()[index];
             let length = match framing {
                 Framing::Framed => form.len(),
                 Framing::Text => original.len(),
             };
-            seek(field, form, &vec![b'x'; length], &mut replacements);
+            seek(field, form, &Output::Xs(length), &mut replacements);
         }
     }
     let places = u32::try_from(replacements.len()).expect("field replacement count fits u32");
@@ -42,7 +45,10 @@ pub fn redact_field(field: &mut Box<[u8]>, framing: Framing, originals: &Origina
     let mut start = 0;
     for (at, replacement) in replacements {
         output.extend_from_slice(&field[start..at]);
-        output.extend_from_slice(&replacement.bytes);
+        match replacement.output {
+            Output::Digest(bytes) => output.extend_from_slice(&bytes),
+            Output::Xs(length) => output.resize(output.len() + length, b'x'),
+        }
         start = replacement.end;
     }
     output.extend_from_slice(&field[start..]);
@@ -50,7 +56,7 @@ pub fn redact_field(field: &mut Box<[u8]>, framing: Framing, originals: &Origina
     places
 }
 
-fn seek(field: &[u8], from: &[u8], to: &[u8], replacements: &mut BTreeMap<usize, Replacement>) {
+fn seek(field: &[u8], from: &[u8], to: &Output, replacements: &mut BTreeMap<usize, Replacement>) {
     let mut start = 0;
     while let Some(at) = find_from(field, from, start) {
         let end = at + from.len();
@@ -58,7 +64,7 @@ fn seek(field: &[u8], from: &[u8], to: &[u8], replacements: &mut BTreeMap<usize,
         if overlaps {
             start = at + 1;
         } else {
-            replacements.insert(at, Replacement { end, bytes: to.into() });
+            replacements.insert(at, Replacement { end, output: *to });
             start = end;
         }
     }

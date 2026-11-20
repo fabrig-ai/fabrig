@@ -1,4 +1,6 @@
 //! Connections on sockets, with private durable storage (protocol/client/README.md, 9).
+//! Paths and printed links use the application's mapping (protocol/client/default-http.md, 4).
+use crate::socket::Socket;
 use crate::{Conn, Connections, Limits, files::Files};
 use jig_client as client;
 use jig_client_protocol_http::{Mapping, Unlinked};
@@ -10,25 +12,54 @@ use skein_lib::{
     Env, Queue, Secret, Time, Token, Wall,
     stream::{Down, Fault, Up},
 };
+use skein_tls::client as tls;
 use std::collections::{BTreeMap, VecDeque};
+
+/// The engine supplied by the host (protocol/client/README.md, 9).
+#[derive(Clone, Debug)]
+pub enum Engine {
+    Plain(io::Addr),
+    Tls(Tls),
+}
+#[derive(Clone, Debug)]
+pub struct Tls {
+    pub name: skein_tls::Name,
+    pub host: Box<[u8]>,
+    pub addresses: Box<[core::net::SocketAddr]>,
+    pub config: skein_tls::Config,
+}
+impl Engine {
+    fn host(&self) -> String {
+        match self {
+            Self::Plain(addr) => addr.socket().expect("HTTP engine has an IP address").to_string(),
+            Self::Tls(tls) => {
+                assert!(!tls.addresses.is_empty(), "TLS engine has an address");
+                std::str::from_utf8(&tls.host).expect("HTTP host is text").to_owned()
+            }
+        }
+    }
+    pub(crate) fn address(&self, attempt: usize) -> Option<io::Addr> {
+        match self {
+            Self::Plain(addr) => (attempt == 0).then_some(*addr),
+            Self::Tls(tls) => tls.addresses.get(attempt).copied().map(io::Addr::Ip),
+        }
+    }
+}
 pub struct Settings {
-    pub engine: io::Addr,
+    pub engine: Engine,
     pub directory: Box<[u8]>,
     pub limits: Limits,
     pub io: io::Limits,
-}
-struct Socket {
-    entity: Option<Token>,
-    connected: bool,
-    started: bool,
-    closed: bool,
-    below: VecDeque<Down>,
+    pub mapping: Mapping,
 }
 /// The shared socket loop for native clients (protocol/client/README.md, 9).
 /// `owner` reserves the high 32 bits of socket tokens; zero uses bare connection names.
 pub struct Transport {
     pub(super) connections: Connections,
-    engine: io::Addr,
+    engine: Engine,
+    tls_limits: tls::Limits,
+    refused: Option<tls::Error>,
+    incoming: Queue<(Time, io::Event)>,
     sockets: BTreeMap<Conn, Socket>,
     below: Queue<(Conn, Down)>,
     owner: u64,
@@ -41,7 +72,6 @@ pub struct Shell {
     pub(super) files: Files,
     io: io::Io,
     env: Env<io::Limits>,
-    engine: io::Addr,
     complete: Queue<Complete>,
     submit: Queue<Submit>,
     raw: Queue<Submit>,
@@ -60,14 +90,20 @@ impl Shell {
                 && settings.io.output >= settings.limits.http.request.max(settings.limits.http.send),
             "transport fits io"
         );
+        if let Engine::Tls(_) = &settings.engine {
+            assert!(
+                settings.io.intake >= tls::LARGEST_READ
+                    && settings.io.output >= tls::largest_room(&settings.limits.tls),
+                "TLS fits io"
+            );
+        }
         let max = settings.io.sockets;
         let room = max.checked_mul(64).expect("queue bound");
         Self {
-            transport: Transport::new(settings.engine, &settings.limits, max, 0),
+            transport: Transport::new(settings.engine, &settings.limits, max, 0, settings.mapping),
             files: Files::new(settings.directory, settings.limits.body_bytes),
             io: io::Io::new(&settings.io),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: settings.io },
-            engine: settings.engine,
             complete: Queue::with_capacity(room),
             submit: Queue::with_capacity(room),
             raw: Queue::with_capacity(room),
@@ -84,8 +120,12 @@ impl Shell {
         assert!(!self.closing && self.held.is_empty() && self.requests.is_empty(), "point before requests");
         assert!(self.transport.sockets.is_empty() && self.transport.below.is_empty(), "point before sockets");
         self.transport.connections.point(engine.socket().expect("HTTP engine has an IP address").to_string());
-        self.transport.engine = engine;
-        self.engine = engine;
+        self.transport.engine = Engine::Plain(engine);
+        self.transport.refused = None;
+    }
+    #[must_use]
+    pub fn refused(&self) -> Option<tls::Error> {
+        self.transport.refused
     }
     /// Adopt the caller's directory descriptor and effective user, before startup.
     pub fn adopt(&mut self, root: Fd, user: u32, seed: u64) {
@@ -109,10 +149,7 @@ impl Shell {
     /// # Errors
     /// Refuses a printed link whose address differs from the configured engine.
     pub fn sign_in(&mut self, printed: &[u8]) -> Result<Secret, Unlinked> {
-        let parsed = jig_client_protocol_http::printed(&Mapping::new(b"/jig").expect("default mapping"), printed)?;
-        let host = std::str::from_utf8(&parsed.host).map_err(|_| Unlinked::Address)?;
-        let addr = host.parse().map_err(|_| Unlinked::Address)?;
-        if self.engine != io::Addr::Ip(addr) {
+        if !matches!(self.transport.engine, Engine::Plain(_)) {
             return Err(Unlinked::Address);
         }
         self.transport.connections.printed(printed)
@@ -140,6 +177,7 @@ impl Shell {
                 self.transport.down(self.env.now, request);
             }
             client::Request::Told { .. }
+            | client::Request::AskedLink(_)
             | client::Request::Approval(_)
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
@@ -159,6 +197,7 @@ impl Shell {
                 | client::Request::Save { .. }
                 | client::Request::Erase { .. }
                 | client::Request::Told { .. }
+                | client::Request::AskedLink(_)
                 | client::Request::Approval(_)
                 | client::Request::Authorized(_)
                 | client::Request::ServiceCredential { .. } => unreachable!("only exchanges and streams held"),
@@ -205,11 +244,14 @@ impl Shell {
 impl Transport {
     /// `sockets` is the capacity reserved for this transport on the caller's io.
     #[must_use]
-    pub fn new(engine: io::Addr, limits: &Limits, sockets: u32, owner: u64) -> Self {
+    pub fn new(engine: Engine, limits: &Limits, sockets: u32, owner: u64, mapping: Mapping) -> Self {
         assert!(sockets > limits.exchanges, "io fits exchanges and the stream");
         assert_eq!(owner & u64::from(u32::MAX), 0, "owner tag leaves connection bits free");
         Self {
-            connections: Connections::new(limits, &engine.socket().expect("HTTP engine has an IP address").to_string()),
+            connections: Connections::new(limits, &engine.host(), mapping),
+            tls_limits: limits.tls,
+            refused: None,
+            incoming: Queue::uncapped(),
             engine,
             sockets: BTreeMap::new(),
             below: Queue::uncapped(),
@@ -239,6 +281,10 @@ impl Transport {
     }
     /// Feed only this transport's socket events, before `iterate`.
     pub fn event(&mut self, now: Time, event: io::Event) {
+        self.incoming.push((now, event));
+    }
+    fn receive(&mut self, now: Time, wall: Wall, event: io::Event) {
+        let env = Env { now, wall, limits: self.tls_limits };
         match event {
             io::Event::Connecting { owner, socket } => {
                 let conn = self.conn(owner);
@@ -246,12 +292,15 @@ impl Transport {
             }
             io::Event::Connected { owner } => {
                 let conn = self.conn(owner);
-                self.sockets.get_mut(&conn).expect("connected socket").connected = true;
+                self.sockets.get_mut(&conn).expect("connected socket").connected(&env);
+                self.tls_events(conn, now);
             }
             io::Event::Stream { .. } | io::Event::Failed { .. } if self.closing => {}
-            io::Event::Stream { owner, up } => self.connections.receive(now, self.conn(owner), up, &mut self.below),
+            io::Event::Stream { owner, up } => {
+                self.socket_up(self.conn(owner), &env, up);
+            }
             io::Event::Failed { owner, .. } => {
-                self.connections.receive(now, self.conn(owner), Up::Failed(Fault::Reset), &mut self.below);
+                self.socket_up(self.conn(owner), &env, Up::Failed(Fault::Reset));
             }
             io::Event::Closed { owner } => {
                 let conn = self.conn(owner);
@@ -269,7 +318,16 @@ impl Transport {
         }
     }
     /// Call once per host iteration, after io events and before io's reclaim.
-    pub fn iterate(&mut self, now: Time, events: &mut Queue<client::Event>, requests: &mut Queue<io::Request>) {
+    pub fn iterate(
+        &mut self,
+        now: Time,
+        wall: Wall,
+        events: &mut Queue<client::Event>,
+        requests: &mut Queue<io::Request>,
+    ) {
+        while let Some((at, event)) = self.incoming.pop() {
+            self.receive(at, wall, event);
+        }
         if self.closing {
             while self.below.pop().is_some() {}
             for socket in self.sockets.values_mut() {
@@ -282,21 +340,48 @@ impl Transport {
             // Closed sockets still occupy io's slab until the host reclaims it.
             let free = self.max - u32::try_from(self.sockets.len()).expect("socket bound");
             self.connections.take_with_room(now, free, events, &mut self.below);
-            self.pump(requests);
+            self.pump(&Env { now, wall, limits: self.tls_limits }, requests);
         }
-        self.sockets.retain(|_, socket| !socket.closed && (!self.closing || socket.started));
+        self.sockets
+            .retain(|_, socket| (!socket.closed || socket.retry && !self.closing) && (!self.closing || socket.started));
+        // Wait until the host has reclaimed the old socket before reconnecting.
+        for socket in self.sockets.values_mut() {
+            if socket.closed && socket.retry {
+                socket.next(&self.engine, &self.tls_limits);
+            }
+        }
     }
-    fn pump(&mut self, requests: &mut Queue<io::Request>) {
+    fn socket_up(&mut self, conn: Conn, env: &Env<tls::Limits>, up: Up) {
+        let socket = self.sockets.get_mut(&conn).expect("socket event");
+        socket.up(&self.engine, env, up);
+        self.tls_events(conn, env.now);
+    }
+    fn tls_events(&mut self, conn: Conn, now: Time) {
+        while let Some(event) = self.sockets.get_mut(&conn).expect("socket name").above.pop() {
+            match event {
+                tls::Event::Ready(_) => {
+                    self.sockets.get_mut(&conn).expect("ready socket").readied();
+                    self.refused = None;
+                }
+                tls::Event::Failed(error) => {
+                    if !matches!(error, tls::Error::Stream(_)) {
+                        self.refused = Some(error);
+                    }
+                    self.connections.receive(now, conn, Up::Failed(error.fault()), &mut self.below);
+                }
+                tls::Event::Stream(up) => self.connections.receive(now, conn, up, &mut self.below),
+                tls::Event::Closed => {}
+            }
+        }
+    }
+    fn pump(&mut self, env: &Env<tls::Limits>, requests: &mut Queue<io::Request>) {
         while let Some((conn, down)) = self.below.pop() {
             if !self.sockets.contains_key(&conn) {
                 if matches!(down, Down::Finish) {
                     continue;
                 }
                 assert!(self.sockets.len() < skein_lib::length::usize_of(self.max), "bounded sockets");
-                self.sockets.insert(
-                    conn,
-                    Socket { entity: None, connected: false, started: false, closed: false, below: VecDeque::new() },
-                );
+                self.sockets.insert(conn, Socket::new(&self.engine, &self.tls_limits));
             }
             self.sockets.get_mut(&conn).expect("socket exists").below.push_back(down);
         }
@@ -307,22 +392,12 @@ impl Transport {
                 socket.started = true;
                 requests.push(io::Request::Connect {
                     owner: Token::new(self.owner | u64::from(conn.0)),
-                    addr: self.engine,
+                    addr: self.engine.address(socket.attempt).expect("engine address"),
                 });
             }
 
-            loop {
-                let socket = self.sockets.get_mut(&conn).expect("socket name");
-                if !socket.connected {
-                    break;
-                }
-                let Some(down) = socket.below.pop_front() else { break };
-                let stream = socket.entity.expect("connected socket");
-                requests.push(match down {
-                    Down::Finish => io::Request::Close { entity: stream },
-                    down @ (Down::Demand { .. } | Down::Send(_)) => io::Request::Stream { stream, down },
-                });
-            }
+            self.sockets.get_mut(&conn).expect("socket name").pump(env, requests);
+            self.tls_events(conn, env.now);
         }
     }
 }
@@ -369,7 +444,7 @@ impl Shell {
         if self.files.ready() && !self.closing {
             self.release_held(now);
         }
-        self.transport.iterate(now, &mut self.events, &mut self.requests);
+        self.transport.iterate(now, wall, &mut self.events, &mut self.requests);
         if self.closing {
             self.held.clear();
         }
@@ -429,11 +504,12 @@ impl Transport {
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
         if self.closing {
-            self.sockets.values().any(|s| s.entity.is_some())
+            !self.incoming.is_empty() || self.sockets.values().any(|s| s.entity.is_some())
         } else {
-            (self.sockets.len() < skein_lib::length::usize_of(self.max) && self.connections.waiting())
+            !self.incoming.is_empty()
+                || (self.sockets.len() < skein_lib::length::usize_of(self.max) && self.connections.waiting())
                 || !self.below.is_empty()
-                || self.sockets.values().any(|s| !s.started || s.connected && !s.below.is_empty())
+                || self.sockets.values().any(|s| !s.started || s.pending())
                 || self.next_deadline().is_some_and(|until| now >= until)
         }
     }
@@ -443,7 +519,7 @@ impl Transport {
     }
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.sockets.is_empty() && self.below.is_empty() && !self.connections.waiting()
+        self.sockets.is_empty() && self.below.is_empty() && self.incoming.is_empty() && !self.connections.waiting()
     }
 }
 

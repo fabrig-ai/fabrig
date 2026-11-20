@@ -1,5 +1,6 @@
 //! A conflict waits for the producer's terminal (domain/forge/change/repairs.md).
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const BRANCH: &[u8] = b"temper/handed";
 
@@ -14,7 +15,7 @@ fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64
     let chat = assigned_chat(&mut world, 92, ask);
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Small fix", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128, choices: Box::new([]) };
     delegate.authority = live_task(&world, chat.task).authority.clone();
     delegate.authority.budget.spend = if questions_up { 20 } else { 40 };
     delegate.authority.delegation.tasks = 6;
@@ -289,7 +290,7 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("prepare spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request");
     assert_eq!(
         request["members"][0]["head"],
         String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("head text")
@@ -358,9 +359,7 @@ fn a_producer_that_cleans_the_conflict_needs_no_resolution() {
     let producer = resume(&mut world, &producer);
     let head = push_merge(&mut world, task, first, base);
     finish_resolution(&mut world, &producer);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let row = change_row(&world, task);
     assert_eq!(row.change.resolutions, 0);
     assert_eq!(row.change.last_head, Some(translate::commit(head)));

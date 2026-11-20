@@ -6,7 +6,7 @@ use std::{os::unix::ffi::OsStrExt, path::Path};
 
 /// The hosted temper executable's relay entry point, as main.rs dispatches it.
 pub(crate) const RELAY: &[u8] = b"/real-loop/temper";
-pub(crate) const PROGRAM: &[u8] = b"/real-loop/claude";
+pub(crate) const PROGRAM: &[u8] = b"/usr/bin/true";
 
 // Runtime provisioning creates the direct key account before a program is declared.
 pub const ACCOUNT: u64 = 2;
@@ -49,9 +49,11 @@ fn fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
 
 /// The hosted fake uses filesystem names; Spawn's cwd is relative to its root descriptor.
 pub(crate) fn launch(spawn: &Spawn) -> Spawn {
-    let root = std::fs::read_link(format!("/proc/self/fd/{}", spawn.root.raw())).expect("fake launch root");
-    let directory = root.join(std::ffi::OsStr::from_bytes(&spawn.dir));
+    let root = skein_shell::keeper::descriptor_path(spawn.root)
+        .unwrap_or_else(|error| panic!("fake launch root {:?}: {error:?}", spawn.root));
+    let directory = Path::new(std::ffi::OsStr::from_bytes(&root)).join(std::ffi::OsStr::from_bytes(&spawn.dir));
     Spawn {
+        reach: None,
         program: spawn.program.clone(),
         args: spawn.args.clone(),
         env: spawn.env.clone(),

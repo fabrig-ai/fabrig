@@ -253,11 +253,26 @@ fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Deci
     emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
 }
 
-/// Load one ended owner row the core asked for; a full read table answers busy.
-fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
+/// Ended tasks wait for room; the core's other ended reads keep busy (root.md, 7).
+pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
+    if let EndedRead::EndedTask { task, .. } = &read {
+        let task = *task;
+        if !domain.ended_waiting.is_empty() || domain.archive_reads.is_full() || !domain.loads.has_room() {
+            domain.ended_waiting.push(read);
+            return;
+        }
+        let waiter = crate::archive::reserve_ended(domain, read);
+        emit(
+            decision,
+            &env.limits,
+            Delivery::Load { waiter, range: Range::Core(crate::CoreRange::TaskResult { task }), after: None },
+        );
+        return;
+    }
     let range = match &read {
         EndedRead::Position { task, party, .. } => crate::CoreRange::EndedRead { task: *task, party: *party },
-        EndedRead::EndedTask { task, .. }
+        EndedRead::ChangeFrom { task }
+        | EndedRead::EndedTask { task, .. }
         | EndedRead::SeenConversation { task, .. }
         | EndedRead::PartyInput { task, .. }
         | EndedRead::PersonTask { task, .. } => crate::CoreRange::TaskResult { task: *task },
@@ -277,6 +292,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
                 | Read::Transcript { .. }
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
+                | Read::Parts(_)
                 | Read::Document(_)
                 | Read::Remember(_)
                 | Read::SettingsNote { .. }

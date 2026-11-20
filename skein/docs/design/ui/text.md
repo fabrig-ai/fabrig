@@ -208,7 +208,7 @@ this shell's text (README.md, 14.1).
   | check | `[n] [x] NAME` when pressed or selected, `[n] [ ] NAME` otherwise |
   | status | `* TEXT`; a status with no text prints its name |
   | alert | `! TEXT` |
-  | progress | `NAME: TEXT`, with a fraction or without: its text is the figure its owner chose, and the shell draws no bar of characters, which a screen reader would read as noise |
+  | progress, meter | `NAME: TEXT`, with a fraction or without: its text is the figure its owner chose, and the shell draws no bar of characters, which a screen reader would read as noise |
   | code | each line of its text, indented four spaces more |
   | quote | each line of its text after `> ` |
   | separator | `--` |
@@ -218,7 +218,8 @@ this shell's text (README.md, 14.1).
   | image | its name, whatever its source: one of its owner's pictures or an address (README.md, 3.5) |
 
   A disclosure prints unfolded and a menu prints its items: the text
-  shell keeps no fold of its own.
+  shell keeps no fold of its own, and a child shown folded (README.md,
+  3.2) prints as any first child does, with no word for its state.
 - **Indented** means two spaces more than the line it belongs to.
 - **States** follow a node's line as words in parentheses, in this
   order: `(disabled)`, `(expanded)`, `(busy)`, `(current)`,
@@ -257,7 +258,9 @@ this shell's text (README.md, 14.1).
     no focus), an image's source, a placeholder (its field's name says
     what it takes, and a hint beside `(empty)` could read as its value),
     a node's hint (the text shell has no pointer, and a hint is never
-    needed to decide: README.md, 3.2), and shortcuts, Escape among them: the text shell takes no keys
+    needed to decide: README.md, 3.2), a menu's button (the text shell
+    prints a menu's items in place, behind no button, a chosen one with its
+    state), and shortcuts, Escape among them: the text shell takes no keys
     (section 6).
 - **Text** is a node's runs, in order: a code run between backticks,
   every other run as it is. Style tokens and region names are not

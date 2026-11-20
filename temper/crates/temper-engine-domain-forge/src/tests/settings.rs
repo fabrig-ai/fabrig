@@ -6,16 +6,20 @@ use crate::settings::{
 use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
 use alloc::boxed::Box;
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
 const BOUNDS: Bounds = Bounds {
+    landing_members: 4,
+    repositories: 2,
+    landing_gates: 2,
+    tiers: 2,
+    ignored_paths: 4,
     landing_rules: 4,
     gates: 2,
     roles: 2,
-    charters: 3,
     segments: 5,
     segment_bytes: 8,
-    templates: 4,
     follows: 2,
     dependencies: 4,
     follow_paths: 2,
@@ -162,8 +166,8 @@ fn judge_accepts_rules_within_their_bounds() {
         (1, Some(Kind::DeploymentRules)),
         (2, Some(Kind::ProjectRules)),
         (3, Some(Kind::Charters)),
-        (4, None),
-        (5, None),
+        (4, Some(Kind::ProjectLanding)),
+        (5, Some(Kind::ProjectGates)),
         (11, Some(Kind::TemplateGoal)),
         (u32::MAX, None),
     ] {
@@ -186,7 +190,7 @@ fn judge_refuses_each_fault_by_name() {
     }
     extra_segments.push(Box::from(b"extra".as_slice())).expect("one past bound fits fixture");
     let rows = [
-        ("kind 4", Item { kind: 4, ..base.clone() }, Err(Refusal::Kind)),
+        ("unknown kind", Item { kind: u32::MAX, ..base.clone() }, Err(Refusal::Kind)),
         (
             "deployment set",
             with_rule(LandingRule { sets: Box::new([1]), ..valid.clone() }),
@@ -321,7 +325,7 @@ fn judge_refuses_each_fault_by_name() {
             }),
             Err(Refusal::Approvals),
         ),
-        ("removal kind", Item { kind: 4, value: None, ..base.clone() }, Err(Refusal::Kind)),
+        ("removal kind", Item { kind: u32::MAX, value: None, ..base.clone() }, Err(Refusal::Kind)),
         ("removal scope", Item { scope: PROJECT, value: None, ..base.clone() }, Err(Refusal::Scope)),
         ("removal number", Item { number: 0, value: None, ..base }, Err(Refusal::Number)),
     ];
@@ -334,7 +338,7 @@ fn judge_refuses_each_fault_by_name() {
 fn judge_reads_the_forge_charters() {
     let goal = Item { kind: Kind::TemplateGoal.number(), scope: 0, number: 1, value: None };
     for (design, close_out) in [(false, false), (false, true), (true, false), (true, true)] {
-        for number in [1, BOUNDS.templates] {
+        for number in [1, 33, 64] {
             let item = Item { number, value: Some(Value::Goal(TemplateGoal { design, close_out })), ..goal.clone() };
             assert_eq!(judge(&item, &BOUNDS), Ok(()), "{item:?}");
         }
@@ -342,23 +346,21 @@ fn judge_reads_the_forge_charters() {
     for (label, item, expected) in [
         ("goal project scope", Item { scope: PROJECT, ..goal.clone() }, Err(Refusal::Scope)),
         ("goal number zero", Item { number: 0, ..goal.clone() }, Err(Refusal::Number)),
-        ("goal number past templates", Item { number: BOUNDS.templates + 1, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal number past numbers", Item { number: 65, ..goal.clone() }, Err(Refusal::Number)),
         ("goal wrong value", Item { value: Some(Value::Charter(1)), ..goal.clone() }, Err(Refusal::Value)),
         ("goal removal or reset", goal, Ok(())),
     ] {
         assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
     }
+    assert_eq!(Refusal::Charter.words().as_ref(), b"a charter outside 1 to 64, or the forge's charter removed");
     let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
     for number in [1, 2] {
         let rows = [
             ("first charter", base.clone(), Ok(())),
-            ("last charter", Item { value: Some(Value::Charter(BOUNDS.charters)), ..base.clone() }, Ok(())),
+            ("own charter", Item { value: Some(Value::Charter(33)), ..base.clone() }, Ok(())),
+            ("last charter", Item { value: Some(Value::Charter(64)), ..base.clone() }, Ok(())),
             ("charter zero", Item { value: Some(Value::Charter(0)), ..base.clone() }, Err(Refusal::Charter)),
-            (
-                "charter past bound",
-                Item { value: Some(Value::Charter(BOUNDS.charters + 1)), ..base.clone() },
-                Err(Refusal::Charter),
-            ),
+            ("charter past bound", Item { value: Some(Value::Charter(65)), ..base.clone() }, Err(Refusal::Charter)),
             ("remove charter", Item { value: None, ..base.clone() }, Err(Refusal::Charter)),
             ("scope", Item { scope: 1, ..base.clone() }, Err(Refusal::Scope)),
         ];
@@ -547,8 +549,9 @@ fn a_projects_kinds_are_judged() {
     for (label, item, expected) in [
         ("scope", Item { scope: PROJECT, ..base.clone() }, Err(Refusal::Scope)),
         ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
-        ("last charter", Item { number: BOUNDS.charters, ..base.clone() }, Ok(())),
-        ("past charters", Item { number: BOUNDS.charters + 1, ..base.clone() }, Err(Refusal::Number)),
+        ("own charter", Item { number: 33, ..base.clone() }, Ok(())),
+        ("last charter", Item { number: 64, ..base.clone() }, Ok(())),
+        ("past charters", Item { number: 65, ..base.clone() }, Err(Refusal::Number)),
         ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
         ("ways", Item { value: Some(ways.clone()), ..base }, Err(Refusal::Value)),
         ("project ways", Item { kind: 10, scope: PROJECT, number: 1, value: Some(ways) }, Err(Refusal::Value)),
@@ -744,6 +747,223 @@ fn areas_are_judged_at_their_bounds_and_kept_removed_and_reset() {
             assert!(matches!(domain.judge_settings(&BOUNDS, core::slice::from_ref(&asked))[0], Judged::Accept { .. }));
             domain.keep_settings(&env, 3, None, &[asked], &mut out);
             assert_eq!(domain.setting(kind, PROJECT, 1), None);
+        }
+    }
+}
+
+#[path = "settings_agents.rs"]
+mod agents;
+fn landing_gates() -> crate::settings::ProjectGates {
+    crate::settings::ProjectGates {
+        repositories: Box::new([crate::RepositoryGates {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            gates: Box::new([temper_engine_domain_forge_landing::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: Some(temper_engine_domain_forge_landing::GateReport {
+                    artifact: b"report".as_slice().into(),
+                    format: temper_engine_domain_forge_tiers::Format::Lines,
+                    fuzzy: Some(b"fuzzy_".as_slice().into()),
+                }),
+            }]),
+            tiers: Box::new([crate::Tier {
+                name: b"slow".as_slice().into(),
+                workflow: b"slow.yml".as_slice().into(),
+                ignored: Box::new([]),
+                artifact: b"report".as_slice().into(),
+                format: temper_engine_domain_forge_tiers::Format::Junit,
+                follows: crate::Follows::Goals,
+                span: Some(skein_lib::Duration::from_millis(5000)),
+                description: b"slow tests".as_slice().into(),
+            }]),
+        }]),
+    }
+}
+#[test]
+fn landing_fields_and_gate_names_are_judged() {
+    use crate::settings::{ProjectGates, ProjectLanding};
+    let default = ProjectLanding::default();
+    let mut batch_zero = default.clone();
+    batch_zero.batch = 0;
+    let mut batch_past = default.clone();
+    batch_past.batch = u16::try_from(BOUNDS.landing_members + 1).expect("tiny bound");
+    let mut timeout_low = default.clone();
+    timeout_low.check_timeout_ms = Some(999);
+    let mut timeout_high = default.clone();
+    timeout_high.check_timeout_ms = Some(86_400_001);
+    let mut gate_low = default.clone();
+    gate_low.gate_timeout_ms = 59_999;
+    let mut gate_high = default.clone();
+    gate_high.gate_timeout_ms = 86_400_001;
+    let mut attempts = default.clone();
+    attempts.landing_attempts = 0;
+    let mut job = default.clone();
+    job.merge_job = Some(b"tools/../merge".as_slice().into());
+    for (value, field) in [
+        (batch_zero, b"batch".as_slice()),
+        (batch_past, b"batch"),
+        (timeout_low, b"check_timeout_ms"),
+        (timeout_high, b"check_timeout_ms"),
+        (gate_low, b"gate_timeout_ms"),
+        (gate_high, b"gate_timeout_ms"),
+        (attempts, b"landing_attempts"),
+        (job, b"merge_job"),
+    ] {
+        let refusal = judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS)
+            .expect_err("invalid landing");
+        assert!(skein_lib::bytes::find(&refusal.words(), field).is_some());
+    }
+    assert_eq!(
+        judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(default)) }, &BOUNDS),
+        Ok(())
+    );
+    let valid = landing_gates();
+    let mut bad_name = valid.clone();
+    bad_name.repositories[0].gates[0].name = b"bad name".as_slice().into();
+    let duplicate =
+        ProjectGates { repositories: Box::new([valid.repositories[0].clone(), valid.repositories[0].clone()]) };
+    let mut tiers = valid.clone();
+    tiers.repositories[0].tiers =
+        Box::new([tiers.repositories[0].tiers[0].clone(), tiers.repositories[0].tiers[0].clone()]);
+    for (value, field) in [(bad_name, b"name".as_slice()), (duplicate, b"repository"), (tiers, b"tiers.name")] {
+        let refusal = judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(value)) }, &BOUNDS)
+            .expect_err("invalid gates");
+        assert!(skein_lib::bytes::find(&refusal.words(), field).is_some());
+    }
+    assert_eq!(judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(valid)) }, &BOUNDS), Ok(()));
+    for kind in [4, 5] {
+        assert_eq!(judge(&Item { kind, scope: PROJECT, number: 1, value: None }, &BOUNDS), Ok(()));
+    }
+}
+#[test]
+fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
+    use crate::settings::{CARRIER, gates_bytes, gates_record};
+    let bounds = Bounds { ignored_paths: 2000, name_bytes: 1024, ..BOUNDS };
+    let mut gates = landing_gates();
+    gates.repositories[0].tiers = Box::new([]);
+    gates.repositories[0].gates[0].report = None;
+    let before = gates_bytes(&gates).expect("small shape");
+    let remaining = CARRIER - before;
+    let mut paths = List::with_capacity(bounds.ignored_paths);
+    for _ in 0..remaining / 1028 {
+        paths.push(alloc::vec![b'x'; 1024].into_boxed_slice()).expect("bounded paths");
+    }
+    let remainder = remaining % 1028;
+    assert!(remainder > 4);
+    paths
+        .push(alloc::vec![b'x'; usize::try_from(remainder - 4).expect("small remainder")].into_boxed_slice())
+        .expect("bounded paths");
+    gates.repositories[0].gates[0].ignored = paths.into_boxed();
+    assert_eq!(gates_bytes(&gates), Some(CARRIER));
+    assert_eq!(
+        gates_record(&gates).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        CARRIER,
+        "judge counts the codec's bytes"
+    );
+    assert_eq!(
+        judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates.clone())) }, &bounds),
+        Ok(())
+    );
+    let path = gates.repositories[0].gates[0].ignored.last_mut().expect("tail path");
+    let mut bytes = skein_lib::Writer::new(path.len() + 1);
+    bytes.put(path).expect("tail path");
+    bytes.put(b"x").expect("one extra byte");
+    *path = bytes.finish();
+    let refusal = judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates)) }, &bounds)
+        .expect_err("carrier cap");
+    assert_eq!(refusal, Refusal::LandingCarrier);
+    assert!(skein_lib::bytes::find(&refusal.words(), b"repositories").is_some());
+    assert!(skein_lib::bytes::find(&refusal.words(), skein_lib::Decimal::of(u64::from(CARRIER)).as_bytes()).is_some());
+}
+
+fn limit_override(name: &[u8], reason: &[u8]) -> jig_domain_core_vocabulary::settings::Override {
+    jig_domain_core_vocabulary::settings::Override { name: name.into(), value: 16, reason: reason.into() }
+}
+fn limits_item(values: Box<[jig_domain_core_vocabulary::settings::Override]>) -> Item {
+    Item { kind: 22, scope: 0, number: 1, value: Some(Value::Limits(values)) }
+}
+#[test]
+fn limits_refuse_count() {
+    let item = limits_item(vec![limit_override(b"forge.entries", b"dev"); 257].into_boxed_slice());
+    let why = judge(&item, &BOUNDS).unwrap_err();
+    assert_eq!(why.words().as_ref(), b"more than 256 overrides");
+}
+#[test]
+fn limits_refuse_name_at_its_position() {
+    for name in [b"".as_slice(), b"Forge.entries", &[b'a'; 65]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: name must be 1 to 64 bytes of a-z, 0-9, _ or ."
+        );
+    }
+}
+#[test]
+fn limits_refuse_order_at_its_position() {
+    for name in [b"a".as_slice(), b"b"] {
+        let item = limits_item(Box::new([limit_override(b"b", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(judge(&item, &BOUNDS).unwrap_err().words().as_ref(), b"override 2: names must ascend");
+    }
+}
+#[test]
+fn limits_refuse_reason_at_its_position() {
+    for reason in [b"".as_slice(), b"\xff", &[b'a'; 121]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(b"b", reason)]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: reason must be 1 to 120 UTF-8 bytes"
+        );
+    }
+}
+#[test]
+fn limits_have_one_deployment_value_and_judge_shape_not_names_or_figures() {
+    assert_eq!(Kind::of(22), Some(Kind::Limits));
+    assert_eq!(Kind::Limits.number(), 22);
+    let item = limits_item(Box::new([limit_override(b"not.a.known.limit", "développement".as_bytes())]));
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { scope: 1, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    assert_eq!(judge(&Item { number: 2, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    assert_eq!(judge(&Item { value: Some(Value::Charter(1)), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    assert_eq!(judge(&Item { value: None, ..item }, &BOUNDS), Ok(()));
+    let mut values = List::with_capacity(256);
+    for n in 0_u32..256 {
+        values.push(limit_override(format!("limit.{n:03}").as_bytes(), &[b'r'; 120])).unwrap();
+    }
+    assert_eq!(judge(&limits_item(values.into_boxed()), &BOUNDS), Ok(()));
+}
+
+#[test]
+fn repair_settings_need_landed_and_bounded_counts_and_deadline() {
+    use crate::settings::{ProjectLanding, RepairGoalSettings, RepairSettings};
+    use temper_engine_domain_forge_change::Wait;
+    for (wait, goals, attempts, deadline_ms, expected) in [
+        (Wait::Cleared, 2, 2, 86_400_000, Some(b"repairs: needs wait landed".as_slice())),
+        (Wait::Landed, 0, 2, 86_400_000, Some(b"repairs.repair_goals: must be 1 to 16")),
+        (Wait::Landed, 17, 2, 86_400_000, Some(b"repairs.repair_goals: must be 1 to 16")),
+        (Wait::Landed, 2, 0, 86_400_000, Some(b"repairs.repair_attempts: must be 1 to 8")),
+        (Wait::Landed, 2, 9, 86_400_000, Some(b"repairs.repair_attempts: must be 1 to 8")),
+        (Wait::Landed, 2, 2, 3_599_999, Some(b"repairs.repair_deadline_ms: must be 3600000 to 604800000")),
+        (Wait::Landed, 2, 2, 604_800_001, Some(b"repairs.repair_deadline_ms: must be 3600000 to 604800000")),
+        (Wait::Landed, 1, 1, 3_600_000, None),
+        (Wait::Landed, 16, 8, 604_800_000, None),
+    ] {
+        let value = ProjectLanding {
+            wait,
+            repairs: Some(RepairSettings {
+                goals,
+                attempts,
+                deadline_ms,
+                goal: RepairGoalSettings { charter: 5, llm: None, priority: 0, budget: 2_000_000 },
+            }),
+            ..ProjectLanding::default()
+        };
+        let judged = judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS);
+        match expected {
+            Some(why) => assert_eq!(judged.unwrap_err().words().as_ref(), why),
+            None => assert_eq!(judged, Ok(())),
         }
     }
 }

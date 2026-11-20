@@ -101,7 +101,7 @@ pub fn retired_reload(config: &Path, client: &Path) {
 }
 fn reload(config: &Path, client: &Path, directory: &[u8], leaving: bool) {
     let document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+        super::start_document(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)
@@ -201,7 +201,7 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
                     .is_ok_and(|bytes| bytes.split(|byte| *byte == 0).nth(1) == Some(b"--config".as_slice()))
         })
         .expect("supervised box parent");
-    let stopped = std::process::Command::new("/usr/bin/kill")
+    let stopped = std::process::Command::new("/bin/kill")
         .args(["-STOP", &parent.to_string()])
         .status()
         .expect("pause box parent");

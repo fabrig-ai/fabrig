@@ -123,7 +123,7 @@ chat's person, of the chat's project alone, through jig's run read as its person
 | `help` | the index of temper's pages | the pages `read_docs` reads (`../../protocol/documentation.md`, section 5) | `help NAME · help search WORDS` |
 | `help NAME` | the page whole, `NAME: TITLE` first; a name no page has answers so, then the sections holding its words, as `read_docs` does | the same | `help · help search WORDS` |
 | `help search WORDS` | each section holding every word, a line each, `PAGE: HEADING: LINE`; nothing, saying so; more than eight, ending `more sections match; narrow the words` | the same | `help NAME` |
-| `file OWNER/NAME PATH [BRANCH]` | the file at the branch's head, its bytes, or a directory's entries, as `read_file` gives them, the head first; the repository one of the project's readable repositories, named as the inventory names it (`tools.md`, `repository`); the branch the repository's default branch, as its adoption read the forge's settings, when left out | the forge's `read_branch` for the head, then `read_file` at it | `file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME` |
+| `file OWNER/NAME PATH [BRANCH]` | the file at the branch's head, its bytes, or a directory's entries, as `read_forge what=file` gives them, the head first; the repository one of the project's readable repositories, named as the inventory names it (`tools.md`, `repository`); the branch the repository's default branch, as its adoption read the forge's settings, when left out | the forge's `read_forge what=branch` for the head, then `read_forge what=file` at it | `file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME` |
 | `me` | the person: their name, their role in the project, their pool's budget this period and what is left of it; what waits on them in the project, counted by kind, then the oldest of it a line each, as `inbox` gives it | the project read and the inbox's needs filtered by the project, as the person | `inbox · project · goals · tasks` |
 | `project` | the project by number and name; its repositories, as the inventory names them; its people, each with their role; this period, its number, start and next start, its budget and what is reserved, spent and left; its held tasks, a line each, with what they wait on | the project read, then a task query of the project's held tasks, as the person; the inventory's repositories (`agents.md`, 1) | `goals · tasks · changes · inbox · settings` |
 | `goals`, `goals ended` | its live goals by priority, or its ended goals, the latest ended first: a line each, the goal by number and title, its priority, its state and what it waits on, and its report's headline (`agents.md`, 3), or that it has none | a task query of the project's tracked tasks, live or ended, then the project's notes in a goal's scope, as the person | `task N · task N tree · goals ended`; ended, `task N · goals` |
@@ -188,7 +188,7 @@ chat's person, of the chat's project alone, through jig's run read as its person
 - **A refusal** of the other addresses says in a line what the read did not
   reach, in that read's own words, prefixed `see ADDRESS: `, an error: a settings read beyond authority as
   `settings` words it, naming the `settings` family; a repository no readable one
-  of the project's, naming those it has, and a forge read refused, as `read_file`
+  of the project's, naming those it has, and a forge read refused, as `read_forge what=file`
   words them. A setting that is not there answers `see ADDRESS: not read: no such
   setting. This says nothing about the settings: see settings lists them.`, an
   error.
@@ -299,6 +299,14 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   checks any item of temper's kinds, decoded at the call and judged at
   acceptance, and adds none of its own. temper enforces no pairing: words
   are text agents write, and a proposal without them leaves the ones kept.
+- **A new item's number:** a template, charter or policy it proposes at a
+  number the settings don't hold takes the lowest number from 33 that the
+  inventory shows free, a deployment's own range, and a model it adds the
+  highest free, from 64 down (jig's `domain/engine/settings.md`, 1 and
+  11). Ask temper's instructions say so (`ask.txt`'s *Configuring*); the
+  tool picks nothing, and jig refuses a proposal below 33 at a number the
+  stock has no item at, as *range*, in the words any refused proposal
+  is given back in.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
   it (`../../protocol/configuration/settings.md`, 2; `../forge/change/gates.md`, 3), for the chat's

@@ -82,6 +82,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 Request::ToChild(released) => crate::try_step(domain, env, Event::Released(released)).unwrap(),
                 request @ (Request::ForgeKept(_)
                 | Request::ForgeGone { .. }
+                | Request::ChoosePlace { .. }
                 | Request::BoxGroup { .. }
                 | Request::PlaygroundActs { .. }
                 | Request::ResetAct { .. }
@@ -106,6 +107,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::Busy(_)
                 | Request::Unsettled(_)
                 | Request::Restarting { .. }
+                | Request::LimitSettingsCommitted { .. }
                 | Request::Drained
                 | Request::Stop) => requests.push(request).unwrap(),
             }
@@ -126,6 +128,7 @@ fn setup(key: u8) -> Event {
             forge: forge::Making::Kept(1),
             first: forge::SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             },
@@ -141,8 +144,13 @@ fn a_keyed_setup_answers_the_client_and_the_same_key_replays_without_asking_the_
     connection(&mut domain, &env, forge::Connection::NotSetUp);
     crate::try_step(&mut domain, &env, setup(1)).unwrap();
     let requests = settle(&mut domain, &env);
-    let [Request::SetUp { forge: 1, request, first: forge::SetUpFirst::Empty { playground: false, org, repository } }] =
-        requests.as_ref()
+    let [
+        Request::SetUp {
+            forge: 1,
+            request,
+            first: forge::SetUpFirst::Empty { playground: false, sample: false, org, repository },
+        },
+    ] = requests.as_ref()
     else {
         panic!("one setup ask: {requests:?}")
     };
@@ -686,6 +694,7 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
                 domain.forges().rows[0].first,
                 first.clone().map(|first| forge::First {
                     playground: false,
+                    sample: false,
                     org: first.org,
                     repository: first.repository,
                     state: forge::FirstState::Making,

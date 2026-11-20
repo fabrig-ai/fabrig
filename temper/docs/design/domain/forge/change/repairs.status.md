@@ -1,10 +1,13 @@
 # repairs: status
 
-2026-11-16. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-19. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
 A stall's gaps are `stalls.status.md`'s.
 
 - **Not yet:** "A repair" and "A resolution": the preservation words, a resolution's instructions, full and compact, and the coding charter's line yield to the request as revised and an answer, not the current spec and rulings, and a resolution's merge-job result takes its room before the change's context [in flight: change 6059].
+
+- **Not yet:** "A resolution", a file that is not text: every pull section carries both sides of each file raw, so one binary file makes the assignment carrying it unsendable and its task held for good (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`).
+- **Not yet:** "The merge job" and a repair's failed-test lines: a merge job's result, and a report's test keys and job names, enter a task's words unchecked, and jig's admission refuses words that are not UTF-8 (`temper-engine-domain-forge-vocabulary/src/change_words.rs`, `resolution_words`, `repair_failure_lines`).
 
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
 
@@ -55,9 +58,6 @@ A stall's gaps are `stalls.status.md`'s.
     drop only by delivering the decision out of step, though the empty inbox,
     and `task show`'s "Waiting for news", which jig answers of a task not held
     (`jig/crates/jig-domain-core/src/runs/waits.rs`), fit it.
-  - the whole document: widening exhausted spend with ctl before release: `task amend`'s
-    `--budget` is not implemented (`../../../client/ctl/areas.md`). A spend
-    hold offers cancellation or asking afresh instead.
   - the whole document: `change show`'s `held:` line for a cancelled delegate reads `a
     delegate or a write failed for good`: the panel's hold is the client
     wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,

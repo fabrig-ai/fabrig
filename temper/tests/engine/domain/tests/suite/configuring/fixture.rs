@@ -53,8 +53,15 @@ pub(super) fn config() -> engine::Config {
 
         providers: Box::new([]),
     };
+    let providers = config.core.defaults.providers.clone();
+    let mut workers = config.core.defaults.workers.clone();
+    for worker in &mut workers {
+        worker.places = SLOTS;
+    }
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
+    config.core.defaults.workers = workers;
+    config.core.defaults.providers = providers;
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();
@@ -184,6 +191,7 @@ pub(super) fn box_approval_fixture(second_owner: bool) -> World {
         request,
         answer: forge::SetUpAnswer::SettingUp,
     })));
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
     world.driver.send(Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
         state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
@@ -224,7 +232,10 @@ pub(super) fn restart_box_with_second_owner(world: &mut World) {
     let (config, _) = box_approval_setup(true);
     world.driver.reopen(config);
     world.driver.settle();
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
+    world.driver.settle();
     world.driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(101)),
         identity: people::Identity {
@@ -391,6 +402,7 @@ impl World {
         driver.period_sent = true;
         driver.settle();
         driver.send(Event::Party(PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(101)),
             identity: people::Identity {
@@ -453,6 +465,7 @@ impl World {
     }
     pub fn member(&mut self) -> u64 {
         self.driver.send(Event::Party(PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(11)),
             identity: people::Identity {
@@ -586,7 +599,7 @@ impl World {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(90)),
             sign_in: self.owner,
-            read: core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal },
+            read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal }),
         }));
         self.driver.settle();
         self.driver
@@ -713,7 +726,7 @@ pub(super) fn settings_charter(driver: &mut Driver, run: &engine::Assignment, co
 pub(super) fn settings_value(driver: &mut Driver, run: &engine::Assignment, completion: u32, input: Value) -> Value {
     let (text, _) = settings_whole(driver, run, completion, input);
     let (_, text) = text.split_once('\n').expect("setting heading");
-    serde_json::from_str(text.trim()).expect("setting JSON")
+    serde_json::Deserializer::from_str(text).into_iter::<Value>().next().expect("setting value").expect("setting JSON")
 }
 pub(super) fn omit_removable(authority: &mut Value) {
     let kinds = authority["delegation"]["kinds"].as_array_mut().expect("delegation kinds");
@@ -848,6 +861,7 @@ fn restart_configured_world(world: &mut World, run: &engine::Assignment, config:
     world.driver.send(greeting);
     world.driver.settle();
     world.driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: Some(world.owner),
         reply_to: ReplyTo::new(Token::new(101)),
         identity: people::Identity {

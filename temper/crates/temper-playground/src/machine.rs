@@ -2,6 +2,7 @@
 use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
+use smith_channel::Record;
 use std::{
     cell::RefCell,
     collections::BTreeMap,
@@ -154,13 +155,9 @@ impl<H> Rooted<H> {
                     &mut skein_lib::Reader::new(&self.frame[8..8 + length]),
                 )
                 .expect("agent Start");
-                let path = if let Some(workspace) = start.workspace() {
-                    assert_eq!(workspace.directories().len(), 1, "one supplied workspace root");
-                    workspace.directories().as_slice()[0]
-                        .path()
-                        .strip_prefix(b"/worker/")
-                        .expect("worker workspace")
-                        .into()
+                let path = if let Some(workspace) = &start.workspace {
+                    assert_eq!(workspace.directories.len(), 1, "one supplied workspace root");
+                    workspace.directories.as_slice()[0].path.strip_prefix(b"/worker/").expect("worker workspace").into()
                 } else {
                     b".".as_slice().into()
                 };
@@ -315,6 +312,13 @@ impl skein_sim_world::Machine for Machine {
     }
     fn step(&mut self, mut call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
         use skein_sim::Ask;
+        if let Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(skein_io::kernel::Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         match &mut call.ask {
             Ask::Close { file } => self.release(*file),
             Ask::Open { root, .. } | Ask::Spawn { root, .. } => *root = self.resolve(*root),

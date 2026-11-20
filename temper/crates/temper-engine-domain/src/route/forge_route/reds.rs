@@ -25,6 +25,51 @@ pub fn reds_for_run(domain: &Domain, task: u64, attempt: u64) -> Box<[RunRed]> {
     rows.into_boxed()
 }
 
+/// Read whether this run started from a dependency that has landed
+/// (temper/docs/design/domain/forge/change/questions.md, 1, A running producer catches up).
+pub(crate) fn landed_for_run(domain: &Domain, task: u64, attempt: u64, head: &[u8; 32]) -> bool {
+    use temper_engine_domain_forge_change::{Early, State};
+    if !domain.core.current_proof(task, attempt) {
+        return false;
+    }
+    let Some(change) = change_for_run(domain, task) else { return false };
+    let started = match &change.change.early {
+        Early::None => return false,
+        Early::Started(started) | Early::Spent(started) => started,
+    };
+    for entry in started {
+        if &entry.head != head {
+            continue;
+        }
+        let Some(dependency) = domain.forge.change(entry.task) else { continue };
+        match &dependency.change.state {
+            State::Landed { .. } | State::Red { .. } | State::Cleared { .. } | State::Uncleared { .. } => return true,
+            State::Taking { .. }
+            | State::Producing { .. }
+            | State::Opening { .. }
+            | State::Recreating { .. }
+            | State::Reopening { .. }
+            | State::Checking { .. }
+            | State::Gating { .. }
+            | State::Ready { .. }
+            | State::Preparing { .. }
+            | State::CancellingGates { .. }
+            | State::Queued { .. }
+            | State::First { .. }
+            | State::Updating { .. }
+            | State::WaitingProducer { .. }
+            | State::Resolving { .. }
+            | State::Repairing { .. }
+            | State::Landing { .. }
+            | State::NoChange { .. }
+            | State::Ended
+            | State::Held { .. }
+            | State::Judging { .. } => {}
+        }
+    }
+    false
+}
+
 fn goal_for_run(domain: &Domain, task: u64) -> Option<u64> {
     domain.core.tasks.task(task)?;
     if domain.forge.holds_goal_branch(task) {
@@ -97,6 +142,7 @@ pub(crate) fn check_results(
             source: b"check".as_slice().into(),
             ids: Box::new([flake.key.clone()]),
             first: Box::default(),
+            many: false,
         };
         let title = skein_lib::bytes::concat(&[b"Flake in a delivery's check: ", &flake.key]);
         let title = title.get(..character_start(&title, 200)).expect("title prefix").into();

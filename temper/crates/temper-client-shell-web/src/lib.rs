@@ -56,11 +56,14 @@ pub enum Report {
     World(platform::worker::Heard),
 }
 #[cfg(target_arch = "wasm32")]
-/// The shared host loop (temper/docs/design/playground.md, 6).
+/// The shared host loop (temper/docs/design/playground.md, 6), with fixed clocks
+/// from temper/docs/design/client/journey-clock.md, 4.2.
 pub struct Shell<P: ShellPlatform> {
     host: host::Host,
     push_inbox: Rc<Inbox<Report>>,
     recorder: Option<journey::Recorder>,
+    fixed_clock: Option<skein_lib::FixedClock>,
+    native: skein_lib::Time,
     page: Rc<RefCell<Page<'static>>>,
     dom: Dom,
     platform: P,
@@ -77,6 +80,7 @@ pub struct Shell<P: ShellPlatform> {
 pub trait ShellPlatform: platform::Platform {
     type Timer;
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall);
+    fn read_on_exchange(&mut self, exchange: u32);
     fn fired(timer: &mut Self::Timer);
     fn end(&self, timer: &mut Self::Timer);
     fn timer(&self, timer: &mut Self::Timer, deadline: Option<skein_lib::Time>, now: skein_lib::Time);
@@ -84,6 +88,9 @@ pub trait ShellPlatform: platform::Platform {
 #[cfg(target_arch = "wasm32")]
 impl ShellPlatform for platform::Browser<Report> {
     type Timer = timer::web::Timer;
+    fn read_on_exchange(&mut self, exchange: u32) {
+        self.fetch.read_on_exchange(exchange);
+    }
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall) {
         platform::clocks()
     }
@@ -121,6 +128,7 @@ pub fn start() {
     start_signed_in(settings);
 }
 #[cfg(target_arch = "wasm32")]
+#[expect(clippy::too_many_lines, reason = "the signed-in starter erases either link form before building the host")]
 fn start_signed_in(settings: internal::Internal) {
     if !skein_ui_web::restart::Restart::new(
         3,
@@ -133,7 +141,11 @@ fn start_signed_in(settings: internal::Internal) {
         return;
     }
     // Replace the printed secret's address before starting anything that can send.
-    let secret = sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" });
+    let secret = sign_in::web::take_from_page(&sign_in::Route {
+        path: b"/jig/v1/sign-in/link",
+        page: Some(temper_client_domain::sign_in::LINK_PAGE),
+        home: b"/welcome",
+    });
     let window = web_sys::window().expect("window");
     let document = window.document().expect("document");
     let ways = document
@@ -153,7 +165,9 @@ fn start_signed_in(settings: internal::Internal) {
         .and_then(|meta| meta.get_attribute("content"));
     let record = settings.recording(record_content.as_deref());
     let mount = document.get_element_by_id("app").expect("bundle mount");
-    let facts = platform::facts();
+    let mut facts = platform::facts();
+    let native = facts.now;
+    let fixed_clock = settings.start(&mut facts);
     let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
     #[cfg(debug_assertions)]
     assert_ne!(path.split('?').next(), Some("/test/panic"), "the test address panics at start");
@@ -180,6 +194,7 @@ fn start_signed_in(settings: internal::Internal) {
     stored.extend(kept.read_all(&platform).into_iter().filter(|record| record.key.as_ref() == records::LOOK_KEY));
     let recorder = record.then(|| {
         journey::Recorder::new(&journey::Facts {
+            fixed: fixed_clock.is_some(),
             seed: facts.seed,
             now: facts.now,
             wall: facts.wall,
@@ -202,6 +217,8 @@ fn start_signed_in(settings: internal::Internal) {
         host,
         push_inbox: Rc::clone(&inbox),
         recorder,
+        fixed_clock,
+        native,
         page,
         dom,
         platform,
@@ -253,6 +270,8 @@ impl<P: ShellPlatform> Shell<P> {
             host,
             push_inbox: Rc::clone(inbox),
             recorder: None,
+            fixed_clock: None,
+            native: skein_lib::Time::ZERO,
             page,
             dom,
             platform,
@@ -286,7 +305,12 @@ impl<P: ShellPlatform> Shell<P> {
         self.draw(new_page, now);
     }
     pub fn begin(&mut self) -> skein_lib::Time {
-        let (now, wall) = self.platform.clocks();
+        let (native, wall) = self.platform.clocks();
+        self.native = native;
+        let (now, wall) = match &mut self.fixed_clock {
+            Some(clock) => clock.read(native),
+            None => (native, wall),
+        };
         if let Some(recorder) = &mut self.recorder {
             recorder.turn(now, wall);
         }
@@ -295,6 +319,23 @@ impl<P: ShellPlatform> Shell<P> {
     }
     /// Carries one host report in order; navigation says whether a new page shows.
     pub fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
+        let read_exchange = match &report {
+            Report::Fetch(report) => adapter::read_on_exchange(report),
+            Report::Push(_)
+            | Report::Start
+            | Report::Mark
+            | Report::Save
+            | Report::Due
+            | Report::TabRefused
+            | Report::Act(..)
+            | Report::Carried(..)
+            | Report::Copied(_)
+            | Report::Screen(_)
+            | Report::Place(_)
+            | Report::Returned(_)
+            | Report::Frame(_)
+            | Report::World(_) => None,
+        };
         let read_on = matches!(
             &report,
             Report::Fetch(
@@ -310,7 +351,7 @@ impl<P: ShellPlatform> Shell<P> {
         let document = web_sys::window().expect("window").document().expect("document");
         night(&document, self.host.night());
         let navigates = duties.show.is_some();
-        let shown = self.carry(inbox, duties, read_on);
+        let shown = self.carry(inbox, duties, read_on, read_exchange);
         navigates.then_some(shown)
     }
     pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
@@ -363,7 +404,13 @@ impl<P: ShellPlatform> Shell<P> {
         .into()
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
-    fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+    fn carry(
+        &mut self,
+        inbox: &Inbox<Report>,
+        duties: host::Duties,
+        read_on: bool,
+        read_exchange: Option<u32>,
+    ) -> bool {
         // Push permission is asked inside the press event, before any asynchronous work.
         for duty in &duties.push {
             push::carry(Rc::clone(&self.push_inbox), *duty);
@@ -423,6 +470,9 @@ impl<P: ShellPlatform> Shell<P> {
         if duties.writes != 0 || !carried.is_empty() {
             inbox.raise(Report::Carried(carried, duties.writes));
         }
+        if let Some(exchange) = read_exchange {
+            self.platform.read_on_exchange(exchange);
+        }
         if read_on {
             platform::Platform::read_on(&mut self.platform);
         }
@@ -444,7 +494,7 @@ impl<P: ShellPlatform> Shell<P> {
             heading.as_ref().and_then(|element| element.text_content()).unwrap_or_default()
         };
         // Session storage survives reload, but closing the tab loses its requests.
-        let closing_loses = self.store.read_all(&self.platform).iter().any(|record| record.key.len() == 16);
+        let closing_loses = records::closing_loses(&self.store.read_all(&self.platform));
         self.title.set(words.as_bytes(), b"temper", b"en", closing_loses);
         if new_page {
             window.scroll_to_with_x_and_y(0.0, 0.0);
@@ -477,6 +527,10 @@ impl<P: ShellPlatform> Shell<P> {
         if let Some(recorder) = &mut self.recorder {
             recorder.deadline(deadline);
         }
+        let (deadline, now) = match &mut self.fixed_clock {
+            Some(clock) => (clock.until(deadline, self.native), self.native),
+            None => (deadline, now),
+        };
         self.platform.timer(&mut self.timer, deadline, now);
     }
     fn save_recording(&mut self, departing: bool) {

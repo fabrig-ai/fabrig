@@ -5,6 +5,10 @@
 )]
 mod kinds;
 pub use kinds::kinds;
+mod agents;
+pub use agents::{AGENT_ENDPOINTS, AGENT_FALLBACK, AGENT_PROFILE, agents};
+mod providers;
+pub use providers::{providers, scripted};
 mod ways;
 pub use ways::ways;
 
@@ -27,6 +31,12 @@ use skein_lib::{Duration, List, Map, bytes};
 )]
 pub enum Given {
     Stock,
+    /// Providers pinned before the start builds any component.
+    Running {
+        given: Box<Given>,
+        providers: Box<[jig_protocol_config::ProviderSetting]>,
+        fixed: Box<[jig_protocol_config::ProviderSetting]>,
+    },
     Own {
         jig: Defaults,
         forge: Box<[temper_engine_domain_forge::settings::Stock]>,
@@ -34,18 +44,98 @@ pub enum Given {
     },
 }
 impl Given {
+    /// Retain the defaults beside the non-setting startup facts.
+    #[must_use]
+    pub fn copied(&self) -> Self {
+        match self {
+            Self::Stock => Self::Stock,
+            Self::Own { jig, forge, ways } => {
+                Self::Own { jig: copy_defaults(jig), forge: forge.clone(), ways: ways.clone() }
+            }
+            Self::Running { given, providers, fixed } => {
+                Self::Running { given: Box::new(given.copied()), providers: providers.clone(), fixed: fixed.clone() }
+            }
+        }
+    }
+    #[must_use]
+    pub fn with_providers(
+        &self,
+        providers: Box<[jig_protocol_config::ProviderSetting]>,
+        fixed: Box<[jig_protocol_config::ProviderSetting]>,
+    ) -> Self {
+        let source = self.source();
+        let given = match source {
+            Self::Stock => Self::Stock,
+            Self::Running { .. } => unreachable!("unwrapped source"),
+            Self::Own { forge, ways, .. } => Self::Own {
+                jig: source
+                    .defaults(
+                        &jig_protocol_config::Llm {
+                            models: Box::new([]),
+                            providers: Box::new([]),
+                            endpoints: Box::new([]),
+                        },
+                        0,
+                    )
+                    .expect("owned defaults copy"),
+                forge: forge.clone(),
+                ways: ways.clone(),
+            },
+        };
+        Self::Running { given: Box::new(given), providers, fixed }
+    }
+    #[must_use]
+    pub fn source(&self) -> &Self {
+        let mut source = self;
+        while let Self::Running { given, .. } = source {
+            source = given;
+        }
+        source
+    }
+    #[must_use]
+    pub fn running(&self) -> Box<[jig_protocol_config::ProviderSetting]> {
+        match self {
+            Self::Running { providers, .. } => providers.clone(),
+            Self::Own { jig, .. } => jig.providers.clone(),
+            Self::Stock => providers(),
+        }
+    }
+    #[must_use]
+    pub fn fixed(&self) -> Box<[jig_protocol_config::ProviderSetting]> {
+        match self {
+            Self::Running { fixed, .. } => fixed.clone(),
+            Self::Own { .. } | Self::Stock => Box::new([]),
+        }
+    }
     /// Defaults passed by the binary or constructed from stock for startup.
     #[must_use]
     pub fn defaults(&self, llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
-        match self {
+        match self.source() {
+            Self::Running { .. } => unreachable!("source unwraps the running providers"),
             Self::Stock => checked(llm, result_bytes),
             Self::Own { jig: own, .. } => {
                 let mut policies = Map::with_capacity(own.policies.len());
                 for (number, policy) in &own.policies {
                     policies.insert(*number, policy.clone()).expect("counted policies");
                 }
+                let mut configured = List::uncapped();
+                let mut scripted_model = false;
+                for model in &own.models {
+                    scripted_model |= model.number == 8;
+                    configured.push(model.clone()).expect("world models");
+                }
+                if !scripted_model {
+                    for model in models(llm) {
+                        if model.number == 8 {
+                            configured.push(model).expect("the box's scripted model");
+                        }
+                    }
+                }
                 Some(Defaults {
-                    models: own.models.clone(),
+                    limits: own.limits.clone(),
+                    providers: own.providers.clone(),
+                    workers: Box::new([]),
+                    models: configured.into_boxed(),
                     charters: own.charters.clone(),
                     templates: own.templates.clone(),
                     policies,
@@ -53,6 +143,23 @@ impl Given {
                 })
             }
         }
+    }
+}
+
+fn copy_defaults(own: &Defaults) -> Defaults {
+    let mut policies = Map::with_capacity(own.policies.len());
+    for (number, policy) in &own.policies {
+        policies.insert(*number, policy.clone()).expect("counted policies");
+    }
+    Defaults {
+        providers: own.providers.clone(),
+        limits: own.limits.clone(),
+        workers: Box::new([]),
+        models: own.models.clone(),
+        charters: own.charters.clone(),
+        templates: own.templates.clone(),
+        policies,
+        rules: own.rules.clone(),
     }
 }
 
@@ -177,16 +284,35 @@ const MODELS: &[StockModel] = &[
     },
 ];
 
-/// The stock catalogue selected from configured providers, read by startup.
+/// Seven stock models in every deployment, and the scripted model where its provider runs.
 #[must_use]
 pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
     let mut models = List::with_capacity(u32::try_from(MODELS.len()).expect("stock model count"));
+    let stock = providers();
+    let mut available = List::uncapped();
+    let mut endpoints = List::uncapped();
+    for value in stock {
+        available.push(value.provider).expect("stock providers");
+        for endpoint in value.endpoints {
+            endpoints.push(endpoint).expect("stock endpoints");
+        }
+    }
+    for provider in &llm.providers {
+        if provider.number == 3 {
+            available.push(provider.clone()).expect("scripted provider");
+            for endpoint in &llm.endpoints {
+                if endpoint.provider.as_ref() == b"demo" {
+                    endpoints.push(endpoint.clone()).expect("scripted endpoint");
+                }
+            }
+        }
+    }
     for row in MODELS {
-        for provider in &llm.providers {
+        for provider in &available {
             if provider.number != row.provider {
                 continue;
             }
-            for endpoint in &llm.endpoints {
+            for endpoint in &endpoints {
                 if provider.endpoint.as_deref() != Some(endpoint.name.as_ref()) {
                     continue;
                 }
@@ -384,7 +510,21 @@ pub fn with_models(models: Box<[CatalogueModel]>, result_bytes: u32) -> Defaults
 
 /// Checked stock construction lets startup refuse unrepresentable model-based budgets.
 pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
-    checked_with(models(llm), result_bytes)
+    let mut defaults = checked_with(models(llm), result_bytes)?;
+    for row in &defaults.models {
+        if row.number == 8 {
+            for charter in &mut defaults.charters {
+                let mut alternatives = List::uncapped();
+                alternatives.push(charter.policy.model.clone()).expect("stock first choice");
+                for alternative in &charter.policy.alternatives {
+                    alternatives.push(alternative.clone()).expect("stock alternatives");
+                }
+                charter.policy.model = row.model.clone();
+                charter.policy.alternatives = alternatives.into_boxed();
+            }
+        }
+    }
+    Some(defaults)
 }
 
 #[must_use]
@@ -434,6 +574,9 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
+        limits: Box::default(),
+        providers: providers(),
+        workers: Box::new([]),
         models,
         charters,
         templates,
@@ -563,7 +706,12 @@ fn charter(
             turns,
             time,
             reserve_turns: 1,
-            reserve_time: Duration::from_millis(60_000),
+            // Stock charters reserve one check; status and trial only finish.
+            reserve_time: Duration::from_millis(if number == 9 || number == 10 {
+                60_000
+            } else {
+                agents::CHECK_TIMEOUT_MS
+            }),
             inspect: true,
             modify: number != 1,
             shell: false,
@@ -907,12 +1055,14 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             )),
         ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
+        (21, 1, settings::Value::AgentFigures(agents())),
+        (22, 1, settings::Value::Limits(Box::new([]))),
     ];
-    let mut stock = List::with_capacity(17);
+    let mut stock = List::with_capacity(u32::try_from(values.len()).expect("stock default count"));
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters, thirteen charter lines and one goal template's work");
+            .expect("one landing rule, two forge charters, thirteen charter lines, one goal template and limits");
     }
     stock.into_boxed()
 }
@@ -932,4 +1082,28 @@ fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
         gates: Box::new([settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Clean }]),
         approvals: Box::default(),
     }
+}
+
+/// The welcome's default comes from the box flag at each start
+/// (temper/docs/design/protocol/configuration/settings.md, 2).
+#[must_use]
+pub fn with_welcome(
+    stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    shown: bool,
+) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use temper_engine_domain_forge::settings;
+    let mut defaults = List::uncapped();
+    for row in stock {
+        defaults.push(row).expect("stock defaults");
+    }
+    let value = settings::Value::Welcome(settings::Welcome { shown });
+    defaults
+        .push(settings::Stock {
+            kind: 20,
+            scope: 0,
+            number: 1,
+            value: settings::SizedValue { size: temper_engine_smith::kinds::size(&value), value },
+        })
+        .expect("welcome default");
+    defaults.into_boxed()
 }

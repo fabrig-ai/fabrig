@@ -9,6 +9,7 @@ fn claim(h: &mut Harness, attempt: u64, at: u64) -> Vec<Request> {
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.env.wall = Wall::from_nanos(at);
     h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,
@@ -41,6 +42,37 @@ fn puts(out: &[Request]) -> usize {
         }
     }
     count
+}
+
+#[test]
+fn a_change_verdict_ends_done_without_a_resource() {
+    use crate::{Contract, Ending, TaskResult, Verdict};
+    let mut h = Harness::new();
+    h.env.limits.result_bytes = 512;
+    let mut new = task(1, &[]);
+    new.contract = Contract::Change {
+        connector: 1,
+        kind: 2,
+        words: 512,
+        choices: Box::new([Verdict { code: 1, words: 256, followups: 0, fields: Box::new([]) }]),
+    };
+    h.make([new].into());
+    claim(&mut h, 1, 10);
+    start(&mut h, 1, 11);
+    let result = TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"flaky".as_slice().into() };
+    end(&mut h, 1, 12, End::Finished { result: result.clone(), cancel_delegates: false });
+    h.send(Event::EffectsSettled { task: 1 });
+    let out = h.send(Event::Settled { task: 1 });
+    let ending = Ending::Done(result);
+    let mut ended = None;
+    for request in out {
+        if let Request::Ended { task: 1, ending, .. } = request {
+            ended = Some(ending);
+        }
+    }
+    assert_eq!(ended, Some(ending.clone()));
+    let Stored::Ended(row) = &h.stored[&Key::Ended(1)] else { panic!("ended task") };
+    assert_eq!(row.phase, Phase::Ended(ending));
 }
 
 #[test]

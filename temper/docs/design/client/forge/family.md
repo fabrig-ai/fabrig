@@ -258,7 +258,7 @@ the person to check existence and grant the repository to the App.
 
 | Outcome | The form says |
 |---|---|
-| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `repositories.md`, 1 words it, on Forgejo its branch protection alone |
+| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It lands into BRANCH.", BRANCH the landing branch its record keeps (`../../domain/forge/adoption.md`, 8), where the outcome names one; "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `repositories.md`, 1 words it, on Forgejo its branch protection alone |
 | refused by the core | jig's words for its refusal |
 | no such forge | "No forge F is configured." |
 | not connected | "Forge F is not connected.", linked to the forges' page (`../pages/README.md`) |
@@ -343,8 +343,12 @@ client removes no account and closes no chat of its own.
   before a start over, stays theirs: it is not the playground's, and
   its reset leaves it.
 - **One `deployment` watch,** for a person whose deployment role is
-  owner alone, while `me` says the role and a playground is read; once
-  either ends, the side drops it. For any other person it opens none.
+  owner alone, while `me` says the role, a playground is read, and the
+  page open judges a model usable by it (the welcome, Ready and the
+  composer's line, above); once any of them ends, the side drops it.
+  For any other person, and on any other page, Work's among them, it
+  opens none, so that it never holds a page's drawing a wave past its
+  batch (`../pages/work.md`, 1, *Its budget*).
 - **What shows:** while the playground runs, or is leaving, the
   banner's one line above the main of `Chats` and `NewChat`, and while it
   is leaving on every other page as well (`../view.md`, 1, `../pages/welcome.md`, 2); the playground's start,

@@ -1,5 +1,5 @@
 //! The complete event/action session policy, without io (client/drive.md, 2–6).
-use crate::line::{Line, Record, Web};
+use crate::line::{Line, Record, Tui, Web};
 use skein_browser::boundary::Trouble;
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
@@ -11,6 +11,7 @@ mod forge;
 mod io;
 mod options;
 mod place;
+mod requests;
 use place::{Place, Progress};
 mod tui;
 mod values;
@@ -18,6 +19,8 @@ pub use io::Session;
 pub use options::{Input, Options, Plan, Program};
 const STEP: Duration = Duration::from_secs(60);
 const LOOK: Duration = Duration::from_secs(10);
+const REQUESTS: Duration = Duration::from_secs(30);
+const QUIET: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(50);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Answer {
@@ -74,6 +77,11 @@ pub enum Output {
 #[derive(Debug)]
 pub enum Action {
     PrepareDeployment,
+    ReadDeploymentWorker,
+    ReadSettingsFiles {
+        directory: Option<PathBuf>,
+        args: Vec<Box<[u8]>>,
+    },
     ReadDeploymentPatch {
         document: crate::line::Document,
         path: Box<[u8]>,
@@ -149,6 +157,8 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Event {
     DeploymentPrepared(Result<deployment::Values, String>),
+    DeploymentWorker(Result<deployment::Worker, String>),
+    SettingsFiles(Result<Vec<Box<[u8]>>, String>),
     DeploymentPatch(Result<deployment::RenderedFile, String>),
     DeploymentWritten(Result<(), String>),
     ProcessLine { process: Process, output: Output, line: Box<[u8]> },
@@ -170,6 +180,8 @@ pub enum Event {
     Found(Option<NodeId>),
     FaceDone(Result<(), String>),
     PageTrouble { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
+    PageSent { id: Box<[u8]>, load: Box<[u8]>, document: bool, method: Box<[u8]>, url: Box<[u8]> },
+    PageAnswered { id: Box<[u8]> },
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
     Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
@@ -183,6 +195,7 @@ enum Phase {
     Spent,
     FreshLink,
     Fresh,
+    Signing,
     Root,
     Main,
     Ready,
@@ -194,8 +207,10 @@ enum Phase {
     Screenshot,
     Snapshot,
     Diagnosing,
+    Requests,
     Ctl,
     CtlValues,
+    CtlFiles,
     Forge,
     TuiStarting,
     TuiBrowse,
@@ -227,6 +242,7 @@ pub struct Machine {
     sign_in: Option<place::SignIn>,
     diagnostic: String,
     shown: Vec<String>,
+    requests: requests::Log,
     forge: Option<forge::Pending>,
     tui_running: bool,
     save_until: Option<Time>,
@@ -253,6 +269,7 @@ impl Machine {
                 sign_in: None,
                 diagnostic: String::new(),
                 shown: vec![],
+                requests: requests::Log::new(now),
                 forge: None,
                 tui_running: false,
                 save_until: None,
@@ -292,6 +309,10 @@ impl Machine {
             return out;
         }
         match event {
+            Event::SettingsFiles(result) if self.phase == Phase::CtlFiles => match result {
+                Ok(args) => self.ctl_run(&args, now, &mut out),
+                Err(why) => self.answer(Some(why), &mut out),
+            },
             Event::BoxLog(result) if self.phase == Phase::CtlValues => self.ctl_values(result, now, &mut out),
             Event::BoxLog(_) | Event::ForgeFiles(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
                 self.forge_event(event, now, &mut out);
@@ -311,6 +332,14 @@ impl Machine {
             Event::Found(node) => self.found(node, now, &mut out),
             Event::FaceDone(result) => self.face_done(result, now, &mut out),
             Event::PageTrouble { trouble, text, url } => self.page_trouble(trouble, &text, &url, now, &mut out),
+            Event::PageSent { id, load, document, method, url } => {
+                self.requests.sent(id, &load, document, method, &url, now);
+                self.requests_check(now, &mut out);
+            }
+            Event::PageAnswered { id } => {
+                self.requests.answered(&id, now);
+                self.requests_check(now, &mut out);
+            }
             Event::Snapshot(text) if self.phase == Phase::Snapshot => {
                 self.shown.extend(shown_lines(&text));
                 self.answer(None, &mut out);
@@ -337,7 +366,9 @@ impl Machine {
                     Action::Finished(Exit::own(why)),
                 ]);
             }
-            Event::DeploymentPrepared(_)
+            Event::SettingsFiles(_)
+            | Event::DeploymentPrepared(_)
+            | Event::DeploymentWorker(_)
             | Event::DeploymentPatch(_)
             | Event::DeploymentWritten(_)
             | Event::BoxLine { .. }
@@ -383,7 +414,13 @@ impl Machine {
             out.push(Action::Answer(Answer { shown: vec![], failed: Some(why.into()) }));
             return;
         }
-        if let Some(why) = self.place.refuse_line(record, self.plan.options.ctl) {
+        let refused = match record {
+            Record::Web(Web::Mark) => Some("web mark is a journey's line"),
+            Record::Tui(Tui::Mark) => Some("tui mark is a journey's line"),
+            Record::Tui(Tui::Approve) => Some("tui approve is a journey's line"),
+            _ => self.place.refuse_line(record, self.plan.options.ctl),
+        };
+        if let Some(why) = refused {
             self.current = None;
             self.answer(Some(why.into()), out);
             return;
@@ -400,10 +437,8 @@ impl Machine {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
             Record::Deployment(patch) => {
-                let crate::line::Deployment::Patch { document, path } = patch;
-                let patch = crate::line::Deployment::Patch { document: *document, path: path.clone() };
-                self.place.patch(&patch, now, out);
-                self.wait_for_place();
+                let progress = self.place.patch(patch, self.tui_running, &self.plan, now, out);
+                self.progress(progress, now, out);
             }
             Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
@@ -415,6 +450,7 @@ impl Machine {
                 }
                 Err(why) => self.answer(Some(why), out),
             },
+            Record::Web(Web::Mark) => unreachable!("journey line refused"),
             Record::Web(Web::Act { role, name, order, .. }) => {
                 let find = Find::exactly_named(*role, name).nth(*order);
                 self.wait(Phase::Finding, now, STEP);
@@ -436,6 +472,10 @@ impl Machine {
                 self.wait(Phase::Screenshot, now, LOOK);
                 out.push(Action::Screenshot { width, path });
             }
+            Record::Web(Web::Requests) => {
+                self.wait(Phase::Requests, now, REQUESTS);
+                self.requests_check(now, out);
+            }
             Record::Web(Web::Look(None)) => {
                 self.wait(Phase::Snapshot, now, LOOK);
                 out.push(Action::Snapshot);
@@ -456,6 +496,14 @@ impl Machine {
             self.answer(Some(why), out);
             return;
         }
+        if crate::line::settings_paths(args).is_empty() {
+            self.ctl_run(args, now, out);
+        } else {
+            self.wait(Phase::CtlFiles, now, STEP);
+            out.push(Action::ReadSettingsFiles { directory: self.plan.options.files.clone(), args: args.to_vec() });
+        }
+    }
+    fn ctl_run(&mut self, args: &[Box<[u8]>], now: Time, out: &mut Vec<Action>) {
         let program = self.plan.ctl(args, Input::Null);
         self.wait(Phase::Ctl, now, ctl_bound(args));
         out.push(Action::Start { process: Process::Ctl, program });
@@ -487,12 +535,10 @@ impl Machine {
                         format!("ctl sign-in exited {code}")
                     };
                     self.fail_place(why, now, out);
-                } else if self.plan.options.ctl {
-                    self.first = None;
-                    self.session_ready(out);
+                } else if self.place.signed_in(now, out) {
+                    self.wait_for_place();
                 } else {
-                    self.wait(Phase::Spent, now, Duration::from_secs(30));
-                    out.push(Action::Open(self.first.take().expect("first link")));
+                    self.after_sign_in(now, out);
                 }
             }
             Process::Ctl if self.phase == Phase::Ctl => {
@@ -509,6 +555,15 @@ impl Machine {
             | Process::Ctl => {}
         }
     }
+    fn after_sign_in(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.plan.options.ctl {
+            self.first = None;
+            self.session_ready(out);
+        } else {
+            self.wait(Phase::Spent, now, Duration::from_secs(30));
+            out.push(Action::Open(self.first.take().expect("first link")));
+        }
+    }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
         if self.phase == Phase::TuiApprove {
             if let Some(node) = node {
@@ -520,7 +575,7 @@ impl Machine {
             }
             return;
         }
-        if !matches!(self.phase, Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
+        if !matches!(self.phase, Phase::Signing | Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
             return;
         }
         if node.is_none() {
@@ -528,6 +583,11 @@ impl Machine {
             return;
         }
         match self.phase {
+            Phase::Signing => {
+                self.phase = Phase::Root;
+                self.poll = None;
+                out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
+            }
             Phase::MainLine if self.patch_line() => self.patched(out),
             Phase::Main => self.session_ready(out),
             Phase::MainLine | Phase::Seeing => self.answer(None, out),
@@ -547,8 +607,10 @@ impl Machine {
         if self.patch_line() {
             return;
         }
-        if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
-            && trouble == Trouble::Log
+        if matches!(
+            self.phase,
+            Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Signing | Phase::Root | Phase::Main
+        ) && trouble == Trouble::Log
             && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
             && resource(url).strip_prefix(self.origin.as_ref()) == Some(b"/jig/v1/sign-in/link".as_slice())
         {
@@ -581,8 +643,8 @@ impl Machine {
                 }
             }
             Phase::Fresh => {
-                self.phase = Phase::Root;
-                out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
+                self.phase = Phase::Signing;
+                out.push(Action::Find(Find::named(Role::Main, b"")));
             }
             Phase::Root => {
                 self.phase = Phase::Main;
@@ -610,6 +672,10 @@ impl Machine {
             .map_or_else(|| format!("{:?}", self.phase), |line| String::from_utf8_lossy(line.print()).into_owned())
     }
     fn deadline(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.phase == Phase::Requests {
+            self.requests_check(now, out);
+            return;
+        }
         if self.forge_deadline(now, out) {
             return;
         }
@@ -649,7 +715,7 @@ impl Machine {
         if self.poll.is_some_and(|poll| now >= poll) {
             self.poll = None;
             let find = match self.phase {
-                Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
+                Phase::Signing | Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
                 Phase::Finding => match self.current.as_ref().map(Line::record) {
                     Some(Record::Web(Web::Act { role, name, order, .. })) => {
                         Some(Find::exactly_named(*role, name).nth(*order))
@@ -699,7 +765,7 @@ impl Machine {
         self.progress(progress, now, out);
     }
     fn stop_place(&mut self, now: Time, out: &mut Vec<Action>) {
-        let progress = self.place.stop(now, out);
+        let progress = self.place.stop(&self.plan, now, out);
         self.progress(progress, now, out);
     }
     fn wait_for_place(&mut self) {
@@ -728,6 +794,7 @@ impl Machine {
         match progress {
             Progress::None => {}
             Progress::Waiting => self.wait_for_place(),
+            Progress::Started => self.after_sign_in(now, out),
             Progress::First(first) => {
                 self.first = Some(first.link.strip_suffix(b"\n").unwrap_or(&first.link).into());
                 self.origin = first.origin;

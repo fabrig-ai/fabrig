@@ -71,6 +71,7 @@ pub const LIMITS: d::Limits = d::Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -131,6 +132,7 @@ pub const LIMITS: d::Limits = d::Limits {
 fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {
     d::Stored::Repository(d::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -182,8 +184,10 @@ fn entry(repository: Repository, number: u64, head: [u8; 32], parked: bool) -> d
 }
 fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u8; 32]>) -> d::Stored {
     d::Stored::Change(Box::new(d::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -198,6 +202,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: change::Way::Queue,
             landing: None,
             task,
@@ -210,11 +215,13 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::from_nanos(0),
             ready_since: None,
             owns_turn: false,
             last_head: head,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull,
@@ -224,8 +231,14 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         delegate_status: change::Status::Passed,
         spec_revision: 0,
         gate_revision: 0,
+        delegate_flake: false,
+        delegate_no_test: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

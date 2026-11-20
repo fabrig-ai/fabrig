@@ -47,51 +47,32 @@ fn opened() -> (Domain, Token, Token) {
 fn record(projects: &[u32]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
-        dismissed
-            .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
-            .unwrap();
+        dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::dismissals(&w::Dismissals { dismissed }) }
 }
 fn fact_record(facts: &[PersonFact]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for fact in facts {
         dismissed.push(wire_fact(*fact)).unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::dismissals(&w::Dismissals { dismissed }) }
 }
 fn wire_fact(fact: PersonFact) -> w::PersonFact {
     match fact {
-        PersonFact::ToBegin { project } => {
-            w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).unwrap())
+        PersonFact::ToBegin { project } => w::PersonFact::ToBegin(w::ToBegin { project }),
+        PersonFact::GoalFrom { project, chat, goal, at } => {
+            w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at })
         }
-        PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
-            w::GoalFrom::new(&w::CEILINGS, w::GoalFromParts { project, chat, goal, at }).unwrap(),
-        ),
         PersonFact::KeepAsking { project, subject, at } => {
             let subject = match subject {
                 Subject::Kind(kind) => {
                     assert_eq!(kind, Kind::Implementation, "fixture's kind");
-                    w::ClassSubject::Kind(
-                        w::ReachKindOf::new(&w::CEILINGS, w::ReachKindOfParts { kind: w::ReachKind::Implementation })
-                            .unwrap(),
-                    )
+                    w::ClassSubject::Kind(w::ReachKindOf { kind: w::ReachKind::Implementation })
                 }
-                Subject::Set(number) => {
-                    w::ClassSubject::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number }).unwrap())
-                }
+                Subject::Set(number) => w::ClassSubject::Set(w::ReachSet { number }),
             };
-            w::PersonFact::KeepAsking(
-                w::KeepAsking::new(&w::CEILINGS, w::KeepAskingParts { project, subject, at: at.as_nanos() }).unwrap(),
-            )
+            w::PersonFact::KeepAsking(w::KeepAsking { project, subject, at: at.as_nanos() })
         }
     }
 }
@@ -117,12 +98,12 @@ fn link(root: &mut Domain, link: Link) -> Queue<Request> {
 }
 
 #[test]
-fn the_watch_opens_once_the_party_is_known() {
+fn the_watch_opens_once_the_link_is_live_without_me() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let frame = f::start(&mut root, List::with_capacity(0));
     let mut child = Queue::uncapped();
     dismissed::configure(&mut root.forge, f::limits().forge, &mut child);
-    assert!(child.is_empty(), "no party yet");
+    assert!(child.is_empty(), "the link is starting");
     let mut out = Queue::uncapped();
     let Watchable::Family { scope, window, record } = dismissed::watch(&f::limits().forge).unwrap() else {
         panic!("family watch")
@@ -130,14 +111,14 @@ fn the_watch_opens_once_the_party_is_known() {
     assert_eq!(scope, c::Scope::Own);
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Dismissed);
+    assert_eq!(&wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch, &w::Watch::Dismissed);
     assert_eq!(dismissed::handle().asker, f::FORGE_ASKER);
     assert_eq!(dismissed::handle().number, 2);
-    f::confirm(&mut root, frame, f::PARTY, &mut out);
-    assert!(opening(&mut out).is_some());
+    assert!(root.pages().me(root.client()).is_none());
+    assert!(opening(&mut link(&mut root, Link::Live)).is_some());
     assert!(root.client().document(dismissed::handle()).is_some());
     f::confirm(&mut root, frame, f::PARTY, &mut out);
-    assert_eq!(opening(&mut out), None, "same party opens no second watch");
+    assert_eq!(opening(&mut out), None, "me opens no second watch");
     assert_eq!(opening(&mut link(&mut root, Link::Offline)), None);
     assert_eq!(opening(&mut link(&mut root, Link::Live)), None);
 }
@@ -224,22 +205,17 @@ fn a_refused_watch_keeps_no_rows_until_the_next_sign_in() {
         up(&mut root, Up::SignedOut);
         assert_eq!(root.forge().dismissed(WHAT), None);
         let mut signed_in = up(&mut root, Up::SignedIn);
-        let mut frame = None;
+        let frame = Token::new(0);
         let mut next = None;
         while let Some(request) = signed_in.pop() {
             if let Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
             } = request
+                && subject == dismissed::watch(&f::limits().forge).unwrap()
             {
-                if subject == Watchable::Jig(c::Subject::Me) {
-                    frame = Some(watch);
-                }
-                if subject == dismissed::watch(&f::limits().forge).unwrap() {
-                    next = Some(watch);
-                }
+                next = Some(watch);
             }
         }
-        let frame = frame.expect("next sign-in opens me");
         f::confirm(&mut root, frame, f::PARTY, &mut out);
         let next = opening(&mut out).or(next).expect("next sign-in opens dismissals");
         assert_ne!(next, watch);
@@ -274,12 +250,11 @@ fn ask_is_of_the_projects_scope() {
             };
             assert_eq!(scope, c::Scope::Project(project));
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-            let w::Request::Dismiss(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            let w::Request::Dismiss(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("dismiss request")
             };
-            assert_eq!(value.what(), &wire_fact(fact));
+            assert_eq!(&value.what, &wire_fact(fact));
         }
     }
 }
@@ -309,20 +284,10 @@ fn goal_record(facts: &[(u32, u64, u64, u64)]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for (project, chat, goal, at) in facts {
         dismissed
-            .push(w::PersonFact::GoalFrom(
-                w::GoalFrom::new(
-                    &w::CEILINGS,
-                    w::GoalFromParts { project: *project, chat: *chat, goal: *goal, at: *at },
-                )
-                .unwrap(),
-            ))
+            .push(w::PersonFact::GoalFrom(w::GoalFrom { project: *project, chat: *chat, goal: *goal, at: *at }))
             .unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::dismissals(&w::Dismissals { dismissed }) }
 }
 
 #[test]

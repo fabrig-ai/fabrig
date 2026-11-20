@@ -6,7 +6,7 @@ Enable anonymous reading at the deployment's entrance, then make a project publi
 
 ## Before you start
 
-- **A running deployment** with its configuration at `CONFIG/temper.json`,
+- **A running deployment** with its configuration at `CONFIG/temper.toml`,
   and a signed-in project owner using `DIR` (temper help box).
 - **Control of its configuration and restart.** Visibility is a live owner
   operation; admission limits are startup configuration. Opening visibility
@@ -20,9 +20,11 @@ Enable anonymous reading at the deployment's entrance, then make a project publi
 
 ## 1. Set admission and index limits
 
-In `CONFIG/temper.json`, merge these members into `engine.limits.overrides`,
-keeping the other overrides. These are engine limits, not
-`application.limits.overrides` or `workers[].limits.overrides`.
+Read `temper ctl DIR settings show limits`. Merge these members into its
+`overrides`, keeping the other overrides and the rest of its value. Apply
+the whole `limits` setting with `temper ctl DIR settings apply FILE --against REVISION --key KEY`
+(temper help settings). These are engine limits, not the `temper-limits` setting
+or keys of `CONFIG/temper.toml`.
 
 ```json
 {
@@ -56,7 +58,7 @@ If not: read the startup error's path. A burst must cover its rate;
 `clients.public.answer_bytes` must fit the byte burst and every declared
 public answer kind must fit that answer bound. HTTP calls must fit public
 reads; freshness is at most 60 seconds. A process fit refusal needs smaller
-index bounds or fewer projects. See temper help configuration-engine.
+index bounds or fewer projects. See temper help configuration.
 
 ## 2. Open the project as its owner
 
@@ -111,7 +113,7 @@ Specifications beyond titles, instructions, results,
 conversations and people's names stay private.
 
 If not: check the path from `project show`, the listener and browser origin
-in `application.clients` (temper help configuration), then step 1's limits.
+in `listen` and `public` (temper help configuration), then step 1's limits.
 A busy response can mean the read or byte allowance is spent; wait for its
 rate to refill before retrying.
 

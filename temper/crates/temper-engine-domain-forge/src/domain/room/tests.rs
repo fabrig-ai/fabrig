@@ -1,6 +1,6 @@
 use super::*;
 use crate::tests::{domain, env, fixtures};
-use crate::{Class, Ending, Event, Name, News, RefusalCause, Subscriber, Topic, What, topics};
+use crate::{Class, Ending, Event, News, RefusalCause, Subscriber, Topic, topics};
 use alloc::boxed::Box;
 use skein_forge::api;
 
@@ -185,6 +185,11 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
         env.limits.changes = 1;
         for phase in [landing::Phase::Waiting, landing::Phase::Landed, landing::Phase::Cancelled] {
             let row = crate::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 landing: landing::Landing {
                     last_left: None,
@@ -216,6 +221,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
@@ -361,6 +367,11 @@ fn erased_change_stays_while_a_landing_names_it() {
         .insert(
             60,
             crate::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 landing: landing::Landing {
                     last_left: None,
@@ -391,6 +402,7 @@ fn erased_change_stays_while_a_landing_names_it() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: b"main".as_slice().into(),
                 },
                 asks: Box::new([None]),
@@ -481,10 +493,14 @@ fn register_change_names_each_limit_and_unadopted_but_keeps_malformed_and_duplic
             Some(cause) => Request::ResourceRefused {
                 task,
                 operation: b"register change",
-                resource: Some(Name {
-                    forge: row.repository.forge,
-                    repository: row.repository.repository,
-                    what: What::Repository,
+                resource: Some(if let RefusalCause::Limit { .. } = cause {
+                    crate::branch_name(row.repository, &row.branch)
+                } else {
+                    crate::Name {
+                        forge: row.repository.forge,
+                        repository: row.repository.repository,
+                        what: crate::What::Repository,
+                    }
                 }),
                 cause,
             },

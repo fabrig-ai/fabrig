@@ -3,7 +3,7 @@ use skein_fake_peers::llm::Peer;
 use skein_io::kernel::{Done, Fd};
 use skein_lib::Queue;
 use skein_shell::{Clock, Config, Host, Kernel, Wait};
-use std::{fs, net::SocketAddr, path::Path};
+use std::{net::SocketAddr, path::Path};
 
 /// Select the fresh Open chat from its request, keeping its workers system-cued
 /// (skein/docs/design/testing/fakes/llm.md, 2.4).
@@ -102,17 +102,10 @@ impl Listening {
     /// Both consumers dial the same held listener, before either starts.
     pub fn configure(&self, directory: &Path) {
         let address = self.address().to_string();
-        for name in ["temper.json", "agent.json"] {
-            let path = directory.join(name);
-            let mut value: serde_json::Value =
-                serde_json::from_slice(&fs::read(&path).expect("LLM configuration")).expect("JSON");
-            if name == "temper.json" {
-                value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket": address});
-            } else {
-                value["endpoints"][0]["address"] = address.clone().into();
-            }
-            super::write_private(&path, &serde_json::to_vec(&value).expect("LLM configuration JSON"));
-        }
+        let data = temper_agent_fixtures::data(directory);
+        let mut providers = temper_agent_fixtures::providers::read(&data);
+        providers["endpoints"][0]["address"] = serde_json::json!({"socket":address});
+        temper_agent_fixtures::providers::write(&data, &providers);
     }
 
     /// The world takes ownership of the still-open descriptor and the peer's queued accepts.

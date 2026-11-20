@@ -104,18 +104,30 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   reports as any goal of its way does, and keeps its forge issue
   (`forge/issues.md`).
 - **Its authority** is template 2's fill from the party's creating
-  offer, narrowed to the milestone's: delegation depth at most the
-  milestone's less one, its delegation's tasks at most the milestone's
-  task allowance less one (the task document carries the allowance, not
-  what is left of it; jig charges a delegate its own allowance and one
-  more), and none where its depth is zero, its deadline no later than
-  the milestone's where it has one. jig checks it against both the party's role and what the
-  milestone has left, refusing at admission (jig's `domain/authority.md`,
-  8.4); the tool prints that refusal.
+  offer, narrowed to what the milestone has left: delegation depth at
+  most the milestone's less one; its delegation's tasks at most what the
+  milestone's tasks have left less one, its task document's `tasks_left`
+  (jig's `client/domain/contract/documents.md`, 1), and none where its
+  depth is zero; its deadline no later than the milestone's where it has
+  one. jig counts every task the milestone's subtree makes against its
+  allowance, reserving none, and admits a delegate whose tasks and one
+  more fit what is left (jig's `domain/authority.md`, 5), so a goal
+  narrowed to what is left less one leaves the next goal room, each
+  later goal's allowance one less, as a change's is narrowed to its
+  goal's (`agent/tools.md`, 1). jig checks
+  it against both the party's role and what the milestone has left,
+  refusing at admission (jig's `domain/authority.md`, 8.4); the tool
+  prints that refusal.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
   milestone has left (jig's `domain/authority.md`, 8.4). So the
-  milestone's budget must hold every goal made at once.
+  milestone's budget must hold every goal made at once. `AsAllowed`
+  means what it means for any goal, all that fits: a goal started so
+  takes all the milestone has left, within the role's spend, and a
+  second started so after it is refused for the milestone's budget. A
+  script that starts several goals in one milestone gives each its
+  amount, `--budget N` (the user, 2026-11-17: no hidden share, which
+  would give a script's goals less and less in an order nobody chose).
 - **Its waits:** its batch's dependencies, each a task the party
   reaches, a goal or a person task, in a milestone or not. One done adds
   no wait; one failed or cancelled refuses the start, naming how it
@@ -183,14 +195,17 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   its number as their parent; both groups come in task number, the
   order they joined, and merge so, the live row winning a number both
   hold, as a goal's page merges its tasks (`../client/pages/goal.md`,
-  section 2). The ended group is read again on a change of the live
-  one and after the milestone has ended.
+  section 2). The ended group is read again as its mark grows.
+- **On a list's rows:** the pages draw a listed milestone's facts, goals
+  and totals from its row's milestone part, and a goal's milestone from
+  its row's goal part, with no read of their own
+  (`../client/forge/parts.md`, 3 and 5); a milestone's page reads them as
+  above (`../client/pages/milestone.md`, 3).
 - **A goal's milestone:** `milestones::of`, one pure function of the
-  client domain, from a goal's task line and the milestones read: the
-  goal's requester, `Requester::Task(M)`, where M is among them. A goal
-  whose milestone is outside the read reads M's task line once, by
-  number, and holds it; a requester that is not a milestone gives none.
-  A goal's requester alone groups it, with no read of its tree.
+  client domain, from a goal's task line: its goal part's `milestone`,
+  the goal's requester where that is a milestone, which the engine names
+  (`../client/forge/parts.md`, 3). A goal's requester alone groups it,
+  with no read of its tree.
 - **Its totals,** the forge family's read `Milestone`
   (`../client/forge/records.md`): `MilestoneRead { project, task }`, in
   the project's scope by a party with a role there, answered with
@@ -227,8 +242,8 @@ What the forge keeps of a milestone, since jig keeps no landing:
   `MilestoneLanding { at: Wall, goal: u64, change: u64 }`, and `ended`,
   an option of its end: when, its outcome (section 6), its counts done,
   failed and closed, and its `spent`, as section 7 sums them at the end.
-- **Its last landing:** each landing into a repository's default branch
-  of a change whose goal is in a milestone sets the row's
+- **Its last landing:** each landing into a repository's landing branch
+  (`forge/adoption.md`, 8) of a change whose goal is in a milestone sets the row's
   `last_landing` to that landing's time, the goal and the change, where
   it is newer than the row's. A change knows its milestone from its
   registration: the root names its goal, its nearest tracked ancestor

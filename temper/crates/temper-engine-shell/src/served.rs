@@ -48,6 +48,37 @@ pub fn resolve(service: &mut service::Engine) {
 }
 /// Read and remove only the handovers the engine asks for.
 pub fn handover(service: &mut service::Engine) {
+    while let Some((path, providers)) = service.take_providers_write() {
+        if let Err(why) = temper_service_shell::providers::write(crate::path(&path), &providers) {
+            service.notes().push(service::Note::StartupWarning {
+                line: format!("providers.setting: not written: {why}").into_bytes().into_boxed_slice(),
+            });
+        }
+    }
+    while let Some(io) = service.take_place_io() {
+        match io {
+            service::PlaceIo::Choose { request } => {
+                let port = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+                    .ok()
+                    .and_then(|listener| listener.local_addr().ok())
+                    .map(|address| address.port());
+                service.place_port(request, port);
+            }
+            service::PlaceIo::Read { forge, kind, directories } => {
+                service.place_file(
+                    forge,
+                    temper_forge_setup_shell::setup_file::read(&directories, forge, kind)
+                        .map_err(|why| why.into_bytes().into_boxed_slice()),
+                );
+            }
+            service::PlaceIo::Write { forge, setup, directories } => {
+                let answer = temper_forge_setup_shell::setup_file::write(&directories, forge, &setup)
+                    .map(|()| *setup)
+                    .map_err(|why| why.into_bytes().into_boxed_slice());
+                service.place_file(forge, answer);
+            }
+        }
+    }
     while let Some(read) = service.take_handover_read() {
         let answer = lines::read_handover(&read);
         service.handover_read(read.forge, read.run, answer);

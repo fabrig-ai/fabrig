@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Component, Event, LINK_SECRET_BYTES, MintRefusal, Settings, Unusable};
 use skein_lib::{Duration, Env, Queue, Secret, Time, Wall};
@@ -253,7 +253,7 @@ fn no_core_event_holds_a_token_or_digest() {
         peer.post_link(&link);
         assert_eq!(
             peer.core_record(),
-            "SignIn { reply_to: ReplyTo(Token(1)), identity: Identity { key: IdentityKey { provider: 0, subject: [111, 119, 110, 101, 114] }, login: [111, 119, 110, 101, 114], name: [79, 119, 110, 101, 114] }, held: None }"
+            "SignIn { reply_to: ReplyTo(Token(1)), identity: Identity { key: IdentityKey { provider: 0, subject: [111, 119, 110, 101, 114] }, login: [111, 119, 110, 101, 114], name: [79, 119, 110, 101, 114] }, held: None, until: None }"
         );
     }
 }
@@ -327,7 +327,9 @@ fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
     let count = peer.link_signed_in_count();
     assert_eq!(count, 1);
     let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
-    let Some(jig_domain_core::Event::SignIn { reply_to, identity, held }) = peer.take_core() else { panic!("sign-in") };
+    let Some(jig_domain_core::Event::SignIn { until: None, reply_to, identity, held }) = peer.take_core() else {
+        panic!("sign-in")
+    };
     assert_eq!(held, Some(fixtures::FIRST_SIGN_IN));
     assert_eq!(identity, fixtures::first_owner());
     peer.answer_request(

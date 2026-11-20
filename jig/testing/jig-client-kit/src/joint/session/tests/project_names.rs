@@ -81,10 +81,8 @@ fn read(
 fn public(configuration: root::Config, limits: &root::Limits) -> (Session, Client, Time, Wall) {
     let (mut session, now, wall) = session_with_limits(configuration, *limits, Peers::new(Vec::new(), Vec::new()));
     session.bind(ClientId(0), 1, identity(), now, wall);
-    session.poll(now, wall).expect("signed-in owner");
     let mut client = Client::unlinked(&session.limits.client, 8455).expect("public client");
     exchange(&mut session, &mut client, now, wall, jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
-    exchange(&mut session, &mut client, now, wall, jig_client::Event::Up { up: jig_client::Up::SignedIn });
     (session, client, now, wall)
 }
 

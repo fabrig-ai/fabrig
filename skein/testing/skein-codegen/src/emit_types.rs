@@ -31,14 +31,7 @@ fn accessor_type(ty: &Type) -> String {
     }
 }
 
-fn accessor_expr(field: &Field, bool_index: Option<usize>, bool_count: usize) -> String {
-    if let Some(index) = bool_index {
-        let pattern = (0..bool_count)
-            .map(|position| if position == index { "value" } else { "_" })
-            .collect::<Vec<_>>()
-            .join(", ");
-        return format!("{{ let [{pattern}] = self.skein_bools; value }}");
-    }
+fn accessor_expr(field: &Field) -> String {
     match field.ty {
         Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration => format!("self.{}", field.name),
         Type::Fixed(_)
@@ -53,15 +46,8 @@ fn accessor_expr(field: &Field, bool_index: Option<usize>, bool_count: usize) ->
     }
 }
 
-pub(crate) fn grouped_bools(record: &Record) -> bool {
+pub(crate) fn excessive_bools(record: &Record) -> bool {
     record.fields.iter().filter(|field| matches!(field.ty, Type::Bool)).count() > 3
-}
-
-pub(crate) fn bool_index(record: &Record, name: &str) -> Option<usize> {
-    if !grouped_bools(record) {
-        return None;
-    }
-    record.fields.iter().filter(|field| matches!(field.ty, Type::Bool)).position(|field| field.name == name)
 }
 
 struct Guard {
@@ -137,25 +123,23 @@ fn emit_check(schema: &Context<'_>, record: &Record, field: &Field, out: &mut Ve
     let bound = emit_limits::bound_name(&record.name, &field.name);
     let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
     let value = format!("self.{}", field.name);
-    out.extend(
-        guards(schema, &field.ty, &value, &bound, &path, 0).iter().map(|guard| Statement::new(guard.text(), true)),
-    );
+    let text = guards(schema, &field.ty, &value, &bound, &path, 0).iter().map(Guard::text).collect::<String>();
+    if !text.is_empty() {
+        out.push(Statement::new(&field.name, text));
+    }
 }
 
 fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
-    let grouped = grouped_bools(record);
-    let bool_count = record.fields.iter().filter(|field| matches!(field.ty, Type::Bool)).count();
+    let expectation = if excessive_bools(record) {
+        "#[expect(clippy::struct_excessive_bools, reason = \"the schema names each boolean independently\")]\n"
+    } else {
+        ""
+    };
     out.push_str(&format!(
-        "/// Movable fields of `{}`.\n#[derive(Clone, Debug, PartialEq, Eq, Hash)]\npub struct {}Parts {{\n",
+        "/// Movable fields of `{}`.\n#[derive(Clone, Debug, PartialEq, Eq, Hash)]\n{expectation}pub struct {}Parts {{\n",
         record.name, record.name
     ));
-    if grouped {
-        out.push_str(&format!("    /// Boolean fields in schema order.\n    pub skein_bools: [bool; {bool_count}],\n"));
-    }
     for field in &record.fields {
-        if grouped && matches!(field.ty, Type::Bool) {
-            continue;
-        }
         out.push_str(&format!(
             "    /// The `{}` field.\n    pub {}: {},\n",
             field.name,
@@ -165,33 +149,25 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
     }
     out.push_str("}\n\n");
     out.push_str(&format!(
-        "/// `{}` in this codec family.\n#[derive(Clone, Debug, PartialEq, Eq, Hash)]\npub struct {} {{\n",
+        "/// `{}` in this codec family.\n#[derive(Clone, Debug, PartialEq, Eq, Hash)]\n{expectation}pub struct {} {{\n",
         record.name, record.name
     ));
-    if grouped {
-        out.push_str(&format!("    skein_bools: [bool; {bool_count}],\n"));
-    }
     for field in &record.fields {
-        if grouped && matches!(field.ty, Type::Bool) {
-            continue;
-        }
         out.push_str(&format!("    {}: {},\n", field.name, rust_type(&field.ty)));
     }
     out.push_str("}\n\n");
     out.push_str(&format!("impl {} {{\n", record.name));
-    let mut names = record
-        .fields
-        .iter()
-        .filter(|field| !grouped || !matches!(field.ty, Type::Bool))
-        .map(|field| field.name.as_str())
-        .collect::<Vec<_>>();
-    if grouped {
-        names.insert(0, "skein_bools");
-    }
+    let names = record.fields.iter().map(|field| field.name.as_str()).collect::<Vec<_>>();
     let members = names.join(", ");
     let has_bounds = schema.has_bounds(&Type::Named(record.name.clone()));
-    let check = if has_bounds { "        value.check(limits)?;\n" } else { "" };
-    let limits = if has_bounds { "limits" } else { "_limits" };
+    let limits = if !has_bounds {
+        "_limits"
+    } else if names.contains(&"limits") {
+        "skein_limits"
+    } else {
+        "limits"
+    };
+    let check = if has_bounds { format!("        value.check({limits})?;\n") } else { String::new() };
     if schema.bounds.is_empty() {
         out.push_str(&format!("    /// Makes a value; this family has no adjustable bounds.\n    #[must_use]\n    pub fn new(_limits: &Limits, parts: {}Parts) -> Self {{\n        let {}Parts {{ {members} }} = parts;\n        Self {{ {members} }}\n    }}\n\n", record.name, record.name));
     } else {
@@ -203,22 +179,31 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
             field.name,
             field.name,
             accessor_type(&field.ty),
-            accessor_expr(field, bool_index(record, &field.name), bool_count)
+            accessor_expr(field)
         ));
     }
     let moved = names.iter().map(|name| format!("{name}: self.{name}")).collect::<Vec<_>>().join(", ");
     out.push_str(&format!("    /// Moves the fields out without copying.\n    #[must_use]\n    pub fn into_parts(self) -> {}Parts {{ {}Parts {{ {moved} }} }}\n\n", record.name, record.name));
     let mut helpers = String::new();
     if has_bounds {
-        let mut method =
-            Method::new("check", "    fn check(&self, limits: &Limits) -> Result<(), Problem> {\n", "        Ok(())\n");
-        for field in &record.fields {
-            emit_check(schema, record, field, &mut method.body);
-        }
-        emit_functions::render(record, &method, out, &mut helpers);
+        emit_functions::render(record, &check_method(schema, record), out, &mut helpers);
     }
     out.push_str("}\n\n");
     out.push_str(&helpers);
+}
+
+fn check_method(schema: &Context<'_>, record: &Record) -> Method {
+    let mut method =
+        Method::new("check", "    fn check(&self, limits: &Limits) -> Result<(), Problem> {\n", "        Ok(())\n");
+    for field in &record.fields {
+        emit_check(schema, record, field, &mut method.body);
+    }
+    method
+}
+
+/// Tests the bound-check fragment with the renderer's own splitting rule.
+pub(crate) fn splits_record(schema: &Context<'_>, record: &Record) -> bool {
+    schema.has_bounds(&Type::Named(record.name.clone())) && check_method(schema, record).splits()
 }
 
 fn emit_enum(schema: &Context<'_>, enumeration: &Enumeration, out: &mut String) {
@@ -288,11 +273,9 @@ fn emit_enum(schema: &Context<'_>, enumeration: &Enumeration, out: &mut String) 
     out.push_str("        Ok(())\n    }\n}\n\n");
 }
 
-pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
-    for declaration in schema.declarations {
-        match declaration {
-            Declaration::Record(record) => emit_record(schema, record, out),
-            Declaration::Enum(enumeration) => emit_enum(schema, enumeration, out),
-        }
+pub(crate) fn emit(schema: &Context<'_>, declaration: &Declaration, out: &mut String) {
+    match declaration {
+        Declaration::Record(record) => emit_record(schema, record, out),
+        Declaration::Enum(enumeration) => emit_enum(schema, enumeration, out),
     }
 }

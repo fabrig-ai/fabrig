@@ -36,15 +36,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let mut output = Queue::uncapped();
     client.step_unlinked(Time::ZERO, WALL, client::Event::StartUnlinked { kept: List::with_capacity(0) }, &mut output);
     client.step_unlinked(Time::ZERO, WALL, client::Event::SignIn { with: client::With::Transport }, &mut output);
-    let mut frame_watch = None;
-    while let Some(request) = output.pop() {
-        if let client::UnlinkedRequest::Down {
-            down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
-        } = request
-        {
-            frame_watch = Some(watch);
-        }
-    }
+    while output.pop().is_some() {}
     let mut me = link::translate::documents::frame(jig_client_test_records::frame_record(), &receiving).expect("me");
     me.party.number = PARTY;
     client.step_unlinked(
@@ -52,7 +44,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
         WALL,
         client::Event::Up {
             up: client::Up::Watched {
-                watch: frame_watch.expect("client's own me watch"),
+                watch: skein_lib::Token::new(0),
                 event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
             },
         },
@@ -72,6 +64,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
             codec.step(Time::ZERO, link::Event::Send { attempt, key, ask: request, value }, &mut wire);
         }
     }
+    codec.settle(&mut wire);
     let Some(link::Request::Exchange { exchange, message: link::Message::Request(body), .. }) = wire.pop() else {
         panic!("one keyed export")
     };

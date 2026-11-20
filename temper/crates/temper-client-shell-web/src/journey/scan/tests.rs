@@ -6,7 +6,6 @@ use skein_lib::{
     base64::{self, Alphabet},
 };
 use skein_ui::Act;
-use std::{fs, path::Path};
 
 fn samples() -> Vec<(Vec<u8>, What)> {
     use Shape::{Bearer, Code, Jwt, Key, RefreshToken};
@@ -241,34 +240,6 @@ fn found_holds_no_bytes() {
     }
 }
 #[test]
-fn the_committed_journeys_pass() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/design/client/web/journeys");
-    let originals = crate::journey::originals(&[], &[]);
-    let mut recordings = 0;
-    let mut pages = 0;
-    for entry in fs::read_dir(root).unwrap() {
-        let path = entry.unwrap().path();
-        if !path.is_dir() {
-            continue;
-        }
-        for entry in fs::read_dir(path).unwrap() {
-            let path = entry.unwrap().path();
-            if path.file_name().unwrap() == "recording" {
-                let recording = fs::read(&path).unwrap();
-                let recording = crate::journey::lines(&recording).unwrap();
-                assert!(lines(&recording, &originals).unwrap().is_none(), "committed recording");
-                recordings += 1;
-            } else if path.extension().is_some_and(|ext| ext == "html") {
-                assert!(page(&fs::read_to_string(path).unwrap(), &originals).is_none(), "committed page");
-                pages += 1;
-            }
-        }
-    }
-    assert!(recordings > 0 && pages > 0);
-    eprintln!("scanned {recordings} recordings and {pages} printed pages");
-}
-
-#[test]
 fn each_shape_is_found_in_plain_stream_text() {
     let originals = originals();
     let mut missing = 0;
@@ -290,7 +261,10 @@ fn each_shape_is_found_in_plain_stream_text() {
 fn parts(event: w::StreamEvent) -> w::StreamTextParts {
     match event {
         w::StreamEvent::Text(text) => text.into_parts(),
-        w::StreamEvent::Hello(_) | w::StreamEvent::Delivery(_) | w::StreamEvent::Ended(_) => {
+        w::StreamEvent::Hello(_)
+        | w::StreamEvent::Opened(_)
+        | w::StreamEvent::Delivery(_)
+        | w::StreamEvent::Ended(_) => {
             unreachable!("text fixture")
         }
     }

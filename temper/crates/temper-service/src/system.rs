@@ -215,8 +215,14 @@ impl Service {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
-    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
-        self.engine.as_mut().expect("rehearsal has an engine").rehearse_store(directory, scratch, user)
+    pub fn rehearse_store(
+        &mut self,
+        directory: Fd,
+        scratch: Fd,
+        user: u32,
+        reach: jig_protocol_store::Reach,
+    ) -> Result<(), Fd> {
+        self.engine.as_mut().expect("rehearsal has an engine").rehearse_store(directory, scratch, user, reach)
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
@@ -691,7 +697,7 @@ fn route_events(service: &mut Service) {
     }
 }
 
-fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
+pub(crate) fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
     temper_engine_service::system::startup_operations(io)?.checked_add(worker_operations)
 }
 

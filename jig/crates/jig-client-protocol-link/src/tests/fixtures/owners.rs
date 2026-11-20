@@ -5,6 +5,7 @@ pub fn deployment_record() -> w::Deployment {
 }
 pub fn deployment() -> c::Deployment {
     c::Deployment {
+        worker_settings: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -88,7 +89,11 @@ pub fn with_account(until: Option<u64>) -> w::Deployment {
             facts: List::with_capacity(0),
             provider_name: None,
             manage_usage: None,
-            skein_bools: [false, true, false, true, false],
+            plan: false,
+            usable: true,
+            expiring: false,
+            attention: true,
+            cut: false,
             number: 1,
             place: 0,
             uses: None,

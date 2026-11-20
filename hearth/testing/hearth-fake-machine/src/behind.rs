@@ -110,7 +110,12 @@ pub fn answer(behind: &mut Behind, ask: Ask) -> Result<Reply, Error> {
             return behind.open(At::Beneath(behind.handle(root)), &path, open_how(how)).map(Reply::Opened);
         }
         Ask::Close { file } => return behind.close(file),
-        Ask::Spawn { root, program, dir, .. } => return behind.spawn(root, &program, &dir),
+        Ask::Spawn { root, reach, program, dir, .. } => {
+            if reach.is_some() {
+                return Err(Error::Reach(skein_io::kernel::Unenforced::Unsupported));
+            }
+            return behind.spawn(root, &program, &dir);
+        }
         Ask::List { dir, most, room } => return behind.list(behind.handle(dir), most, room),
         Ask::Read { file, at, len } => Op::Read { file: behind.handle(file), at, most: len },
         Ask::Write { file, at, bytes } => Op::Write { file: behind.handle(file), at, bytes },

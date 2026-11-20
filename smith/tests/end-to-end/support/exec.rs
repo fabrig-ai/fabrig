@@ -28,7 +28,7 @@ pub fn fake_provider_settings(scratch: &Scratch) -> Vec<u8> {
     let document = serde_json::json!({"tokens": {"access_token": std::str::from_utf8(&token).expect("scratch token text"), "refresh_token": "UNISSUED_NEVER_COPY"}});
     std::fs::write(scratch.path().join("auth.json"), serde_json::to_vec(&document).expect("scratch login encoding"))
         .expect("scratch login file");
-    format!("credentials='{}'\nmodel='openai/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='{}:34443'\nserver_name='skein.test'\ntrust.system=false\ntrust.der=['{}']\n", scratch.path().join("credentials").display(), smith_real_world::loopback(), scratch.path().join("root.der").display()).into_bytes()
+    format!("credentials='{}'\nmodel='openai/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='{}'\nserver_name='skein.test'\ntrust.system=false\ntrust.der=['{}']\n", scratch.path().join("credentials").display(), smith_real_world::address(34_443), scratch.path().join("root.der").display()).into_bytes()
 }
 
 #[must_use]
@@ -291,10 +291,10 @@ fn run_fixture(
         Process::Script(Proc::Terminal(Box::new(terminal)))
     });
     if let Some(peer) = provider {
-        world.spawn(|| Process::Script(Proc::Peer(Box::new(peer))));
+        world.spawn_with_fds(smith_real_world::listener_fds(34_443), || Process::Script(Proc::Peer(Box::new(peer))));
     }
     if sign_in {
-        world.spawn(|| {
+        world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
             Process::Script(Proc::Issuer(Box::new(smith_local_process_world::process::IssuerProcess::with_token(
                 skein_fake_peers::Transport::Plaintext,
                 34_444,

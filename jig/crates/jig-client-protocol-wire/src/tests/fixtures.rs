@@ -96,6 +96,19 @@ pub fn read_none(none: ReadNone) -> ReadAnswerNone {
     ReadAnswerNone::new(&limits(), ReadAnswerNoneParts { value: none }).expect("wire read outcome")
 }
 
+pub fn encoded_batch_members(members: &List<Member>) -> Box<[u8]> {
+    let mut length = 4_u32;
+    for member in members {
+        length = length.checked_add(member.measure()).expect("small batch");
+    }
+    let mut writer = Writer::new(skein_lib::length::usize_of(length));
+    writer.put(&members.len().to_be_bytes()).expect("room for member count");
+    for member in members {
+        member.encode(&mut writer).expect("room for member");
+    }
+    writer.finish()
+}
+
 pub fn funding_rows(count: u32) -> List<FundingRecord> {
     let limits = limits();
     let period =
@@ -467,7 +480,7 @@ pub fn not_served() -> NotServed {
     let lim = limits();
     let mut served = List::with_capacity(1);
     served
-        .push(Served::new(&lim, ServedParts { owner: Owner::Jig, first: 26, last: 26 }).expect("range"))
+        .push(Served::new(&lim, ServedParts { owner: Owner::Jig, first: 28, last: 28 }).expect("range"))
         .expect("range slot");
     NotServed::new(&lim, NotServedParts { owner: Owner::Jig, served }).expect("version refusal")
 }

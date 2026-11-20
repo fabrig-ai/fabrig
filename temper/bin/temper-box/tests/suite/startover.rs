@@ -1,5 +1,7 @@
 //! A cut setup starts over; a cut removal ends whole at startup.
 //! temper/docs/design/domain/forge/adoption.md, 1; temper/docs/design/protocol/setup/owned.md, 7, and temper/docs/design/protocol/setup/testing.md, 4.
+// The cuts find steps by their /proc command lines; the box's tree is empty on macOS.
+#![cfg(target_os = "linux")]
 use super::support::{
     self,
     boxed::{self, BOX_DEADLINE, CtlOutcome},
@@ -29,7 +31,7 @@ fn child(binary: &Binary, arguments: &[&[u8]]) -> Option<u32> {
 
 fn signal(pid: u32, name: &str) {
     assert!(
-        std::process::Command::new("/usr/bin/kill")
+        std::process::Command::new("/bin/kill")
             .args([name, &pid.to_string()])
             .status()
             .expect("fixture signal")
@@ -110,18 +112,17 @@ fn owned_setup_cuts_start_over_and_a_removal_cut_finishes_on_restart() {
 
 /// Init's document with no `openssl` (protocol/openid-provider.md, 9): the group has no source
 /// step, which needs the engine this cut holds.
-fn without_sign_in(config: &Path) -> Vec<u8> {
-    let path = config.join("temper.json");
-    let original = std::fs::read(&path).expect("init document");
-    let mut document: serde_json::Value = serde_json::from_slice(&original).expect("init JSON");
-    document["engine"]["clients"]["provider"] = serde_json::Value::Null;
-    document["application"]["machine"]["owned"]["sign_in"] = serde_json::Value::Null;
-    support::write_private(&path, &serde_json::to_vec(&document).expect("document JSON"));
-    original
+fn without_sign_in(config: &Path) {
+    // The box supplies its default provider only while this data file is present.
+    let data = temper_agent_fixtures::data(config);
+    std::fs::rename(data.join("provider.key"), data.join("provider.key.held")).expect("hold provider key");
 }
 
 fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags: &[String], cut: Cut, number: u16) {
-    let original = matches!(cut, Cut::Started).then(|| without_sign_in(&paths[0]));
+    let held_provider = matches!(cut, Cut::Started);
+    if held_provider {
+        without_sign_in(&paths[0]);
+    }
     let number_text = number.to_string();
     let mut engine_paused = false;
     let data = &paths[1];
@@ -179,8 +180,9 @@ fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags
     assert_ne!(rows[0]["first"]["state"], "made", "the cut precedes adoption: {list}");
     assert_eq!(String::from_utf8_lossy(&restarted.calls[1].stdout).trim(), "removed");
     absent(data, number);
-    if let Some(original) = original {
-        support::write_private(&paths[0].join("temper.json"), &original);
+    if held_provider {
+        std::fs::rename(paths[1].join("provider.key.held"), paths[1].join("provider.key"))
+            .expect("restore provider key");
     }
 }
 

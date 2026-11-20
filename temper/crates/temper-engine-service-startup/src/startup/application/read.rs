@@ -102,22 +102,6 @@ pub(super) fn short(
         }
     }
 }
-pub(super) fn boolean(
-    object: &mut super::super::members::Object,
-    document: &Document,
-    name: &[u8],
-    path: &Path,
-    problems: &mut Problems,
-) -> Option<bool> {
-    let at = required(object, document, name, path, problems)?;
-    match read::boolean(document, at) {
-        Ok(value) => Some(value),
-        Err(what) => {
-            problems.push(path.member(name), What::Jig(what));
-            None
-        }
-    }
-}
 pub(super) fn list(
     object: &mut super::super::members::Object,
     document: &Document,
@@ -157,15 +141,4 @@ pub(super) fn nullable(
         problems.push(path.member(name), What::Half(crate::startup::EngineWhat::MissingNull));
     }
     at
-}
-
-// Override keys are names in the limits table, not fixed configuration members.
-pub(super) fn overrides(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
-    match read::Object::new(document, at) {
-        Ok(object) => Some(object),
-        Err(what) => {
-            problems.push(path.clone(), What::Jig(what));
-            None
-        }
-    }
 }

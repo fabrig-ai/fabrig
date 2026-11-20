@@ -36,6 +36,8 @@ is due again once its dependencies are done.
 3. **Commits the claim:** the task claimed, with its new attempt number,
    the revision its preparation began under (`settings.md`, 3), the host kind it is placed on, the accounts and sources its check
    chose, the task's kept account among them (../accounts.md, 4.3), the
+   endpoint its main model runs on, which names its backend (2,
+   *Resumed only where it ran*), the
    writer slots of the holds its workspace writes (../tasks/holds.md, 3), its
    reasons and the kinds it is offered (../tasks/messages.md, 6), and the messages
    its start carries, those it is offered (../tasks/messages.md, 2).
@@ -212,6 +214,46 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   failure and is closed; its retry continues fresh without that tail. A
   failed load, rather than an unread window, remains a preparation
   failure and closes nothing.
+- **Resumed only where it ran.** A window is resumed only on the
+  endpoint it ran on, program to direct or back alike. The endpoint
+  names the backend too: a program source runs on its model's program
+  endpoint, any other source on its provider's direct endpoint
+  (`Settings::model_endpoint`, `../../protocol/configuration.md`,
+  section 3). The run proof keeps the endpoint its claim chose for its
+  main model, `RunProof.endpoint` (core-v6, an added field whose default
+  is none). A claim whose main model's endpoint is another than its
+  previous proof's resumes nothing: a task moved from a program login to
+  a key or back, or to another provider. It starts fresh from a brief
+  that carries the transcript's tail, as one past the resume limit does,
+  and its activity says so, `Moved` (*Why a run began fresh*).
+  That is a transition that counts nothing: no failure, no transient try,
+  no refusal, and no window closed. A standing task's session ends there,
+  `Fresh` (`../tasks/standing.md`, 5.2), so its next run is its session's
+  first and reads its Now whole and its notes' index, as on any fresh
+  session.
+  - **Judged where its accounts are chosen:** at the activation's check,
+    from whose choice the brief is planned, and again at the claim's own
+    check (section 1). If either finds another endpoint the run starts
+    fresh, so a window never crosses. That holds even when only the
+    second finds it, though then the brief, planned already, has no tail.
+  - **A proof that keeps no endpoint,** written before the field was
+    kept, gives its window's backend by its binding for this claim's
+    main provider. The window resumes only if that binding is there, its
+    source is still known, and its kind runs on the backend this claim's
+    source runs on: a program source on the program backend, any other
+    on the direct one. Otherwise it starts fresh.
+  - **Why the host decides, and not the agent.** A run that resumes has
+    no brief (`briefs.md`, 1). An agent sees its start only after the
+    claim, with no brief to start fresh from, so a window from another
+    backend is one it can only carry over, sending its history to a
+    backend that did not write it (smith's `domain/session.md`, 8.2). A
+    program's turns keep none of its reasoning (smith's
+    `protocol/programs.md`, 5.5), so whether a direct provider takes
+    what a program wrote, or a program what a provider wrote, would
+    depend on each pair of backends. A brief's tail is text, which every
+    backend takes. The core chooses the source, and with it the backend
+    and the endpoint, in the same preparation that decides resuming and
+    judges a standing session's end.
 - **A turn too large for a page.** A window is loaded a page at a time,
   each within the store's page room. A turn past that room is loaded
   cut: its fields and its length, never its bytes
@@ -238,7 +280,7 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   a failure: the attempt counts as any attempt does, its brief's tail
   within the tail's budget, and no transient try, failure, refusal or
   unread transcript is counted; its activity shows a run begun fresh,
-  as one past the limit. A closed window's tail the store cannot read
+  its window closed (*Why a run began fresh*). A closed window's tail the store cannot read
   (a frame unread, `../../protocol/store/transcripts.md`, 3) is left out: the attempt
   starts fresh without it, and nothing is counted. When a turn's rendered
   text needs cutting, a tail budget too small for the 19-byte cut marker
@@ -255,6 +297,31 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
+- **Why a run began fresh.** A run's beginning in its task's activity,
+  `RunBegan`, says why it ran and whether it resumed. A run that does
+  not resume though its charter resumes and its task has a window, open
+  or closed, from an earlier attempt also says why it began fresh, in
+  its `fresh`, the first that holds of:
+  - `Moved`: its window ran on another endpoint or backend (*Resumed
+    only where it ran*);
+  - `Closed`: its window is closed (*A closed window*);
+  - `Cut`: its window holds a turn too large to load (*A turn too large
+    for a page*);
+  - `Limit`: its window is past the resume limit (*Resuming*);
+  - `Session`: a standing task's session ended, its `SessionEnded` line
+    just before saying how (`../tasks/standing.md`, 5.2).
+
+  A task's first run, a resumed run, and a run whose charter starts
+  every run fresh have none. The cause is judged in the claim's
+  preparation, where the window's load and the endpoints are still
+  there, and is committed with the claim, never inferred from the proof
+  the claim replaces. It is stored on the tasks family's `BeganLine` as
+  `fresh: option Fresh = none`, so a line written before it reads none,
+  and crosses to clients as `ActivityRunBegan.fresh`, a `RunFresh`
+  (`moved`, `closed`, `cut`, `limit`, `session`), which moves
+  `jig-client-wire` to 37 (`../../protocol/client/README.md`, 6). Its
+  words are its readers': temper's task page says `Run N began fresh:`
+  and why (temper's `client/pages/task.md`, 2).
 - **A crossed claim is never adopted.** The stored proof's
   `RunProof.crossed` (core-v6) fences the claim independently of its
   window: a claim resuming an earlier attempt's window, one whose
@@ -300,6 +367,7 @@ amended task's choice whole, leaving it none.
 | `delegate` | makes a batch of tasks as its delegates, each with what a party's `Create` names, its label, flags and LLM choice among them (../tasks/README.md, section 4) | their numbers and their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why; beyond authority, naming what it lacked and whether a proposal could be accepted |
 | `read_task` | reads its own task, its requester, live direct delegates, explicit references or escalation subjects in its project; retained ended direct delegates remain readable; any task below it, at any depth, through a proven requester chain of live or retained intermediate tasks; and the dependencies of its immediate requester, live or retained, read only | bounded specification words by default, or kept terminal report words with `field=result`, with the selected verdict code alongside verdict reasons; a live task's `field=result` read at offset 0 answers its specification read, saying its result comes when it ends; lifecycle, dependencies, spec revision, hold revision and reason, including connector hold words; durable unanswered question credits with their numbers, authorized answerers, addressed parties and activity positions, bounded by `tasks.inbox_messages` and available after the question delivery is consumed; `from` continues the selected field at the printed `next` byte offset |
 | `message` | words, a question or an answer to a task it references | sent; no reference; the inbox full; too large for a run to read |
+| `mark_read`, in the `message` family | records words its own task keeps unrecorded (../tasks/messages.md, 2), named by their message numbers, at least one and at most `tasks.inbox_messages`, once the run has carried them into a spec or a note: each named is no longer kept, shown or listed | recorded, naming them; apart, the numbers that named none of its unrecorded words, already recorded or never kept, which record nothing and are no refusal |
 | `amend`, `release` | a task below it: an amendment naming its spec's revision as the run last read it, but for a change of priority alone, and adding or removing dependencies within its reach (../tasks/changes.md); a release naming its hold's, and, for an effect held uncertain, whether to make it again (../tasks/lifecycle.md, 6 and ../tasks/changes.md) | done, with the task's spec revision after the commit, the one its next amendment names (a release moves none); refused, and why; moved, with what it is now |
 | `cancel` | a task below it and its tree, with a reason, and a grace if the run gives one, within the tasks child's bound: the task is asked to finish first (../tasks/changes.md) | done; refused, and why |
 | `decide` | accepts, rejects or passes up a proposal or an escalation waiting for it, an escalation naming its hold's revision (../tasks/proposals.md) | done; beyond its authority, and passed up; moved, with what it is now |
@@ -311,7 +379,7 @@ amended task's choice whole, leaving it none.
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (../tasks/messages.md, 5) | done; no reference; refused, and why |
 | `subscribe`, `unsubscribe` | a topic a connector offers to agents (../connectors.md, 5.3), under a read grant on the resources the connector says it concerns (../authority.md, 8.5); a referenced task's state; a timer (../tasks/messages.md, 4) | done; refused, and why |
 | `effect` | one of a connector's kinds of effect offered to agents (../connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (../tasks/lifecycle.md, 8) |
-| `note`, `recall` | writes a note in a scope, whole or by a line range; reads entries by name or by a search (`briefs.md`, section 2) | written; the entries |
+| `note`, `recall` | writes a note in a scope, whole or by a line range, and, with `records`, records the unrecorded words it names as `mark_read` does, once the note is written, none when it is refused; reads entries by name or by a search (`briefs.md`, section 2) | written, and what `records` recorded and named in vain, as `mark_read` answers; the entries |
 | a connector's reads | reads its system (../connectors.md, section 9) | the answer, within the read's budget |
 | an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves, among them reads as its person (below), and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (../authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
 

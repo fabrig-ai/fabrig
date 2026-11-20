@@ -12,32 +12,23 @@ const DRAFT: &[u8] = b"My draft";
 pub(super) fn answer(cue: &[u8]) -> Box<[u8]> {
     let mut cues = List::with_capacity(1);
     cues.push(cue.into()).unwrap();
-    wire::playground_answer(
-        &w::PlaygroundAnswer::new(
-            &w::CEILINGS,
-            w::PlaygroundAnswerParts {
-                state: w::PlaygroundState::Running,
-                project: Some(f::PROJECT),
-                forge: wire::FORGE,
-                provider: PROVIDER,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
-            },
-        )
-        .unwrap(),
-    )
+    wire::playground_answer(&w::PlaygroundAnswer {
+        state: w::PlaygroundState::Running,
+        project: Some(f::PROJECT),
+        forge: wire::FORGE,
+        provider: PROVIDER,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        cues,
+    })
 }
 fn page() -> Readout {
     Readout::Family { family: wire::FORGE, record: Some(answer(CUE)) }
 }
 pub(super) fn page_with_state(state: w::PlaygroundState) -> Readout {
-    let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap().into_parts();
+    let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap();
     parts.state = state;
-    Readout::Family {
-        family: wire::FORGE,
-        record: Some(wire::playground_answer(&w::PlaygroundAnswer::new(&w::CEILINGS, parts).unwrap())),
-    }
+    Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) }
 }
 fn read(side: &mut forge::Side) -> Handle {
     let mut out = Queue::with_capacity(1);
@@ -49,7 +40,7 @@ fn read(side: &mut forge::Side) -> Handle {
     assert_eq!(scope, c::Scope::Deployment);
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(), &w::Read::Playground);
+    assert_eq!(&wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read, &w::Read::Playground);
     assert_ne!(handle.number, 0, "zero belongs to me");
     assert!(out.is_empty());
     handle
@@ -184,20 +175,34 @@ fn act(root: &mut crate::Domain, act: Act) -> Queue<crate::Request> {
 }
 fn opened(cue: &[u8]) -> (crate::Domain, skein_lib::Token) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, account) = f::start_accounts(&mut root, List::with_capacity(0));
-    for (watch, delivery) in [
-        (me, c::Delivery::Me(Box::new(f::chats::me()))),
-        (account, c::Delivery::Accounts(Box::new(accounts(Some(PROVIDER), true, false)))),
-    ] {
-        event(
-            &mut root,
-            crate::Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) },
+    let me = f::start(&mut root, List::with_capacity(0));
+    let out = event(
+        &mut root,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(f::chats::me()))),
                 },
             },
-        );
-    }
+        },
+    );
+    let account = f::accounts_watch(&out);
+    event(
+        &mut root,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: account,
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts(
+                        Some(PROVIDER),
+                        true,
+                        false,
+                    )))),
+                },
+            },
+        },
+    );
     deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(answer(cue)) });
     event(&mut root, crate::Event::Went { place: crate::Place::Address(crate::Address::NewChat { draft: false }) });
     act(&mut root, Act::ChatWords { words: DRAFT.into() });
@@ -223,9 +228,9 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
         }
         if project != f::PROJECT {
             let limits = forge::wire_limits(&f::limits().forge).unwrap();
-            let mut parts = wire::decode_playground_answer(&answer(CUE), &limits).unwrap().into_parts();
+            let mut parts = wire::decode_playground_answer(&answer(CUE), &limits).unwrap();
             parts.project = Some(project);
-            let record = wire::playground_answer(&w::PlaygroundAnswer::new(&limits, parts).unwrap());
+            let record = wire::playground_answer(&parts);
             deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(record) });
         }
         if !model {
@@ -420,7 +425,7 @@ pub(super) fn removed(out: &mut Queue<crate::Request>) -> List<skein_lib::Token>
 
 fn confirmed() -> forge::Side {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, _) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     event(
         &mut root,
         crate::Event::Client {
@@ -450,7 +455,7 @@ fn sent(out: &mut Queue<forge::Request>, expected: w::Request) -> skein_lib::Tok
     };
     assert_eq!(scope, c::Scope::Deployment);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request(), &expected);
+    assert_eq!(&wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request, &expected);
     assert!(out.is_empty());
     request
 }
@@ -470,7 +475,7 @@ fn result(side: &mut forge::Side, request: skein_lib::Token, outcome: w::Outcome
             outcome: jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                bytes: wire::answer(&w::Answer { outcome }),
             })),
         },
         f::limits().forge,
@@ -562,13 +567,7 @@ fn the_reset_opens_the_welcome_at_forge() {
 fn not_offered_ends_leaving_and_rereads_without_navigation() {
     let mut side = confirmed();
     let request = end(&mut side);
-    let mut out = result(
-        &mut side,
-        request,
-        w::Outcome::EndRefused(
-            w::EndRefused::new(&w::CEILINGS, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).unwrap(),
-        ),
-    );
+    let mut out = result(&mut side, request, w::Outcome::EndRefused(w::EndRefused { why: w::EndRefusal::NotOffered }));
     assert!(!side.leaving());
     let Some(forge::Request::Client { asked: jig_client::Event::Read { .. } }) = out.pop() else {
         panic!("playground reread")
@@ -578,7 +577,7 @@ fn not_offered_ends_leaving_and_rereads_without_navigation() {
 #[test]
 fn no_account_removal_is_ever_sent_by_the_client() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, _) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let mut frame = f::chats::me();
     frame.deployment_role = Some(c::HeldRole::Owner);
     event(
@@ -592,8 +591,12 @@ fn no_account_removal_is_ever_sent_by_the_client() {
             },
         },
     );
+    event(
+        &mut root,
+        crate::Event::Went { place: crate::Place::Address(crate::Address::Welcome { step: crate::Step::Ready }) },
+    );
     let mut out = deliver_playground_read(&mut root, page());
-    let watch = deployment_watch(&mut out).expect("owner deployment watch");
+    let watch = deployment_watch(&mut out).expect("owner deployment watch on Ready");
     for document in [deployment(&[PLAYGROUND_ACCOUNT, OTHER_ACCOUNT]), deployment(&[OTHER_ACCOUNT]), deployment(&[])] {
         let mut out = deliver_deployment(&mut root, watch, document);
         assert!(removed(&mut out).is_empty());
@@ -608,16 +611,10 @@ fn no_account_removal_is_ever_sent_by_the_client() {
 #[test]
 fn a_starting_playground_can_have_no_project() {
     let mut side = confirmed();
-    let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap().into_parts();
+    let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap();
     parts.state = w::PlaygroundState::Starting;
     parts.project = None;
-    refresh(
-        &mut side,
-        Readout::Family {
-            family: wire::FORGE,
-            record: Some(wire::playground_answer(&w::PlaygroundAnswer::new(&w::CEILINGS, parts).unwrap())),
-        },
-    );
+    refresh(&mut side, Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) });
     assert!(side.playground_starting());
     assert_eq!(side.playground().unwrap().project, None);
     assert_eq!(side.playground_provider(), Some(PROVIDER));
@@ -629,13 +626,7 @@ fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
     let mut side = confirmed();
     refresh(&mut side, Readout::Family { family: wire::FORGE, record: None });
     let first = sent(&mut choose(&mut side, forge::Act::StartPlayground), w::Request::StartPlayground);
-    result(
-        &mut side,
-        first,
-        w::Outcome::StartFailed(
-            w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
-        ),
-    );
+    result(&mut side, first, w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }));
     assert_eq!(side.playground_failure(), Some(&playground::StartFailure::Account));
     assert!(!side.playground_starting());
     refresh(&mut side, page_with_state(w::PlaygroundState::Starting));
@@ -650,7 +641,8 @@ fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
 #[test]
 fn a_fake_row_gained_or_lost_reads_the_playground_again() {
     for (row, before, after, expected) in [
-        ("first fake", None, Some(w::Mode::Fake), 0),
+        ("first fake", None, Some(w::Mode::Fake), 1),
+        ("first real", None, Some(w::Mode::Connected), 0),
         ("gained fake", Some(None), Some(w::Mode::Fake), 1),
         ("lost fake", Some(Some(w::Mode::Fake)), None, 1),
         ("kept fake", Some(Some(w::Mode::Fake)), Some(w::Mode::Fake), 0),
@@ -664,7 +656,8 @@ fn a_fake_row_gained_or_lost_reads_the_playground_again() {
         if let Some(before) = before {
             super::forges::deliver_forges(&mut root, watch, super::forges::forges_document(before.as_slice(), false));
             assert!(forge::forges::told(&mut side, root.client(), &changed, f::limits().forge, &mut out));
-            assert!(out.is_empty(), "{row}: first delivery");
+            assert_eq!(out.len(), u32::from(before == Some(w::Mode::Fake)), "{row}: first delivery");
+            out.clear();
         }
         super::forges::deliver_forges(&mut root, watch, super::forges::forges_document(after.as_slice(), false));
         assert!(forge::forges::told(&mut side, root.client(), &changed, f::limits().forge, &mut out));
@@ -673,7 +666,7 @@ fn a_fake_row_gained_or_lost_reads_the_playground_again() {
             if let forge::Request::Client {
                 asked: jig_client::Event::Read { handle, read: Readable::Family { record, .. } },
             } = request
-                && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Playground
+                && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Playground
             {
                 reads += 1;
                 assert_ne!(*handle, pending, "{row}: replaces the pending read");

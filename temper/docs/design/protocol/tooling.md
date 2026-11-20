@@ -83,8 +83,8 @@ what they write, and how they end. temper runs them as jobs on a worker
     number in the landing, from 1; `branch` its own branch; `prefix`
     its branch in the landing, where its prefix is pushed
     (`../domain/landing.md`, 5.1).
-  - **`combine`** is the train's (`../domain/landing.md`, 5.2 and
-    13.1), and **`train_upstream`** its upstream's tip as the round read
+  - **`combine`** is the train's (`../domain/landing.md`, 5.2, and `../domain/landing-settings.md`, 1.1
+    ), and **`train_upstream`** its upstream's tip as the round read
     it, present only where the train has an upstream: a member whose
     head holds a commit `main` lacks and `train_upstream` holds is
     merged under `squash` too.
@@ -169,7 +169,19 @@ baseline recounted, a generated file made again), with no model.
   both parents, and pushes it.
   The reference recounts counted baselines and regenerates story A's
   playground log with its focused walk test on the merged tree,
-  `SKEIN_CODEGEN_WRITE=1`. A generator that is unavailable, fails or
+  `SKEIN_CODEGEN_WRITE=1`. It makes again each generated codec module
+  its list names (`tools/merge/codecs.txt`: a module's path, then the
+  schema texts it is made from, in order) whose schema texts and
+  generator merged clean, the generator being `skein-codegen`'s and
+  `skein-codec`'s crates: it builds `skein-codegen`'s command alone and
+  runs it on those texts. It never runs the family's drift test, whose
+  world builds the very codec crates left in conflict. A module whose
+  schema text or generator conflicts too is left with them
+  (`../draft/codec-shape.md`, 6.2). It settles a conflict at a
+  journey's recording, page or file printed beside them with the base's
+  copy, the landing branch's, or with none where the base holds none,
+  deletions and renames among them, since only the journeys' writer
+  writes those paths (`../client/journey-writer.md`, 5). A generator that is unavailable, fails or
   does not produce a fresh file free of conflict markers leaves the
   file unmerged. The reference's B0 and B1 recordings require captured data
   outside the checkout; without that input they stay unmerged. Any

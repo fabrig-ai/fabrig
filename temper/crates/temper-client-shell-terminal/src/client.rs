@@ -52,6 +52,7 @@ pub struct NativeClient {
     view: view::View,
     env: Env<domain::Limits>,
     out: Queue<domain::Request>,
+    gathered: Queue<jig_client::Request>,
     patches: Queue<skein_ui::Patch>,
     credential: Option<skein_lib::Secret>,
     with: Option<jig_client::With>,
@@ -79,10 +80,11 @@ impl NativeClient {
         start: Start,
     ) -> Result<Self, jig_client_protocol_http::Unlinked> {
         let bounds = settings.limits;
-        assert!(limits::valid(&bounds), "native capacities are checked");
-        let (view_limits, forge_words) = limits::view(&bounds).expect("native view capacities are checked");
+        let (view_limits, forge_words) = limits::checked(&bounds).expect("native capacities are checked");
         let mut shell = Shell::new(jig_client_shell_native::Settings {
-            engine: settings.engine,
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
+            engine: jig_client_shell_native::Engine::Plain(settings.engine),
             directory: settings.directory,
             limits: bounds.connections,
             io: bounds.io,
@@ -99,6 +101,7 @@ impl NativeClient {
             view: view::View::new(&view_limits, &bounds.client, forge_words, temper_client_protocol_wire::FORGE),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds.client },
             out: Queue::uncapped(),
+            gathered: Queue::uncapped(),
             patches: Queue::with_capacity(view_limits.tree.patches),
             credential: None,
             with,
@@ -118,6 +121,11 @@ impl NativeClient {
     #[must_use]
     pub fn tree(&self) -> &skein_ui::Tree {
         self.view.tree()
+    }
+    /// The address it last applied.
+    #[must_use]
+    pub fn address(&self) -> &domain::Address {
+        &self.address
     }
     /// Read-only metadata: no credentials, request tokens or page bodies.
     #[must_use]
@@ -187,7 +195,6 @@ impl NativeClient {
                     with: jig_client::With::Link { secret, held: self.credential.clone() },
                 },
             });
-            self.outputs();
         } else {
             self.with = Some(jig_client::With::Link { secret, held: self.credential.clone() });
         }
@@ -221,6 +228,7 @@ impl NativeClient {
                 domain::take(&mut self.root, &self.env, &mut self.out);
             }
             self.outputs();
+            self.carry();
             self.shell.close();
         }
     }
@@ -277,7 +285,8 @@ impl NativeClient {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskLink
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }
@@ -286,6 +295,8 @@ impl NativeClient {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. }
             | jig_client::Event::Lost { .. } => None,
         };
@@ -330,7 +341,8 @@ impl NativeClient {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskLink
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }
@@ -339,6 +351,8 @@ impl NativeClient {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. } => None,
         };
         if matches!(event, jig_client::Event::NotStored) {
@@ -388,6 +402,11 @@ impl NativeClient {
         self.signing.push(signing);
         self.outputs();
     }
+    fn carry(&mut self) {
+        while let Some(request) = self.gathered.pop() {
+            self.shell.down(request);
+        }
+    }
     fn outputs(&mut self) {
         while let Some(request) = self.out.pop() {
             match route::down(request) {
@@ -399,13 +418,15 @@ impl NativeClient {
                             | jig_client::Message::SignInLink(_)
                             | jig_client::Message::SignInService => Some(false),
                             jig_client::Message::SignOut => Some(true),
-                            jig_client::Message::ApprovalAsk(_)
+                            jig_client::Message::LinkAsk(_)
+                            | jig_client::Message::ApprovalAsk(_)
                             | jig_client::Message::ApprovalRead(_)
                             | jig_client::Message::ApprovalDecide(_)
                             | jig_client::Message::Authorize(_)
                             | jig_client::Message::Request(_)
                             | jig_client::Message::Read(_)
                             | jig_client::Message::Watch(_)
+                            | jig_client::Message::Batch(_)
                             | jig_client::Message::Unwatch(_)
                             | jig_client::Message::StreamGone(_) => None,
                         };
@@ -413,7 +434,7 @@ impl NativeClient {
                             self.authentication.insert(*exchange, kind).expect("bounded sign-in exchanges");
                         }
                     }
-                    self.shell.down(request);
+                    self.gathered.push(request);
                 }
                 Down::Unlinked(_) => {
                     unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
@@ -469,8 +490,10 @@ impl Host for NativeClient {
         if self.started() {
             domain::fire(&mut self.root, &self.env, &mut self.out);
             self.outputs();
+            domain::settle(&mut self.root, &self.env, &mut self.out);
             domain::take(&mut self.root, &self.env, &mut self.out);
             self.outputs();
+            self.carry();
             view::build(&mut self.view, &self.root, wall, &mut self.patches);
             if !self.patches.is_empty() {
                 self.seen.builds = self.seen.builds.saturating_add(1);

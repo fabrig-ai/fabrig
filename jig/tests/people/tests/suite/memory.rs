@@ -115,6 +115,7 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
                 name: Box::new([]),
             };
             test.event(Event::SignedIn {
+                until: None,
                 held: None,
                 reply_to,
                 person: number,
@@ -141,7 +142,7 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice();
-            test.event(Event::Waiting { task, entries });
+            test.event(Event::Waiting { source: jig_domain_people::NeedSource::Task(task), entries });
         }
         assert_eq!(test.domain.needs(PERSON), Some(limits.inbox_tasks * limits.inbox_recipients));
         for party in 1..=u64::from(limits.people) {
@@ -285,7 +286,7 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
             seen: None,
             replies,
         });
-        restored.event(Event::Waiting { task, entries });
+        restored.event(Event::Waiting { source: jig_domain_people::NeedSource::Task(task), entries });
     }
     for task in 1..=u64::from(limits.inbox_tasks) {
         restored.event(Event::Forget { task, project: PROJECT, party: None, last_reply: 0 });
@@ -298,6 +299,7 @@ fn retained_account_sign_in_answers_keep_their_longest_addresses() {
     test.complete();
     let reply_to = test.to();
     test.event(Event::SignedIn {
+        until: None,
         held: None,
         reply_to,
         person: PERSON,

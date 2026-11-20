@@ -3,6 +3,10 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+/// The current notes schema text (data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the codec exposes its owner's schema to tests without the UI")]
+pub const SCHEMA: &str = include_str!("../../view/schema/notes-v1.schema");
+
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/notes.rs"]
 pub mod records;

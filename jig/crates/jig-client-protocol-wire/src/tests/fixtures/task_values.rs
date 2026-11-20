@@ -9,6 +9,7 @@ pub fn task(limits: &Limits) -> Task {
             talk: None,
             session: None,
             dependency_facts: List::with_capacity(0),
+            unread: List::with_capacity(0),
             kept_account: None,
             run_wait: None,
             settings: Some(
@@ -29,6 +30,7 @@ pub fn task(limits: &Limits) -> Task {
             .expect("fixture flags"),
             last_activity: 0,
             made: 0,
+            tasks_left: 5,
             waits_on: WaitsOn::Nothing,
             chip: chip(limits, &rows),
             goal: Some(u64::MAX),

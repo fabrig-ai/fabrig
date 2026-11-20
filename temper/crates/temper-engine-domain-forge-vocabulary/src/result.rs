@@ -158,6 +158,12 @@ impl ChangeResult {
             }
         }
     }
+    /// The current landing repair is judged against its failed round's base
+    /// (domain/forge/change/repairs.md, A landing's repair).
+    pub fn judged(&mut self, base: &Commit, bound: u32) {
+        self.repairs.add(b", judged against ", bound);
+        self.repairs.add(&crate::commit_text(base), bound);
+    }
     /// A CI repair ended by a green head (domain/forge/change/repairs.md). Nothing to say where none was asked.
     pub fn ci_passed(&mut self, head: &Commit, bound: u32) {
         if self.repair_count == 0 {

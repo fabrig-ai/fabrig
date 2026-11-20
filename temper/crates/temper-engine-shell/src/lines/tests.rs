@@ -1,6 +1,53 @@
 use super::*;
 
 #[test]
+fn a_lowered_limit_names_its_setting_figure_and_held_work() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+    let end = End::Stopped(Stop::LimitRestore {
+        name: b"forge.repositories",
+        kind: temper_engine_service::startup::LimitKind::Temper,
+        configured: 1,
+        held: 2,
+    });
+    assert_eq!(ending_with_binary("temper-engine",Some(&end),false,&directories,b"/data/deployment",&[]),
+        ("temper-engine serve: forge.repositories (setting temper-limits): its figure is 1, but the store holds 2; put limits-held in the data directory to start at the stock\n".into(),1));
+}
+
+#[test]
+fn a_codec_lowering_names_its_setting_and_figures_without_row_values() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").unwrap();
+    for (name, kind, setting) in [
+        (b"forge.name_bytes".as_slice(), temper_engine_service::startup::LimitKind::Temper, "temper-limits"),
+        (b"people.identity_bytes".as_slice(), temper_engine_service::startup::LimitKind::Jig, "limits"),
+    ] {
+        let end = End::Stopped(Stop::CodecRestore {
+            bound: jig_protocol_store::codec::Lowered { name, configured: 200, held: 300 },
+            kind,
+            row: Some(jig_protocol_store::restore::RowSite {
+                family: Some(jig_protocol_store::Family::Application),
+                key: Box::new([2, 2]),
+                key_bytes: 2,
+                truncated: false,
+            }),
+        });
+        let (words, code) =
+            ending_with_binary("temper-engine", Some(&end), false, &directories, b"/data/deployment", &[]);
+        assert_eq!(code, 1);
+        assert_eq!(
+            words,
+            format!(
+                "temper-engine serve: {} (setting {setting}): its figure is 200, but the store holds a record that needs 300, key [02, 02]; put limits-held in the data directory to start at the stock\n",
+                String::from_utf8_lossy(name)
+            )
+        );
+    }
+}
+
+#[test]
 fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
     use jig_protocol_store::{JobCount, Owner};
     for (binary, shown) in [("temper-box", "temper-box"), ("temper-engine", "temper-engine"), ("temper", "temper-box")]
@@ -37,6 +84,15 @@ fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
 #[test]
 fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
     use jig_protocol_worker_wire::Agreed;
+    assert_eq!(
+        note_line("custom", temper_engine_service::Note::WorkerFigures { limits: 440, endpoints: 2, revision: 7 }),
+        "custom serve: figures for workers: 440 limits, 2 endpoints, agents setting revision 7\n"
+    );
+    assert_eq!(
+        note_line("custom", temper_engine_service::Note::WorkerFiguresTaken { worker: b"worker-a".as_slice().into() }),
+        "custom serve: worker worker-a took its figures\n"
+    );
+
     let wires = skein_lib::List::from_boxed(Box::new([
         Agreed { name: "jig-worker-wire", version: 10 },
         Agreed { name: "smith-pieces", version: 1 },
@@ -839,6 +895,40 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
 }
 
 #[test]
+fn unmade_landing_and_dropped_hold_warnings_name_the_repaired_rows() {
+    use temper_engine_service::Note;
+    assert_eq!(
+        note_line(
+            "temper-box",
+            Note::LandingUnmade {
+                task: 10030,
+                repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                branch: b"main".as_slice().into(),
+                changes: Box::new([8975, 9104, 9885, 10023]),
+            }
+        ),
+        "temper-box serve: warning: landing 10030 into main of repository 1/7 has no task: ended; its changes 8975, 9104, 9885, 10023 wait again\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper-box",
+            Note::HoldDropped {
+                name: temper_engine_domain_forge::Name {
+                    forge: 1,
+                    repository: 7,
+                    what: temper_engine_domain_forge::What::Branch(Box::new([
+                        b"temper610030".as_slice().into(),
+                        b"l10030".as_slice().into(),
+                    ])),
+                },
+                task: 10030,
+            }
+        ),
+        "temper-box serve: warning: hold on temper610030/l10030 of repository 1/7 by task 10030, which has no task: dropped\n"
+    );
+}
+
+#[test]
 fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
     use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind};
     let arguments =
@@ -863,6 +953,34 @@ fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
             )
         );
     }
+}
+
+#[test]
+fn start_numbers_name_every_source_kind_and_both_ranges() {
+    use jig_domain_core::{
+        settings::Setting,
+        start::{Failure, Numbered},
+    };
+    assert_eq!(
+        start_failure(&Failure::Numbers {
+            settings: Box::new([
+                Numbered { setting: Setting::Template(9), changed: true },
+                Numbered { setting: Setting::Charter(17), changed: true },
+                Numbered { setting: Setting::Policy(40), changed: false },
+                Numbered { setting: Setting::Model(70), changed: true },
+            ])
+        }),
+        "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed template 9, changed charter 17, default policy 40, changed model 70"
+    );
+}
+
+#[test]
+fn start_taken_names_settings_and_the_move_before_upgrade() {
+    use jig_domain_core::{settings::Setting, start::Failure};
+    assert_eq!(
+        start_failure(&Failure::Taken { settings: Box::new([Setting::Charter(17), Setting::Template(16)]) }),
+        "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): charter 17, template 16; move each to 33 to 64 on the build that runs now, then start this one"
+    );
 }
 
 #[test]
@@ -959,7 +1077,9 @@ fn unreadable_temper_rows_end_with_the_named_recovery_words_and_exit_one() {
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for (tag, name) in [(21, "Flight"), (9, "Landed"), (20, "Setting"), (47, "ChangeCold"), (48, "ChangeHot")] {
-        let end = End::Stopped(Stop::StoreRow { row: temper_engine_service::UnreadableRow { key: Box::from([tag]) } });
+        let end = End::Stopped(Stop::StoreRow {
+            row: temper_engine_service::UnreadableRow { key: Box::from([tag]), lowered: None },
+        });
         for deployment in ["/data/deployment", "/elsewhere/store"] {
             for binary in ["temper", "temper-engine"] {
                 assert_eq!(
@@ -1014,6 +1134,49 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
             (format!("temper serve: restore tasks: {words}\n"), 1)
         );
     }
+}
+
+#[test]
+fn a_landing_refusal_names_its_train_reason_and_stack() {
+    for (why, words) in [(Some(jig_domain_tasks::Refusal::Live), "Live"), (None, "unknown")] {
+        let line = note_line(
+            "temper-box",
+            temper_engine_service::Note::LandingRefused {
+                task: 10030,
+                repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                branch: b"main".as_slice().into(),
+                why,
+                changes: Box::new([8975, 9104]),
+            },
+        );
+        assert_eq!(
+            line,
+            format!(
+                "temper-box serve: warning: landing 10030 into main of repository 1/7 not formed: jig refused its task: {words}; its changes 8975, 9104 wait\n"
+            )
+        );
+    }
+}
+
+#[test]
+fn restore_history_failures_name_the_task_check_and_place() {
+    use jig_protocol_store::{
+        Family,
+        restore::{Cause, Failure, HistoryFailure, RowSite},
+    };
+    let failure = Failure {
+        cause: Cause::History { task: 4097, failure: HistoryFailure::PlaceMissing },
+        row: Some(RowSite {
+            family: Some(Family::Component),
+            key: Box::from([0, 10, 0, 0, 0, 0, 0, 0, 16, 1]),
+            key_bytes: 10,
+            truncated: false,
+        }),
+    };
+    assert_eq!(
+        page_failure(Some(&failure)),
+        "task 4097 history fetch: history place missing, family Component, key [00, 0a, 00, 00, 00, 00, 00, 00, 10, 01]"
+    );
 }
 
 #[test]
@@ -1433,4 +1596,37 @@ fn restart_lines_name_the_wait_or_the_workers_older_wire() {
             expected
         );
     }
+}
+
+#[test]
+fn the_playground_start_makes_a_private_random_key_before_reading_it() {
+    use std::os::unix::{ffi::OsStrExt as _, fs::MetadataExt as _};
+    let scratch = skein_scratch::Scratch::new("playground-key");
+    let path = scratch.path().join("demo/llm.key");
+    let read = temper_engine_service::HandoverRead {
+        forge: 0,
+        run: skein_lib::Token::new(1),
+        path: path.as_os_str().as_bytes().into(),
+        max: 4097,
+    };
+    let first = read_handover(&read).expect("make then read key").expect("key present");
+    assert_eq!(first.expose().len(), 64);
+    assert!(first.expose().iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)));
+    let file = std::fs::read(&path).expect("generated fixture");
+    assert_eq!(file.len(), 65);
+    assert_eq!(file.last(), Some(&b'\n'));
+    let same_key = file.strip_suffix(b"\n") == Some(first.expose());
+    assert!(same_key, "the account gets the generated key without its final newline");
+    assert_eq!(std::fs::metadata(path.parent().expect("demo")).expect("directory").mode() & 0o777, 0o700);
+    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
+    // Replacing a linked file must neither reuse its mode nor change its target.
+    std::fs::remove_file(&path).expect("remove fixture");
+    let target = scratch.path().join("kept");
+    std::fs::write(&target, b"kept").expect("fixture");
+    std::os::unix::fs::symlink(&target, &path).expect("linked fixture");
+    let next = read_handover(&read).expect("replace then read key").expect("key present");
+    assert!(next.expose() != first.expose(), "a fresh kernel seed, not a reused key");
+    assert_eq!(std::fs::read(target).expect("target unchanged"), b"kept");
+    assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
+    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
 }

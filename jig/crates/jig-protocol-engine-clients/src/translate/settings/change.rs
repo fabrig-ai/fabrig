@@ -60,7 +60,10 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Template(value) => s::Setting::Template(value.number()),
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::Limits => s::Setting::Limits,
         w::Setting::Model(value) => s::Setting::Model(value.number()),
+        w::Setting::Worker(value) => s::Setting::Worker(value.number()),
+        w::Setting::Provider(value) => s::Setting::Provider(value.number()),
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
@@ -71,6 +74,18 @@ fn setting_value(
     limits: &w::Limits,
 ) -> Result<s::Value, Untranslatable> {
     Ok(match value {
+        w::SettingValue::Limits(value) => s::Value::Limits(limit_overrides(value)),
+        w::SettingValue::Worker(value) => s::Value::Worker(Box::new(s::WorkerSetting {
+            number: value.number(),
+            name: skein_lib::bytes::copy_of(value.name()),
+            places: value.places(),
+            digest: *value.digest(),
+            withdrawn: value.withdrawn(),
+        })),
+        w::SettingValue::Provider(value) => {
+            let value = super::providers::decode(&value);
+            s::Value::Provider(Box::new(value))
+        }
         w::SettingValue::Model(value) => s::Value::Model(Box::new(catalogue(*value))),
         w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
         w::SettingValue::Overlay(value) => s::Value::Overlay(Box::new(overlay(*value))),
@@ -352,9 +367,12 @@ fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Con
     Ok(match value {
         w::TaskContractDocument::Job(_) => return Err(bad()),
         w::TaskContractDocument::Report(value) => t::Contract::Report { words: value.words() },
-        w::TaskContractDocument::Change(value) => {
-            t::Contract::Change { connector: value.connector(), kind: value.kind(), words: value.words() }
-        }
+        w::TaskContractDocument::Change(value) => t::Contract::Change {
+            connector: value.connector(),
+            kind: value.kind(),
+            words: value.words(),
+            choices: Box::new([]),
+        },
         w::TaskContractDocument::Approval(value) => {
             let v = value.into_parts();
             t::Contract::Approval { state: v.state, part: part(v.part) }
@@ -538,4 +556,16 @@ fn overlay(value: w::Overlay) -> s::Overlay {
             None => None,
         },
     }
+}
+
+fn limit_overrides(value: w::LimitsValue) -> Box<[s::Override]> {
+    let values = value.into_parts().overrides;
+    let mut overrides = List::with_capacity(values.len());
+    for value in values.into_boxed() {
+        let value = value.into_parts();
+        overrides
+            .push(s::Override { name: value.name, value: value.value, reason: value.reason })
+            .expect("override count");
+    }
+    overrides.into_boxed()
 }

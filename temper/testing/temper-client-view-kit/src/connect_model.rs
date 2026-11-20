@@ -250,7 +250,7 @@ pub fn answer_environment(root: &mut d::Domain, words: &[u8]) {
                     },
             } = request
                 && wire::decode_reading(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|reading| *reading.read() == w::Read::ProgramEnvironment)
+                    .is_some_and(|reading| reading.read == w::Read::ProgramEnvironment)
             {
                 Some(*read)
             } else {
@@ -258,9 +258,7 @@ pub fn answer_environment(root: &mut d::Domain, words: &[u8]) {
             }
         })
         .expect("program page reads its environment");
-    let answer =
-        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: words.into() })
-            .unwrap();
+    let answer = w::ProgramEnvironmentAnswer { environment: words.into() };
     fixtures::root_event(
         root,
         d::Event::Client {
@@ -322,7 +320,7 @@ pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::D
     ] {
         d::step(&mut root, &env, event, &mut out);
     }
-    let me_watch = opened(&out, &c::Subject::Me);
+    let me_watch = skein_lib::Token::new(0);
     d::step(
         &mut root,
         &env,
@@ -356,9 +354,7 @@ pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::D
                     jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
-            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
-                Some(*read)
-            }
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment => Some(*read),
             d::Request::Screen { .. }
             | d::Request::KeepLook { .. }
             | d::Request::KeepSignIn { .. }
@@ -374,11 +370,7 @@ pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::D
             | d::Request::Fact { .. } => None,
         })
         .expect("live link reads deployment");
-    let answer = w::DeploymentAnswer::new(
-        &w::CEILINGS,
-        w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: line.map(Into::into) },
-    )
-    .unwrap();
+    let answer = w::DeploymentAnswer { push: None, welcome: true, owned: true, program_login: line.map(Into::into) };
     fixtures::root_event(
         &mut root,
         d::Event::Client {

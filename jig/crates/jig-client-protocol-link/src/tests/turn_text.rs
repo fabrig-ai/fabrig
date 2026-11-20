@@ -1,5 +1,6 @@
 use super::*;
 use skein_lib::{List, Writer};
+use smith_transcript::Record;
 use smith_transcript::v7 as smith;
 
 // The golden's first text is "abc"; the second fills another three bytes.
@@ -9,21 +10,22 @@ const TEXT_BLOCKS: u32 = 2; // The golden's text followed by the added text.
 
 // The golden turn with a second text block appended.
 fn turn_with(second: &[u8]) -> Box<[u8]> {
-    let source = smith_transcript::decode_archived(&smith::CEILINGS, fixtures::FULL_TURN).unwrap();
-    let mut source = source.into_parts();
+    let source = smith_transcript::decode_archived(&smith::CEILINGS, &fixtures::full_turn()).unwrap();
+    let mut source = source;
     let message = source.messages.get_mut(0).unwrap();
-    let mut parts = message.clone().into_parts();
+    let mut parts = message.clone();
     let mut blocks = List::with_capacity(TEXT_BLOCKS);
     for block in parts.blocks.into_boxed() {
         blocks.push(block).unwrap();
     }
-    let text = smith::Text::new(&smith::CEILINGS, smith::TextParts { text: Box::from(second), replay: None }).unwrap();
+    let text = smith::Text { text: Box::from(second), replay: None };
     blocks.push(smith::Block::Text(text)).unwrap();
     parts.blocks = blocks;
-    *message = smith::Message::new(&smith::CEILINGS, parts).unwrap();
-    let source = smith::Turn::new(&smith::CEILINGS, source).unwrap();
-    let mut writer = Writer::new(usize::try_from(source.measure()).unwrap());
-    source.encode(&mut writer).unwrap();
+    *message = parts;
+    let source = source;
+    let mut writer =
+        Writer::new(usize::try_from(source.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap());
+    source.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 
@@ -54,7 +56,7 @@ fn a_pages_archived_turn_past_the_live_turns_field_is_decoded() {
 
 #[test]
 fn a_pages_archived_turn_is_decoded_at_its_document_bound_and_too_large_one_byte_past() {
-    let record = fixtures::single_turn_record(fixtures::FULL_TURN);
+    let record = fixtures::single_turn_record(&fixtures::full_turn());
     let too_large = c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: fixtures::TURN_PAYLOAD_BYTES } };
     // The client's document bound, below the wire's.
     for (document, expected) in [

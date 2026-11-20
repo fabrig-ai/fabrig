@@ -68,8 +68,8 @@ fn a_host_answer_at_the_agents_reply_bound_reaches_it_whole() {
     let smith_channel::Reply::Host(reply) = host_answer(91, REPLY_BYTES, false) else {
         panic!("the agent receives the whole host answer");
     };
-    assert!(!reply.error());
-    assert_eq!(reply.text(), vec![b'x'; usize::try_from(REPLY_BYTES).expect("reply length")]);
+    assert!(!reply.error);
+    assert_eq!(reply.text.as_ref(), vec![b'x'; usize::try_from(REPLY_BYTES).expect("reply length")]);
 }
 
 #[test]
@@ -94,6 +94,21 @@ fn a_run_starting_fresh_from_its_brief_starts_clean() {
     let report = temper_worker_domain_world::whole::retry(110, false);
     assert_eq!(report.tree, [(b"code".to_vec(), b"original\n".to_vec())].into());
     assert_eq!(report.saves, 0);
+}
+
+#[test]
+fn a_reassigned_start_notes_the_fetch_and_check_out_for_each_attempt() {
+    temper_worker_domain_world::whole::reassigned_start(118);
+}
+
+#[test]
+fn a_repair_that_delivered_before_parking_finishes_its_next_run_as_a_change() {
+    temper_worker_domain_world::whole::delivered_across_park(116, true);
+}
+
+#[test]
+fn a_clean_repair_without_its_own_delivery_gets_nothing_when_finishing() {
+    temper_worker_domain_world::whole::delivered_across_park(117, false);
 }
 
 #[test]

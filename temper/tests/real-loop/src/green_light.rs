@@ -61,10 +61,10 @@ pub fn fixture() -> forge::Fixture {
             (landing::fixture().configure)(value, agent, forge);
             crate::fixtures::own_policy(value);
             // The codec's result-field envelope grows with the live review's failure text.
-            value["engine"]["memory_bytes"] = 1_200_000_000_000_000_000_u64.into();
+            value.limits.root.transcript_memory = 1_200_000_000_000_000_000_u64;
             // Two conversations can load together; a continuation needs room
             // while the completed page waits for reclaim.
-            value["application"]["limits"]["overrides"]["root.loads.loads"] = 3.into();
+            value.temper_over("root.loads.loads", 3);
             crate::fixtures::requester(value);
             value["world_settings"]["maximum_run_spend"] = 32.into();
             value["world_settings"]["cap"] = 1000.into();
@@ -99,7 +99,7 @@ pub fn fixture() -> forge::Fixture {
                 ("documents.lines", 32),
                 ("brief.sections", 10),
             ] {
-                value["engine"]["limits"]["overrides"][name] = size.into();
+                value.jig_over(name, size);
             }
             // Keep the project's seeded policy in typed world defaults, as the reference stories do.
             for member in ["charters", "templates", "policies", "rules"] {
@@ -369,7 +369,7 @@ fn check_review(ran: &Ran) {
         assert!(brief[pull_at..].contains(&words), "review includes {words}: {brief}");
     }
     let calls = tool_calls(reviewed);
-    assert_eq!(calls[0].0, "read_pull");
+    assert_eq!(calls[0].0, "read_issues");
     assert_eq!(calls[0].1["number"], number);
     assert!(
         heard_tool(reviewed, &format!("Pull {number} head {} commit {head}", String::from_utf8_lossy(&branches.head))),

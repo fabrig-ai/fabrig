@@ -6,7 +6,7 @@ use super::{
 };
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
-use std::{fs, num::NonZeroU16, os::unix::ffi::OsStrExt, path::Path};
+use std::{fs, os::unix::ffi::OsStrExt, path::Path};
 
 #[must_use]
 pub fn llm(config: &Path) -> CtlLlm {
@@ -69,7 +69,7 @@ pub fn forge_read_llm(config: &Path) -> CtlLlm {
         Box::new([Script {
             cue: b"@first-forge-read".as_slice().into(),
             turns: Box::new([
-                call(b"read_branch", &json!({"repository":"playground/widget","branch":"main"})),
+                call(b"read_forge", &json!({"what":"branch","repository":"playground/widget","branch":"main"})),
                 Turn {
                     lines: Box::new([Line::Text { text: b"Read widget's main branch.".as_slice().into() }]),
                     finish: Finish::Stop,
@@ -89,13 +89,12 @@ pub(super) fn model(config: &Path, scripts: Box<[Script]>) -> CtlLlm {
         on_link: Box::new(move || {
             // The box starts on empty directories. Only its generated agent's
             // endpoint moves, before any run: the template and demo stay shipped.
-            let path = config.join("agent.json");
-            let mut agent: Value = serde_json::from_slice(&fs::read(&path).expect("initialized agent")).expect("JSON");
+            let mut agent = temper_agent_fixtures::read(&config);
             agent["endpoints"][0]["address"] = address.to_string().into();
             agent["endpoints"][0]["server_name"] = "skein.test".into();
             agent["endpoints"][0]["trust_der"] = json!(config.join("root.der"));
             write_private(&config.join("root.der"), skein_tls_kit::pki::ROOT);
-            write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
+            temper_agent_fixtures::install(&config, &agent);
         }),
     }
 }
@@ -113,9 +112,9 @@ pub(super) fn call(name: &[u8], value: &Value) -> Turn {
 /// Price a process story's purse from init's stock run cap.
 #[must_use]
 pub fn run_spend(runs: u64) -> u64 {
-    let bytes = include_bytes!("../../../crates/temper-init/template/bare.json");
+    let bytes = temper_config_shell::init_document(false);
     let document = jig_protocol_config::document(
-        bytes,
+        &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .expect("init document");
@@ -224,13 +223,8 @@ pub fn short_waiting_steps(root: &Path) -> Vec<Step> {
 /// A separate disposable oracle token proves that the next handover revokes it.
 pub fn probe_admin_handover(paths: &[std::path::PathBuf; 3], client: &Path, older: &mut Option<String>) {
     let number = owned_forge(client)["number"].as_u64().expect("owned forge");
-    let document: Value =
-        serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("configuration")).expect("JSON");
-    let address: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("address")
-        .parse()
-        .expect("socket");
+    let setup = super::owned::setup_value(&paths[1], u16::try_from(number).expect("forge number"), "owned");
+    let address: std::net::SocketAddr = setup["listen"]["socket"].as_str().expect("address").parse().expect("socket");
     if let Some(token) = older.take() {
         assert!(
             super::owned::answer(address.port(), "/api/v1/user", Some(&token)).is_err(),
@@ -258,9 +252,8 @@ pub(super) fn csv_scripts() -> Box<[Script]> {
     delegate["batch"][0]["spec"]["words"] = "@hello-readme Add CSV export to widget in work/hello".into();
     *arguments = serde_json::to_vec(&delegate).expect("delegate JSON").into_boxed_slice();
     let mut coder = scripts[1].turns.to_vec();
-    let template: Value = serde_json::from_str(include_str!("../../../crates/temper-init/template/temper.json"))
-        .expect("shipped template");
-    let edit = &template["application"]["demo"]["llm"]["cued"][0]["turns"][1]["lines"][0]["arguments"]["edits"][0];
+    let template: Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("shipped template");
+    let edit = &template["cued"][0]["turns"][1]["lines"][0]["arguments"]["edits"][0];
     let seed = std::str::from_utf8(temper_fake::forge::FILES[1].1).expect("widget source");
     let source = seed.replace(edit["old"].as_str().expect("old main"), edit["new"].as_str().expect("CSV main"));
     let _ = coder.pop().expect("coder finish");
@@ -496,15 +489,11 @@ pub struct PlaygroundReads {
     pub panel: super::Ended,
 }
 #[must_use]
-pub fn playground_read_evidence(config: &Path, client: &Path) -> PlaygroundReads {
-    let document: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+pub fn playground_read_evidence(data: &Path, client: &Path) -> PlaygroundReads {
+    let number = u16::try_from(owned_forge(client)["number"].as_u64().expect("forge number")).expect("forge u16");
+    let setup = super::owned::setup_value(data, number, "owned");
     PlaygroundReads {
-        address: document["application"]["machine"]["owned"]["listen"]["socket"]
-            .as_str()
-            .expect("forge address")
-            .parse()
-            .expect("socket"),
+        address: setup["listen"]["socket"].as_str().expect("forge address").parse().expect("socket"),
         producer: turns(client, "3"),
         panel: super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"])),
     }
@@ -567,13 +556,8 @@ pub fn live_from_hands(config: &Path, data: &Path, client: &Path) -> Evidence {
     let login = lines.next().expect("person line after API").split_once("Forgejo: person ").expect("person label").1;
     let read = data.join(format!("forge-{number}/person_read.header"));
     let write = data.join(format!("forge-{number}/person_write.header"));
-    let document: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
-    assert_eq!(
-        Some(login),
-        document["application"]["machine"]["owned"]["person"]["login"].as_str(),
-        "init chose the person"
-    );
+    let setup = super::owned::setup_value(data, u16::try_from(number).expect("forge u16"), "owned");
+    assert_eq!(Some(login), setup["person"]["login"].as_str(), "set-up chose the person");
     let address: std::net::SocketAddr = api
         .strip_prefix("http://")
         .and_then(|url| url.strip_suffix("/api/v1"))
@@ -630,14 +614,10 @@ pub fn header_request(api: &str, header: &str, method: &str, route: &str, body: 
 #[must_use]
 pub fn live_for(config: &Path, data: &Path, client: &Path, task: Task) -> Evidence {
     use std::os::unix::fs::PermissionsExt;
-    let document: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
     let number = owned_forge(client)["number"].as_u64().expect("forge number");
-    let address: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("forge address")
-        .parse()
-        .expect("socket");
+    let setup = super::owned::setup_value(data, u16::try_from(number).expect("forge u16"), "owned");
+    let address: std::net::SocketAddr =
+        setup["listen"]["socket"].as_str().expect("forge address").parse().expect("socket");
     let record = fs::metadata(data.join(format!("box/started/{number}"))).expect("started record");
     assert!(record.is_file(), "the box kept the owned forge's started record");
     assert_eq!(record.permissions().mode() & 0o777, 0o600, "private started record");
@@ -704,8 +684,8 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
             self.closing
         }
     }
-    let document: Value = serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration"))
-        .expect("configuration JSON");
+    let document: Value =
+        super::start_document(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(Value::as_str)
@@ -807,21 +787,17 @@ pub fn flags(root: &Path) -> Vec<String> {
     super::configuration::flags(root).into_iter().map(|flag| flag.into_string().expect("scratch UTF-8")).collect()
 }
 pub fn generated(root: &Path) {
-    use temper_init::{Content, Directories, Facts, Ports};
+    use temper_init::{Content, Directories, Facts};
     let addresses = super::free_addresses::<5>(&[]);
-    let ports = addresses.map(|address| NonZeroU16::new(address.port()).expect("ephemeral port"));
     let answer = temper_init::files(
         &Facts {
-            sign_in: false,
             binary: skein_scratch::paths::binary("temper-box").as_os_str().as_bytes(),
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),
-            ports: Ports { clients: ports[0], owned: ports[1], forge: ports[2], llm: ports[3], webhooks: ports[4] },
         },
         &Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[7; 32],
-        &[8; 32],
     )
     .expect("generated deployment");
     for file in answer.files {
@@ -831,6 +807,13 @@ pub fn generated(root: &Path) {
             super::write_private(&path, &bytes);
         }
     }
+    let file = temper_config_shell::File {
+        listen: Some(addresses[0]),
+        webhooks: Some(addresses[4]),
+        owner: Some("qa-person@localhost".into()),
+        ..Default::default()
+    };
+    super::write_file(&root.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
 }
 pub fn stage_binaries(root: &Path) {
     use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};

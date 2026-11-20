@@ -429,6 +429,16 @@ answers to a run's reads.
   on the old record, and the later commit would undo the earlier.
 - **Bounded:** the loads in flight, and the bytes a load brings, are
   limits; a load past its bytes is cut, and says how much.
+- **Busy is a load that failed.** A load of an ended task
+  (`Now::EndedTask`) is answered with its row, with none, or busy: the
+  root or the store could not serve it. Room the root regains by itself
+  is no failure: a root with no slot to send that load keeps it until
+  one frees, sending it before any load asked after it, still held
+  behind every commit made before the core asked. Its waiting loads are
+  bounded by the core's read flights, which the core keeps within its
+  own limit (`briefs.md`, 1.1, `results: no read flight is free`). So a
+  run's preparation never fails for a slot, however many tasks a
+  restart makes due together (`briefs.md`, 1.1, *A dependency's result*).
 - **Parties' reads** are documents and pages the client's contract lists
   (`../../client/domain/contract/README.md`, section 4): from live state where the
   engine holds it, loaded otherwise, and answered once the last commit
@@ -902,3 +912,14 @@ section 5).
 - **Delegates on their parent's revision,** so that a goal's subtree
   keeps the settings its plan was made under, as a change's option.
   Default: later; delegates take the newest (`settings.md`, 3).
+- **A place a program started without its tools at,** for other tasks
+  (`fleet.md`): the fault keeps only its own task off that source's
+  login on that worker, since other runs went fine on the same account
+  and hosts while two tasks failed there (the request "Bug fixes C4",
+  2026-11-18). Default: so; every task kept off the place, and the
+  deployment's document naming it, if such faults come to strike
+  every run there.
+- **Other init faults as a place's** (smith's `protocol/programs.md`,
+  5.6): an init lacking a granted built-in, or listing one not granted,
+  stays the run's own failure, though a program's version on one host
+  may cause it. Default: so, until a deployment meets it.

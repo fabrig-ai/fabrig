@@ -62,13 +62,13 @@ fn existing(
         } else {
             from(b, root, *need, across, w, bindings, times);
         }
-        let (_, mut question, _) = super::home::need_words(need, w);
-        if let needs::Need::Card(card) = need
-            && let ask::Kind::Funds { spent, limit } = ask::read(card, w).kind
-        {
-            question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
+        let question = match need {
+            needs::Need::Card(card) => ask::question(&ask::read(card, w), w),
+            needs::Need::Approval(_) => Some(super::home::need_words(need, w).1),
+        };
+        if let Some(question) = question {
+            ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
         }
-        ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
         if let Some(group) = &group {
             super::findings::group_rows(b, group, w, bindings, times);
             if let needs::Need::Card(card) = need {
@@ -245,6 +245,15 @@ pub(crate) fn all(
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
+    // Home previews read cards only; Needs you also lists unread rows.
+    let mut cards = skein_lib::List::with_capacity(u32::try_from(open.len()).expect("bounded needs"));
+    for need in open {
+        match need {
+            findings::Need::Existing(_) | findings::Need::Finding(_) => cards.push(*need).expect("cards fit"),
+            findings::Need::Row(_) => {}
+        }
+    }
+    let open = cards.as_slice();
     let mut drawn = skein_lib::List::with_capacity(3);
     for need in open.iter().take(3) {
         if need.ready(root) {
@@ -268,6 +277,7 @@ pub(crate) fn all(
             findings::Need::Finding(card) => {
                 super::findings::preview(b, root, card, w, bindings, times, across, shared.is_none());
             }
+            findings::Need::Row(_) => {}
         }
     }
     more(b, root, open, across, w, bindings, times);
@@ -280,6 +290,7 @@ pub(crate) fn all(
                 super::needs::reason_line(b, root, w, bindings, *need, super::needs::WhyForm::Short, &line);
             }
             findings::Need::Finding(_) => ask::text(b, Role::Paragraph, &line, look::WHY),
+            findings::Need::Row(_) => {}
         }
     }
 }
@@ -318,8 +329,9 @@ fn more(
     {
         b.text(Run::Plain, if w.shell == Shell::Terminal { b": " } else { b" " });
         match need {
+            findings::Need::Row(_) => {}
             findings::Need::Finding(card) => {
-                super::findings::severity(b, w, card.row.severity().clone());
+                super::findings::severity(b, w, card.row.severity.clone());
                 b.text(Run::Plain, &super::findings::short(card, w, times, true));
             }
             findings::Need::Existing(need) => {

@@ -44,16 +44,10 @@ struct ReadyWorld;
 impl Harness for ReadyWorld {
     type Service = ServiceObserver;
     type Process = Native;
-    fn configure(document: &mut serde_json::Value) {
+    fn configure(document: &mut temper_playground::documents::Configuration) {
         document["application"]["welcome"] = true.into();
-        document["engine"]["projects"] = serde_json::json!([]);
-        document["engine"]["acts"] = serde_json::json!([{"connector": 1, "may": ["adopt"]}]);
-        document["application"]["machine"]["owned"] = serde_json::json!({
-            "listen": {"socket": "127.0.0.1:3000"},
-            "remote": "http://127.0.0.1:3000",
-            "forgejo": "/world/forgejo", "runner": null,
-            "person": {"login": "owner", "email": "owner@example.invalid"}
-        });
+        document["world_settings"]["empty_projects"] = true.into();
+        document["world_settings"]["adopt_only"] = true.into();
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()
@@ -61,7 +55,7 @@ impl Harness for ReadyWorld {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         stories::given(document)
     }
 }
@@ -152,6 +146,7 @@ impl Host for BoxPeer {
         if let Some(root) = self.root.take() {
             self.submit(Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: PROGRAM.into(),
                     args: Box::new([]),
                     env: Box::new([]),
@@ -185,7 +180,7 @@ impl Host for BoxPeer {
                     } else {
                         self.input.extend_from_slice(&buf[..usize::try_from(count).expect("read size")]);
                         if self.input.ends_with(b"\n") {
-                            assert_eq!(self.input, b"start 1 owned\n", "only the owned forge's start is asked");
+                            assert_eq!(self.input, b"start 1\n", "only the owned forge's start is asked");
                             assert!(!self.started, "one forge start");
                             self.started = true;
                             self.input.clear();
@@ -241,16 +236,33 @@ impl Host for BoxPeer {
 fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
-    let mut document: serde_json::Value = serde_json::from_slice(&parameters.deployment).expect("deployment JSON");
+    let mut document = parameters.deployment.as_ref().clone();
     ReadyWorld::configure(&mut document);
     let given = ReadyWorld::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
-    let mut service = temper_service::startup::with_setup_given(
+    document.as_object_mut().expect("deployment").remove("world_settings");
+    let files = ReadyWorld::files();
+    let agent = temper_playground::documents::agent();
+    let seeds = ReadyWorld::seeds(parameters.seed);
+    let start = temper_service::startup::checked_start_with_limits(
         &serde_json::to_vec(&document).expect("deployment bytes"),
         &jig_protocol_config::Directories::working(),
-        &ReadyWorld::files(),
-        Some(&temper_playground::documents::agent()),
-        &ReadyWorld::seeds(parameters.seed),
+        &files,
+        Some(&agent),
+        &seeds,
+        temper_playground::documents::forges(),
+        None,
+        &given,
+        None,
+        &document.jig,
+        &document.limits,
+    )
+    .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    let mut service = temper_service::startup::from_checked(
+        start,
+        &files,
+        Some(&agent),
+        &seeds,
         None,
         Some(temper_service::WorkerRuntime {
             wires: None,
@@ -258,11 +270,8 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),
         }),
-        temper_playground::documents::forges(),
-        None,
         Some(BOX_BYTES),
         None,
-        &given,
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));

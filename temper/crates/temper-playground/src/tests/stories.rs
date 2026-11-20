@@ -40,15 +40,15 @@ fn story_a_decodes_within_the_fakes_bounds() {
     assert_eq!(forge.admin_token(), b"/setup/admin.token");
     assert_eq!(llm.listen(), (std::net::Ipv4Addr::LOCALHOST, 443).into());
     assert_eq!(llm.key(), b"/setup/llm.key");
-    let deployment: Value = serde_json::from_slice(A.deployment).expect("deployment JSON");
-    assert_eq!(deployment["engine"]["projects"], json!([]));
+    let deployment = A.configuration();
+    assert!(deployment["engine"].get("projects").is_none());
     assert!(deployment["application"]["forges"].is_null());
-    assert_eq!(deployment["application"]["machine"]["fake"]["listen"]["socket"], forge.listen().to_string());
-    assert_eq!(deployment["engine"]["llm"]["endpoints"][0]["address"]["socket"], llm.listen().to_string());
-    assert_eq!(deployment["application"]["demo"]["llm"]["key"], "/setup/llm.key");
+    assert!(deployment["application"].get("machine").is_none());
+    assert_eq!(deployment["world_settings"]["llm"]["endpoints"][0]["address"]["socket"], llm.listen().to_string());
+    assert!(deployment["application"].get("demo").is_none());
     let [model] = llm.models() else { panic!("one model") };
-    assert!(deployment["engine"]["llm"].get("models").is_none());
-    assert!(deployment["engine"]["llm"]["providers"][0].get("models").is_none());
+    assert!(deployment["world_settings"]["llm"].get("models").is_none());
+    assert!(deployment["world_settings"]["llm"]["providers"][0].get("models").is_none());
     let engine = documents::settings::configuration(&deployment);
     assert_eq!(engine.llm.models[0].model.name.as_ref(), model.name.as_ref());
     assert_eq!(engine.llm.models[0].model.window, model.window);
@@ -61,7 +61,7 @@ fn story_a_decodes_within_the_fakes_bounds() {
 
 #[test]
 fn story_as_chats_keep_the_stock_requester_ending() {
-    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let document = A.configuration();
     let temper_service::stock::Given::Own { jig, .. } = documents::given(&document) else {
         panic!("the composition supplies its settings")
     };
@@ -82,16 +82,13 @@ fn harness_chats_keep_the_result_ending() {
 #[test]
 fn story_as_forge_keeps_the_product_stock() {
     use temper_engine_domain_forge::settings::Value;
-    let document: serde_json::Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let document = A.configuration();
     let temper_service::stock::Given::Own { forge, .. } = documents::given(&document) else {
         panic!("the composition supplies its settings")
     };
     let engine = documents::settings::configuration(&document);
-    let limits = temper_service::limits::engine(
-        &engine.limits,
-        &temper_service::limits::profile(temper_service::limits::Profile::Small),
-    )
-    .expect("playground engine limits");
+    let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
+        .expect("playground engine limits");
     assert_eq!(forge, temper_service::stock::forge(&limits));
     let charters: Vec<_> = forge.iter().filter(|item| item.kind == 3).map(|item| &item.value.value).collect();
     assert_eq!(charters, [&Value::Charter(2), &Value::Charter(4)]);
@@ -113,10 +110,7 @@ fn story_as_documents_hold_the_product_change_and_review() {
     use jig_domain_tasks::{Contract, Parameter, Spec, Verdict};
     // The chat, change, producer and review coexist during the landing.
     const TASKS: u32 = 4;
-    let deployments = [
-        serde_json::from_slice(A.deployment).expect("story deployment"),
-        documents::world_document_with(documents::configure),
-    ];
+    let deployments = [A.configuration(), documents::world_document_with(documents::configure)];
     let spec = Spec {
         words: b"Review this change at the named head\nPull request: #1\nBranch: temper/1/c2\nBase: main\nHead: 0000000000000000000000000000000000000000\n".as_slice().into(),
         parameters: Box::new([
@@ -183,7 +177,7 @@ fn story_as_project_has_room_for_the_chat_and_its_delegate() {
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let batch = llm["asked"][0]["turns"][0]["lines"][1]["arguments"]["batch"].as_array().expect("delegate batch");
     let tasks = CHAT + u64::try_from(batch.len()).expect("batch size");
-    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let document = A.configuration();
     let engine = documents::settings::configuration(&document);
     assert!(u64::from(engine.limits.core.tasks.project_tasks) >= tasks);
 }
@@ -199,6 +193,7 @@ fn story_as_delegates_fit_the_result_contract_bound() {
                 connector: contract["connector"].as_u64().expect("connector").try_into().expect("connector fits"),
                 kind: contract["change_kind"].as_u64().expect("change kind").try_into().expect("kind fits"),
                 words: contract["words"].as_u64().expect("words").try_into().expect("words fit"),
+                choices: Box::new([])
             }
         ));
     }
@@ -206,11 +201,12 @@ fn story_as_delegates_fit_the_result_contract_bound() {
 
 #[test]
 fn story_as_deployment_offers_its_llm_cues_in_order() {
-    let deployment: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let deployment = A.configuration();
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let cues: Vec<_> =
         llm["asked"].as_array().expect("asked scripts").iter().map(|script| json!({"cue": script["cue"]})).collect();
-    assert_eq!(deployment["application"]["demo"]["llm"]["asked"], json!(cues));
+    let demo = documents::playground(&deployment).expect("story playground");
+    assert_eq!(demo.cues.iter().map(|cue| json!({"cue":core::str::from_utf8(cue).unwrap()})).collect::<Vec<_>>(), cues);
 }
 
 #[test]
@@ -255,12 +251,11 @@ fn story_as_task_bounds_hold_the_chat_owners_authority() {
 }
 
 #[test]
-fn story_as_scripts_are_the_templates() {
+fn story_as_scripts_are_the_binarys() {
     let story: Value = serde_json::from_slice(A.llm).expect("story LLM");
-    let template: Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("template");
+    let template: Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("binary scripts");
     for scripts in ["asked", "cued"] {
-        let templates = template["application"]["demo"]["llm"][scripts].as_array().expect("template scripts");
+        let templates = template[scripts].as_array().expect("template scripts");
         for script in story[scripts].as_array().expect("story scripts") {
             let matching = templates.iter().find(|candidate| candidate["cue"] == script["cue"]).expect("template cue");
             let mut expected = matching.clone();
@@ -384,11 +379,44 @@ fn story_as_pace_is_paced() {
 }
 
 #[test]
+fn story_a_start_is_start_at_the_default_forge() {
+    let wall = Wall::from_nanos(1_700_000_000_000_000_000);
+    let default = A.start(7, wall);
+    let explicit = A.start_at(7, wall, documents::FORGE);
+    assert_eq!(default.seed, explicit.seed);
+    assert_eq!(default.wall, explicit.wall);
+    assert_eq!(default.links, explicit.links);
+    assert_eq!(default.deployment.forge, documents::FORGE);
+    assert_eq!(default.deployment, explicit.deployment);
+    assert_eq!(default.fakes.peer.image().expect("fresh peer"), explicit.fakes.peer.image().expect("fresh peer"));
+    assert_eq!(
+        default.fakes.forge.forge.borrow().domain.image().expect("fresh forge"),
+        explicit.fakes.forge.forge.borrow().domain.image().expect("fresh forge")
+    );
+}
+
+#[test]
+fn composition_settings_name_the_starts_forge() {
+    let address = "127.0.0.1:10002".parse().expect("forge address");
+    let mut deployment = documents::world_document();
+    deployment.forge = address;
+    documents::configure(&mut deployment);
+    let grants = &deployment["world_settings"]["policies"][0]["policy"]["ceiling"]["grants"];
+    for grant in grants.as_array().expect("composition grants") {
+        assert_eq!(grant["pattern"]["segments"][1], address.to_string());
+    }
+    let forges = documents::forges_at(deployment.forge);
+    assert_eq!(forges.get(0).expect("one forge").address, address);
+    let table = documents::hosted_git::table_at(b"acme/app", None, deployment.forge);
+    assert_eq!(table.base.as_ref(), b"http://127.0.0.1:10002");
+}
+
+#[test]
 fn story_a_starts_and_prints_its_link() {
     let wall = Wall::from_nanos(1_700_000_000_000_000_000);
     let start = A.start(7, wall);
     assert_eq!(start.links, crate::Links::Print);
-    assert_eq!(start.deployment.as_ref(), A.deployment);
+    assert_eq!(start.deployment.document, serde_json::from_slice::<serde_json::Value>(A.deployment).unwrap());
     let mut world = story::world(start);
     assert_eq!(world.seed(), 7);
     assert_eq!(world.wall(), wall);
@@ -406,7 +434,7 @@ fn story_a_starts_and_prints_its_link() {
     assert_eq!(line.process.as_ref(), b"temper serve");
     assert_eq!(line.stream, skein_sim_world::Stream::Output);
     let url = std::str::from_utf8(&line.line).expect("sign-in URL");
-    let prefix = format!("http://{}/jig/v1/sign-in/link?secret=", documents::CLIENTS);
+    let prefix = format!("http://{}/sign-in?secret=", documents::CLIENTS);
     let secret = url.strip_prefix(&prefix).expect("service's sign-in URL");
     assert!(!secret.is_empty() && !secret.contains(['\r', '\n']));
     assert!(
@@ -489,14 +517,14 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
 }
 
 fn story_a_stock() -> (jig_protocol_config::Engine, jig_domain_core::settings::Defaults) {
-    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let document = A.configuration();
     let engine = documents::settings::configuration(&document);
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     (engine, defaults)
 }
 
 fn configured_deployments() -> [(jig_protocol_config::Engine, jig_domain_core::settings::Defaults); 2] {
-    [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()].map(|deployment| {
+    [A.configuration(), documents::world_document()].map(|deployment| {
         let engine = documents::settings::configuration(&deployment);
         let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
             panic!("the composition supplies its settings")

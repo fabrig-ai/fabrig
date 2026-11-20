@@ -91,6 +91,21 @@ impl Failure {
         Self { step: step.into(), why: why.into(), recovery: false }
     }
 }
+// The tool's verdict notes (temper/docs/design/redeploy.md, 6.3).
+const SERVING_VERDICT_UNSUPPORTED: &str =
+    "serving verdict: a build without upgrade --workers is redeployed with --together";
+const SERVING_VERDICT_REFUSED: &str = "serving verdict: refused by the staged build; its lines above say why";
+const REHEARSAL_LINKED: &str = "rehearsal linked ";
+const REHEARSAL_PREFIX: &str = "temper-engine upgrade: rehearsal linked ";
+const REHEARSAL_UNKNOWN: &str = "rehearsal linked: unknown; the staged build may copy the whole checkpoint at the stop";
+
+#[derive(Clone, Copy)]
+enum CheckStep {
+    Check,
+    ServingVerdict,
+    Verdict,
+}
+
 struct Run<'a> {
     description: &'a Description,
     commit: &'a str,
@@ -120,15 +135,22 @@ impl Run<'_> {
     }
     fn perform(&mut self, mode: Mode) -> Result<(), Failure> {
         self.before()?;
+        self.checkpoint_for_check()?;
+        let may_stay = self.check(CheckStep::Check)?;
+        if !may_stay || mode == Mode::Together {
+            return self.together();
+        }
         match mode {
-            Mode::Together => self.together(false),
+            Mode::Together => unreachable!("together has its own path"),
             Mode::Engine | Mode::Workers => {
-                self.stop(Part::Engine)?;
-                if !self.check()? {
-                    self.restore()?;
-                    return self.together(true);
+                if !self.check(CheckStep::ServingVerdict)? {
+                    return self.together();
                 }
-                self.backup()?;
+                self.stop(Part::Engine)?;
+                if !self.check(CheckStep::Verdict)? {
+                    self.restore()?;
+                    return self.together();
+                }
                 self.swap(Part::Engine)?;
                 self.restart(&[Part::Engine], &self.workers(), self.window)?;
                 match mode {
@@ -159,23 +181,9 @@ impl Run<'_> {
             self.journal.record.previous.push(Previous { part: name.into(), commit: commit.clone() });
             self.note(&format!("{name} before {commit}"))?;
         }
-        for (index, worker) in self.description.workers.iter().enumerate() {
-            let step = format!("{} document", worker.name);
-            let output = self.hosts.run(Part::Worker(index), &worker.document);
-            success(&step, &output)?;
-            let document: serde_json::Value =
-                serde_json::from_str(&output.stdout).map_err(|why| Failure::at(&step, why.to_string()))?;
-            let grace = document
-                .get("workers")
-                .and_then(serde_json::Value::as_array)
-                .and_then(|workers| {
-                    workers
-                        .iter()
-                        .find(|entry| entry.get("name").and_then(serde_json::Value::as_str) == Some(&worker.name))
-                })
-                .and_then(|worker| worker.pointer("/graces/grace_ms"))
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| Failure::at(&step, format!("workers entry {}: missing graces.grace_ms", worker.name)))?;
+        let grace =
+            temper_service_core::startup::fixed_worker().graces.expect("temper fixes worker graces").grace.as_millis();
+        for worker in &self.description.workers {
             self.journal.record.graces.push(Grace { worker: worker.name.clone(), grace_ms: grace });
             self.note(&format!("worker {} grace {grace} ms", worker.name))?;
         }
@@ -200,8 +208,11 @@ impl Run<'_> {
         let name = part_name(self.description, part);
         self.command(part, &format!("{name} stop"), line)?;
         self.note(&format!("{name} stopped at {at}"))?;
-        if part == Part::Engine && self.journal.record.told.is_none() {
-            self.read_told(at)?;
+        if part == Part::Engine {
+            if self.journal.record.told.is_none() {
+                self.read_told(at)?;
+            }
+            self.backup()?;
         }
         Ok(())
     }
@@ -221,53 +232,89 @@ impl Run<'_> {
         }
         Ok(())
     }
-    fn check(&mut self) -> Result<bool, Failure> {
+    fn checkpoint_for_check(&mut self) -> Result<(), Failure> {
+        let text = hosts::ctl(self.description, &["deployment", "checkpoint"], self.hosts)
+            .map_err(|why| Failure::at("check checkpoint", why))?;
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|why| Failure::at("check checkpoint", why.to_string()))?;
+        let name = value
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .filter(|name| checkpoint_name(name))
+            .ok_or_else(|| Failure::at("check checkpoint", "invalid checkpoint name"))?;
+        self.journal.record.checkpoint = Some(name.into());
+        self.note(&format!("check checkpoint {name}"))
+    }
+    fn check(&mut self, kind: CheckStep) -> Result<bool, Failure> {
         let binary = format!("{}/{}/temper-engine", self.description.engine.builds, self.commit);
-        let output = self.hosts.run(Part::Engine, &fill(&self.description.engine.check, &[("binary", &binary)]));
+        let (step, template, checkpoint) = match kind {
+            CheckStep::Check => ("check", &self.description.engine.check, &self.journal.record.checkpoint),
+            CheckStep::ServingVerdict => {
+                ("serving verdict", &self.description.engine.verdict, &self.journal.record.checkpoint)
+            }
+            CheckStep::Verdict => ("verdict", &self.description.engine.verdict, &self.journal.record.backup),
+        };
+        let checkpoint = checkpoint.as_deref().expect("checkpoint taken before its check or verdict");
+        let output = self.hosts.run(Part::Engine, &fill(template, &[("binary", &binary), ("checkpoint", checkpoint)]));
         let lines: Vec<String> = output.stdout.lines().chain(output.stderr.lines()).map(str::to_owned).collect();
-        self.journal.record.check = Some(Check { code: output.code, lines: lines.clone() });
+        let check = Some(Check { code: output.code, lines: lines.clone() });
+        match kind {
+            CheckStep::Check => self.journal.record.check = check,
+            CheckStep::ServingVerdict => {}
+            CheckStep::Verdict => self.journal.record.verdict = check,
+        }
         for line in &lines {
             self.note(line)?;
         }
-        // Save even a check with no output, including a command which could not run.
-        self.note(&format!("check exit {:?}", output.code))?;
-        success("check", &output)?;
+        // Save even a check or verdict with no output, including a command which could not run.
+        self.note(&format!("{step} exit {:?}", output.code))?;
+        if let Err(failure) = success(step, &output) {
+            if let CheckStep::ServingVerdict = kind {
+                self.note(if lines.iter().any(|line| line.contains("no command upgrade --workers")) {
+                    SERVING_VERDICT_UNSUPPORTED
+                } else {
+                    SERVING_VERDICT_REFUSED
+                })?;
+            }
+            return Err(failure);
+        }
+        match kind {
+            CheckStep::Check => {}
+            CheckStep::ServingVerdict | CheckStep::Verdict => {
+                let note = match rehearsal_counts(&lines) {
+                    Some((linked, copied)) => format!("{step} {REHEARSAL_LINKED}{linked} files, copied {copied}"),
+                    None => format!("{step} {REHEARSAL_UNKNOWN}"),
+                };
+                self.note(&note)?;
+            }
+        }
         let may_stay =
             lines.iter().rev().find_map(|line| line.rsplit_once("workers may stay: ").map(|(_, verdict)| verdict))
                 == Some("yes");
-        self.note(if may_stay {
-            "check workers may stay: yes"
-        } else {
-            "check workers may stay: no or unknown; every part together"
-        })?;
+        self.note(&format!(
+            "{step} workers may stay: {}",
+            if may_stay { "yes" } else { "no or unknown; every part together" }
+        ))?;
         Ok(may_stay)
     }
     fn backup(&mut self) -> Result<(), Failure> {
-        let ran_job = self
-            .journal
-            .record
-            .check
-            .as_ref()
-            .is_some_and(|check| check.lines.iter().any(|line| line.contains("upgrade: ran ")));
-        if !ran_job || self.journal.record.backup.is_some() {
-            return Ok(());
+        let binary = format!("{}/temper-engine", self.description.engine.binaries);
+        let output = self.hosts.run(Part::Engine, &fill(&self.description.engine.checkpoint, &[("binary", &binary)]));
+        for line in output.stdout.lines().chain(output.stderr.lines()) {
+            self.note(line)?;
         }
-        let at = self.hosts.now();
-        let date = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(at))
-            .expect("u64 wall nanoseconds fit the calendar");
-        let name = format!(
-            "{}-{:04}{:02}{:02}T{:02}{:02}{:02}Z",
-            self.commit,
-            date.year(),
-            u8::from(date.month()),
-            date.day(),
-            date.hour(),
-            date.minute(),
-            date.second()
-        );
-        self.command(Part::Engine, "backup", &fill(&self.description.engine.backup, &[("name", &name)]))?;
-        self.journal.record.backup = Some(name.clone());
-        self.note(&format!("backup {name}"))
+        success("stop checkpoint", &output)?;
+        let name = output
+            .stdout
+            .lines()
+            .chain(output.stderr.lines())
+            .find_map(|line| {
+                let name = line.strip_prefix("temper-engine checkpoint: ")?.split_whitespace().next()?;
+                checkpoint_name(name).then_some(name)
+            })
+            .ok_or_else(|| Failure::at("stop checkpoint", "invalid checkpoint name"))?;
+        self.journal.record.backup = Some(name.into());
+        self.note(&format!("stop checkpoint {name}; backup"))
     }
     fn swap(&mut self, part: Part) -> Result<(), Failure> {
         let name = part_name(self.description, part);
@@ -391,7 +438,7 @@ impl Run<'_> {
         }
         Ok(())
     }
-    fn together(&mut self, checked: bool) -> Result<(), Failure> {
+    fn together(&mut self) -> Result<(), Failure> {
         let from = self.hosts.now();
         self.outage_from = Some(from);
         let lines: Vec<_> = self
@@ -421,10 +468,6 @@ impl Run<'_> {
             return Err(Failure::at("workers stop", "missing command answers"));
         }
         self.stop(Part::Engine)?;
-        if !checked {
-            self.check()?; // In together mode a no verdict still permits the drained restart.
-        }
-        self.backup()?;
         for part in std::iter::once(Part::Engine).chain(self.workers()) {
             self.swap(part)?;
         }
@@ -484,12 +527,28 @@ impl Run<'_> {
         Ok(())
     }
 }
+fn rehearsal_counts(lines: &[String]) -> Option<(&str, &str)> {
+    let counts = lines.iter().find_map(|line| line.strip_prefix(REHEARSAL_PREFIX))?;
+    let (linked, copied) = counts.split_once(" files, copied ")?;
+    if linked.is_empty()
+        || copied.is_empty()
+        || !linked.bytes().all(|byte| byte.is_ascii_digit())
+        || !copied.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    Some((linked, copied))
+}
+
 fn success(step: &str, output: &Output) -> Result<(), Failure> {
     if output.code == Some(0) {
         Ok(())
     } else {
         Err(Failure::at(step, format!("exit {:?}: {} {}", output.code, output.stderr.trim(), output.stdout.trim())))
     }
+}
+fn checkpoint_name(name: &str) -> bool {
+    jig_protocol_store::CheckpointName::parse(name.as_bytes()).is_some()
 }
 fn installed(text: &str, name: &str) -> Option<String> {
     let commit = text.split_whitespace().nth(2)?.strip_prefix('(')?.strip_suffix(')')?;

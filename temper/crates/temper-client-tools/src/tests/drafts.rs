@@ -11,7 +11,7 @@ fn ready_sends_one_keyed_home_request_and_prints_the_answered_row() {
         (f::PROJECT, None, f::DRAFT_PATH.as_bytes())
     );
     let w::DraftChange::Ready(ready) = request.change else { panic!("ready") };
-    assert_eq!(*ready.chat(), None);
+    assert_eq!(ready.chat, None);
     assert_eq!(root.sends.len(), 1);
     assert!(root.sent_name(call).is_some());
     root.adoption_answer(call, w::Outcome::Drafted(f::landed_draft(true, None, None, 0)));
@@ -24,9 +24,9 @@ fn repository_and_chat_reach_ready_and_not_ready_uses_the_answered_identity() {
     let (mut root, call) = f::draft_root("ready", &["--owner", "o", "--name", "n", "--chat", "7"]);
     let request = root.sent_draft(call);
     let repository = request.repository.expect("named repository");
-    assert_eq!((repository.owner(), repository.name()), (b"o".as_slice(), b"n".as_slice()));
+    assert_eq!((repository.owner.as_ref(), repository.name.as_ref()), (b"o".as_slice(), b"n".as_slice()));
     let w::DraftChange::Ready(ready) = request.change else { panic!("ready") };
-    assert_eq!(*ready.chat(), Some(7));
+    assert_eq!(ready.chat, Some(7));
     root.adoption_answer(call, w::Outcome::Drafted(f::landed_draft(true, Some(7), None, 0)));
     assert_eq!(root.answer(call).expect("ready").status, 0);
     let (mut root, call) = f::draft_root("not-ready", &["--owner", "o", "--name", "n"]);
@@ -64,23 +64,12 @@ fn every_draft_refusal_says_what_to_do_and_exits_two() {
         (w::DraftRefusal::Full, "shop keeps 64 landed drafts, every one listed: say one not ready first\n"),
     ] {
         let (mut root, call) = f::draft_root("ready", &[]);
-        root.adoption_answer(
-            call,
-            w::Outcome::DraftRefused(
-                w::DraftRefused::new(&w::CEILINGS, w::DraftRefusedParts { reason }).expect("refusal"),
-            ),
-        );
+        root.adoption_answer(call, w::Outcome::DraftRefused(w::DraftRefused { reason }));
         let printed = root.answer(call).expect("draft refused");
         assert_eq!((printed.status, printed.stderr.as_ref()), (2, expected.as_bytes()));
     }
     let (mut root, call) = f::draft_root("ready", &["--owner", "o", "--name", "n"]);
-    root.adoption_answer(
-        call,
-        w::Outcome::DraftRefused(
-            w::DraftRefused::new(&w::CEILINGS, w::DraftRefusedParts { reason: w::DraftRefusal::NoRepository })
-                .expect("refusal"),
-        ),
-    );
+    root.adoption_answer(call, w::Outcome::DraftRefused(w::DraftRefused { reason: w::DraftRefusal::NoRepository }));
     assert_eq!(root.answer(call).expect("no repository").stderr.as_ref(), b"no repository o/n in shop\n");
 }
 #[test]
@@ -115,7 +104,7 @@ fn list_watches_the_project_and_prints_all_three_states_then_closes() {
     let printed = root.answer(call).expect("drafts panel");
     assert_eq!(printed.status, 0);
     f::check_golden("draft_list", &printed.stdout);
-    assert_eq!(root.watches.len(), 1, "only me stays open");
+    assert_eq!(root.watches.len(), 0, "no application watch stays open");
     assert_eq!(root.closed.len(), 1);
 }
 #[test]
@@ -159,7 +148,7 @@ fn until_changed_ignores_the_first_and_identical_panels() {
     let printed = root.answer(call).expect("changed");
     assert_eq!(printed.status, 0);
     assert!(skein_lib::bytes::find(&printed.stdout, b"not ready").is_some());
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
 }
 #[test]
 fn changed_wait_times_out_and_closes_even_without_a_panel() {
@@ -174,7 +163,7 @@ fn changed_wait_times_out_and_closes_even_without_a_panel() {
     assert_eq!((printed.status, printed.stdout.as_ref()), (3, b"not met: timeout\n".as_slice()));
     // jig closes an unanswered opening watch once its late answer arrives.
     root.deliver_drafts(&f::drafts_panel(&[]));
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     assert!(root.answer(call).is_none());
 }
 #[test]

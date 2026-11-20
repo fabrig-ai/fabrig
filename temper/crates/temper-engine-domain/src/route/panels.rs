@@ -63,6 +63,9 @@ pub(crate) fn document(
     } else {
         None
     };
+    if let Some(temper_engine_domain_forge::Document::Changes(view)) = &mut panel {
+        crate::changes_from::fill(domain, env, decision, view);
+    }
     let outcome = if panel.is_some() || forges.is_some() || trials.is_some() || approvals.is_some() || ways.is_some() {
         views::Made::Ready
     } else {
@@ -126,7 +129,7 @@ pub(crate) fn document(
     );
 }
 
-fn trial_rows(domain: &Domain, limits: &Limits, person: u64) -> Box<[temper_engine_domain_trials::Row]> {
+fn trial_rows(domain: &Domain, limits: &Limits, person: u64) -> Box<[crate::TrialRow]> {
     let mut ordered = skein_lib::Map::with_capacity(crate::limits::trial_limits(limits).rows);
     for row in domain.trials.rows(person) {
         let key = (u64::MAX.saturating_sub(row.began.as_nanos()), row.account);
@@ -134,11 +137,17 @@ fn trial_rows(domain: &Domain, limits: &Limits, person: u64) -> Box<[temper_engi
     }
     let mut rows = skein_lib::List::with_capacity(ordered.len());
     for (_, row) in &ordered {
-        rows.push(temper_engine_domain_trials::Row {
+        rows.push(crate::TrialRow {
             account: row.account,
-            person: row.person,
             task: row.task,
-            began: row.began,
+            run_wait: if row.state == temper_engine_domain_trials::State::Running {
+                match row.task {
+                    Some(task) => domain.trial_waits.get(&task).copied().flatten(),
+                    None => None,
+                }
+            } else {
+                None
+            },
             took: row.took,
             step: row.step,
             state: row.state,

@@ -531,6 +531,7 @@ fn inbox_words(entry: &d::InboxEntry, words: &[SeeWords]) -> Option<Box<[u8]>> {
                 }
                 jig_domain_core::reads::EndedValue::Task { .. }
                 | jig_domain_core::reads::EndedValue::Proposal(_)
+                | jig_domain_core::reads::EndedValue::PartyProposal(_)
                 | jig_domain_core::reads::EndedValue::PersonProposal { .. }
                 | jig_domain_core::reads::EndedValue::Escalation { .. }
                 | jig_domain_core::reads::EndedValue::PersonTask { .. }
@@ -591,6 +592,7 @@ fn task_document(answer: &Answer) -> Option<&d::Task> {
         Answer::Ended(ended) => match &ended.value {
             jig_domain_core::reads::EndedValue::Task { document, .. } => Some(document),
             jig_domain_core::reads::EndedValue::Proposal(_)
+            | jig_domain_core::reads::EndedValue::PartyProposal(_)
             | jig_domain_core::reads::EndedValue::PersonProposal { .. }
             | jig_domain_core::reads::EndedValue::Escalation { .. }
             | jig_domain_core::reads::EndedValue::Question { .. }
@@ -686,6 +688,7 @@ fn task_text(
         Answer::Ended(ended) => match &ended.value {
             jig_domain_core::reads::EndedValue::Task { result, .. } => Some(&result.ending),
             jig_domain_core::reads::EndedValue::Proposal(_)
+            | jig_domain_core::reads::EndedValue::PartyProposal(_)
             | jig_domain_core::reads::EndedValue::PersonProposal { .. }
             | jig_domain_core::reads::EndedValue::Escalation { .. }
             | jig_domain_core::reads::EndedValue::Question { .. }

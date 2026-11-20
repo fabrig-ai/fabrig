@@ -31,6 +31,8 @@ fn waiting() -> Event {
         entry: 100,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -166,6 +168,8 @@ fn an_unpushed_changes_branch_is_read_only_when_due() {
                         child: 71,
                         status: change::Status::Unknown,
                         no_change: false,
+                        flake: false,
+                        no_test: false,
                         failed: false,
                         cancelled: false,
                         words: Box::new([]),

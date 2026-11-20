@@ -16,6 +16,7 @@ fn track(core: &mut Core, limits: &Limits) {
         limits,
         tasks::Event::Amend {
             operation: tasks::Amend {
+                funder: None,
                 task: PRIORITY_TASK,
                 message: TRACK_MESSAGE,
                 stop_run: false,
@@ -26,7 +27,6 @@ fn track(core: &mut Core, limits: &Limits) {
                 }),
             },
             places: Box::new([]),
-            funder: None,
             reply_to: ReplyTo::new(Token::new(TRACK_REQUEST)),
             by: tasks::Party::Person(PRIORITY_PARTY),
         },

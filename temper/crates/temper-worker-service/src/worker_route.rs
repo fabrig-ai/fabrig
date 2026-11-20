@@ -5,6 +5,7 @@ use jig_domain_host as hub;
 use jig_protocol_worker_agents::route;
 use skein_lib::{List, Reader, Token};
 use smith_host_domain as smith;
+use temper_protocol_worker_wire::v1::Record;
 use temper_worker_domain::{Encodable, Encoded};
 
 pub use route::activity;
@@ -122,8 +123,7 @@ pub fn job_spec(
     limits: &temper_protocol_worker_wire::v1::Limits,
 ) -> Result<temper_worker_domain::wire::JobSpec, temper_worker_domain::wire::Undecodable> {
     let spec = temper_protocol_worker_wire::v1::JobSpec::decode(limits, &mut Reader::new(bytes))
-        .or(Err(temper_worker_domain::wire::Undecodable))?
-        .into_parts();
+        .or(Err(temper_worker_domain::wire::Undecodable))?;
     Ok(temper_worker_domain::wire::JobSpec { command: spec.command, request: spec.request })
 }
 fn part(token: Token, parts: &[jig_protocol_worker_wire::Part]) -> Option<&[u8]> {

@@ -1,17 +1,19 @@
 mod box_kinds;
 mod box_link_form;
 mod commands;
+mod configuration_file;
+mod figures;
 mod help;
 mod init_clients;
 mod limits;
 mod reference_settings;
 mod settings_fields;
+mod upgrade;
 
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
-    use jig_protocol_config::profile::{Profile, profile};
-    let span = profile(Profile::Small).clients.link_span;
+    let span = jig_protocol_config_fixtures::small().clients.link_span;
     let hour = skein_lib::Duration::from_secs(3600);
     let hours = span.as_nanos().div_euclid(hour.as_nanos());
     let words = format!("within {hours} hours");
@@ -24,9 +26,9 @@ fn the_box_footer_hours_agree_with_the_small_profile() {
 #[test]
 fn id_login_agrees_with_the_effective_users_passwd_entry() {
     let user = skein_shell::effective_user();
-    let expected = super::login_passwd(user).expect("effective user's passwd login");
+    let expected = skein_shell::login_passwd(user).expect("effective user's passwd login");
     assert_eq!(super::login(user).expect("Linux login"), expected);
-    assert_eq!(super::forge_exec::login_id().expect("macOS login lookup"), expected);
+    assert_eq!(skein_shell::login_id().expect("macOS login lookup"), expected);
 }
 
 #[test]
@@ -60,6 +62,34 @@ const OPEN_LINK: &[u8] =
 type OpenRow = (&'static str, &'static [u8], Result<(bool, &'static str), &'static str>);
 const OPEN_ARGUMENTS: &[OpenRow] = &[
     ("link", OPEN_LINK, Ok((true, "127.0.0.1:7000"))),
+    (
+        "page link",
+        b"http://127.0.0.1:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Ok((true, "127.0.0.1:7000")),
+    ),
+    (
+        "IPv6 page link",
+        b"http://[::1]:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Ok((true, "[::1]:7000")),
+    ),
+    (
+        "remote page link",
+        b"http://10.0.0.1:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Err("the engine's address must be on loopback"),
+    ),
+    (
+        "short page secret",
+        b"http://127.0.0.1:7000/sign-in?secret=AA",
+        Err("not a link or an address: http://127.0.0.1:7000/sign-in?secret=AA"),
+    ),
+    (
+        "page other query",
+        b"http://127.0.0.1:7000/sign-in?other=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Err(
+            "not a link or an address: http://127.0.0.1:7000/sign-in?other=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ),
+    ),
+    ("page no query", b"http://127.0.0.1:7000/sign-in", Err("not a link or an address: http://127.0.0.1:7000/sign-in")),
     ("address", b"http://127.0.0.1:7000".as_slice(), Ok((false, "127.0.0.1:7000"))),
     ("slash", b"http://127.0.0.1:7000/".as_slice(), Ok((false, "127.0.0.1:7000"))),
     ("IPv6", b"http://[::1]:7000/".as_slice(), Ok((false, "[::1]:7000"))),
@@ -118,7 +148,13 @@ fn open_without_two_arguments_prints_its_usage() {
 
 pub(crate) mod configuration;
 
+// This check names open files through /proc/self/fd links; macOS's /dev/fd has no links.
+#[cfg(target_os = "linux")]
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the comparison retains typed limits and the scripted listener for both startup routes"
+)]
 fn the_standalone_operations_check_retains_no_descriptors() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let directory = std::env::temp_dir().join(format!("temper-operations-{}", std::process::id()));
@@ -133,7 +169,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
     };
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") {
+        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
             continue;
         }
         write(std::str::from_utf8(&name).expect("fixture path"), bytes.expose());
@@ -147,30 +183,95 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     ] {
         write(name, bytes);
     }
-    let program = directory.join("temper");
-    write("temper", b"program at start");
-    let (agent, document) = configuration::documents(&directory, program.to_str().expect("program path"));
-    write("agent.json", &agent);
+    let listener = crate::scripted::choose().expect("scripted listener");
+    let environment = [(
+        Box::from(crate::scripted::ADDRESS),
+        listener.local_addr().expect("scripted address").to_string().into_bytes().into_boxed_slice(),
+    )];
+    let (agent, mut config) = configuration::typed_documents(&directory, "/fixture/temper");
+    let file = temper_config_shell::render(&configuration::file(), temper_config_shell::Shape::Standalone);
+    let named_file = directory.join("worker.secret");
+    write(temper_config_shell::FILE, &file);
+    temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let composed = temper_agent_fixtures::at(&config, &directory);
+    configuration::support::turn_bounds::apply(&mut config, configuration::support::turn_bounds::turn_body(&composed));
+    let document = serde_json::to_vec(&config).expect("deployment document");
     assert_eq!(configuration::flags(&directory).len(), 6);
-    let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
-        .expect("standalone operations");
+    let operations = super::operations_in_with_limits(
+        "temper",
+        &environment,
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &temper_service::stock::Given::Stock,
+        &config.jig,
+        &config.limits,
+    )
+    .expect("standalone operations");
     assert_no_descriptors_in(&directory);
+    assert!(operations > 0);
+    assert!(!directory.join("workspaces").exists(), "counting credit must not pin the agent or open roots");
     let mut owned = Vec::new();
-    let service = super::prepare(&[], b"/", &configuration::directories(&directory), &document, &mut owned)
-        .expect("same standalone preparation");
+    let (mut service, _, _) = super::serve::prepare_with_limits(
+        "temper",
+        &environment,
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        &temper_service::stock::Given::Stock,
+        None,
+        true,
+        &[],
+        Some((&config.jig, &config.limits)),
+        None,
+        &temper_config_shell::Programs::default(),
+    )
+    .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
+    temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close opened store");
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
-    assert_eq!(fs::read(directory.join("worker-root/agent/temper")).expect("pinned program"), b"program at start");
-    assert_eq!(fs::read(directory.join("worker-root/agent/agent.json")).expect("pinned configuration"), agent);
-    fs::remove_file(&program).expect("remove configured program");
-    let why =
-        super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
+    let binary = std::env::current_exe().expect("current binary");
+    assert_eq!(
+        fs::metadata(directory.join("workspaces/agent").join(binary.file_name().expect("binary name")))
+            .expect("pinned program")
+            .len(),
+        fs::metadata(&binary).expect("running program").len()
+    );
+    let prepared = super::serve::configured_agent(
+        &document,
+        &configuration::directories(&directory),
+        &environment,
+        &temper_config_shell::Programs::default(),
+    )
+    .expect("derived agent")
+    .expect("local agent");
+    assert_eq!(
+        fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"),
+        prepared.bytes.as_ref()
+    );
+    fs::remove_file(&named_file).expect("remove named file");
+    assert_eq!(
+        super::operations_in(&environment, b"/", &configuration::directories(&directory), &document)
+            .expect("count without named file"),
+        operations
+    );
+    write(temper_config_shell::FILE, &file);
+    let why = super::prepare_in(&environment, b"/", &configuration::directories(&directory))
+        .err()
+        .expect("missing file refused");
     assert!(why.starts_with("temper serve: "), "{why}");
-    assert!(why.contains(program.to_str().expect("program path")), "{why}");
+    assert!(why.contains(named_file.to_str().expect("named path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
+// Only the Linux descriptor-link check calls this helper.
+#[cfg(target_os = "linux")]
 fn assert_no_descriptors_in(directory: &std::path::Path) {
     for entry in std::fs::read_dir("/proc/self/fd").expect("open descriptor list") {
         let path = entry.expect("descriptor entry").path();
@@ -196,68 +297,28 @@ fn ctl_is_configured() {
 }
 
 #[test]
-fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
+fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     // Resolve the fixture's data paths as a deployment does.
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
-    value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"OpenAI", "number":1, "signed_in_plan":false, "endpoint":"openai", "sources":{
-            "sign_in": {"issuer":"https://issuer.example", "client":"client", "scopes":[],
-                "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
-                "keys":"https://issuer.example/keys", "transport":"tls", "server_name":"issuer.example",
-                "must_grant":[], "redirect_path":"callback", "redirect_port":3000}
-        }
-    }]);
     // Keep git concurrency at one so the small profile's 48 sockets reach the
     // redirect-port check after this fixture adds an OAuth listener.
-    value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
-    let mut fake = value.clone();
-    fake["application"]["machine"].as_object_mut().expect("machine").remove("owned");
-    configuration::fake_entry(&mut fake["application"]["machine"]["fake"], "127.0.0.1:3000");
-    let mut demo = fake.clone();
-    demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
-    let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
-    for field in ["providers", "endpoints"] {
-        let member = fixture["engine"]["llm"][field].as_array().expect("LLM table").last().expect("demo member");
-        demo["engine"]["llm"][field].as_array_mut().expect("LLM table").push(member.clone());
-    }
-    demo["application"]["demo"] = fixture["application"]["demo"].clone();
-    let mut bad_demo = demo.clone();
-    bad_demo["application"]["demo"]["project"] = 9.into();
-    for (document, expected) in [
-        (&bad_demo, "application.demo.project: unknown member\n"),
-        (
-            &demo,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
-        ),
-        (
-            &value,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.owned.listen\n",
-        ),
-        (
-            &fake,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.fake.listen\n",
-        ),
-    ] {
-        assert_eq!(
-            super::setup::check(
-                &serde_json::to_vec(document).expect("local JSON"),
-                &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories")
-            )
-            .expect_err("local listen conflict"),
-            expected
-        );
-    }
-    // The same API on a connected forge belongs to the remote peer, not this process.
-    value["application"]["machine"].as_object_mut().expect("machine").remove("owned");
-    let deployment = super::setup::check(
-        &serde_json::to_vec(&value).expect("connected JSON"),
-        &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
-    )
-    .expect("connected forge");
-    assert!(deployment.demo.is_none());
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
+    let mut providers = temper_service::stock::providers();
+    providers[0].provider.sign_in.as_mut().unwrap().redirect_port = Some(8370);
+    let given = temper_service::stock::Given::Stock
+        .with_providers(providers.clone(), Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]));
+    let bytes = serde_json::to_vec(&value).expect("JSON");
+    assert_eq!(
+        super::setup::check_with(&bytes, &directories, &given).unwrap_err(),
+        "providers.setting.providers[0].sources.sign_in.redirect_port: fixed port conflicts with the box's scripted model\n"
+    );
+    // A remote peer's port is not a listener of this process.
+    providers[0].provider.sign_in.as_mut().unwrap().redirect_port = Some(3000);
+    let given = temper_service::stock::Given::Stock
+        .with_providers(providers, Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]));
+    assert!(super::setup::check_with(&bytes, &directories, &given).expect("remote port").demo.is_some());
 }
 
 #[test]
@@ -332,11 +393,21 @@ fn configure_program_login(arguments: &[&str]) -> Result<super::Command, String>
 
 #[test]
 fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
+    use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("forge-not-owned");
-    let document = configuration::check_document(scratch.path());
-    std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
+    std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).expect("private deployment root");
+    std::fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        temper_config_shell::render(&configuration::file(), temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
     std::fs::write(scratch.path().join("box/groups/1"), b"fake\n").expect("kind");
+    configuration::setup(
+        scratch.path(),
+        1,
+        serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3000"},"remote":"http://127.0.0.1:3000","git":"demo/bin/git"}),
+    );
     let refused = super::forge::start(
         &configuration::directories(scratch.path()),
         &["run".into(), "1".into(), "forgejo".into()],
@@ -346,46 +417,6 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     .expect_err("fake is not owned");
     assert_eq!(refused.line(), "temper forge run: forge 1: it is fake, not owned\n");
     assert!(!scratch.path().join("forge-1").exists());
-}
-
-pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {
-    let (agent, input) = configuration::documents(directory, "/missing/temper");
-    let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
-    input.as_object_mut().expect("document object").remove("engine");
-    input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] =
-        serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
-    (agent, input)
-}
-#[test]
-fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    let directory = std::env::temp_dir().join(format!("temper-worker-alone-{}", std::process::id()));
-    fs::create_dir(&directory).expect("worker-alone fixture");
-    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (agent, mut input) = worker_document(&directory);
-    fs::write(directory.join("temper"), b"worker program").expect("program fixture");
-    input["workers"][0]["agent"]["program"] = serde_json::json!(directory.join("temper"));
-    fs::write(directory.join("agent.json"), agent).expect("worker-alone fixture");
-    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
-    let secret = directory.join("worker.secret");
-    fs::write(&secret, b"worker-secret").expect("worker-alone fixture");
-    fs::set_permissions(secret, fs::Permissions::from_mode(0o600)).expect("worker-alone fixture");
-    let mut owned = Vec::new();
-    let (service, store) = super::prepare_with_store(
-        &[],
-        b"/",
-        &configuration::directories(&directory),
-        &serde_json::to_vec(&input).expect("worker-alone fixture"),
-        &mut owned,
-    )
-    .expect("worker-alone fixture");
-    assert!(store.is_empty(), "no deployment root");
-    assert_eq!(owned.len(), 1, "only the worker root");
-    let super::Service::Worker(_) = service else { panic!("worker service has no engine or setup host") };
-    assert!(!directory.join("state").exists(), "no store directory created");
-    super::close(owned);
-    fs::remove_dir_all(directory).expect("worker-alone fixture");
 }
 
 #[test]
@@ -425,5 +456,29 @@ fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
 // temper/docs/design/protocol/setup/owned.md, 6.
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
-    assert_eq!(temper_launcher::IO, jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,);
+    assert_eq!(temper_launcher::IO, jig_protocol_config_fixtures::small().io,);
+}
+
+#[test]
+fn the_box_builds_its_playground_from_the_scripted_provider_but_an_engine_alone_has_none() {
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
+    let value = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
+    assert!(value["application"].get("demo").is_none());
+    let bytes = serde_json::to_vec(&value).expect("fixture");
+    let boxed = super::setup::check(&bytes, &directories).expect("box");
+    let fake = boxed.demo.expect("scripted provider");
+    assert_eq!(fake.llm().listen().to_string(), "127.0.0.1:8370");
+    let demo = super::setup::playground(&fake);
+    assert_eq!(demo.provider, 3);
+    assert_eq!(demo.key_file.as_ref(), b"/data/demo/llm.key");
+    assert_eq!(
+        demo.cues.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"Add CSV export to widget".as_slice(), b"Add a dark theme to widget", b"Fix widget's empty search state",]
+    );
+    let mut engine = value.clone();
+    engine["workers"] = serde_json::json!([]);
+    engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7200"}]);
+    let engine = serde_json::to_vec(&engine).expect("engine fixture");
+    assert!(temper_engine_shell::setup::check(&engine, &directories).expect("engine alone").demo.is_none());
+    assert!(value["engine"].get("llm").is_none(), "the scripted provider is never a document member");
 }

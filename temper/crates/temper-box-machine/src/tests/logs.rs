@@ -54,7 +54,7 @@ fn snapshot(h: &mut Harness) -> Box<[Item]> {
 }
 #[test]
 fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
-    let mut h = harness(Echo::None, &[], true, &limits::small());
+    let mut h = harness(Echo::None, &[], true, &limits::stock());
     h.run_until_idle();
     h.wall = Wall::from_nanos(1_792_764_200_000_000_000);
     let forge = h.child_index(b"forge 1");
@@ -62,7 +62,7 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
     h.run_until_idle();
     h.write_child(forge, 1, b"third\n");
     h.write_child(h.serve_index(), 2, b"serve diagnostic\n");
-    h.write_child(h.serve_index(), 1, b"http://local/sign-in/link?secret=private\n");
+    h.write_child(h.serve_index(), 1, b"http://local/sign-in?secret=private\n");
     h.run_until_idle();
     let stderr = h.stderr();
     assert!(Harness::contains(
@@ -81,14 +81,14 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
     assert_eq!(read(&mut h, b"box/logs/serve.log").0.as_ref(), b"2026-10-23T14:03:20Z serve diagnostic\n");
     stop(&mut h);
     let items = snapshot(&mut h);
-    let mut second = harness(Echo::None, &items, false, &limits::small());
+    let mut second = harness(Echo::None, &items, false, &limits::stock());
     second.run_until_idle();
     assert_eq!(read(&mut second, b"box/logs.previous/forge-1.log").0, logged);
     second.write_child(second.serve_index(), 2, b"second run\n");
     second.run_until_idle();
     stop(&mut second);
     let items = snapshot(&mut second);
-    let mut third = harness(Echo::None, &items, true, &limits::small());
+    let mut third = harness(Echo::None, &items, true, &limits::stock());
     third.run_until_idle();
     assert_eq!(read(&mut third, b"box/logs.previous/serve.log").0.as_ref(), b"1970-01-01T00:00:00Z second run\n");
     assert!(read(&mut third, b"box/logs/serve.log").0.is_empty());
@@ -98,14 +98,14 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
     for item in &items {
         assert_ne!(item.path, b"box/logs.previous/forge-1.log");
         if let skein_fake_machine::Made::File(data) = &item.made {
-            assert!(!Harness::contains(data, b"/sign-in/link"));
+            assert!(!Harness::contains(data, b"/sign-in?secret="));
         }
     }
 }
 #[test]
 fn rotation_preserves_whole_records_at_both_minimum_bounds() {
     for bound in [RECORD_BYTES, RECORD_BYTES + 1] {
-        let mut h = harness(Echo::None, &[], true, &limits::Limits { log_bytes: bound, ..limits::small() });
+        let mut h = harness(Echo::None, &[], true, &limits::Limits { log_bytes: bound, ..limits::stock() });
         h.run_until_idle();
         let forge = h.child_index(b"forge 1");
         let cap = line_cap();
@@ -128,7 +128,7 @@ fn rotation_preserves_whole_records_at_both_minimum_bounds() {
 }
 #[test]
 fn echo_writes_the_same_pieces_to_terminal_and_log() {
-    let mut h = harness(Echo::Steps, &[], true, &limits::small());
+    let mut h = harness(Echo::Steps, &[], true, &limits::stock());
     h.run_until_idle();
     h.write_child(h.child_index(b"forge 1"), 2, b"one\ntwo\n");
     h.run_until_idle();
@@ -141,7 +141,7 @@ fn echo_writes_the_same_pieces_to_terminal_and_log() {
 }
 #[test]
 fn a_refused_create_names_only_its_log_once_and_echoes_its_lines() {
-    let mut h = harness(Echo::None, &[], true, &limits::small());
+    let mut h = harness(Echo::None, &[], true, &limits::stock());
     h.refuse_log = Some(bytes::copy_of(b"forge-1.log"));
     h.run_until_idle();
     h.write_child(h.child_index(b"forge 1"), 2, b"first\nsecond\n");
@@ -166,7 +166,7 @@ fn an_inner_directory_is_untouched_and_disables_logging_once() {
         Item::directory(b"box/logs.previous"),
         Item::directory(b"box/logs.previous/inner"),
     ];
-    let mut h = harness(Echo::None, &items, true, &limits::small());
+    let mut h = harness(Echo::None, &items, true, &limits::stock());
     h.run_until_idle();
     h.write_child(h.child_index(b"forge 1"), 2, b"forge diagnostic\n");
     h.write_child(h.serve_index(), 2, b"serve diagnostic\n");
@@ -189,7 +189,7 @@ fn a_start_cut_short_keeps_previous() {
         Item::directory(b"box/logs.previous"),
         Item::file(b"box/logs.previous/kept.log", b"kept\n").mode(0o600),
     ];
-    let mut h = harness(Echo::None, &items, false, &limits::small());
+    let mut h = harness(Echo::None, &items, false, &limits::stock());
     h.run_until_idle();
     assert_eq!(read(&mut h, b"box/logs.previous/kept.log").0.as_ref(), b"kept\n");
     stop(&mut h);
@@ -208,7 +208,7 @@ fn directory_links_are_refused_without_touching_their_targets() {
         ]),
     ];
     for items in layouts {
-        let mut h = harness(Echo::None, &items, false, &limits::small());
+        let mut h = harness(Echo::None, &items, false, &limits::stock());
         h.run_until_idle();
         let output = h.stderr();
         assert_eq!(bytes::count(&output, b"box: cannot write /data/box/logs/:", 2), 1);
@@ -229,7 +229,7 @@ fn a_step_name_that_is_not_a_plain_file_name_falls_back_to_echo() {
         &[],
         true,
         16_384,
-        &limits::small(),
+        &limits::stock(),
         Echo::None,
     );
     h.run_until_idle();
@@ -251,7 +251,7 @@ fn a_group_failure_carries_its_final_lines_as_one_block_only_when_quiet() {
     for echo in [Echo::None, Echo::Steps] {
         let mut steps = grouped_steps();
         steps.asked[0].steps[0].1 = once(b"prepare 3", &[b"never"]);
-        let mut h = Harness::configured_echo(steps, &[], true, 16_384, &limits::small(), echo);
+        let mut h = Harness::configured_echo(steps, &[], true, 16_384, &limits::stock(), echo);
         h.run_until_idle();
         let serve = h.hosted.get(h.serve_index()).unwrap().pid;
         h.ask(b"start 3\n");
@@ -277,7 +277,7 @@ fn a_group_failure_carries_its_final_lines_as_one_block_only_when_quiet() {
 #[test]
 fn restart_tails_are_bounded_include_the_eof_piece_and_reset_before_spawn() {
     use skein_lib::Duration;
-    let limits = limits::Limits { tail_lines: 2, ..limits::small() };
+    let limits = limits::Limits { tail_lines: 2, ..limits::stock() };
     let mut h = harness(Echo::None, &[], true, &limits);
     h.run_until_idle();
     let child = h.child_index(b"forge 1");
@@ -320,7 +320,7 @@ fn refusal_retries(diagnostic: &[u8], tail: &[u8]) {
     ];
     const ATTEMPTS: usize = 6;
     const TRUST: &[u8] = b"smith: trust roots: 148 taken, 0 skipped, 1 malformed blocks, 0 other blocks\n";
-    let mut h = harness(Echo::None, &[], false, &limits::small());
+    let mut h = harness(Echo::None, &[], false, &limits::stock());
     h.run_until_idle();
     for attempt in 0..ATTEMPTS {
         let child = h.serve_index();
@@ -381,7 +381,7 @@ fn a_refusal_spanning_pieces_is_printed_on_every_retry() {
 #[test]
 fn a_waiting_give_up_drains_its_log_without_holding_teardown_orders_or_spinning() {
     use skein_shell::Host;
-    let limits = limits::Limits { restarts: 0, ..limits::small() };
+    let limits = limits::Limits { restarts: 0, ..limits::stock() };
     let mut h = harness(Echo::None, &[], true, &limits);
     h.run_until_idle();
     h.hold_log_write = true;
@@ -413,7 +413,7 @@ fn a_waiting_give_up_drains_its_log_without_holding_teardown_orders_or_spinning(
 #[test]
 fn a_failed_log_or_an_empty_run_has_no_failure_tail() {
     for refused in [true, false] {
-        let mut h = harness(Echo::None, &[], true, &limits::small());
+        let mut h = harness(Echo::None, &[], true, &limits::stock());
         if refused {
             h.refuse_log = Some(bytes::copy_of(b"forge-1.log"));
         }
@@ -435,7 +435,7 @@ fn a_failed_log_or_an_empty_run_has_no_failure_tail() {
 
 #[test]
 fn another_logs_refusal_waits_behind_the_failure_without_blocking_its_tail() {
-    let mut h = harness(Echo::None, &[], true, &limits::small());
+    let mut h = harness(Echo::None, &[], true, &limits::stock());
     h.run_until_idle();
     let forge = h.child_index(b"forge 1");
     h.write_child(forge, 2, b"final\n");
@@ -478,7 +478,7 @@ fn box_log_rotates_whole_lines_and_moves_with_the_steps() {
         &[],
         true,
         16_384,
-        &limits::Limits { log_bytes: RECORD_BYTES, ..limits::small() },
+        &limits::Limits { log_bytes: RECORD_BYTES, ..limits::stock() },
         Echo::Steps,
         Box::new([first, second, third]),
     );
@@ -499,7 +499,7 @@ fn box_log_rotates_whole_lines_and_moves_with_the_steps() {
     stop(&mut h);
     let current = h.log();
     let items = snapshot(&mut h);
-    let mut next = harness(Echo::None, &items, false, &limits::small());
+    let mut next = harness(Echo::None, &items, false, &limits::stock());
     next.run_until_idle();
     assert_eq!(read(&mut next, b"box/logs.previous/box.log").0, current);
     assert_eq!(read(&mut next, b"box/logs.previous/box.log.1").0, previous);

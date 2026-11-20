@@ -29,6 +29,18 @@ and their addresses are the application's (`default-http.md`, 1: no provider rou
   `Issuer`, which the startup hands the component in its settings,
   after taking from it the discovery document and the key set, which
   the application serves itself (skein's `oauth/issuer.md`, section 3).
+- **A client added or removed while it runs.** An application whose
+  clients come and go with what it sets up (temper's owned forge:
+  temper's `protocol/setup/place.md`, 6) configures the provider with
+  its key and none or some clients, and gives the component a client to
+  add, or a client's id to remove, while it runs, each as a request of
+  its root's. A client added is checked as a configured one is (its id,
+  its secret's file read by the application, its one redirect URI), and
+  refused, naming the reason, past the provider's `clients` limit, with
+  an id already held, or with no provider. One removed has its codes and
+  access tokens dropped, and is answered as an unknown client from then
+  on; an id it doesn't hold is refused. A restart holds the configured
+  clients alone, until the application adds its own again.
 - **`Authorize`,** a client's message: the authorization request's
   query, as the browser's address carried it to the application's
   page, which the client hands on (the application's client decides

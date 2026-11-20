@@ -11,7 +11,7 @@ fn model(value: &jig_domain_core::Model) -> Value {
 }
 /// Use the binary's defaults, with this deployment's models.
 #[must_use]
-pub fn stock(deployment: &Value) -> Value {
+pub fn stock(deployment: &temper_playground::documents::Configuration) -> Value {
     let engine = configuration(deployment);
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let c = &defaults.charters[0];
@@ -41,26 +41,13 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
 
 /// Parse only startup configuration; the caller supplies typed defaults afterwards.
 #[must_use]
-pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
+pub fn configuration(deployment: &temper_playground::documents::Configuration) -> jig_protocol_config::Engine {
     temper_playground::documents::settings::configuration(deployment)
 }
 
 /// Separate the imported world's policy values from seeds that name their settings.
 pub fn stage_policies(value: &mut serde_json::Value) {
-    let mut policies = value["engine"]["projects"].clone();
-    for (index, policy) in policies.as_array_mut().expect("seed projects").iter_mut().enumerate() {
-        if policy["policy"].is_number() {
-            let original: Value =
-                serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("world defaults");
-            policy["policy"] = original["engine"]["projects"][0]["policy"].clone();
-            policy["roles"] = original["engine"]["projects"][0]["roles"].clone();
-        }
-        policy["number"] = (index + 1).into();
-        let seed = &mut value["engine"]["projects"][index];
-        seed["policy"] = (index + 1).into();
-        seed.as_object_mut().expect("seed").remove("roles");
-    }
-    value["world_settings"]["policies"] = policies;
+    temper_playground::documents::settings::stage_policies(value);
 }
 
 /// The world's forge defaults are independent of the startup document.

@@ -17,12 +17,32 @@ pub fn forge_items(stock: &[temper_engine_domain_forge::settings::Stock]) -> Vec
         }
         let value = match &stock.value.value {
             settings::Value::Charter(charter) => json!(charter),
+            settings::Value::Limits(overrides) => {
+                setting = json!({"kind":"temper-limits"});
+                json!(
+                    overrides
+                        .iter()
+                        .map(|value| json!({
+                            "name": std::str::from_utf8(&value.name).expect("admitted override name"),
+                            "value": value.value,
+                            "reason": std::str::from_utf8(&value.reason).expect("admitted override reason"),
+                        }))
+                        .collect::<Vec<_>>()
+                )
+            }
+            settings::Value::Welcome(welcome) => {
+                setting = json!({"kind":"welcome"});
+                json!({"shown":welcome.shown})
+            }
             settings::Value::Goal(_)
             | settings::Value::Questions(_)
             | settings::Value::Ways(_)
             | settings::Value::CharterWords(_)
             | settings::Value::Classes(_)
             | settings::Value::ProjectAreas(_)
+            | settings::Value::AgentFigures(_)
+            | settings::Value::Landing(_)
+            | settings::Value::Gates(_)
             | settings::Value::ProjectTriager(_)
             | settings::Value::ProjectWords(_)
             | settings::Value::Dependency(_)

@@ -31,7 +31,7 @@ const TWO: Contract = Contract {
 };
 const NAME: run::CallName = run::CallName { activation: 7, completion: 2, position: 1 };
 
-fn docs(input: &run::HostInput) -> Result<Mapped, Problem> {
+fn docs(_tool: &[u8], input: &run::HostInput) -> Result<Mapped, Problem> {
     let words = crate::json::parse(input.bytes())?.required(b"words")?.text(b"words")?;
     assert_eq!(words.as_ref(), b"WireGuard");
     Ok(Mapped {
@@ -40,7 +40,7 @@ fn docs(input: &run::HostInput) -> Result<Mapped, Problem> {
     })
 }
 
-fn release(input: &run::HostInput) -> Result<Mapped, Problem> {
+fn release(_tool: &[u8], input: &run::HostInput) -> Result<Mapped, Problem> {
     let value = crate::json::parse(input.bytes())?;
     let mut text = Text::new();
     text.add(br#"{"target":"#)?;
@@ -123,6 +123,27 @@ fn calls_choose_current_unchanged_or_adapted_decoding() {
 }
 
 #[test]
+fn previous_note_contract_defaults_records_and_cannot_call_mark_read() {
+    let old = wire::VERSION - 1;
+    let input = br#"{"scope":{"kind":"project","project":1},"description":"plan","body":"kept"}"#;
+    assert!(!CONTRACT.unchanged(old, b"note"));
+    assert!(CONTRACT.adapter(old, b"note").is_some());
+    let Decoded::Call(call) = decode(&CONTRACT, old, b"note", input).unwrap() else {
+        panic!("old note reaches current tools")
+    };
+    let engine::Tool::Note { records, .. } = call.tool else { panic!("current note") };
+    assert!(records.is_empty());
+    let Decoded::Call(call) =
+        decode(&CONTRACT, old, b"message", br#"{"target":12,"form":"words","words":"kept"}"#).unwrap()
+    else {
+        panic!("old unchanged message")
+    };
+    let engine::Tool::Message { target: 12, .. } = call.tool else { panic!("unchanged message") };
+    assert_eq!(decode(&CONTRACT, old, b"mark_read", br#"{"messages":[77]}"#).unwrap_err(), Problem::UnknownTool);
+    assert_eq!(wire::FLOOR, 1);
+}
+
+#[test]
 fn versions_outside_the_answered_range_are_error_answers() {
     for version in [0, 3] {
         let (body, error) = answered(decode(&TWO, version, b"release", b"{}").unwrap());
@@ -136,6 +157,56 @@ fn versions_outside_the_answered_range_are_error_answers() {
     let (body, error) = answered(decode(&raised, 1, b"legacy_docs", b"{}").unwrap());
     assert!(error);
     assert_eq!(body.as_ref(), b"this run's host tools are version 1; this engine answers 2..2");
+}
+
+#[test]
+fn contract_selection_keeps_exact_escaped_names_and_all_their_forms() {
+    const READ: &str = r#"{"name":"read_docs","effect":"read","input":"{}"}"#;
+    const WRITE: &str = r#"{"name":"read_docs","effect":"write","input":"{}"}"#;
+    const OTHER: &str = r#"{"name":"read_docs_more","effect":"read","input":"{}"}"#;
+    const ESCAPED: &str = r#"{"name":"read\"docs","effect":"read","input":"{}"}"#;
+    let text = std::format!("{READ}\n{OTHER}\n{WRITE}\n{ESCAPED}");
+    let selected = super::tool_lines(&text, b"read_docs");
+    assert_eq!(selected.as_ref(), [Box::<[u8]>::from(READ.as_bytes()), WRITE.as_bytes().into()]);
+    let selected = super::tool_lines(&text, b"read\"docs");
+    assert_eq!(selected.as_ref(), [Box::<[u8]>::from(ESCAPED.as_bytes())]);
+    assert!(super::tool_lines(&text, b"read").is_empty());
+}
+
+#[test]
+fn kept_settings_calls_preserve_the_current_input() {
+    let input =
+        run::HostInput::attested(br#"{"setting":{"kind":"model","number":1},"from":12}"#.as_slice().into()).unwrap();
+    let Decoded::Call(current) =
+        crate::call_for_contract(wire::VERSION, NAME, b"settings", &input, &[], &[], &[]).unwrap()
+    else {
+        panic!("current call decodes")
+    };
+    for version in wire::FLOOR..wire::VERSION {
+        let Decoded::Call(kept) = crate::call_for_contract(version, NAME, b"settings", &input, &[], &[], &[]).unwrap()
+        else {
+            panic!("kept call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
+}
+
+#[test]
+fn kept_propose_settings_calls_preserve_the_current_input() {
+    let input = run::HostInput::attested(br#"{"against":2,"reason":"restore the default","items":[{"setting":{"kind":"charter","number":1},"edit":"reset"}]}"#.as_slice().into()).unwrap();
+    let Decoded::Call(current) =
+        crate::call_for_contract(wire::VERSION, NAME, b"propose_settings", &input, &[], &[], &[]).unwrap()
+    else {
+        panic!("current call decodes")
+    };
+    for version in wire::FLOOR..wire::VERSION {
+        let Decoded::Call(kept) =
+            crate::call_for_contract(version, NAME, b"propose_settings", &input, &[], &[], &[]).unwrap()
+        else {
+            panic!("kept call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
 }
 
 #[test]

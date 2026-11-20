@@ -251,7 +251,7 @@ pub fn refused_replayed_pastes() -> Counts {
 // The delivery story pushes, opens and merges; a change also holds its branch's re-run kind.
 const DELIVERY_KINDS: [u16; 4] = [2, 3, 4, 17];
 
-pub(crate) fn configure(value: &mut serde_json::Value) {
+pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if !observer::enabled() {
         return;
     }
@@ -269,9 +269,9 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
                 .collect();
         }
     }
-    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 8.into();
-    value["engine"]["limits"]["overrides"]["authority.grants"] = 8.into();
-    value["engine"]["limits"]["overrides"]["notes.scopes"] = 12.into();
-    value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
-    value["engine"]["limits"]["overrides"]["tasks.authority_bytes"] = 256.into();
+    value.jig_over("tasks.authority_grants", 8);
+    value.jig_over("authority.grants", 8);
+    value.jig_over("notes.scopes", 12);
+    value.jig_over("people.amendment_bytes", 2048);
+    value.jig_over("tasks.authority_bytes", 256);
 }

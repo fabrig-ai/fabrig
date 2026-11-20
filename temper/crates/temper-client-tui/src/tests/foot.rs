@@ -431,6 +431,53 @@ fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
 }
 
 #[test]
+fn a_named_handshake_failure_stands_on_the_sign_in_and_launchpads_state_line_until_cleared() {
+    use crate::{Handshake, Origin};
+    let origin = Origin::parse(b"https://dev.fabrig.ai").unwrap();
+    let (mut offline, watch) = f::live(Some(f::me(&[b"Demo"])));
+    f::client(
+        &mut offline,
+        jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::Dropped } },
+    );
+    let signed_out = f::signed_out();
+    let starting = f::starting().0;
+    for (root, restored, style) in [
+        (&signed_out, "● Signed out", look::DOWN),
+        (&starting, "● Connecting", look::WAITING),
+        (&offline, "● Offline", look::DOWN),
+    ] {
+        let mut tui = Tui::new(&origin);
+        let mut view = f::view();
+        for (failed, words) in [
+            (Handshake::Untrusted, "● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            (Handshake::Expired, "● Offline: dev.fabrig.ai's certificate has expired"),
+            (Handshake::NotYetValid, "● Offline: dev.fabrig.ai's certificate isn't valid yet"),
+            (Handshake::OtherName, "● Offline: dev.fabrig.ai's certificate is for another name"),
+            (Handshake::Failed, "● Offline: the secure connection to dev.fabrig.ai failed"),
+        ] {
+            tui.step(Told::Handshake { failed: Some(failed) });
+            f::build(&mut view, &tui, root);
+            assert!(has(view.tree(), look::DOWN, words.as_bytes()), "{restored}, {failed:?}");
+            let mut bottom = None;
+            for node in view.tree().nodes() {
+                if node.region == Some(look::BOTTOM) {
+                    bottom = Some(node);
+                }
+            }
+            assert!(f::text(view.tree(), bottom.unwrap()).starts_with(words.as_bytes()), "state begins the bottom row");
+        }
+        tui.step(Told::Handshake { failed: None });
+        f::build(&mut view, &tui, root);
+        assert!(has(view.tree(), style, restored.as_bytes()), "{restored} restored");
+        // Plain origins never show a TLS failure, even if a host tells one.
+        tui.step(Told::Address { address: f::ADDRESS.clone() });
+        tui.step(Told::Handshake { failed: Some(Handshake::Untrusted) });
+        f::build(&mut view, &tui, root);
+        assert!(has(view.tree(), style, restored.as_bytes()));
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the foot's read states and their bindings")]
 #[expect(clippy::disallowed_methods, reason = "test assertions find and collect the rendered fields and options")]
 #[expect(clippy::disallowed_types, reason = "test assertions collect the rendered options")]
@@ -1149,7 +1196,7 @@ fn rule_states() {
             if list {
                 act(&mut root, d::pages::Act::MessageWords { words: b"/".as_slice().into() });
             }
-            let mut tui = Tui::new(b"127.0.0.1:40691");
+            let mut tui = Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket")));
             tui.step(Told::Size { columns });
             tui.step(Told::Boxed);
             let mut part = foot::read(&root, &tui, &words, f::NOW);
@@ -1204,7 +1251,12 @@ fn rule_states() {
         }
     }
     let root = root(true, true, true, false, false);
-    let part = foot::read(&root, &Tui::new(b"127.0.0.1:40691"), &words, f::NOW);
+    let part = foot::read(
+        &root,
+        &Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket"))),
+        &words,
+        f::NOW,
+    );
     assert_eq!(part.rule.unwrap().place.as_ref(), b"127.0.0.1:40691");
 }
 fn question(primary: Option<usize>, empty: bool) -> shared::Question {
@@ -2019,29 +2071,33 @@ pub(super) fn walk_root(choices: bool) -> Domain {
     while let Some(request) = more.pop() {
         out.push(request);
     }
+    let me_opened = {
+        let mut me = f::me(&[b"Hello"]);
+        let project = me.projects.get_mut(0).unwrap();
+        project.templates = List::from_boxed(Box::new([template(1), template(5), {
+            let mut draft = template(6);
+            draft.executor = c::TemplateExecutor::Charter(12);
+            draft
+        }]));
+        project.models = List::from_boxed(Box::new([super::commands::model()]));
+        project.defaults = List::from_boxed(Box::new([c::MeDefault {
+            template: d::pages::chats::ASKING_TEMPLATE,
+            choice: c::LlmChoice {
+                account: Some(1),
+                main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                subagents: List::with_capacity(0),
+                later: None,
+            },
+        }]));
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+    };
+    let mut me_output = f::client(&mut root, jig_client::Event::Up { up: me_opened });
+    while let Some(request) = me_output.pop() {
+        out.push(request);
+    }
     while let Some(request) = out.pop() {
         let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                let mut me = f::me(&[b"Hello"]);
-                let project = me.projects.get_mut(0).unwrap();
-                project.templates = List::from_boxed(Box::new([template(1), template(5), {
-                    let mut draft = template(6);
-                    draft.executor = c::TemplateExecutor::Charter(12);
-                    draft
-                }]));
-                project.models = List::from_boxed(Box::new([super::commands::model()]));
-                project.defaults = List::from_boxed(Box::new([c::MeDefault {
-                    template: d::pages::chats::ASKING_TEMPLATE,
-                    choice: c::LlmChoice {
-                        account: Some(1),
-                        main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
-                        subagents: List::with_capacity(0),
-                        later: None,
-                    },
-                }]));
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
-            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
                 Up::Watched {
                     watch,
@@ -2089,31 +2145,24 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                 if Some(&subject) == d::forge::status::watch(1, &f::limits().forge).as_ref() =>
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                let brief = w::StatusBrief::new(
-                    &w::CEILINGS,
-                    w::StatusBriefParts {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: Box::default(),
-                        at: 0,
-                        landed: 1,
-                    },
-                )
-                .unwrap();
-                let status = w::ProjectStatus::new(
-                    &w::CEILINGS,
-                    w::ProjectStatusParts {
-                        project: 1,
-                        landed: 1,
-                        seen: 0,
-                        last_landed: Some(0),
-                        previous: Some(0),
-                        queued: 0,
-                        red: false,
-                        branch: b"main".as_slice().into(),
-                        brief: Some(brief),
-                    },
-                )
-                .unwrap();
+                let brief = w::StatusBrief {
+                    sentence: b"One change landed.".as_slice().into(),
+                    lede: Box::default(),
+                    at: 0,
+                    landed: 1,
+                };
+                let status = w::ProjectStatus {
+                    project: 1,
+                    landed: 1,
+                    seen: 0,
+                    last_landed: Some(0),
+                    previous: Some(0),
+                    queued: 0,
+                    red: false,
+                    branch: b"main".as_slice().into(),
+                    unpaid: false,
+                    brief: Some(brief),
+                };
                 Up::FamilyDelivered {
                     watch,
                     record: jig_client::Family {
@@ -2134,9 +2183,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::answer(
-                            &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked }).unwrap(),
-                        ),
+                        bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                     })),
                 }
             }
@@ -2195,19 +2242,21 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                 Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::with_capacity(0),
                         more: false,
                     }))),
                 }
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
-                Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
-                        c::TaskPage { live: List::with_capacity(0), live_after: None, ended: c::EndedGroup::None },
-                    )))),
-                }
-            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::None,
+                })))),
+            },
             jig_client::Down::Open { watch, subject }
                 if Some(&subject) == d::forge::decided::watch(1, &f::limits().forge).as_ref() =>
             {
@@ -2222,21 +2271,14 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     matched: 0,
                     away: false,
                 };
-                let asked = w::Asked::new(
-                    &w::CEILINGS,
-                    w::AskedParts { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
-                )
-                .unwrap();
-                let document = w::Decisions::new(
-                    &w::CEILINGS,
-                    w::DecisionsParts {
-                        project: 1,
-                        rows: List::with_capacity(0),
-                        asked: List::from_boxed(Box::new([asked])),
-                        cut: false,
-                    },
-                )
-                .unwrap();
+                let asked =
+                    w::Asked { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) };
+                let document = w::Decisions {
+                    project: 1,
+                    rows: List::with_capacity(0),
+                    asked: List::from_boxed(Box::new([asked])),
+                    cut: false,
+                };
                 Up::FamilyDelivered {
                     watch,
                     record: jig_client::Family {
@@ -2374,7 +2416,7 @@ fn walk_states() {
             } else if expected.contains("Review") {
                 WalkStep::Open { address: b"https://forge.example/work/hello/pulls/24/files".as_slice().into() }
             } else if expected.contains("web") {
-                WalkStep::Open { address: b"http://127.0.0.1:8367/?project=1".as_slice().into() }
+                WalkStep::Open { address: b"http://127.0.0.1:8367/needs?project=1".as_slice().into() }
             } else if expected.contains("something else") {
                 assert_eq!(item.event, TuiEvent::Aside { object }, "{name}");
                 continue;
@@ -2745,7 +2787,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         assert_eq!(rule.title.as_ref(), title.as_bytes());
         assert_eq!(rule.project.as_ref(), b"Demo");
         assert_eq!(rule.task, None);
-        assert_eq!(rule.place.as_ref(), f::ADDRESS);
+        assert_eq!(rule.place, f::ADDRESS.authority());
         assert!(!part.launchpad);
         assert!(part.pane.is_none());
         assert!(part.running.is_none());
@@ -2764,4 +2806,26 @@ fn the_places_before_their_first_words_are_empty_chats() {
             want,
         }]);
     }
+}
+
+#[test]
+fn a_named_chats_rule_and_walk_web_page_use_the_origin() {
+    let root = root(true, true, true, false, false);
+    let mut tui = Tui::new(&super::origin::named(443));
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    assert_eq!(part.rule.as_ref().expect("chat rule").place.as_ref(), b"dev.fabrig.ai");
+    let view = draw(part);
+    assert!(has(view.tree(), look::ADDRESS, b"dev.fabrig.ai"));
+    let root = walk_root(true);
+    tui.step(Told::Walk { by_key: true });
+    tui.step(Told::Walked { object: WALK_QUESTION });
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    let list = part.list.expect("web need");
+    assert_eq!(
+        list.items[0].event,
+        TuiEvent::Walk {
+            object: WALK_HELD,
+            step: crate::WalkStep::Open { address: b"https://dev.fabrig.ai/needs?project=1".as_slice().into() },
+        }
+    );
 }

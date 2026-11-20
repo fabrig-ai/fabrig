@@ -83,7 +83,7 @@ pub const CLOSE_RESULT_BYTES: u32 = 512;
 pub const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 
 const CHECKOUT: Checkout = Checkout {
-    // Cached or held checkout workspaces, from the checkout world fixture.
+    // Cached workspaces before the worker’s slots derive its places (configuration/derived.md, 5.2).
     workspaces: 3,
     // One preparation at a time per worker: redeploys.md, 6.4.
     preparations: 1,
@@ -97,13 +97,13 @@ const CHECKOUT: Checkout = Checkout {
     conflicts: 512,
     // Bytes per conflicted path, with its NUL in the git component's stdout.
     path_bytes: 255,
-    // Time for an operation reaching a forge, from the checkout world fixture.
+    // A remote git operation gets one minute for the forge to answer.
     remote_timeout: Duration::from_secs(60),
-    // Time for a local checkout operation, from the checkout world fixture.
-    local_timeout: Duration::from_secs(10),
+    // A local git operation gets dev’s 60 seconds (2026-11-16).
+    local_timeout: Duration::from_secs(60),
     reds_read_ms: 5_000,
     rerun_processes: 4,
-    // Facts awaiting drain, from the checkout world fixture.
+    // Facts from a full checkout pass, bounded by its 256 cached names.
     facts: 256,
 };
 const GIT: GitComponent = GitComponent {
@@ -121,12 +121,6 @@ const GIT: GitComponent = GitComponent {
     sweep_bytes: 4080,
 };
 
-/// Shared profile parts and peer scalars (protocol/services.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Profile {
-    Small,
-    Standard,
-}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Peer {
     pub forges: u32,
@@ -147,17 +141,18 @@ pub enum Refused {
 pub const FORGE_INSTALLATIONS: u32 = 8;
 pub const FORGE_TOKEN_BYTES: u32 = 512;
 #[must_use]
-pub const fn profile(profile: Profile) -> Shared {
-    match profile {
-        Profile::Small | Profile::Standard => Shared {
-            checkout: CHECKOUT,
-            git_component: GIT,
-            peer: Peer { forges: 3, installations: FORGE_INSTALLATIONS, token_bytes: FORGE_TOKEN_BYTES },
-        },
+pub const fn stock() -> Shared {
+    Shared {
+        checkout: CHECKOUT,
+        git_component: GIT,
+        peer: Peer { forges: 3, installations: FORGE_INSTALLATIONS, token_bytes: FORGE_TOKEN_BYTES },
     }
 }
 /// Every override known to a document, including the other owners' names.
 pub const NAMES: &[&str] = &[
+    "live_goals",
+    "tool_payload",
+    "transcript_memory",
     "sign_in.members",
     "sign_in.pending",
     "sign_in.deadline_ms",
@@ -229,6 +224,7 @@ pub const NAMES: &[&str] = &[
     "forge.changes_rows",
     "forge.changes_landed",
     "forge.landings_kept",
+    "forge.landings_pending",
     "forge.landings",
     "forge.key_entries",
     "forge.decided_per_project",
@@ -392,6 +388,40 @@ fn duration(value: u64) -> Result<Duration, Refused> {
         None => Err(Refused::Range),
     }
 }
+/// Shared limits by dotted name (temper/docs/design/protocol/configuration/figures.md, 2).
+#[must_use]
+pub fn list(limits: &Shared) -> skein_lib::List<(&'static str, u64)> {
+    let mut values = skein_lib::List::uncapped();
+    for name in SHARED_NAMES {
+        let value = match *name {
+            "forge.forges" => u64::from(limits.peer.forges),
+            "forges.installations" => u64::from(limits.peer.installations),
+            "forge_component.token_bytes" => u64::from(limits.peer.token_bytes),
+            "checkout.workspaces" => u64::from(limits.checkout.workspaces),
+            "checkout.preparations" => u64::from(limits.checkout.preparations),
+            "checkout.repositories" => u64::from(limits.checkout.repositories),
+            "checkout.name_bytes" => u64::from(limits.checkout.name_bytes),
+            "checkout.message_bytes" => u64::from(limits.checkout.message_bytes),
+            "checkout.conflicts" => u64::from(limits.checkout.conflicts),
+            "checkout.path_bytes" => u64::from(limits.checkout.path_bytes),
+            "checkout.remote_timeout_ms" => limits.checkout.remote_timeout.as_millis(),
+            "checkout.local_timeout_ms" => limits.checkout.local_timeout.as_millis(),
+            "checkout.reds_read_ms" => u64::from(limits.checkout.reds_read_ms),
+            "checkout.rerun_processes" => u64::from(limits.checkout.rerun_processes),
+            "checkout.facts" => u64::from(limits.checkout.facts),
+            "git_component.operations" => u64::from(limits.git_component.operations),
+            "git_component.stdout_bytes" => u64::from(limits.git_component.stdout_bytes),
+            "git_component.stderr_bytes" => u64::from(limits.git_component.stderr_bytes),
+            "git_component.read_bytes" => u64::from(limits.git_component.read_bytes),
+            "git_component.sweep_entries" => u64::from(limits.git_component.sweep_entries),
+            "git_component.sweep_bytes" => u64::from(limits.git_component.sweep_bytes),
+            _ => unreachable!("shared name has a reader"),
+        };
+        values.push((*name, value)).expect("uncapped named limits");
+    }
+    values
+}
+
 /// Apply shared overrides; another known name's integer is taken unread.
 pub fn apply(limits: &mut Shared, name: &[u8], value: u64) -> Result<(), Refused> {
     match name {

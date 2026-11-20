@@ -11,6 +11,7 @@ pub const QUESTION: &str = "Fix the dropped watch in jig’s store, or keep it a
 pub fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.reads = 8;
+    limits.client.domain.rows = 4;
     limits.client.domain.text = 512;
     limits.client.domain.turn_text = 512;
     limits.client.domain.long_text = 4096;
@@ -260,7 +261,7 @@ fn fixture_with_task(
                 _ => b"third",
             });
             if let Some(title) = title {
-                task.title = f::task::document_words(title);
+                task.title = c::DocumentText::complete(c::Text::new(title.into(), 4096).expect("fixture title"));
             }
             let q = c::Question {
                 task,
@@ -309,23 +310,15 @@ pub fn deliver_asked_for(
     let mut asked = List::with_capacity(1);
     if let Some(reach) = reach {
         asked
-            .push(
-                w::Asked::new(
-                    &w::CEILINGS,
-                    w::AskedParts {
-                        number: 1,
-                        task: f::INBOX_TASK,
-                        at: 0,
-                        reach: temper_protocol_reaches::reach_record(&reach),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::Asked {
+                number: 1,
+                task: f::INBOX_TASK,
+                at: 0,
+                reach: temper_protocol_reaches::reach_record(&reach),
+            })
             .unwrap();
     }
-    let document =
-        w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows: List::with_capacity(0), asked, cut: false })
-            .unwrap();
+    let document = w::Decisions { project, rows: List::with_capacity(0), asked, cut: false };
     event(
         root,
         Event::Client {
@@ -357,43 +350,27 @@ pub fn decisions_delivered(
         if (number % 2 == 1) != (project == f::PROJECT) {
             continue;
         }
-        rows.push(
-            w::Decision::new(
-                &w::CEILINGS,
-                w::DecisionParts {
-                    number,
-                    task: 90 + u64::from(number),
-                    at: 3_900_000_000_000,
-                    question: b"Which approach?".as_slice().into(),
-                    took: b"Fixed the harness.".as_slice().into(),
-                    why: b"Tests are its area.".as_slice().into(),
-                    overturned: false,
-                    reach: w::Reach::new(
-                        &w::CEILINGS,
-                        w::ReachParts {
-                            kind: w::ReachKind::Tests,
-                            class: w::ReachClass::Decide,
-                            reason: w::ReachReason::Kind,
-                            under: 0,
-                            sets: 0,
-                            matched: 0,
-                            away: false,
-                        },
-                    )
-                    .expect("decision reach"),
-                },
-            )
-            .unwrap(),
-        )
+        rows.push(w::Decision {
+            number,
+            task: 90 + u64::from(number),
+            at: 3_900_000_000_000,
+            question: b"Which approach?".as_slice().into(),
+            took: b"Fixed the harness.".as_slice().into(),
+            why: b"Tests are its area.".as_slice().into(),
+            overturned: false,
+            reach: w::Reach {
+                kind: w::ReachKind::Tests,
+                class: w::ReachClass::Decide,
+                reason: w::ReachReason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            },
+        })
         .unwrap();
     }
-    let bytes = wire::decisions(
-        &w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .unwrap(),
-    );
+    let bytes = wire::decisions(&w::Decisions { project, rows, asked: List::with_capacity(0), cut: false });
     event(
         root,
         Event::Client {
@@ -626,10 +603,6 @@ pub fn settings_owned(page: c::ReadValue, owned: Option<bool>) -> d::Domain {
     kinds_owned(&[(c::ObjectKey::Proposal(key), c::Read::Proposal { proposal: key }, page)], None, owned)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the fixture delivers the inbox, decision document and each card read together"
-)]
 pub fn kinds_owned(
     values: &[(c::ObjectKey, c::Read, c::ReadValue)],
     whole: Option<c::ReadResult>,
@@ -712,14 +685,10 @@ pub fn kinds_owned(
             && let Some(owned_approval) = owned
             && let Some(reading) =
                 temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-            && let temper_client_protocol_wire::v1::Read::ProposalItems(_) = reading.read()
+            && let temper_client_protocol_wire::v1::Read::ProposalItems(_) = &reading.read
         {
             use temper_client_protocol_wire::{self as wire, v1 as w};
-            let answer = w::ProposalItemsAnswer::new(
-                &w::CEILINGS,
-                w::ProposalItemsAnswerParts { items: List::with_capacity(0), owned_approval },
-            )
-            .unwrap();
+            let answer = w::ProposalItemsAnswer { items: List::with_capacity(0), owned_approval };
             event(
                 &mut root,
                 Event::Client {

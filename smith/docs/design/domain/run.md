@@ -598,10 +598,16 @@ host tool for it, as temper's `delegate` does.
   3.4's resume form; it does not add a fresh begin instruction. A transcript
   it cannot use (another version, malformed, unresolved, too large) fails
   the run as transient, saying which (session.md, section 3), and the host decides
-  what the next run starts from. A window that ran on another endpoint,
-  dialect, account or backend is not refused: it is carried over
-  (session.md, 8.2). A run that does not resume starts fresh from its
-  brief, which carries what the host thinks it needs.
+  what the next run starts from. Whether a run resumes at all is its
+  host's decision, made before the start, since a run that resumes is
+  given no brief to start fresh from. A host that moves a task to
+  another endpoint or backend, program to direct or back, starts its
+  run fresh rather than offer it the window, as jig's engine does
+  (jig's `domain/engine/executors.md`, 2, *Resumed only where it ran*).
+  A window a host offers anyway, or one that ran on another dialect or
+  account, is not refused: it is carried over (session.md, 8.2). A run
+  that does not resume starts fresh from its brief, which carries what
+  the host thinks it needs.
 - **Messages mid-work.** Between
   completions, not only when main yields, the run offers its queued
   messages to the working session, which appends them after the results
@@ -693,6 +699,18 @@ its next run to hear of. smith does not make the host's judgement.
   project's goal-sized landings) gives its charter a larger bound; the
   reserve still holds one run at `check_timeout` alone (budget.md, 1),
   so a larger bound's check in the wind-down is cut at the run's end.
+- **A wait for what a check needs** is not its time. A check queued for a
+  place its environment limits (a build's, among other repositories'
+  builds) says so on its stderr: the whole line `smith-check: waiting`
+  stops its bound's clock, and `smith-check: admitted` starts it again,
+  each newline-ended, those bytes exactly; a `waiting` while it waits,
+  or an `admitted` while it does not, changes nothing. While it waits,
+  only the call's own deadline and the run's end bound it; admitted, it
+  has what was left of its bound, from then, cut as before. A check that
+  says neither is bounded as before. The deadline told to the host at
+  its start can so move later, never past the call's own deadline,
+  within which the host's watchdog never stops a run (host.md, section 4).
+  The time a check was given, in its feedback and its retry's, is its bound.
 - **Out of time, once more.** A check stopped at its deadline (it timed
   out: it neither exited, nor failed to start, nor was cancelled) runs
   once more at once, on the same tree under the same lease, given twice
@@ -827,7 +845,10 @@ the last message it read (section 6).
   account limited, naming the account and, when its provider said, how
   long until it may be used again, measured when the run answers; an
   account refused, naming it and the provider's code; a program
-  source's login lost, naming the account; a program that could not
+  source's login lost, naming the account; a program that started
+  without smith's tools, *untooled*, a fault of its host's program
+  rather than the run's, naming the program, with its detail
+  (protocol/programs.md, 5.6); a program that could not
   run or exited before its answer, naming the program, with its detail
   (protocol/programs.md, 5.6); a limit that fired, naming the limit and
   its

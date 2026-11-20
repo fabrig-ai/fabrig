@@ -125,6 +125,8 @@ fn resolutions_and_repairs_deliver_their_heads_too() {
             failed: false,
             cancelled: false,
             no_change: false,
+            flake: false,
+            no_test: false,
             words: b"done".as_slice().into(),
         });
         let delivered = deliveries(&world);

@@ -103,7 +103,10 @@ recipe's own `files/`, just as `forge commit` (`drive.md`, 3.5).
 - **A person's acts alone:** no look, no `end` and no empty line; each
   refuses the recipe, naming its line (`drive.md`, 4 keeps them out of
   the kept lines too). `tui stop` is the walk's (section 5) and refused
-  in a recipe.
+  in a recipe. `web mark`, `tui mark` and `tui approve` are a journey's
+  lines (`journey-walks.md`, 2.2), each refusing the recipe, naming its
+  line: a recipe's walk signs its TUI in as the session does
+  (`drive.md`, 3.3).
 - **The check** is every line after `check`, where the recipe has one:
   each a `ctl` line, which its author keeps to reads and waits
   (`ctl/tools.md`, 2 and 4), so that its failure is the state's absence,
@@ -210,7 +213,8 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   each recipe's steps start there, and each check is read there, as a
   restored copy shows it.
 - **Each recipe's files:** a `forge commit`, `forge push` or `deployment
-  patch` line reads its PATHs from the `files/` of the recipe that holds the line
+  patch` line, or a `ctl settings apply`/`propose` line (`drive.md`, 3.4),
+  reads its PATHs from the `files/` of the recipe that holds the line
   (section 2), never from another recipe's or a `--files` directory.
 - **Its output:** each answer of the session, every line of it prefixed
   `NAME:N `, the recipe and the line of its file that gave it, or

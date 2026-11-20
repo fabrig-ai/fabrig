@@ -20,16 +20,21 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
         &jig_protocol_config::DocumentLimits { bytes: 16384, tokens: 4096, depth: 16 },
     )
     .expect("settings story fixture");
-    let mut engine = jig_protocol_config::engine(
+    let mut engine = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
     )
     .expect("settings story fixture");
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());
     let mut config = jig_test_profile::config(SEED);
+    let mut worker = config.core.defaults.workers[0].clone();
+    worker.places = engine.limits.core.fleet.slots;
     config.core = jig_protocol_config::core(&engine, [31; 16], SEED);
+    config.core.defaults.workers = Box::new([worker]);
     // Auxiliary parties have configured roles even when they cannot decide settings.
     for project in &mut config.core.seed_projects {
         auxiliary_roles(&mut project.policy.policy);
@@ -55,7 +60,11 @@ fn auxiliary_roles(policy: &mut jig_domain_authority::Policy) {
     policy.roles = roles.into_boxed_slice();
 }
 pub(super) fn start(history: u32) -> World {
-    let (config, mut limits) = configuration();
+    let (config, limits) = configuration();
+    start_with(history, config, limits)
+}
+
+pub(super) fn start_with(history: u32, config: root::Config, mut limits: root::Limits) -> World {
     limits.core.settings.history = history;
     let mut world = World::new(Setup {
         configuration: Some(config),
@@ -118,6 +127,17 @@ pub(super) fn key(key: settings::Key) -> root::Key {
 pub(super) fn record(record: settings::Record) -> root::Record {
     root::Record::Core(core::Record::Core(core::CoreRecord::Settings(record)))
 }
+/// Settings evidence and live holders, without visiting the activity and transcript archives.
+pub(super) fn agreement_rows(world: &World) -> impl Iterator<Item = &root::Record> {
+    let settings = world
+        .store
+        .rows
+        .range(key(settings::Key::Default(settings::Setting::Charter(0)))..=key(settings::Key::History(u32::MAX)));
+    let task = |number| root::Key::Core(core::Key::Tasks(jig_domain_tasks::Key::Live(number)));
+    let tasks = world.store.rows.range(task(0)..=task(u64::MAX));
+    settings.chain(tasks).map(|(_, row)| row)
+}
+
 pub(super) fn revision(world: &World, number: u32, history: bool) -> &settings::Revision {
     let address = if history { settings::Key::History(number) } else { settings::Key::Held(number) };
     let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Revision {
@@ -462,9 +482,9 @@ const REQUEST_HEAP_CEILING: u64 = 21_000_000;
 
 /// A stock profile's whole room of deciding requests answered, a cold
 /// restart, and the first request replayed (the heap ceiling checks each step).
-pub(super) fn whole_room_of_answers(profile: jig_protocol_config::Profile) {
+pub(super) fn whole_room_of_answers(profile: &jig_protocol_config::Limits) {
     let (config, mut limits) = configuration();
-    let people = jig_protocol_config::profile(profile).core.people;
+    let people = profile.core.people;
     limits.core.people.requests = people.requests;
     limits.core.people.request_retention = people.request_retention;
     let mut world = RequestWorld::new(config, &limits);
@@ -542,7 +562,8 @@ impl RequestWorld {
                     root::Request::Deliver(root::Delivery::Core(core::Held::PeopleReply { reply: value, .. })) => {
                         assert!(reply.replace(value).is_none(), "one reply per call");
                     }
-                    root::Request::StoreCatalogue { .. }
+                    root::Request::Workers(_)
+                    | root::Request::StoreCatalogue { .. }
                     | root::Request::ClientsCatalogue { .. }
                     | root::Request::Deliver(_)
                     | root::Request::Now(_) => {}

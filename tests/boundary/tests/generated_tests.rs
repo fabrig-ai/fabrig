@@ -1,4 +1,5 @@
-//! Generated record tests compile apart (tools/crates/design.md, 2.2, 2.4 and 3.4).
+//! Generated records hold no tests, and codec libraries build no test target
+//! (tools/crates/design.md, 2.2, 2.4 and 3.4).
 //! Exceptions name one record file or the library target, never source-reading
 //! failures. An exception that covers no finding fails the check too.
 
@@ -7,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use fabrig_boundary::{Package, has_test_code, packages};
+use fabrig_boundary::{Package, has_test_code, packages, record_source};
 use skein_scratch::Scratch;
 
 struct Exception {
@@ -104,70 +105,14 @@ fn directory(package: &Package, relative: &str, check: &mut Check) -> Vec<PathBu
     files
 }
 
-/// The filename rule of tools/crates/design.md, 2.2, not generated glue.
-fn record(path: &Path) -> bool {
-    let Some(stem) = path.file_name().and_then(|name| name.to_str()).and_then(|name| name.strip_suffix(".rs")) else {
-        return false;
-    };
-    let version =
-        if let Some(version) = stem.strip_prefix('v').filter(|version| version.bytes().all(|b| b.is_ascii_digit())) {
-            version
-        } else if let Some((family, version)) = stem.rsplit_once("_v") {
-            if family.is_empty()
-                || !family.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
-            {
-                return false;
-            }
-            version
-        } else {
-            return false;
-        };
-    !version.is_empty() && version.bytes().all(|byte| byte.is_ascii_digit())
-}
-
 fn inspect(package: &Package, check: &mut Check) {
-    let records: Vec<_> = directory(package, "src/generated", check)
-        .into_iter()
-        .filter(|file| {
-            if !record(file) {
-                return false;
-            }
-            match fs::metadata(file) {
-                Ok(metadata) => metadata.is_file(),
-                Err(why) => {
-                    check.unreadable(package, file, &why);
-                    false
-                }
-            }
-        })
-        .collect();
-    if records.is_empty() {
-        return;
-    }
-    let tests = directory(package, "tests/generated", check);
-    let root = package.directory.join("tests/generated/main.rs");
-    let target = package.targets.iter().any(|target| {
-        target.name == "generated"
-            && target.test
-            && target.kinds.iter().any(|kind| kind == "test")
-            && target.root == root
-    });
-    if target {
-        if let Err(why) = fs::read_to_string(&root) {
-            check.unreadable(package, &root, &why);
-        }
-    } else {
-        check.finding(
-            package,
-            "generated target",
-            format!("{}: missing generated test target at tests/generated/main.rs", package.name),
-        );
-    }
-    for file in records {
-        let name = file.file_name().expect("record filename");
-        let relative = format!("src/generated/{}", name.to_string_lossy());
-        match fs::read_to_string(&file) {
-            Ok(source) => {
+    let mut has_records = false;
+    for file in directory(package, "src/generated", check) {
+        match record_source(&file) {
+            Ok(Some(source)) => {
+                has_records = true;
+                let name = file.file_name().expect("record filename");
+                let relative = format!("src/generated/{}", name.to_string_lossy());
                 if has_test_code(&source) {
                     check.finding(
                         package,
@@ -176,20 +121,12 @@ fn inspect(package: &Package, check: &mut Check) {
                     );
                 }
             }
+            Ok(None) => (),
             Err(why) => check.unreadable(package, &file, &why),
         }
-        let test = package.directory.join("tests/generated").join(name);
-        if tests.contains(&test) {
-            if let Err(why) = fs::read_to_string(&test) {
-                check.unreadable(package, &test, &why);
-            }
-        } else {
-            check.finding(
-                package,
-                &relative,
-                format!("{}: missing tests/generated/{}", package.name, name.to_string_lossy()),
-            );
-        }
+    }
+    if !has_records {
+        return;
     }
     if package.targets.iter().any(|target| {
         target.test
@@ -206,12 +143,16 @@ fn inspect(package: &Package, check: &mut Check) {
     }
 }
 
-fn findings(metadata: &str, exceptions: &[Exception]) -> Result<Vec<String>, String> {
+fn scan(metadata: &str) -> Result<Check, String> {
     let mut check = Check::default();
     for package in packages(metadata)? {
         inspect(&package, &mut check);
     }
-    Ok(check.finish(exceptions))
+    Ok(check)
+}
+
+fn findings(metadata: &str, exceptions: &[Exception]) -> Result<Vec<String>, String> {
+    Ok(scan(metadata)?.finish(exceptions))
 }
 
 #[test]
@@ -223,10 +164,11 @@ fn workspace_generated_tests_compile_apart() {
         .expect("cargo metadata starts");
     assert!(output.status.success(), "cargo metadata: {}\n{}", output.status, String::from_utf8_lossy(&output.stderr));
     let metadata = String::from_utf8(output.stdout).expect("cargo metadata is UTF-8");
-    for finding in findings(&metadata, &[]).expect("workspace metadata reads") {
+    let check = scan(&metadata).expect("workspace metadata reads");
+    for finding in check.failures.iter().chain(check.rules.values().flatten()) {
         eprintln!("{finding}");
     }
-    let failures = findings(&metadata, EXCEPTIONS).expect("workspace metadata reads");
+    let failures = check.finish(EXCEPTIONS);
     assert!(failures.is_empty(), "Generated-test findings:\n{}", failures.join("\n"));
 }
 
@@ -246,15 +188,17 @@ fn fixture_metadata(scratch: &Scratch) -> serde_json::Value {
         "packages": [{
             "id": "a", "name": "a", "manifest_path": scratch.path().join("Cargo.toml"),
             "targets": [
-                {"name": "a", "kind": ["lib"], "src_path": scratch.path().join("src/lib.rs"), "test": false},
-                {"name": "generated", "kind": ["test"], "src_path": scratch.path().join("tests/generated/main.rs"), "test": true}
+                {"name": "a", "kind": ["lib"], "src_path": scratch.path().join("src/lib.rs"), "test": false}
             ]
         }]
     })
 }
 
-fn complete(source: &str) -> Scratch {
-    scratch(&[("src/generated/v2.rs", source), ("tests/generated/main.rs", "mod v2;"), ("tests/generated/v2.rs", "")])
+fn record_fixture(source: &str) -> Scratch {
+    scratch(&[(
+        "src/generated/people.rs",
+        &format!("// Generated by skein-codegen from people 2. Do not edit.\n{source}"),
+    )])
 }
 
 #[test]
@@ -265,10 +209,10 @@ fn test_tokens_in_record_code_name_package_and_file() {
         "#[cfg /* gap */ ( test )] mod tests {}",
         "# [ test ] fn check() {}",
     ] {
-        let scratch = complete(source);
+        let scratch = record_fixture(source);
         assert_eq!(
             findings(&fixture_metadata(&scratch).to_string(), &[]).expect("fixture metadata"),
-            ["a: src/generated/v2.rs: test module in generated record code"],
+            ["a: src/generated/people.rs: test module in generated record code"],
             "{source}"
         );
     }
@@ -276,7 +220,7 @@ fn test_tokens_in_record_code_name_package_and_file() {
 
 #[test]
 fn comments_and_literals_hold_no_test_code() {
-    let scratch = complete(
+    let scratch = record_fixture(
         r####"
         // #[cfg(test)] #[test]
         /* #[cfg(test)] /* nested */ #[test] */
@@ -298,52 +242,8 @@ fn comments_and_literals_hold_no_test_code() {
 }
 
 #[test]
-fn generated_target_requires_name_kind_test_flag_and_root() {
-    let scratch = complete("");
-    let metadata = fixture_metadata(&scratch);
-    assert_eq!(findings(&metadata.to_string(), &[]).expect("fixture metadata"), Vec::<String>::new());
-    for (field, value) in [
-        ("name", serde_json::json!("other")),
-        ("kind", serde_json::json!(["bin"])),
-        ("test", serde_json::json!(false)),
-        ("src_path", serde_json::json!(scratch.path().join("tests/other.rs"))),
-    ] {
-        let mut metadata = metadata.clone();
-        metadata["packages"][0]["targets"][1][field] = value;
-        assert_eq!(
-            findings(&metadata.to_string(), &[]).expect("fixture metadata"),
-            ["a: missing generated test target at tests/generated/main.rs"],
-            "{field}"
-        );
-    }
-    let mut metadata = metadata;
-    metadata["packages"][0]["targets"].as_array_mut().expect("targets").pop();
-    assert_eq!(
-        findings(&metadata.to_string(), &[]).expect("fixture metadata"),
-        ["a: missing generated test target at tests/generated/main.rs"]
-    );
-}
-
-#[test]
-fn every_record_file_needs_a_test_file() {
-    let scratch = scratch(&[
-        ("src/generated/v2.rs", ""),
-        ("src/generated/people_v3.rs", ""),
-        ("tests/generated/main.rs", "mod v2;"),
-        ("tests/generated/v2.rs", ""),
-    ]);
-    let metadata = fixture_metadata(&scratch).to_string();
-    assert_eq!(findings(&metadata, &[]).expect("fixture metadata"), ["a: missing tests/generated/people_v3.rs"]);
-    fs::remove_file(scratch.path().join("tests/generated/v2.rs")).expect("remove test file");
-    assert_eq!(
-        findings(&metadata, &[]).expect("fixture metadata"),
-        ["a: missing tests/generated/people_v3.rs", "a: missing tests/generated/v2.rs"]
-    );
-}
-
-#[test]
 fn library_test_flag_is_checked_for_every_library_kind() {
-    let scratch = complete("");
+    let scratch = record_fixture("");
     for kind in ["lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro", "bin"] {
         let mut metadata = fixture_metadata(&scratch);
         metadata["packages"][0]["targets"][0]["kind"] = serde_json::json!([kind]);
@@ -355,32 +255,24 @@ fn library_test_flag_is_checked_for_every_library_kind() {
 }
 
 #[test]
-fn only_record_filenames_select_packages() {
-    for (file, is_record) in [
-        ("v12.rs", true),
-        ("team_2_v03.rs", true),
-        ("layouts.rs", false),
-        ("People_v1.rs", false),
-        ("people_v.rs", false),
-        ("people_v1.txt", false),
-        ("v.rs", false),
-        ("_v1.rs", false),
+fn only_record_headers_select_packages() {
+    for (file, header, is_record) in [
+        ("people.rs", "// Generated by skein-codegen from people 2. Do not edit.\n", true),
+        ("layouts.rs", "// glue\n", false),
+        ("people.rs", "// glue\n", false),
+        ("people.txt", "// Generated by skein-codegen from people 2. Do not edit.\n", false),
     ] {
-        let scratch = scratch(&[
-            (&format!("src/generated/{file}"), "#[cfg(test)] mod tests {}"),
-            ("tests/generated/main.rs", ""),
-            (&format!("tests/generated/{file}"), ""),
-        ]);
+        let scratch = scratch(&[(&format!("src/generated/{file}"), &format!("{header}#[cfg(test)] mod tests {{}}"))]);
         let failures = findings(&fixture_metadata(&scratch).to_string(), &[]).expect("fixture metadata");
         let expected = if is_record {
             vec![format!("a: src/generated/{file}: test module in generated record code")]
         } else {
             vec![]
         };
-        assert_eq!(failures, expected, "{file}");
+        assert_eq!(failures, expected, "{file}: {header}");
     }
     let scratch = scratch(&[("src/generated/layouts.rs", "#[test] fn glue_test() {}")]);
-    fs::create_dir(scratch.path().join("src/generated/v2.rs")).expect("record-shaped directory");
+    fs::create_dir(scratch.path().join("src/generated/people.rs")).expect("record-shaped directory");
     let mut metadata = fixture_metadata(&scratch);
     metadata["packages"][0]["targets"] = serde_json::json!([]);
     assert_eq!(findings(&metadata.to_string(), &[]).expect("fixture metadata"), Vec::<String>::new());
@@ -388,11 +280,10 @@ fn only_record_filenames_select_packages() {
 
 #[test]
 fn exceptions_cover_only_the_named_file_or_library_and_must_match() {
-    let scratch = complete("#[cfg(test)] mod tests {}");
-    fs::remove_file(scratch.path().join("tests/generated/v2.rs")).expect("remove test file");
+    let scratch = record_fixture("#[cfg(test)] mod tests {}");
     let mut metadata = fixture_metadata(&scratch);
     metadata["packages"][0]["targets"][0]["test"] = serde_json::json!(true);
-    let file = older("a", "src/generated/v2.rs");
+    let file = older("a", "src/generated/people.rs");
     let lib = library("a", "fixture private tests");
     assert_eq!(
         findings(&metadata.to_string(), &[file]).expect("fixture metadata"),
@@ -400,22 +291,25 @@ fn exceptions_cover_only_the_named_file_or_library_and_must_match() {
     );
     assert_eq!(
         findings(&metadata.to_string(), &[lib]).expect("fixture metadata"),
-        ["a: src/generated/v2.rs: test module in generated record code", "a: missing tests/generated/v2.rs"]
+        ["a: src/generated/people.rs: test module in generated record code"]
     );
     assert_eq!(
-        findings(&metadata.to_string(), &[older("a", "src/generated/v2.rs"), library("a", "fixture private tests")])
-            .expect("fixture metadata"),
+        findings(
+            &metadata.to_string(),
+            &[older("a", "src/generated/people.rs"), library("a", "fixture private tests")]
+        )
+        .expect("fixture metadata"),
         Vec::<String>::new()
     );
-    let scratch = complete("");
+    let scratch = record_fixture("");
     let failures = findings(
         &fixture_metadata(&scratch).to_string(),
-        &[older("a", "src/generated/v2.rs"), library("gone", "fixture private tests")],
+        &[older("a", "src/generated/people.rs"), library("gone", "fixture private tests")],
     )
     .expect("fixture metadata");
     assert_eq!(failures.len(), 2, "{failures:?}");
     assert!(
-        failures[0].starts_with("a: src/generated/v2.rs") && failures[0].contains("exceptions only shrink"),
+        failures[0].starts_with("a: src/generated/people.rs") && failures[0].contains("exceptions only shrink"),
         "{failures:?}"
     );
     assert!(
@@ -426,38 +320,30 @@ fn exceptions_cover_only_the_named_file_or_library_and_must_match() {
 
 #[test]
 fn unreadable_directories_and_files_are_never_excused() {
-    for relative in ["src/generated", "tests/generated"] {
-        let scratch = if relative == "src/generated" {
-            scratch(&[(relative, "not a directory")])
-        } else {
-            scratch(&[("src/generated/v2.rs", ""), (relative, "not a directory")])
-        };
-        let failures = findings(&fixture_metadata(&scratch).to_string(), &[]).expect("fixture metadata");
-        assert!(
-            failures.iter().any(|failure| failure.starts_with("a: ")
-                && failure.contains(relative)
-                && failure.contains("Not a directory")),
-            "{failures:?}"
-        );
-    }
-    for relative in ["src/generated/v2.rs", "tests/generated/v2.rs", "tests/generated/main.rs"] {
-        let scratch = complete("#[cfg(test)] mod tests {}");
-        fs::write(scratch.path().join(relative), [0xff]).expect("non-UTF-8 source");
-        let failures = findings(&fixture_metadata(&scratch).to_string(), &[older("a", "src/generated/v2.rs")])
-            .expect("fixture metadata");
-        assert!(
-            failures
-                .iter()
-                .any(|failure| failure.starts_with("a: ") && failure.contains(relative) && failure.contains("UTF-8")),
-            "{failures:?}"
-        );
-    }
+    let not_directory = scratch(&[("src/generated", "not a directory")]);
+    let failures = findings(&fixture_metadata(&not_directory).to_string(), &[]).expect("fixture metadata");
+    assert!(
+        failures.iter().any(|failure| failure.starts_with("a: ")
+            && failure.contains("src/generated")
+            && failure.contains("Not a directory")),
+        "{failures:?}"
+    );
+    let non_utf8 = record_fixture("#[cfg(test)] mod tests {}");
+    fs::write(non_utf8.path().join("src/generated/people.rs"), [0xff]).expect("non-UTF-8 source");
+    let failures = findings(&fixture_metadata(&non_utf8).to_string(), &[older("a", "src/generated/people.rs")])
+        .expect("fixture metadata");
+    assert!(
+        failures.iter().any(|failure| failure.starts_with("a: ")
+            && failure.contains("src/generated/people.rs")
+            && failure.contains("UTF-8")),
+        "{failures:?}"
+    );
 }
 
 #[test]
 fn unreadable_metadata_fails_before_scanning() {
     assert!(findings("not JSON", &[]).expect_err("bad metadata").contains("metadata"));
-    let scratch = complete("");
+    let scratch = record_fixture("");
     let mut metadata = fixture_metadata(&scratch);
     metadata["packages"][0]["targets"][0]["test"] = serde_json::Value::Null;
     assert_eq!(findings(&metadata.to_string(), &[]).expect_err("missing flag"), "a: no target test flag");

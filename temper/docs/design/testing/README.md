@@ -7,8 +7,8 @@ the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
 (`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`), its
-layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), QA
-after landing beside the deployment (`qa/README.md`), and what
+layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
+macOS tests (`macos.md`), QA after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).
 
 ## 1. In one page
@@ -18,8 +18,8 @@ is still open (`README.md`, section 6).
   own; the system world runs the real engine and worker together, with
   smith's agents.
 - **Below the domain, one tier per layer it adds:** step tests of every
-  codec, translation and parser, against golden bytes and transcripts of
-  real peers; machine worlds of the forge component, the git component
+  codec and translation with built-value round trips, records drift and
+  pinned constructs, and each parser against transcripts of real peers; machine worlds of the forge component, the git component
   and the terminal shell; the forge's protocol world; temper's client
   joined to the engine's root; the one-process world on skein's
   simulator; the real-loop world on one ring; reconcile's world; the
@@ -62,7 +62,7 @@ is still open (`README.md`, section 6).
 
 | Tier (skein/docs/foundation/testing-strategy.md, section 2) | In temper |
 |---|---|
-| step tests | every domain crate and every fake; every codec (golden bytes, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, golden bytes and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
+| step tests | every domain crate and every fake; every codec (records drift, pinned constructs, built-value round trips, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, built-value round trips and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
 | domain worlds | each child domain with the world as its parent, and each component's root domain with its child domains; most of temper's tests |
 | system worlds | the engine, the worker and smith's agents together; temper's client joined to the engine's root (2.1) |
 | machine worlds | the git component against scripted process ends and outputs; the terminal shell's loop against a scripted stdin and stdout; skein's, for the machines it ships, the forge component among them (skein's `forge/connection.md`, section 10) |
@@ -361,72 +361,14 @@ terminal client, the captures and the faults.
 
 ### 2.8 macOS
 
-macOS is a person's own machine and Linux the platform of record
-(`../draft/macos.md`). What macOS tests is one workflow; the gate never
-reads it, and whatever is Linux's may be degraded there. Apple
-Silicon's file for the site is built by a workflow of its own, which
-tests nothing (`../release.md`, 5.1).
-
-- **The workflow,** `.github/workflows/macos.yml`, on GitHub's `macos-26`,
-  arm64: on the newest `main` four times a day by a schedule, and by
-  hand, on any branch that holds it; never on a push. A red run blocks
-  nothing: it is a finding.
-- **What it runs:** every target of skein, smith, jig and temper
-  compiled, hearth left out
-  (`cargo check --workspace --exclude 'hearth*' --all-targets --keep-going`),
-  then the one story below. Each check runs whatever an earlier one
-  gave, so that one run shows every failure.
-- **What it installs:** the toolchain the repository's
-  `rust-toolchain.toml` pins (`skein/docs/foundation/programming-model.md`,
-  10.1), by rustup reading the file in the checkout, with no version
-  written in the workflow; and `cargo-nextest`, its download checked by
-  its SHA-256.
-- **The runner is small:** line tables only for debug information, no
-  incremental build, `TEMPER_INTERNAL_BUNDLE=none`, the registry cached
-  by the lock and the dependencies' build by the lock and the
-  toolchain's file, and each run reports its disk.
-- **A failure reads without a login:** the repository is public, and
-  each failing check annotates its run with its failing tests or errors
-  and the end of its output, which the public API gives.
-- **The one story:**
-  `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`
-  (`process-tier.md`), never a copy of it: the workflow runs it alone under the profile
-  `process-temper`, and a run that selects nothing is red.
-- **Its binaries come through `temper-box forge fetch`** (`../protocol/setup/owned.md`,
-  6), into a cache of the workflow's own that starts empty, so each
-  run shows that the pinned addresses still answer; `TEMPER_TEST_FORGEJO` and
-  `TEMPER_TEST_FORGEJO_RUNNER` then name what it fetched, and the box's own
-  fetch finds them in place and holds them to the pins' binary digests.
-  The workflow prints each one's version first, so that a binary that
-  does not run shows apart from the story.
-- **Its support on macOS,** each the simplest that works:
-  - `parent::Guard` holds its child and gives it no parent-death signal,
-    which is Linux's: the test's own ending stops what it started;
-  - the steps of the story's CI use what both systems' tools have, within
-    the cleared `PATH`s of the box and of the owned runner;
-  - `left`, Linux's whole-tree proof, proves nothing under the tree
-    keeper's Group (`skein/docs/design/runtime/shell.md`, section 8): it reads
-    empty there, so the story holds the box's clean exit alone.
-- **No containers:** its jobs run on the runner's host under the
-  `temper-host` label, as on Linux.
-- **The Darwin check.** On our Linux machines clippy reaches, for
-  `aarch64-apple-darwin`, the members that do not reach rustls, whose
-  `ring` crate compiles C against Apple's headers (skein's `runtime/shell.md`,
-  section 8); the rest are the workflow's.
-- **Linux's own tests, by name.** A test that only Linux can run is built
-  for Linux alone, `cfg(target_os = "linux")` on its test, module or
-  binary, with its reason beside it, and listed here. A test that
-  compiles and fails on macOS and would take real work to port joins the
-  list; none is dropped silently.
-
-  | Test | Its reason |
-  |---|---|
-  | `crates/temper-box-shell/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
-  | `bin/temper-box/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
-  | `bin/temper-box/tests/suite/box_lifetime.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
-  | `bin/temper-box/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `bin/temper-box/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
-  | `bin/temper-box/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
-  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
+What macOS tests is `macos.md`'s: one workflow, outside the gate, on
+GitHub's `macos-26`, dispatched after landing at a commit of main for a
+set of parts, each a job: the process tier's stories, the one story among
+them, its Forgejo and runner fetched first through `temper-box forge
+fetch`; the browser tiers; each tree's focused and fuzzy suites; and the
+live stories on the user's key. One JUnit report names the failing tests
+by tier main's ids, a build that fails among them, and fabrig's forge
+hands it its macOS tiers' runs. Linux's own tests are listed by name.
 
 ## 3. Neighbours and their faces
 
@@ -581,6 +523,7 @@ bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), next
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
+testing/temper-process-guard        the kit's process guard, its tests on real processes
 bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 bin/temper-box/tests/fixtures/github   the GitHub App's documents, its key and its workers' secrets, read by the kit's GitHub stories
 bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
@@ -594,6 +537,8 @@ crates/temper-playground            the world's composition, the playground's an
 crates/temper-playground-serve-tool the browser tier's static host for the playground's bundle, called by bin/temper-playground-serve (tools.md, 3)
 testing/temper-github-app           the App on the fake GitHub layer's first fixed key, its records, seeded in jig's secrets' store before a start (2.4)
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
+testing/temper-agent-fixtures       the agents' configuration as the worker's writer makes it
+testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world
@@ -612,7 +557,7 @@ crates/temper-twin-tool             the live run's twin: bin/temper-twin, select
 crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md)
 crates/temper-git-transcripts-tool  git's transcripts, recorded by bin/temper-git-transcripts against skein's throwaway Forgejo (../protocol/git.md, section 9)
 crates/temper-client-gallery-tool    bin/temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
-crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its test reprinting each committed journey
+crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its tests on walks they record
 crates/temper-stage-one-tool        bin/temper-stage-one: configuring's stage 1, the golden, its check, its judge's brief and the evidence's collection (6.5), its step tests in the focused suite
 scripts/proof-live.sh               the live tier
 ```
@@ -632,12 +577,9 @@ scripts/proof-live.sh               the live tier
   in skein's `forge/setup/README.md`, section 5. temper's fake git program,
   its core in `crates/temper-fake-git` and its hosted half in
   `crates/temper-fake-git-hosted`, sits on the fake forge (`fakes.md`, 3).
-- **Machine worlds live beside what they test:** the forge component's is
-  in skein's `forge/connection.md`, section 10; the git component's is in
-  `tests/worker/protocol-git` (../protocol/git.md, section 9); the terminal's
-  in `temper-client-shell-terminal`'s own tests (../client/testing.md
-  ). temper's protocol world for the forge, over skein's crates, is
-  `tests/engine/protocol-forge` (../protocol/forge/README.md, section 9).
+- **Machine worlds live beside what they test,** as the layout places
+  them (../protocol/forge/README.md, section 9); the forge component's is
+  skein's (`forge/connection.md`, section 10).
 - **The setup's crates** test as step code does: `temper-forge-setup`'s
   files, specs and steps, and `temper-box-machine`'s machine, by their step
   tests (../protocol/setup/testing.md, 1); reconcile's machine by skein's world;
@@ -908,7 +850,7 @@ scripts/proof-live.sh               the live tier
   remove that race, but needs a different closure assertion. Default:
   this test keeps its assertion until a failure or a test change reaches
   it; the sandbox's reservation retries are `../protocol/setup/box.md`, 5's.
-- **Reusable ports on macOS** (`process-tier.md`, `README.md`, 2.8): read its configured ephemeral
+- **Reusable ports on macOS** (`process-tier.md`, `macos.md`): read its configured ephemeral
   range before drawing ports. With no Linux range file, the chooser uses
   49152, macOS's default; a machine configured with a lower boundary can
   put a chosen port inside its ephemeral range.
@@ -982,16 +924,9 @@ scripts/proof-live.sh               the live tier
   installation stay `fabrig-ai`'s. That login is an owner of `fabrig-ai`:
   a member's request waits on an owner's approval
   (`../draft/github.md`, section 18).
-- **macOS past the one story** (`../draft/macos.md`, section 6, steps 6 to
-  8): each tree's suites on the runner, under a `macos` nextest profile
-  measured there and with each tree's list of Linux's own tests; the
-  checklist for a person on a real Mac; and the first run's demo in a
-  browser. A test that would take real work joins 2.8's list.
 - **A cached state graph.** Below the real loop a state is a pure function
   of its seed and path, so a crash sweep could fork at a prefix it now walks
   again. The slow tiers wait: a process story's restore has its meaning to
   prove, and the request `test-speed` of 2026-11-06 takes what needs no cache
   first.
-- **The macOS workflow's results in after-landing.** A red run is a
-  finding (2.8), and nothing reads it yet. The repository is public, so
-  a run's results need no token.
+- **macOS's later work** is `macos.md`, 10's.

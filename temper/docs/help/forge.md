@@ -9,9 +9,8 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Its kind:** GitHub or Forgejo.
 - **Its number** is its identity, the next one, given when it is set
   up or connected and never given again: another number is another
-  forge. `temper-box init --box` writes no forge, only the places this machine
-  gives a Forgejo temper runs, the playground's fake and GitHub
-  (`application.machine`).
+  forge. `temper-box init --box` writes no forge. A forge's place is chosen
+  when it is set up, and kept with the forge, not in `temper.toml`.
 - **Its mode,** as `forge list` prints it:
   - `connected`: a forge someone else runs, reached with a credential
     temper holds, such as GitHub through an App;
@@ -112,23 +111,23 @@ comparison failures still fail preparation.
 
 CI repair briefs keep the failed check and the failed step's tail, with a
 cut marker. On GitHub this ends at the runner's failed-process line before
-cleanup, or at the job's tail if that marker is absent. `read_checks` names
+cleanup, or at the job's tail if that marker is absent. `read_ci what=checks` names
 the resolved Actions job attempt of a failed GitHub check, or says none was
-resolved. Pass its head, run, job and attempt to `read_job`; check-run and
+resolved. Pass its head, run, job and attempt to `read_ci what=job`; check-run and
 job numbers can differ. The log keeps the diagnostic end, step name and
 escaped bytes within the answer limit.
 
 Large pulls can start review: the brief keeps a pull-section prefix within
 the agent's combined charter, workspace and rendered host limits.
-`[cut N bytes; whole: read_pull/read_pull_files]` points to omitted content
+`[cut N bytes; whole: read_issues]` points to omitted content
 at the reviewed head. Instructions, tools and result contracts stay whole;
 `hub.charter_bytes` need not be lowered.
 
 A forge read's size error names the exceeded limit and measured bytes;
 the serve log names task, attempt, tool and `host-render`. For a large
-`read_compare`, use `read_pull` for the head, then `read_pull_files` with
+`read_forge what=compare`, use `read_issues what=pull` for the head, then `read_issues what=pull_files` with
 that head and `page=1`; advance while more follows. If a page is too large
-or no pull exists, use `read_file` for directories at both endpoints, then
+or no pull exists, use `read_forge what=file` for directories at both endpoints, then
 selected files with `max_bytes`. Forge-client admission busy still retries
 through the host.
 

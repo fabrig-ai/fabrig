@@ -4,6 +4,7 @@ use crate::line::{BoxValue, Document};
 use sha2::{Digest, Sha256};
 use skein_json::{Document as JsonDocument, Kind, document, tokenizer, writer};
 use std::{ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
+use temper_config_shell::{Facts, File, Shape};
 
 pub const DOCUMENT_BYTES: u32 = 256 * 1024;
 pub const PATCH_BYTES: u32 = 64 * 1024;
@@ -62,6 +63,15 @@ impl Place {
 }
 
 pub fn render(document_name: &str, bytes: &[u8], place: &Place) -> Result<Box<[u8]>, String> {
+    if let Some(shape) = match document_name {
+        "engine.toml" => Some(Shape::EngineAlone),
+        "worker.toml" => Some(Shape::WorkerAlone),
+        _ => None,
+    } {
+        let bytes = template(document_name, bytes, DOCUMENT_BYTES, place)?;
+        let file = configuration(document_name, &bytes, shape)?;
+        return Ok(temper_config_shell::render(&file, shape));
+    }
     let mut json = Json::parse(document_name, bytes, DOCUMENT_BYTES)?;
     json.render(document_name, place)?;
     json.encode(document_name)
@@ -83,16 +93,21 @@ pub fn preparation(config_present: bool, data_present: bool) -> Result<Preparati
 
 pub type RenderedFile = (PathBuf, Box<[u8]>);
 
+/// Deployment templates and their retained destinations.
+#[must_use]
+pub fn inputs() -> [(&'static str, PathBuf); 5] {
+    [
+        ("engine.toml", Document::Engine.path()),
+        ("worker.toml", Document::Worker.path()),
+        ("forgejo.json", "config/forgejo.json".into()),
+        ("model.json", "config/model.json".into()),
+        ("providers.json", "config/providers.json".into()),
+    ]
+}
 /// The io supplies regular files from config/; no file is read or written here.
 /// Fresh preparation's destinations are absolute paths under scratch.
 pub fn documents(files: &[(&str, &[u8])], place: &Place) -> Result<Vec<RenderedFile>, String> {
-    let names = [
-        ("engine.json", Document::Engine.path()),
-        ("worker.json", Document::Worker.path()),
-        ("agent.json", Document::Agent.path()),
-        ("forgejo.json", "config/forgejo.json"),
-        ("model.json", "config/model.json"),
-    ];
+    let names = inputs();
     for (name, _) in files {
         if !names.iter().any(|(expected, _)| name == expected) {
             return Err(format!("config/{name}: unexpected deployment document"));
@@ -105,7 +120,11 @@ pub fn documents(files: &[(&str, &[u8])], place: &Place) -> Result<Vec<RenderedF
         if found.next().is_some() {
             return Err(format!("config/{name}: repeated deployment document"));
         }
-        rendered.push((place.scratch.join(destination), render(name, bytes, place)?));
+        let bytes = render(name, bytes, place)?;
+        if name == "providers.json" {
+            rendered.push((place.scratch.join("data/engine/providers.setting"), bytes.clone()));
+        }
+        rendered.push((place.scratch.join(destination), bytes));
     }
     Ok(rendered)
 }
@@ -141,6 +160,9 @@ impl Values {
         }
     }
 }
+mod worker;
+pub use worker::Worker;
+
 pub fn values(place: &Place, forgejo: &[u8], model: &[u8]) -> Result<Values, String> {
     let forgejo = Json::parse("forgejo.json", forgejo, DOCUMENT_BYTES)?;
     let model = Json::parse("model.json", model, DOCUMENT_BYTES)?;
@@ -154,19 +176,57 @@ pub fn values(place: &Place, forgejo: &[u8], model: &[u8]) -> Result<Values, Str
     })
 }
 
-/// RFC 7396; only patch string values are rendered. Both patch and result are objects.
-pub fn merge(document: &[u8], patch: &[u8], place: &Place) -> Result<Box<[u8]>, String> {
-    let mut document = Json::parse("document", document, DOCUMENT_BYTES)?;
-    let mut patch = Json::parse("patch", patch, PATCH_BYTES)?;
-    if !matches!(patch, Json::Object(_)) {
-        return Err("patch: expected a JSON object".into());
+/// TOML top-level overlay; only the patch's string values are rendered.
+pub fn merge(document: &[u8], patch: &[u8], place: &Place, shape: Shape) -> Result<Box<[u8]>, String> {
+    let file = configuration("document", document, shape)?;
+    let patch = template("patch", patch, PATCH_BYTES, place)?;
+    let read = temper_config_shell::patch(&file, &patch, shape, &facts()).map_err(|why| format!("patch: {why}"))?;
+    check(&read, shape).map_err(|why| format!("patch: {why}"))?;
+    Ok(temper_config_shell::render(&read.file, shape))
+}
+
+fn facts() -> Facts {
+    Facts { login: "qa".into(), hostname: "worker".into(), provider_key: false }
+}
+pub(super) fn configuration(name: &str, bytes: &[u8], shape: Shape) -> Result<File, String> {
+    if bytes.len() > usize::try_from(DOCUMENT_BYTES).expect("document bound fits usize") {
+        return Err(format!("{name}: document exceeds {DOCUMENT_BYTES} bytes"));
     }
-    patch.render("patch", place)?;
-    document.merge(patch);
-    if !matches!(document, Json::Object(_)) {
-        return Err("merge result: expected a JSON object".into());
+    let read = temper_config_shell::parse(bytes, shape, &facts()).map_err(|why| format!("{name}: {why}"))?;
+    check(&read, shape).map_err(|why| format!("{name}: {why}"))?;
+    Ok(read.file)
+}
+fn check(read: &temper_config_shell::Read, shape: Shape) -> Result<(), String> {
+    let directories = jig_protocol_config::Directories::working();
+    let result = match shape {
+        Shape::EngineAlone => temper_engine_service_startup::startup::named(&read.document, &directories)
+            .map(|_| ())
+            .map_err(|why| temper_engine_service_startup::startup::lines(&why)),
+        Shape::WorkerAlone => temper_worker_service::startup::worker_part(&read.document, &directories, None, &[])
+            .map(|_| ())
+            .map_err(|why| temper_worker_service::startup::lines(&why)),
+        Shape::Standalone => return Err("a deployment requires an engine or worker alone's file".into()),
+    };
+    result.map_err(|lines| {
+        String::from_utf8_lossy(&lines)
+            .lines()
+            .map(|line| match line.split_once(": ") {
+                Some((member, words)) => read.keys.render_member(member, words),
+                None => line.into(),
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    })
+}
+fn template(name: &str, bytes: &[u8], bound: u32, place: &Place) -> Result<Box<[u8]>, String> {
+    if bytes.len() > usize::try_from(bound).expect("document bound fits usize") {
+        return Err(format!("{name}: document exceeds {bound} bytes"));
     }
-    document.encode("merge result")
+    temper_config_shell::substitute(bytes, |text| {
+        let rendered = render_string(name, text.as_bytes(), place)?;
+        String::from_utf8(rendered.into_vec()).map_err(|_| format!("{name}: place value must be UTF-8"))
+    })
+    .map_err(|why| format!("{name}: {why}"))
 }
 
 impl Plan {
@@ -229,7 +289,7 @@ impl Plan {
     }
 }
 
-/// A mutable JSON value keeps object order and number spellings while merging.
+/// A mutable JSON value keeps object order and number spellings while rendering place names.
 #[derive(Debug)]
 enum Json {
     Object(Vec<(Box<[u8]>, Self)>),
@@ -307,27 +367,6 @@ impl Json {
             Self::Number(_) | Self::Boolean(_) | Self::Null => {}
         }
         Ok(())
-    }
-    fn merge(&mut self, patch: Self) {
-        let Self::Object(patch) = patch else {
-            *self = patch;
-            return;
-        };
-        if !matches!(self, Self::Object(_)) {
-            *self = Self::Object(vec![]);
-        }
-        let Self::Object(members) = self else { unreachable!("merge target is now an object") };
-        for (key, patch) in patch {
-            if matches!(patch, Self::Null) {
-                members.retain(|(name, _)| name != &key);
-            } else if let Some((_, target)) = members.iter_mut().find(|(name, _)| name == &key) {
-                target.merge(patch);
-            } else {
-                let mut target = Self::Null;
-                target.merge(patch);
-                members.push((key, target));
-            }
-        }
     }
     fn encode(&self, name: &str) -> Result<Box<[u8]>, String> {
         let limits = writer::Limits { depth: JSON.depth, length: u32::MAX };

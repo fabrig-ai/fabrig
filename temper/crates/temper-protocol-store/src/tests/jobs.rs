@@ -43,6 +43,7 @@ pub(super) fn application(repository: Repository) -> Stored {
         token: 1,
         until: Wall::EPOCH,
         outcome: d::ApplicationOutcome::Adopted(d::AdoptedRepository {
+            landing: b"main".as_slice().into(),
             repository,
             owner: adopted.owner,
             name: adopted.name,
@@ -159,6 +160,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
                 task: 1,
                 writer: None,
                 drift: None,
+                beside: None,
                 design_writers: Box::new([]),
             }),
         ),
@@ -186,6 +188,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
         (
             "Release",
             Stored::Release(d::ReleaseRow {
+                room: None,
                 task: 1,
                 root: 1,
                 ending: d::ReleaseEnding::Done,
@@ -200,6 +203,11 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
         (
             "Landing",
             Stored::Landing(d::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 asks: Box::new([None, None]),
                 entries: Box::new([]),
@@ -212,6 +220,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
                     phase: l::Phase::Waiting,
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: b"main".as_slice().into(),
                     members: [A, repository]
                         .into_iter()
@@ -359,5 +368,14 @@ fn deleted_repository_job_refuses_unreadable_rows_and_keys() {
 #[test]
 fn declared_job_names_are_pinned() {
     let names: Vec<_> = crate::OWNER_SET.jobs.iter().map(|job| job.name).collect();
-    assert_eq!(names, ["deleted-repository-forge-rows"]);
+    assert_eq!(
+        names,
+        [
+            "test-ids-landing",
+            "test-ids-receipt",
+            "test-ids-tier",
+            "test-ids-verification",
+            "deleted-repository-forge-rows"
+        ]
+    );
 }

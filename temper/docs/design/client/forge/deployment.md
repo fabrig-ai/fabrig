@@ -157,11 +157,12 @@ and `connect-forge.html`.
   forge’s external link. The choice makes the forge’s record at admission,
   never before (`../../protocol/forge/engine.md`, 2). While the playground is read,
   Settings offers nothing to add (`family.md`, 7).
-  - *Forgejo on this machine:* “A forge of your own: temper starts it on
-    this machine and manages it. You can import existing repositories
-    into it, from GitHub or elsewhere.” “Run on this machine” opens the
-    welcome’s sheet: an empty repository by default, `work` and `hello`
-    until written, or copies or nothing (`../pages/README.md`).
+  - *Forgejo on this machine:* headed “Local”, “A forge of your own:
+    temper starts Forgejo on this machine and manages it. You can import
+    existing repositories into it, from GitHub or elsewhere.” (the look
+    request `local-forge`). “Run on this machine” opens the welcome’s
+    sheet, “Local forge”: the sample by default, with no fields, or
+    copies or nothing (`../pages/welcome.md`, 1, *Forge*).
   - *GitHub:* “Your repositories on GitHub. temper makes its own App
     there; you choose the account and the repositories it may use.”
     “In this tab, on GitHub · about two minutes”. “Connect GitHub” sends
@@ -226,16 +227,18 @@ and `connect-forge.html`.
     ctl forge connect N github-app APP FILE, FILE the key's file,
     readable by you alone." (`../ctl/areas.md`);
   - *Forgejo on this machine,* under the box, is the welcome’s sheet
-    (`../pages/README.md`): empty, copies or nothing, then “Run on this
+    (`../pages/README.md`): the sample, copies or nothing, then “Run on this
     machine”. It says that CI jobs run on this machine as the person,
     without isolation, and that Forgejo stops with temper box while its
     repositories stay in temper’s data directory. Run sends `SetUp` of a
-    new or kept owned Forgejo (`records.md`). Its names default to `work` and `hello`. Empty names
-    say “Required.”; other refusals stay under the act, with fields
-    kept for repair. Accepted, Settings opens Forges with its row expanded;
+    new or kept owned Forgejo (`records.md`). The sample is `work/hello`,
+    its names not shown and never written (`../../protocol/setup/owned.md`,
+    7); refusals stay under the act, with the choice and the copies'
+    addresses kept for repair. Accepted, Settings opens Forges with its row expanded;
     setup adopts nothing. The made repository waits for adoption into a
     project; the welcome’s Ready handles its own adoption. “Set up again”
-    sends the previous fields. Outside temper box no owned setup is
+    sends the previous fields, the sample again where the row says it was
+    one. Outside temper box no owned setup is
     offered (`../../protocol/setup/box.md`, 4);
   - *Your Forgejo,* a forge to make: its addresses, "Its address", its
     API's host, "Its git base", the base of its remotes, and "Its web

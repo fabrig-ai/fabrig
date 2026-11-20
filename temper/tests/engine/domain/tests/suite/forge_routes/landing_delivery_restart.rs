@@ -180,8 +180,29 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
         for task in [first, second, first_landing] {
             assert!(!matches!(task_row(&world, task).expect("task").phase, tasks::Phase::Held { .. }));
         }
-        if !ended(&world, first) {
-            assert_eq!(landing_rows(&world).len(), 1, "second waits for the first landing");
+        let rows = landing_rows(&world);
+        let first_row = rows.iter().find(|row| row.landing.task == first_landing).expect("first landing");
+        let live = rows
+            .iter()
+            .filter(|row| {
+                row.landing.branch == first_row.landing.branch
+                    && row.landing.members[0].repository == first_row.landing.members[0].repository
+                    && !matches!(
+                        row.landing.phase,
+                        forge_top::LandingPhase::Landed | forge_top::LandingPhase::Cancelled
+                    )
+            })
+            .count();
+        assert!(live <= 1, "the train has at most one live landing");
+        // Landed frees the train before the change task ends (domain/landing.md, 9).
+        for row in &rows {
+            if row.landing.task != first_landing {
+                assert_eq!(
+                    first_row.landing.phase,
+                    forge_top::LandingPhase::Landed,
+                    "second forms only after the first landed"
+                );
+            }
         }
         if ended(&world, first)
             && ended(&world, second)

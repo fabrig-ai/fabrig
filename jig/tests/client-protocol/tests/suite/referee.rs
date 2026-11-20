@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v26 as wire;
+use jig_client_protocol_wire as wire;
 use jig_client_protocol_world::referee::{Broken, Rules};
 use skein_lib::{Reader, Token, Writer};
 
@@ -33,4 +33,31 @@ fn a_token_leaked_into_a_domain_event_is_caught() {
     let mut rules = Rules::default();
     rules.secret(&secret);
     assert_eq!(rules.domain(&event), Err(Broken::Secret));
+}
+
+#[test]
+fn registered_secrets_are_found_in_event_fields_and_records() {
+    let secrets: [&[u8]; 2] = [&[73; 40], &[0, 1, 7, 73, 128, 255]];
+    let mut rules = Rules::default();
+    for secret in secrets {
+        rules.secret(secret);
+        rules.secret(secret);
+    }
+    for secret in secrets {
+        let event = jig_domain_core::Event::RunText {
+            retry: 0,
+            run: Token::new(1),
+            attempt: Token::new(1),
+            turn: 1,
+            offset: 0,
+            text: secret.into(),
+            call: None,
+        };
+        let record = jig_client::Record { key: b"record".as_slice().into(), bytes: secret.into() };
+        assert_eq!(rules.domain(&event), Err(Broken::Secret));
+        assert_eq!(rules.domain(&record), Err(Broken::Secret));
+        assert_eq!(rules.domain(&[0_u8, 1, 7, 73, 128, 254]), Ok(()));
+        assert_eq!(rules.domain(&event), Err(Broken::Secret), "reuse after a clean event");
+    }
+    assert_eq!(rules.domains, 2, "only clean inputs count");
 }

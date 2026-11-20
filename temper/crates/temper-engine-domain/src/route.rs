@@ -3,6 +3,7 @@ mod applications;
 pub(crate) mod approvals;
 mod asks;
 pub(crate) mod calendar;
+pub(crate) mod checkpoints;
 mod diagnostics;
 pub(crate) mod escalation;
 pub(crate) mod forge_route;
@@ -23,9 +24,11 @@ mod follow_tool;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
+mod limit_settings;
 mod milestones;
-mod now;
+pub(crate) mod now;
 mod panels;
+pub(crate) mod parts;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
@@ -43,8 +46,8 @@ pub(crate) mod trials;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
 use crate::boundary::{
-    Call, EscalationChoice, Event, ForgeRepository, ForgeStart, ForgeWorkspace, InputCheck, MessageForm, Payload,
-    PreparedWorkspace, ProposalChoice, ProposedAction, Read, Request, Tool, Work,
+    Call, EscalationChoice, Event, ForgeWorkspace, InputCheck, MessageForm, Payload, PreparedWorkspace, ProposalChoice,
+    ProposedAction, Read, Request, Tool, Work,
 };
 use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
@@ -80,7 +83,21 @@ pub(crate) use tools::relay_payload;
 pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     crate::domain::invalidate_input(domain, &event);
     assert!(domain.application.is_none(), "application value cleared in its admission step");
-    assert!(domain.limits == env.limits, "root uses configured limits");
+    let raising = match &event {
+        Event::LimitsRaised => true,
+        Event::Setup { .. }
+        | Event::Store(_)
+        | Event::Worker(_)
+        | Event::Party(_)
+        | Event::Account(_)
+        | Event::Credential { .. }
+        | Event::Forge(_)
+        | Event::Released(_)
+        | Event::Restart { .. }
+        | Event::Resume
+        | Event::Stop => false,
+    };
+    assert!(raising || domain.limits == env.limits, "root uses configured limits");
     if domain.journal.stopped() || domain.start_stop().is_some() {
         discard_after_stop(domain, event);
         return;
@@ -94,6 +111,26 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
     };
     match event {
         Event::Setup { .. } => return, // The root keeps nothing of a plan's terminal.
+        Event::LimitsRaised => {
+            let before = domain.limits;
+            assert!(env.limits.transcript_memory >= before.transcript_memory, "transcript budget only rises");
+            let mut next = before;
+            next.transcript_memory = env.limits.transcript_memory;
+            next.forge = env.limits.forge;
+            assert_eq!(next, env.limits, "other root limits wait for the next start");
+            domain.limits = next;
+            domain.work.push(Work::Forge(forge::Event::LimitsRaised));
+            for (member, old, new) in [
+                (b"forge.tasks".as_slice(), before.forge.tasks, env.limits.forge.tasks),
+                (b"forge.holds".as_slice(), before.forge.holds, env.limits.forge.holds),
+                (b"forge.entries".as_slice(), before.forge.entries, env.limits.forge.entries),
+                (b"forge.client.entries".as_slice(), before.forge.client.entries, env.limits.forge.client.entries),
+            ] {
+                if new > old {
+                    domain.end_forge_limit_holds(member, u64::from(new));
+                }
+            }
+        }
         Event::Resume => {
             crate::domain::resume_routed(domain, env, out);
             return;
@@ -213,8 +250,8 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::SignOut { reply_to, sign_in }) => {
             domain.work.push(Work::People(people::Event::SignOut { reply_to, sign_in }));
         }
-        Event::Party(crate::PartyInput::SignedIn { reply_to, identity, held }) => {
-            domain.work.push(Work::Core(core::Event::SignIn { reply_to, identity, held }));
+        Event::Party(crate::PartyInput::SignedIn { until, reply_to, identity, held }) => {
+            domain.work.push(Work::Core(core::Event::SignIn { until, reply_to, identity, held }));
         }
         Event::Party(crate::PartyInput::Application { reply_to, sign_in, key, digest, scope, request, carried }) => {
             let admission = applications::Admission { reply_to, sign_in, key, digest, scope, carried };
@@ -230,7 +267,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::ForgeRead { reply, sign_in, scope, query });
         }
         Event::Party(crate::PartyInput::Read { reply_to, sign_in, read }) => {
-            domain.work.push(Work::Core(core::Event::Read { reply: reply_to, sign_in, read }));
+            domain.work.push(Work::Core(core::Event::Read { reply: reply_to, sign_in, read: *read }));
         }
         Event::Party(crate::PartyInput::Watch { watcher, sign_in, subject, window }) => {
             domain.work.push(Work::Core(core::Event::Watch { watcher, sign_in, subject, window }));
@@ -246,6 +283,12 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::StreamDelivered { watcher }) => {
             domain.work.push(Work::Core(core::Event::StreamDelivered { watcher }));
+        }
+        Event::Store(crate::StoreInput::Checkpointed { token, checkpoint }) => {
+            checkpoints::terminal(domain, token, Ok(checkpoint));
+        }
+        Event::Store(crate::StoreInput::CheckpointRefused { token, why }) => {
+            checkpoints::terminal(domain, token, Err(why));
         }
         Event::Store(crate::StoreInput::Census(census)) => {
             if domain.start_runtime() {
@@ -308,6 +351,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
             return;
+        }
+        Event::Store(crate::StoreInput::PartLoaded { waiter, result }) => {
+            domain.work.push(Work::PartsLoaded { waiter, result });
         }
         Event::Store(crate::StoreInput::ReadLoaded { load, result }) => {
             domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
@@ -408,16 +454,20 @@ fn route_core_with_job(
     requests: Queue<core::Request>,
     job_answer: Option<forge_route::job_history::Answer>,
 ) {
+    forge_route::limit_holds::reconcile(domain, env, decision);
     standing::saved(domain, env, decision, &requests);
+    let note_projects = parts::note_projects(&requests);
     let mut output = requests;
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                parts::saved(domain, &record);
                 forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
                 forge_route::revision_saved(domain, env, decision, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
+                limit_settings::saved(domain, env, decision, &record);
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);
@@ -442,6 +492,7 @@ fn route_core_with_job(
                 save(decision, &env.limits, Write::CopySettingsRevision(number));
             }
             core::Request::Write(core::Write::Erase(key)) => {
+                parts::erased(domain, &key, &note_projects);
                 if let core::Key::Accounts(jig_domain_accounts::Key::Account { number }) = &key {
                     trials::route(domain, env, temper_engine_domain_trials::Event::AccountGone { account: *number });
                 }
@@ -490,6 +541,8 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             break;
         };
         match work {
+            Work::PartsFailed { waiter } => parts::failed(domain, env, decision, waiter, core::PartFailure::Busy),
+            Work::PartsLoaded { waiter, result } => parts::joined(domain, env, decision, waiter, result),
             Work::StartDone(phase) => {
                 if phase == core::start::Phase::LoadCore
                     && let Err(short) = domain.check_room()
@@ -502,6 +555,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
+                    forge_route::limit_holds::restart(domain);
                     // Open admits task control; a later resume takes the first due task.
                     trials::restarted(domain);
                 }
@@ -543,6 +597,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
                 route_core_requests(domain, env, decision, routed);
             }
+            Work::ForgeLimitHold { row, words } => {
+                forge_route::limit_holds::apply_hold(domain, env, decision, row, words);
+            }
+            Work::ForgeLimitRelease { task, revision } => {
+                forge_route::limit_holds::release(domain, env, decision, task, revision);
+            }
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 if let Some(key) = domain.forge.unjoined_change() {
@@ -551,6 +611,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 }
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
                 domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
+                let mut output = Queue::uncapped();
+                domain.forge.link_landings(&domain.core.tasks, &environment_forge(env), &mut output);
+                forge_route::outputs(domain, env, decision, &mut output);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
                     return;
@@ -559,6 +622,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     domain.stop_start(crate::StartStop::ForgeLink { phase: domain.start_phase(), link });
                     return;
                 }
+                kinds::restored_figures(domain, env, decision);
                 let party = domain.core.people.sole_owner();
                 forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(
@@ -567,7 +631,16 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     decision,
                     forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
                 );
+                kinds::restored_repairs(domain, env.limits.tasks.spec_bytes);
             }
+            Work::Forge(forge::Event::StatusTask { project, party, task }) => {
+                let event = forge_route::status_route::admission(domain, project, party, task);
+                forge_event(domain, env, decision, event);
+            }
+            Work::LandingAdmission { row, names } => {
+                forge_route::landing_admission(domain, env, decision, row, &names);
+            }
+            Work::StatusAccount { procedure } => forge_route::status_route::check_account(domain, procedure),
             Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal, decision),
@@ -579,8 +652,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
             Work::ProposalFailed { waiter } => proposals::historical_failed(domain, waiter),
             Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
+            Work::EndedLoad { waiter, task } => emit(
+                decision,
+                &env.limits,
+                Delivery::Load { waiter, range: Range::Core(crate::CoreRange::TaskResult { task }), after: None },
+            ),
             Work::EndedLoaded { waiter, rows } => crate::archive::ended_loaded(domain, waiter, rows),
             Work::EndedFailed { waiter } => crate::archive::ended_failed(domain, waiter),
+            Work::ChangeFromLoaded { task, row } => crate::changes_from::loaded(domain, env, decision, task, row),
         }
     }
 }
@@ -648,6 +727,7 @@ pub(crate) fn decide_call(
         | core::CallPart::Delegated(_)
         | core::CallPart::DelegationDenied { .. }
         | core::CallPart::DelegationRefused(_)
+        | core::CallPart::WordsRecorded { .. }
         | core::CallPart::NoteWritten { .. }
         | core::CallPart::NoteDeleted { .. }
         | core::CallPart::NoteRecalled { .. }
@@ -764,15 +844,19 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Credential { .. }
         | Event::Setup { .. }
         | Event::Restart { .. }
+        | Event::LimitsRaised
         | Event::Resume
         | Event::Stop
         | Event::Store(
-            crate::StoreInput::MissingLink { .. }
+            crate::StoreInput::Checkpointed { .. }
+            | crate::StoreInput::CheckpointRefused { .. }
+            | crate::StoreInput::MissingLink { .. }
             | crate::StoreInput::Switched
             | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
-            | crate::StoreInput::ReadLoaded { .. },
+            | crate::StoreInput::ReadLoaded { .. }
+            | crate::StoreInput::PartLoaded { .. },
         )
         | Event::Account(_) => {}
     }
@@ -849,7 +933,14 @@ pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> O
                     made = core::settings::overlaid(default, overlay);
                     &made
                 }
-                Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
+                Value::Template(_)
+                | Value::Policy(_)
+                | Value::Rules(_)
+                | Value::Model(_)
+                | Value::Limits(_)
+                | Value::Provider(_)
+                | Value::Worker(_)
+                | Value::Application(_) => {
                     continue;
                 }
             };

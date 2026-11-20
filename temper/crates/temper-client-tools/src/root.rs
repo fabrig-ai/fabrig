@@ -222,7 +222,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 out.push(Request::Printed { number, printed });
             } else if let Some(call_number) = root.next {
                 root.next = call_number.checked_add(1);
-                root.patience.insert(call_number, (number, env.now.saturating_add(crate::limits::DEADLINE)));
+                root.patience
+                    .insert(call_number, (number, env.now.saturating_add(crate::limits::call_deadline(&call))));
                 let forge = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name
                     == crate::adopt::ROW.name;
                 let called = runner::Called { number, call_number, call, json, value };
@@ -304,7 +305,8 @@ fn drain(
                     jig_client::Request::Told { told } => route(root, env, told, child, out),
                     // M4's Authorize place answers it
                     jig_client::Request::Approval(_) | jig_client::Request::Authorized(_) => {}
-                    request @ (jig_client::Request::Exchange { .. }
+                    request @ (jig_client::Request::AskedLink(_)
+                    | jig_client::Request::Exchange { .. }
                     | jig_client::Request::OpenStream { .. }
                     | jig_client::Request::CloseStream
                     | jig_client::Request::Save { .. }
@@ -317,6 +319,7 @@ fn drain(
                 ClientOutput::Unlinked(request) => match request {
                     jig_client::UnlinkedRequest::Told { told } => route(root, env, told, child, out),
                     jig_client::UnlinkedRequest::ApprovalAct(_)
+                    | jig_client::UnlinkedRequest::AskedLink(_)
                     | jig_client::UnlinkedRequest::Approval(_)
                     | jig_client::UnlinkedRequest::Authorized(_) => {}
                     request @ (jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {
@@ -554,6 +557,18 @@ pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.client.reclaim();
     root.changed();
 }
+/// Settle once after routing the iteration (jig/docs/design/client/domain/root.md, 3).
+pub fn settle(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut requests = Queue::uncapped();
+    root.client.settle(env.now, env.wall, &mut requests);
+    let mut client = Queue::uncapped();
+    while let Some(request) = requests.pop() {
+        client.push(ClientOutput::Linked(request));
+    }
+    let mut child = Queue::uncapped();
+    drain(root, env, &mut client, &mut child, out);
+    root.changed();
+}
 #[must_use]
 pub fn next_deadline(root: &Root) -> Option<Time> {
     root.deadline
@@ -580,7 +595,10 @@ mod tests;
 pub struct Parts;
 impl jig::render::Parts for Parts {
     fn extra_read(&self, reading: &runner::reads::Reading) -> Option<(u32, jig_client::Readable)> {
-        crate::milestone::next(reading)
+        match crate::settings::inventory_next(reading) {
+            Some(read) => Some(read),
+            None => crate::milestone::next(reading),
+        }
     }
     fn print_read(
         &self,

@@ -3,12 +3,16 @@ use alloc::boxed::Box;
 use jig_protocol_store::{JobAnswer, JobPage, JobRefusal};
 
 mod deleted;
+pub(crate) mod test_ids;
 pub use deleted::{Present, read_present};
 
 /// Dispatch an application's job at open.
 pub fn page(job: &str, page: &JobPage, present: &Present, bounds: &crate::Bounds) -> Result<JobAnswer, JobRefusal> {
     match job {
         "deleted-repository-forge-rows" => deleted::page(page, present, bounds),
+        "test-ids-landing" | "test-ids-receipt" | "test-ids-tier" | "test-ids-verification" => {
+            test_ids::page(job, page)
+        }
         _ => Err(refusal(None, "no such temper job")),
     }
 }

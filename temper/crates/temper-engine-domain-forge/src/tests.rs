@@ -3,6 +3,7 @@ use crate::*;
 use temper_engine_domain_forge_issues as issues;
 mod admission;
 mod adoption;
+mod applications;
 mod away;
 mod binding;
 mod brief_document;
@@ -20,7 +21,7 @@ mod execution;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
-mod follow_check;
+pub(crate) mod follow_check;
 mod goal_branch;
 mod goal_start;
 mod held_branch;
@@ -33,6 +34,7 @@ mod link;
 mod make;
 mod making;
 mod milestones;
+mod outbox_room;
 mod panel;
 mod playground;
 mod projection;
@@ -41,15 +43,17 @@ pub(crate) mod records;
 pub(crate) mod reds;
 mod refusals;
 mod release;
+mod release_room;
 mod removal;
 mod requires;
 pub(crate) mod restore_fit;
 mod runs;
 mod saved_close;
+mod seen_closed;
 mod settings;
 mod standing;
 mod stopping;
-mod tiers;
+pub(crate) mod tiers;
 mod unpushed;
 mod views;
 mod workflows;
@@ -114,6 +118,7 @@ pub(crate) const LIMITS: Limits = Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -236,6 +241,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -247,6 +253,11 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -278,6 +289,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
@@ -296,7 +308,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -336,6 +348,24 @@ pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     )
     .expect("valid connector")
 }
+fn accept_landings(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut pending = core::mem::replace(out, Queue::uncapped());
+    while let Some(request) = pending.pop() {
+        if let Request::LandingReady { task } = request {
+            d.decide_landing(environment, task, true, &mut pending);
+        } else {
+            out.push(request);
+        }
+    }
+}
+fn step(d: &mut Domain, environment: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    crate::step(d, environment, event, out);
+    accept_landings(d, environment, out);
+}
+fn resume(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
+    crate::resume(d, environment, out);
+    accept_landings(d, environment, out);
+}
 pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     if let Event::Restore { .. } = &event {
         d.restore_begin(Wall::EPOCH);
@@ -360,6 +390,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
 pub(crate) fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -430,6 +461,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: Some(name.clone()),
             release: None,
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 7,
@@ -488,6 +520,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: None,
             release: None,
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name,
                 task: 7,
@@ -543,6 +576,8 @@ fn adoption_reads_permission_before_committing_its_role() {
     let (call, op) = match &sent[0] {
         Request::Call { call, op, .. } => (*call, op.clone()),
         Request::Resource { .. }
+        | Request::LandingUnmade { .. }
+        | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
         | Request::Marked { .. }
         | Request::Adopted { .. }
@@ -574,6 +609,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -604,6 +640,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -612,6 +649,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
+        | Request::FileVerdict { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -643,6 +681,8 @@ fn adoption_reads_permission_before_committing_its_role() {
             *call
         }
         Request::Call { .. }
+        | Request::LandingUnmade { .. }
+        | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
@@ -675,6 +715,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -705,6 +746,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -713,6 +755,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
+        | Request::FileVerdict { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -737,6 +780,8 @@ fn adoption_reads_permission_before_committing_its_role() {
     match &next[0] {
         Request::Call { op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings), .. } => {}
         Request::Call { .. }
+        | Request::LandingUnmade { .. }
+        | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
@@ -769,6 +814,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -799,6 +845,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -807,6 +854,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
+        | Request::FileVerdict { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -1307,7 +1355,9 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     // Nothing is looked for: the client never had the held entry.
     assert_eq!(outputs(&mut d, Event::SettleOutbox).as_ref(), &[Request::RestartDone { stage: RestartStage::Settled }]);
     assert!(ready(&mut d).is_empty());
-    assert!(!d.effect_room(&LIMITS, 7), "the held entry keeps its room");
+    let mut limits = LIMITS;
+    limits.entries = 1;
+    assert!(!d.effect_room(&limits), "the held entry keeps its room");
 }
 
 #[test]
@@ -1326,7 +1376,7 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
         outputs(&mut d, Event::Enqueue { entry: status(number, 8) });
         outputs(&mut d, Event::Committed { entry: number });
     }
-    assert!(!d.effect_room(&LIMITS, 0), "the outbox is full");
+    assert!(!d.effect_room(&LIMITS), "the outbox is full");
     assert_eq!(
         outputs(&mut d, Event::Resolve { entry: 11, again: true }).as_ref(),
         &[Request::Save {
@@ -1352,6 +1402,7 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
 
 fn settling_release(comment: Option<Box<[u8]>>) -> ReleaseRow {
     ReleaseRow {
+        room: None,
         task: 7,
         root: 7,
         ending: ReleaseEnding::Done,
@@ -1630,6 +1681,7 @@ fn restarted_lost_writer() -> Domain {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: run_branch(b"7"),
                 task: 7,
@@ -1810,6 +1862,7 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
                     name: name.clone(),
                     task: fixtures::CHANGE,
                     writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -1995,6 +2048,7 @@ fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() 
             &mut d,
             Event::Restore {
                 record: Stored::Hold(Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: run_branch(b"7"),
                     task: 7,
@@ -2332,6 +2386,7 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
                                 request,
                                 first: SetUpFirst::Empty {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into()
                                 }
@@ -2496,6 +2551,7 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
             forge: Making::Kept(forge),
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             },
@@ -2571,6 +2627,7 @@ fn setup_answers_reserve_room_until_retention_ends() {
             request,
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into()
             }
@@ -2675,6 +2732,7 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
                 forge: Making::Kept(1),
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                 },
@@ -2690,6 +2748,7 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
                 request,
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into()
                 }
@@ -2747,6 +2806,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     forge: Making::Kept(1),
                     first: SetUpFirst::Empty {
                         playground: false,
+                        sample: false,
                         org: org_name.clone(),
                         repository: repository.clone(),
                     },
@@ -2772,7 +2832,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                         Some(Request::SetUp {
                             forge: 1,
                             request,
-                            first: SetUpFirst::Empty { playground: false, org: org_name, repository }
+                            first: SetUpFirst::Empty { playground: false, sample: false, org: org_name, repository }
                         })
                     );
                     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Making);
@@ -2801,6 +2861,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
         let token = Token::new(number + 1);
         let first = First {
             playground: false,
+            sample: number == 91,
             org: org.into(),
             repository: repository.into(),
             state: FirstState::Making,
@@ -2810,6 +2871,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             forge: Making::Kept(1),
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: number == 91,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
             },
@@ -2832,7 +2894,12 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
                 Request::SetUp {
                     forge: 1,
                     request,
-                    first: SetUpFirst::Empty { playground: false, org: org.into(), repository: repository.into() }
+                    first: SetUpFirst::Empty {
+                        playground: false,
+                        sample: number == 91,
+                        org: org.into(),
+                        repository: repository.into()
+                    }
                 }
             ]
         );
@@ -3082,6 +3149,27 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
 }
 
 #[test]
+fn a_writable_task_without_a_goal_branch_starts_at_the_adopted_landing() {
+    let mut d = domain();
+    let mut repository = adopted();
+    repository.landing = b"staging".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    let item = d
+        .workspace_item(items::Seed {
+            project: 5,
+            modify: true,
+            task: 90,
+            parent: None,
+            repository: REPO,
+            run_branch: b"run".as_slice().into(),
+            saved_branch: None,
+        })
+        .expect("writable task item");
+    assert_eq!(item.start, items::Start::Base(b"staging".as_slice().into()));
+    assert_eq!(item.push.as_deref(), Some(b"run".as_slice()));
+}
+
+#[test]
 fn workspace_landing_is_for_every_writable_producer_start() {
     use temper_engine_domain_forge_change as change;
     for kind in [
@@ -3296,6 +3384,7 @@ fn turn_refuses_github_but_queue_remains_available() {
                 }]),
                 temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -3338,6 +3427,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
                 Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]),
                 temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect

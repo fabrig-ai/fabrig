@@ -30,7 +30,9 @@ section 8).
   now asks (domain/session.md, sections 2 and 8.2).
 - **A window is carried over, not refused,** when it ran on another
   endpoint, dialect, account or backend: it is compacted on the
-  charter's LLM, and a new window opens there (section 4).
+  charter's LLM, and a new window opens there (section 4). Whether a
+  host offers one from another endpoint or backend at all is the
+  host's decision (domain/run.md, section 6).
 - **Usage counts are optional.** A count the provider did not report is
   absent, not zero.
 - **Opaque provider blocks travel verbatim,** tagged with the dialect that
@@ -192,7 +194,11 @@ is not refused. The session compacts it on the charter's LLM before its
 first ordinary completion, sending its history without opaque blocks or
 provider's replay, which go back only to the dialect that wrote them,
 and opens the new window there; its window turn records the new
-endpoint, dialect, account and backend (domain/session.md, 8.2).
+endpoint, dialect, account and backend (domain/session.md, 8.2). A
+message that history leaves with no block keeps a fixed text block in
+its place (domain/session.md, 8.2). A host may instead start the run
+fresh rather than offer a window from another endpoint or backend, and
+jig's engine does (domain/run.md, section 6).
 
 Each refusal is distinct, and the run fails as transient, saying which
 (domain/run.md, section 6):
@@ -292,8 +298,11 @@ jobs of every earlier window and activation.
 ## 9. The world
 
 - **The codec:**
-  - golden bytes for every block and result, each kind of turn, an
-    opening turn's affinity, and usage counts absent and zero;
+  - records-only drift and no unpinned constructs (skein's
+    `data/codec/README.md`, section 6); tests build their values through
+    constructors or fixed-rule values from embedded text, without stored
+    family goldens or generated test targets; they check blocks, results,
+    turn kinds, opening affinity, and usage counts absent and zero;
   - each decoder fuzzed;
   - a domain turn encoded and decoded back unchanged;
   - each refusal: an affinity, an account or a backend on a later turn,
@@ -423,8 +432,9 @@ other.
 - **The tests** sit low, in the codec's world (`tests/codecs`), over a
   fixture family of their own (`tests/transcript-patches`): a fixture turn
   at version 1 and 2, made by skein's command, its first patch marked
-  `fresh-windows`; each version-1 golden patched by skein's `Patcher` to
-  the version-2 golden; the header marked by `FRESH_WINDOWS`; the pieces
+  `fresh-windows`; each fixed-rule version-1 value built from its kept
+  text and patched by skein's `Patcher` to the stored version-2 patch
+  golden; the header marked by `FRESH_WINDOWS`; the pieces
   word read from the schema at run time; and the real set's constants as
   spelled, empty before the baseline; and the fixture owner's landed-data
   check. These are focused tests; skein owns the patcher's mechanics.

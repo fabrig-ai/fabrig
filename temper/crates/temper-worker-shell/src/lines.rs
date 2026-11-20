@@ -22,6 +22,50 @@ pub fn worker_service_ending(
 #[must_use]
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
+        service::Note::Git { run, attempt, job, repository, what } => {
+            use temper_worker_domain::{
+                Git,
+                checkout::git::{Into, Want},
+            };
+            let mut line = format!("{binary} worker: run {run} attempt {attempt}");
+            if let Some((kind, verb)) = job {
+                use std::fmt::Write as _;
+                let verb = verb.escape_ascii();
+                write!(line, " job {kind} {verb}").expect("format job kind and verb");
+            }
+            match what {
+                Git::Fetch { want, into } => {
+                    line.push_str(" fetch ");
+                    escape_detail(&mut line, &repository);
+                    match want {
+                        Want::Branch { branch } => {
+                            line.push_str(" branch ");
+                            escape_detail(&mut line, &branch);
+                        }
+                        Want::Commit { commit } => {
+                            line.push_str(" commit ");
+                            line.push_str(&commit_id(commit));
+                        }
+                        Want::Default => line.push_str(" default"),
+                    }
+                    line.push_str(match into {
+                        Into::Fetched => " into fetched",
+                        Into::Landing => " into landing",
+                    });
+                }
+                Git::CheckOut { commit } => {
+                    line.push_str(" check out ");
+                    escape_detail(&mut line, &repository);
+                    line.push(' ');
+                    line.push_str(&commit_id(commit));
+                }
+            }
+            line.push('\n');
+            line
+        }
+        service::Note::FiguresChanged => {
+            "the engine's figures changed; they apply at this worker's next start\n".into()
+        }
         service::Note::Cancelling { run, attempt } => {
             format!("{binary} worker: run {run} attempt {attempt} cancelled by the engine\n")
         }
@@ -34,6 +78,14 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         }
         service::Note::StopBoundPassed { abandoned } => {
             format!("{binary} worker: stop bound passed; abandoned {abandoned} turns and answers\n")
+        }
+        service::Note::AgentStopped { run, attempt, failure, no_progress_ms } => {
+            let failure = jig_domain_host::Failure::Agent(failure);
+            let prefix = format!("{binary} worker: run {run} attempt {attempt} agent stopped {failure:?}");
+            match no_progress_ms {
+                Some(ms) => format!("{prefix}: no progress for {ms} ms\n"),
+                None => format!("{prefix}\n"),
+            }
         }
         service::Note::Unprepared { run, attempt, failure, detail } => {
             run_detail_line(format!("{binary} worker: run {run} attempt {attempt} failed {failure:?}: "), &detail)
@@ -106,15 +158,31 @@ fn worker_job_ending(ending: &temper_worker_service::WorkerJobEnding) -> (String
 }
 
 fn run_detail_line(mut line: String, detail: &[u8]) -> String {
-    use std::fmt::Write as _;
     let from = detail.len().saturating_sub(4096);
-    for byte in detail.get(from..).expect("bounded diagnostic tail") {
+    escape_detail(&mut line, detail.get(from..).expect("bounded diagnostic tail"));
+    line.push('\n');
+    line
+}
+
+fn escape_detail(line: &mut String, detail: &[u8]) {
+    use std::fmt::Write as _;
+    for byte in detail {
         for escaped in core::ascii::escape_default(*byte) {
             line.write_char(char::from(escaped)).expect("format escaped diagnostic");
         }
     }
-    line.push('\n');
-    line
+}
+
+/// Full ids use git's SHA-1 padding rule (protocol/git.md, section 3).
+fn commit_id(commit: temper_worker_domain::checkout::git::Commit) -> String {
+    use std::fmt::Write as _;
+    let raw = commit.raw();
+    let length = if raw[20..].iter().all(|byte| *byte == 0) { 20 } else { 32 };
+    let mut text = String::new();
+    for byte in &raw[..length] {
+        write!(text, "{byte:02x}").expect("format commit id");
+    }
+    text
 }
 fn opening_reason(code: u16) -> String {
     match code {
@@ -164,6 +232,7 @@ fn refusal(reason: temper_worker_service::Refusal) -> String {
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),
             Some(Reason::Stopping) => "stopping".into(),
+            Some(Reason::Starting) => "starting".into(),
             None => format!("code-{code}"),
         },
     }

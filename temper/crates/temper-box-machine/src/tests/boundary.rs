@@ -22,7 +22,7 @@ fn allowed(path: &str) -> bool {
     };
     let path = path.trim_start();
     let (path, names): (&str, &[&str]) = if let Some(path) = path.strip_prefix("machine::") {
-        (path, &["BoxKind", "group_file", "parse_group_file", "group_path", ""])
+        (path, &["BoxKind", "group_file", "parse_group_file", "group_path", "directory", ""])
     } else {
         (
             path,
@@ -33,10 +33,17 @@ fn allowed(path: &str) -> bool {
                 "Kind",
                 "Step",
                 "steps",
+                "kinds",
                 "FORGE_ARGUMENT",
                 "machine::BoxKind",
+                "machine",
+                "setup_file",
                 "fetch::Fetched",
                 "sign_in::Source",
+                "setup_file::path",
+                "setup_file::decode",
+                "setup_file::chosen",
+                "setup_file::encode",
                 "",
             ],
         )
@@ -64,6 +71,7 @@ fn allowed(path: &str) -> bool {
                 || rest.starts_with('{')
                 || rest.starts_with(',')
                 || rest.starts_with(')')
+                || rest.starts_with('>')
                 || rest.starts_with("::");
         }
     }

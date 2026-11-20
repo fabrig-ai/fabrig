@@ -156,6 +156,8 @@ impl World {
                     git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
+                    | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -170,7 +172,10 @@ impl World {
                 self.owed.push_back(Event::Done { owner, done });
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
-            Request::Unprepared { .. } | Request::Link(host::LinkUp::Draining) => {}
+            Request::Git { .. }
+            | Request::AgentStopped { .. }
+            | Request::Unprepared { .. }
+            | Request::Link(host::LinkUp::Draining) => {}
             Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
             Request::ReadList { .. }
@@ -203,7 +208,13 @@ impl World {
                 git: None,
                 start: wire::Start::Base { branch: b"main".as_slice().into() },
                 access: if name == b"work" && delivers {
-                    wire::Access::Writable { push: b"topic".as_slice().into(), landing: None, expected: None }
+                    wire::Access::Writable {
+                        push: b"topic".as_slice().into(),
+                        landing: None,
+                        expected: None,
+                        delivered: None,
+                        pin: None,
+                    }
                 } else {
                     wire::Access::ReadOnly
                 },

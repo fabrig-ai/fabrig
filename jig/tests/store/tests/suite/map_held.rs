@@ -1,29 +1,24 @@
 //! Seed retained transcript places for tests of the file writer (protocol/store/logs.md, 5).
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{Limits, Write, codec, format, keys};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
 
 pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
     let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
-    let wires = jig_protocol_store::component_v3::Wires::new(
-        &jig_protocol_store::component_v3::CEILINGS,
-        jig_protocol_store::component_v3::WiresParts { wires: skein_lib::List::with_capacity(0) },
-    )
-    .expect("empty wires");
-    let mut encoded = skein_lib::Writer::new(skein_lib::usize_of(wires.measure()));
-    wires.encode(&mut encoded).expect("measured wires");
+    let wires = jig_protocol_store::component_v3::Wires { wires: skein_lib::List::with_capacity(0) };
+    let encoded = wires.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured wires");
     let mut rows = vec![
         (
             own(keys::Own::Format),
             format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format"),
         ),
         (own(keys::Own::Floor), crate::frame_reads::floor()),
-        (own(keys::Own::Layouts), format::layouts().encode()),
         (
             keys::installation(limits.store.key).expect("installation key"),
             codec::accounts::Installation { id: root::DEPLOYMENT }.encode(),
         ),
-        (own(keys::Own::Wires), encoded.finish()),
+        (own(keys::Own::Wires), encoded),
     ];
     let mut writes = root::first().into_vec();
     if let Write::Save(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = &writes[2] {

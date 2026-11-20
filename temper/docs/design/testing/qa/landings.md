@@ -1,7 +1,8 @@
 # Landings
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, section 3,
-milestone Q1 of `../../draft/landed-qa.execution.md`. The watcher: how
+Provisional, 2026-11-12, revised 2026-11-17, from
+`../../draft/landed-qa.md`, section 3, milestone Q1 of
+`../../draft/landed-qa.execution.md`. The watcher: how
 landed QA sees a goal land on main, and how it learns which landings a
 kept build holds.
 
@@ -69,8 +70,21 @@ Any other merge is no landing: a change's merge into its goal's branch
 (`into OWNER/gN`), main merged into a goal's branch (`Merge branch
 'main' into ...`), or a person's merge with no goal.
 
+**A landing's base** is its first parent, in git's order, that holds
+the landing recorded just before it in the ledger: that landing's
+commit is the parent or its ancestor. If none holds it, or this is the
+ledger's first landing, the base is its first parent. The parents come
+from `git rev-list --parents -n 1 MERGE`, parsed as a move's commits
+(section 6). A forge merge has main first, but a by-hand merge of main
+into its branch can have the branch first and main second, then become
+main's tip. With branch tip B and main tip M, where M holds the
+preceding landing L, such a landing has parents `[B, M]`; when B does
+not hold L, M is its base. Triage's diff, stat, changed draft paths and
+`QA:` trailers use that base (`triage.md`, 2 and 3).
+
 The watcher also reads each landing's commits' `QA-gap: N` trailers
-from `git log MERGE^1..MERGE`, as triage reads `QA:` (`triage.md`, 3).
+from `git log BASE..MERGE`, BASE the landing's base, as triage reads
+`QA:` (`triage.md`, 3).
 Once a kept build holds that landing, each named open or filed gap is
 closed with that landing and time; its case is queued again, or its
 landing triaged again on a build holding the closure (`gaps.md`, 7;
@@ -96,7 +110,7 @@ main's tips alone (`builds.md`, 2).
 
 Every git call is a method of one face of the crate's: read the head
 (after the fetch), list a move's commits with their parents, read a
-commit's message, ask whether one commit holds another, count a
+commit's parents or message, ask whether one commit holds another, count a
 commit's commits, and triage's own (`triage.md`, 2 and 3). The loop runs
 the real face, `git` with the captured environment; the tests a fake
 over commits in memory (`README.md`, 6). Parsing git's output is a

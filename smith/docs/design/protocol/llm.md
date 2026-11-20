@@ -67,6 +67,21 @@ A completion's prompt is built from what the domain gives:
   section 2);
 - **the affinity,** the conversation's (2.1).
 
+**No empty turn.** A message the domain gives with no block goes with
+one text block in its place, `[an empty turn]`, so no request carries a
+message with no content, whatever made it: an answer whose provider
+sent no block, one whose only blocks were dropped reasoning (section 6),
+a history restored as it was written. Anthropic refuses an empty
+message on every attempt, and skein's client refuses one at admission
+as `empty-message` (skein's `llm/admission.md`, 2), so a history holding
+one could otherwise never be sent again. The marker is the request's
+alone: the history keeps the message as it came, and the marker counts
+in the request as any block does, in skein's admission and in the guard
+(section 6). A carried-over history marks its own first
+(domain/session.md, 8.2), so this meets only what that did not. A
+program backend sends none of these messages, keeping its own history
+(programs.md), so this is the direct backend's.
+
 ### 2.1 Affinity
 
 - **One key per run tree, one thread per conversation.** `Affinity { key,
@@ -466,6 +481,41 @@ A completion's prompt is built from what the domain gives:
   and the event stream keeps it whole only under content capture
   (agent.md, section 6; events.md, section 3.10). It never enters a
   prompt.
+- **A request refused before it is sent names its cause.** Skein's
+  client refuses one at admission with its cause (skein's
+  `llm/admission.md`), and this layer refuses one of its own where it
+  cannot build the request. Each of its own is a cause too, named as
+  skein's are: lowercase ASCII letters and hyphens, at most 24 bytes,
+  and none of skein's names:
+
+  | Name | Refused when |
+  | --- | --- |
+  | `choice-not-served` | the completion's chosen tool is not among those served |
+  | `tool-name` | two tools are served under one name |
+  | `host-schema` | a host tool's schema is not a plain object (section 3) |
+  | `not-object` | a schema or an input is not a JSON object |
+  | `deliver-contract` | `deliver` is offered without its contract |
+  | `failed-write` | a failed write's feedback has no call before it to follow |
+  | `feedback` | a result's error flag is not its feedback's |
+  | `result-replay` | a tool's result carries a provider's replay (unsupported) |
+  | `read-line` | a read is rendered from line zero |
+  | `guard` | the guard's start is past the messages, or its sizes out of order |
+  | `observation` | an observed count is past the history |
+  | `fixed-schema` | the fixed empty schema is refused |
+  | `completion-result` | a completion holds a tool's result |
+  | `unknown-endpoint` | the call names an endpoint the connection does not hold |
+  | `owner` | the call's owner is already calling |
+  | `grant` | the call's grant cannot be used: out of bounds, stale, full or of another scheme |
+
+  Where it meets one of skein's rules itself (a zero output ceiling, a
+  schema JSON cannot spell) it gives skein's cause, `output` or `text`.
+  The call fails *invalid* with evidence `unsent`, as before, an
+  unsupported cause's included. Its report's code is the cause's name,
+  which no provider sent, its request id and field empty; its detail is
+  `refused before sending: ` and the name. So the run's end, the
+  operator's line, the trace and the hold that follows all name the
+  cause (jig's `domain/hosts/hub.md`, 3), never one line for every
+  cause. A local limit stays the limit it names (above).
 - **Unauthorized, exhausted and refused** also go up to the domain,
   which raises the notices the host acts on: unauthorized, *limited* and
   refused (channel.md, section 4; domain/host.md, section 7). From the
@@ -623,6 +673,15 @@ component and skein's client against scripted byte peers, in each dialect.
   - a grant refreshed between two calls;
   - each deadline passing, a steady stream outliving any fixed time, and
     the session's time running out once, without a retry;
+  - a hung request, on every attempt: one the peer takes and answers
+    with nothing, no head and no byte, cut at the model's `head`; one
+    whose response gives its head and a first output, then nothing, cut
+    at the model's `idle` counted from that output. Each is retried after
+    its backoff while the session has retries, and then fails once, as
+    *timed out* with its phase, its attempts the session's retries plus
+    one, a failure of its model (section 6; domain/session.md, section
+    4). The first request of a session opened on a restored history,
+    hung the same way, is cut at `head` and retried as any other;
   - a call waiting at a full pool, then served;
   - the affinity on the wire in each dialect, and the same affinity across
     a resume;

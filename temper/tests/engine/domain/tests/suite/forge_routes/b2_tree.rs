@@ -228,9 +228,7 @@ fn admitted(world: &World, task: u64) -> engine::Assignment {
 }
 
 fn advance(world: &mut World) {
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
 }
 
 fn call(world: &mut World, run: &engine::Assignment, tool: engine::Tool) -> engine::CallAnswer {
@@ -300,7 +298,9 @@ fn answer_parts(world: &mut World, run: &engine::Assignment, turns: u64, end: ta
     answer.read = read.map(Token::new);
     answer.turns = 1;
     world.send(event);
-    advance(world);
+    // The following scene consumes the answer's durable result or next run.
+    // Drain those immediate consequences, not an unrelated timer horizon.
+    world.oracle_settle();
 }
 
 fn report(world: &mut World, run: &engine::Assignment, turns: u64, words: &[u8]) {
@@ -324,16 +324,18 @@ fn next_child(world: &World, parent: u64, after: u64) -> u64 {
     world
         .store
         .rows
-        .values()
-        .filter_map(|stored| match stored {
+        .range((
+            std::ops::Bound::Excluded(Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(after)))),
+            std::ops::Bound::Included(Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(u64::MAX)))),
+        ))
+        .find_map(|(_, stored)| match stored {
             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
-                if row.requester == tasks::Party::Task(parent) && row.number > after =>
+                if row.requester == tasks::Party::Task(parent) =>
             {
                 Some(row.number)
             }
             _ => None,
         })
-        .min()
         .unwrap_or_else(|| {
             panic!(
                 "task {parent} has no next child after {after}; phase={:?}; numbers={:?}",
@@ -371,11 +373,10 @@ fn pushed(world: &mut World, run: &engine::Assignment, turns: u64, head: u64) {
 }
 
 fn landed(world: &World, task: u64) -> bool {
-    world.store.rows.values().any(|stored| {
-        matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-            if row.task == task && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))
-    })
+    world
+        .store
+        .change_hot(task)
+        .is_some_and(|row| matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
 }
 
 fn land_change(world: &mut World, work: &engine::Assignment) -> (u64, [u64; 3]) {
@@ -732,7 +733,7 @@ fn every_row_of_b2s_tree_reads_whole_on_standard() {
     let (mut world, chat) = stock_world();
     let tree = tree(&mut world, &chat);
     let joins = temper_engine_domain_world::forge_routes::box_joins();
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).store.joins;
+    let standard = jig_protocol_config::stock().store.joins;
     assert_eq!(joins, standard);
     assert_eq!(standard, 16, "Standard's stock join bound");
     assert_eq!(world.store.read_joins(), joins, "the real store uses the box allowance");
@@ -1120,7 +1121,7 @@ fn a_stock_chat_reads_an_absent_fix_and_replies_without_a_change() {
     let world = World::configured_stock_limits(&defaults, &model(), &box_limits());
     let (mut world, chat) = started_world_with_words(world, &defaults, REQUEST);
     let words = core::str::from_utf8(&chat.run.policy.instructions).expect("stock chat words");
-    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_forge what=branch for its head, then read_forge what=file), then call change with their request and only what you read: never describe unread code."));
     assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
     let head =
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", CODE, 1).expect("table printer");
@@ -1137,9 +1138,7 @@ fn a_stock_chat_reads_an_absent_fix_and_replies_without_a_change() {
     // The scripted worker follows the stock instructions using the code it read.
     world.send(protocol::turn(CHANNEL, chat.task, chat.attempt, 1, 0, None, REPLY));
     park_after_turn(&mut world, &chat, None, 1);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: chat.attempt, turn: 1 })
     else {

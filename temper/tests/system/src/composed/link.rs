@@ -14,6 +14,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use skein_lib::{Reader, Token};
+use smith_channel::Record;
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_engine_service_vocabulary::{settings, translate};
@@ -30,7 +31,7 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
     let forges = forges();
     let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: v1::CEILINGS,
-        endpoints: worker_protocol::endpoints(),
+        endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
@@ -61,7 +62,7 @@ pub fn job(
 ) -> temper_worker_domain::Event {
     let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: *limits,
-        endpoints: worker_protocol::endpoints(),
+        endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
@@ -98,8 +99,7 @@ pub fn decode(call: &fleet::Call) -> engine::Call {
     let mut reader = Reader::new(&call.name);
     let name = smith_channel::CallName::decode(&smith_channel::CEILINGS, &mut reader).expect("smith's call name");
     assert!(reader.is_empty(), "one whole call name");
-    let name =
-        run::CallName { activation: name.activation(), completion: name.completion(), position: name.position() };
+    let name = run::CallName { activation: name.activation, completion: name.completion, position: name.position };
     let input = run::HostInput::attested(call.input.clone()).expect("bounded host input");
     let temper_engine_smith::Decoded::Call(body) = temper_engine_smith::call(name, &call.tool, &input)
         .unwrap_or_else(|error| panic!("tool {:?}: {error:?}, input {:?}", call.tool, call.input))
@@ -118,22 +118,34 @@ pub fn render(
     maximum: u32,
     task: u64,
     receiving: u32,
+    read: Option<&skein_forge::api::Read>,
     job: Option<skein_forge::api::JobAttempt>,
     page: Option<(u32, u32)>,
     ask: engine::AskHow,
 ) -> core::SettledAnswer {
-    let event = temper_engine_service_vocabulary::tools::render_for_task_page(
-        skein_lib::ReplyTo::new(Token::new(1)),
-        answer,
-        tool,
-        maximum.saturating_sub(u32::try_from(tool.len()).expect("tool length")),
-        task,
-        receiving,
-        temper_engine_smith::ForgeReadBounds::STOCK,
-        job,
-        page,
-        ask,
-    );
+    let maximum = maximum.saturating_sub(u32::try_from(tool.len()).expect("tool length"));
+    let event = if let Some(read) = read {
+        temper_engine_service_vocabulary::tools::render_read(
+            skein_lib::ReplyTo::new(Token::new(1)),
+            answer,
+            read,
+            maximum.min(receiving),
+            temper_engine_smith::ForgeReadBounds::STOCK,
+        )
+    } else {
+        temper_engine_service_vocabulary::tools::render_for_task_page(
+            skein_lib::ReplyTo::new(Token::new(1)),
+            answer,
+            tool,
+            maximum,
+            task,
+            receiving,
+            temper_engine_smith::ForgeReadBounds::STOCK,
+            job,
+            page,
+            ask,
+        )
+    };
     let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else {
         panic!("rendered host call")
     };

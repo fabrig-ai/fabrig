@@ -84,7 +84,10 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   (`owned`), a `BranchHead` row per branch (`../../protocol/store.md`,
   2). A drift's baseline, a landing's `before`, a change's and a goal's
   start, and the making a later adoption checks (`adoption.md`, 1) are
-  read from them.
+  read from them. A head follows temper's writes in the order the forge
+  took them: the record of a write never moves it back to an ancestor of
+  a head temper recorded beside that write (`branches.md`, 3, *In the
+  order the forge took them*).
   - *Their bound* is `forge.client.resources`, the working set's own,
     since a head is kept for what live work names. A head replaced
     always fits; a new branch's head takes a free row.
@@ -318,6 +321,16 @@ A change that has landed or ended gathers no brief, and no comparison of its sav
 
 **A change reads its own pull request** (2026-11-15). A change with no pull request number looks one up by its branches (`PullFor`) and takes it only open: a closed match, merged or not, is an ended change's (`change/README.md`, 2, step 2), and the change opens its own. The number it takes, or the one its opening's answer names, is stored on its row in the step that settles it; from then on every read and write of its pull request is by that number, a restart included, and it never looks it up by its branches again.
 
+**A gather keeps its reads through a refusal for room** (2026-11-19). A
+change step's fresh read that the client refuses `Busy` at its admission
+(skein's `forge/client.md`, 5–6) is asked again a second later, that
+same read, the gather keeping every fact it has read, its step due
+meanwhile. Only what invalidates a gather (1) starts its reads again
+from its branch; the read of its paths, refused, is left unread, as
+before. A gather begun again at each refusal would lose its reads to
+every other caller's while the client is full, keeping a train's
+waiting changes due for minutes (`../landing.md`, 9).
+
 An agent's fresh read refused `Busy` by the client's local admission
 returns the host's predecision Busy reply, never a rendered forge-read
 error. The root releases that attempt's read correlation and rendering
@@ -408,7 +421,7 @@ for it, never a read of another kind or another party's.
   CI. The base tip's CI is read once, and not again when the base tip
   is the head. A gathered pull request read without CI differs from a
   watched one (1) by none of its facts but CI. The keep's pull watch
-  reads its CI, and so does the agents' `read_pull`, whose answer shows
+  reads its CI, and so does the agents' `read_issues what=pull`, whose answer shows
   it; a landing's members, a brief, an overlap's bracketing reads, a
   merge's verification and every other reader that uses no CI read
   none.
@@ -420,7 +433,7 @@ for it, never a read of another kind or another party's.
   request once, however many of its members name it.
 - **The repository's own facts are read once** and kept by the forge
   component (skein's `forge/connection.md`, 4.2): its settings answer
-  `Settings` with no request, the agents' `read_settings` among them,
+  `Settings` with no request, the agents' `read_forge what=settings` among them,
   until a redirect, a `404` that is no answer, a merge refused its style
   or a write refused `Forbidden` drops them, each the forge's word that
   they may have changed. A refusal's refresh of what temper may do

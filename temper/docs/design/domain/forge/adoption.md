@@ -38,9 +38,10 @@
   or owned Forgejo's access is asked for before the reads (2). Its
   outcome is the adoption's: adopted, refused by the core with jig's
   reasons, or refused by the forge with the connector's. The
-  connector keeps it under the people child's token until its retention
-  ends, to give again when the request is sent again (jig's
-  `domain/connectors.md`, 5.5; `../../protocol/store.md`, section 2).
+  connector keeps it under the people child's token, to give again when
+  the request is sent again, until its retention ends or it makes room
+  for a newer request (section 9; jig's `domain/connectors.md`, 5.5;
+  `../../protocol/store.md`, section 2).
 - **The forge's host** in a repository's resource path, and in what a
   person reads of it, is the forge's as its record has it: the host of
   its `git` base, with `:port` when it names one
@@ -124,7 +125,8 @@
   repository's account grants it, and its hints come from the App's
   delivery log, with no hook per repository (`../../protocol/forge/README.md`,
   4.1). The adoption then reads what it was given as any other.
-- **The adoption names, per repository:** its landing branch; temper's
+- **The adoption names, per repository:** its landing branch, kept on
+  its record and read wherever temper lands (8); temper's
   branch prefix, `temper/` by default, which protection can reserve to
   temper's user; whether it is the project's home, where its goals'
   issues are kept (`issues.md`), one per project and never a context
@@ -722,7 +724,7 @@ repository's record what it found there, which CI's card names (`change/branch-p
 *CI's card*).
 
 - **The read** is the workflows' directory at a tip of the landing
-  branch, the record's `settings.default_branch`: its immediate entries,
+  branch, the record's `landing` (8): its immediate entries,
   one `Read::File` (skein's `forge/README.md`, 3.2) answered as a directory's,
   `skein_forge::api::Answer::Directory`, within the client's
   `answer_bytes`, as a charter document's read is
@@ -748,8 +750,8 @@ repository's record what it found there, which CI's card names (`change/branch-p
 - **When it is read,** at the landing branch's tip each time:
   - once an adoption saves the repository's record (`adoption.md`; the act
     of 5 alike), and once a refusal's refresh of what temper may do
-    there saves it (jig's `domain/connectors.md`, 12), whose settings
-    name the landing branch afresh. It is a read of its own, after the
+    there saves it (jig's `domain/connectors.md`, 12), which keeps the
+    record's landing (8). It is a read of its own, after the
     adoption's: the adoption's answer waits for none of it, and its
     failure refuses nothing. A context adoption that leaves another
     project's record as it is (`adoption.md`) reads nothing;
@@ -774,7 +776,143 @@ repository's record what it found there, which CI's card names (`change/branch-p
   card leaves out those the repository's test gates and tiers dispatch
   (`change/branch-path.md`), since those settings change apart from the record.
 
-## 8. Open questions
+## 8. Its landing branch
+
+A repository has two branches that may differ: the forge's default
+branch, its settings' `default_branch`, and the landing branch its
+adoption names, where temper lands. One is the other's where the
+adoption names the default branch; a deployment that lands into
+`staging` on a repository whose default branch is `main` keeps them
+apart.
+
+- **The record keeps it.** The repository's record (`Repository`, in
+  `temper-engine-domain-forge-vocabulary`'s `boundary.rs`) holds
+  `landing: Box<[u8]>`, the adoption's landing branch: the form's
+  (`../../client/forge/family.md`, 4), `repository adopt --landing
+  BRANCH`'s, or, for a repository made or copied, the branch its plan
+  gave (5). It is never empty: the adoption refuses an empty landing as
+  past its bounds. `settings.default_branch` stays the forge's own, as
+  read.
+  - **The protection read** is that branch's (4), at adoption and at a
+    refusal's refresh of what temper may do (jig's
+    `domain/connectors.md`, 12). The refresh reads the forge's settings
+    again and keeps them whole; a default branch it finds moved moves
+    no landing.
+  - **A re-adoption** names the landing again, as it names the prefix,
+    and the record takes it (9).
+  - **A context adoption** that leaves another project's record as it
+    is (the opening) keeps that record's landing, the writer's; one
+    that makes the record keeps its own.
+- **Kept with the record** (`../../protocol/store.md`, section 2): the
+  `Adopted` record's `landing`, `bytes 4096 = 0x`, its runtime bound
+  the forge's `name_bytes`, as the adoption's `landing` is. A record
+  stored before the field reads it empty, the default its plan gives;
+  the store's decoder then takes the record's `settings.default_branch`
+  for it, as the record is read (`../../draft/layouts-both-ways.md`,
+  4.2 and 4.4). Since no adoption keeps an empty landing, empty means
+  that layout alone, and an existing repository lands where it did. A
+  record is written with its landing whole. No version moves, and no
+  job runs: a registered family's added field takes a default
+  (`AGENTS.md`, 2).
+- **Everything that means the branch temper lands into reads
+  `landing`:**
+  - a change whose landing is left out, otherwise its applicable held
+    goal branch (`../agent/tools.md`, 1); `"branch": "mine"`'s with
+    none; a change a person opens with no `into`
+    (`change/opened.md`); and a change's base and its landing news's
+    topic where its parameters name none;
+  - a goal branch's base, at its making, its making again after a
+    restart or a release (`branches.md`, 1), and a task's workspace
+    whose change names no base;
+  - the closer: whether the landing branch holds the goal branch, the
+    goal's landing into it, and the pulls its report quotes as landed
+    there (`branches.md`, 2); and a closer-ended goal's skip of the
+    landing branch's landings;
+  - the landing queue: a train's batch cap and the project's landing
+    gates and their proofs, a held goal branch's upstream, and a
+    landing request's commit message and combining (`../landing.md`);
+  - the CI workflows' read, at the landing branch's tips (7);
+  - verification and tiers that follow the landing
+    (`../after-landing.md`);
+  - a follow whose source or target names no branch (`follows.md`);
+  - a milestone's last landing (`../milestones.md`);
+  - the changes views: `default_branch` on a landed row and
+    `landed_default`, which mark a landing into the landing branch as
+    the main one, and the panel's `landing` while nothing is queued
+    (`../../client/forge/records.md`); the home's attention `branch`
+    (`attention.md`);
+  - a landed draft's read (`drafts.md`);
+  - the branch path's landing (`change/branch-path.md`).
+- **The forge's default branch is read where the forge's own is
+  meant:**
+  - the forge's settings, as `read_forge what=settings` answers them
+    (`../agent/tools.md`): the forge's answer, which the refusals of
+    a branch read point to;
+  - Ask temper's `file` with no branch (`../agent/ask-temper.md`, 1),
+    a read of the repository as the forge shows it;
+  - `read_forge`'s `branch`, `protection` and `file` with no branch
+    (`../agent/tools.md`, *The forge's reads are three tools*), each
+    read of `settings.default_branch`'s name;
+  - a repository's store, a bare clone of the forge's default branch,
+    git's `HEAD` (`../../protocol/git.md`, 4.5;
+    `../worker/checkouts.md`), from which every checkout then fetches
+    its own base.
+- **Reads that show the record show it:**
+  - the adoption's outcome, `landing` beside its role and home: its
+    words, "It lands into BRANCH." (`../../client/forge/family.md`, 6),
+    `repository adopt`'s text and JSON, and its kept form, the stored
+    `ApplicationAdopted`'s `landing`, `bytes 4096 = 0x`, of which an
+    outcome kept before the field says nothing;
+  - the inventory's repositories, each with its landing branch
+    (`../agent/agents.md`, 1).
+- **Where the landing branch is the default branch,** every reader
+  reads the same name as before, and nothing behaves otherwise.
+
+## 9. Kept answers
+
+The answers to the forge's keyed requests, each kept under the people
+child's token and given again when its request is sent again (jig's
+`domain/connectors.md`, 5.5): an adoption's (the opening's bullets), an
+opening's (`change/opened.md`, 2), a repository's making and its
+dismissal (5), and a follow's act (`follows.md`). One table holds them
+all.
+
+- **Its places:** at most `forge.applications`, each an answer kept or
+  a request pending, admitted and not yet answered, at most
+  `forge.adoptions` of those. The figure bounds what the table stores,
+  never how many requests may be decided within a retention: no request
+  is refused because many answers are kept.
+- **Expired answers go first:** each new request first drops every kept
+  answer whose retention has ended, all of them at once, and erases each
+  one's row (`../../protocol/store.md`, section 2, tag 15).
+- **The oldest answered makes room:** where the places are still all
+  taken, the kept answer whose retention ends first is dropped, the
+  lowest token first among equals, and its row erased in the same
+  decision; under one retention it is the oldest answered. The request
+  takes the place freed.
+- **A pending request is never dropped:** its answer is still to come.
+  With every place pending, a request is answered busy, which passes as
+  they are answered (jig's `domain/people/acts.md`, 1).
+- **Room only for a request that takes a place:** one answered busy for
+  its flights, with `forge.adoptions` requests pending or repositories
+  being read, is answered so before any answer is dropped.
+- **Sent again once its answer went:** jig's people child keeps the key
+  and its token for its own retention (jig's
+  `client/domain/contract/requests.md`, 3), so the request is not
+  decided again: its connector no longer keeping the outcome, it is
+  answered unknown, as one past its retention is. An opening sent again
+  so opens nothing new.
+- **Seen where the store's tables are read:** the store's census
+  (jig's `protocol/store/README.md`, 6.3), in `temper ctl deployment
+  census` and the Limits page (`../../client/ctl/results.md`;
+  `../../client/pages/settings.md`, 1). Its `temper.applications` row,
+  the store's family 15, counts the kept answers as its rows. The
+  requests pending are not shown (10).
+- **The figures stay:** `forge.applications` 32, `forge.adoptions` 2,
+  and the request retention a day (`people.request_retention_ms`), in
+  the standard profile (`../../protocol/configuration/limits.md`).
+
+## 10. Open questions
 
 - **A workflow that runs on no pull request** (`adoption.md`, 7; `change/branch-path.md`, *CI's card*):
   CI's card names every workflow file on the landing branch but those
@@ -816,3 +954,18 @@ repository's record what it found there, which CI's card names (`change/branch-p
   and echoes already on the forge are the old user's. Moving a
   deployment to another App or user is later; a forge goes whole, by
   its removal (`adoption.md`, 1).
+
+- **Another landing branch after adoption** (`adoption.md`, 8): a
+  re-adoption naming another landing branch is taken, as a prefix is,
+  and the goal branches made from the former one land into the new one
+  at their closers. Changing a live adoption's landing on purpose, and
+  more than one landing branch per repository, are not designed.
+  Default: so.
+
+- **The pending requests where the store's tables are read** (`adoption.md`,
+  9): the census shows `temper.applications`' kept answers as its rows,
+  but not the requests pending beside them, which take places in the
+  same table. Showing them gives jig's census row a count its owner
+  sets as the report is handed on, and moves jig's client wire
+  (`../../draft/redeploys.md`, section 8): out of proportion to the
+  table's fix, the user judged (2026-11-19). Default: not shown.

@@ -273,6 +273,9 @@ impl CurrentFixtures for crate::settings::Current {
             | Value::Template(_)
             | Value::Policy(_)
             | Value::Rules(_)
+            | Value::Provider(_)
+            | Value::Limits(_)
+            | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => {
                 panic!("fixture charter value")
@@ -287,8 +290,11 @@ impl CurrentFixtures for crate::settings::Current {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
                 Setting::Charter(_)
                 | Setting::Policy(_)
+                | Setting::Provider(_)
+                | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::ProjectPolicy { .. } => {}
                 Setting::Application { .. } => panic!("fixture defaults contain only jig settings"),
             }

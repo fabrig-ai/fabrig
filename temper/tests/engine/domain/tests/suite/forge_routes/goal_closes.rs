@@ -9,6 +9,7 @@ use super::goal_landing::{ended, finish_run, mine, row, status};
 use super::*;
 use jig_client::contract as c;
 use temper_engine_domain_forge_change as change;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 4000;
@@ -23,16 +24,27 @@ fn goal_world_with_attempts(template: u32, branch: bool, attempts: u8) -> (World
     (world, goal, branch)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one fixture joins the stock template, job capability and person creating offer"
-)]
 fn goal_world_with_authority(
     template: u32,
     branch: bool,
     attempts: u8,
     spend: Option<u64>,
     room: Option<u32>,
+) -> (World, engine::Assignment, Box<[u8]>, people::Authority) {
+    goal_world_on_landing(template, branch, attempts, spend, room, b"main")
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture joins the stock template, job capability and person creating offer"
+)]
+fn goal_world_on_landing(
+    template: u32,
+    branch: bool,
+    attempts: u8,
+    spend: Option<u64>,
+    room: Option<u32>,
+    landing: &[u8],
 ) -> (World, engine::Assignment, Box<[u8]>, people::Authority) {
     let defaults = stock_defaults();
     let model = stock::box_model();
@@ -56,14 +68,18 @@ fn goal_world_with_authority(
                     b"repo".as_slice().into(),
                     b"branch".as_slice().into(),
                 ]),
-                last: authority::Last::Exact(b"main".as_slice().into()),
+                last: authority::Last::Exact(landing.into()),
             },
             ci: true,
             up_to_date: false,
             gates: Box::new([]),
             approvals: Box::new([]),
         }]));
-    world.adopt();
+    world.adopt_landing(landing);
+    if landing != b"main" {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, b"Prepare landing", b"landing", 1)
+            .expect("landing differs from the forge default");
+    }
     let mut event = protocol::hello_slots(CHANNEL, 4, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
@@ -152,7 +168,7 @@ fn goal_world_with_authority(
     let branch = if template == 4 && branch {
         format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice()
     } else {
-        b"main".as_slice().into()
+        landing.into()
     };
     (world, goal, branch, full)
 }
@@ -298,8 +314,8 @@ fn closer_of(world: &mut World, goal: u64) -> u64 {
 fn finish_close(world: &mut World, close: u64, branch: &[u8], job: &host::JobAssignment) {
     use temper_protocol_worker_wire::v1;
     let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(spec.command(), b"repo/.temper/close");
-    assert_eq!(Some(spec.request()), row(world, close).close.as_deref());
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/close");
+    assert_eq!(Some(spec.request.as_ref()), row(world, close).close.as_deref());
     for _ in 0..STEPS {
         if world.pending.is_empty() {
             break;
@@ -313,7 +329,7 @@ fn finish_close(world: &mut World, close: u64, branch: &[u8], job: &host::JobAss
     assert_ne!(head, before, "the scripted command commits its status edit");
     status(world, head, raw::Check::Passed);
 }
-fn finish_closing(world: &mut World, goal: u64, branch: &[u8]) -> (u64, u64) {
+fn begin_closing(world: &mut World, goal: u64, branch: &[u8]) -> (u64, u64) {
     let closer = closer_of(world, goal);
     let job = close_job(world);
     let tasks::Party::Task(close) = live_task(world, job.run.raw()).requester else { panic!("close change") };
@@ -326,6 +342,10 @@ fn finish_closing(world: &mut World, goal: u64, branch: &[u8]) -> (u64, u64) {
     }
     assert!(ended(world, close).is_some(), "close change: {:?}", row(world, close).change.state);
     let landing = wait_landing(world, closer);
+    (closer, landing)
+}
+fn finish_closing(world: &mut World, goal: u64, branch: &[u8]) -> (u64, u64) {
+    let (closer, landing) = begin_closing(world, goal, branch);
     let head = world.fake.branch(b"org/repo", branch).expect("goal branch awaiting its landing");
     status(world, head, raw::Check::Passed);
     wait_ended(world, goal);
@@ -370,6 +390,47 @@ fn a_goal_whose_last_change_lands_closes_with_no_agent_run() {
     produce(&mut world, second, &branch, &second_run, b"Second");
     let (closer, landing) = finish_closing(&mut world, goal.task, &branch);
     assert_report(&world, goal.task, closer, landing, &[(first, b"First"), (second, b"Second")]);
+    assert_eq!(goal_runs(&world, goal.task), 1);
+    world.close();
+}
+
+#[test]
+fn a_goal_lands_its_changes_into_its_branch_then_into_the_adopted_landing() {
+    let (mut world, goal, branch, _) = goal_world_on_landing(4, true, engine::LANDING_ATTEMPTS, None, None, b"staging");
+    let staging = branch_tip(&mut world, b"staging");
+    assert_ne!(staging, branch_tip(&mut world, b"main"));
+    assert_eq!(branch_tip(&mut world, &branch), staging, "the goal starts at the landing tip");
+    let (first, first_run) = make_change(&mut world, &goal, 93);
+    let (second, second_run) = make_change(&mut world, &goal, 94);
+    assert_eq!(row(&world, first).base, branch);
+    assert_eq!(row(&world, second).base, branch);
+    park_goal(&mut world, &goal);
+    produce(&mut world, first, &branch, &first_run, b"First");
+    assert_eq!(live_task(&world, goal.task).closer, None);
+    produce(&mut world, second, &branch, &second_run, b"Second");
+    let (closer, landing) = begin_closing(&mut world, goal.task, &branch);
+    for _ in 0..STEPS {
+        if row(&world, landing).pull.is_some() {
+            break;
+        }
+        world.tick();
+    }
+    let number = row(&world, landing).pull.expect("goal landing pull");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else {
+        panic!("goal landing pull")
+    };
+    assert_eq!(pull.head, branch);
+    assert_eq!(pull.base.as_ref(), b"staging");
+    status(&mut world, pull.commit, raw::Check::Passed);
+    wait_ended(&mut world, goal.task);
+    let merge = match row(&world, landing).change.state {
+        change::State::Landed { merge, .. } | change::State::Cleared { merge } => merge,
+        ref state => panic!("goal landing landed: {state:?}"),
+    };
+    assert_eq!(translate::commit(branch_tip(&mut world, b"staging")), merge, "the goal landed whole");
+    assert_eq!(result_words(&world, goal.task), result_words(&world, closer));
+    let output = core::str::from_utf8(result_words(&world, goal.task)).expect("goal report UTF-8");
+    assert!(output.contains(&format!("The landing: pull request #{number}, merged into staging as ")), "{output}");
     assert_eq!(goal_runs(&world, goal.task), 1);
     world.close();
 }
@@ -421,17 +482,36 @@ fn a_goal_from_template_2_keeps_the_nothing_awaited_notice() {
 }
 
 fn park_goal(world: &mut World, run: &engine::Assignment) {
+    park_goal_spent(world, run, 0);
+}
+
+fn park_goal_spent(world: &mut World, run: &engine::Assignment, spent: u64) {
     world.scripted_read_inbox(run);
     let turns = live_task(world, run.task).turn;
-    super::park_after_turn(world, run, None, turns);
+    let mut event =
+        world.protocol.answer(CHANNEL, run.task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: host::LinkUp::Answer { answer, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        panic!("worker answer")
+    };
+    answer.turns = turns;
+    world.send(event);
     world.until(Until::Ready);
 }
 
 fn awakened(world: &mut World, goal: u64) -> engine::Assignment {
+    let run = next_goal_run(world, goal);
+    assert!(live_task(world, goal).reasons.contains(tasks::Reasons::ESCALATION));
+    run
+}
+
+fn next_goal_run(world: &mut World, goal: u64) -> engine::Assignment {
     for _ in 0..STEPS {
         if let Some(run) = world.assigned.iter().filter(|run| run.task == goal).nth(1) {
             assert_eq!(goal_runs(world, goal), 2);
-            assert!(live_task(world, goal).reasons.contains(tasks::Reasons::ESCALATION));
             return run.clone();
         }
         world.tick();
@@ -444,9 +524,7 @@ fn release(world: &mut World, goal: &engine::Assignment, task: u64, call: u64) {
     assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
 }
 fn settle(world: &mut World, goal: u64) {
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert_eq!(goal_runs(world, goal), 2, "the escalation wakes the goal exactly once");
     assert!(ended(world, goal).is_some());
 }
@@ -669,9 +747,7 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
     let run = awakened(&mut world, goal.task);
     cancel_step(&mut world, &run, landing, 93);
     assert_eq!(row(&world, landing).change.ended_held, Some(change::Hold::Stalled));
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert!(!matches!(live_task(&world, closer).phase, tasks::Phase::Held { .. }));
     park_goal(&mut world, &run);
     for _ in 0..STEPS {
@@ -714,10 +790,15 @@ fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
     for spend_short in [true, false] {
         let left = minimum + 1;
         let (mut world, goal, branch, full) =
-            goal_world_with_authority(4, true, 3, spend_short.then_some(left), (!spend_short).then_some(2));
-        park_goal(&mut world, &goal);
+            goal_world_with_authority(4, true, 3, spend_short.then_some(left * 2), (!spend_short).then_some(2));
+        // The run is admitted with `left`, then spends it so the closer still has too little.
+        park_goal_spent(&mut world, &goal, if spend_short { left } else { 0 });
         let closer = closer_of(&mut world, goal.task);
         wait_held(&mut world, closer, goal.task);
+        let run = awakened(&mut world, goal.task);
+        if spend_short {
+            assert_eq!(run.run.budget, left, "the whole funds the goal's run when half is too little");
+        }
         let expected = if spend_short {
             format!(
                 "the goal closer cannot delegate its next change within its authority: spend: {left} left, its change's half must pass {minimum}"
@@ -760,7 +841,6 @@ fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
             },
         }));
         world.until(Until::Ready);
-        let run = awakened(&mut world, goal.task);
         // The goal widens its delegate's terms as well as replenishing its funds.
         let mut authority = live_task(&world, closer).authority.clone();
         let funds = live_task(&world, goal.task).numbers;

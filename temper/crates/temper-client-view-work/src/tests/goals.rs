@@ -449,6 +449,7 @@ struct Page {
     root: temper_client_domain::Domain,
     out: Queue<temper_client_domain::Request>,
     watch: skein_lib::Token,
+    ended_mark: u64,
     me: skein_lib::Token,
     limits: temper_client_domain::Limits,
 }
@@ -474,7 +475,7 @@ impl Page {
         frame.projects.get_mut(EMPTY).unwrap().templates =
             List::from_boxed(Box::new([template(jig_client::shapes::GOAL, b"goal", true)]));
         fixtures::deliver_me(&mut root, me, frame);
-        let mut page = Self { root, out: Queue::uncapped(), watch: me, me, limits };
+        let mut page = Self { root, out: Queue::uncapped(), watch: me, ended_mark: 0, me, limits };
         page.event(temper_client_domain::Event::Went {
             place: temper_client_domain::Place::Address(Address::Goals {
                 project: fixtures::PROJECT,
@@ -537,9 +538,14 @@ impl Page {
         self.up(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(value)) });
     }
     fn live(&mut self, lines: &[c::TaskLine], more: bool) {
+        self.live_at(lines, more, self.ended_mark);
+    }
+    fn live_at(&mut self, lines: &[c::TaskLine], more: bool, ended_mark: u64) {
+        self.ended_mark = ended_mark;
         self.up(jig_client::Up::Watched {
             watch: self.watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: self.ended_mark,
                 rows: List::from_boxed(lines.into()),
                 more,
             }))),
@@ -550,6 +556,7 @@ impl Page {
         self.answer(
             read,
             c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: self.ended_mark,
                 live: List::uncapped(),
                 live_after: None,
                 ended: c::EndedGroup::Rows {
@@ -563,6 +570,13 @@ impl Page {
                 },
             })),
         );
+    }
+    fn needs_empty(&mut self) {
+        let read = self.read(false);
+        self.up(jig_client::Up::ReadDone {
+            read,
+            result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+        });
     }
     fn populated() -> Self {
         let mut page = Self::new();
@@ -762,6 +776,7 @@ fn the_headline_counts_every_row_in_every_form() {
         ] {
             page.live(live, more);
             page.ended(&[], false);
+            page.needs_empty();
             let (tree, _) = page.tree(&words);
             assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), expected.as_bytes());
         }
@@ -788,7 +803,7 @@ fn waiting_rows_are_under_way_and_only_an_own_need_says_you() {
         holds: false,
     };
     let room = page_line(201, State::WaitsForRoom);
-    page.live(&[waiting.clone(), room.clone()], false);
+    page.live_at(&[waiting.clone(), room.clone()], false, 1);
     page.ended(&[], false);
     for words in [fixtures::browser_words(), fixtures::words()] {
         page.filter(GoalsFilter::Live);
@@ -862,7 +877,7 @@ fn the_lede_names_the_projects_ways() {
 }
 
 #[test]
-fn the_intro_waits_for_me_and_the_live_watch() {
+fn the_intro_holds_its_heading_until_its_lists_answer() {
     let mut page = Page::new();
     for root in [Box::new(temper_client_domain::unlinked(&page.limits, fixtures::SEED)), Box::new(Page::new().root)] {
         page.root = *root;
@@ -870,7 +885,12 @@ fn the_intro_waits_for_me_and_the_live_watch() {
             let (tree, _) = page.tree(&words);
             assert!(styled_node(&tree, look::WORK_KICKER).is_some());
             assert!(styled_node(&tree, look::GOALS_LEDE).is_some());
-            assert!(styled_node(&tree, look::GOALS_HEADLINE).is_none());
+            let held = styled_node(&tree, look::GOALS_HEADLINE);
+            assert_eq!(held.is_some(), words.shell == crate::words::Shell::Browser);
+            if let Some(held) = held {
+                assert!(held.name.is_none());
+                assert!(held.text.is_empty());
+            }
             assert!(styled_node(&tree, look::GOALS_SECTION).is_none());
         }
     }
@@ -921,14 +941,14 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
     let mut page = Page::populated();
     let m = fixtures::milestones::TASK;
     let mut planning = page_line(PLANNING_TASK, State::Planning);
-    planning.requester = c::Requester::Task(m);
+    planning = fixtures::milestones::in_milestone(planning, m);
     let mut needs = page_line(NEEDS_TASK, State::Needs { funds: false });
-    needs.requester = c::Requester::Task(m);
+    needs = fixtures::milestones::in_milestone(needs, m);
     let mut landed = page_line(LANDED_TASK, State::Landed);
-    landed.requester = c::Requester::Task(m);
+    landed = fixtures::milestones::in_milestone(landed, m);
     let mut unknown = page_line(PAUSED_TASK, State::Paused);
     unknown.requester = c::Requester::Task(9999);
-    page.live(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false);
+    page.live_at(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false, 1);
     page.ended(&[landed.clone(), page_line(FAILED_TASK, State::Failed)], false);
     let out = fixtures::milestones::offer(&mut page.root, page.me, &page.limits);
     let listed = fixtures::milestones::watch(&out, Some(fixtures::milestones::LABEL), None, PAGE_ROWS);
@@ -937,9 +957,22 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
     milestone.chip.title = fixtures::goal::text(b"Store shape");
     let mut empty = milestone.clone();
     empty.chip.task = m + 1;
-    let out = fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
-    let children = fixtures::milestones::watch(&out, None, Some(m), PAGE_ROWS);
-    fixtures::milestones::live(&mut page.root, &page.limits, children, &[planning, needs, landed], false);
+    let totals = temper_client_protocol_wire::v1::MilestoneTotals {
+        task: m,
+        done: 1,
+        failed: 0,
+        closed: 0,
+        live: 2,
+        ended: None,
+        last_landing: None,
+        spent: 0,
+    };
+    milestone.parts = List::from_boxed(Box::new([fixtures::milestones::part(None, totals, &[], 0)]));
+    fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
+    page.up(jig_client::Up::ReadDone {
+        read: milestone_ended(&out),
+        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    });
     for words in [fixtures::browser_words(), fixtures::words()] {
         for (filter, expected, children) in [
             (
@@ -1011,6 +1044,7 @@ fn a_filter_no_goal_matches_says_none() {
     let mut page = Page::new();
     page.live(&[], false);
     page.ended(&[], false);
+    page.needs_empty();
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         page.filter(filter);
         for words in [fixtures::words(), fixtures::browser_words()] {
@@ -1029,6 +1063,7 @@ fn more_goals_offers_and_reads() {
     let mut page = Page::new();
     page.live(&[], false);
     page.ended(&[page_line(LANDED_TASK, State::Landed)], true);
+    page.needs_empty();
     for words in [fixtures::words(), fixtures::browser_words()] {
         let (tree, bindings) = page.tree(&words);
         let more = styled_node(&tree, look::GOALS_MORE).unwrap();
@@ -1133,5 +1168,112 @@ fn none_with_none() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let (tree, _) = page.tree(&words);
         assert!(fixtures::find(&tree, Role::Button, b"Start one from a draft").is_none());
+    }
+}
+
+fn milestone_ended(out: &Queue<temper_client_domain::Request>) -> skein_lib::Token {
+    for request in out {
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) },
+                },
+        } = request
+            && query.label == Some(fixtures::milestones::LABEL)
+        {
+            return *read;
+        }
+    }
+    panic!("milestone ended read");
+}
+
+#[test]
+fn goals_first_draw_with_their_needs_state_and_milestone_group() {
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        for last in 0_usize..4 {
+            let mut page = Page::new();
+            let out = fixtures::milestones::offer(&mut page.root, page.me, &page.limits);
+            let watch = fixtures::milestones::watch(&out, Some(fixtures::milestones::LABEL), None, PAGE_ROWS);
+            let read = milestone_ended(&out);
+            let m = fixtures::milestones::TASK;
+            let goal = fixtures::milestones::in_milestone(page_line(RUNNING_TASK, State::Running), m);
+            page.filter(GoalsFilter::Needs);
+            let mut order = skein_lib::Map::uncapped();
+            for rank in 0_usize..4 {
+                order.insert((rank == last, rank), rank).unwrap();
+            }
+            for (index, (_, rank)) in order.iter().enumerate() {
+                match rank {
+                    0 => page.live(core::slice::from_ref(&goal), false),
+                    1 => page.ended(&[], false),
+                    2 => {
+                        let read = page.read(false);
+                        page.answer(
+                            read,
+                            c::ReadValue::Inbox(Box::new(c::InboxPage {
+                                rows: List::uncapped(),
+                                before: None,
+                                after: None,
+                                cut: false,
+                                selection: Some(List::from_boxed(Box::new([c::InboxSelection {
+                                    cursor: c::InboxCursor::Number { number: 1 },
+                                    goals: List::from_boxed(Box::new([RUNNING_TASK])),
+                                }]))),
+                            })),
+                        );
+                    }
+                    3 => {
+                        let mut milestone = line();
+                        milestone.chip.task = m;
+                        milestone.chip.title = fixtures::goal::text(b"Store shape");
+                        fixtures::milestones::live(&mut page.root, &page.limits, watch, &[milestone], false);
+                        page.up(jig_client::Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+                        });
+                    }
+                    _ => unreachable!(),
+                }
+                let (tree, bindings) = page.tree(&words);
+                if index < 3 {
+                    assert!(row_tasks(&tree, &bindings).is_empty(), "last={last}, answer={rank}");
+                    let held = styled_node(&tree, look::GOALS_HEADLINE);
+                    assert_eq!(held.is_some(), words.shell == crate::words::Shell::Browser);
+                    if let Some(held) = held {
+                        assert!(held.text.is_empty());
+                        assert!(held.name.is_none());
+                    }
+                    assert!(styled_node(&tree, look::GOALS_EMPTY).is_none());
+                } else {
+                    assert_eq!(row_tasks(&tree, &bindings).as_ref(), &[m, RUNNING_TASK]);
+                    assert!(styled_node(&tree, look::GOALS_GROUP).is_some());
+                    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"needs you").is_some());
+                    assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), b"1 goal, 1 under way.");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn refused_or_failed_goal_lists_answer_empty_in_both_shells() {
+    for result in [c::ReadNone::Refused, c::ReadNone::Unreachable] {
+        let mut page = Page::new();
+        let out = fixtures::milestones::offer(&mut page.root, page.me, &page.limits);
+        let milestones = fixtures::milestones::watch(&out, Some(fixtures::milestones::LABEL), None, PAGE_ROWS);
+        let ended = page.read(true);
+        let needs = page.read(false);
+        for read in [ended, needs, milestone_ended(&out)] {
+            page.up(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::None(result)) });
+        }
+        for watch in [page.watch, milestones] {
+            page.up(jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed });
+        }
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, bindings) = page.tree(&words);
+            assert!(row_tasks(&tree, &bindings).is_empty());
+            assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), b"No goals yet.");
+            assert_eq!(styled_text(&tree, look::GOALS_EMPTY).as_ref(), b"None.");
+        }
     }
 }

@@ -372,9 +372,9 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = watching.watch() {
-                    assert!(!findings.mine());
-                    assert_eq!(*findings.state(), Some(temper_client_protocol_wire::v1::FindingState::New));
+                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = &watching.watch {
+                    assert!(!findings.mine);
+                    assert_eq!(findings.state, Some(temper_client_protocol_wire::v1::FindingState::New));
                     let findings = findings.clone();
                     let opened = client(f, jig_client::Event::Watch { handle, subject });
                     f.findings.push((handle, opened_token(&opened), findings)).unwrap();
@@ -389,6 +389,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 assert_eq!(
                     query,
                     c::TaskQuery {
+                        parts: List::with_capacity(0),
                         project: Some(PROJECT),
                         requester: Some(c::Requester::Person(party)),
                         root: None,
@@ -474,8 +475,8 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if let temper_client_protocol_wire::v1::Read::View(view) = reading.read() {
-                    f.charters.push((handle, view.address().into())).unwrap();
+                if let temper_client_protocol_wire::v1::Read::View(view) = &reading.read {
+                    f.charters.push((handle, view.address.clone())).unwrap();
                 }
             }
             Request::Client(jig_client::Event::Unwatch { handle }) => {
@@ -583,7 +584,12 @@ fn feed(f: &mut Reads, feed: Feed) -> Effects {
         }
         Feed::Tasks { party, lines, more } => {
             let (handle, watch) = neighbour(f, party);
-            delivered(f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(lines), more })))
+            delivered(
+                f,
+                handle,
+                watch,
+                c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(lines), more, ended_mark: 0 })),
+            )
         }
         Feed::TasksEnded(party) => {
             let (handle, watch) = neighbour(f, party);
@@ -1083,7 +1089,12 @@ fn standing_reads_each_now_again_on_line_delivery() {
     let mut second = first.clone();
     second.chip.task = 52;
     let rows = List::from_boxed(Box::new([first.clone(), second.clone(), first.clone()]));
-    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: true })));
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: rows.clone(), more: true })),
+    );
     let team::Shown::PeopleUnread { facts, failed } = team::shown(&f.root, PROJECT) else {
         panic!("roles do not wait for the people read")
     };
@@ -1148,11 +1159,11 @@ fn standing_reads_each_now_again_on_line_delivery() {
         "Now does not wait for the head document"
     );
     let rows = List::from_boxed(Box::new([first.clone(), second.clone()]));
-    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })));
     assert_eq!(f.nows.len(), 3, "a delivered line reads Now even when last activity is unchanged");
     second.last_activity = Wall::from_nanos(second.last_activity.as_nanos().saturating_add(1));
     let rows = List::from_boxed(Box::new([second]));
-    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })));
     assert_eq!(f.nows.len(), 4, "the removed role’s pending read gives way to the remaining role");
     assert_eq!(f.nows.get(3).unwrap().0, 52);
     let team::Shown::Read(facts) = team::shown(&f.root, PROJECT) else { panic!("Team") };
@@ -1162,7 +1173,7 @@ fn standing_reads_each_now_again_on_line_delivery() {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false })),
     );
     let team::Shown::Read(facts) = team::shown(&f.root, PROJECT) else { panic!("Team") };
     assert_eq!(team::parts(&facts).card, None);
@@ -1170,17 +1181,13 @@ fn standing_reads_each_now_again_on_line_delivery() {
 
 fn charter_view(charter: u32, label: &[u8], value: &[u8]) -> temper_client_protocol_wire::v1::View {
     use temper_client_protocol_wire::v1 as w;
-    let fact = w::Fact::new(&w::CEILINGS, w::FactParts { label: label.into(), value: value.into() }).unwrap();
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
-            name: b"Prover".as_slice().into(),
-            who: b"an agent".as_slice().into(),
-            facts: List::from_boxed(Box::new([fact])),
-        },
-    )
-    .unwrap();
-    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter, card }).unwrap())
+    let fact = w::Fact { label: label.into(), value: value.into() };
+    let card = w::Card {
+        name: b"Prover".as_slice().into(),
+        who: b"an agent".as_slice().into(),
+        facts: List::from_boxed(Box::new([fact])),
+    };
+    w::View::Charter(w::CharterView { charter, card })
 }
 
 #[test]
@@ -1289,7 +1296,11 @@ fn team_reads_the_selected_charter_and_closes_it_on_switch_or_leave() {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks {
+            ended_mark: 0,
+            rows: List::from_boxed(Box::new([line.clone()])),
+            more: false,
+        })),
     );
     assert!(f.charters.is_empty(), "no charter invented before the task document");
     let (_, handle, watch) = f.card.unwrap();
@@ -1302,7 +1313,7 @@ fn team_reads_the_selected_charter_and_closes_it_on_switch_or_leave() {
     assert_eq!(f.charters.get(0).unwrap().1.as_ref(), b"charter 13");
     let charter_handle = f.charters.get(0).unwrap().0;
     let view = charter_view(13, b"Asked to", b"Reproduce before routing.");
-    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+    let answer = w::ViewAnswer { view };
     page(
         &mut f,
         Event::Told {
@@ -1363,7 +1374,7 @@ fn team_reads_the_selected_charter_and_closes_it_on_switch_or_leave() {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line])), more: false })),
     );
     assert!(f.closed.as_slice().contains(&charter_handle), "switching cards closes the old charter");
 }
@@ -1376,41 +1387,31 @@ const WALL: Wall = Wall::from_nanos(20 * DAY);
 pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
     let mut signed = List::with_capacity(u32::try_from(parties.len()).unwrap());
     for party in parties {
-        signed
-            .push(
-                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [3; 32], at: 0 })
-                    .unwrap(),
-            )
-            .unwrap();
+        signed.push(w::ChangesSigned { name: None, party: *party, head: [3; 32], at: 0 }).unwrap();
     }
-    w::ChangesLanded::new(
-        &w::CEILINGS,
-        w::ChangesLandedParts {
-            task,
-            at,
-            signed,
-            title: b"Change".as_slice().into(),
-            commit: [4; 32],
-            default_branch: true,
-        },
-    )
-    .unwrap()
+    w::ChangesLanded {
+        goal: None,
+        chat: None,
+        milestone: None,
+        task,
+        at,
+        signed,
+        title: b"Change".as_slice().into(),
+        commit: [4; 32],
+        default_branch: true,
+    }
 }
 pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
-            project: PROJECT,
-            landing: b"main".as_slice().into(),
-            queues: List::with_capacity(0),
-            more: 0,
-            landed: List::with_capacity(0),
-            landed_more: 0,
-            landed_default: List::from_boxed(rows.into()),
-            landed_default_more: more,
-        },
-    )
-    .unwrap()
+    w::ChangesPanel {
+        project: PROJECT,
+        landing: b"main".as_slice().into(),
+        queues: List::with_capacity(0),
+        more: 0,
+        landed: List::with_capacity(0),
+        landed_more: 0,
+        landed_default: List::from_boxed(rows.into()),
+        landed_default_more: more,
+    }
 }
 
 #[test]
@@ -1590,7 +1591,7 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
     line.project = PROJECT;
     line.label = 3;
     line.ended_at = None;
-    let roles = c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false };
+    let roles = c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line.clone()])), more: false };
     delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
     assert_eq!(f.reports.len(), 1, "opening the card reads its report beside its Now");
     assert_eq!(f.reports.get(0).unwrap().0, 52);
@@ -1610,7 +1611,7 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
     assert_eq!(report(&f), None, "no report yet is normal");
     for refused in [true, false] {
         line.last_activity = Wall::from_nanos(line.last_activity.as_nanos().saturating_add(1));
-        let roles = c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false };
+        let roles = c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line.clone()])), more: false };
         delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
         let reading = f.reports.last().unwrap().1;
         report_answer(&mut f, reading, Box::new([note(3, b"report", b"Written")]));
@@ -1632,7 +1633,11 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line, other])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks {
+            ended_mark: 0,
+            rows: List::from_boxed(Box::new([line, other])),
+            more: false,
+        })),
     );
     page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(41) } });
     assert_eq!(f.reports.last().unwrap().0, 41, "changing cards reads the new role's report");

@@ -5,8 +5,8 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::Readable;
 use jig_client_domain::contract as c;
+use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::VERSION;
-use jig_client_protocol_wire::v26 as w;
 use skein_lib::{Reader, Writer, bytes, length::len_u64};
 
 pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
@@ -18,7 +18,7 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
         c::Read::Tasks { query, live, ended } => w::Read::Tasks(w::ReadTasks::new(
             limits,
             w::ReadTasksParts {
-                query: super::queries::query(*query, limits)?,
+                query: super::queries::query(query, limits)?,
                 live: cursor(live.as_ref(), limits)?,
                 ended: cursor(ended.as_ref(), limits)?,
             },

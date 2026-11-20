@@ -12,7 +12,10 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod admission;
 mod budget;
+mod change_facts;
+pub(crate) mod change_row;
 mod chat_document;
+mod checkpoints;
 mod dismiss;
 mod documents;
 mod forge_route;
@@ -431,6 +434,27 @@ fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs()
     assert!(out.is_empty(), "nothing from the failed decision or after it leaves");
     assert!(domain.journal.stopped());
     assert_eq!(domain.journal_stop(), Some(crate::JournalStop::PastEdge { writes: env.limits.journal.writes }));
+}
+
+#[test]
+fn a_sign_in_cap_routes_from_the_party_input_to_the_core() {
+    let (mut domain, env) = resume_fixture::root();
+    let cap = Wall::from_nanos(1200);
+    crate::step(
+        &mut domain,
+        &env,
+        crate::Event::Party(crate::PartyInput::SignedIn {
+            reply_to: skein_lib::ReplyTo::new(Token::new(73)),
+            identity: jig_domain_people::Identity {
+                key: jig_domain_people::IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+            held: None,
+            until: Some(cap),
+        }),
+    );
+    assert_eq!(domain.core.people.next_wall_expiry(), Some(cap));
 }
 
 #[test]

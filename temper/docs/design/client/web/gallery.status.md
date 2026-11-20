@@ -1,6 +1,7 @@
 # gallery: status
 
-2026-11-16. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-19. Where the tree's code lags or departs from [gallery.md](gallery.md).
+
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].

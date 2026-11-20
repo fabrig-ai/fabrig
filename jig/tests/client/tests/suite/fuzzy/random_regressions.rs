@@ -1,8 +1,8 @@
 //! Retained named random regressions, with their complete seeds and heap checks.
 use jig_client_world::random::{self, Start};
 use skein_world::domain::Verdict;
-// Peak 855,962 bytes measured 10-29; testing-strategy.md 6.
-const NEWCHAT_HEAP_CEILING: u64 = 1_100_000;
+// Peak 1,191,348 bytes measured 11-18; testing-strategy.md 6.
+const NEWCHAT_HEAP_CEILING: u64 = 1_500_000;
 #[test]
 fn random_people_smoke_newchat_story_boundaries() {
     let outcome = random::story(71, Start::NewChat, NEWCHAT_HEAP_CEILING);
@@ -43,7 +43,7 @@ fn a_restart_with_old_due_output_advances_to_recovery_instead_of_spinning() {
 }
 
 // Peak 940,219 bytes measured 10-29; testing-strategy.md 6.
-const SIGNED_OUT_TABS_HEAP_CEILING: u64 = 1_200_000;
+const SIGNED_OUT_TABS_HEAP_CEILING: u64 = 1_600_000;
 #[test]
 fn signed_out_tabs_resume_the_link_obligation_only_after_confirmation() {
     let outcome = random::story(107, Start::NewChat, SIGNED_OUT_TABS_HEAP_CEILING);
@@ -51,16 +51,16 @@ fn signed_out_tabs_resume_the_link_obligation_only_after_confirmation() {
     assert!(outcome.faults > 0);
 }
 
-// Peak 593,346 bytes measured 10-29; testing-strategy.md 6.
-const CURRENT_PAGE_NAVIGATION_HEAP_CEILING: u64 = 750_000;
+// Peak 780,211 bytes measured 11-18; testing-strategy.md 6.
+const CURRENT_PAGE_NAVIGATION_HEAP_CEILING: u64 = 980_000;
 #[test]
 fn selecting_the_current_page_is_still_navigation_for_the_referee() {
     let outcome = random::story(111, Start::Chat, CURRENT_PAGE_NAVIGATION_HEAP_CEILING);
     assert_eq!(outcome.verdict, Verdict::Passed);
 }
 
-// Peak 592,514 bytes measured 10-29; testing-strategy.md 6.
-const INBOX_FILTER_HEAP_CEILING: u64 = 750_000;
+// Peak 772,737 bytes measured 11-18; testing-strategy.md 6.
+const INBOX_FILTER_HEAP_CEILING: u64 = 970_000;
 #[test]
 fn a_persons_inbox_filter_changes_visibility_without_deciding_the_proposal() {
     let outcome = random::story(111, Start::Proposal, INBOX_FILTER_HEAP_CEILING);

@@ -13,7 +13,7 @@ pub(super) const START: &[&str] = &[
     "--template",
     "4",
     "--budget",
-    "80",
+    "0.80",
     "--deadline",
     "1970-01-01T00:01Z",
     WORDS,
@@ -96,7 +96,7 @@ const STOCK: &[&str] = &[
     "--charter",
     "1",
     "--budget",
-    "80",
+    "0.80",
     "--deadline",
     "1970-01-01T00:01Z",
     "work",
@@ -176,7 +176,7 @@ fn a_goal_without_a_proposal_recipient_keeps_the_refusal() {
 fn given_values_are_required_before_sending() {
     for (extra, expected) in [
         (&[][..], b"template 4 needs: --budget AMOUNT or --as-allowed; --deadline TIME; help goal start\n".as_slice()),
-        (&["--budget", "80"][..], b"template 4 needs: --deadline TIME; help goal start\n".as_slice()),
+        (&["--budget", "0.80"][..], b"template 4 needs: --deadline TIME; help goal start\n".as_slice()),
     ] {
         let argv =
             f::extended(&["goal", "start", "--project", "shop", "--template", "4", "work", "--key", "given"], extra);
@@ -232,6 +232,126 @@ fn goals_use_the_keyed_create_outcome() {
     let replay = root.submit(START);
     assert_eq!(f::act_ask(&root, replay), f::act_ask(&root, call));
     assert_eq!(root.sent_name(replay), Some(f::named("draft-goal")));
+}
+
+pub(super) const TITLE_WARNING: &[u8] =
+    b"warning: TEXT's first line, the title the pages show, is 61 characters, past 60; temper ctl help goal start\n";
+
+const TITLE_WARNING_JSON: &[u8] = b"{\"warning\":\"TEXT's first line, the title the pages show, is 61 characters, past 60; temper ctl help goal start\"}\n";
+const CREATED_JSON: &[u8] = b"{\"operation\":\"goal\",\"outcome\":{\"done\":{\"document\":{\"created\":{\"first\":41,\"last\":41,\"given\":null}}}},\"task\":null,\"to\":null}";
+
+fn title_call(text: &str) -> crate::jig::call::Call {
+    let mut argv = f::extended(START, &[]);
+    *argv.get_mut(10).unwrap() = text;
+    f::call(argv.as_slice())
+}
+
+fn created(root: &mut f::Harness, call: u32) {
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Created { first: 41, last: 41, given: None }));
+}
+
+#[test]
+fn goal_start_warns_on_long_untrimmed_unicode_title_lines() {
+    for (text, warning) in [
+        ("a".repeat(61), TITLE_WARNING),
+        ("é".repeat(61), TITLE_WARNING),
+        ("a".repeat(60) + " \nrest", TITLE_WARNING),
+        ("a".repeat(60) + "\r\nrest", TITLE_WARNING),
+        ("a".repeat(75), b"warning: TEXT's first line, the title the pages show, is 75 characters, past 60; temper ctl help goal start\n".as_slice()),
+    ] {
+        let mut root = f::choice_root(goal_me());
+        let call = root.submit_prepared(title_call(&text), false, None);
+        assert_eq!(f::chat_task(&root, call).spec.words.bytes(), text.as_bytes());
+        assert!(root.answer(call).is_none(), "the warning waits for the answer");
+        created(&mut root, call);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        assert_eq!(answer.stdout.as_ref(), b"done: task 41, goal\n");
+        assert_eq!(answer.stderr.as_ref(), warning);
+    }
+}
+
+#[test]
+fn goal_start_keeps_short_title_lines_quiet() {
+    for text in
+        ["a".repeat(60), "é".repeat(60), "a".repeat(20) + "\n" + &"b".repeat(200), "\n".repeat(2) + &"b".repeat(200)]
+    {
+        let mut root = f::choice_root(goal_me());
+        let call = root.submit_prepared(title_call(&text), false, None);
+        created(&mut root, call);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        assert_eq!(answer.stdout.as_ref(), b"done: task 41, goal\n");
+        assert_eq!(answer.stderr.as_ref(), b"");
+    }
+}
+
+#[test]
+fn goal_start_warns_on_proposed_answers() {
+    let mut offered = goal_me();
+    offered.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.budget = 79;
+    let mut root = f::choice_root(offered);
+    let call = root.submit_prepared(title_call(&"a".repeat(61)), false, None);
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 17, to: 9 }));
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 0);
+    assert_eq!(answer.stdout.as_ref(), b"proposed: p73/17, to role 9 in project 1\n");
+    assert_eq!(answer.stderr.as_ref(), TITLE_WARNING);
+}
+
+#[test]
+fn goal_start_refusals_do_not_warn() {
+    let mut root = f::choice_root(goal_me());
+    let call = root.submit_prepared(title_call(&"a".repeat(61)), false, None);
+    root.answered(call, c::Answer::Refused { refusal: c::Refusal::KeyConflict, at: None });
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 2);
+    assert_eq!(answer.stdout.as_ref(), b"");
+    assert_eq!(answer.stderr.as_ref(), b"goal start: The request key names another act\n");
+}
+
+#[test]
+fn goal_start_title_warning_is_json_and_replays_unchanged() {
+    let mut root = f::choice_root(goal_me());
+    let parsed = title_call(&"é".repeat(61));
+    let mut first = None;
+    for _ in 0_u32..2 {
+        let call = root.submit_prepared(parsed.clone(), true, None);
+        created(&mut root, call);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        assert_eq!(answer.stdout.as_ref(), CREATED_JSON);
+        assert_eq!(answer.stderr.as_ref(), TITLE_WARNING_JSON);
+        if let Some(first) = &first {
+            assert_eq!(&(answer.status, answer.stdout, answer.stderr), first);
+        } else {
+            first = Some((answer.status, answer.stdout, answer.stderr));
+        }
+    }
+}
+
+#[test]
+fn goal_start_checks_loaded_stdin_title_lines() {
+    use crate::jig::call::{Value, Values};
+    for json in [false, true] {
+        let mut root = f::choice_root(goal_me());
+        let mut parsed = title_call("-");
+        assert_eq!(parsed.values.get(2), Some(&Some(Values::One(Value::Stdin))));
+        let text = "é".repeat(61);
+        *parsed.values.get_mut(2).unwrap() = Some(Values::One(Value::Text(Box::from(text.as_bytes()))));
+        let call = root.submit_prepared(parsed, json, None);
+        assert_eq!(f::chat_task(&root, call).spec.words.bytes(), text.as_bytes());
+        created(&mut root, call);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        if json {
+            assert_eq!(answer.stdout.as_ref(), CREATED_JSON);
+            assert_eq!(answer.stderr.as_ref(), TITLE_WARNING_JSON);
+        } else {
+            assert_eq!(answer.stdout.as_ref(), b"done: task 41, goal\n");
+            assert_eq!(answer.stderr.as_ref(), TITLE_WARNING);
+        }
+    }
 }
 
 #[test]
@@ -353,5 +473,68 @@ fn starts_model_flags_replace_the_whole_template_choice() {
         let call = root.submit(argv.as_slice());
         let choice = f::chat_task(&root, call).llm.as_ref().unwrap();
         assert_eq!(choice, &c::LlmChoice { main, subagents: children, account: None, later: None });
+    }
+}
+
+#[test]
+fn goal_budget_argv_and_task_show_share_the_amount() {
+    for (amount, spend) in [("130", 13000), ("1.25", 125), ("0.5", 50), ("0", 0), ("130.00", 13000)] {
+        let mut me = goal_me();
+        let bounds = &mut me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within;
+        bounds.budget = 13000;
+        bounds.maximum_budget = 13000;
+        bounds.pool_left = 13000;
+        bounds.authority.authority.spend = 13000;
+        let mut root = f::choice_root(me);
+        let call = root.submit(&[
+            "goal",
+            "start",
+            "--project",
+            "1",
+            "--charter",
+            "1",
+            "--budget",
+            amount,
+            "--no-deadline",
+            "Work",
+            "--key",
+            "amount",
+        ]);
+        assert_eq!(f::chat_task(&root, call).authority.spend, spend, "{amount}");
+        if spend == 13000 {
+            let mut task = f::goal(41, c::WaitsOn::Nothing);
+            task.budget.numbers.budget = spend;
+            task.budget.numbers.spent = 0;
+            let read = root.submit(&["task", "show", "41"]);
+            root.serve(read, f::task_result(task));
+            let answer = root.answer(read).unwrap();
+            assert!(skein_lib::bytes::find(&answer.stdout, b"spent 0.00 of 130.00").is_some());
+        }
+    }
+}
+
+#[test]
+fn goal_call_budget_keeps_integer_spend_units() {
+    let mut me = goal_me();
+    let bounds = &mut me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within;
+    bounds.budget = 13000;
+    bounds.maximum_budget = 13000;
+    bounds.pool_left = 13000;
+    bounds.authority.authority.spend = 13000;
+    let call = f::from_json(br#"{"tool":"goal start","arguments":{"project":1,"charter":1,"budget":13000,"no_deadline":true,"text":"Work","key":"amount"}}"#);
+    for json in [false, true] {
+        let mut root = f::choice_root(me.clone());
+        let number = root.submit_prepared(call.clone(), json, None);
+        assert_eq!(f::chat_task(&root, number).authority.spend, 13000);
+        root.answered(
+            number,
+            c::Answer::Refused {
+                refusal: c::Refusal::Authority { lacking: c::Lacking::Approver, proposable: Some(true) },
+                at: None,
+            },
+        );
+        let answer = root.answer(number).unwrap();
+        let budget = if json { b"--budget 13000".as_slice() } else { b"--budget 130.00" };
+        assert!(skein_lib::bytes::find(&answer.stderr, budget).is_some());
     }
 }

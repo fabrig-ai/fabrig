@@ -157,10 +157,12 @@ fn text() -> contract::Text {
 }
 fn document(number: u64) -> contract::Task {
     contract::Task {
+        tasks_left: 0,
         concluded: None,
         talk: None,
         session: None,
         dependency_facts: List::with_capacity(0),
+        unread: List::with_capacity(0),
         kept_account: None,
         run_wait: None,
         settings: Some(contract::TaskSettings { task: 1, run: None, newest: 1 }),
@@ -262,7 +264,7 @@ pub(crate) const ENGINE_KEY: skein_lib::RequestKey = [1; 16];
 pub(crate) const OTHER_ENGINE_KEY: skein_lib::RequestKey = [2; 16];
 /// A given name distinct from the two drawn-key fixtures.
 pub(crate) const NAME: skein_lib::RequestKey = [3; 16];
-pub(crate) const ME_WATCH: Token = Token::new(1);
+pub(crate) const ME_WATCH: Token = Token::new(0);
 pub(crate) fn stop() -> Ask {
     Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: SUBJECT_TASK }))
 }

@@ -23,7 +23,7 @@ fn request(root: &f::Harness, call: u32) -> w::MakeRepository {
     let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family request") };
     assert_eq!(*scope, c::Scope::Deployment);
     let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
-    let w::Request::MakeRepository(make) = request.into_parts().request else { panic!("make repository") };
+    let w::Request::MakeRepository(make) = request.request else { panic!("make repository") };
     make
 }
 fn extended(words: &[&str], flags: &[&str]) -> jig::call::Call {
@@ -45,85 +45,63 @@ fn waiting(root: &mut f::Harness, flags: &[&str], json: bool) -> u32 {
     call
 }
 fn failed() -> w::MakingState {
-    w::MakingState::Failed(
-        w::MakingFailed::new(
-            &w::CEILINGS,
-            w::MakingFailedParts {
-                step: w::MakeStep::Repository,
-                reason: w::MakeFailure::Taken,
-                words: b"name is taken".as_slice().into(),
-            },
-        )
-        .unwrap(),
-    )
+    w::MakingState::Failed(w::MakingFailed {
+        step: w::MakeStep::Repository,
+        reason: w::MakeFailure::Taken,
+        words: b"name is taken".as_slice().into(),
+    })
 }
 fn making(state: w::MakingState) -> Making {
     Making {
         org: b"team".as_slice().into(),
         name: b"widget".as_slice().into(),
         from: w::MakeFrom::Empty,
-        into: Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: 1, home: true }).unwrap()),
+        into: Some(w::MakeInto { project: 1, home: true }),
         state,
     }
 }
 fn deliver(root: &mut f::Harness, states: &[w::MakingState], listed: bool) {
-    let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
     let mut makings = List::with_capacity(wire::MAKINGS);
     for state in states {
         makings
-            .push(
-                w::RepositoryMaking::new(
-                    &limits,
-                    w::RepositoryMakingParts {
-                        org: b"team".as_slice().into(),
-                        name: b"widget".as_slice().into(),
-                        from: w::MakeFrom::Empty,
-                        into: Some(w::MakeInto::new(&limits, w::MakeIntoParts { project: 1, home: true }).unwrap()),
-                        state: state.clone(),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::RepositoryMaking {
+                org: b"team".as_slice().into(),
+                name: b"widget".as_slice().into(),
+                from: w::MakeFrom::Empty,
+                into: Some(w::MakeInto { project: 1, home: true }),
+                state: state.clone(),
+            })
             .unwrap();
     }
     let mut forges = List::with_capacity(1);
     if listed {
         forges
-            .push(
-                w::ForgeRow::new(
-                    &limits,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        number: 3,
-                        host: b"git.example:3000".as_slice().into(),
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Owned,
-                        connection: w::Connection::Connected(
-                            w::Connected::new(&limits, w::ConnectedParts { id: 42, login: b"bot".as_slice().into() })
-                                .unwrap(),
-                        ),
-                        offer: w::Offer::Offered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: true,
-                        read_only: false,
-                        ended_stop: None,
-                        makings,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                number: 3,
+                host: b"git.example:3000".as_slice().into(),
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Owned,
+                connection: w::Connection::Connected(w::Connected { id: 42, login: b"bot".as_slice().into() }),
+                offer: w::Offer::Offered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: true,
+                read_only: false,
+                ended_stop: None,
+                makings,
+            })
             .unwrap();
     }
     let record = client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
+        bytes: wire::forges(&w::Forges { forges, linked: false }),
     };
     let subject = forge::forges::watch(&root.limits.domain.forge).unwrap();
     let watch = root.watch_token(&subject);
@@ -135,17 +113,17 @@ fn make_sends_the_request_and_prints_kept() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_prepared(f::call(MAKE), json, None);
         let make = request(&root, call);
-        assert_eq!((make.forge(), make.org(), make.name()), (3, b"team".as_slice(), b"widget".as_slice()));
-        assert_eq!(make.from(), &w::MakeFrom::Empty);
-        assert_eq!(w::MakeRepository::into(&make).as_ref().unwrap().project(), 1);
-        assert!(w::MakeRepository::into(&make).as_ref().unwrap().home());
+        assert_eq!((make.forge, make.org.as_ref(), make.name.as_ref()), (3, b"team".as_slice(), b"widget".as_slice()));
+        assert_eq!(&make.from, &w::MakeFrom::Empty);
+        assert_eq!((make).into.as_ref().unwrap().project, 1);
+        assert!((make).into.as_ref().unwrap().home);
         assert_eq!(root.sent_name(call), Some(crate::key::engine(&f::name(b"make-widget"))));
         assert!(root.answer(call).is_none());
         root.adoption_answer(call, w::Outcome::MakeKept);
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 0);
         assert_eq!(printed.stdout.as_ref(), if json { br#"{"make_kept":{}}"#.as_slice() } else { b"kept\n" });
-        assert_eq!(root.watches.len(), 1, "a bare act opens no forge watch");
+        assert_eq!(root.watches.len(), 0, "a bare act opens no forge watch");
     }
 }
 #[test]
@@ -153,9 +131,9 @@ fn copy_lands_at_its_sources_owner_and_name() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(COPY);
     let make = request(&root, call);
-    assert_eq!((make.org(), make.name()), (b"team".as_slice(), b"widget".as_slice()));
-    let w::MakeFrom::Copy(copy) = make.from() else { panic!("copy source") };
-    assert_eq!(copy.address(), b"https://source.invalid/team/widget");
+    assert_eq!((make.org.as_ref(), make.name.as_ref()), (b"team".as_slice(), b"widget".as_slice()));
+    let w::MakeFrom::Copy(copy) = &make.from else { panic!("copy source") };
+    assert_eq!(copy.address.as_ref(), b"https://source.invalid/team/widget");
     root.adoption_answer(call, w::Outcome::MakeKept);
     assert_eq!(root.answer(call).unwrap().stdout.as_ref(), b"kept\n");
 }
@@ -164,7 +142,7 @@ fn as_lands_there() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit_call(extended(COPY, &["--as", "other/renamed"]), false);
     let make = request(&root, call);
-    assert_eq!((make.org(), make.name()), (b"other".as_slice(), b"renamed".as_slice()));
+    assert_eq!((make.org.as_ref(), make.name.as_ref()), (b"other".as_slice(), b"renamed".as_slice()));
 }
 #[test]
 fn an_address_refused_names_the_form_and_sends_nothing() {
@@ -187,7 +165,7 @@ fn no_home_sends_home_false() {
     for words in [MAKE, COPY] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_call(extended(words, &["--no-home"]), false);
-        assert!(!w::MakeRepository::into(&request(&root, call)).as_ref().unwrap().home());
+        assert!(!(request(&root, call)).into.as_ref().unwrap().home);
     }
 }
 #[test]
@@ -196,12 +174,7 @@ fn a_refused_home_names_no_home() {
     for words in [MAKE, COPY] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(words);
-        root.adoption_answer(
-            call,
-            w::Outcome::MakeRefused(
-                w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: w::MakeRefusal::HomeHeld }).unwrap(),
-            ),
-        );
+        root.adoption_answer(call, w::Outcome::MakeRefused(w::MakeRefused { why: w::MakeRefusal::HomeHeld }));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
         assert!(printed.stdout.is_empty());
@@ -217,7 +190,7 @@ fn a_refused_home_names_no_home() {
             argv.push(if word == "KEY" { "retry-home" } else { word }).unwrap();
         }
         let retry = root.submit(argv.as_slice());
-        assert!(!w::MakeRepository::into(&request(&root, retry)).as_ref().unwrap().home());
+        assert!(!(request(&root, retry)).into.as_ref().unwrap().home);
         assert_eq!(root.sent_name(retry), Some(crate::key::engine(&f::name(b"retry-home"))));
     }
 }
@@ -226,8 +199,7 @@ fn until_adopted_waits_for_the_row_to_go() {
     for json in [false, true] {
         let mut root = f::signed_in(f::PARTY);
         let call = waiting(&mut root, &["--until", "adopted"], json);
-        let made =
-            w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 7, branch: b"main".as_slice().into() }).unwrap();
+        let made = w::MakingMade { id: 7, branch: b"main".as_slice().into() };
         for state in [
             w::MakingState::Waiting,
             w::MakingState::Making,
@@ -304,13 +276,7 @@ fn the_same_key_sent_again_answers_kept_and_waits_again() {
     assert_eq!(root.answer(first).unwrap().status, 2);
     let again = waiting(&mut root, &["--until", "adopted"], false);
     assert_eq!(root.sent_name(again), name);
-    deliver(
-        &mut root,
-        &[w::MakingState::Adopting(
-            w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 7, branch: b"main".as_slice().into() }).unwrap(),
-        )],
-        true,
-    );
+    deliver(&mut root, &[w::MakingState::Adopting(w::MakingMade { id: 7, branch: b"main".as_slice().into() })], true);
     assert!(root.answer(again).is_none());
     deliver(&mut root, &[], true);
     assert_eq!(root.answer(again).unwrap().status, 0);
@@ -330,19 +296,11 @@ fn forge_list_shows_the_rows() {
         let mut row = super::forges::row(Connection::NotConnected);
         row.makings = Box::new([making(w::MakingState::Making)]);
         assert!(!crate::forges::holds(&[row.clone()], b"settled"));
-        row.makings = Box::new([making(w::MakingState::Failed(
-            w::MakingFailed::new(
-                &w::CEILINGS,
-                w::MakingFailedParts {
-                    step: w::MakeStep::Repository,
-                    reason: w::MakeFailure::Refused(
-                        w::Refused::new(&w::CEILINGS, w::RefusedParts { status: 409 }).unwrap(),
-                    ),
-                    words: b"name is taken".as_slice().into(),
-                },
-            )
-            .unwrap(),
-        ))]);
+        row.makings = Box::new([making(w::MakingState::Failed(w::MakingFailed {
+            step: w::MakeStep::Repository,
+            reason: w::MakeFailure::Refused(w::Refused { status: 409 }),
+            words: b"name is taken".as_slice().into(),
+        }))]);
         assert!(crate::forges::holds(&[row.clone()], b"settled"));
         let printed = crate::forges::print_rows(Some(&[row]), json, None, &root.limits);
         assert!(has(&printed, b"name is taken"));

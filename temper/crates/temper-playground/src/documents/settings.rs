@@ -11,7 +11,7 @@ fn model(value: &jig_domain_core::Model) -> Value {
 }
 /// Use the binary's stock defaults, with this deployment's models.
 #[must_use]
-pub fn stock(deployment: &Value) -> Value {
+pub fn stock(deployment: &super::Configuration) -> Value {
     let engine = configuration(deployment);
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let c = &defaults.charters[0];
@@ -42,18 +42,30 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
 
 /// Parse only startup configuration; the caller supplies typed defaults afterwards.
 #[must_use]
-pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
+#[expect(
+    clippy::too_many_lines,
+    reason = "world-only inputs build a typed catalogue independently of the deployment document"
+)]
+pub fn configuration(deployment: &super::Configuration) -> jig_protocol_config::Engine {
     let mut value = deployment["engine"].clone();
+    strip_engine(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
         value.as_object_mut().expect("engine").remove(member);
     }
-    if value["llm"].get("models").is_none() {
-        let original = if deployment["world_settings"]["llm"].is_object() {
+    if value.get("llm").is_none() {
+        value["llm"] = if deployment["world_settings"]["llm"].is_object() {
             deployment["world_settings"]["llm"].clone()
-        } else if deployment["application"]["demo"].is_object() {
+        } else {
+            super::world_document()["world_settings"]["llm"].clone()
+        };
+    }
+    if value["llm"].get("models").is_none() {
+        let original = if deployment["world_settings"]["llm"]["models"].is_array() {
+            deployment["world_settings"]["llm"].clone()
+        } else if deployment["world_settings"]["playground"] == true {
             serde_json::from_slice(include_bytes!("../../stories/a/catalogue.json")).expect("story catalogue")
         } else {
-            super::world_document()["engine"]["llm"].clone()
+            super::world_document()["world_settings"]["llm"].clone()
         };
         value["llm"]["models"] = original["models"].clone();
         for provider in value["llm"]["providers"].as_array_mut().expect("providers") {
@@ -66,20 +78,30 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
             provider["models"] = source["models"].clone();
         }
     }
+    let configured = value["llm"]["models"].as_array().expect("world models").clone();
+    for provider in value["llm"]["providers"].as_array_mut().expect("world providers") {
+        if provider.get("models").is_none() {
+            provider["models"] = configured
+                .iter()
+                .filter(|model| model["endpoint"] == provider["endpoint"])
+                .map(|model| model["name"].clone())
+                .collect::<Vec<_>>()
+                .into();
+        }
+    }
     let mut inline = value.clone();
-    inline["projects"] = json!([]);
     inline["charters"] = json!([]);
     inline["templates"] = json!([]);
     inline["policies"] = json!([]);
     inline["rules"] = json!({"ceiling":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":1,"deadline_unix_seconds":null},"notes":0,"note_resources":[]},"period_spend":0,"minimum_run_spend":0,"maximum_run_spend":1,"implies":[],"requirements":[]});
-    let own = parse_engine(&inline, jig_protocol_config::Defaults::Document);
+    let own = parse_engine(&inline, jig_protocol_config::Defaults::Document, &deployment.jig);
     value["llm"].as_object_mut().expect("llm").remove("models");
     for provider in value["llm"]["providers"].as_array_mut().expect("providers") {
         let mut endpoint = None;
         for candidate in &own.llm.providers {
             if provider["number"].as_u64() == Some(u64::from(candidate.number)) {
                 for model in &own.llm.models {
-                    if candidate.models.contains(&model.model.name) {
+                    if candidate.number == model.model.provider {
                         endpoint = own
                             .llm
                             .endpoints
@@ -97,37 +119,83 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
             object.insert("endpoint".into(), json!(endpoint.expect("provider's endpoint")));
         }
     }
-    if deployment["world_settings"]["policies"].is_array() {
-        value["projects"] = deployment["world_settings"]["policies"].clone();
-    }
-    let mut engine = parse_engine(&value, jig_protocol_config::Defaults::Passed);
+    let mut engine = parse_engine(&value, jig_protocol_config::Defaults::Passed, &deployment.jig);
     engine.llm.models = own.llm.models;
+    let policy_values = deployment["world_settings"]["policies"].as_array().map_or_else(
+        || json!([]),
+        |policies| {
+            let mut policies = policies.clone();
+            for policy in &mut policies {
+                policy.as_object_mut().expect("policy").remove("name");
+            }
+            json!(policies)
+        },
+    );
+    let policy_bytes = serde_json::to_vec(&policy_values).expect("world policy settings");
+    let policy_document = jig_protocol_config::document(
+        &policy_bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+    )
+    .expect("world policy JSON");
+    let mut problems = jig_protocol_config::Problems::empty();
+    let policies = jig_protocol_config::policies(
+        &policy_document,
+        0,
+        &jig_protocol_config::Path::root(),
+        &engine.limits,
+        &engine.llm.models(),
+        &mut problems,
+    )
+    .expect("world policies");
+    assert!(problems.is_empty(), "world policies: {problems:?}");
+    engine.projects = policies
+        .iter()
+        .map(|policy| jig_protocol_config::Project {
+            number: policy.number,
+            name: format!("Project {}", policy.number).into_boxed_str(),
+            policy: policy.policy.clone(),
+            roles: policy.roles.clone(),
+            templates: policy.templates.clone(),
+        })
+        .collect();
+    for owner in &mut engine.owners {
+        owner.project = 1;
+    }
     engine
 }
-fn parse_engine(value: &Value, defaults: jig_protocol_config::Defaults) -> jig_protocol_config::Engine {
+fn parse_engine(
+    value: &Value,
+    defaults: jig_protocol_config::Defaults,
+    limits: &jig_protocol_config::Limits,
+) -> jig_protocol_config::Engine {
     let bytes = serde_json::to_vec(value).expect("engine JSON");
     let document = jig_protocol_config::document(
         &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .expect("engine document");
-    jig_protocol_config::engine(&document, 0, &jig_protocol_config::Directories::working(), defaults)
-        .expect("world configuration")
+    jig_protocol_config::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        defaults,
+        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).expect("world constants"),
+        limits,
+    )
+    .expect("world configuration")
 }
 
 /// Separate the imported world's policy values from seeds that name their settings.
 pub fn stage_policies(value: &mut serde_json::Value) {
-    let mut policies = value["engine"]["projects"].clone();
-    for (index, policy) in policies.as_array_mut().expect("seed projects").iter_mut().enumerate() {
+    let original: Value = serde_json::from_slice(super::channel::POLICIES).expect("world policies");
+    let mut policies =
+        value["engine"].as_object_mut().expect("engine").remove("projects").unwrap_or_else(|| original.clone());
+    for (index, policy) in policies.as_array_mut().expect("policies").iter_mut().enumerate() {
         if policy["policy"].is_number() {
-            let original: Value = serde_json::from_slice(&super::engine_document()).expect("world defaults");
-            policy["policy"] = original["engine"]["projects"][0]["policy"].clone();
-            policy["roles"] = original["engine"]["projects"][0]["roles"].clone();
+            policy["policy"] = original[0]["policy"].clone();
+            policy["roles"] = original[0]["roles"].clone();
         }
         policy["number"] = (index + 1).into();
-        let seed = &mut value["engine"]["projects"][index];
-        seed["policy"] = (index + 1).into();
-        seed.as_object_mut().expect("seed").remove("roles");
     }
     value["world_settings"]["policies"] = policies;
 }
@@ -147,12 +215,17 @@ pub fn forge(deployment: &Value) -> Box<[temper_engine_domain_forge::settings::S
             projects.insert(project, landing_rules(&entry["rules"])).expect("world project rules");
         }
     }
-    temper_engine_domain::landing_stock(
+    let mut stock = temper_engine_domain::landing_stock(
         &deployment,
         &projects,
         u32::try_from(flags["forge_charter"].as_u64().unwrap_or(1)).expect("world change charter"),
         4,
     )
+    .into_vec();
+    if flags["settings"].is_object() {
+        stock.extend(kind_defaults(&serde_json::to_vec(&flags["settings"]).expect("world settings file")));
+    }
+    stock.into_boxed_slice()
 }
 fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
     use temper_engine_domain::{Approval, Freshness, Gate, LandingRule};
@@ -214,19 +287,96 @@ fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
 
 /// Remove jig's inline catalogue from a document passed with a world's defaults.
 pub fn strip_models(deployment: &mut Value) {
-    let llm = deployment["engine"]["llm"].clone();
-    if deployment["world_settings"].is_object() && llm["models"].is_array() {
-        deployment["world_settings"]["llm"] = llm.clone();
+    strip_fixed(deployment);
+
+    let Some(llm) = deployment["engine"].as_object_mut().expect("engine").remove("llm") else { return };
+    if deployment["world_settings"].is_object() {
+        deployment["world_settings"]["llm"] = llm;
     }
-    for provider in deployment["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
-        if provider.get("endpoint").is_none()
-            && let Some(name) = provider["models"].as_array().and_then(|names| names.first())
-            && let Some(models) = llm["models"].as_array()
-            && let Some(model) = models.iter().find(|model| model["name"] == *name)
-        {
-            provider["endpoint"] = model["endpoint"].clone();
+}
+
+/// Typed application defaults for a world's settings file, including landing kinds 4 and 5.
+#[must_use]
+pub fn kind_defaults(bytes: &[u8]) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use settings_form::view::{Setting, SettingEdit, SettingValue};
+    let items = settings_form::file::decode(bytes, &settings_form::Limits::standard()).expect("world settings file");
+    let mut stock = Vec::new();
+    for item in items.into_boxed() {
+        let Setting::Application { kind, scope, number } = item.setting else { panic!("application fixture setting") };
+        let SettingEdit::Set(set) = item.edit else { panic!("fixture default set") };
+        let SettingValue::Application(bytes) = set.value else { panic!("application fixture value") };
+        let value = temper_engine_smith::kinds::decode(
+            kind,
+            &bytes,
+            &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+        )
+        .expect("typed fixture setting");
+        stock.push(temper_engine_domain_forge::settings::Stock { kind, scope, number, value });
+    }
+    stock.into_boxed_slice()
+}
+
+/// Remove members fixed by temper from imported jig fixture documents.
+pub fn strip_fixed(deployment: &mut Value) {
+    if let Some(workers) = deployment.get_mut("workers").and_then(Value::as_array_mut) {
+        for worker in workers {
+            let worker = worker.as_object_mut().expect("worker");
+            worker.remove("graces");
+            worker.remove("programs");
         }
-        provider.as_object_mut().expect("provider").remove("models");
     }
-    deployment["engine"]["llm"].as_object_mut().expect("llm").remove("models");
+    if let Some(application) = deployment.get_mut("application").and_then(Value::as_object_mut) {
+        application.remove("workers");
+        application.remove("machine");
+        application.remove("welcome");
+        application.remove("demo");
+    }
+    strip_engine(&mut deployment["engine"]);
+}
+fn strip_engine(engine: &mut Value) {
+    let engine = engine.as_object_mut().expect("engine");
+    for member in ["deployment", "providers", "connectors", "acts", "projects"] {
+        engine.remove(member);
+    }
+    if let Some(clients) = engine.get_mut("clients").and_then(Value::as_object_mut) {
+        for member in ["heartbeat_ms", "link", "approval"] {
+            clients.remove(member);
+        }
+    }
+}
+
+/// The worlds' typed seeds, independent of the startup document.
+pub fn seed_configuration(engine: &mut jig_protocol_config::Engine, document: &super::Configuration) {
+    if document["world_settings"]["adopt_only"] == true {
+        engine.acts = Box::new([jig_domain_people::ActGrant {
+            connector: 1,
+            may: Box::new([jig_domain_people::ActKind::Adopt]),
+        }]);
+    }
+    if document["world_settings"]["empty_projects"] == true || document["world_settings"]["playground"] == true {
+        return;
+    }
+    let mut document = document.clone();
+    if document["world_settings"]["policies"].is_null() {
+        document["world_settings"] = super::world_document()["world_settings"].clone();
+    }
+    let projects = configuration(&document).projects;
+    seed_projects(engine, projects);
+}
+/// Install a world's typed seed projects and its owners before constructing the core.
+pub fn seed_projects(engine: &mut jig_protocol_config::Engine, projects: Box<[jig_protocol_config::Project]>) {
+    let owners = engine
+        .owners
+        .iter()
+        .flat_map(|owner| {
+            projects.iter().map(|project| jig_domain_people::InitialOwner {
+                project: project.number,
+                identity: owner.identity.clone(),
+            })
+        })
+        .collect();
+    engine.projects = projects;
+    if !engine.projects.is_empty() {
+        engine.owners = owners;
+    }
 }

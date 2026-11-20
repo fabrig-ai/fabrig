@@ -20,7 +20,7 @@ use skein_io::{
     kernel::{self, Complete, Exit, Fd, ServiceSignal, Submit},
 };
 use skein_lib::{
-    Decimal, Duration, Env, List, Queue, Secret, Time, Token, Wall,
+    Decimal, Duration, Env, List, Map, Queue, Secret, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
 use temper_forge_setup::{Kind, Stage, Step, Steps, fetch::Fetched, sign_in::Source};
@@ -204,6 +204,17 @@ struct Control {
     line: Option<Line>,
     line_wall: Wall,
 }
+#[derive(Debug)]
+struct GroupLoad {
+    forge: u16,
+    restored: bool,
+    admitted: bool,
+    address: Option<core::net::SocketAddr>,
+    closing_listener: Option<Token>,
+    kind: Option<temper_forge_setup::machine::BoxKind>,
+    wall: Wall,
+    notice: Box<[u8]>,
+}
 /// All io and policy state owned by one box process.
 #[derive(Debug)]
 struct Told {
@@ -237,8 +248,14 @@ pub struct Service {
     terminate_pending: bool,
     failure: Option<(Fact, Wall)>,
     deferred: Queue<Item>,
-    listeners: Box<[(core::net::SocketAddr, Token)]>,
-    listeners_closing: usize,
+    listeners: List<(core::net::SocketAddr, Token)>,
+    group_listeners: Map<u16, Option<Token>>,
+    removed_listeners: Map<u16, Wall>,
+    loading_group: Option<GroupLoad>,
+    open_group: Option<(u16, core::net::SocketAddr)>,
+    pending_remover: Option<(u16, usize)>,
+    restore_at: u32,
+    listeners_closing: u32,
     signals: Token,
     phase: Phase,
     failed: bool,
@@ -287,7 +304,9 @@ impl Service {
         bounds.sockets = bounds
             .sockets
             .checked_add(u32::try_from(settings.listeners.len()).expect("bounded listeners"))
-            .expect("listener slots");
+            .expect("listener slots")
+            .checked_add(limits.groups)
+            .expect("group listeners");
         if settings.front.is_some() {
             bounds.sockets = bounds.sockets.checked_add(3).expect("parent pipes");
         }
@@ -322,7 +341,7 @@ impl Service {
             Some(front) => Some(front_pipes::Pipes::new(&mut io, front)),
             None => None,
         };
-        let listeners = adopt_listeners(&mut io, &settings.listeners);
+        let listeners = adopt_listeners(&mut io, &settings.listeners, limits.groups);
         let capacity =
             io::operations(&bounds).expect("bounded operations").checked_mul(4).expect("queue capacity").max(64);
         let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(4);
@@ -353,7 +372,13 @@ impl Service {
             terminate_pending: false,
             failure: None,
             deferred,
-            listeners: listeners.into_boxed(),
+            listeners,
+            group_listeners: Map::with_capacity(limits.groups),
+            removed_listeners: Map::with_capacity(limits.groups),
+            loading_group: None,
+            open_group: None,
+            pending_remover: None,
+            restore_at: 0,
             listeners_closing: 0,
             signals,
             phase: Phase::New,
@@ -455,10 +480,11 @@ impl Service {
                 | Order::Hold { .. }
                 | Order::Wait { .. }
                 | Order::Signal { .. }
-                | Order::Close { .. }
-                | Order::RunRemover { .. },
+                | Order::Close { .. },
             ) => true,
-            Some(Order::Record { .. } | Order::WriteGroup { .. } | Order::Unlink { .. }) => self.records.ready(),
+            Some(Order::Record { .. } | Order::WriteGroup { .. } | Order::Unlink { .. } | Order::RunRemover { .. }) => {
+                self.records.ready()
+            }
             None => false,
         }
     }
@@ -514,6 +540,24 @@ impl Service {
                 }
             }
             Event::Closed { owner } => {
+                if let Some(load) = &self.loading_group
+                    && load.closing_listener == Some(owner)
+                {
+                    let address = load.address.expect("loaded listener");
+                    self.bind_group(None, address);
+                    return;
+                }
+                let mut group = None;
+                for (forge, token) in &self.group_listeners {
+                    if *token == Some(owner) {
+                        group = Some(*forge);
+                        break;
+                    }
+                }
+                if let Some(forge) = group {
+                    self.group_listener_closed(forge);
+                    return;
+                }
                 if let Some(front) = &mut self.front {
                     front.closed(owner);
                 }
@@ -910,13 +954,51 @@ impl Service {
                 self.input(Input::SourceEnded { step, added });
             }
             Order::Record { forge } => self.records.write(forge),
-            Order::WriteGroup { forge, kind } => self.records.write_group(forge, kind),
+            Order::WriteGroup { forge, kind } => {
+                if self.group_listeners.contains_key(&forge) {
+                    self.records.write_group(forge, kind);
+                } else if let Some(load) = &mut self.loading_group
+                    && load.forge == forge
+                    && load.address.is_some()
+                {
+                    load.admitted = true;
+                    self.open_group();
+                } else {
+                    self.read_group(forge, Some(kind), false);
+                }
+            }
             Order::Unlink { forge } => self.records.unlink(forge),
-            Order::RunRemover { slot, .. } => {
+            Order::RunRemover { slot, forge } => {
                 let step = self.machine.remover(slot).expect("slot remover");
-                self.children.get_mut(step).expect("remover child").spawn = true;
+                match self.steps.get(step).expect("remover placement").asked.expect("remover group").kind {
+                    Some(kind) => {
+                        self.pending_remover = Some((forge, step));
+                        self.records.probe_removal(forge, kind);
+                    }
+                    None => self.children.get_mut(step).expect("remover child").spawn = true,
+                }
             }
             Order::Say { said } => {
+                if let Said::Failed { forge, .. } = said
+                    && let Some(load) = &self.loading_group
+                    && load.forge == forge
+                    && !load.admitted
+                {
+                    self.loading_group = None;
+                }
+                if let Said::Removed { forge } = said {
+                    match self.group_listeners.get(&forge) {
+                        Some(Some(token)) => {
+                            self.removed_listeners.insert(forge, wall).expect("one removed listener per group");
+                            self.requests.push(Request::Close { entity: *token });
+                            return;
+                        }
+                        Some(None) => {
+                            self.group_listeners.remove(&forge);
+                        }
+                        None => {}
+                    }
+                }
                 let source = match said {
                     Said::Started { forge } => self.source_line(forge, wall),
                     Said::Step { .. } | Said::Stopped { .. } | Said::Removed { .. } | Said::Failed { .. } => None,
@@ -1274,12 +1356,13 @@ impl Service {
                 self.requests.push(Request::Spawn {
                     owner,
                     spawn: kernel::Spawn {
+                        reach: None,
                         program: self.settings.program.clone(),
                         args: spawn_arguments(&self.settings, description.arguments()),
                         env: spawn_environment(&self.settings.environment, description.listeners().len()),
                         root: self.settings.root,
                         dir: Box::new([]),
-                        pipes: spawn_pipes(description, &self.settings.serve, &self.listeners, secret),
+                        pipes: spawn_pipes(description, &self.settings.serve, self.listeners.as_slice(), secret),
                     },
                 });
             }
@@ -1299,9 +1382,196 @@ impl Service {
             && self.logs.ready()
             && (self.front.is_none() || self.requests.room() > 0)
             && self.records.ready()
+            && self.loading_group.is_none()
+            && self.restore_at == u32::try_from(self.records.groups().len()).expect("bounded groups")
             && (entries == 0 || self.say_room(entries))
     }
+    fn restore_runnable(&self) -> bool {
+        self.phase == Phase::New
+            && self.records.ready()
+            && self.loading_group.is_none()
+            && self.restore_at < u32::try_from(self.records.groups().len()).expect("bounded groups")
+    }
+    fn restore_groups(&mut self) {
+        if !self.restore_runnable() {
+            return;
+        }
+        let group =
+            *self.records.groups().get(usize::try_from(self.restore_at).expect("group index")).expect("restored group");
+        self.restore_at = self.restore_at.checked_add(1).expect("bounded groups");
+        if group.started {
+            self.read_group(group.forge, Some(group.kind), true);
+        } else {
+            self.machine.restore(group.forge, group.kind, false);
+        }
+    }
+    fn read_group(&mut self, forge: u16, kind: Option<temper_forge_setup::machine::BoxKind>, restored: bool) {
+        let mut kinds = false;
+        for placed in &self.templates {
+            if let Some(asked) = placed.asked
+                && asked.kind.is_some()
+            {
+                kinds = true;
+            }
+        }
+        if !kinds || self.group_listeners.contains_key(&forge) {
+            self.input(Input::Ask { forge });
+            return;
+        }
+        self.loading_group = Some(GroupLoad {
+            forge,
+            kind,
+            restored,
+            admitted: restored || kind.is_some(),
+            address: None,
+            closing_listener: None,
+            wall: self.env.wall,
+            notice: Box::new([]),
+        });
+        self.records.read_setup(forge, kind);
+    }
+    fn group_setup(
+        &mut self,
+        forge: u16,
+        kind: temper_forge_setup::machine::BoxKind,
+        result: Result<Box<[u8]>, kernel::Error>,
+    ) {
+        let dirs = jig_protocol_config::Directories::given(b"/", &self.settings.data, b"/").expect("absolute data");
+        let file = match result {
+            Ok(bytes) => temper_forge_setup::setup_file::decode(&bytes, &dirs).ok(),
+            Err(_) => None,
+        };
+        let Some(file) = file else {
+            let path = temper_forge_setup::setup_file::path(forge, kind);
+            let why = lines::joined(&[&self.settings.data, b"/", &path, b": setup unreadable"]);
+            self.group_failed(&why);
+            return;
+        };
+        if file.kind() != kind {
+            self.group_failed(b"setup kind differs from directory");
+            return;
+        }
+        let load = self.loading_group.as_mut().expect("one setup read");
+        assert_eq!(load.forge, forge, "setup correlation");
+        load.kind = Some(kind);
+        load.address = Some(file.listen());
+        load.notice = file.started_notice();
+        if load.admitted {
+            self.open_group();
+        } else {
+            self.input(Input::AskKind { forge, kind });
+        }
+    }
+    fn open_group(&mut self) {
+        if self.listeners.room() == 0 {
+            self.group_failed(b"busy");
+            return;
+        }
+        let load = self.loading_group.as_ref().expect("admitted setup");
+        self.open_group = Some((load.forge, load.address.expect("loaded listener")));
+    }
+    /// The shell opens this group's listener with `open_listener`; worlds supply its descriptor.
+    pub fn take_group_listener(&mut self) -> Option<(u16, core::net::SocketAddr)> {
+        if self.requests.room() == 0 {
+            return None;
+        }
+        self.open_group.take()
+    }
+    pub fn group_listener_opened(&mut self, forge: u16, descriptor: Option<Fd>) {
+        let load = self.loading_group.as_ref().expect("one listener open");
+        assert_eq!(load.forge, forge, "listener correlation");
+        let address = load.address.expect("loaded listener");
+        match descriptor {
+            Some(fd) => {
+                let listener = self.io.adopt_listener(fd, address).expect("group listener slot");
+                if self.group_takes_listener() {
+                    self.group_listening(listener, address);
+                } else {
+                    self.loading_group.as_mut().expect("one listener open").closing_listener = Some(listener);
+                    self.requests.push(Request::Close { entity: listener });
+                }
+            }
+            None => {
+                let why = lines::joined(&[b"listener ", Decimal::of(u64::from(address.port())).as_bytes(), b" taken"]);
+                self.group_failed(&why);
+            }
+        }
+    }
+    fn group_takes_listener(&self) -> bool {
+        let kind = self.loading_group.as_ref().expect("loading group").kind.expect("loaded kind");
+        for template in &self.templates {
+            if let Some(asked) = template.asked
+                && asked.kind == Some(kind)
+                && template.step.takes_group_listener()
+            {
+                return true;
+            }
+        }
+        false
+    }
+    fn group_listening(&mut self, listener: Token, address: core::net::SocketAddr) {
+        self.listeners.push((address, listener)).expect("startup plus box.groups listeners");
+        self.bind_group(Some(listener), address);
+    }
+    fn bind_group(&mut self, listener: Option<Token>, address: core::net::SocketAddr) {
+        let load = self.loading_group.take().expect("one listener open");
+        let kind = load.kind.expect("loaded kind");
+        self.group_listeners.insert(load.forge, listener).expect("loaded group");
+        for index in 0..self.templates.len() {
+            let template = self.templates.get_mut(index).expect("step template");
+            if let Some(asked) = template.asked
+                && asked.kind == Some(kind)
+            {
+                template.step.bind_group_listener(address);
+                if template.step.ready().is_some() {
+                    template.step.set_started_notice(load.notice.clone());
+                }
+                let placed = self.steps.get_mut(index).expect("step placement");
+                placed.step.bind_group_listener(address);
+                if placed.step.ready().is_some() {
+                    placed.step.set_started_notice(load.notice.clone());
+                }
+                let child = self.children.get_mut(index).expect("step child");
+                if child.ready.is_some()
+                    && let Some(ready) = template.step.ready()
+                {
+                    child.ready = Some(Ready::new(ready));
+                }
+            }
+        }
+        if load.restored {
+            self.machine.restore(load.forge, kind, true);
+        } else if self.machine.outcome().is_none() {
+            self.record_wall = load.wall;
+            self.records.write_group(load.forge, kind);
+        }
+    }
+    fn group_failed(&mut self, why: &[u8]) {
+        let load = self.loading_group.take().expect("failed group start");
+        self.machine.cancel_start(load.forge);
+        let line = lines::joined(&[b"box: forge ", Decimal::of(u64::from(load.forge)).as_bytes(), b": ", why, b"\n"]);
+        self.notice(self.formatter.notice(&line, load.wall));
+        if !load.restored
+            && let Some(control) = &mut self.control
+        {
+            control.sink.push(pipe::failed(load.forge, why, self.line_bytes)).expect("one start reply");
+        }
+    }
+    fn group_listener_closed(&mut self, forge: u16) {
+        if let Some(Some(token)) = self.group_listeners.remove(&forge) {
+            for index in 0..self.listeners.len() {
+                if self.phase != Phase::Closing && self.listeners.get(index).expect("listener").1 == token {
+                    self.listeners.swap_remove(index).expect("held listener removed");
+                    break;
+                }
+            }
+        }
+        if let Some(wall) = self.removed_listeners.remove(&forge) {
+            self.order(Order::Say { said: Said::Removed { forge } }, wall);
+        }
+    }
     fn start_work(&mut self) {
+        self.restore_groups();
         if !self.start_ready() {
             return;
         }
@@ -1312,9 +1582,6 @@ impl Service {
         let logs = lines::joined(&[b"Logs: ", &self.logs.directory(), b"\n"]);
         self.box_lines.push(self.formatter.notice(&logs, wall));
         self.box_lines.push(self.formatter.notice(terminal::CTRL_C, wall));
-        for group in self.records.groups() {
-            self.machine.restore(group.forge, group.kind, group.started);
-        }
         if self.front.is_some() {
             let link = self.settings.first_link.as_ref().expect("front's first link");
             let words = crate::front::block_words(&self.formatter, &link.url);
@@ -1479,6 +1746,28 @@ impl Service {
                 &mut self.order_walls,
             );
         }
+        if self.notice_room()
+            && self.requests.room() > 0
+            && let Some((forge, kind, result)) = self.records.take_setup()
+        {
+            self.group_setup(forge, kind, result);
+        }
+        if self.notice_room()
+            && let Some((forge, result)) = self.records.take_removal()
+        {
+            let (pending, step) = self.pending_remover.take().expect("one removal probe");
+            assert_eq!(pending, forge, "removal correlation");
+            match result {
+                Ok(true) => self.children.get_mut(step).expect("remover child").spawn = true,
+                Ok(false) => {
+                    self.machine.remover_absent(step);
+                    self.records.unlink(forge);
+                }
+                Err(_) => {
+                    self.input(Input::RemoveFailed { forge, why: crate::machine::Why::RemoveNotStarted });
+                }
+            }
+        }
         self.records.tick(self.settings.root, self.env.now, &mut self.submissions);
         if self.records.closed() {
             self.root = Root::Closed;
@@ -1488,7 +1777,11 @@ impl Service {
         let Some(control) = &self.control else {
             return false;
         };
-        control.sink.drained()
+        self.loading_group.is_none()
+            && self.pending_remover.is_none()
+            && self.removed_listeners.is_empty()
+            && self.records.ready()
+            && control.sink.drained()
             && self.orders_drained()
             && self.failure.is_none()
             && (self.front_running() || self.deferred.is_empty())
@@ -1507,7 +1800,7 @@ impl Service {
         self.env.wall = wall;
         match line {
             Line::Whole(line) => match pipe::command(&line) {
-                Command::Start(forge) => self.input(Input::Ask { forge }),
+                Command::Start(forge) => self.read_group(forge, None, false),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
                 Command::StartKind { forge, kind } => self.input(Input::AskKind { forge, kind }),
                 Command::Remove(forge) => self.input(Input::Remove { forge }),
@@ -1559,6 +1852,9 @@ impl Service {
         if !self.machine.is_idle()
             || self.machine.outcome().is_none()
             || !self.records.ready()
+            || self.loading_group.is_some()
+            || self.pending_remover.is_some()
+            || !self.removed_listeners.is_empty()
             || !self.orders.is_empty()
             || self.failure.is_some()
             || !self.deferred.is_empty()
@@ -1651,8 +1947,14 @@ fn policy_input_at(
     machine.input(now, input, orders);
     stamp_orders(orders, walls, wall);
 }
-fn adopt_listeners(io: &mut Io, held: &[(Fd, core::net::SocketAddr)]) -> List<(core::net::SocketAddr, Token)> {
-    let mut listeners = List::with_capacity(u32::try_from(held.len()).expect("bounded listeners"));
+fn adopt_listeners(
+    io: &mut Io,
+    held: &[(Fd, core::net::SocketAddr)],
+    groups: u32,
+) -> List<(core::net::SocketAddr, Token)> {
+    let mut listeners = List::with_capacity(
+        u32::try_from(held.len()).expect("bounded listeners").checked_add(groups).expect("group listeners"),
+    );
     for (fd, address) in held {
         let token = io.adopt_listener(*fd, *address).expect("unique listeners and counted slots");
         listeners.push((*address, token)).expect("counted listener tokens");
@@ -1852,7 +2154,9 @@ impl skein_shell::Host for Service {
     }
     #[expect(clippy::too_many_lines, reason = "Runnability checks each host queue against its destination's credit.")]
     fn work_pending(&self, now: Time) -> bool {
-        if self.start_ready()
+        if self.open_group.is_some()
+            || self.restore_runnable()
+            || self.start_ready()
             || self.block_ready()
             || !self.completions.is_empty() && self.submissions.room() >= io::MAX_OUT_UP.submissions
             || !self.events.is_empty()

@@ -11,13 +11,15 @@ const LATCH: u64 = 7;
 )]
 fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     let mut limits = crate::tests::resume_fixture::limits();
-    limits.tasks.tasks = 4;
-    limits.tasks.project_tasks = 4;
-    limits.people.inbox_tasks = 8;
+    // The latch and three changes leave a fifth place for their landing task.
+    limits.tasks.tasks = 5;
+    limits.tasks.project_tasks = 5;
+    limits.people.inbox_tasks = 10;
     limits.tasks.tree_tasks = 4;
     limits.tasks.batch = 4;
     limits.tasks.batch_bytes = 16_384;
     limits.forge.landing_members = 3;
+    limits.tasks.holdings = limits.forge.landing_members;
     let (mut domain, env) = super::procedure_root_with_limits(limits);
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap();
@@ -45,7 +47,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
                 contract: if number == LATCH {
                     tasks::Contract::Report { words: 32 }
                 } else {
-                    tasks::Contract::Change { connector: 0, kind: 1, words: 32 }
+                    tasks::Contract::Change { connector: 0, kind: 1, words: 32, choices: Box::new([]) }
                 },
                 deadline: tasks::Deadline::Named,
                 authority: template.authority.clone(),

@@ -30,6 +30,7 @@
 //! stays live, the unread messages wake it again according to their policy.
 use jig_conformance::{Clock, Input};
 use jig_domain_link::{Bounds, CountKind, EndpointBound, Operation};
+use smith_charter::Record;
 
 use jig_client_test_domain::DIALECT;
 use jig_domain_host as host;
@@ -415,17 +416,17 @@ impl Agent {
         let Ok(turn) = transcript::Turn::decode(&transcript::CEILINGS, &mut skein_lib::Reader::new(body)) else {
             return;
         };
-        for message in turn.messages() {
-            for block in message.blocks() {
+        for message in &turn.messages {
+            for block in &message.blocks {
                 match block {
                     transcript::Block::Call(call) => {
-                        if call.name() == b"finish" {
-                            self.refinish = Some(Box::from(call.input()));
+                        if call.name.as_ref() == b"finish" {
+                            self.refinish = Some(Box::from(call.input.as_ref()));
                         }
-                        self.called(call.name());
+                        self.called(call.name.as_ref());
                     }
                     transcript::Block::Text(text) => {
-                        if contains(text.text(), b"Result from task ") {
+                        if contains(text.text.as_ref(), b"Result from task ") {
                             self.result = true;
                         }
                     }
@@ -438,14 +439,8 @@ impl Agent {
 
 /// A relayed call's name in smith's channel record.
 fn name(activation: u64, completion: u32) -> Box<[u8]> {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation, completion, position: 0 },
-    )
-    .expect("script call name");
-    let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(name.measure()));
-    name.encode(&mut encoded).expect("measured call name");
-    encoded.finish()
+    let name = smith_channel::CallName { activation, completion, position: 0 };
+    name.encode(&smith_channel::CEILINGS).expect("fixed call name")
 }
 
 /// What a completion streams: its start, then its text or its call.
@@ -479,38 +474,31 @@ fn stream(owner: Token, agent: &Agent, step: &Step) -> Vec<root::AgentContent> {
 }
 
 fn turn(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> Box<[u8]> {
-    let limits = transcript::CEILINGS;
     let messages = turn_messages(agent, texts, step);
-    let value = transcript::Turn::new(
-        &limits,
-        transcript::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: transcript::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fake".as_slice().into(),
-            dialect: DIALECT,
-            place: agent.said,
-            usage: transcript::Usage::new(
-                &limits,
-                transcript::UsageParts {
-                    input: Some(1),
-                    output: Some(1),
-                    cache_read: Some(0),
-                    cache_write: Some(0),
-                    reasoning: None,
-                },
-            )
-            .expect("usage"),
-            spent: agent.spent,
-            jobs: 0,
-            messages,
+    let value = transcript::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: transcript::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fake".as_slice().into(),
+        dialect: DIALECT,
+        place: agent.said,
+        usage: transcript::Usage {
+            input: Some(1),
+            output: Some(1),
+            cache_read: Some(0),
+            cache_write: Some(0),
+            reasoning: None,
         },
-    )
-    .expect("bounded turn");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured turn");
+        spent: agent.spent,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    value.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     writer.finish()
 }
 
@@ -544,32 +532,19 @@ pub(super) fn result(
     text: &[u8],
     fields: &[(&str, &str)],
 ) -> Box<[u8]> {
-    let limits = smith_charter::v5::CEILINGS;
     let mut list = List::with_capacity(u32::try_from(fields.len()).expect("few fields"));
     for (name, value) in fields {
-        list.push(
-            smith_charter::Field::new(
-                &limits,
-                smith_charter::FieldParts { name: name.as_bytes().into(), text: value.as_bytes().into() },
-            )
-            .expect("bounded field"),
-        )
-        .expect("counted fields");
+        list.push(smith_charter::Field { name: name.as_bytes().into(), text: value.as_bytes().into() })
+            .expect("counted fields");
     }
-    let value = smith_charter::RunResult::new(
-        &limits,
-        smith_charter::RunResultParts {
-            form,
-            label: label.map(Box::from),
-            text: text.into(),
-            fields: list,
-            items: List::with_capacity(0),
-        },
-    )
-    .expect("bounded result");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured result");
-    writer.finish()
+    let value = smith_charter::RunResult {
+        form,
+        label: label.map(Box::from),
+        text: text.into(),
+        fields: list,
+        items: List::with_capacity(0),
+    };
+    value.encode(&smith_charter::CEILINGS).expect("bounded result")
 }
 
 const NOISE_CODE: &str = "1";
@@ -683,33 +658,21 @@ pub fn agent_bounds() -> Bounds {
 }
 
 fn turn_messages(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> List<transcript::Message> {
-    let limits = transcript::CEILINGS;
-    let text = |bytes: &[u8]| {
-        transcript::Block::Text(
-            transcript::Text::new(&limits, transcript::TextParts { text: bytes.into(), replay: None })
-                .expect("bounded turn text"),
-        )
-    };
+    let text = |bytes: &[u8]| transcript::Block::Text(transcript::Text { text: bytes.into(), replay: None });
     let message = |role, blocks: Vec<transcript::Block>| {
         let mut list = List::with_capacity(u32::try_from(blocks.len()).expect("few blocks"));
         for block in blocks {
             list.push(block).expect("counted blocks");
         }
-        transcript::Message::new(&limits, transcript::MessageParts { role, blocks: list }).expect("bounded message")
+        transcript::Message { role, blocks: list }
     };
     let call = |name: &str, input: &[u8]| {
-        transcript::Block::Call(
-            transcript::Call::new(
-                &limits,
-                transcript::CallParts {
-                    id: format!("call-{}", agent.said).into_bytes().into(),
-                    name: name.as_bytes().into(),
-                    input: input.into(),
-                    replay: None,
-                },
-            )
-            .expect("bounded call"),
-        )
+        transcript::Block::Call(transcript::Call {
+            id: format!("call-{}", agent.said).into_bytes().into(),
+            name: name.as_bytes().into(),
+            input: input.into(),
+            replay: None,
+        })
     };
     let said = match step {
         Step::Call { tool, input } => call(tool, input.as_bytes()),

@@ -109,7 +109,22 @@ step(root, event):
 
 fire(root, now):
     client.fire(now, out), routed as above; each child's deadlines
+
+settle(root, now):
+    client.settle(now, out): the exchanges and the stream the link gathered → out, wrapped, in that order
 ```
+
+- **An iteration, then its settling.** The shell steps the root with
+  each event of an iteration, and with `fire` when a deadline is due,
+  then calls `settle` once, then carries the requests out: so whatever
+  one iteration's events bring (the hello, `me`, a list's answer, the
+  frame's and the page's demands that follow) leaves together, in one
+  batch (client/README.md, 4.1). An iteration is at least one report of
+  the shell's platform with every event the root takes from it (a piece
+  of the stream or of a batch's answer, a timer, a person's act); a shell
+  whose loop takes several reports before carrying anything settles once
+  for them all. A root's `step` and `fire` never settle, and a shell
+  that steps a linked client and never settles sends nothing.
 
 - **No way around the client.** A child's entry points take no path to
   the engine but the asks the root gives the client: a keyed request

@@ -108,6 +108,7 @@ impl Terminal {
         requests.push(io::Request::Spawn {
             owner: OWNER,
             spawn: kernel::Spawn {
+                reach: None,
                 program: b"smith-local".as_slice().into(),
                 args: arguments,
                 env: environment,

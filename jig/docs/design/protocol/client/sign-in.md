@@ -1,10 +1,12 @@
 # Signing in
 
 - **jig owns credentials; the flows that ask for one are the
-  application's,** but for jig's three built-ins
+  application's,** but for jig's built-ins
   (`../../client/domain/contract/README.md`, section 2): the printed link, for one
-  person's machine; a service's credential; and a sign-in approved by a
-  browser, for another client of a person signed in there (below).
+  person's machine; the asked link, a fresh one a person's signed-in
+  client asks for that person's browser; a service's credential; and a
+  sign-in approved by a browser, for another client of a person signed
+  in there (below).
 - **A credential** is a sign-in's number beside 32 random bytes, so the
   engine finds its digest by number (`../README.md`, section 8; `../store/secrets.md`
   ). Credentials come from a cryptographic generator of the
@@ -42,8 +44,10 @@
   draws a one-time secret, valid for the profile's `link_span`, and gives it
   to the application's startup, `Link { secret }`, which prints a URL carrying
   it. The URL is the application's; the default mapping's is its link
-  route (`default-http.md`, 1). Signing in with the secret signs that person in as the
-  deployment's first owner it names, and spends it. Two links are live
+  route, or the application's link page where it gives one
+  (`default-http.md`, 1). Signing in with the secret signs that person in as the
+  deployment's first owner it names, and spends it. Beside the asked
+  links (below), two links are live
   at most, the printed link and the local link (below), each one at a
   time: a sign-in with a secret spent, expired or unknown is answered
   why (below), and the component draws a fresh printed link, which the
@@ -89,8 +93,8 @@
       as the machine's other secrets. It adds nothing to the printed
       link's exposure, which stays as it is.
   - *Why a link can't sign in.* The component keeps, in memory, the digests
-    of its last 8 links no longer live, printed or local, each marked used
-    or expired and with which of the two it was; a restart forgets them. A link's sign-in whose secret isn't live is
+    of its last 8 links no longer live, printed, local or asked (below), each marked used
+    or expired and with which of the three it was; a restart forgets them. A link's sign-in whose secret isn't live is
     answered by what it finds: `link_used`, a link a sign-in spent, signed
     in or refused; `link_expired`, one past its expiry; `link_unknown`, any
     other, whether another deployment's link, one past those 8, or bytes
@@ -171,29 +175,142 @@
   It is enabled by configuration (`../configuration.md`, section 3,
   clients), and only where the application's clients' listener is on
   loopback, which its startup checks (`../service.md`, section 3).
+- **The asked link,** for the browser of a person signed in already:
+  once the printed links are spent, a client signed in as a person asks
+  the component for a fresh one-time link, and gives it to the person's
+  browser on the machine in a URL of the printed link's form
+  (`default-http.md`, 1). It is the printed link's kind, signed in by
+  the same message and route and answered as it is, but for whom it
+  signs in: the asking sign-in's own party, never the first owner or
+  another, in a sign-in that expires no later than the asking one, so
+  that a credential can't outlive itself through links. It is memory
+  alone, each link by its secret's digest, never the secret, and a
+  restart forgets every one.
+  - *Asked:* `LinkAsk {}`, with the asking sign-in's credential,
+    answered `LinkAskAnswer`: `asked: LinkAsked { secret: secret 32,
+    expires: u64 }`, `refused`, `signed_out`, `not_ready` or `busy`.
+    Where the printed link isn't enabled, and with no credential, an ask
+    is refused; while the engine stops, not ready. The credential is
+    checked as any exchange's, its digest under its number and its saved
+    expiry, and one that fails is answered `signed_out`. The component
+    then asks people `Whose` the sign-in is
+    (`../../domain/people/README.md`, section 3): a service's is
+    refused, and no signer, its sign-in ended meanwhile, is answered
+    `signed_out`. For a person's, it draws 32 bytes from its generator,
+    the link's secret, and answers `asked` with it and the link's
+    expiry, its wall time: `link_span` on, or the asking sign-in's saved
+    expiry where that is earlier. It keeps the secret's digest, the
+    asking sign-in's number, its saved expiry, the link's cap, and the
+    link's expiry on the monotonic clock. The secret is in that answer
+    alone, never again.
+  - *One per sign-in, four in all:* a sign-in has at most one live
+    asked link, and its asking again replaces it: the one replaced is
+    remembered expired (*Why a link can't sign in*, above), since no one
+    signed in by it. At most 4 sign-ins hold an asked link at once in
+    the deployment, live or reserved, whoever asked; an ask past them
+    from a sign-in that holds none is answered busy until one ends, as
+    is one the component has no room for among its exchanges. A link
+    reserved by a sign-in (below) is no longer live but keeps its
+    sign-in's place among the 4: its sign-in's ask meanwhile draws
+    another in that place, and the reserved one, given back by its
+    exchange (not ready, busy, full), is remembered expired if its
+    sign-in has a live one by then, and is live again otherwise. So a
+    give-back never makes a fifth.
+  - *Signed in by it:* `LinkSignIn`, the printed link's message and
+    route. A secret whose digest is a live asked link's, before its
+    expiry, reserves that link for its exchange, as the printed link's
+    is reserved (*The secret is the link's, or its exchange's*, above):
+    a sign-in with the same secret meanwhile is busy, and changes
+    nothing. The component asks people `Whose` the asking sign-in is,
+    and signs that identity in, held none, capped at the asking
+    sign-in's saved expiry: `core::Event::SignIn { reply_to, identity,
+    held: None, until: Some(cap) }`. The sign-in is made, its
+    credential drawn and its digest kept, and handed out as the printed
+    link's sign-in's is, a browser's by its cookie (`default-http.md`,
+    3). Its party is the asker's. An asker whose sign-in has ended by
+    then signs no one in: refused, and the link spent. A credential the
+    link's exchange carries is not checked: an asked link signs in
+    afresh, as an approval's take does.
+  - *Its answers are the printed link's:* signed in, refused, not
+    ready, busy, full, its `link_until` the asked link's own expiry,
+    and `link_used`, `link_expired` and `link_unknown`, remembered among
+    the last 8 links no longer live, marked asked. Not ready, busy and
+    full spend nothing: the link is live again, with the expiry it was
+    drawn with. Signed in, refused and signed out spend it, as do the
+    core's refusal, a lost answer and the engine's close or abort, and
+    it is remembered used. A sign-in whose secret is remembered as an
+    asked link's draws no printed link, as a local link's doesn't, and
+    no asked link says `LinkSignedIn`. Past its expiry, found by its
+    deadline or by a sign-in, it is remembered expired, and none is
+    drawn in its place.
+  - *The engine's close and abort* drop every asked link, reserved ones
+    with them, as they drop the printed and local links.
+  - *Its exposure:* the link is no more than the credential that asked
+    for it: whoever holds that acts as its party already, until it
+    expires, and the link gives one more client that party, for no
+    longer. Its URL is the printed link's, on the loopback listener, so
+    it signs in on the engine's machine alone, as the printed link does.
+    A program that opens it as a browser would holds a browser's cookie,
+    as one reading the printed link's output can today: approval stays
+    a browser's (below) by the credential each exchange carries.
+
+  It is enabled where the printed link is, and only there (above).
 - **A sign-in approved by a browser,** for that browser's own party:
   a client that can't open the printed link, a program in a terminal
-  on the person's machine, asks; the person's browser, signed in by
-  its cookie, approves; and the client takes the sign-in with the
-  secret its ask was answered with. Approving makes nothing: only the
-  take makes the sign-in and draws its credential. Until then the
-  approval is the component's, in memory, as the printed link's state
-  is: nothing is committed, kept or written, and a restart forgets
-  every approval.
-  - *Asked:* `ApprovalAsk`, with no credential. The component draws
-    32 bytes from its generator, the approval's secret, and a code of
-    8 letters of `BCDFGHJKLMNPQRSTVWXZ`, twenty consonants, none like
-    another or like a digit and no vowel, so no word, each drawn
-    uniformly, the code none of the live approvals has. It answers
-    `asked` with the secret, the code and the approval's expiry, its
-    wall time, 10 minutes on; and keeps the secret's digest, never the
-    secret, the code, the wall time it was asked and its expiry on the
-    monotonic clock. The secret is the client's alone, never shown;
-    the code is for the person to compare, on the client and in the
-    browser. At most 4 approvals are live at once in the deployment,
-    whoever asked, and an ask past them is answered busy until one
-    ends. Where approval isn't enabled, an ask is refused; while the
-    engine stops, not ready.
+  on the person's machine or on another, asks; the person's browser,
+  signed in by its cookie, approves; and the client takes the sign-in
+  with the secret its ask was answered with. Approving makes nothing:
+  only the take makes the sign-in and draws its credential. Until then
+  the approval is the component's, in memory, as the printed link's
+  state is: nothing is committed, kept or written, and a restart
+  forgets every approval.
+  - *Its kind,* from how its ask's exchange came, by its `Host`
+    (`default-http.md`, 3, *The exchange's way and source*): `listener`,
+    asked by the listener's own address; `returned`, asked by the
+    public name with a loopback return (below); `typed`, asked by the
+    public name with none. The read answers it, so that the
+    application's page applies the rule each kind needs (*Its risk*,
+    below): one press for `returned`; for `typed`, only the code typed
+    into the page from the person's own client, on every origin, a code
+    carried in the page's address dropped; for `listener`, as on one
+    machine, the code carried in the address. That rule is the guard:
+    a decision comes only from the application's own page, since it
+    needs the browser's cookie, which is strict, beside the browser
+    header (`default-http.md`, 3).
+  - *Its source:* the address the ask's exchange came from, as the
+    transport tells it (`wire.md`, 2.2): the client's address as the
+    application's TLS proxy saw it, by the public name, or the socket's
+    peer, by the listener's own address; or unknown. It is a source
+    alone, never a check: a process on the engine's machine could claim
+    any source by the public name, and it is on that machine already.
+  - *A loopback return:* a port, 1024 to 65535, at which the asking
+    client listens on `127.0.0.1` for the approving browser, so that the
+    sign-in only ever reaches a client on that browser's own machine
+    (RFC 8252's loopback redirect). Only an ask by the public name names
+    one: an ask by the listener's own address naming one is refused, and
+    so is one naming a port below 1024, so that a client on the engine's
+    machine asks as it always has.
+  - *Asked:* `ApprovalAsk { port }`, with no credential, `port` its
+    loopback return or none. The component draws 32 bytes from its
+    generator, the approval's secret, and a code of 8 letters of
+    `BCDFGHJKLMNPQRSTVWXZ`, twenty consonants, none like another or like
+    a digit and no vowel, so no word, each drawn uniformly, the code
+    none of the live approvals has. It answers `asked` with the secret,
+    the code and the approval's expiry, its wall time, 10 minutes on;
+    and keeps the secret's digest, never the secret, the code, the wall
+    time it was asked, its expiry on the monotonic clock, its kind, its
+    source and its loopback return's port. The secret is the client's
+    alone, never shown; the code is for the person to compare, on the
+    client and in the browser. At most 4 approvals are live at once in
+    the deployment, whoever asked, and an ask past them is answered busy
+    until one ends. By the public name, at most 2 wait per source: an
+    ask by the public name from a source that holds 2 approvals asked by
+    the public name and still waiting is answered busy, and replaces
+    nothing. An approval approved, or reserved for a take, is not
+    counted, and nothing ends it but its own take or expiry; unknown
+    sources count as one source. An ask by the listener's own address
+    counts within the 4 alone, as it always has. Where approval isn't
+    enabled, an ask is refused; while the engine stops, not ready.
   - *Read and decided by a browser alone:* `ApprovalRead { code }` and
     `ApprovalDecide { code, approve }`, each sent with a credential the
     transport carried itself, a browser's cookie (`default-http.md`, 3). The transport
@@ -204,19 +321,41 @@
     application's command line among them, never approves. The
     credential is checked as any exchange's (above), and one that
     fails is answered `signed_out`. A read answers what the approval
-    is: waiting, with the wall time it was asked; approved, taken,
-    refused or expired; or `unknown`, for a code no approval live or
-    remembered (below) has. It reads by code alone, and nothing lists
-    the approvals that wait. A decision spends the approval: approving
-    marks it approved, its approver the deciding sign-in, and makes
-    nothing; refusing ends it, refused. Any decision after the first is
-    answered `used`, one past its expiry `expired`.
-  - *Taken:* `ApprovalSignIn { secret }`, with no credential. An
-    approval still waiting is answered `waiting`, and the client asks
-    again; refused, expired, taken already (`used`) and unknown are
-    answered so, the secret's digest compared in constant time. An
-    approved one is reserved for the take's exchange, and a take with
-    the same secret meanwhile is answered busy. The component asks
+    is: waiting, with the wall time it was asked, its kind, its source,
+    and the reading exchange's own source beside them, so that the page
+    can say where the ask came from and whether that is where the
+    reading browser is; approved, taken, refused or expired; or
+    `unknown`, for a code no approval live or remembered (below) has.
+    It reads by code alone, and nothing lists the approvals that wait.
+    A decision spends the approval: approving marks it approved, its
+    approver the deciding sign-in, and makes nothing; refusing ends it,
+    refused. Any decision after the first is answered `used`, one past
+    its expiry `expired`.
+  - *Approved with a loopback return:* approving a `returned` approval
+    draws its grant, 32 bytes from the component's generator, and
+    answers it with the ask's port in that decision's answer alone,
+    `approved` with its loopback: the grant is never answered again, a
+    later decision being `used` and a read carrying none. The component
+    keeps the grant's digest, never the grant. The application's page
+    sends the deciding browser to its own machine's loopback with it, at
+    that port, never one its address named, the host always
+    `127.0.0.1`; the asking client's listener there takes the sign-in
+    with it.
+  - *Taken:* `ApprovalSignIn { secret, grant }`, with no credential,
+    `grant` the grant a loopback return brought, or none. An approval
+    still waiting is answered `waiting`, and the client asks again;
+    refused, expired, taken already (`used`) and unknown are answered
+    so, the secret's digest compared in constant time. A `returned`
+    approval approved is taken only with its grant too: a take with the
+    secret alone is answered `waiting`, as while it waits; one whose
+    grant's digest doesn't match, compared in constant time, is answered
+    `not_granted` and leaves the approval as it was, at most 3 times:
+    the third such take ends it, refused, and a later one is answered
+    `refused`. A `listener` or `typed` approval reads no grant: a take
+    of one is the secret's alone, its grant unread. An approved one,
+    its grant matched where it has one, is reserved for the take's
+    exchange, and a take with the same secret meanwhile is answered
+    busy. The component asks
     people whose the approver's sign-in is (`Whose`,
     `../../domain/people/README.md`, section 3) and signs that identity in, held
     none, as it signs in the printed link's owner: a sign-in made, its
@@ -240,16 +379,43 @@
     unknown, as a link is.
   - *Its risk:* a client may carry the code in the browser's address,
     so that one press approves, and the person's check is that the
-    code their own client shows is the code their browser shows. On
-    loopback, whoever could ask an approval and send its address to
-    the person is on the engine's machine already, as whoever can read
-    the printed link is.
+    code their own client shows is the code their browser shows. By the
+    listener's own address, whoever could ask an approval and send its
+    address to the person is on the engine's machine already, as
+    whoever can read the printed link is, so a `listener` approval's
+    press stays safe. By the public name, anyone can ask and send the
+    person a link: a `returned` approval's press hands the sign-in only
+    to the approving browser's own machine, where the stranger's client
+    isn't, and the stranger's take, with the secret but no grant, never
+    signs in; a `typed` one is approved only by its code typed from the
+    person's own client. A process on the person's machine could catch
+    the grant on its way, but it could read that client's credential
+    already.
+  - *Its records,* in `jig-client-protocol-wire`'s schema, from jig's
+    client wire 38 (the others unchanged): a source is an IPv6
+    address's 16 bytes, an IPv4 address as IPv4-mapped
+    (`::ffff:a.b.c.d`, RFC 4291, 2.5.5.2), and none where the source is
+    unknown; `reader` is the reading exchange's source.
+
+    ```
+    record ApprovalAsk { port: option u16 }
+    enum ApprovalKind { listener, returned, typed }
+    record ApprovalWaiting { asked: u64 kind: ApprovalKind source: option fixed 16 reader: option fixed 16 }
+    record ApprovalLoopback { port: u16 grant: secret 32 }
+    record ApprovalApproved { loopback: option ApprovalLoopback }
+    enum ApprovalDecided { approved: ApprovalApproved, refused, used, expired, unknown, not_a_browser, signed_out, not_ready, busy }
+    record ApprovalSignIn { secret: secret 64 grant: option secret 32 }
+    enum ApprovalSignInAnswer { signed_in: SignedIn, waiting, refused, expired, used, unknown, not_ready, busy, full: ApprovalFull, not_granted }
+    ```
 
   It is enabled by configuration apart from the printed link
   (`../configuration.md`, section 3, clients, `approval`), and only where
   the application's clients' listener is on loopback, which its startup
-  checks as for the link (`../service.md`, section 3). Over TLS, between
-  hosts, it is later (`README.md`, section 12).
+  checks as for the link (`../service.md`, section 3). An application at
+  a public name has that listener behind its TLS proxy, so the same
+  switch enables asks by the public name too, under their kinds' rules
+  above, with no second switch. Its fixed bounds are `README.md`,
+  section 10's.
 - **A service's credential** is issued when an owner makes the service:
   the component draws it, keeps its digest in the secrets' store under
   the service's number (`../store/secrets.md`), and answers the owner's

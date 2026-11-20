@@ -1,6 +1,13 @@
 # records: status
 
-2026-11-15. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-19. Where the tree's code lags or departs from [records.md](records.md).
+
+
+
+- **Not yet:** *`OpenChange`* and *A project's changes*: `into` left
+  empty, `landing` and the `default_branch` flag mean the forge's
+  default branch rather than the repository's landing branch [in flight:
+  change 8087].
 
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
@@ -138,3 +145,4 @@ Linux and macOS, is `../README.md`, section 5's after-landing work, owned by tem
 
 - **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
 - **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].
+- **Not yet:** `TriageFinding`'s `repair` and `blame`, the triaged outcome's `goal` and `FindingRefusal`'s longer `words`, in the wire's next layout [in flight: change 10374].

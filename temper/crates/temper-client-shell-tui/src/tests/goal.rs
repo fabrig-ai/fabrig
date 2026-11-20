@@ -1,11 +1,12 @@
 //! The draft's sheet through the host (client/tui/pages/design-session.md, 1).
 use super::*;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as f};
 
 pub(super) fn host(linked: bool, proposed: bool) -> Host {
     let mut host = super::host();
     let first = start(&mut host, Some(Secret::new(Box::new([7; 40]))));
-    let hello = hello_for(&host);
+    let hello = hello_for_me(&host, me(proposed));
     let mut duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     duties.asked.extend(first.asked);
@@ -34,104 +35,140 @@ pub(super) fn host(linked: bool, proposed: bool) -> Host {
 fn settle(host: &mut Host, duties: Duties, linked: bool, proposed: bool) {
     let mut pending = std::collections::VecDeque::from(duties.asked);
     while let Some(request) = pending.pop_front() {
-        let Request::Exchange { exchange, message, .. } = &request else {
-            if let Some(report) = background_reply(&request) {
+        if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = &request {
+            for (member, message) in batch_members(bytes) {
+                one(
+                    host,
+                    ReplySlot { exchange: *exchange, member: Some(member) },
+                    &message,
+                    &mut pending,
+                    linked,
+                    proposed,
+                );
+            }
+            pending.extend(host.report(Report::Heard(jig_client::Event::Done { exchange: *exchange })).asked);
+        } else if let Request::Exchange { exchange, message, .. } = &request {
+            one(host, ReplySlot { exchange: *exchange, member: None }, message, &mut pending, linked, proposed);
+        } else {
+            for report in background_reply(&request) {
                 pending.extend(host.report(report).asked);
             }
-            continue;
-        };
-        if let Message::Read(bytes) = message {
-            let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-            if owned.owner() == &w::Owner::Jig {
-                let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
-                if let w::Read::Notes(notes) = read {
-                    pending.extend(read_reply(host, *exchange, &document(notes.scope().clone())).asked);
-                    continue;
-                }
-            } else {
-                let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
-                if let f::Read::Setting(setting) = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap().read()
-                    && setting.kind() == 7
-                {
-                    let value = f::ProjectWays::new(
-                        &f::CEILINGS,
-                        f::ProjectWaysParts { drafts: true, goals: true, changes: false, way: 4 },
+        }
+    }
+}
+fn clone_message(message: &Message) -> Message {
+    match message {
+        Message::Read(bytes) => Message::Read(bytes.clone()),
+        Message::Watch(bytes) => Message::Watch(bytes.clone()),
+        Message::Unwatch(bytes) => Message::Unwatch(bytes.clone()),
+        other @ (Message::Batch(_)
+        | Message::LinkAsk(_)
+        | Message::Authorize(_)
+        | Message::ApprovalAsk(_)
+        | Message::ApprovalRead(_)
+        | Message::ApprovalDecide(_)
+        | Message::SignInApproval(_)
+        | Message::Request(_)
+        | Message::StreamGone(_)
+        | Message::SignInLink(_)
+        | Message::SignInService
+        | Message::SignOut) => panic!("fixture message {other:?}"),
+    }
+}
+fn one(
+    host: &mut Host,
+    slot: ReplySlot,
+    message: &Message,
+    pending: &mut std::collections::VecDeque<Request>,
+    linked: bool,
+    proposed: bool,
+) {
+    if let Message::Read(bytes) = message {
+        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+        if owned.owner() == &w::Owner::Jig {
+            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
+            if let w::Read::Notes(notes) = read {
+                pending.extend(read_reply(host, slot, &document(notes.scope().clone())).asked);
+                return;
+            }
+        } else {
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
+            if let f::Read::Setting(setting) = &wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap().read
+                && setting.kind == 7
+            {
+                let value = f::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
                     )
-                    .unwrap();
-                    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-                    value.encode(&mut writer).unwrap();
-                    let record = wire::setting_answer(
-                        &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: Some(writer.finish()) })
-                            .unwrap(),
-                    );
-                    let answer = w::ReadAnswer::Value(family(record));
-                    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-                    answer.encode(&mut writer).unwrap();
-                    pending.extend(reply(host, *exchange, writer.finish()).asked);
-                    continue;
-                }
+                    .unwrap(),
+                );
+                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+                let record = wire::setting_answer(&f::SettingAnswer { revision: None, value: Some(writer.finish()) });
+                let answer = w::ReadAnswer::Value(family(record));
+                let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
+                answer.encode(&mut writer).unwrap();
+                pending.extend(reply_slot(host, slot, writer.finish()).asked);
+                return;
             }
         }
-        if let Some(report) = background_reply(&request) {
-            pending.extend(host.report(report).asked);
-        }
-        if let Message::Watch(bytes) = message {
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-            if open.subject().owner() == &w::Owner::Jig {
-                let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
-                if subject == w::Subject::Me {
-                    pending.extend(delivery(host, open.watch(), &w::DeliveryValue::Me(me(proposed))).asked);
-                } else if let w::Subject::Task(task) = subject
-                    && task.task() == 9
-                {
-                    let mut task = records::task_record().into_parts();
-                    task.project = 3;
-                    task.chip = chat_chip(9, b"Plan");
-                    task.activity = 0;
-                    task.result = None;
-                    task.delegates = Box::default();
-                    pending.extend(
-                        delivery(
-                            host,
-                            open.watch(),
-                            &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())),
-                        )
-                        .asked,
-                    );
-                }
-            } else {
-                let envelope =
-                    w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
-                let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
+    }
+    let single = Request::Exchange { exchange: slot.exchange, credential: None, message: clone_message(message) };
+    if let Some(Report::Heard(jig_client::Event::Reply { message, .. })) = background_single(&single) {
+        pending.extend(host.report(slot.report(message)).asked);
+    }
+    if let Message::Watch(bytes) = message {
+        let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+        if open.subject().owner() == &w::Owner::Jig {
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
+            if subject == w::Subject::Me {
+                pending.extend(delivery(host, open.watch(), &w::DeliveryValue::Me(me(proposed))).asked);
+            } else if let w::Subject::Task(task) = subject
+                && task.task() == 9
+            {
+                let mut task = records::task_record().into_parts();
+                task.project = 3;
+                task.chip = chat_chip(9, b"Plan");
+                task.activity = 0;
+                task.result = None;
+                task.delegates = Box::default();
+                pending.extend(
+                    delivery(
+                        host,
+                        open.watch(),
+                        &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())),
+                    )
+                    .asked,
+                );
+            }
+        } else {
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
+            let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
 
-                let bytes = if watch.watch() == &f::Watch::Forges {
-                    Some(forges())
-                } else if watch.watch() == &f::Watch::Dismissed {
-                    Some(dismissed(linked))
-                } else {
-                    None
-                };
-                if let Some(bytes) = bytes {
-                    let event = w::StreamEvent::Delivery(
-                        w::Delivery::new(
-                            &w::CEILINGS,
-                            w::DeliveryParts { watch: open.watch(), document: family(bytes) },
-                        )
+            let bytes = if watch.watch == f::Watch::Forges {
+                Some(forges(f::Mode::Owned))
+            } else if watch.watch == f::Watch::Dismissed {
+                Some(dismissed(linked))
+            } else {
+                None
+            };
+            if let Some(bytes) = bytes {
+                let event = w::StreamEvent::Delivery(
+                    w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: open.watch(), document: family(bytes) })
                         .unwrap(),
-                    );
-                    pending.extend(
-                        host.report(Report::Heard(jig_client::Event::Streamed {
-                            message: jig_client::Streamed::Record(stream_bytes(&event)),
-                        }))
-                        .asked,
-                    );
-                }
+                );
+                pending.extend(
+                    host.report(Report::Heard(jig_client::Event::Streamed {
+                        message: jig_client::Streamed::Record(stream_bytes(&event)),
+                    }))
+                    .asked,
+                );
             }
         }
     }
 }
 
-fn family(record: Box<[u8]>) -> w::Owned {
+pub(super) fn family(record: Box<[u8]>) -> w::Owned {
     w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {
@@ -217,56 +254,43 @@ fn document(scope: w::NoteScope) -> w::ReadValue {
         .unwrap(),
     )
 }
-fn forges() -> Box<[u8]> {
-    let row = f::ForgeRow::new(
-        &f::CEILINGS,
-        f::ForgeRowParts {
-            number: 2,
-            host: b"git.example".as_slice().into(),
-            kind: f::Kind::Forgejo,
-            mode: f::Mode::Owned,
-            connection: f::Connection::Connected(
-                f::Connected::new(&f::CEILINGS, f::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                    .unwrap(),
-            ),
-            offer: f::Offer::NotOffered,
-            first: None,
-            starts_with: f::StartsWith::Repository,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::from_boxed(Box::new([f::Adoption::new(
-                &f::CEILINGS,
-                f::AdoptionParts { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 3 },
-            )
-            .unwrap()])),
-            owned: None,
-            admin: false,
-            ended_stop: None,
-            read_only: false,
-            makings: List::with_capacity(0),
-        },
-    )
-    .unwrap();
-    wire::forges(
-        &f::Forges::new(&f::CEILINGS, f::ForgesParts { forges: List::from_boxed(Box::new([row])), linked: false })
-            .unwrap(),
-    )
+pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
+    let row = f::ForgeRow {
+        number: 2,
+        host: b"git.example".as_slice().into(),
+        kind: f::Kind::Forgejo,
+        mode,
+        connection: f::Connection::Connected(f::Connected { id: 1, login: b"temper".as_slice().into() }),
+        offer: f::Offer::NotOffered,
+        first: None,
+        starts_with: f::StartsWith::Repository,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::from_boxed(Box::new([f::Adoption {
+            owner: b"work".as_slice().into(),
+            name: b"shop".as_slice().into(),
+            project: 3,
+        }])),
+        owned: None,
+        admin: false,
+        ended_stop: None,
+        read_only: false,
+        makings: List::with_capacity(0),
+    };
+    wire::forges(&f::Forges { forges: List::from_boxed(Box::new([row])), linked: false })
 }
 fn dismissed(linked: bool) -> Box<[u8]> {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     if linked {
-        dismissed
-            .push(f::PersonFact::GoalFrom(
-                f::GoalFrom::new(&f::CEILINGS, f::GoalFromParts { project: 3, chat: 9, goal: 25, at: 1 }).unwrap(),
-            ))
-            .unwrap();
+        dismissed.push(f::PersonFact::GoalFrom(f::GoalFrom { project: 3, chat: 9, goal: 25, at: 1 })).unwrap();
     }
-    wire::dismissals(&f::Dismissals::new(&f::CEILINGS, f::DismissalsParts { dismissed }).unwrap())
+    wire::dismissals(&f::Dismissals { dismissed })
 }
 
-pub(super) fn events() {
+#[test]
+fn a_goal_command_starts_refuses_and_cancels_its_sheet() {
     for send in [false, true] {
         let mut host = host(false, false);
         typed(&mut host, b"/goal");

@@ -15,9 +15,10 @@ use temper_client_domain::{
     Domain, acts,
     pages::{Act, inbox::Card},
 };
-const ACTIONS: [(ActKind, Word); 7] = [
+const ACTIONS: [(ActKind, Word); 8] = [
     (ActKind::Accept, Word::Accept),
     (ActKind::Reject, Word::Reject),
+    (ActKind::Withdraw, Word::Withdraw),
     (ActKind::Answer, Word::Answer),
     (ActKind::Release, Word::Release),
     (ActKind::LeaveHeld, Word::LeaveHeld),
@@ -31,6 +32,10 @@ fn button(b: &mut Builder, bindings: &mut Bindings, words: &Words, word: Word, a
     b.close();
 }
 pub fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, rows: u32) {
+    if card.page.is_none() {
+        card_controls(b, root, card, words, bindings);
+        return;
+    }
     let Some(page) = &card.page else { return };
     if crate::common::terminal::shown(root, words) {
         crate::cards::proposal::terminal(b, root, card, words, bindings, rows);
@@ -85,7 +90,6 @@ pub fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words
     controls_at(b, root, card, words, bindings, true);
 }
 fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, needs: bool) {
-    let Some(page) = &card.page else { return };
     let sheet = showing(root, card.object);
     if !sheet && let Some(outcome) = &card.outcome {
         outcome_words(b, words, outcome);
@@ -103,7 +107,12 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
         if root.pages().task().is_some() && root.pages().inbox().is_none() && act != ActKind::Release {
             continue;
         }
-        let Some(admission) = jig_client::facts::offer(acts::offers(page), act) else { continue };
+        let admission = match &card.page {
+            Some(page) => jig_client::facts::offer(acts::offers(page), act),
+            None if act == ActKind::Withdraw && card.withdraw_unread => Some(&Admission::Allowed),
+            None => None,
+        };
+        let Some(admission) = admission else { continue };
         match admission {
             Admission::Allowed | Admission::Bounded { .. } => {
                 let rejecting = act == ActKind::Reject && proposal_object(card.object);
@@ -150,9 +159,13 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
                 };
                 b.open(Role::Button);
                 b.name(&words.say(word, &[]));
-                b.bind(bindings.insert(Act::Decide { object: card.object, revision: acts::revision(page), act }));
+                let revision = match &card.page {
+                    Some(page) => acts::revision(page),
+                    None => None,
+                };
+                b.bind(bindings.insert(Act::Decide { object: card.object, revision, act }));
                 if (needs && (act == ActKind::Accept || act == ActKind::Release))
-                    || (root.pages().chat().is_some() && first)
+                    || (root.pages().chat().is_some() && first && act != ActKind::Withdraw)
                 {
                     b.style(crate::look::RECOMMENDED);
                 }
@@ -275,6 +288,7 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindin
     let sheet = match open.act {
         ActKind::Accept => Sheet { title: Word::AcceptTitle, keep: Word::NotYet, does: Word::Accept },
         ActKind::Reject => Sheet { title: Word::RejectTitle, keep: Word::KeepIt, does: Word::RejectProposal },
+        ActKind::Withdraw => Sheet { title: Word::WithdrawTitle, keep: Word::KeepIt, does: Word::Withdraw },
         ActKind::Release => Sheet { title: Word::ReleaseTitle, keep: Word::KeepHeld, does: Word::NeedsRelease },
         ActKind::Answer
         | ActKind::LeaveHeld
@@ -298,13 +312,19 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindin
         | ActKind::RemoveProject
         | ActKind::SetRoles
         | ActKind::MakeService
-        | ActKind::SetPool
-        | ActKind::Withdraw => return,
+        | ActKind::SetPool => return,
     };
     let Some(cards) = root.pages().cards() else { return };
     for card in cards {
         if card.object != open.object {
             continue;
+        }
+        if open.act == ActKind::Withdraw {
+            sheet_open(b, words, &words.say(sheet.title, &[]));
+            sheet_why(b, root, words);
+            sheet_acts(b, bindings, words, &sheet);
+            b.close();
+            return;
         }
         let Some(page) = &card.page else { return };
         sheet_open(b, words, &words.say(sheet.title, &[]));
@@ -495,7 +515,7 @@ fn delegate(
     b.run(Run::Strong, &words.say(Word::DelegateNumber, &[Hole::Number(task)]));
     let fate = words.say(
         if cancel { Word::DelegateCancel } else { Word::DelegateMove },
-        &[Hole::Name(skein_lib::bytes::copy_of(title))],
+        &[Hole::Name(crate::common::chat::row_title(title))],
     );
     b.run(Run::Plain, if title.is_empty() { fate.get(1..).expect("fate starts with a space") } else { &fate });
     b.close();

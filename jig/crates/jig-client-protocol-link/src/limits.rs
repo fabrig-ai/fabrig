@@ -1,8 +1,10 @@
 //! Fixed attempt admission and receiving bounds (protocol/client/README.md, 10; client/domain/client/README.md, 11).
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::Duration;
 /// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
 pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
+/// The most bytes of a gathered batch's record (protocol/client/wire.md, 2.3).
+pub const BATCH_BYTES: u32 = 131_072;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     client: jig_client_domain::Limits,
@@ -149,6 +151,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.task_contract_document_approval_state, &mut wire.runtime_running_tool_some,
         &mut wire.runtime_backing_off_reason, &mut wire.setting_model_name, &mut wire.setting_model_program_some,
         &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
+        &mut wire.worker_setting_name, &mut wire.worker_state_name,
         &mut wire.catalogue_entry_shown_some, &mut wire.catalogue_entry_description_some,
         &mut wire.charter_document_name_item,
     ]);

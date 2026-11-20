@@ -1,6 +1,7 @@
 //! Opening entry points (protocol/channel.md, section 2).
 use skein_channel::{Lower, StreamMode};
 use skein_lib::{Queue, stream};
+use smith_channel::Record;
 
 use crate::{Component, Limits, Received};
 
@@ -57,30 +58,36 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
     assert_eq!(frame.kind(), 0x0100);
     let mut reader = Reader::new(&frame.bytes()[8..]);
     let start = smith_channel::Start::decode(&limits.bodies, &mut reader).expect("Start decodes");
-    assert_eq!(start.activation(), 3);
-    assert_eq!(start.identity(), &Some(*b"stable-chat-name"));
+    assert_eq!(start.activation, 3);
+    assert_eq!((&start.identity), &Some(*b"stable-chat-name"));
     assert_eq!(
-        smith_protocol_translate::decode_charter(start.charter(), &limits.charter, &endpoints())
+        smith_protocol_translate::decode_charter(start.charter.as_ref(), &limits.charter, &endpoints())
             .expect("typed charter"),
         smith_host_world::charter_value(7).into_value()
     );
     assert_eq!(
-        smith_protocol_translate::decode_transcript(start.transcript(), 64, u32::MAX, &limits.transcript, &endpoints())
-            .expect("typed transcript")
-            .expect("history"),
+        smith_protocol_translate::decode_transcript(
+            start.transcript.as_ref(),
+            64,
+            u32::MAX,
+            &limits.transcript,
+            &endpoints()
+        )
+        .expect("typed transcript")
+        .expect("history"),
         smith_host_world::transcript_value(512).into_value()
     );
-    assert_eq!(start.answered().get(0).expect("answered call").tool(), b"check");
+    assert_eq!(start.answered.get(0).expect("answered call").tool.as_ref(), b"check");
     assert_eq!(
-        start.workspace().as_ref().expect("workspace").directories().get(0).expect("directory").path(),
+        start.workspace.as_ref().expect("workspace").directories.get(0).expect("directory").path.as_ref(),
         b"/tmp/src"
     );
-    let grant = start.grants().get(0).expect("grant");
-    let smith_channel::GrantValue::Credential(value) = grant.value() else {
+    let grant = start.grants.get(0).expect("grant");
+    let smith_channel::GrantValue::Credential(value) = &grant.value else {
         panic!("bearer grant");
     };
-    assert_eq!(value.scheme(), &smith_channel::Scheme::Bearer);
-    assert!(value.bytes().expose() == b"secret");
+    assert_eq!((&value.scheme), &smith_channel::Scheme::Bearer);
+    assert!(value.bytes.expose() == b"secret");
 }
 
 #[test]
@@ -140,8 +147,8 @@ fn a_resumed_start_forwards_saved_turns_from_an_unconfigured_endpoint() {
     .expect("saved history does not require a configured endpoint");
     let start =
         smith_channel::Start::decode(&limits.bodies, &mut Reader::new(&frame.bytes()[8..])).expect("Start decodes");
-    assert_eq!(start.transcript(), piece.as_ref());
-    let mut reader = Reader::new(start.transcript());
+    assert_eq!(start.transcript.as_ref(), piece.as_ref());
+    let mut reader = Reader::new(start.transcript.as_ref());
     for body in &bodies {
         let length = reader.u32().expect("body length");
         assert_eq!(reader.bytes(length).expect("saved body"), body.as_ref());
@@ -399,26 +406,14 @@ fn a_delivery_ask_decodes_into_its_named_values_before_domain_ingress() {
     use smith_channel as wire;
     use smith_domain::run::outcome::{Change, Field};
 
-    let limits = wire::CEILINGS;
     let source = Change { fields: Box::new([Field { name: Box::from(*b"ticket"), value: Box::from(*b"host value") }]) };
     let mut fields = List::with_capacity(1);
     fields
-        .push(
-            wire::Field::new(
-                &limits,
-                wire::FieldParts { name: source.fields[0].name.clone(), text: source.fields[0].value.clone() },
-            )
-            .expect("bounded field"),
-        )
+        .push(wire::Field { name: source.fields[0].name.clone(), text: source.fields[0].value.clone() })
         .expect("one field");
-    let ask = wire::Ask::Deliver(wire::DeliverAsk::new(&limits, wire::DeliverAskParts { fields }).expect("delivery"));
-    let name = wire::CallName::new(&limits, wire::CallNameParts { activation: 1, completion: 2, position: 3 })
-        .expect("call name");
-    let record = wire::Call::new(
-        &limits,
-        wire::CallParts { name, effect: wire::Effect::Write, deadline: Duration::from_secs(30), ask },
-    )
-    .expect("call envelope");
+    let ask = wire::Ask::Deliver(wire::DeliverAsk { fields });
+    let name = wire::CallName { activation: 1, completion: 2, position: 3 };
+    let record = wire::Call { name, effect: wire::Effect::Write, deadline: Duration::from_secs(30), ask };
     let Some(smith_host_domain::Ask::Deliver { fields }) = crate::translate::decode_ask(&record).expect("typed ask")
     else {
         panic!("delivery enters the typed parent face")
@@ -496,9 +491,7 @@ fn invalid_start_round_trip_keeps_every_budget_reason_and_price_rate() {
             &smith_charter::CEILINGS,
         )
         .expect("bounded refusal");
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("measured"));
-        record.encode(&mut writer).expect("measured encoding");
-        let encoded = writer.finish();
+        let encoded = record.encode(&smith_channel::CEILINGS).expect("bounded refusal");
         let record =
             smith_channel::Answer::decode(&smith_channel::CEILINGS, &mut Reader::new(&encoded)).expect("wire refusal");
         let decoded = crate::answer::decode_answer(&record, &smith_charter::CEILINGS).expect("host refusal");
@@ -670,13 +663,11 @@ fn panic_report(name: &str, location: &str, message: &str) -> String {
 fn each_version_4_fault_reads_as_its_own() {
     use smith_channel as wire;
     use smith_host_domain as host;
-    let limits = &wire::CEILINGS;
     for (fault, expected) in fault_rows() {
-        let value = wire::ModelFaultValue::new(limits, wire::ModelFaultValueParts { value: fault }).unwrap();
+        let value = wire::ModelFaultValue { value: fault };
         let reason = wire::RunFailure::Model(value);
-        let result = wire::RunResult::Failed(wire::Failed::new(limits, wire::FailedParts { reason }).unwrap());
-        let record =
-            wire::Answer::new(limits, wire::AnswerParts { turns: 0, spent: 0, last_read: None, result }).unwrap();
+        let result = wire::RunResult::Failed(wire::Failed { reason });
+        let record = wire::Answer { turns: 0, spent: 0, last_read: None, result };
         let decoded = crate::answer::decode_answer(&record, &smith_charter::CEILINGS).unwrap();
         assert_eq!(decoded.result, host::RunResult::Failed { failure: host::RunFailure::Model(expected) });
     }
@@ -684,23 +675,17 @@ fn each_version_4_fault_reads_as_its_own() {
 
 fn wire_completion(failure: smith_channel::CompletionFailure) -> smith_channel::ModelFault {
     use smith_channel as wire;
-    wire::ModelFault::Completion(
-        wire::CompletionFault::new(
-            &wire::CEILINGS,
-            wire::CompletionFaultParts {
-                status: None,
-                failure,
-                evidence: wire::CompletionEvidence::Unknown,
-                retry_after: None,
-                model: 1,
-                attempts: 2,
-                code: b"code".as_slice().into(),
-                request_id: b"request".as_slice().into(),
-                field: b"feature".as_slice().into(),
-            },
-        )
-        .unwrap(),
-    )
+    wire::ModelFault::Completion(wire::CompletionFault {
+        status: None,
+        failure,
+        evidence: wire::CompletionEvidence::Unknown,
+        retry_after: None,
+        model: 1,
+        attempts: 2,
+        code: b"code".as_slice().into(),
+        request_id: b"request".as_slice().into(),
+        field: b"feature".as_slice().into(),
+    })
 }
 
 fn host_completion(failure: smith_host_domain::CompletionFailure) -> smith_host_domain::ModelFault {
@@ -719,53 +704,47 @@ fn host_completion(failure: smith_host_domain::CompletionFailure) -> smith_host_
     }
 }
 
-fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 11] {
+fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 12] {
     use smith_channel as wire;
     use smith_host_domain as host;
-    let limits = &wire::CEILINGS;
     [
         (wire::ModelFault::Provider, host::ModelFault::Provider),
         (wire::ModelFault::Declined, host::ModelFault::Declined),
         (wire::ModelFault::Truncated, host::ModelFault::Truncated),
         (wire::ModelFault::Malformed, host::ModelFault::Malformed),
         (
-            wire::ModelFault::Limited(
-                wire::LimitedFault::new(limits, wire::LimitedFaultParts { account: 7, reset: None }).unwrap(),
-            ),
+            wire::ModelFault::Limited(wire::LimitedFault { account: 7, reset: None }),
             host::ModelFault::Limited { account: 7, reset: None },
         ),
         (
-            wire::ModelFault::Refused(
-                wire::RefusedFault::new(
-                    limits,
-                    wire::RefusedFaultParts { account: 7, code: b"quota".as_slice().into() },
-                )
-                .unwrap(),
-            ),
+            wire::ModelFault::Refused(wire::RefusedFault { account: 7, code: b"quota".as_slice().into() }),
             host::ModelFault::Refused { account: 7, code: b"quota".as_slice().into() },
         ),
         (
-            wire::ModelFault::Unauthorized(
-                wire::UnauthorizedFault::new(limits, wire::UnauthorizedFaultParts { account: 8 }).unwrap(),
-            ),
+            wire::ModelFault::Unauthorized(wire::UnauthorizedFault { account: 8 }),
             host::ModelFault::Unauthorized { account: 8 },
         ),
         (
-            wire::ModelFault::Program(
-                wire::ProgramFault::new(
-                    limits,
-                    wire::ProgramFaultParts {
-                        name: b"login".as_slice().into(),
-                        exit: Some(2),
-                        detail: b"unavailable".as_slice().into(),
-                    },
-                )
-                .unwrap(),
-            ),
+            wire::ModelFault::Program(wire::ProgramFault {
+                name: b"login".as_slice().into(),
+                exit: Some(2),
+                detail: b"unavailable".as_slice().into(),
+            }),
             host::ModelFault::Program {
                 name: b"login".as_slice().into(),
                 exit: Some(2),
                 detail: b"unavailable".as_slice().into(),
+            },
+        ),
+        (
+            wire::ModelFault::Untooled(wire::ProgramFault {
+                name: b"claude_code".as_slice().into(),
+                exit: None,
+                detail: b"smith: the program started without smith's tools".as_slice().into(),
+            }),
+            host::ModelFault::Untooled {
+                name: b"claude_code".as_slice().into(),
+                detail: b"smith: the program started without smith's tools".as_slice().into(),
             },
         ),
         (wire_completion(wire::CompletionFailure::Refused), host_completion(host::CompletionFailure::Refused)),
@@ -781,15 +760,9 @@ fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 
 fn a_save_ask_has_no_fields_and_requires_a_write_effect() {
     use smith_channel as wire;
     for effect in [wire::Effect::Read, wire::Effect::Write] {
-        let name =
-            wire::CallName::new(&wire::CEILINGS, wire::CallNameParts { activation: 1, completion: 2, position: 3 })
-                .expect("name");
-        let record = wire::Call::new(
-            &wire::CEILINGS,
-            wire::CallParts { name, effect, deadline: skein_lib::Duration::from_secs(30), ask: wire::Ask::Save },
-        )
-        .expect("save envelope");
-        let expected = if record.effect() == &wire::Effect::Write { Some(smith_host_domain::Ask::Save) } else { None };
+        let name = wire::CallName { activation: 1, completion: 2, position: 3 };
+        let record = wire::Call { name, effect, deadline: skein_lib::Duration::from_secs(30), ask: wire::Ask::Save };
+        let expected = if record.effect == wire::Effect::Write { Some(smith_host_domain::Ask::Save) } else { None };
         assert_eq!(crate::translate::decode_ask(&record).expect("typed save"), expected);
     }
 }
@@ -798,21 +771,17 @@ fn a_save_ask_has_no_fields_and_requires_a_write_effect() {
 fn a_completion_report_keeps_status_separate_from_evidence() {
     use smith_channel as wire;
     use smith_host_domain as host;
-    let limits = &wire::CEILINGS;
     for status in [Some(403), None] {
         let wire::ModelFault::Completion(fault) = wire_completion(wire::CompletionFailure::Unavailable) else {
             panic!("completion fixture")
         };
-        let mut parts = fault.into_parts();
+        let mut parts = fault;
         parts.status = status;
         parts.evidence = wire::CompletionEvidence::Unsent;
-        let fault = wire::ModelFault::Completion(wire::CompletionFault::new(limits, parts).expect("fault"));
-        let fault = wire::ModelFaultValue::new(limits, wire::ModelFaultValueParts { value: fault }).expect("model");
-        let result = wire::RunResult::Failed(
-            wire::Failed::new(limits, wire::FailedParts { reason: wire::RunFailure::Model(fault) }).expect("failed"),
-        );
-        let record = wire::Answer::new(limits, wire::AnswerParts { turns: 0, spent: 0, last_read: None, result })
-            .expect("answer");
+        let fault = wire::ModelFault::Completion(parts);
+        let fault = wire::ModelFaultValue { value: fault };
+        let result = wire::RunResult::Failed(wire::Failed { reason: wire::RunFailure::Model(fault) });
+        let record = wire::Answer { turns: 0, spent: 0, last_read: None, result };
         let decoded = crate::answer::decode_answer(&record, &smith_charter::CEILINGS).expect("host answer");
         assert_eq!(
             decoded.result,

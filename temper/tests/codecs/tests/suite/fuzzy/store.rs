@@ -1,4 +1,5 @@
 //! Arbitrary and mutated durable rows and keys (protocol/store.md, section 6).
+use super::super::values;
 use skein_lib::Rng;
 use temper_engine_domain_forge_vocabulary as forge;
 use temper_protocol_store::{Bounds, keys, records};
@@ -9,7 +10,18 @@ use fixture::LIMITS;
 
 fn record(bytes: &[u8], bounds: &Bounds) {
     if let Ok(row) = records::decode(bytes, bounds) {
-        assert_eq!(records::encode(&row).as_ref(), bytes, "durable row");
+        let encoded = records::encode(&row);
+        if encoded.as_ref() != bytes {
+            // An empty stored landing reads as the default branch (protocol/store.md, 2).
+            let forge::Stored::Repository(repository) = &row else { panic!("durable row: {row:?}") };
+            assert_eq!(repository.landing, repository.settings.default_branch);
+            let mut before_fill = repository.clone();
+            before_fill.landing = Box::new([]);
+            assert_eq!(records::encode(&forge::Stored::Repository(before_fill)).as_ref(), bytes, "only landing filled");
+        }
+        let decoded = records::decode(&encoded, bounds).expect("a reencoded row decodes");
+        assert_eq!(decoded, row, "durable value");
+        assert_eq!(records::encode(&decoded), encoded, "durable bytes reach a fixed point");
         let key = forge::stored_key(&row);
         let encoded = keys::encode(&key, u32::MAX).expect("a decoded row's key fits");
         assert_eq!(keys::decode(&encoded, &LIMITS), Some(key));
@@ -90,7 +102,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v25");
+    let goldens = values::store();
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
@@ -236,7 +248,8 @@ fn store_decoders_never_panic_and_reencode_the_same() {
     for _ in 0..8 {
         record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
     }
-    for bytes in &goldens {
+    for value in goldens {
+        let bytes = &value.bytes;
         golden(bytes, &bounds);
         for _ in 0..8 {
             golden(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
@@ -278,6 +291,7 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         2 => Some(forge::FirstIntent::Copies { addresses: Box::new([drawn_field(rng), drawn_field(rng)]) }),
         _ => Some(forge::FirstIntent::Empty(forge::EmptyIntent {
             playground: rng.below(2) == 0,
+            sample: false,
             org: drawn_field(rng),
             repository: drawn_field(rng),
             label: drawn_field(rng),
@@ -371,8 +385,11 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let mut tier = forge::TierRow {
+        many: None,
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
         requested: false,
         cancelled: false,
@@ -406,6 +423,42 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             run,
         },
     };
+    let mut waiting = Vec::new();
+    for _ in 0..rng.below(9) {
+        let many = rng.below(2) == 0;
+        waiting.push(forge::VerdictFiling {
+            project: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            kind: forge::FindingKind::Red,
+            severity: forge::Severity::High,
+            title: b"Waiting red".as_slice().into(),
+            body: temper_codecs_world::drawn(rng, 4096).into_boxed_slice(),
+            signature: forge::FindingSignature {
+                repository,
+                source: b"tier".as_slice().into(),
+                ids: if many { Box::new([]) } else { Box::new([b"test failing".as_slice().into()]) },
+                first: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
+                many,
+            },
+            blame: Some(forge::FindingBlame {
+                strength: match rng.below(3) {
+                    0 => forge::BlameStrength::Owned,
+                    1 => forge::BlameStrength::Suspected,
+                    _ => forge::BlameStrength::Unblamed,
+                },
+                landings: Box::new([forge::BlamedLanding {
+                    commit: [8; 32],
+                    goals: Box::new([forge::BlamedGoal {
+                        goal: rng.next_u64(),
+                        milestone: Some(rng.next_u64()),
+                        person: Some(rng.next_u64()),
+                    }]),
+                }]),
+            }),
+            follow: if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) },
+        });
+    }
+    tier.waiting = waiting.into_boxed_slice();
+    tier.unkept = u32::try_from(rng.below(4_294_967_296)).expect("u32");
     if rng.below(2) == 0 {
         tier.hold = Some(forge::TierHold {
             party: rng.next_u64(),
@@ -523,10 +576,17 @@ fn verification_row(
     let row = forge::Stored::LandingLog(forge::LandingLog {
         repository,
         landings: Box::new([forge::LoggedLanding {
+            tiers: Box::new([]),
             commit: [7; 32],
             branch: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
             at: skein_lib::Wall::from_nanos(rng.next_u64()),
             changes: Box::new([forge::LoggedChange {
+                fixes: (0..rng.below(9)).map(|_| u32::try_from(rng.below(4_294_967_296)).expect("u32 draw")).collect(),
+                goal: None,
+                milestone: None,
+                person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                goal_title: optional_goal_words(rng),
+                draft: optional_goal_words(rng),
                 signed: Box::new([]),
                 task: rng.next_u64(),
                 pull: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
@@ -535,6 +595,35 @@ fn verification_row(
         }]),
     });
     row_and_key(&row, rng, bounds);
+    let row = forge::Stored::ChangeCold(Box::new(forge::ChangeCold {
+        person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+        goal_title: optional_goal_words(rng),
+        draft: optional_goal_words(rng),
+        task: rng.next_u64(),
+        repository,
+        branch: b"change".as_slice().into(),
+        base: b"main".as_slice().into(),
+        goal: Some(rng.next_u64()),
+        milestone: None,
+        source: None,
+        base_repair: false,
+        producing_charter: 1,
+        review_charter: 2,
+        producing_llm: None,
+        review_llm: None,
+        repairs: None,
+        catch_up: None,
+        close: None,
+        title: b"change".as_slice().into(),
+        body: Box::new([]),
+        follows: None,
+        report: Box::new([]),
+    }));
+    row_and_key(&row, rng, bounds);
+}
+
+fn optional_goal_words(rng: &mut Rng) -> Option<Box<[u8]>> {
+    if rng.below(2) == 0 { None } else { Some(temper_codecs_world::drawn(rng, 256).into_boxed_slice()) }
 }
 
 fn status_rows(rng: &mut Rng, bounds: &Bounds) {
@@ -565,10 +654,16 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         project,
         landed: rng.next_u64(),
         last_landed: Wall::from_nanos(rng.next_u64()),
-        brief,
-        running,
     });
     row_and_key(&facts, rng, bounds);
+    let person = forge::Stored::PersonBrief(forge::PersonBrief {
+        party: rng.next_u64(),
+        project,
+        brief,
+        running,
+        unpaid: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
+    });
+    row_and_key(&person, rng, bounds);
     let looked = forge::Stored::Looked(forge::Looked {
         party: rng.next_u64(),
         project,
@@ -648,6 +743,34 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
 
 fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
     let hand = rng.below(2) == 0;
+    let many = rng.below(2) == 0;
+    let blame = if rng.below(4) == 0 {
+        None
+    } else {
+        let mut landings = Vec::new();
+        for _ in 0..rng.below(4) {
+            let mut goals = Vec::new();
+            for _ in 0..rng.below(4) {
+                goals.push(forge::BlamedGoal {
+                    goal: rng.next_u64(),
+                    milestone: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                    person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                });
+            }
+            landings.push(forge::BlamedLanding {
+                commit: std::array::from_fn(|_| u8::try_from(rng.below(256)).expect("byte")),
+                goals: goals.into_boxed_slice(),
+            });
+        }
+        Some(forge::FindingBlame {
+            strength: match rng.below(3) {
+                0 => forge::BlameStrength::Owned,
+                1 => forge::BlameStrength::Suspected,
+                _ => forge::BlameStrength::Unblamed,
+            },
+            landings: landings.into_boxed_slice(),
+        })
+    };
     let row = forge::Stored::Finding(forge::Finding {
         project: u32::try_from(rng.below(4_294_967_296)).expect("drawn field fits"),
         number: u32::try_from(rng.below(4_294_967_295) + 1).expect("drawn field fits"),
@@ -678,8 +801,27 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
         hander: if hand { Some(forge::Filer::Task(rng.next_u64())) } else { None },
         goal: if rng.below(2) == 0 { Some(rng.next_u64()) } else { None },
         reason: if rng.below(2) == 0 { Some(b"not needed".as_slice().into()) } else { None },
-        signature: None,
-        seen: None,
+        signature: if rng.below(2) == 0 {
+            None
+        } else {
+            Some(forge::FindingSignature {
+                repository: skein_forge::api::Repository {
+                    forge: u16::try_from(rng.below(65_536)).expect("u16"),
+                    repository: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+                },
+                source: b"focused".as_slice().into(),
+                ids: if many { Box::new([]) } else { Box::new([b"test crate::bin example".as_slice().into()]) },
+                first: b"failure".as_slice().into(),
+                many,
+            })
+        },
+        seen: if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(100) + 1).expect("count")) },
+        blame,
+        cleared: if rng.below(2) == 0 {
+            None
+        } else {
+            Some(forge::FindingCleared { run: rng.next_u64(), at: skein_lib::Wall::from_nanos(rng.next_u64()) })
+        },
     });
     row_and_key(&row, rng, bounds);
     let row = forge::Stored::Subscription(forge::Subscriber {

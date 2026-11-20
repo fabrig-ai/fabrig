@@ -21,6 +21,7 @@ pub const TABLE: Table = Table {
         &temper_client_bundle::INTERNAL_BUNDLE,
         &environment::INTERNAL_DUMP_LLM,
         &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,
+        &super::scripted::LISTENER,
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
@@ -28,6 +29,19 @@ const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
+const FIXED_START_SETTINGS: skein_shell::Settings = skein_shell::Settings {
+    tool: "temper",
+    about: "The fake box's fixed start.",
+    table: &[skein_shell::Setting {
+        name: "fixed-start",
+        value: "SECONDS,SEED",
+        set: Set::Internal,
+        twin: None,
+        about: "Start the fake box's engine and peers from this fixed instant and seed: SECONDS,SEED.",
+        fallback: skein_shell::Fallback::Text(""),
+        notes: "Requires --fake-backends on the box, or --box on internal serve.",
+    }],
+};
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
@@ -75,7 +89,7 @@ pub(crate) const BOX: Command = Command {
     forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]"],
     line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.",
     arguments: &[DIRECTORIES],
-    settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS],
+    settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS, &FIXED_START_SETTINGS],
     switches: &[
         temper_engine_shell::commands::RECORD,
         Switch {
@@ -108,7 +122,7 @@ pub(crate) const BOX: Command = Command {
     notes: "Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 30] = [
+const COMMANDS: [Command; 33] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -119,25 +133,19 @@ const COMMANDS: [Command; 30] = [
         settings: &[&directories::SETTINGS],
         switches: &[Switch { name: "box", set: Set::Internal, line: "Also write the box's parts: the welcome, the owned Forgejo and the playground.", notes: "" }],
         variables: &[&environment::PATH],
-        notes: "Alone, init chooses two ports on `127.0.0.1`, preferring 8367 for clients and 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground: five ports, preferring 8367 for clients, 8368 for owned Forgejo, 8369 for the fake forge, 8370 for the demo LLM and 8371 for webhooks. Taken ports fall back to the kernel. It writes matching addresses in `temper.json` and `agent.json`.
+        notes: "Init reserves loopback 8367 for clients and 8371 for webhooks, using kernel ports when taken. The file keeps those addresses, not LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
 
-To choose ports for another box, leave the first running and give init
-separate empty configuration, data and cache directories. No port flag
-or coordinated edits are needed. See temper help box, step 1.
+To choose ports for another box, keep the first running and give init separate empty configuration, data and cache directories; no port flag or coordinated edits. See temper help box, step 1.
 
-The saved addresses are fixed: later starts reuse them and refuse an
-occupied address. A separate `temper-box init` closes its reserved listeners
-on exit. On empty directories, `temper-box` runs init itself and keeps
-all five reservations through startup; use that first-run path to avoid
-a gap between selection and startup.
+Saved addresses are fixed; later starts reuse them or refuse an occupied address. Separate `temper-box init` closes its reservations on exit. On empty directories `temper-box` runs init itself and keeps both reservations through startup, avoiding a selection/startup gap.
 
-Refused, changing nothing, when the configuration directory already holds temper.json.",
+Refused unchanged if the configuration directory holds a current or former configuration file.",
     },
     Command {
         reach: Reach::Words(&["serve"]),
         set: Set::Public,
         forms: &["[DIRECTORIES] [--record]"],
-        line: "Run the deployment's services, as its configuration's shape names them, until stopped.",
+        line: "Run the engine and its worker in one process until stopped.",
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
         switches: &[temper_engine_shell::commands::RECORD],
@@ -148,7 +156,10 @@ Refused, changing nothing, when the configuration directory already holds temper
     HELP,
     temper_engine_shell::commands::VERSIONS,
     temper_engine_shell::commands::UPGRADE_CHECK,
+    temper_engine_shell::commands::UPGRADE_WORKERS,
     temper_engine_shell::commands::UPGRADE_BACK,
+    temper_engine_shell::commands::CHECKPOINT,
+    temper_engine_shell::commands::RESTORE,
     FETCH,
     PREPARE,
     RUN,
@@ -180,7 +191,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         line: "Run one agent for a worker's run, on smith's agent configuration.",
         arguments: &[Argument {
             shown: "AGENT.json",
-            line: "The agent's configuration, as the worker's agent.configuration names it.",
+            line: "The agent's configuration, written and pinned under the worker's root.",
         }],
         settings: &[],
         switches: &[],
@@ -194,7 +205,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         line: "Read one endpoint's model list, on smith's agent configuration.",
         arguments: &[Argument {
             shown: "AGENT.json",
-            line: "The agent's configuration, as the worker's agent.configuration names it.",
+            line: "The agent's configuration, written and pinned under the worker's root.",
         }],
         settings: &[],
         switches: &[],
@@ -204,10 +215,10 @@ Refused, changing nothing, when the configuration directory already holds temper
     Command {
         reach: Reach::Words(&["internal", "serve"]),
         set: Set::Internal,
-        forms: &["[DIRECTORIES] --box [--record]"],
+        forms: &["[DIRECTORIES] --box [--record] [--fixed-start SECONDS,SEED]"],
         line: "Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.",
         arguments: &[DIRECTORIES],
-        settings: &[&directories::SETTINGS],
+        settings: &[&directories::SETTINGS, &FIXED_START_SETTINGS],
         switches: &[temper_engine_shell::commands::RECORD, Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "",

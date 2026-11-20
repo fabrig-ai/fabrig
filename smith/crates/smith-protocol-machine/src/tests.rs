@@ -28,6 +28,7 @@ fn configured_component(variables: &[crate::Variable]) -> Component {
     let mut component = Component::new(
         &limits(),
         crate::Environment::encode(variables, &limits()).expect("configured environment fits"),
+        Box::from(b"/fixture/bin/rg".as_slice()),
     );
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
@@ -91,6 +92,53 @@ fn git_part_and_unknown_root_are_refused_before_io() {
     );
     assert!(harness.below.is_empty());
     assert_eq!(harness.above.pop(), Some(ToDomain::Done { owner: Token::new(2), done: tools::Done::Escapes }));
+}
+
+#[test]
+fn target_failure_file_load_returns_bytes_under_an_admitted_root() {
+    let mut harness = Harness::new();
+    let path = b"target/temper/pre-pr-failures.json";
+    harness.operate(Token::new(1), tools::Op::Load { at: place(path), max: 16 }, FAR);
+    assert!(harness.above.is_empty());
+    assert_eq!(
+        harness.below.pop(),
+        Some(Below::File {
+            request: file::Request::Load {
+                owner: Token::new(1),
+                root: Token::new(10),
+                path: Box::from(path.as_slice()),
+                max: 16,
+                no_follow: false,
+            },
+            deadline: FAR,
+        })
+    );
+    let bytes = b"{\"failures\":[]}\n";
+    harness.event(BelowEvent::File(file::Event::Loaded { owner: Token::new(1), bytes: Box::from(bytes.as_slice()) }));
+    assert_eq!(
+        harness.above.pop(),
+        Some(answer(
+            1,
+            tools::Done::Loaded {
+                version: tools::Version::new(digest::digest(bytes).0),
+                content: Box::from(bytes.as_slice()),
+            }
+        ))
+    );
+    assert!(harness.below.is_empty());
+    assert_closed(harness.component);
+}
+
+#[test]
+fn failure_file_loads_in_git_parts_are_denied_before_io() {
+    let mut harness = Harness::new();
+    for path in [b".git/temper/pre-pr-failures.json".as_slice(), b"nested/.git/temper/pre-pr-failures.json".as_slice()]
+    {
+        harness.operate(Token::new(1), tools::Op::Load { at: place(path), max: 16 }, FAR);
+        assert!(harness.below.is_empty());
+        assert_eq!(harness.above.pop(), Some(answer(1, tools::Done::Failed { fault: tools::Fault::Denied })));
+    }
+    assert_closed(harness.component);
 }
 
 #[test]
@@ -570,7 +618,8 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
     harness.request(FromDomain::Check {
         owner,
         program: run::Place { root: Token::new(10), path: Box::from(&b"check"[..]) },
-        deadline: Time::from_nanos(100),
+        bound: skein_lib::Duration::from_nanos(100),
+        cap: Time::from_nanos(100),
         tail: 4,
     });
     match harness.below.pop() {
@@ -694,7 +743,8 @@ fn directory_request(operation: u32, path: &[u8]) -> FromDomain {
         7 => FromDomain::Check {
             owner,
             program: run::Place { root: Token::new(10), path: Box::from(&b"check"[..]) },
-            deadline,
+            bound: deadline.saturating_since(Time::ZERO),
+            cap: deadline,
             tail: 4,
         },
         _ => unreachable!(),
@@ -785,7 +835,8 @@ fn configured_variables_are_encoded_once_for_commands_and_checks_and_absent_for_
                 },
                 1 => FromDomain::Check {
                     owner,
-                    deadline,
+                    bound: deadline.saturating_since(Time::ZERO),
+                    cap: deadline,
                     program: run::Place { root: Token::new(10), path: Box::from(&b"check"[..]) },
                     tail: 4,
                 },
@@ -809,6 +860,7 @@ fn configured_variables_are_encoded_once_for_commands_and_checks_and_absent_for_
             match down.pop().expect("spawn") {
                 Below::Spawn { spawn, .. } => {
                     if operation == 2 {
+                        assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
                         assert!(spawn.env.is_empty());
                     } else {
                         assert_eq!(spawn.env.as_ref(), expected.as_ref());
@@ -960,7 +1012,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
         Below::Spawn { spawn, root, .. } => {
             assert_eq!(root, Token::new(10));
             assert_eq!(spawn.dir.as_ref(), b"src");
-            assert_eq!(spawn.program.as_ref(), b"/usr/bin/rg");
+            assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
             assert!(spawn.env.is_empty());
             assert!(has_argument(&spawn.args, b"--files"));
             assert!(has_argument(&spawn.args, b"--hidden"));
@@ -1183,7 +1235,7 @@ fn a_tools_output_is_the_same_whatever_its_deliveries() {
         );
         while below.pop().is_some() {}
         for delivery in bytes.chunks(cut) {
-            stream(&mut process, Token::new(1), Up::Bytes(Box::from(delivery)), &mut below);
+            stream(&mut process, Time::ZERO, Token::new(1), Up::Bytes(Box::from(delivery)), &mut below);
             assert!(below.pop().is_some());
         }
         answers.push(process.answer(Token::new(3))).expect("two delivery cuts");

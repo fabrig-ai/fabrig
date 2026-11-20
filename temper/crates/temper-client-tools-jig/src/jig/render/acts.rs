@@ -39,6 +39,29 @@ pub fn name(act: ActKind) -> &'static [u8] {
         ActKind::Withdraw => b"withdraw",
     }
 }
+/// Proposal withdrawal is offered by the engine to its maker alone.
+pub fn proposal_offers(value: &jig_client::contract::Proposal, limits: &crate::jig::Limits, out: &mut Text) {
+    for offer in &value.acts {
+        if offer.act != ActKind::Withdraw {
+            continue;
+        }
+        out.put(b"acts:\n  proposal withdraw ");
+        super::document::settings::proposal_text(value.key, out);
+        out.put(b" --project ");
+        out.number(u64::from(value.project));
+        out.put(b" --key KEY");
+        match &offer.admission {
+            Admission::Allowed => {}
+            Admission::Refused(why) => {
+                out.put(b": ");
+                refusal(why, &super::document::phrasebook(limits.text), out);
+            }
+            Admission::Proposed { to } => proposed(to, None, out),
+            Admission::Bounded { within, .. } => bounds(within, out),
+        }
+        out.put(b"\n");
+    }
+}
 pub fn text(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
     out.put(b"acts:\n");
     for offer in &task.acts {
@@ -438,7 +461,7 @@ pub fn bounds(value: &Bounds, out: &mut Text) {
         Bounds::Amend { budget_left, grants, implications, authority: within, ceiling } => {
             authority(within, out);
             out.put(b"; budget left ");
-            out.number(*budget_left);
+            super::amount(*budget_left, out);
             out.put(b"; held grants");
             for grant in grants {
                 out.put(b" ");
@@ -461,11 +484,11 @@ pub fn bounds(value: &Bounds, out: &mut Text) {
 pub(super) fn create_bounds(bound: &jig_client::contract::CreateBounds, out: &mut Text) {
     authority(&bound.authority, out);
     out.put(b"; pool left ");
-    out.number(bound.pool_left);
+    super::amount(bound.pool_left, out);
     out.put(b"; budget ");
-    out.number(bound.budget);
+    super::amount(bound.budget, out);
     out.put(b"; maximum budget ");
-    out.number(bound.maximum_budget);
+    super::amount(bound.maximum_budget, out);
     out.put(b"; charters");
     for charter in &bound.charters {
         out.put(b" ");
@@ -519,7 +542,7 @@ pub fn authority(document: &AuthorityDocument, out: &mut Text) {
     out.put(b"; depth ");
     out.number(u64::from(value.delegation.depth));
     out.put(b" }; spend ");
-    out.number(value.spend);
+    super::amount(value.spend, out);
     out.put(b"; deadline ");
     wall(value.deadline, out);
     out.put(b"; notes ");

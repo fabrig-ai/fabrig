@@ -14,6 +14,7 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Readable)> {
     let (task, _) = render::read_task(value)?;
     if !reading.pages.contains_key(&2) {
         let query = c::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(task.project),
             requester: None,
             root: None,
@@ -28,6 +29,7 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Readable)> {
     }
     if !reading.pages.contains_key(&6) {
         let query = c::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(task.project),
             requester: None,
             root: None,
@@ -51,14 +53,14 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Readable)> {
     if !reading.pages.contains_key(&5) {
         let totals = forge::milestones::answer(reading.pages.get(&3)?, &TOTALS)?;
         if let temper_client_protocol_wire::v1::MilestoneResult::Totals(totals) = totals
-            && totals.ended().is_none()
-            && let Some(landing) = totals.last_landing()
+            && totals.ended.is_none()
+            && let Some(landing) = &totals.last_landing
         {
             let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = reading.pages.get(&2)? else {
                 return None;
             };
             for row in &page.live {
-                if row.chip.task == landing.goal() {
+                if row.chip.task == landing.goal {
                     return None;
                 }
             }
@@ -67,12 +69,12 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Readable)> {
             };
             if let c::EndedGroup::Rows { rows, .. } = &ended.ended {
                 for row in rows {
-                    if row.chip.task == landing.goal() {
+                    if row.chip.task == landing.goal {
                         return None;
                     }
                 }
             }
-            return Some((5, Readable::Jig(c::Read::Task { task: landing.goal() })));
+            return Some((5, Readable::Jig(c::Read::Task { task: landing.goal })));
         }
     }
     None

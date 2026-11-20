@@ -31,7 +31,13 @@ pub fn wire() -> w::Limits {
 }
 pub fn settings() -> Settings {
     let mut served = List::with_capacity(2);
-    served.push(crate::Served { family: None, first: 26, last: 26 }).expect("one jig range");
+    served
+        .push(crate::Served {
+            family: None,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
+        .expect("one jig range");
     served.push(crate::Served { family: Some(9), first: 2, last: 2 }).expect("one family range");
     Settings {
         private: crate::Private::none(),
@@ -117,6 +123,8 @@ pub fn env() -> Env<Limits> {
             provider_tokens: 64,
             exchanges: 4,
             exchanges_per_client: 2,
+            reads_per_client: 32,
+            openings_per_client: 31,
             message_bytes: MESSAGE_BYTES,
             wire: wire(),
             link_span: Duration::from_secs(300),
@@ -177,6 +185,8 @@ pub struct Exchange {
     pub env: Env<Limits>,
     pub out: Queue<Request>,
     pub token: Box<[u8]>,
+    pub via: crate::Via,
+    pub source: Option<::core::net::IpAddr>,
 }
 impl Exchange {
     pub fn new() -> Self {
@@ -192,13 +202,15 @@ impl Exchange {
         let mut token = Writer::new(40);
         token.put(&NUMBER.to_be_bytes()).expect("number");
         token.put(&[7; 32]).expect("random bytes");
-        Self { component, env, out, token: token.finish() }
+        Self { component, env, out, token: token.finish(), via: crate::Via::Listener, source: None }
     }
     pub fn send(&mut self, message: crate::Message) -> Token {
         let owner = self.component.name();
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::Exchange {
+                via: self.via,
+                source: self.source,
                 browser: false,
                 exchange: owner,
                 credential: Some(Secret::new(self.token.clone())),
@@ -209,11 +221,16 @@ impl Exchange {
         owner
     }
     pub fn stream_open(&mut self) -> Token {
+        self.stream_open_version(None)
+    }
+    pub fn stream_open_version(&mut self, version: Option<u32>) -> Token {
         let owner = self.component.name();
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::StreamOpen {
+                version,
                 stream: owner,
+                replaces: None,
                 credential: Some(Secret::new(self.token.clone())),
             }),
             &mut self.out,
@@ -695,7 +712,7 @@ mod answers;
 pub use answers::*;
 impl Exchange {
     pub fn ask(&mut self) -> (Token, ReplyTo) {
-        self.ask_version(26)
+        self.ask_version(jig_client_protocol_wire::VERSION)
     }
     pub fn ask_version(&mut self, version: u32) -> (Token, ReplyTo) {
         let body = keyed(w::Owner::Jig, version, encode_ask(&start(&self.env.limits.wire)));
@@ -774,7 +791,7 @@ pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
     match record {
         w::KeyedAnswer::FinalAnswer(value) => {
             assert_eq!(value.owner(), &w::Owner::Jig);
-            assert_eq!(value.version(), 26);
+            assert_eq!(value.version(), jig_client_protocol_wire::VERSION);
             w::Final::decode(limits, &mut skein_lib::Reader::new(value.record())).expect("jig answer")
         }
         other @ (w::KeyedAnswer::NotServed(_)
@@ -792,7 +809,14 @@ impl Exchange {
         let owner = self.component.name();
         self.component.down(
             &self.env,
-            Event::Transport(crate::FromTransport::Exchange { exchange: owner, credential, browser, message }),
+            Event::Transport(crate::FromTransport::Exchange {
+                exchange: owner,
+                credential,
+                browser,
+                via: self.via,
+                source: self.source,
+                message,
+            }),
             &mut self.out,
         );
         owner
@@ -807,7 +831,9 @@ impl Exchange {
     }
     pub fn approval_sign_in(&mut self, identity: &people::Identity) -> ReplyTo {
         let Some(Request::Core(event)) = self.out.pop() else { panic!("SignIn event") };
-        let core::Event::SignIn { reply_to, identity: given, held } = *event else { panic!("ordinary SignIn") };
+        let core::Event::SignIn { until: None, reply_to, identity: given, held } = *event else {
+            panic!("ordinary SignIn")
+        };
         assert_eq!(&given, identity);
         assert_eq!(held, None);
         reply_to

@@ -2,6 +2,9 @@ use super::*;
 use skein_forge::api::{Answer, Check, JobAttempt, Read, Status, Step};
 use temper_engine_domain_forge_change as change;
 
+#[path = "brief/landing_pin.rs"]
+mod landing_pin;
+
 // temper-service's shipped root.brief.budgets.ci; read_bytes is 4608 and
 // forge.client.answer_bytes exceeds the five-check log share of 819 bytes.
 const SHIPPED_CI: u32 = 4096;
@@ -506,6 +509,7 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
                     name: run_branch(b"51"),
                     task: fixtures::CHANGE,
                     writer: Some(writer),
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -600,6 +604,7 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
                     name: run_branch(b"51"),
                     task: fixtures::CHANGE,
                     writer,
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -871,6 +876,156 @@ fn a_resolutions_files_are_carried_whole_or_named() {
     assert!(failed.is_empty(), "files must be whole or named; failed rows: {:?}", failed.as_slice());
 }
 
+/// The pull reader is exercised with its pinned head and real mode selection.
+fn non_text_pull_section(state: change::State, head: [u8; 32], files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
+    let (mut d, owner) = pending_pull_item(b"Whole body", state, head);
+    let mut pull = fixtures::open_pull();
+    pull.commit = head;
+    pull.base_commit = Some(fixtures::BASE);
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, env().now, &mut out));
+    out.clear();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head, files, more: false, cut: false }),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
+    let Some(Request::BriefClient {
+        event: skein_forge_client::Event::Read { read: Read::Compare { before, after }, .. },
+    }) = out.pop()
+    else {
+        panic!("pull compares: {out:?}")
+    };
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 1, changed: 0 }),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
+    take(&mut d)
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats literal expected file contents")]
+fn a_resolutions_non_text_files_are_named_by_both_blob_ids() {
+    use skein_forge::api::File;
+    type Row = (&'static str, Option<&'static [u8]>, Option<&'static [u8]>, &'static str);
+    let rows: [Row; 8] = [
+        ("added", None, Some(b"\xff\xfe\0\x01"), "absent before, blob addec90a42e64feca765d123e18e4603ed982925 after"),
+        (
+            "replaced",
+            Some(b"hello\n"),
+            Some(b"\xff\xfe\0\x01"),
+            "blob ce013625030ba8dba906f756967f9e9ca394464a before, blob addec90a42e64feca765d123e18e4603ed982925 after",
+        ),
+        ("nul", None, Some(b"a\0b"), "absent before, blob 20b5be91886d0b6f26dc98a225c0dac05fe2c86e after"),
+        (
+            "empty_before",
+            Some(b""),
+            Some(b"\xff\xfe\0\x01"),
+            "blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 before, blob addec90a42e64feca765d123e18e4603ed982925 after",
+        ),
+        (
+            "empty_after",
+            Some(b"\xff\xfe\0\x01"),
+            Some(b""),
+            "blob addec90a42e64feca765d123e18e4603ed982925 before, blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 after",
+        ),
+        (
+            "removed",
+            Some(b"\xff\xfe\0\x01"),
+            None,
+            "blob addec90a42e64feca765d123e18e4603ed982925 before, absent after",
+        ),
+        (
+            "before_nul",
+            Some(b"a\0b"),
+            Some(b"hello\n"),
+            "blob 20b5be91886d0b6f26dc98a225c0dac05fe2c86e before, blob ce013625030ba8dba906f756967f9e9ca394464a after",
+        ),
+        ("past_room", None, Some(&[0; 6000]), "absent before, blob 71bc1246781ceca0fde1d7d10d7ad2af594d67a2 after"),
+    ];
+    for (name, before, after, expected) in rows {
+        let before = match before {
+            Some(bytes) => Some(bytes.into()),
+            None => None,
+        };
+        let after = match after {
+            Some(bytes) => Some(bytes.into()),
+            None => None,
+        };
+        let file = File { path: b"store/log-1".as_slice().into(), before, after };
+        // A named file takes only its own lines' room, leaving the text after it whole.
+        let bytes = resolution_section(Box::new([
+            File { path: b"a".as_slice().into(), before: None, after: Some(b"first\n".as_slice().into()) },
+            file,
+            File {
+                path: b"z".as_slice().into(),
+                before: Some(b"old\n".as_slice().into()),
+                after: Some(b"last\n".as_slice().into()),
+            },
+        ]));
+        let words = text(&bytes);
+        let files = words
+            .split_once("Files and diff:\n")
+            .expect("files")
+            .1
+            .split_once("What landed in the base:")
+            .expect("comparison")
+            .0;
+        let expected = format!(
+            "File: a\nBefore:\n\nAfter:\nfirst\n\nFile: store/log-1\n[not carried, not text: {expected}; read it from the repository]\nFile: z\nBefore:\nold\n\nAfter:\nlast\n\n"
+        );
+        assert_eq!(files, expected, "{name}");
+    }
+}
+
+#[test]
+fn reviews_and_repairs_name_non_text_files_as_resolutions_do() {
+    for state in [
+        change::State::Gating { head: HEAD, asked: Box::new([]) },
+        change::State::Repairing { requested: true, why: change::Repair::Semantic },
+    ] {
+        let bytes = non_text_pull_section(
+            state,
+            HEAD,
+            Box::new([skein_forge::api::File {
+                path: b"store/log-1".as_slice().into(),
+                before: None,
+                after: Some(b"\xff\xfe\0\x01".as_slice().into()),
+            }]),
+        );
+        let files = text(&bytes).split_once("Files and diff:\n").expect("files").1;
+        let files = match files.split_once("Against base:\n") {
+            Some((files, _)) => files,
+            None => files.split_once("What landed in the base:").expect("repair comparison").0,
+        };
+        assert_eq!(
+            files,
+            "File: store/log-1\n[not carried, not text: absent before, blob addec90a42e64feca765d123e18e4603ed982925 after; read it from the repository]\n"
+        );
+    }
+}
+
+#[test]
+fn a_sha256_pinned_head_names_both_sides_with_sha256_blob_ids() {
+    let bytes = non_text_pull_section(
+        change::State::Resolving { requested: true, base: fixtures::BASE },
+        [7; 32],
+        Box::new([skein_forge::api::File {
+            path: b"store/log-1".as_slice().into(),
+            before: Some(Box::new([])),
+            after: Some(b"\xff\xfe\0\x01".as_slice().into()),
+        }]),
+    );
+    assert!(text(&bytes).contains("File: store/log-1\n[not carried, not text: blob 473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813 before, blob da7a3abdb5be5318ce09ac2b9918c3960105c1f74a095cbdb205c47e5b67c274 after; read it from the repository]\n"));
+}
+
 #[test]
 fn a_repairs_pull_section_names_its_pull_request_before_its_contents() {
     let bytes = pull_section(b"Whole body");
@@ -1138,6 +1293,11 @@ fn kept_landing_failure(d: &mut Domain) {
     let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
+        flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: policy::Landing {
             last_left: None,
@@ -1148,6 +1308,7 @@ fn kept_landing_failure(d: &mut Domain) {
             phase: policy::Phase::Cancelled,
             preparation: 1,
             stale_proofs: 0,
+            last_prepare: None,
             branch: b"main".as_slice().into(),
             members: Box::new([policy::Member {
                 round: None,
@@ -1195,6 +1356,7 @@ fn kept_candidate_failure(d: &mut Domain) {
         }]),
         policy::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -1500,7 +1662,7 @@ fn a_job_read_busy_until_the_cutoff_keeps_the_marker() {
     let bytes = take(&mut d);
     let words = text(&bytes);
     assert!(words.contains("Failed check: / changes (pull_request)"));
-    assert!(words.ends_with("[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]\nRepair the failed check.\n"), "{words}");
+    assert!(words.ends_with("[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]\nRepair the failed check.\n"), "{words}");
     d.reclaim();
     brief::retry(&mut d, &mut out);
     assert!(out.is_empty());
@@ -1791,7 +1953,7 @@ fn oversized_files_name_the_count_only_when_the_pull_gave_one() {
         let bytes = take(&mut d);
         let clause = if count.is_some() { "the pull changes 17 files; " } else { "" };
         let notice = format!(
-            "[files omitted from page 1: past forge.client.answer_bytes (4096): 5000 bytes; {clause}read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]\n"
+            "[files omitted from page 1: past forge.client.answer_bytes (4096): 5000 bytes; {clause}read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]\n"
         );
         assert!(text(&bytes).contains(&notice), "{}", text(&bytes));
         assert_eq!(text(&bytes).contains("the pull changes"), count.is_some());
@@ -1852,7 +2014,7 @@ fn busy_files_and_comparison_complete_at_the_cutoff_not_as_busy() {
         let notice = if compare {
             "[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
         } else {
-            "[files cut at the brief's deadline: 0 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
+            "[files cut at the brief's deadline: 0 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
         };
         assert!(text(&bytes).ends_with(notice), "{}", text(&bytes));
         d.reclaim();
@@ -1944,7 +2106,7 @@ fn an_answer_at_the_cutoff_starts_no_next_files_page_or_comparison() {
         assert!(out.is_empty(), "no next read");
         let bytes = take(&mut d);
         assert!(!text(&bytes).contains("too late"));
-        assert!(text(&bytes).contains("[files cut at the brief's deadline: 0 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"));
+        assert!(text(&bytes).contains("[files cut at the brief's deadline: 0 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]"));
     }
 }
 
@@ -2021,7 +2183,7 @@ fn files_cut_count_every_answered_row_and_keep_the_unanswered_page() {
         let bytes = take(&mut d);
         let count = if count.is_some() { "8 of 17" } else { "8" };
         let notice = format!(
-            "[files cut at the brief's deadline: {count} files read; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read_pull_files lists the pull's files]\n"
+            "[files cut at the brief's deadline: {count} files read; read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read_issues what=pull_files lists the pull's files]\n"
         );
         assert!(text(&bytes).ends_with(&notice), "{}", text(&bytes));
     }
@@ -2039,7 +2201,7 @@ fn a_late_pull_identity_completes_with_zero_files_and_the_comparison_it_would_re
         (
             change::State::Gating { head: HEAD, asked: Box::new([]) },
             Some(fixtures::BASE),
-            Some("read_pull_files lists the pull's files"),
+            Some("read_issues what=pull_files lists the pull's files"),
         ),
         (change::State::Repairing { requested: true, why: change::Repair::Ci }, None, None),
     ] {
@@ -2058,7 +2220,7 @@ fn a_late_pull_identity_completes_with_zero_files_and_the_comparison_it_would_re
         assert_cut(&out, SECTION, "files");
         let bytes = take(&mut d);
         let words = text(&bytes);
-        assert!(words.contains("[files cut at the brief's deadline: 0 of 17 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"), "{words}");
+        assert!(words.contains("[files cut at the brief's deadline: 0 of 17 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]"), "{words}");
         if let Some(how) = comparison {
             assert!(words.contains(&format!("[comparison cut at the brief's deadline: not read; {how}]")), "{words}");
         } else {
@@ -2112,7 +2274,7 @@ fn remarks_cut_counts_answered_reviews_and_never_claims_no_remarks() {
             ));
             let bytes = take(&mut d);
             let words = text(&bytes);
-            assert!(words.contains(&format!("[remarks cut at the brief's deadline: {read} of 2 reviews' remarks read; read_remarks reads a review's remarks]")), "{words}");
+            assert!(words.contains(&format!("[remarks cut at the brief's deadline: {read} of 2 reviews' remarks read; read_issues what=remarks reads a review's remarks]")), "{words}");
             assert!(!words.contains("gave no remarks"), "{words}");
         }
     }
@@ -2183,7 +2345,7 @@ fn job_cut_keeps_read_logs_and_marks_every_remaining_failed_check() {
         assert_eq!(words.matches("Failed check:").count(), 3, "{words}");
         assert_eq!(
             words
-                .matches("[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]")
+                .matches("[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]")
                 .count(),
             2,
             "{words}"

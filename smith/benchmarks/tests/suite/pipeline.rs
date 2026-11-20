@@ -3,10 +3,12 @@ use std::fs;
 use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
+use smith_bench::End;
+#[cfg(target_os = "linux")]
+use smith_bench::Measure;
 use smith_bench::guard::Guard;
 use smith_bench::isolate::Machine;
 use smith_bench::run::{Request, attempt, scratch_root};
-use smith_bench::{End, Measure};
 
 /// No test here proves these bounds; the answer, exit or grader verdict each expects comes first.
 const HANG_GUARD_SECONDS: u64 = 30;
@@ -60,6 +62,8 @@ disk_estimate_bytes: 65536,
     (guard, machine, scratch, prepared)
 }
 
+// An attempt copies caches by GNU cp --reflink and reads the shared temporary directory's owner through /proc/self.
+#[cfg(target_os = "linux")]
 #[test]
 fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer() {
     let (guard, machine, scratch_directory, prepared) = fixture("archives");
@@ -146,6 +150,8 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
     assert_eq!(judgment.stdout, b"crash-evidence");
 }
 
+// An attempt copies caches by GNU cp --reflink and reads the shared temporary directory's owner through /proc/self.
+#[cfg(target_os = "linux")]
 #[test]
 fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     use std::os::unix::fs::PermissionsExt;
@@ -200,6 +206,7 @@ fn an_existing_scratch_root_is_refused_and_never_deleted() {
     assert_eq!(fs::read_to_string(scratch.join("sentinel")).expect("retained original"), "keep");
 }
 
+#[cfg(target_os = "linux")]
 fn check_replay_judgments(result: &smith_bench::AttemptResult) {
     assert!(
         result

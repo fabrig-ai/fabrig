@@ -1,5 +1,5 @@
 //! A fresh `ChatGPT` sign-in and the native chat/change stories on real Responses.
-use super::{Process, Seen, forgejo::Throwaway, person, write_private};
+use super::{Process, Seen, forgejo::Throwaway, person};
 use jig_protocol_store::{codec, transcripts};
 use serde_json::Value;
 use skein_io::kernel::Signal;
@@ -16,13 +16,13 @@ use temper_box_shell::directories::jig_directories;
 
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
-    let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = super::limit_settings::configuration(directory);
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
-    value["engine"]["llm"] = owned["engine"]["llm"].clone();
-    value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
-    let agent_path = directory.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(super::owned::SHIPPED[0].1).expect("owned agent JSON");
+    let providers = temper_agent_fixtures::providers::input(&mut value);
+    providers["providers"].as_array_mut().expect("providers").retain(|provider| provider["number"] == 1);
+    providers["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["provider"] == "openai");
+    value.jig_over("documents.rows", 32);
+    let mut agent: Value = temper_agent_fixtures::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {
         let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
             std::env::split_paths(&path).map(|directory| directory.join("claude")).find(|program| program.is_file())
@@ -35,8 +35,6 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         }
     }
     agent["profile"]["policy"]["max_turns"] = 16.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
     let scripts = super::landing_scripts(super::ANSWER, forge);
     let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &scripts[0].turns[0].lines[0] else {
         panic!("the process fixture delegates the coding procedure");
@@ -49,9 +47,9 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         For a change review task, finish with {{\"form\":\"verdict\",\"label\":\"1\",\"text\":\"Checked\",\"fields\":{{}},\"items\":[]}}.",
         std::str::from_utf8(arguments).expect("delegate JSON").replace("@coding", "\\u0040coding")
     );
-    super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent JSON"));
+    super::configuration::use_derived(&mut value);
+    super::limit_settings::remember(directory, &value);
+    temper_agent_fixtures::install(directory, &agent);
     instructions
 }
 
@@ -244,7 +242,7 @@ impl Judge<'_> {
 // Sign-in/account setup, inventory, charter/template reads and one settings change.
 const SETUP_CALLS: usize = 8;
 fn sign_in_within() -> Duration {
-    jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).driver.client.sign_in_time
+    jig_protocol_config_fixtures::small().driver.client.sign_in_time
 }
 impl Judge<'_> {
     fn drive(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
@@ -382,7 +380,6 @@ pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Du
                     let charter = super::ctl::json(&calls[5]);
                     let mut value = charter["value"].clone();
                     value["turns"] = 5.into();
-                    value["time"] = 240_000_000_000_u64.into();
                     value["instructions"] = instructions.into();
                     let template = super::ctl::json(&calls[6]);
                     let mut recipe = template["value"].clone();
@@ -471,7 +468,8 @@ pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
 
 fn count_completions(config: &Path, directories: &temper_box_shell::directories::Directories) -> Result<u32, String> {
     use std::os::unix::ffi::OsStrExt;
-    let value = fs::read(config.join("temper.json")).map_err(|error| format!("configuration: {error:?}"))?;
+    let value =
+        super::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
     let document = jig_protocol_config::document(
         &value,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
@@ -508,7 +506,7 @@ fn count_completions(config: &Path, directories: &temper_box_shell::directories:
     Ok(count)
 }
 
-/// Redact link secrets and structured credential values before diagnostic output.
+/// Redact link secrets, API headers, Anthropic keys and structured credentials before diagnostic output.
 #[must_use]
 pub fn redact(text: &str) -> String {
     let mut output = text.to_owned();
@@ -549,6 +547,29 @@ pub fn redact(text: &str) -> String {
                 at = value + "\"…\"".len();
             }
         }
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].to_ascii_lowercase().find("x-api-key:") {
+        let header = at + found + "x-api-key:".len();
+        let start = output.len() - output[header..].trim_start().len();
+        let end = output[start..]
+            .find(|c: char| c.is_whitespace() || matches!(c, '&' | '"' | '\'' | '<' | '>'))
+            .map_or(output.len(), |n| start + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].find("sk-ant-") {
+        let start = at + found;
+        at = start + "sk-ant-".len();
+        if output[..start].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let end = output[at..]
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+            .map_or(output.len(), |n| at + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
     }
     output
 }

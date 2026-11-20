@@ -164,7 +164,7 @@ fn forge_text(
     word: temper_client_domain::forge::words::ChangeWord,
     holes: &[skein_ui::phrases::Hole],
 ) -> Box<[u8]> {
-    words.book.say(words.language, word.id(words.connector), holes).expect("checked forge phrase").text
+    words.book().say(words.language, word.id(words.connector), holes).expect("checked forge phrase").text
 }
 
 fn heading(b: &mut Builder, text: &[u8]) {

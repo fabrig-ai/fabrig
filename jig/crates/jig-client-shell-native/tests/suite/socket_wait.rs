@@ -66,12 +66,14 @@ impl Process {
     fn new(root: Option<Fd>, deadline: Duration) -> Self {
         let shell = root.map(|root| {
             let mut shell = Shell::new(Settings {
-                engine: address(),
+                mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+                engine: jig_client_shell_native::Engine::Plain(address()),
                 directory: b"private".as_slice().into(),
                 limits: Limits {
                     exchanges: EXCHANGES,
                     body_bytes: 128,
                     deadline,
+                    tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
                     http: skein_http::client::Limits { head: ROOM, headers: 8, request: ROOM, read: 64, send: 64 },
                 },
                 io: io_limits(),
@@ -168,7 +170,11 @@ impl Host for Process {
             shell.iterate(now, wall);
             if !self.started && shell.loaded().is_some() {
                 self.started = true;
-                shell.down(client::Request::OpenStream { credential: None });
+                shell.down(client::Request::OpenStream {
+                    credential: None,
+                    replaces: None,
+                    version: jig_client_protocol_wire::VERSION,
+                });
                 Self::exchange(shell, 1);
             }
             while let Some(event) = shell.events().pop() {
@@ -191,7 +197,8 @@ impl Host for Process {
                     other @ (client::Event::Start { .. }
                     | client::Event::StartUnlinked { .. }
                     | client::Event::SignIn { .. }
-                    | client::Event::AskApproval
+                    | client::Event::AskLink
+                    | client::Event::AskApproval { .. }
                     | client::Event::ReadApproval { .. }
                     | client::Event::DecideApproval { .. }
                     | client::Event::ApprovalAnswer { .. }
@@ -200,6 +207,8 @@ impl Host for Process {
                     | client::Event::SignOutLost
                     | client::Event::Watch { .. }
                     | client::Event::Unwatch { .. }
+                    | client::Event::Part { .. }
+                    | client::Event::Done { .. }
                     | client::Event::Read { .. }
                     | client::Event::Send { .. }
                     | client::Event::Carry { .. }

@@ -23,13 +23,18 @@ pub fn mount() -> Mount {
     prefixed(b"/jig")
 }
 pub fn fresh_mount() -> Mount {
-    Mount::new(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None }, &env().limits)
+    Mount::new(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), page: None, public: None }, &env().limits)
 }
 pub fn public_mount() -> Mount {
-    listening(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: Some(Box::from(PUBLIC)) })
+    listening(Settings {
+        max_age: 5,
+        prefix: Box::from(b"/jig".as_slice()),
+        page: None,
+        public: Some(Box::from(PUBLIC)),
+    })
 }
 pub fn prefixed(prefix: &[u8]) -> Mount {
-    listening(Settings { max_age: 5, prefix: Box::from(prefix), public: None })
+    listening(Settings { max_age: 5, prefix: Box::from(prefix), page: None, public: None })
 }
 fn listening(settings: Settings) -> Mount {
     let mut mount = Mount::new(settings, &env().limits);
@@ -104,7 +109,11 @@ pub fn call_named(
 ) -> Token {
     mount.down(
         &env(),
-        Event::Call { call: name, head: head(method, target, headers, http::Body::Length(len_u64(body.len()))) },
+        Event::Call {
+            peer: None,
+            call: name,
+            head: head(method, target, headers, http::Body::Length(len_u64(body.len()))),
+        },
     );
     pump(mount, out);
     if !body.is_empty() {
@@ -214,7 +223,7 @@ pub fn cookie_header() -> skein_http::Header {
     }
 }
 pub fn signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     let answer = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
             &w::CEILINGS,
@@ -245,8 +254,8 @@ pub fn sign_in_reply(path: &[u8], token: &[u8; 40], expires: u64) -> kit::Reply 
         signed_in_reply(token, expires)
     }
 }
-pub fn signed_in(path: &[u8], bytes: &[u8]) -> jig_client_protocol_wire::v26::SignedIn {
-    use jig_client_protocol_wire::v26 as w;
+pub fn signed_in(path: &[u8], bytes: &[u8]) -> jig_client_protocol_wire::SignedIn {
+    use jig_client_protocol_wire as w;
     if path == b"/jig/v1/sign-in/approval" {
         let w::ApprovalSignInAnswer::SignedIn(value) =
             w::ApprovalSignInAnswer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("approval answer")

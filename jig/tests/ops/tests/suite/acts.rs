@@ -14,9 +14,10 @@ fn provisioning(granted: bool) -> Harness<Ops> {
 }
 
 fn provisioning_with(config: &Config) -> Harness<Ops> {
-    let mut world = Harness::<Ops>::new(*config, 915);
+    let mut world = Harness::<Ops>::new(config.clone(), 915);
     world.drain().expect("ops startup");
     world.send(root::Event::Core(core::Event::SignIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(601)),
         identity: people::Identity {

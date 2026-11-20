@@ -200,10 +200,13 @@ pub enum PersonAction {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
     Model(u32),
+    Worker(u32),
+    Provider(u32),
     Charter(u32),
     Template(u32),
     Policy(u32),
     Rules,
+    Limits,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingEdit {

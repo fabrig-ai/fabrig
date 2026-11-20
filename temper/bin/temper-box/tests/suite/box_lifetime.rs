@@ -1,6 +1,10 @@
 //! The box and its running steps end together (temper/docs/design/protocol/setup/testing.md, 1).
 use crate::box_link;
-use crate::support::{boxed, parent};
+use crate::support::{
+    boxed,
+    forge_land::{assert_cached_binary_unchanged, cache_forgejo_binaries},
+    parent, without_secrets,
+};
 use std::{fs, process::Stdio};
 
 fn listening(boxed: &mut box_link::Boxed) {
@@ -21,6 +25,8 @@ fn listening(boxed: &mut box_link::Boxed) {
     }
     let signed_in = sign_in.wait_with_output().expect("sign-in outcome");
     assert!(signed_in.status.success(), "{}", String::from_utf8_lossy(&signed_in.stderr));
+    // --playground copies the playground into an owned Forgejo, whose fetch must stay local.
+    let (binaries, sources) = cache_forgejo_binaries(&boxed.root().join("cache"));
     let setup = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("ctl")
         .arg(boxed.root().join("client"))
@@ -28,7 +34,14 @@ fn listening(boxed: &mut box_link::Boxed) {
         .stdin(Stdio::null())
         .output()
         .expect("start playground steps");
-    assert!(setup.status.success(), "{}", String::from_utf8_lossy(&setup.stderr));
+    if !setup.status.success() {
+        let fetch_log = fs::read(boxed.root().join("data/box/logs/fetch-1.log"))
+            .unwrap_or_else(|why| format!("fetch-1 log unavailable: {why}").into_bytes());
+        panic!("{}\nfetch-1:\n{}", without_secrets(&setup.stderr), without_secrets(&fetch_log));
+    }
+    for (binary, source) in binaries.iter().zip(&sources) {
+        assert_cached_binary_unchanged(binary, source);
+    }
 }
 fn exited(boxed: &mut box_link::Boxed) -> std::process::ExitStatus {
     let mut status = None;

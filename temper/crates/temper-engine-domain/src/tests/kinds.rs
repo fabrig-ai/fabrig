@@ -1,10 +1,12 @@
 //! The root's typed settings routes (temper/docs/design/domain/routing.md, 6;
 //! temper/docs/design/protocol/configuration/settings.md, 2).
+mod limit_reads;
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::Env;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_forge::{self as forge, settings};
 
 const PROJECT: u32 = 1;
@@ -673,16 +675,26 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
     assert!(domain.core.people.start_complete(&people_env));
     (domain, env)
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the fixture handles store acknowledgements and one party read answer"
-)]
 fn read_forge(
     domain: &mut Domain,
     env: &Env<RootLimits>,
     sign_in: u64,
     scope: jig_domain_people::ApplicationScope,
     query: crate::ForgeRead,
+) -> Delivery {
+    read_forge_with_revision(domain, env, sign_in, scope, query, None)
+}
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the fixture handles store acknowledgements and one party read answer"
+)]
+fn read_forge_with_revision(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
+    query: crate::ForgeRead,
+    revision: Option<&jig_domain_core::settings::Revision>,
 ) -> Delivery {
     crate::try_step(
         domain,
@@ -702,7 +714,28 @@ fn read_forge(
                         env,
                         crate::Event::Store(crate::StoreInput::ReadLoaded {
                             load,
-                            result: jig_domain_core::reads::Loaded::Page { rows: Box::new([]), next: None },
+                            result: jig_domain_core::reads::Loaded::Page {
+                                rows: match revision {
+                                    None => Box::from([]),
+                                    Some(revision) => Box::from([jig_domain_core::reads::Row {
+                                        value: jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+                                            jig_domain_core::settings::Record::Revision {
+                                                history: false,
+                                                revision: revision.clone(),
+                                            },
+                                        )),
+                                        owner: None,
+                                        summary: None,
+                                        ancestors: Box::new([]),
+                                        related: None,
+                                        unjoined: None,
+                                        ended_read: None,
+                                        linked: Box::new([]),
+                                        inbox: None,
+                                    }]),
+                                },
+                                next: None,
+                            },
                         }),
                     )
                     .unwrap();
@@ -761,7 +794,10 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
             };
             assert_eq!(
                 read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
-                Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(expected) }
+                Delivery::ForgeRead {
+                    reply: READ_REPLY,
+                    answer: crate::ForgeReadAnswer::Setting { value: expected, revision: None }
+                }
             );
         }
         assert_eq!(
@@ -772,8 +808,164 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
                 ApplicationScope::Deployment,
                 crate::ForgeRead::Setting { kind, scope: 0, number: RULE + 1 }
             ),
-            Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(None) }
+            Delivery::ForgeRead {
+                reply: READ_REPLY,
+                answer: crate::ForgeReadAnswer::Setting { value: None, revision: None }
+            }
         );
+    }
+}
+
+#[test]
+fn a_revision_setting_answer_names_the_revision_it_read() {
+    use jig_domain_core::settings::{self as s, application as a};
+    use jig_domain_people::{ApplicationScope, Role};
+    for has_value in [false, true] {
+        let (mut domain, env) = reader_in(Some(Role::Member), PROJECT);
+        let revision = domain.core.current.newest();
+        domain.forge.keep_settings(
+            &crate::translate::environment_forge(&env),
+            u64::from(revision),
+            None,
+            &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Set(ways(0)) }],
+            &mut Queue::uncapped(),
+        );
+        let record = s::Revision {
+            head: domain.core.current.newest_head().clone(),
+            items: Box::new([]),
+            applications: if has_value {
+                Box::from([a::RevisionRecorded {
+                    kind: 7,
+                    scope: PROJECT,
+                    number: 1,
+                    edit: a::SizedEdit::Set { size: 7 },
+                    replaced: a::Replaced::NotOffered,
+                }])
+            } else {
+                Box::from([])
+            },
+        };
+        assert_eq!(
+            read_forge_with_revision(
+                &mut domain,
+                &env,
+                READ_SIGN_IN,
+                ApplicationScope::Project(PROJECT),
+                crate::ForgeRead::RevisionSetting { kind: 7, scope: PROJECT, number: 1, revision },
+                Some(&record),
+            ),
+            Delivery::ForgeRead {
+                reply: READ_REPLY,
+                answer: crate::ForgeReadAnswer::Setting {
+                    value: if has_value { Some(ways(0)) } else { None },
+                    revision: Some(revision),
+                },
+            }
+        );
+    }
+}
+
+#[test]
+fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
+    use jig_domain_core::settings::{self as s, Kind, KindScope};
+    use jig_domain_people::{self as people, ApplicationScope};
+    let mut config = resume_fixture::config(7);
+    config.core.kinds = Box::new([
+        Kind { number: 7, scope: KindScope::Project, connector: 0, value_bytes: 7, per_scope: 1, charters: 0 },
+        Kind { number: 6, scope: KindScope::Project, connector: 0, value_bytes: 1, per_scope: 1, charters: 0 },
+    ]);
+    config.kinds_stock = Box::new([settings::Stock { kind: 7, scope: PROJECT, number: 1, value: ways(0) }]);
+    let identity = config.core.owners[0].identity.clone();
+    let limits = resume_fixture::limits();
+    let mut domain = Domain::new(config, &limits).unwrap();
+    let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
+    crate::step(&mut domain, &env, crate::Event::Restart { pending: false });
+    resume_fixture::StartStore::new().run(&mut domain, &env, false);
+    let people::Reply::SignedIn { sign_in, .. } = room_checks::settled(
+        &mut domain,
+        &env,
+        crate::PartyInput::SignedIn {
+            until: None,
+            held: None,
+            reply_to: READ_REPLY,
+            identity: people::Identity { key: identity, login: Box::new([]), name: Box::new([]) },
+        },
+    ) else {
+        panic!("the configured owner signs in")
+    };
+    let setting = s::Setting::Application { kind: 7, scope: PROJECT, number: 1 };
+    let query = crate::ForgeRead::Setting { kind: 7, scope: PROJECT, number: 1 };
+    let read = |domain: &mut Domain, expected, revision| {
+        let inventory = jig_domain_core::documents::settings_inventory(&domain.core);
+        let mut found = None;
+        for line in &inventory.settings {
+            if line.setting == setting {
+                found = Some(line);
+            }
+        }
+        assert_eq!(found.expect("kind 7 inventory line").last, revision);
+        assert_eq!(
+            read_forge(domain, &env, sign_in, ApplicationScope::Project(PROJECT), query.clone()),
+            Delivery::ForgeRead {
+                reply: READ_REPLY,
+                answer: crate::ForgeReadAnswer::Setting { value: expected, revision }
+            }
+        );
+        domain.reclaim();
+    };
+    read(&mut domain, Some(ways(0)), None);
+    let changed = settings::SizedValue {
+        size: 7,
+        value: settings::Value::Ways(settings::ProjectWays { drafts: false, goals: true, changes: true, way: 0 }),
+    };
+    for (key, kind, edit, expected, revision) in [
+        (1, 7, settings::Edit::Set(changed.clone()), Some(changed.clone()), Some(2)),
+        (
+            2,
+            6,
+            settings::Edit::Set(settings::SizedValue {
+                size: 1,
+                value: settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
+            }),
+            Some(changed),
+            Some(2),
+        ),
+        (3, 7, settings::Edit::Remove, None, Some(4)),
+        (4, 7, settings::Edit::Reset, Some(ways(0)), None),
+    ] {
+        let core_edit = match &edit {
+            settings::Edit::Set(_) => s::Edit::Set(s::Value::Application(Box::new([]))),
+            settings::Edit::Remove => s::Edit::Removed,
+            settings::Edit::Reset => s::Edit::Reset,
+        };
+        let kinds = match edit {
+            settings::Edit::Set(value) => Box::from([KindValue { kind, scope: PROJECT, number: 1, value }]),
+            settings::Edit::Remove | settings::Edit::Reset => Box::from([]),
+        };
+        let against = domain.core.current.newest();
+        assert_eq!(
+            room_checks::settled(
+                &mut domain,
+                &env,
+                crate::PartyInput::ChangeSettings {
+                    reply_to: READ_REPLY,
+                    sign_in,
+                    key: [key; 16],
+                    digest: [key; 32],
+                    kinds,
+                    change: Box::new(s::Change {
+                        against,
+                        items: Box::new([s::Item {
+                            setting: s::Setting::Application { kind, scope: PROJECT, number: 1 },
+                            edit: core_edit
+                        }]),
+                        running: s::Running::Stays
+                    }),
+                }
+            ),
+            jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::SettingsChanged { revision: against + 1 })
+        );
+        read(&mut domain, expected, revision);
     }
 }
 
@@ -843,6 +1035,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
             contexts: Box::new([]),
+            landing: b"main".as_slice().into(),
             workflows: Box::default(),
             project: PROJECT,
             home: true,
@@ -984,7 +1177,7 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         out.pop(),
         Some(crate::Request::Party(crate::PartyRequest::Deliver(Delivery::ForgeRead {
             reply: READ_REPLY,
-            answer: crate::ForgeReadAnswer::Setting(Some(rule(false))),
+            answer: crate::ForgeReadAnswer::Setting { value: Some(rule(false)), revision: None },
         })))
     );
     assert!(out.is_empty());
@@ -1114,13 +1307,16 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                 &[settings::Asked { kind, scope: query_scope, number: 1, edit: settings::Edit::Set(value.clone()) }],
                 &mut Queue::uncapped(),
             );
-            for (query, read_value) in [
-                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value)),
-                (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None),
+            for (query, read_value, revision) in [
+                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value), None),
+                (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None, None),
             ] {
                 let answer = read_forge(&mut domain, &env, READ_SIGN_IN, scope, query);
                 let expected = if good {
-                    Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(read_value) }
+                    Delivery::ForgeRead {
+                        reply: READ_REPLY,
+                        answer: crate::ForgeReadAnswer::Setting { value: read_value, revision },
+                    }
                 } else {
                     Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
                 };
@@ -1225,6 +1421,7 @@ fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repos
             squash: false,
             rebase: false,
         },
+        landing: if role == forge::Role::Context { b"main".as_slice().into() } else { b"stable".as_slice().into() },
         workflows: Box::new([]),
     }
 }
@@ -1503,7 +1700,10 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
     value.target.branch = Box::new([]);
     value.producer = Some(Box::new([]));
     let expected = follow_value();
-    let size = settings::follow_record(&expected).unwrap().measure();
+    let size = settings::follow_record(&expected)
+        .unwrap()
+        .measure(&temper_client_protocol_wire::v1::CEILINGS)
+        .expect("within ceilings");
     assert_eq!(
         judge_follow(&mut domain, &env, 1, value.clone()),
         connector::Judged::Accept { size, charters: Box::new([]) }
@@ -1569,10 +1769,10 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
                 read,
                 Delivery::ForgeRead {
                     reply: READ_REPLY,
-                    answer: crate::ForgeReadAnswer::Setting(Some(settings::SizedValue {
-                        value: settings::Value::Follow(expected.clone()),
-                        size
-                    }))
+                    answer: crate::ForgeReadAnswer::Setting {
+                        value: Some(settings::SizedValue { value: settings::Value::Follow(expected.clone()), size }),
+                        revision: None
+                    }
                 }
             );
         } else {
@@ -1751,4 +1951,260 @@ fn a_tier_act_admits_only_project_or_deployment_owners_and_carries_the_party() {
         }
         crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
     }
+}
+
+fn judge_landing_value(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    kind: u32,
+    scope: u32,
+    value: settings::Value,
+) -> connector::Judged {
+    let size = if let settings::Value::Landing(v) = &value {
+        settings::landing_record(v).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")
+    } else {
+        let settings::Value::Gates(v) = &value else { panic!("landing setting fixture") };
+        settings::gates_record(v).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")
+    };
+    domain.kinds = Box::new([KindValue { kind, scope, number: 1, value: settings::SizedValue { value, size } }]);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    judge(
+        domain,
+        env,
+        &mut decision,
+        None,
+        Box::new([application::Item { kind, scope, number: 1, edit: application::Edit::Set(Box::new([])) }]),
+    );
+    let answer = answer(domain)[0].clone();
+    crate::domain::close(domain, env, decision, &mut Queue::uncapped());
+    answer
+}
+#[test]
+fn turn_settings_need_the_prepare_jobs_configured_capacity() {
+    for (spec, result, field) in [
+        (16_383, 4_096, Some(b"tasks.spec_bytes".as_slice())),
+        (16_384, 4_095, Some(b"tasks.result_bytes".as_slice())),
+        (16_384, 4_096, None),
+    ] {
+        let (mut domain, env) = root();
+        domain.config.prepare_capacity = (spec, result);
+        domain.config.turn_capacity = None; // This focused case admits the other turn resources.
+        domain.config.prepare_kind = Some(jig_domain_link::JobBound {
+            kind: jig_domain_link::JobKind(1),
+            spec: 16_384,
+            result: 4_096,
+            deadline: skein_lib::Duration::from_secs(60),
+        });
+        let value = settings::Value::Landing(settings::ProjectLanding {
+            by: temper_engine_domain_forge_change::Way::Turn,
+            ..settings::ProjectLanding::default()
+        });
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, value);
+        if let Some(field) = field {
+            let connector::Judged::Refuse { why } = judged else { panic!("short prepare capacity must refuse") };
+            assert!(skein_lib::bytes::find(&why, field).is_some());
+            assert!(skein_lib::bytes::find(&why, b"prepare job kind 1").is_some());
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("valid landing setting accepted") };
+        }
+        let connector::Judged::Accept { .. } = judge_landing_value(
+            &mut domain,
+            &env,
+            4,
+            PROJECT,
+            settings::Value::Landing(settings::ProjectLanding::default()),
+        ) else {
+            panic!("queue needs no prepare")
+        };
+    }
+}
+#[test]
+fn gates_settings_name_a_repository_of_another_project() {
+    for project in [1, 2] {
+        let (mut domain, env) = follow_root();
+        let value = settings::Value::Gates(settings::ProjectGates {
+            repositories: Box::new([forge::RepositoryGates {
+                repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+                gates: Box::new([]),
+                tiers: Box::new([]),
+            }]),
+        });
+        let judged = judge_landing_value(&mut domain, &env, 5, project, value);
+        if project == 1 {
+            let connector::Judged::Refuse { why } = judged else { panic!("repository belongs to project 2") };
+            assert!(skein_lib::bytes::find(&why, b"repository 1/12 is not of project 1").is_some());
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("valid landing setting accepted") };
+        }
+    }
+}
+
+fn repairs_setting() -> settings::ProjectLanding {
+    settings::ProjectLanding {
+        wait: temper_engine_domain_forge_change::Wait::Landed,
+        repairs: Some(settings::RepairSettings {
+            goals: 2,
+            attempts: 2,
+            deadline_ms: 86_400_000,
+            goal: settings::RepairGoalSettings {
+                charter: 1,
+                llm: Some(settings::NamedLlm {
+                    account: Some(9),
+                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None },
+                    subagents: Box::new([]),
+                    later: None,
+                }),
+                priority: 42,
+                budget: 2_000_000,
+            },
+        }),
+        ..settings::ProjectLanding::default()
+    }
+}
+fn repairs_config() -> crate::Config {
+    let mut config = resume_fixture::config(7);
+    let first = resume_fixture::models()[0].clone();
+    let mut other = first.clone();
+    other.name = b"other".as_slice().into();
+    // Deliberately reordered: a kept name must resolve to the new catalogue index.
+    config.core.settings.models = Box::new([other, first]);
+    config
+}
+fn repairs_root() -> (Domain, Env<RootLimits>) {
+    resume_fixture::root_with_config(repairs_config())
+}
+#[test]
+fn repair_proposals_check_the_deployments_charter_models_efforts_and_budget() {
+    for (charter, model, effort, budget, expected) in [
+        (
+            99,
+            b"scripted".as_slice(),
+            None,
+            2_000_000,
+            Some(b"repairs.goal.charter: not offered by the deployment or charter".as_slice()),
+        ),
+        (1, b"gone", None, 2_000_000, Some(b"repairs.goal.llm: not offered by the deployment or charter")),
+        (1, b"other", None, 2_000_000, Some(b"repairs.goal.llm: not offered by the deployment or charter")),
+        (
+            1,
+            b"scripted",
+            Some(b"unknown".as_slice()),
+            2_000_000,
+            Some(b"repairs.goal.llm: not offered by the deployment or charter"),
+        ),
+        (1, b"scripted", None, 1, Some(b"repairs.goal.budget: must be above minimum_run_spend")),
+        (1, b"scripted", None, 2, None),
+    ] {
+        let (mut domain, env) = repairs_root();
+        let mut value = repairs_setting();
+        let goal = &mut value.repairs.as_mut().unwrap().goal;
+        goal.charter = charter;
+        goal.budget = budget;
+        let llm = goal.llm.as_mut().unwrap();
+        llm.main.model = model.into();
+        llm.main.effort = match effort {
+            Some(effort) => Some(Box::from(effort)),
+            None => None,
+        };
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, settings::Value::Landing(value));
+        if let Some(expected) = expected {
+            let connector::Judged::Refuse { why } = judged else { panic!("incomplete repairs refused") };
+            assert_eq!(why.as_ref(), expected);
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("whole repairs accepted") };
+        }
+    }
+}
+fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (Domain, Env<RootLimits>) {
+    let mut limits = resume_fixture::limits();
+    limits.tasks.spec_bytes = spec;
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
+    limits.loads.bytes = limits.loads.bytes.max(65_536);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
+    let mut domain = Domain::new(repairs_config(), &limits).unwrap();
+    let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut store = resume_fixture::StartStore::new();
+    if let Some(landing) = landing {
+        let value = settings::SizedValue {
+            size: settings::landing_record(&landing)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
+            value: settings::Value::Landing(landing),
+        };
+        let row = Record::Forge {
+            row: Box::new(forge::Stored::Setting(settings::SettingRow {
+                key: settings::SettingKey { kind: 4, scope: PROJECT, number: 1, slot: settings::SettingSlot::Change },
+                edit: settings::Edit::Set(value),
+            })),
+        };
+        store.rows.insert(row.key(), row);
+    }
+    crate::step(&mut domain, &env, crate::Event::Restart { pending: false });
+    store.run(&mut domain, &env, false);
+    assert!(domain.ready());
+    assert_eq!(domain.start_stop(), None, "incomplete repairs never stop a start");
+    (domain, env)
+}
+fn keep_repairs(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
+    let value = settings::SizedValue {
+        size: settings::landing_record(&landing)
+            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings"),
+        value: settings::Value::Landing(landing),
+    };
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(env),
+        2,
+        None,
+        &[settings::Asked { kind: 4, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
+        &mut Queue::uncapped(),
+    );
+}
+#[test]
+fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping() {
+    for (charter, model, spec, expected) in [
+        (99, b"gone".as_slice(), 8_191, Some(b"repairs are off in project 1: goal.charter".as_slice())),
+        (1, b"gone", 8_191, Some(b"repairs are off in project 1: goal.llm")),
+        (1, b"scripted", 8_191, Some(b"repairs are off in project 1: tasks.spec_bytes")),
+        (1, b"scripted", 8_192, None),
+    ] {
+        let mut landing = repairs_setting();
+        let goal = &mut landing.repairs.as_mut().unwrap().goal;
+        goal.charter = charter;
+        goal.llm.as_mut().unwrap().main.model = model.into();
+        let (domain, _) = start_with_repairs(Some(landing.clone()), spec);
+        if let Some(expected) = expected {
+            assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), expected);
+        } else {
+            let held = domain.forge.project_repairs(PROJECT).unwrap();
+            assert_eq!((held.goals, held.attempts, held.deadline_ms), (2, 2, 86_400_000));
+            assert_eq!((held.goal.charter, held.goal.priority, held.goal.budget), (1, 42, 2_000_000));
+            assert_eq!(held.goal.llm.as_ref().unwrap().main.model, 1, "resolved by name, not old position");
+            assert_eq!(held.goal.llm.as_ref().unwrap().account, Some(9));
+        }
+        assert_eq!(domain.forge.landing_settings(PROJECT), Some(&landing), "taken setting is kept even when off");
+    }
+    let (domain, _) = start_with_repairs(None, 8_192);
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+}
+#[test]
+fn accepted_repair_settings_wait_for_the_next_start() {
+    let (mut domain, mut env) = repairs_root();
+    env.limits.tasks.spec_bytes = 8_192;
+    let landing = repairs_setting();
+    let connector::Judged::Accept { .. } =
+        judge_landing_value(&mut domain, &env, 4, PROJECT, settings::Value::Landing(landing.clone()))
+    else {
+        panic!("whole repairs accepted")
+    };
+    keep_repairs(&mut domain, &env, landing.clone());
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+    let (mut domain, env) = start_with_repairs(Some(landing), 8_192);
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap().goal.priority, 42);
+    // Saving an off setting does not change this start's resolved repairs either.
+    keep_repairs(&mut domain, &env, settings::ProjectLanding::default());
+    domain.forge.project_repairs(PROJECT).expect("this start still holds its repairs");
+    let (domain, _) = start_with_repairs(Some(settings::ProjectLanding::default()), 8_192);
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
 }

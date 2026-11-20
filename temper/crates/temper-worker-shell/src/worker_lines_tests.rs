@@ -3,6 +3,88 @@ use temper_worker_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone a
 
 const BINARY: &str = "temper-worker";
 
+/// domain/worker/README.md, 4.3: sources, destinations and names stay on one line.
+#[test]
+fn git_fetch_words_name_each_source_and_destination() {
+    use temper_worker_domain::{
+        Git,
+        checkout::git::{Commit, Into, Want},
+    };
+    let mut sha1 = [0; 32];
+    sha1[..20].fill(0xab);
+    for (repository, want, into, expected) in [
+        (
+            b"app".as_slice(),
+            Want::Branch { branch: b"main".as_slice().into() },
+            Into::Fetched,
+            "temper worker: run 81 attempt 2 fetch app branch main into fetched\n",
+        ),
+        (
+            b"app".as_slice(),
+            Want::Commit { commit: Commit::new(sha1) },
+            Into::Fetched,
+            "temper worker: run 81 attempt 2 fetch app commit abababababababababababababababababababab into fetched\n",
+        ),
+        (
+            b"app".as_slice(),
+            Want::Default,
+            Into::Landing,
+            "temper worker: run 81 attempt 2 fetch app default into landing\n",
+        ),
+        (
+            b"app\n\x01\xff".as_slice(),
+            Want::Branch { branch: b"main\n\x00\xc3\xa9".as_slice().into() },
+            Into::Fetched,
+            "temper worker: run 81 attempt 2 fetch app\\n\\x01\\xff branch main\\n\\x00\\xc3\\xa9 into fetched\n",
+        ),
+    ] {
+        let note = worker::Note::Git {
+            run: 81,
+            attempt: 2,
+            job: None,
+            repository: repository.into(),
+            what: Git::Fetch { want, into },
+        };
+        assert_eq!(worker_note_words("temper", note), expected);
+    }
+}
+
+/// protocol/git.md, section 3: SHA-1 padding is omitted, SHA-256 is not shortened.
+#[test]
+fn git_check_out_words_name_the_job_and_full_commit() {
+    use temper_worker_domain::{Git, checkout::git::Commit};
+    let mut sha1 = [0; 32];
+    sha1[..20].fill(0xcd);
+    for (raw, verb, expected) in [
+        (
+            sha1,
+            b"prepare".as_slice(),
+            "temper-worker worker: run 9551 attempt 3 job 1 prepare check out app\\n\\x01\\xff cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\n",
+        ),
+        (
+            [0xcd; 32],
+            b"prepare\n\x00\xff".as_slice(),
+            concat!(
+                "temper-worker worker: run 9551 attempt 3 job 1 prepare\\n\\x00\\xff check out app\\n\\x01\\xff ",
+                "cdcdcdcdcdcdcdcd",
+                "cdcdcdcdcdcdcdcd",
+                "cdcdcdcdcdcdcdcd",
+                "cdcdcdcdcdcdcdcd",
+                "\n"
+            ),
+        ),
+    ] {
+        let note = worker::Note::Git {
+            run: 9551,
+            attempt: 3,
+            job: Some((1, verb.into())),
+            repository: b"app\n\x01\xff".as_slice().into(),
+            what: Git::CheckOut { commit: Commit::new(raw) },
+        };
+        assert_eq!(worker_note_words(BINARY, note), expected);
+    }
+}
+
 #[test]
 fn a_cancel_names_the_run_attempt_and_engine() {
     assert_eq!(
@@ -83,6 +165,23 @@ fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
     );
 }
 
+/// temper/docs/design/domain/worker/README.md, 4.3: agent faults use serve's failure form.
+#[test]
+fn agent_stopped_words_include_only_the_no_progress_bound() {
+    use jig_domain_host::AgentFailure;
+    for (failure, no_progress_ms, expected) in [
+        (
+            AgentFailure::NoProgress,
+            Some(1_205_000),
+            "temper-worker worker: run 7 attempt 9 agent stopped Agent(NoProgress): no progress for 1205000 ms\n",
+        ),
+        (AgentFailure::WallTime, None, "temper-worker worker: run 7 attempt 9 agent stopped Agent(WallTime)\n"),
+    ] {
+        let note = worker::Note::AgentStopped { run: 7, attempt: 9, failure, no_progress_ms };
+        assert_eq!(worker_note_words(BINARY, note), expected);
+    }
+}
+
 #[test]
 fn stop_bound_words_count_the_abandoned_turns_and_answers() {
     assert_eq!(
@@ -145,6 +244,10 @@ fn worker_aborted_words_and_exit_keep_their_behavior() {
 #[test]
 fn worker_link_notes_print_each_address_and_refusal_exactly() {
     use temper_worker_service::{Refusal, worker_alone::Note};
+    assert_eq!(
+        worker_note_words("temper-worker", Note::FiguresChanged),
+        "the engine's figures changed; they apply at this worker's next start\n"
+    );
     for (address, printed) in
         [(([127, 0, 0, 1], 7100).into(), "127.0.0.1:7100"), (([0, 0, 0, 0, 0, 0, 0, 1], 7100).into(), "[::1]:7100")]
     {

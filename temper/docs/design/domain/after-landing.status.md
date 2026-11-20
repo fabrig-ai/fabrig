@@ -1,25 +1,22 @@
 # after-landing: status
 
-2026-11-14. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-19. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
-- **Not yet:** 7, *A goal that has ended*: a red of no goal's is not filed as a finding of its project, once per landing, so no triager hears it [in flight: change 751].
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 11: the suspects' rule and a
-  red's pause, kind 4's alone (`landing.md`, 13.1, and its status):
+  red's pause, kind 4's alone (`landing-settings.md`, 1.1, and its status):
   every red range is probed (`temper-engine-domain/src/translate.rs`),
   and no red pauses its repository. 6: a cleared verdict is news to no
-  goal, only a red one (section 7); and a verdict after the bound, or
-  after a verifying change is cancelled, reaches no one: the
-  `Verification` row goes with the landing's last change, and no
-  landing log or red of no goal's keeps the landing's verdict. 8: no trailers in landing news; no `landing list
+  goal, only a red one (`after-landing.md`, section 7); and a cleared verdict after the bound, or
+  after a verifying change is cancelled, reaches no goal. 8: no trailers in landing news; no `landing list
   --newer-than`. 10: no `trailers` or `trailer_bytes` limit;
-  a push from outside temper, trailers and verdicts stay out of the log
-  until sections 6, 8 and 9 need them.
+  a push from outside temper and trailers stay out of the log
+  until `after-landing.md`, sections 8 and 9 need them.
   12: the stories of a documentation landing cleared at once by its
   receipt and of the late red kept for findings; by turn, only a change
   waiting for main's tier and its cleared result naming its run, the

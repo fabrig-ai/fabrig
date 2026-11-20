@@ -121,6 +121,7 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
     let out = h.send(Event::Prepare { reply_to: to(), task: 7 });
     assert_eq!(part_saves(&out, 7), [Key::Live(7)]);
     let out = h.send(Event::Claim {
+        fresh: None,
         reply_to: to(),
         task: 7,
         attempt: 1,
@@ -170,9 +171,9 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
         let out = h.send(Event::Amend {
             reply_to: to(),
             by: Party::Person(9),
-            funder: None,
             places: Box::new([]),
             operation: crate::Amend {
+                funder: None,
                 task: 7,
                 message: h.domain.task(7).unwrap().last_message.checked_add(1).unwrap(),
                 stop_run: false,
@@ -223,6 +224,7 @@ fn procedure_words_and_funding_transfers_save_the_cold_part() {
     h.make(vec![task(2, &[])]);
     h.send(Event::Prepare { reply_to: to(), task: 2 });
     h.send(Event::Claim {
+        fresh: None,
         reply_to: to(),
         task: 2,
         attempt: 1,
@@ -247,10 +249,10 @@ fn procedure_words_and_funding_transfers_save_the_cold_part() {
         reply_to: to(),
         by: Party::Person(9),
         places: Box::new([]),
-        funder: Some(Funder::Pool { project: 1, person: 9, period: 0 }),
         operation: crate::Amend {
             task: 2,
             message: 1,
+            funder: Some(Funder::Pool { project: 1, person: 9, period: 0 }),
             stop_run: false,
             amendment: Box::new(super::revisions::amendment()),
         },

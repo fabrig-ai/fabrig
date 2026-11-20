@@ -39,7 +39,7 @@ fn a_second_preparation_is_refused_while_the_first_holds_the_lock() {
     let _lock = process::lock(&scratch.path().join("forge-1/forgejo.lock")).expect("first holds lock");
     let refused = support::owned::prepare(scratch.path(), 1);
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge prepare: forge 1: forgejo is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge prepare: forge 1: forgejo is running or being prepared already\n");
     scratch.remove();
 }
 #[test]
@@ -49,7 +49,7 @@ fn a_preparation_cut_short_is_begun_again_from_an_empty_layout() {
     programs.fail("forgejo", "admin");
     let first = support::owned::prepare(scratch.path(), 1);
     assert_eq!(first.status.code(), Some(1));
-    assert_eq!(first.stderr, b"temper forge prepare: forge 1: CreateAdmin ended with status 1: broken\n");
+    assert_eq!(first.stderr, b"temper-box forge prepare: forge 1: CreateAdmin ended with status 1: broken\n");
     fs::write(scratch.path().join("forge-1/forgejo/left-over"), b"x").expect("left-over");
     programs.mend("forgejo");
     let second = support::owned::prepare(scratch.path(), 1);
@@ -70,7 +70,7 @@ fn forgejo_files_with_no_state_are_refused_naming_the_directory() {
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
         format!(
-            "temper forge prepare: forge 1: {}: Forgejo files have no preparation state\n",
+            "temper-box forge prepare: forge 1: {}: Forgejo files have no preparation state\n",
             scratch.path().join("forge-1").display()
         )
     );
@@ -99,7 +99,7 @@ fn a_first_preparation_refuses_a_running_runner() {
     let _lock = process::lock(&scratch.path().join("forge-1/runner.lock")).expect("runner runs");
     let refused = support::owned::prepare(scratch.path(), 1);
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge prepare: forge 1: runner is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge prepare: forge 1: runner is running or being prepared already\n");
     scratch.remove();
 }
 #[test]
@@ -113,7 +113,7 @@ fn a_forge_directory_open_to_others_is_refused_naming_it() {
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
         format!(
-            "temper forge prepare: forge 1: {}: must be a private directory of this user's, not reached through a link\n",
+            "temper-box forge prepare: forge 1: {}: must be a private directory of this user's, not reached through a link\n",
             scratch.path().join("forge-1").display()
         )
     );
@@ -139,7 +139,7 @@ fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interr
     );
     let ended = run.wait_with_output().expect("preparation ends");
     assert_eq!(ended.status.code(), Some(1));
-    assert_eq!(ended.stderr, b"temper forge prepare: forge 1: interrupted\n");
+    assert_eq!(ended.stderr, b"temper-box forge prepare: forge 1: interrupted\n");
     let clock = skein_shell::Clock::new();
     let deadline = clock.now().now.saturating_add(support::WITHIN);
     let stat = loop {
@@ -168,7 +168,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_lock() {
     let refused = support::owned::command(scratch.path(), "forgejo").output().expect("second run");
     first.kill().and_then(|()| first.wait()).expect("first stopped");
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge run: forge 1: forgejo is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge run: forge 1: forgejo is running or being prepared already\n");
     scratch.remove();
 }
 #[test]
@@ -178,10 +178,10 @@ fn the_run_replaces_itself_holding_the_lock_as_standard_input() {
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "forgejo").spawn().expect("run starts");
     let marker = programs.marker("forgejo", &mut run, support::WITHIN);
-    let stdin = fs::read_link(format!("/proc/{}/fd/0", run.id())).expect("stdin");
+    let stdin_is_lock = support::owned::stdin_is(run.id(), &programs.lock("forgejo"));
     run.kill().and_then(|()| run.wait()).expect("stopped");
     assert_eq!(marker.pid, run.id());
-    assert_eq!(stdin, programs.lock("forgejo"));
+    assert!(stdin_is_lock);
     assert_eq!(
         marker.arguments,
         [
@@ -244,7 +244,7 @@ fn no_secret_of_the_state_reaches_a_refusal() {
     assert_eq!(refused.status.code(), Some(1));
     assert_eq!(
         refused.stderr,
-        format!("temper forge run: forge 1: its preparation did not end: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes()
+        format!("temper-box forge run: forge 1: its preparation did not end: run temper-box forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes()
     );
     for secret in [&state.secrets.secret_key, &state.secrets.internal_token, &state.secrets.jwt_secret] {
         assert_eq!(skein_lib::bytes::find(&refused.stderr, secret.expose()), None);
@@ -264,7 +264,7 @@ fn a_newer_recorded_forgejo_refuses_the_preparation_untouched() {
         .iter()
         .map(|name| fs::read(scratch.path().join("forge-1").join(name)).expect("upgrade fixture"))
         .collect();
-    owned::refused(scratch.path(), "prepare", b"temper forge prepare: forge 1: forgejo is prepared at 999.0.0, newer than this temper's pin 17.0.1: its migrations only go forward\n");
+    owned::refused(scratch.path(), "prepare", b"temper-box forge prepare: forge 1: forgejo is prepared at 999.0.0, newer than this temper-box's pin 17.0.1: its migrations only go forward\n");
     let after: Vec<_> = files
         .iter()
         .map(|name| fs::read(scratch.path().join("forge-1").join(name)).expect("upgrade fixture"))
@@ -280,7 +280,7 @@ fn the_run_refuses_a_newer_recorded_version_in_its_own_words() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"999.0.0"), None);
-    owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at 999.0.0 / 13.2.1, this temper pins 17.0.1 / 13.2.1: no command of this temper runs it\n");
+    owned::refused(scratch.path(), "run", b"temper-box forge run: forge 1: prepared at 999.0.0 / 13.2.1, this temper-box pins 17.0.1 / 13.2.1: no command of this temper-box runs it\n");
     scratch.remove();
 }
 #[test]
@@ -290,7 +290,7 @@ fn the_run_refuses_an_unreadable_recorded_version_in_its_own_words() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"private-looking-garbage"), None);
-    owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at a version this temper cannot read: no command of this temper runs it\n");
+    owned::refused(scratch.path(), "run", b"temper-box forge run: forge 1: prepared at a version this temper-box cannot read: no command of this temper-box runs it\n");
     scratch.remove();
 }
 #[test]
@@ -300,7 +300,7 @@ fn the_run_names_prepare_for_a_runner_added() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::recorded_without_runner(scratch.path());
-    owned::refused(scratch.path(), "run", format!("temper forge run: forge 1: prepared without a runner, and the setup has one: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
+    owned::refused(scratch.path(), "run", format!("temper-box forge run: forge 1: prepared without a runner, and the setup has one: run temper-box forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
     scratch.remove();
 }
 #[test]
@@ -310,7 +310,7 @@ fn the_run_names_prepare_for_a_runner_removed() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::setup_without_runner(scratch.path());
-    owned::refused(scratch.path(), "run", format!("temper forge run: forge 1: prepared with a runner, and the setup has none: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
+    owned::refused(scratch.path(), "run", format!("temper-box forge run: forge 1: prepared with a runner, and the setup has none: run temper-box forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
     scratch.remove();
 }
 #[test]
@@ -342,7 +342,7 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     );
     let ended = run.wait_with_output().expect("interrupted");
     assert_eq!(ended.status.code(), Some(1));
-    assert_eq!(ended.stderr, b"temper forge prepare: forge 1: interrupted\n");
+    assert_eq!(ended.stderr, b"temper-box forge prepare: forge 1: interrupted\n");
     assert_eq!(fs::read(path).expect("old state kept"), before);
     assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
     scratch.remove();
@@ -356,7 +356,7 @@ fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
         let directory = scratch.path().join("playground-1");
         let token = directory.join("admin_token");
         if let Some(bytes) = existing {
-            fs::create_dir(&directory).expect("directory");
+            fs::create_dir_all(&directory).expect("directory");
             fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("private");
             support::write_private(&token, bytes);
         }
@@ -365,7 +365,7 @@ fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
         assert_eq!((output.stdout).len(), 0);
         assert_eq!((output.stderr).len(), 0);
         assert_eq!(fs::metadata(&directory).expect("directory").permissions().mode() & 0o777, 0o700);
-        assert_eq!(fs::read_dir(&directory).expect("directory").count(), 1);
+        assert_eq!(fs::read_dir(&directory).expect("directory").count(), 2, "setup and admin token");
         let bytes = fs::read(&token).expect("token");
         if let Some(expected) = existing {
             assert_eq!(bytes, expected);
@@ -386,24 +386,33 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
         let scratch = support::Scratch::new("fake_prepare_refused");
         fake_configuration(scratch.path());
         let directory = scratch.path().join("playground-1");
-        fs::create_dir(&directory).expect("directory");
+        fs::create_dir_all(&directory).expect("directory");
         fs::set_permissions(&directory, fs::Permissions::from_mode(0o755)).expect("open directory");
         let location = if names_directory { format!("{}: ", directory.display()) } else { String::new() };
         support::owned::refused(
             scratch.path(),
             verb,
-            format!("temper forge {verb}: forge 1: {location}{reason}\n").as_bytes(),
+            format!("temper-box forge {verb}: forge 1: {location}{reason}\n").as_bytes(),
         );
-        assert_eq!(fs::read_dir(directory).expect("untouched directory").count(), 0);
+        assert_eq!(fs::read_dir(directory).expect("untouched directory").count(), 1, "the setup file stays");
         scratch.remove();
     }
 }
 
 fn fake_configuration(directory: &std::path::Path) {
-    let config = support::configuration::check_document(directory);
+    let file = support::configuration::file();
+    support::configuration::setup(
+        directory,
+        1,
+        serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3001"},"remote":"http://127.0.0.1:3001","git":"demo/bin/git"}),
+    );
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
-    fs::write(directory.join("temper.json"), serde_json::to_vec(&config).expect("document")).expect("document");
+    fs::write(
+        directory.join(temper_config_shell::FILE),
+        temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
 }
 
 #[test]
@@ -423,9 +432,7 @@ fn forge_fetch_command() {
                 person: "ada",
             },
         );
-        let path = scratch.path().join("temper.json");
-        let mut document: serde_json::Value =
-            serde_json::from_slice(&fs::read(&path).expect("document")).expect("JSON");
+        let mut setup = owned::setup_value(scratch.path(), 1, "owned");
         fs::rename(scratch.path().join("box/groups/1"), scratch.path().join("box/groups/3")).expect("numbered group");
         if row == "present-no-group" {
             fs::remove_dir_all(scratch.path().join("box")).expect("no box files");
@@ -435,16 +442,15 @@ fn forge_fetch_command() {
         let file = scratch.path().join("forgejo/17.0.1/forgejo");
         match row {
             "fake" => {
-                configuration::fake_entry(&mut document["application"]["machine"]["fake"], "127.0.0.1:3001");
+                setup = serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3001"},"remote":"http://127.0.0.1:3001","git":"demo/bin/git"});
                 support::write_private(&scratch.path().join("box/groups/3"), b"fake\n");
             }
             "digest" | "present" | "present-no-group" | "missing-roots" => {
-                document["application"]["machine"]["owned"]["forgejo"] = "fetched".into();
+                setup["forgejo"] = "fetched".into();
                 if row == "digest" {
                     let peer = support::fetch::server();
                     let origin = format!("https://{}", peer.address);
-                    document["application"]["machine"]["owned"]["mirror"] =
-                        serde_json::json!({"forgejo":origin,"runner":origin});
+                    setup["mirror"] = serde_json::json!({"forgejo":origin,"runner":origin});
                     server = Some(peer);
                 }
                 if row == "present" || row == "present-no-group" {
@@ -455,7 +461,7 @@ fn forge_fetch_command() {
             "paths" | "usage" => {}
             _ => unreachable!(),
         }
-        fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("document");
+        configuration::setup(scratch.path(), 3, setup);
         if row != "missing-roots" {
             support::fetch::roots(&root);
         }
@@ -473,15 +479,15 @@ fn forge_fetch_command() {
             peer.check();
         }
         let expected = match row {
-            "managed" => "temper forge fetch: forge 3: it is managed, not owned\n".into(),
-            "fake" => "temper forge fetch: forge 3: it is fake, not owned\n".into(),
-            "paths" => "temper forge fetch: forge 3: neither of its binaries is \"fetched\"\n".into(),
+            "managed" => "temper-box forge fetch: forge 3: it is managed, not owned\n".into(),
+            "fake" => "temper-box forge fetch: forge 3: it is fake, not owned\n".into(),
+            "paths" => "temper-box forge fetch: forge 3: neither of its binaries is \"fetched\"\n".into(),
             "digest" => {
                 let peer = server.as_ref().expect("local peer");
                 let mut hash = Sha256::new();
                 hash.update(b"abc");
                 format!(
-                    "temper forge fetch: forge 3: https://{}/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{}: digest differs: pinned {}, got {}\n",
+                    "temper-box forge fetch: forge 3: https://{}/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{}: digest differs: pinned {}, got {}\n",
                     peer.address,
                     match std::env::consts::ARCH {
                         "x86_64" => "amd64",
@@ -503,9 +509,9 @@ fn forge_fetch_command() {
                 )
             }
             "present" | "present-no-group" => {
-                format!("temper forge fetch: forge 3: {}: does not match the pinned digest\n", file.display())
+                format!("temper-box forge fetch: forge 3: {}: does not match the pinned digest\n", file.display())
             }
-            "missing-roots" => format!("temper forge fetch: forge 3: {}: roots: Absent\n", root.display()),
+            "missing-roots" => format!("temper-box forge fetch: forge 3: {}: roots: Absent\n", root.display()),
             "usage" => {
                 "temper-box forge fetch: invalid arguments\nusage: temper-box forge fetch [DIRECTORIES] FORGE\n".into()
             }
@@ -543,17 +549,17 @@ fn forge_sign_in_refuses_without_openssl_a_named_forge_or_a_provider() {
     let directory = scratch.path();
     let _programs = support::owned::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
-    let path = directory.join("temper.json");
-    let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let value = support::read_file(&path, temper_config_shell::Shape::Standalone);
     for (case, expected) in [(0, "openssl"), (1, "application.sign_in.forges"), (2, "engine.clients.provider")] {
         let mut changed = value.clone();
         if case == 1 {
-            changed["application"]["sign_in"]["forges"] = serde_json::json!([]);
+            changed.sign_in.as_mut().expect("Google sign-in").forges.clear();
         }
         if case == 2 {
-            changed["engine"]["clients"]["provider"] = serde_json::Value::Null;
+            changed.openid = None;
         }
-        support::write_private(&path, &serde_json::to_vec(&changed).expect("JSON"));
+        support::write_file(&path, &changed, temper_config_shell::Shape::Standalone);
         let output =
             forge_sign_in::command(directory).env("PATH", directory.join("no-programs")).output().expect("refusal");
         assert_eq!(output.status.code(), Some(1));
@@ -583,13 +589,15 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
     let directory = scratch.path();
     let _programs = support::owned::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["machine"]["owned"]["public"] = "https://git.example.com".into();
-    value["application"]["clients"]["public"] = "https://temper.example.com".into();
-    value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
+    let mut setup = support::owned::setup_value(directory, 1, "owned");
+    setup["public"] = "https://git.example.com".into();
+    support::configuration::setup(directory, 1, setup);
+    file.public = Some("https://temper.example.com".into());
+    file.openid.as_mut().expect("provider").clients[0].redirect =
         "https://git.example.com/user/oauth2/temper/callback".into();
-    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     let output = forge_sign_in::command(directory).output().expect("sign-in command");
     forge_sign_in::success(&output);
     assert_eq!(
@@ -691,7 +699,7 @@ fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
     );
 
     // A forge absent from sign_in.forges keeps its settings even with the switch.
-    owned::configuration_value(directory, |value| value["application"]["sign_in"]["forges"] = serde_json::json!([]));
+    owned::configuration_value(directory, |file| file.sign_in.as_mut().expect("sign-in").forges.clear());
     forge_sign_in::success(&owned::prepare(directory, 1));
     let unnamed = fs::read(&path).expect("unnamed forge ini");
     forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
@@ -702,16 +710,23 @@ fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
 
 /// The public client and owner written by init --box; no provider key is read by prepare.
 fn source_configuration(directory: &std::path::Path, port: u16) {
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["owners"] = serde_json::json!([{"provider":1,"subject":"ada@example.invalid"}]);
-    value["engine"]["clients"]["provider"] = serde_json::json!({
-        "key":"provider.key", "addresses":[1],
-        "clients":[{"id":"forgejo","secret":null,"redirect_uri":"http://127.0.0.1:3000/user/oauth2/temper/callback"}]
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.owner = Some("ada@example.invalid".into());
+    file.openid = Some(temper_config_shell::OpenId {
+        key: Some("provider.key".into()),
+        addresses: Some(vec![1]),
+        clients: vec![temper_config_shell::OpenIdClient {
+            id: "forgejo".into(),
+            secret: None,
+            redirect: "http://127.0.0.1:3000/user/oauth2/temper/callback".into(),
+        }],
     });
-    value["application"]["clients"]["listener"] = serde_json::json!({"socket":format!("127.0.0.1:{port}")});
-    value["application"]["machine"]["owned"]["sign_in"] = "forgejo".into();
-    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    file.listen = Some(([127, 0, 0, 1], port).into());
+    let mut setup = support::owned::setup_value(directory, 1, "owned");
+    setup["sign_in"] = "forgejo".into();
+    support::configuration::setup(directory, 1, setup);
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
 }
 fn source_script(directory: &std::path::Path, extra: &str) {
     let path = directory.join("forgejo");
@@ -797,14 +812,7 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
             format!("if [ \"$5 $6 $7\" = 'admin auth {command}' ]; then exec sleep 60; fi")
         };
         source_script(directory, &extra);
-        let path = directory.join("temper.json");
-        let mut value: serde_json::Value =
-            serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-        for (name, number) in [("setup.deadline_ms", 200_u64), ("setup.backoff_ms", 1), ("setup.backoff_max_ms", 100)] {
-            value["application"]["limits"]["overrides"][name] = number.into();
-        }
-        support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
-        let output = support::owned::prepare(directory, 1);
+        let output = support::owned::prepare_with_reader(directory, source_setup);
         support::forge_sign_in::success(&output);
         let line = String::from_utf8(output.stderr).expect("source diagnostic");
         assert_eq!(line.lines().count(), 1, "{command}, spawn={spawn}: {line}");
@@ -814,6 +822,24 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
         scratch.remove();
     }
 }
+fn source_setup(
+    bytes: &[u8],
+    directories: &jig_protocol_config::Directories,
+) -> Result<temper_engine_shell::setup::Deployment, String> {
+    let stock = temper_playground::documents::Configuration::stock(serde_json::Value::Null);
+    let (jig, mut own) = (stock.jig, stock.limits);
+    for (name, value) in [("setup.deadline_ms", 200), ("setup.backoff_ms", 1), ("setup.backoff_max_ms", 100)] {
+        temper_service::limits::apply(&mut own, name.as_bytes(), value).expect("setup figure");
+    }
+    let temper_box_shell::setup::Deployment { named, checked, limits, demo } = temper_box_shell::setup::check_over(
+        bytes,
+        directories,
+        &temper_service::stock::Given::Stock,
+        Some((&jig, &own)),
+    )?;
+    Ok(temper_engine_shell::setup::Deployment { named: named.into_engine(), checked, limits, demo })
+}
+
 /// Fake HTTP peers share this test's loop with the source command.
 fn source_answer(
     case: &str,
@@ -835,13 +861,15 @@ fn source_answer(
     let issuer_address = issuer.local_addr().expect("issuer address");
     let forge_address = forge.local_addr().expect("Forgejo address");
     source_configuration(directory, issuer_address.port());
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("source configuration")).expect("source JSON");
-    value["application"]["machine"]["owned"]["listen"] = serde_json::json!({"socket":forge_address.to_string()});
-    value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
-        format!("http://{forge_address}/user/oauth2/temper/callback").into();
-    support::write_private(&path, &serde_json::to_vec(&value).expect("source JSON"));
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
+    let mut setup = support::owned::setup_value(directory, 1, "owned");
+    setup["listen"] = serde_json::json!({"socket":forge_address.to_string()});
+    setup["remote"] = format!("http://{forge_address}").into();
+    support::configuration::setup(directory, 1, setup);
+    file.openid.as_mut().expect("provider").clients[0].redirect =
+        format!("http://{forge_address}/user/oauth2/temper/callback");
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     let program = format!(
         "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '{}'\nif [ \"$5 $6 $7\" = 'admin auth list' ]; then printf '{}'; fi\n",
         directory.join("source-arguments").display(),
@@ -981,6 +1009,6 @@ fn a_termination_signal_during_source_maintenance_still_stops_preparation() {
     );
     let output = child.wait_with_output().expect("interrupted preparation ends");
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper forge prepare: forge 1: interrupted\n");
+    assert_eq!(output.stderr, b"temper-box forge prepare: forge 1: interrupted\n");
     scratch.remove();
 }

@@ -36,22 +36,21 @@ pub fn fixture() -> crate::forge::Fixture {
             setup
         },
         configure: |value, agent, forge| {
-            let limits = &mut value["application"]["limits"]["overrides"];
             // Shipped: poll 5 s, poll_max 30 s, slow 40 s, hinted 1 s.
             for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
-                limits[format!("forge.client.{name}")] = millis.into();
+                value.temper_over(format!("forge.client.{name}"), millis);
             }
             // Keep lost-delivery reconciliation on the story's clock too;
             // the shipped five-minute fallback exceeds the judge's patience.
-            limits["forge.client.fallback_ms"] = 100.into();
+            value.temper_over("forge.client.fallback_ms", 100);
             // Chat, repository polls and one fresh change chain share the client.
-            limits["forge.client.pending"] = 8.into();
-            limits["forge.client.calls"] = 4.into();
-            limits["forge_component.connections"] = 4.into();
+            value.temper_over("forge.client.pending", 8);
+            value.temper_over("forge.client.calls", 4);
+            value.temper_over("forge_component.connections", 4);
             // The tools request their shipped 32-row tree window; the base world allows two.
-            value["engine"]["limits"]["overrides"]["documents.rows"] = temper_client_tools::limits::ROWS.into();
+            value.jig_over("documents.rows", temper_client_tools::limits::ROWS);
             // The sample profile allows 100 requests per 10 s; short polls need a shorter window.
-            value["application"]["limits"]["overrides"]["forge.client.window_ms"] = 100.into();
+            value.temper_over("forge.client.window_ms", 100);
             value["world_settings"]["landing"]["projects"] = json!([{"project":1,"rules":[{
                 "connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),"acme","app","branch"],"last":"exact","value":"main"},
                 "enforce":true,"ci":true,"up_to_date":true,
@@ -63,7 +62,7 @@ pub fn fixture() -> crate::forge::Fixture {
     }
 }
 
-pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
+pub fn configure(value: &mut temper_playground::documents::Configuration, agent: &mut Value, forge: SocketAddr) {
     let grant = |kind| {
         // A program story is laid before the forge gets its loopback address;
         // it uses the stock deployment-wide forge scope, as ChangeAuthority::scope=None does.
@@ -88,7 +87,6 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
     for project in value["world_settings"]["policies"].as_array_mut().expect("projects").iter_mut().skip(1) {
         project["policy"] = policy.clone();
     }
-    let limits = value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
     for (name, size) in [
         ("people.operations", 5),
         ("tasks.tasks", 8),
@@ -128,19 +126,16 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
         ("people.amendment_bytes", MEMBER_BYTES),
         ("core.policy_bytes", 8192),
     ] {
-        limits.insert(name.into(), size.into());
+        value.jig_over(name, size);
     }
     value["workers"][0]["slots"] = 1.into();
-    let limits = &mut value["workers"][0]["limits"]["overrides"];
-    limits["hub.slots"] = 1.into();
-    limits["hub.inbox"] = agent["profile"]["policy"]["inbox"].clone();
-    limits["tasks.run_inbox"] = agent["profile"]["policy"]["inbox"].clone();
-    limits["core.call_answer_bytes"] = 4096.into();
-    limits["hub.event_bytes"] = 4094.into();
-    limits["tasks.message_bytes"] = 4096.into();
-    // The worker validates core message bounds even when its profile is standard.
-    limits["people.words"] = 2048.into();
-    limits["tasks.result_bytes"] = 512.into();
+    value.jig_over("hub.slots", 1);
+    let inbox = agent["profile"]["policy"]["inbox"].as_u64().expect("agent inbox");
+    value.jig_over("hub.inbox", inbox);
+    value.jig_over("tasks.run_inbox", inbox);
+    value.jig_over("core.call_answer_bytes", 4096);
+    value.jig_over("hub.event_bytes", 4094);
+    value.jig_over("tasks.result_bytes", 512);
     agent["profile"]["declared"]["tool_payload"] = 4096.into();
     agent["profile"]["policy"]["max_turns"] = 800.into();
     agent["profile"]["policy"]["check_timeout"] = 1000.into();
@@ -150,17 +145,13 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
     admit(value);
 }
 
-fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
-    let jig = crate::settings::configuration(value);
-    let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
-    for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("own overrides") {
-        temper_service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))
-            .expect("application override");
-    }
-    (jig.limits, own)
+fn limits(
+    value: &temper_playground::documents::Configuration,
+) -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+    (value.jig, value.limits)
 }
 
-pub(crate) fn admit(value: &Value) {
+pub(crate) fn admit(value: &temper_playground::documents::Configuration) {
     let (jig, own) = limits(value);
     let root = temper_service::limits::engine(&jig, &own).expect("engine root admits the fixture");
     jig_protocol_store::sizes::check_commits(

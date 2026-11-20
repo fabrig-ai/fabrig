@@ -2,6 +2,7 @@ use super::fixtures;
 pub(super) use super::fixtures::cards::{FUNDS, LEFT, batch_proposal};
 use jig_client::{contract as c, words::Word};
 use skein_ui::Builder;
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn a_result_shows_its_committed_words_in_temper_nodes() {
@@ -38,6 +39,61 @@ fn numbered_hold_reasons_keep_the_documents_supplied_identity() {
         crate::cards::hold(&mut builder, OTHER_TASK, &reason, &fixtures::words());
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected);
     }
+}
+
+#[test]
+fn hold_sentences_keep_the_first_clause_or_the_reason_and_dependency_question() {
+    let w = fixtures::words();
+    let mut task = fixtures::task::document();
+    task.hold = Some(Box::new(c::ChipHold {
+        placed: None,
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::EffectFailed,
+        revision: 1,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
+        hold_wait_since: None,
+    }));
+    for (input, cut, expected) in [
+        (
+            Some(
+                "forge could not release this task's resources; resolve this reason, then task release 6978 --hold 1; or task cancel 6978 REASON",
+            ),
+            false,
+            "Forge could not release this task's resources.",
+        ),
+        (Some("waiting\nraw account"), true, "Waiting."),
+        (Some("waiting"), true, "Waiting…"),
+        (Some("waiting...; more"), false, "Waiting..."),
+        (Some("waiting.; more"), false, "Waiting."),
+        (Some("waiting!; more"), false, "Waiting!"),
+        (Some("waiting?; more"), false, "Waiting?"),
+        (Some("waiting…; more"), false, "Waiting…"),
+        (Some("; more"), false, "An effect failed permanently."),
+        (Some("\nmore"), true, "An effect failed permanently."),
+        (Some(""), false, "An effect failed permanently."),
+        (None, false, "An effect failed permanently."),
+    ] {
+        task.hold.as_mut().unwrap().words = match input {
+            Some(s) => Some(c::DocumentText { bytes: c::Text::new(s.as_bytes().into(), 512).unwrap(), cut }),
+            None => None,
+        };
+        assert_eq!(crate::shared::hold_sentence(Some(&task), &w).as_ref(), expected.as_bytes(), "{input:?}, cut={cut}");
+    }
+    task.hold.as_mut().unwrap().reason = c::HoldCategory::Stalled;
+    assert_eq!(crate::shared::hold_sentence(Some(&task), &w).as_ref(), b"The executor stopped progressing.");
+    task.hold.as_mut().unwrap().reason = c::HoldCategory::Dependency { task: 5 };
+    assert_eq!(
+        crate::shared::hold_sentence(Some(&task), &w),
+        crate::cards::proposal::dependency_question(&task, &w).unwrap()
+    );
+    task.hold = None;
+    assert_eq!(crate::shared::hold_sentence(Some(&task), &w).as_ref(), b"This task is held.");
+    assert_eq!(crate::shared::hold_sentence(None, &w).as_ref(), b"This task is held.");
 }
 
 #[test]
@@ -113,6 +169,45 @@ fn a_proposals_title_and_labelled_facts_follow_the_mockup() {
         assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, description), expected).is_some());
     }
     assert!(fixtures::find(&tree, Role::Paragraph, b"Priority 2").is_none());
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary view tests assemble text and inspect semantic nodes"
+)]
+fn proposed_titles_cut_but_unpublished_words_stay_whole() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for (written, heading, body) in [
+        ("Short title\nBody.".to_owned(), "Short title".to_owned(), "Body.".to_owned()),
+        (long.clone(), cut.clone(), long.clone()),
+        (format!("{long}\nBody."), cut, format!("{long}\nBody.")),
+        ("Short title".to_owned(), "Short title".to_owned(), String::new()),
+    ] {
+        let mut page = batch_proposal();
+        let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { panic!("batch") };
+        tasks.get_mut(0).unwrap().spec.specification.words = fixtures::needs::words(&written);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            crate::cards::proposal(&mut builder, &page, &words, 4);
+            let tree = builder.finish();
+            let at = tree.nodes().iter().position(|n| n.role == (Role::Heading { level: 2 })).unwrap();
+            assert_eq!(tree.nodes()[at].name.as_deref(), Some(heading.as_bytes()));
+            assert_eq!(fixtures::node_text(&tree, at).as_ref(), heading.as_bytes());
+            let facts =
+                tree.nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::PROPOSAL_FACTS)).unwrap();
+            let start = at + usize::try_from(tree.nodes()[at].size).unwrap();
+            let drawn: Vec<_> = tree.nodes()[start..facts]
+                .iter()
+                .flat_map(|n| n.text.iter().flat_map(|run| run.text.iter().copied()))
+                .collect();
+            assert_eq!(drawn, body.as_bytes(), "{written}");
+        }
+    }
 }
 
 pub(crate) fn document_proposal() -> c::ReadValue {
@@ -259,8 +354,11 @@ pub(crate) fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept:
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Provider(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
-            | c::Setting::Rules => {
+            | c::Setting::Rules
+            | c::Setting::Limits => {
                 heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
             }
         }
@@ -380,19 +478,22 @@ pub(crate) fn proposed_values(
                     down: jig_client::Down::Read { read: token, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && let w::Read::ProposalItems(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            && let w::Read::ProposalItems(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
         {
             read = Some(*token);
         }
     }
-    let ways =
-        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts, goals: drafts, changes: drafts, way: 0 })
-            .unwrap();
-    let mut writer = Writer::new(usize::try_from(ways.measure()).unwrap());
-    ways.encode(&mut writer).unwrap();
-    let questions = w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route }).unwrap();
-    let mut q = Writer::new(usize::try_from(questions.measure()).unwrap());
-    questions.encode(&mut q).unwrap();
+    let ways = w::ProjectWays { drafts, goals: drafts, changes: drafts, way: 0 };
+    let mut writer = Writer::new(
+        usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+    let questions = w::ProjectQuestions { route };
+    let mut q = Writer::new(
+        usize::try_from(questions.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .unwrap(),
+    );
+    questions.write(&temper_client_protocol_wire::v1::CEILINGS, &mut q).unwrap();
     let mut classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
     classes.sets = Box::new([
         temper_protocol_reaches::PathSet {
@@ -426,29 +527,22 @@ pub(crate) fn proposed_values(
         .unwrap();
     classes.items = class_items.into_boxed();
     let record = temper_protocol_reaches::classes_record(&classes).unwrap();
-    let mut classes_value = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut classes_value).unwrap();
+    let mut classes_value = Writer::new(
+        usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut classes_value).unwrap();
     let mut items = List::with_capacity(3);
     for (kind, value) in [(7, writer.finish()), (6, q.finish()), (8, classes_value.finish())] {
         items
-            .push(
-                w::ProposalItem::new(
-                    &w::CEILINGS,
-                    w::ProposalItemParts {
-                        kind,
-                        scope: fixtures::PROJECT,
-                        number: 1,
-                        edit: w::SettingEdit::Set(
-                            w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value }).unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::ProposalItem {
+                kind,
+                scope: fixtures::PROJECT,
+                number: 1,
+                edit: w::SettingEdit::Set(w::SettingValue { value }),
+            })
             .unwrap();
     }
-    let answer =
-        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval }).unwrap();
+    let answer = w::ProposalItemsAnswer { items, owned_approval };
     settings_up(
         root,
         jig_client::Up::ReadDone {
@@ -826,16 +920,19 @@ fn an_empty_proposal_has_no_items_list() {
 fn a_review_adds_application_and_policy_rows_without_repeating_jigs_heads() {
     let items = [
         (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
-        (c::Setting::Application { kind: 5, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
+        (c::Setting::Application { kind: u32::MAX, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
         (c::Setting::ProjectPolicy { project: 2 }, c::RevisionItemEdit::Reset),
         (c::Setting::Charter(c::SettingNumber { number: 2 }), c::RevisionItemEdit::Set),
     ];
     let (mut root, out) = settings_root(settings_page(&items, true));
     proposed_values(&mut root, &out, true, w::QuestionsRoute::None, false);
     let tree = draw_settings(&root, &settings_card(&root), false);
-    for expected in
-        [b"Goals: shown".as_slice(), b"application kind 5, 7, 3 removed", b"project policy 2 reset", b"charter 2"]
-    {
+    for expected in [
+        b"Goals: shown".as_slice(),
+        b"application kind 4294967295, 7, 3 removed",
+        b"project policy 2 reset",
+        b"charter 2",
+    ] {
         let mut count = 0_usize;
         for node in tree.nodes() {
             for run in &node.text {
@@ -978,4 +1075,12 @@ fn a_model_item_reads_as_what_it_changes() {
             );
         }
     }
+}
+
+#[test]
+fn a_worker_item_is_named_on_the_settings_proposal_card() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let (root, _) = settings_root(settings_page(&[(setting, c::RevisionItemEdit::Set)], true));
+    let said = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
+    assert!(skein_lib::bytes::find(&said, b"worker 2").is_some(), "{said:?}");
 }

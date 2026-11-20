@@ -308,18 +308,26 @@ impl Net {
                 continue;
             }
             let through = socket.upload_limit.unwrap_or(socket.shell.received.len()).min(socket.shell.received.len());
-            socket.engine.write(&socket.shell.received[socket.sent_shell..through]);
-            socket.sent_shell = through;
-            socket.shell.write(&socket.engine.received[socket.sent_engine..]);
-            socket.sent_engine = socket.engine.received.len();
+            if socket.sent_shell != through {
+                socket.engine.write(&socket.shell.received[socket.sent_shell..through]);
+                socket.sent_shell = through;
+            }
+            if socket.sent_engine != socket.engine.received.len() {
+                socket.shell.write(&socket.engine.received[socket.sent_engine..]);
+                socket.sent_engine = socket.engine.received.len();
+            }
             socket.engine.eof = socket.shell.finished;
             let mut record_changed = false;
             let slow = self.slow.is_some_and(|(client, _)| client == socket.client && stream(socket));
-            let shell_progress = socket.shell.trace.len();
-            let shell_up = if slow || !socket.shell.work_pending() { None } else { socket.shell.answer() };
-            // A seeded Wire may buffer a fragment before it can answer a
-            // complete line. That is progress even without a callback.
-            changed |= socket.shell.trace.len() != shell_progress;
+            let shell_up = if slow || !socket.shell.work_pending() {
+                None
+            } else {
+                let before = socket.shell.trace.len();
+                let up = socket.shell.answer();
+                // A buffered fragment is progress even without a callback.
+                changed |= socket.shell.trace.len() != before;
+                up
+            };
             if let Some(up) = shell_up {
                 socket.room.shell = false;
                 if let Up::Bytes(bytes) = &up {
@@ -332,22 +340,23 @@ impl Net {
                 clients.push((socket.client, socket.conn, up));
                 changed = true;
             }
-            let engine_progress = socket.engine.trace.len();
             if !slow
                 && !socket.closed
                 && let Some(owner) = socket.owner
                 && socket.engine.work_pending()
-                && let Some(up) = socket.engine.answer()
             {
-                if let Up::Bytes(bytes) = &up {
-                    socket.request.extend_from_slice(bytes);
-                    record_changed = true;
+                let before = socket.engine.trace.len();
+                if let Some(up) = socket.engine.answer() {
+                    if let Up::Bytes(bytes) = &up {
+                        socket.request.extend_from_slice(bytes);
+                        record_changed = true;
+                    }
+                    socket.room.engine = false;
+                    events.push(Event::Stream { owner, up });
+                    changed = true;
                 }
-                socket.room.engine = false;
-                events.push(Event::Stream { owner, up });
-                changed = true;
+                changed |= socket.engine.trace.len() != before;
             }
-            changed |= socket.engine.trace.len() != engine_progress;
             if record_changed {
                 check(socket, rules);
             }
@@ -357,6 +366,7 @@ impl Net {
 }
 fn stream(socket: &Socket) -> bool {
     socket.shell.received.starts_with(b"GET /jig/v1/stream ")
+        || socket.shell.received.starts_with(b"GET /jig/v1/stream?version=")
 }
 fn body(http: &[u8]) -> Option<&[u8]> {
     let end = http.windows(4).position(|bytes| bytes == b"\r\n\r\n")?;

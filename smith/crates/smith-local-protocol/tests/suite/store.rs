@@ -5,6 +5,7 @@ mod tests {
     use super::disk;
     use disk::{Disk, Kind, snapshot};
     use smith_local_domain::{self as local, Older, StoreFamily};
+    use smith_local_protocol::local_store_v1::Record;
     use smith_local_protocol::{History, StoreRequest, format, local_store_v1 as wire};
     use std::{fs, os::unix::fs::MetadataExt};
 
@@ -23,17 +24,15 @@ mod tests {
         assert!(deliveries.is_empty());
     }
     fn marker(store: bool, transcript: bool, position: usize) -> Box<[u8]> {
-        let mut parts = format::layouts().into_parts();
+        let mut parts = format::layouts();
         if store {
             parts.store[position] ^= 1;
         }
         if transcript {
             parts.transcript[position] ^= 1;
         }
-        let value = wire::Layouts::new(&wire::CEILINGS, parts).unwrap();
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured bytes fit usize"));
-        value.encode(&mut writer).unwrap();
-        writer.finish()
+        let value = parts;
+        value.encode(&wire::CEILINGS).expect("layouts have no variable bounds")
     }
     fn refused(disk: &mut Disk, why: Option<Older>) {
         let before = snapshot(disk.path());
@@ -62,7 +61,7 @@ mod tests {
         assert_eq!(before, snapshot(disk.path()));
     }
     fn compatible(path: &std::path::Path) {
-        fs::write(path.join("format"), format::file().bytes).unwrap();
+        fs::write(path.join("format"), format::file(&format::layouts()).bytes).unwrap();
     }
 
     fn write_state(path: &std::path::Path, value: local::ChatState) {
@@ -83,7 +82,7 @@ mod tests {
         let mut disk = Disk::new();
         empty(disk.drive(StoreRequest::Load));
         assert_eq!(disk.requests(), [Kind::Load, Kind::Scan, Kind::Store]);
-        assert_eq!(fs::read(disk.path().join("format")).unwrap(), format::file().bytes.as_ref());
+        assert_eq!(fs::read(disk.path().join("format")).unwrap(), format::file(&format::layouts()).bytes.as_ref());
         disk.reopen();
         let before = snapshot(disk.path());
         empty(disk.drive(StoreRequest::Load));
@@ -132,7 +131,7 @@ mod tests {
 
     #[test]
     fn malformed_truncated_wrong_version_and_oversized_markers_refuse_unchanged() {
-        let valid = format::file().bytes;
+        let valid = format::file(&format::layouts()).bytes;
         let mut wrong = valid.to_vec();
         wrong[1] = 2;
         let mut trailing = valid.to_vec();
@@ -156,7 +155,7 @@ mod tests {
             let mut disk = Disk::new();
             old_records(&disk);
             if symlink {
-                fs::write(disk.path().join("valid-target"), format::file().bytes).unwrap();
+                fs::write(disk.path().join("valid-target"), format::file(&format::layouts()).bytes).unwrap();
                 std::os::unix::fs::symlink("valid-target", disk.path().join("format")).unwrap();
             } else {
                 fs::create_dir(disk.path().join("format")).unwrap();
@@ -202,7 +201,7 @@ mod tests {
     fn a_matching_marker_permits_real_fresh_journal_recovery_and_keeps_the_marker() {
         let mut disk = Disk::new();
         old_records(&disk);
-        fs::write(disk.path().join("format"), format::file().bytes).unwrap();
+        fs::write(disk.path().join("format"), format::file(&format::layouts()).bytes).unwrap();
         let marker_before = fs::metadata(disk.path().join("format")).unwrap();
         let local::Event::Loaded { state: Some(loaded), transcript: None, deliveries } = disk.drive(StoreRequest::Load)
         else {
@@ -212,7 +211,7 @@ mod tests {
         assert!(deliveries.is_empty());
         assert!(!disk.path().join("fresh").exists());
         assert!(!disk.path().join("0000000001.turn").exists());
-        assert_eq!(fs::read(disk.path().join("format")).unwrap(), format::file().bytes.as_ref());
+        assert_eq!(fs::read(disk.path().join("format")).unwrap(), format::file(&format::layouts()).bytes.as_ref());
         assert_eq!(marker_before.ino(), fs::metadata(disk.path().join("format")).unwrap().ino());
         disk.close();
     }
@@ -222,7 +221,7 @@ mod tests {
         for mismatched in [false, true] {
             let mut disk = Disk::new();
             fs::create_dir(disk.path().join("current")).unwrap();
-            fs::write(disk.path().join("current/format"), format::file().bytes).unwrap();
+            fs::write(disk.path().join("current/format"), format::file(&format::layouts()).bytes).unwrap();
             fs::create_dir(disk.path().join("older")).unwrap();
             fs::write(disk.path().join("older/fresh"), smith_local_protocol::save_state(state(9)).bytes).unwrap();
             if mismatched {

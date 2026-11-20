@@ -1,7 +1,7 @@
 //! temper's Open chat wiring; jig owns the lifecycle's exhaustive proofs.
 use super::*;
 use jig_client::{contract as c, shapes};
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core::{documents as d, reads};
 use jig_protocol_engine_clients as clients;
 use temper_engine_domain_world::{fixtures, walking};
@@ -131,7 +131,7 @@ fn read(driver: &mut Driver, read: reads::Read) -> reads::Answer {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.session(),
-        read,
+        read: Box::new(read),
     }));
     driver.pump();
     driver
@@ -151,10 +151,18 @@ fn read(driver: &mut Driver, read: reads::Read) -> reads::Answer {
 }
 
 fn client_me(driver: &mut Driver) -> c::Me {
+    client_me_with_models(driver, client_limits(), &client_models())
+}
+
+pub(crate) fn client_me_with_models(
+    driver: &mut Driver,
+    bounds: jig_client::DomainLimits,
+    models: &[clients::Model],
+) -> c::Me {
     let reads::Answer::Document(document) = read(driver, reads::Read::Frame) else { panic!("party frame") };
     let d::Document::Frame(frame) = *document else { panic!("frame document") };
-    let frame = clients::translate::owner::frame(&frame, &client_models(), &w::CEILINGS).expect("encoded frame");
-    let limits = jig_client_protocol_link::Limits::new(client_limits(), 8).expect("client bounds");
+    let frame = clients::translate::owner::frame(&frame, models, &w::CEILINGS).expect("encoded frame");
+    let limits = jig_client_protocol_link::Limits::new(bounds, 8).expect("client bounds");
     jig_client_protocol_link::translate::documents::frame(frame, &limits).expect("client frame")
 }
 
@@ -194,10 +202,19 @@ fn client_models() -> Box<[clients::Model]> {
 }
 
 fn client_request(ask: &c::Ask) -> people::Ask {
-    let mut settings = jig_engine_clients_kit::fixtures::settings();
-    settings.models = client_models();
-    let mut peer = jig_engine_clients_kit::Peer::signed_in(&settings, 1);
+    client_request_with_models(ask, client_models()).0
+}
+
+pub(crate) fn client_request_with_models(
+    ask: &c::Ask,
+    models: Box<[clients::Model]>,
+) -> (people::Ask, Box<[Box<[u8]>]>) {
+    use jig_protocol_engine_clients::{
+        Component, Event, FromTransport, Kept, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest,
+    };
     let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("encoded client ask");
+    let mut settings = jig_engine_clients_kit::fixtures::settings();
+    settings.models = models;
     let mut out = skein_lib::Writer::new(usize::try_from(ask.measure()).expect("ask size"));
     ask.encode(&mut out).expect("ask bytes");
     let keyed = w::Keyed::new(
@@ -213,11 +230,43 @@ fn client_request(ask: &c::Ask) -> people::Ask {
     .expect("keyed request");
     let mut out = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("request size"));
     keyed.encode(&mut out).expect("keyed bytes");
-    peer.authenticated_post(b"/jig/v1/request", out.finish());
-    let Some(jig_domain_core::Event::People(people::Event::Ask { ask, .. })) = peer.take_core() else {
-        panic!("component decoded ask")
-    };
-    ask
+    let mut bounds = jig_engine_clients_kit::fixtures::limits();
+    bounds.message_bytes = 1_048_576;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds };
+    let mut requests = Queue::uncapped();
+    let mut component = Component::new(settings, &env, &mut requests).expect("client component");
+    requests.clear();
+    let token = [1_u64.to_be_bytes().as_slice(), &[7; 32]].concat();
+    let exchange = Token::new(900);
+    component.down(
+        &env,
+        Event::Transport(FromTransport::Exchange {
+            exchange,
+            credential: Some(skein_lib::Secret::new(token.clone().into_boxed_slice())),
+            via: jig_protocol_engine_clients::Via::Listener,
+            source: None,
+            browser: false,
+            message: Message::Request(out.finish()),
+        }),
+        &mut requests,
+    );
+    let Some(Request::Secrets(SecretsRequest::Get { owner })) = requests.pop() else { panic!("credential admission") };
+    assert_eq!(owner, SecretOwner::SignIn(1));
+    component.down(
+        &env,
+        Event::Secrets(SecretsAnswer::Got {
+            owner,
+            value: Some(Kept {
+                digest: skein_lib::Secret::new(Box::new(skein_lib::sha256::digest(&token))),
+                expires: Wall::from_nanos(86_400_000_000_000),
+            }),
+        }),
+        &mut requests,
+    );
+    assert!(component.up(&env, &mut requests));
+    let Some(Request::Core(event)) = requests.pop() else { panic!("component decoded ask") };
+    let jig_domain_core::Event::People(people::Event::Ask { ask, models, .. }) = *event else { panic!("people ask") };
+    (ask, models)
 }
 
 fn client_limits() -> jig_client::DomainLimits {
@@ -367,9 +416,10 @@ fn closing_an_open_chat_keeps_its_turns_and_settles_its_delegates() {
 fn assert_ended_conversation(driver: &mut Driver, task: u64) {
     let mut from = None;
     loop {
-        let reads::Answer::Tasks(page) =
-            read(driver, reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: from })
-        else {
+        let reads::Answer::Tasks(page) = read(
+            driver,
+            reads::Read::Tasks { query: jig_test_profile::fixtures::own_tasks(), live: None, ended: from },
+        ) else {
             panic!("conversation page")
         };
         let reads::EndedGroup::Rows { rows, next, .. } = &page.ended else { panic!("ended conversations") };

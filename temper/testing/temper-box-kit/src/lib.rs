@@ -1,6 +1,8 @@
 //! Shared processes, forges, people and fixtures for temper-box tests.
 //!
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
+mod admission;
+pub use admission::admission;
 pub mod account_move;
 pub mod account_transfer;
 pub mod batch_landing;
@@ -19,12 +21,14 @@ pub mod github;
 pub mod github_land;
 pub mod held_login;
 pub mod landing_by_turn;
+pub mod limit_settings;
 pub mod owned;
+pub mod screen;
 pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
 pub mod webhooks;
-pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
+pub use temper_process_guard::WITHIN;
 pub mod forge_land;
 pub mod forge_parent;
 pub mod forge_sign_in;
@@ -37,11 +41,12 @@ pub mod forgejo_sign_in;
 pub mod live;
 pub mod live_github;
 pub mod llm;
-pub mod parent;
+pub use temper_process_guard as parent;
 pub mod patience;
 pub mod person;
 pub mod playground;
 pub mod program_login;
+pub mod provider_setup;
 pub mod relay;
 pub mod restart;
 pub mod sign_in;
@@ -90,40 +95,72 @@ pub fn own_listeners(document: &mut serde_json::Value) {
         }
     }
 
-    let old = [
-        "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
-        "/application/demo/llm/listen/socket",
-        "/application/webhooks/listener/socket",
-    ]
-    .map(|pointer| {
+    let old = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
         document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
-    let drawn = free_addresses::<5>(&old);
+    let drawn = free_addresses::<2>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);
 }
 
-/// Move an initialized deployment's listeners and its agent's matching demo endpoint together.
+/// Move both initialized listeners; their defaults continue to resolve at startup.
 pub fn own_listener_files(directory: &Path) {
-    let path = directory.join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("init document")).expect("JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let read = read_start(&path, temper_config_shell::Shape::Standalone);
+    let mut document = serde_json::from_slice(&read.document).expect("start document");
     own_listeners(&mut document);
-    let agent_path = directory.join("agent.json");
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&agent_path).expect("init agent")).expect("JSON");
-    let demo = agent["endpoints"]
-        .as_array_mut()
-        .expect("agent endpoints")
-        .iter_mut()
-        .find(|endpoint| endpoint["number"] == 3)
-        .expect("init demo endpoint");
-    demo["address"] = document["application"]["demo"]["llm"]["listen"]["socket"].clone();
-    write_private(&path, &serde_json::to_vec(&document).expect("deployment JSON"));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    let listener = |key: &str| {
+        document["application"][key]["listener"]["socket"].as_str().expect("socket").parse().expect("address")
+    };
+    let mut kept = read.file;
+    kept.listen = Some(listener("clients"));
+    kept.webhooks = Some(listener("webhooks"));
+    if kept.public.is_some() {
+        kept.public = document["application"]["clients"]["public"].as_str().map(str::to_owned);
+    }
+    write_file(&path, &kept, temper_config_shell::Shape::Standalone);
+}
+
+/// Read retained file values without losing explicit keys or their absence.
+#[must_use]
+pub fn read_file(path: &Path, shape: temper_config_shell::Shape) -> temper_config_shell::File {
+    read_start(path, shape).file
+}
+
+#[must_use]
+pub fn read_start(path: &Path, shape: temper_config_shell::Shape) -> temper_config_shell::Read {
+    let root = path.parent().expect("configuration directory");
+    let facts = temper_config_shell::Facts {
+        login: "ada".into(),
+        hostname: "fixture".into(),
+        provider_key: temper_agent_fixtures::data(root).join("provider.key").is_file(),
+    };
+    temper_config_shell::parse(&fs::read(path).expect("configuration file"), shape, &facts).expect("configuration")
+}
+
+/// A mixed-shape harness selects the table that accepts its explicit file keys.
+#[must_use]
+pub fn read_file_shape(path: &Path) -> temper_config_shell::Shape {
+    use temper_config_shell::Shape;
+    let bytes = fs::read(path).expect("configuration file");
+    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+    for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+        if temper_config_shell::parse(&bytes, shape, &facts).is_ok() {
+            return shape;
+        }
+    }
+    panic!("fixture file matches no deployment shape: {}", path.display());
+}
+
+pub fn write_file(path: &Path, file: &temper_config_shell::File, shape: temper_config_shell::Shape) {
+    write_private(path, &temper_config_shell::render(file, shape));
+}
+
+/// The start's document stays JSON only in memory (configuration/file.md, 4).
+#[must_use]
+pub fn start_document(path: &Path, shape: temper_config_shell::Shape) -> serde_json::Value {
+    serde_json::from_slice(&read_start(path, shape).document).expect("start document")
 }
 
 pub enum Forge<'a> {
@@ -134,13 +171,14 @@ pub fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
-pub fn configuration(directory: &Path, forge: &Forge<'_>) {
+#[expect(clippy::must_use_candidate, reason = "fixture writers are also called just for their file effects")]
+pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::documents::Configuration {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
     }
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") {
+        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
             continue;
         }
         write_private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
@@ -150,12 +188,38 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, value) =
-        configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
-    write_private(&directory.join("agent.json"), &agent);
-    let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
+    let (agent, mut value) = configuration::typed_documents(
+        directory,
+        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
+    );
     forgejo::configuration(directory, forge, &mut value);
-    write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let composed = temper_agent_fixtures::at(&value, directory);
+    configuration::turn_bounds::apply(&mut value, configuration::turn_bounds::turn_body(&composed));
+    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
+    let mut file = configuration::file();
+    file.listen = value["application"]["clients"]["listener"]["socket"].as_str().map(|v| v.parse().expect("clients"));
+    file.webhooks =
+        value["application"]["webhooks"]["listener"]["socket"].as_str().map(|v| v.parse().expect("webhooks"));
+    write_file(&directory.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
+    value.agent_bounds(&temper_agent_fixtures::prepared(directory).agent);
+    limit_settings::remember(directory, &value);
+    value
+}
+
+/// A subprocess story without a limit boundary uses the shipped agent's figures.
+pub fn stock_agent(directory: &Path) {
+    let pending = directory.join("fixture-limits.json");
+    if pending.exists() {
+        fs::remove_file(pending).expect("stock fixture has no limit change");
+    }
+    let mut agent = temper_agent_fixtures::read(directory);
+    agent["profile"] = temper_agent_fixtures::stock(true)["profile"].clone();
+    for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["limits"]["output"] = 48_000.into();
+        endpoint["limits"]["reasoning_item"] = 65_536.into();
+    }
+    temper_agent_fixtures::install(directory, &agent);
 }
 
 /// A case's scratch, retained if a test panics.
@@ -209,19 +273,22 @@ use skein_world::{
 
 #[must_use]
 pub fn serve(directory: &Path) -> Binary {
+    limit_settings::install(directory);
     Binary::start(serve_command(directory), Mode::Pipes, 65_536).expect("temper serve starts")
 }
 fn serve_command(directory: &Path) -> Command {
+    temper_agent_fixtures::providers::restore(directory);
     Command {
         program: skein_scratch::paths::binary("temper-box"),
         arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
         directory: directory.into(),
-        environment: Vec::new(),
+        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
     }
 }
 /// Serve the cluster fixture's engine directory on the deployment's engine binary (protocol/binaries.md, 2).
 #[must_use]
 pub fn serve_engine(directory: &Path) -> Binary {
+    temper_agent_fixtures::providers::restore(&directory.join("data"));
     let engine = skein_scratch::paths::binary("temper-box").with_file_name("temper-engine");
     assert!(engine.is_file(), "build the deployment's binary: cargo build -p temper-engine --bin temper-engine");
     Binary::start(
@@ -278,7 +345,9 @@ fn is_printed_link(line: &[u8]) -> bool {
     let Some(line) = line.strip_suffix(b"\n") else { return false };
     let Ok(line) = std::str::from_utf8(line) else { return false };
     (line.starts_with("http://") || line.starts_with("https://"))
-        && line.split_once("/jig/v1/sign-in/link?secret=").is_some_and(|(_, secret)| !secret.is_empty())
+        && ["/sign-in?secret=", "/jig/v1/sign-in/link?secret="]
+            .iter()
+            .any(|path| line.split_once(path).is_some_and(|(_, secret)| !secret.is_empty()))
         && !line.bytes().any(|byte| byte.is_ascii_whitespace())
 }
 /// A box's stdout holds its links alone, one to a line (temper/docs/design/testing/process-tier.md).
@@ -311,7 +380,7 @@ pub fn assert_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) {
 
 pub mod printed_link_tests {
     pub fn printed_links_count_and_fail_without_disclosing_secrets() {
-        const LINK: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private";
+        const LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=fixture-private";
         let one = [LINK, b"\n"].concat();
         let two = [one.as_slice(), one.as_slice()].concat();
         let mixed = [one.as_slice(), b"not a link\n"].concat();
@@ -319,6 +388,14 @@ pub mod printed_link_tests {
         let unfinished = [one.as_slice(), LINK].concat();
         for (name, stdout, stderr, count, valid, diagnostic) in [
             ("one", one.as_slice(), b"ready\n".as_slice(), 1, true, "ready\n"),
+            (
+                "route",
+                b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private\n",
+                b"ready\n",
+                1,
+                true,
+                "ready\n",
+            ),
             ("two", two.as_slice(), b"Restarting\n", 2, false, "Restarting\n"),
             ("none", b"", b"serve exited\n", 0, false, "serve exited\n"),
             (
@@ -790,8 +867,7 @@ const HINTED_SETTLE_MS: u64 = 3000;
 /// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,
 /// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = limit_settings::configuration(directory);
     for name in [
         "forge.client.poll_ms",
         "forge.client.poll_max_ms",
@@ -799,12 +875,11 @@ pub fn raise_paces(directory: &Path) {
         "forge.change_policy.stall_ms",
         "forge.change_policy.unknown_grace_ms",
     ] {
-        value["application"]["limits"]["overrides"][name] = RAISED_MS.into();
+        value.temper_over(name, RAISED_MS);
     }
-    value["application"]["limits"]["overrides"]["forge.change_policy.runner_wait_ms"] =
-        RAISED_MS.saturating_mul(8).into();
-    value["application"]["limits"]["overrides"]["forge.client.settle_ms"] = HINTED_SETTLE_MS.into();
-    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
+    value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
+    limit_settings::remember(directory, &value);
 }
 #[must_use]
 pub fn run_until_landed(
@@ -817,18 +892,40 @@ pub fn run_until_landed(
 }
 // Sign-in, inventory, whole template read, then one owner settings change.
 const NATIVE_SETUP_CALLS: usize = 4;
-fn native_settings_setup(directory: &Path) -> Vec<ctl::Step> {
+fn native_settings_setup(directory: &Path, agents: Option<serde_json::Value>) -> Vec<ctl::Step> {
     use ctl::{Call, Step};
     let file = directory.join("settings.json");
-    vec![
-        Step::Run(Call::sign_in().in_directory("private")),
+    let mut steps = vec![Step::Run(Call::sign_in().in_directory("private"))];
+    if directory.join("native-landing-settings.json").exists() {
+        steps.push(Step::Project {
+            scratch: directory.into(),
+            client: directory.join("private"),
+            name: "Project 1",
+            number: 1,
+        });
+    }
+    steps.extend([
         Step::Run(Call::new(&["settings", "show", "--json"]).in_directory("private")),
         Step::Run(Call::new(&["settings", "show", "template", "1", "--json"]).in_directory("private")),
         Step::Then(Box::new(move |calls| {
             // These scripts deliver their answer through finish; preserve the
             // inherited result ending before the native client makes its chat.
-            ctl::setting_change_file(&file, &calls[2], |value| value["flags"]["ended_by"] = "result".into());
-            let landing = file.parent().expect("settings directory").join("native-landing-settings.json");
+            ctl::setting_change_file(&file, &calls[2], |value| {
+                value["flags"]["ended_by"] = "result".into();
+                // This world's standalone peer, rather than the box's scripted default, answers the chat.
+                value["llm"] = serde_json::json!({"account":null, "main":{"model":"gpt-6.1-sol", "effort":"high"}, "subagents":[]});
+            });
+            let directory = file.parent().expect("settings directory");
+            if let Some(value) = agents {
+                let mut change: serde_json::Value =
+                    serde_json::from_slice(&fs::read(&file).expect("template settings")).expect("settings JSON");
+                change["items"]
+                    .as_array_mut()
+                    .expect("settings items")
+                    .push(serde_json::json!({"setting":{"kind":"agents"},"set":value}));
+                write_private(&file, &serde_json::to_vec(&change).expect("native settings JSON"));
+            }
+            let landing = directory.join("native-landing-settings.json");
             if landing.exists() {
                 let mut change: serde_json::Value =
                     serde_json::from_slice(&fs::read(&file).expect("template settings")).expect("settings JSON");
@@ -842,7 +939,17 @@ fn native_settings_setup(directory: &Path) -> Vec<ctl::Step> {
             }
             ctl::settings_change(&calls[1], &file, "native-chat-settings").in_directory("private")
         })),
-    ]
+    ]);
+    steps
+}
+fn agents_value(bytes: &[u8]) -> serde_json::Value {
+    use skein_json::writer::{Encoder, Limits};
+    let bounds = Limits { depth: 32, length: 1_048_576 };
+    let mut measure = Encoder::measure(&bounds);
+    assert!(temper_settings_form::render::application_value(21, bytes, &mut measure));
+    let mut out = Encoder::write(measure.measured().expect("agents setting fits"), &bounds);
+    assert!(temper_settings_form::render::application_value(21, bytes, &mut out));
+    serde_json::from_slice(&out.finish()).expect("agents setting JSON")
 }
 fn run_story(
     directory: &Path,
@@ -856,6 +963,12 @@ fn run_story(
     if let Some(peer) = &peer {
         peer.configure(directory);
     }
+    limit_settings::install(directory);
+    let agents = if peer.is_some() && directory.join("agents.setting").exists() {
+        Some(agents_value(&fs::read(directory.join("agents.setting")).expect("agents setting copy")))
+    } else {
+        None
+    };
     let mut binary = match ending {
         Ending::Stop => serve(directory),
         Ending::Box => sign_in::start(directory),
@@ -892,7 +1005,12 @@ fn run_story(
             Process::Person(Box::new(person::Person::waiting_for_ctl_with_key(root, script)))
         });
         world.spawn_with_fds(fds, || {
-            Process::Calls(Box::new(ctl::Calls::new(ctl_root, native_settings_setup(directory), Some(&streams), None)))
+            Process::Calls(Box::new(ctl::Calls::new(
+                ctl_root,
+                native_settings_setup(directory, agents),
+                Some(&streams),
+                None,
+            )))
         });
     } else {
         fds.push(root);

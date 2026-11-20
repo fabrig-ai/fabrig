@@ -1,6 +1,6 @@
 # Authority
 
-Provisional, 2026-10-07, revised 2026-10-23. What a task may do, and how
+Provisional, 2026-10-07, revised 2026-11-18. What a task may do, and how
 the core holds it there: authority as a value, its order and how
 delegation narrows it, where it comes from, budgets and what is spent,
 the checks every action passes, what a proposal needs and what accepting
@@ -26,7 +26,10 @@ is still open is listed in `authority.md`, section 12.
 - **Budgets are carved, not copied.** What a task gives a delegate of
   its budget is reserved from its own; what the delegate leaves unspent
   goes back when it ends, and what it spent is counted up the chain that
-  funded it. Spend is counted in one unit of the deployment's: LLM
+  funded it. A run of a task that may start delegates holds back at
+  most half of what the task has left, so what it starts is funded,
+  unless half is too little for a run, when it takes what is left
+  (section 7). Spend is counted in one unit of the deployment's: LLM
   completions as runs price them, and effects as their connectors price
   them.
 - **Recorded spend never exceeds a budget.** A run reserves each
@@ -295,7 +298,11 @@ deployment's rules       the most any project may have; requirements on effects
   spend, and waits while there is none. A deployment-started task that
   runs an agent (a queue's repair, whose producer is one) is funded as
   before, and cannot be made while nothing of the period is
-  unreserved.
+  unreserved. A make the tasks child refuses for any such task is told
+  to every connector as `Ask::RepairRefused`, naming the task the
+  refusal names where it names one (`repair`), the make's own number
+  (`number`) and the refusal (`why`), so a connector knows which of its
+  makes failed and why.
 - **Effective authority.** What a task may do when it decides is its own
   authority within the deployment's rules, the project's policy and what
   adoption found the application may do, as all three stand then:
@@ -346,6 +353,76 @@ would. Project 0 names no project and has no policy (people/README.md, section
   the application cancels it.
 - **A restart** restores it, as any live task: whether it runs again is
   the application's, which cancels it first if it shouldn't.
+
+### 6.2 A person's automatic work in a project
+
+An application may start, in a project, work done for one person
+rather than for the project: temper's brief, written for the person who
+looks (temper's `domain/forge/attention.md`, 3). It is that person's
+work, paid as theirs, where a connector's repair is the project's
+(section 6, *The deployment*).
+
+- **Who makes it:** the application, for a party with a role in the
+  project: `Core::pool_seed(project, person) -> Option<RepairSeed>`,
+  then `Event::ConnectorRepair` with that seed, as a project-funded
+  repair is made from `Core::repair_seed`. Its creator is
+  `Party::Deployment { project }`, unlisted and untracked, so what
+  selects by a person requester (Chats, results, updates, the inbox)
+  never selects it.
+- **Who pays:** the person's pool in the project, `Funder::Pool {
+  project, person, period }`, the period's and the pool's opening
+  (`OpenPeriod`, `CarvePool`) in the decision that makes it where
+  either is missing, as a person's goal opens them. Its payer is the
+  person (accounts.md, 4.1), so it takes what a chat of theirs in the
+  project takes (accounts.md, 4.3), a plan of theirs included, though
+  the project has other parties.
+- **Its money:** the project's ceiling's authority, its spend the least
+  of the ceiling's spend, what the person's pool has left (its role's
+  unopened allotment where the pool isn't open yet, as
+  `Core::person_pool` reads it) and the rules' `maximum_run_spend`. A
+  run returns what it leaves to the pool when it ends (section 7).
+- **None** where that spend is zero, the person has no role in the
+  project, the project is not open or has no policy, or no task number
+  is left; nothing is written. A make that the tasks child refuses (a
+  pool the period can't carve) is refused as a repair's is, with
+  `Ask::RepairRefused`.
+- **The rest** is a repair's: the procedure's steps, its delegates
+  funded from it, its deadline and holdings, a restart restoring it.
+
+### 6.3 A task's goal made by its application
+
+An application may make, for a live agent task, a goal that task
+would make with a batch, from a decision of the application's own
+rather than the task's run: temper's triager's repair goal, made by an
+act of its tool that also writes the application's rows (temper's
+`domain/red-repairs.md`, 4.3). It is the task's delegate, as if the
+task had made it.
+
+- **Who makes it:** the application, with a number allocated as a
+  connector's repair's is (`Core::repair_seed`, else
+  `Core::procedure_seed`), then `RepairSeed::goal(self, task: u64,
+  context: &tasks::DelegationContext, goal: SeededGoal) ->
+  Result<tasks::Event, tasks::Refusal>`, the `tasks::Event::Make` it
+  returns sent in the same decision as the application's own writes.
+  `SeededGoal { charter: u32, spec: tasks::Spec, contract:
+  tasks::Contract, authority: tasks::Authority, llm:
+  Option<tasks::LlmChoice>, budget: u64, tracked: Option<u32>, label:
+  u32, flags: tasks::Flags, holdings: Box<[tasks::Holding]> }`.
+- **Its shape:** an agent of `charter`, its creator and requester the
+  task (`Party::Task`), funded by it (`Funder::Task`), its deadline
+  `Named`, its wake the default; `flags` may name a closer
+  (`tasks/lifecycle.md`, section 11), and `holdings` are the
+  application's, translated as a creation's are.
+- **Its money and room:** its spend `budget`, refused `Funding` where
+  the task's numbers leave less (budget less spent, spent below and
+  reserved), never cut to fit; refused `Tree` where the task has no
+  task left to make, and `Depth` where its delegation has no level left.
+  `authority` is the application's narrowing of the task's own, one
+  level shallower; the tasks child checks it within the task's, the
+  closer's procedure among its delegation's kinds, and `llm` as any
+  making's (`tasks/README.md`, section 4).
+- **The rest** is a delegate's: its questions and result reach the
+  task, its reservation is the task's, a restart restores it.
 
 ## 7. Budgets and spend
 
@@ -429,6 +506,19 @@ would. Project 0 names no project and has no policy (people/README.md, section
   leaves its funder as it was, a lower budget giving the difference back
   to it. So a task has one funder, and a widening is never split between
   two.
+
+  A party gives from their pool in the project's open period, which the
+  widening's decision opens where it is not open yet, as an acceptance's
+  does; a task gives from its own numbers. So a party's widening of a
+  task funded from an earlier period's pool, their own included, funds
+  it anew from the open one, and a task's widening of a delegate another
+  funds makes the amending task its funder. Every amendment names its
+  giver so: a party's, alone or in a compound request (people/acts.md,
+  1), a run's and a procedure step's. What a widening needs from its
+  giver is what it reserves: the new budget less the task's budget where
+  the giver already funds it, and otherwise the new budget less what the
+  task and the ended tasks it funded spent. A party's widening is judged
+  by that need (8.4).
 - **No overrun is recorded.** Every charge is reserved before it is
   made, or, for a program backend's completions, held in its run's
   reserve (below), so what is recorded against a task never passes its
@@ -439,6 +529,17 @@ would. Project 0 names no project and has no policy (people/README.md, section
   goes back to that period, so a reset frees nothing reserved. A
   recurring task's budget is carved again each period (tasks/README.md,
   section 5).
+- **A zero-budget task may outlive its ledger.** A pool's, a recurring
+  task's or a period's ledger closes once nothing is reserved on it and
+  its project has a newer period (`../protocol/store/README.md`, 10.1).
+  A task whose budget is 0 reserves nothing, so the ledger funding it
+  may close while it lives; it alone can, since any budget keeps its
+  ledger's reservation above 0. Its priced work is charged to its
+  project's current period. A restart accepts it, and its end releases
+  nothing and posts nothing to the closed ledger: what it and the tasks
+  it funded spent, if anything, is added to its project's current
+  period's "spent by ended tasks", the newest live period. No ledger is
+  kept open for it, and it is never moved to another funder.
 - **A change of spend per period resizes what it opened,** in the
   decision that commits it: the project's spend its open period, and a
   role's (`RoleSpend`, its spend alone, or a whole role's edit that
@@ -484,8 +585,8 @@ would. Project 0 names no project and has no policy (people/README.md, section
     it says so; it never charges more.
 - **A run's budget** has turns, spend and time, and a reserve of turns
   and time for finishing: its turns, time and reserve its charter's, its
-  spend reserved from what its task has left in the commit that claims
-  it, capped per run by the deployment. The agent enforces it exactly
+  spend its task's share for a run (below), reserved from what its task
+  has left in the commit that claims it. The agent enforces it exactly
   (smith's `domain/budget.md`; hosts/charters.md): it reserves
   each completion's maximum cost before making it, winds down on its
   reserve when the rest is spent, and ends for its budget a completion
@@ -506,6 +607,50 @@ would. Project 0 names no project and has no policy (people/README.md, section
   budget left cannot fund that waits, or is held for its budget (8.3).
   The source its check chose says which backend the run has
   (accounts.md, 3.4).
+- **A run holds back at most half of what its task has left, where half
+  funds a run.** A run's spend is its task's share for a run: what the
+  task has left, and, in a task whose authority may start a delegate
+  (its delegation names a kind, and a task and a depth above zero),
+  half of what it has left, rounded down, where that half is above the
+  deployment's `minimum_run_spend`; either way at most the deployment's
+  `maximum_run_spend`. The other half stays with the task while the run
+  is live, so the delegates it makes and the changes an application
+  makes for it are funded from it: a batch carves them from what the
+  run's reservation leaves (8.1), as before. A task that can start no
+  delegate (a person's task in no project, 6.1; a delegate whose
+  creator gave it no delegation) has nothing to keep that half for, and
+  its run takes what it has left, capped.
+- **Where half is too little, a run takes what is left.** No run is
+  placed whose spend is at or below the deployment's minimum (8.3), so
+  a delegating task whose half is there would wait, or be held for its
+  budget, though what it has left would fund a run: under temper's stock
+  figures, where a run's minimum is half its cap
+  (`temper/docs/design/protocol/configuration/stock.md`), a goal funded
+  at most the cap would never run. Its share is what it has left,
+  capped, as in a task that can start no delegate. Its run then keeps
+  back for its delegates only what the cap leaves, and a batch it makes
+  is carved from that, refused as lacking budget where it does not fit
+  (8.1), until the run ends and gives back what it did not spend. With a
+  minimum of 50 and a cap of 100, a delegating task's share is 50 with
+  50 left (no run), 99 with 99, 100 with 101, 51 with 102 and 100 with
+  300: the share falls where half first passes the minimum, since above
+  it the half rule holds unchanged.
+- **The share is one function's.** It reads the task's authority as it
+  stands, not how many tasks it may still make. Since the share is
+  reserved like any run's spend, from what its task has left and never
+  more, recorded spend still never passes a budget (section 1), and what
+  the run leaves unspent goes back to its task when it ends. A task
+  whose share is too little for a run, at or below the deployment's
+  minimum or short of the reserve and the completions above, waits, or
+  is held for its budget, as one with too little left (8.3;
+  tasks/lifecycle.md, 6). A delegating task whose half is above the
+  minimum but short of the reserve keeps the half rule, and so waits or
+  is held even where what it has left would fund the run (section 12).
+  One function of this child,
+  `run_spend(rules, authority, numbers)` beside `left`, computes the
+  share, and every run check the core makes asks it: a claim's, a
+  start's, a due agent's readiness and a write a run's preparation
+  names.
 - **Spend lost with a worker.** A turn's spend is recorded when the turn
   commits. A worker that dies loses the turns it had not had
   acknowledged, and what they spent was spent but never recorded; the
@@ -590,8 +735,10 @@ Every check is against effective authority (section 6).
 ### 8.3 Runs
 
 Before a run is claimed and again as it starts: its deadline is not
-past; the run's spend, what its task has left capped per run by the
-deployment, is above the deployment's minimum for a run and holds its
+past; the run's spend, its task's share for a run (section 7: what the
+task has left, half of it where the task may start a delegate and that
+half is above the deployment's minimum for a run, capped per run by the
+deployment), is above the deployment's minimum for a run and holds its
 reserve and one more of its main model's most costly completions, and
 on a program backend one more again (section 7); the accounts its check
 chooses each have a source usable on a host with room (accounts.md,
@@ -659,6 +806,18 @@ pool has left.
   limit under the giver's role, not the target's remaining allowance.
   Exhaustion does not prevent granting more tasks. The request still
   passes the same funding and authority-ceiling admission checks.
+- **A party's widening is judged as section 7 funds it.** An amendment
+  that widens is judged whole, by the authority it leaves the task: at
+  most their role's authority, its budget no more than their role's
+  spend, however much of it the task holds already; and what it needs
+  from them (section 7, *Whoever widens a task funds it*) no more than
+  their pool has left, an unopened pool read at what it would open
+  with. Beyond their role or their pool it is beyond authority and may
+  be proposed, since an accepter funds a proposal (section 9); beyond
+  the policy's ceiling or the deployment's rules it is refused. A
+  task's document offers the amendment by this judgement's own numbers
+  (`../client/domain/contract/documents.md`, 3), so a client proposes
+  only what the request sent directly would be answered as beyond.
 - **A compound request** is checked as people/acts.md, 1 says: each
   operation as it would be alone, in order.
 - **Account requests** (accounts.md, section 5) are checked against the
@@ -835,3 +994,12 @@ of model.md, section 11.
 - **Delegated decisions:** whether a holder may give a delegate the right
   to decide some proposals from below it, as a coordinator might for its
   sub-coordinators.
+- **Half short of the reserve:** whether a run in a task that may start
+  a delegate, whose half is above the deployment's minimum but short of
+  the run's reserve and the completions above, takes what the task has
+  left as well, where that would fund the run (section 7). The rules'
+  figures and the charter decide how often it meets one: temper's stock
+  minimum is two completions of the costliest stock model
+  (`temper/docs/design/protocol/configuration/stock.md`), so it can meet
+  only a run on a program backend, or one whose charter keeps more than
+  one reserve turn.

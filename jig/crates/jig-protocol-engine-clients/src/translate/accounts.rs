@@ -268,7 +268,11 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
     w::Accounts::new(
         limits,
         w::AccountsParts {
-            skein_bools: [value.lendable, value.usable, value.settled, value.cut, value.readiness_cut],
+            lendable: value.lendable,
+            usable: value.usable,
+            settled: value.settled,
+            cut: value.cut,
+            readiness_cut: value.readiness_cut,
             lending: match &value.lending {
                 Some(login) => Some(terminal_login(login, limits)?),
                 None => None,

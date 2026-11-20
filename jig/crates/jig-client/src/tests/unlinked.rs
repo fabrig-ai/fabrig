@@ -1,7 +1,7 @@
 use super::fixtures::{self, PARTY, STOP, TASK};
 use crate::*;
 use skein_lib::{Duration, List, Queue, Time, Token, Wall};
-const ME_WATCH: Token = Token::new(1);
+const ME_WATCH: Token = Token::new(0);
 const ENGINE_KEY: skein_lib::RequestKey = [1; 16];
 const RETENTION: Duration = Duration::from_secs(60);
 struct Client {
@@ -40,7 +40,13 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 26, last: 26 }) },
+        up: Up::Served {
+            served: true,
+            versions: Some(contract::VersionRange {
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            }),
+        },
     });
     c.step(Event::SignIn { with: With::Transport });
     c
@@ -76,16 +82,22 @@ fn live() -> Client {
     c
 }
 #[test]
+fn an_unlinked_client_answers_a_link_ask_lost_at_once() {
+    let mut c = client();
+    c.step(Event::AskLink);
+    assert_eq!(c.requests(), &[UnlinkedRequest::AskedLink(AskedLink::NotAsked(NotAsked::Lost))]);
+}
+
+#[test]
 fn an_unlinked_client_gives_its_watch_as_the_domain_s_opening() {
-    let c = client();
-    let [
-        UnlinkedRequest::Told { told: Told::Link { link: Link::Starting } },
-        UnlinkedRequest::Down { down: Down::Open { watch, subject } },
-    ] = c.requests()
-    else {
-        panic!("one opening: {:?}", c.requests());
+    let mut c = client();
+    assert_eq!(c.requests(), &[UnlinkedRequest::Told { told: Told::Link { link: Link::Starting } }]);
+    c.step(Event::Watch { handle: TASK, subject: fixtures::task() });
+    let [UnlinkedRequest::Down { down: Down::Open { watch, subject } }] = c.requests() else {
+        panic!("one application opening");
     };
-    assert_eq!((*watch, subject), (ME_WATCH, &Watchable::Jig(contract::Subject::Me)));
+    assert_ne!(*watch, ME_WATCH);
+    assert_eq!(*subject, fixtures::task());
 }
 #[test]
 fn an_unlinked_client_takes_an_answer_as_the_domain_s() {
@@ -155,7 +167,10 @@ fn an_unlinked_authorization_is_lost() {
 #[test]
 fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
     let mut c = live();
-    c.step(Event::Up { up: Up::WatchEnded { watch: ME_WATCH, end: contract::WatchEnd::Dropped } });
+    c.step(Event::Watch { handle: TASK, subject: fixtures::task() });
+    let [UnlinkedRequest::Down { down: Down::Open { watch, .. } }] = c.requests() else { panic!("application watch") };
+    let original = *watch;
+    c.step(Event::Up { up: Up::WatchEnded { watch: original, end: contract::WatchEnd::Dropped } });
     let until = c.machine.next_deadline().expect("dropped watch schedules a retry");
     c.fire(Time::from_nanos(until.as_nanos() - 1));
     assert_eq!((c.requests()).len(), 0);
@@ -163,8 +178,8 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
     let [UnlinkedRequest::Down { down: Down::Open { watch, subject } }] = c.requests() else {
         panic!("one reopening: {:?}", c.requests());
     };
-    assert_ne!(*watch, ME_WATCH);
-    assert_eq!(subject, &Watchable::Jig(contract::Subject::Me));
+    assert_ne!(*watch, original);
+    assert_eq!(subject, &fixtures::task());
     c.fire(until);
     assert_eq!((c.requests()).len(), 0);
 }
@@ -173,7 +188,12 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
 fn an_unlinked_approval_is_carried_by_the_host() {
     let code = super::approval::code();
     for (event, act, answer) in [
-        (Event::AskApproval, ApprovalAct::Ask, Approval::NotAsked(NotAsked::Refused)),
+        (Event::AskApproval { port: None }, ApprovalAct::Ask { port: None }, Approval::NotAsked(NotAsked::Refused)),
+        (
+            Event::AskApproval { port: Some(43210) },
+            ApprovalAct::Ask { port: Some(43210) },
+            Approval::NotAsked(NotAsked::Refused),
+        ),
         (
             Event::ReadApproval { code },
             ApprovalAct::Read { code },
@@ -182,7 +202,7 @@ fn an_unlinked_approval_is_carried_by_the_host() {
         (
             Event::DecideApproval { code, approve: true },
             ApprovalAct::Decide { code, approve: true },
-            Approval::Decided { code, decided: Decided::Approved },
+            Approval::Decided { code, decided: Decided::Approved { loopback: None } },
         ),
     ] {
         let mut c = new();
@@ -190,8 +210,8 @@ fn an_unlinked_approval_is_carried_by_the_host() {
         assert_eq!(c.requests(), &[UnlinkedRequest::ApprovalAct(act)]);
         let expected = match &answer {
             Approval::NotAsked(why) => Approval::NotAsked(*why),
-            Approval::Read { code, state } => Approval::Read { code: *code, state: *state },
-            Approval::Decided { code, decided } => Approval::Decided { code: *code, decided: *decided },
+            Approval::Read { code, state } => Approval::Read { code: *code, state: state.clone() },
+            Approval::Decided { code, decided } => Approval::Decided { code: *code, decided: decided.clone() },
             Approval::Asked { secret, code, expires } => {
                 Approval::Asked { secret: secret.clone(), code: *code, expires: *expires }
             }

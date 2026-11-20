@@ -235,7 +235,10 @@ impl World {
         self.restart_with(config);
     }
 
-    pub fn restart_with(&mut self, config: root::Config) {
+    pub fn restart_with(&mut self, mut config: root::Config) {
+        for worker in &mut config.core.defaults.workers {
+            worker.places = self.limits.core.fleet.slots;
+        }
         self.restart_config = (crate::oracle::configuration(&config), self.limits);
         self.restart_configured(config).unwrap_or_else(|finding| self.fail(&finding));
     }
@@ -254,6 +257,9 @@ impl World {
         self.store
             .reconfigure(18, &config.core.settings.models)
             .map_err(|finding| format!("restart readback: {finding:?}"))?;
+        if !self.sweep.is_empty() {
+            self.collect_disk_forks();
+        }
         if self.store.reached_kill() {
             self.reached_cut = self.cut.take();
             return Ok(());

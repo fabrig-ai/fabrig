@@ -19,7 +19,7 @@ fn decode(
     inspect: bool,
     withheld: bool,
 ) -> Result<c::Turn, jig_protocol_transcript::Undecodable> {
-    let bound = jig_client_protocol_wire::v26::CEILINGS.turn_carried_bytes;
+    let bound = jig_client_protocol_wire::CEILINGS.turn_carried_bytes;
     let mut limits = jig_protocol_transcript::Limits::new(
         bound,
         c::TurnLimits {
@@ -235,6 +235,7 @@ pub(super) fn turn(task: u64, attempt: u64, turn: u32, answer: &Answer, lines: &
             EndedValue::WithheldTurn(record) => Some((record, true)),
             EndedValue::Task { .. }
             | EndedValue::Proposal(_)
+            | EndedValue::PartyProposal(_)
             | EndedValue::PersonProposal { .. }
             | EndedValue::Escalation { .. }
             | EndedValue::Question { .. }

@@ -150,6 +150,15 @@ impl Repositories {
         head
     }
 
+    fn main_commit(&self, message: &str) -> String {
+        self.git(&self.person, &["checkout", "--quiet", "main"]);
+        self.git(&self.person, &["commit", "--quiet", "--allow-empty", "-m", message]);
+        let head = self.git(&self.person, &["rev-parse", "HEAD"]);
+        self.git(&self.person, &["push", "--quiet", self.origin.to_str().expect("scratch path"), "main"]);
+        self.git(&self.person, &["checkout", "--quiet", self.branch]);
+        head
+    }
+
     fn refresh(&self, status: i32) -> Output {
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/look-refresh.sh");
         let output = self.command("sh", &self.person).arg(script).output().expect("run look-refresh");
@@ -198,8 +207,9 @@ fn the_requests_follow_main() {
         assert_eq!(repos.patch_and_author("HEAD"), calmer_before, "{branch}");
         repos.assert_pushed();
         assert!(
-            String::from_utf8_lossy(&output.stdout)
-                .starts_with(&format!("kept tighter-cards\nkept calmer-banner\npushed {branch} at ")),
+            String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+                "pages not printed yet\nkept tighter-cards\nkept calmer-banner\npushed {branch} at "
+            )),
             "{branch}"
         );
     }
@@ -207,20 +217,147 @@ fn the_requests_follow_main() {
 
 #[test]
 fn a_done_request_is_dropped() {
-    let repos = Repositories::new("look-refresh-done");
+    for landings in [0, 2] {
+        let repos = Repositories::new(&format!("look-refresh-done-{landings}"));
+        repos.request("tighter-cards");
+        repos.request("calmer-banner");
+        repos.publish_requests();
+        let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+        let printed = if landings == 0 { done.clone() } else { repos.main_commit("Another change before printing") };
+        repos.main_commit(&format!("Journey pages\n\nPrinted: {printed}"));
+        for _ in 0..landings {
+            repos.main_commit("Another landing after printing");
+        }
+        let main = repos.git(&repos.origin, &["rev-parse", "main"]);
+        let output = repos.refresh(0);
+        assert_eq!(repos.git(&repos.person, &["rev-parse", "HEAD~1"]), main);
+        assert_eq!(repos.requests(), "Tune calmer-banner");
+        assert_eq!(fs::read_to_string(repos.person.join(PAGE)).expect("cards page"), "<p>Cards</p>\n");
+        repos.assert_pushed();
+        assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+            "pages printed at {printed:.12}, {landings} landings since\ndropped tighter-cards, done on main by {done:.12}, printed at {printed:.12}\nkept calmer-banner\npushed look-requests at "
+        )));
+    }
+}
+
+#[test]
+fn a_done_request_stays_until_printed() {
+    let repos = Repositories::new("look-refresh-not-printed");
     repos.request("tighter-cards");
-    repos.request("calmer-banner");
     repos.publish_requests();
-    let main = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+    let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
     let output = repos.refresh(0);
-    assert_eq!(repos.git(&repos.person, &["rev-parse", "HEAD~1"]), main);
-    assert_eq!(repos.requests(), "Tune calmer-banner");
-    assert_eq!(fs::read_to_string(repos.person.join(PAGE)).expect("cards page"), "<p>Cards</p>\n");
-    repos.assert_pushed();
-    let short = repos.git(&repos.person, &["rev-parse", "--short", &main]);
     assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
-        "dropped tighter-cards, done on main by {short}\nkept calmer-banner\npushed look-requests at "
+        "pages not printed yet\nkept tighter-cards, done on main by {done:.12}, not yet printed\n"
     )));
+    assert_eq!(repos.requests(), "Tune tighter-cards");
+    repos.assert_pushed();
+}
+
+#[test]
+fn a_print_before_the_landing_keeps_the_request() {
+    let repos = Repositories::new("look-refresh-printed-before");
+    let printed = repos.git(&repos.person, &["rev-parse", "main"]);
+    repos.request("tighter-cards");
+    repos.publish_requests();
+    repos.main_commit(&format!("Journey pages\n\nPrinted: {printed}"));
+    let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+    let output = repos.refresh(0);
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+        "pages printed at {printed:.12}, 1 landings since\nkept tighter-cards, done on main by {done:.12}, not yet printed\n"
+    )));
+    assert_eq!(repos.requests(), "Tune tighter-cards");
+    repos.assert_pushed();
+}
+
+#[test]
+fn the_newest_print_decides() {
+    for newest_covers in [false, true] {
+        let repos = Repositories::new(&format!("look-refresh-newest-{newest_covers}"));
+        let before = repos.git(&repos.person, &["rev-parse", "main"]);
+        repos.request("tighter-cards");
+        repos.publish_requests();
+        let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+        let (older, newer) = if newest_covers { (&before, &done) } else { (&done, &before) };
+        repos.main_commit(&format!("Older print\n\nPrinted: {older}"));
+        repos.main_commit(&format!("Newest print\n\nPrinted: {newer}"));
+        let output = repos.refresh(0);
+        let report = String::from_utf8_lossy(&output.stdout);
+        assert!(report.starts_with(&format!("pages printed at {newer:.12}, 0 landings since\n")));
+        if newest_covers {
+            assert!(
+                report
+                    .contains(&format!("dropped tighter-cards, done on main by {done:.12}, printed at {newer:.12}\n"))
+            );
+            assert_eq!(repos.requests(), "");
+        } else {
+            assert!(report.contains(&format!("kept tighter-cards, done on main by {done:.12}, not yet printed\n")));
+            assert_eq!(repos.requests(), "Tune tighter-cards");
+        }
+        repos.assert_pushed();
+    }
+}
+
+#[test]
+fn invalid_prints_do_not_hide_the_last_valid_print() {
+    let repos = Repositories::new("look-refresh-invalid-print");
+    let off_main = repos.request("tighter-cards");
+    repos.publish_requests();
+    let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+    repos.main_commit(&format!("Valid print\n\nPrinted: {done}"));
+    let abbreviated = repos.git(&repos.person, &["rev-parse", "--short", &done]);
+    let blob = repos.git(&repos.person, &["rev-parse", "main:unrelated"]);
+    for invalid in ["", "not-a-hash", &abbreviated, &"a".repeat(40), &"b".repeat(64), &off_main, &blob] {
+        repos.main_commit(&format!("Invalid print\n\nPrinted: {invalid}"));
+    }
+    let output = repos.refresh(0);
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+        "pages printed at {done:.12}, 7 landings since\ndropped tighter-cards, done on main by {done:.12}, printed at {done:.12}\n"
+    )));
+    assert_eq!(String::from_utf8_lossy(&output.stderr).matches("ignoring Printed:").count(), 7);
+    assert_eq!(repos.requests(), "");
+    repos.assert_pushed();
+}
+
+#[test]
+fn the_print_lands_through_a_merge() {
+    let repos = Repositories::new("look-refresh-merged-print");
+    repos.request("tighter-cards");
+    repos.publish_requests();
+    let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+    repos.git(&repos.person, &["checkout", "--quiet", "-b", "writer", "main"]);
+    repos.git(
+        &repos.person,
+        &["commit", "--quiet", "--allow-empty", "-m", &format!("Journey pages\n\nPrinted: {done}")],
+    );
+    repos.main_commit("A landing before the writer merges");
+    repos.git(&repos.person, &["checkout", "--quiet", "main"]);
+    repos.git(&repos.person, &["merge", "--quiet", "--no-ff", "writer", "-m", "Land the print"]);
+    repos.main_commit("First landing after the print");
+    repos.main_commit("Second landing after the print");
+    let output = repos.refresh(0);
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+        "pages printed at {done:.12}, 2 landings since\ndropped tighter-cards, done on main by {done:.12}, printed at {done:.12}\n"
+    )));
+    assert_eq!(repos.requests(), "");
+    repos.assert_pushed();
+}
+
+#[test]
+fn the_print_lands_squashed_with_unrelated_work() {
+    let repos = Repositories::new("look-refresh-squashed-print");
+    repos.request("tighter-cards");
+    repos.publish_requests();
+    let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+    repos.git(&repos.person, &["checkout", "--quiet", "main"]);
+    repos.write("unrelated", "Other work in the squash\n");
+    repos.advance_main(&format!("Squashed work and pages\n\nAnother changes report\n\nPrinted: {done}"), Some(PAGE));
+    let output = repos.refresh(0);
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+        "pages printed at {done:.12}, 0 landings since\ndropped tighter-cards, done on main by {done:.12}, printed at {done:.12}\n"
+    )));
+    assert_eq!(repos.requests(), "");
+    repos.assert_pushed();
 }
 
 #[test]
@@ -292,7 +429,8 @@ fn a_completed_stack_can_be_refreshed_again() {
     repos.request("tighter-cards");
     repos.request("calmer-banner");
     repos.publish_requests();
-    let main = repos.advance_main("Complete both\n\nLook-request: tighter-cards\nLook-request: calmer-banner", None);
+    let done = repos.advance_main("Complete both\n\nLook-request: tighter-cards\nLook-request: calmer-banner", None);
+    let main = repos.main_commit(&format!("Journey pages\n\nPrinted: {done}"));
     let output = repos.refresh(0);
     assert_eq!(repos.git(&repos.person, &["rev-parse", "HEAD"]), main);
     assert_eq!(String::from_utf8_lossy(&output.stdout).matches("dropped ").count(), 2);

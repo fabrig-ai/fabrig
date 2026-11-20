@@ -46,6 +46,13 @@ is converted as it is read, and written at the binary's layout.
   (temper's `draft/store-floor.md`, section 5). A change to one designs
   how the deployment's store reaches it in the same landing; the frame
   patcher and its texts and patches stay (`transcripts.md`, 6).
+- **The deployed store's layouts hold both rules.** Every layout the
+  oldest store a build opens may hold, dev.fabrig.ai's (temper's
+  `draft/store-floor.md`), plans to the binary's as 5.3 does or is a
+  written job's (6); a format outside the registry keeps each
+  declaration's layout at its version, or moves its version with its
+  patch. Temper's guard holds both against the texts of the builds whose
+  layouts that store holds (temper's `protocol/floor.md`, 6).
 - **Held records** of any family the binary holds a text of, registered
   or not, are part of their holder's layout (skein's
   `data/codec/README.md`, 9.4): a core projection that holds a tasks
@@ -255,8 +262,10 @@ plans each layout the registry holds to its value type's binary layout
 and its root and variant, to `current`'s. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
 
-- a written job of the binary converts from it (`jobs.md`, 4), pending
-  or done; or
+- a written job of the binary converts from it (`jobs.md`, 4): one
+  naming it by fingerprint (`One`), pending or done, or, where its plan
+  is `Underived`, one converting its value type's unplanned layouts
+  (`Unplanned`), pending; or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
   there (`README.md`, 6.3), where it is retired (5.4). A value type a
@@ -306,16 +315,16 @@ such a binary writes).
 A change no plan derives (a field computed from others, a variant
 dropped, a type changed in meaning) is its owner's **written job**
 (`jobs.md`, 4): a job that names the value type and the layout it
-converts from, walks that value type's keys, and is handed each value at
-that layout as it is stored, with that layout's texts, to put it again
-at the binary's. Its owner's function reads the old value by skein's
+converts from, or each of its layouts no plan reaches, walks that value
+type's keys, and is handed each value at such a layout as it is stored,
+with that layout's texts, to put it again at the binary's. Its owner's function reads the old value by skein's
 generic values (skein's `data/codec/README.md`, section 8) and builds
-the new by its generated code. The check takes the layout as converted
-(5.3), and the next writing open retires it.
+the new by its generated code. The check takes its layouts as converted
+(5.3), and the next writing open retires them.
 
 A written job also takes a layout that a plan reaches when the values
 at that layout are not all the root it names. The read edge leaves
-values at a written job's `from` layout to the job, never to a plan
+values at a written job's layouts to the job, never to a plan
 (`jobs.md`, 4).
 
 ## 7. Bounds
@@ -356,10 +365,19 @@ values at a written job's `from` layout to the job, never to a plan
   written jobs; the drained pending queue keeps no spare capacity.
   Bounded beside the jobs' page and commit room at open
   (`README.md`, section 8); no map patch machine is held.
-- **Per read:** a converted value is built in a `Buffer` at the store's
-  value bound (`records.md`, 4), with one skein `layout::Workspace`
-  beside it fitted at open to every plan the store holds, so a read
-  allocates nothing; a value at the binary's layout, or at
+- **Per read:** a converted value is built in a `Buffer` that grows with
+  the values the store converts, never past the store's value bound
+  (`records.md`, 4), with one skein `layout::Workspace` beside it fitted
+  at open to every plan the store holds. An open whose plans convert
+  holds no buffer yet. The first read that converts makes one at the
+  least power of two at least twice its stored value's length, at least
+  4,096 bytes and at most the bound; a conversion that runs out of the
+  buffer's room makes one twice as large, at most the bound, and
+  converts again. So what the store holds is the room the largest value
+  converted so far needed, not the value bound, which an application may
+  size for far more than it holds, and a read allocates only when its
+  value outgrows the buffer. A value that doesn't fit at the bound is
+  left as it is read, as before. A value at the binary's layout, or at
   one whose plan keeps, is rewritten in its two head bytes alone.
 - **The registry's rows** within skein-kv's value bound: a `Text` at
   most 262,144 bytes, refused `Set { owner }` where a `current` is longer.
@@ -395,6 +413,23 @@ values at a written job's `from` layout to the job, never to a plan
   their order are unchanged: a stored text whose bytes do not give its
   digest, a persisted fingerprint its text does not give, a malformed
   declaration, a held depth past a plan's, each refused as before.
+- **Dev's build's store,** step tests: a store whose registry holds the
+  jig texts of `13efa77461`, the build dev.fabrig.ai runs, kept verbatim
+  as fixtures, with values at those layouts: refused delegations
+  (core's calls, whose `TaskBytes` hold the tasks' `TaskProblem`), ended
+  tasks whose history and ended records are in their task logs, in more
+  than one of skein-kv's log shards (`logs.md`, 1), and an activity frame
+  near the store's page. Opened by the binary's sets, the open registers
+  the binary's layouts in a new generation (5.5); the restore's live and
+  census pages, each task's own rows and its ended record read back with
+  every value at the binary's layout. The source generation is
+  unchanged, and a second open writes nothing and reads the same.
+- **The conversion buffer** (7), measured under skein's counting
+  allocator in the store's world: a store whose plans convert holds no
+  buffer at open; its first converted read makes one at its value's
+  room; a value past the buffer's room grows it and is converted whole;
+  the heap a seeded store holds after its open is the same whether its
+  value bound is the fixture's or several times it.
 
 ## 9. Open questions
 

@@ -92,6 +92,7 @@ fn cursor() -> c::Cursor {
 }
 fn task_page(live: &[c::TaskLine], live_more: bool, ended: &[c::TaskLine], ended_more: bool) -> c::ReadValue {
     c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::from_boxed(live.into()),
         live_after: live_more.then_some(cursor()),
         ended: c::EndedGroup::Rows {
@@ -134,6 +135,7 @@ fn a_tracked_task_reads_its_report_and_line_and_opens_its_inbox() {
         read,
         c::Read::Tasks {
             query: c::TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(task.project),
                 requester: Some(task.requester),
                 label: Some(task.label),
@@ -757,6 +759,7 @@ fn resume_is_refused_unless_paused() {
         .unwrap()
         .cards
         .push(pages::inbox::Card {
+            withdraw_unread: false,
             whole: None,
             task: None,
             object: c::ObjectKey::Proposal(acts::PROPOSAL),

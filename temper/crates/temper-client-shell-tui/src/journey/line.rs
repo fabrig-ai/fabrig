@@ -4,7 +4,7 @@ use jig_client::contract::LoginExit;
 use skein_lib::{Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Handshake, Note, Scheme};
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum Line {
@@ -30,6 +30,8 @@ pub enum Line {
     Key { key: Key, event: Option<Box<[u8]>> },
     Resize(Size),
     Reply { exchange: u64, bytes: Box<[u8]> },
+    Part { exchange: u64, bytes: Box<[u8]> },
+    Done(u64),
     Unanswered(u64),
     Streamed(Streamed),
     Gone,
@@ -38,6 +40,7 @@ pub enum Line {
     Kept { written: bool },
     Opened { opened: bool },
     Found(Option<Box<[u8]>>),
+    Handshake(Option<Handshake>),
     BoxLine(Box<[u8]>),
     BoxStage(Box<[u8]>),
     Lent { number: u32, exit: LoginExit },
@@ -47,6 +50,7 @@ pub enum Line {
     StopBoxAgain,
     Send { exchange: u64, message: Sent, credential: Option<Box<[u8]>> },
     Stream(Option<Box<[u8]>>),
+    Replacing { credential: Option<Box<[u8]>>, stream: Box<[u8]> },
     Unstream,
     Save { key: Box<[u8]>, bytes: Box<[u8]> },
     Erase(Box<[u8]>),
@@ -80,6 +84,7 @@ pub enum Sent {
     Request(Box<[u8]>),
     Read(Box<[u8]>),
     Watch(Box<[u8]>),
+    Batch(Box<[u8]>),
     Unwatch(Box<[u8]>),
     StreamGone(Box<[u8]>),
     SignInLink(Box<[u8]>),
@@ -93,6 +98,7 @@ impl Sent {
         use jig_client::Message;
         match message {
             Message::Authorize(bytes) => Self::Authorize(bytes.clone()),
+            Message::LinkAsk(_) => unreachable!("journeys do not ask links"),
             Message::ApprovalAsk(bytes) => Self::ApprovalAsk(bytes.clone()),
             Message::ApprovalRead(bytes) => Self::ApprovalRead(bytes.clone()),
             Message::ApprovalDecide(bytes) => Self::ApprovalDecide(bytes.clone()),
@@ -100,6 +106,7 @@ impl Sent {
             Message::Request(bytes) => Self::Request(bytes.clone()),
             Message::Read(bytes) => Self::Read(bytes.clone()),
             Message::Watch(bytes) => Self::Watch(bytes.clone()),
+            Message::Batch(bytes) => Self::Batch(bytes.clone()),
             Message::Unwatch(bytes) => Self::Unwatch(bytes.clone()),
             Message::StreamGone(bytes) => Self::StreamGone(bytes.clone()),
             Message::SignInLink(bytes) => Self::SignInLink(bytes.clone()),
@@ -118,6 +125,7 @@ impl Sent {
             Self::Request(bytes) => (b"request", bytes),
             Self::Read(bytes) => (b"read", bytes),
             Self::Watch(bytes) => (b"watch", bytes),
+            Self::Batch(bytes) => (b"batch", bytes),
             Self::Unwatch(bytes) => (b"unwatch", bytes),
             Self::StreamGone(bytes) => (b"stream-gone", bytes),
             Self::SignInLink(bytes) => (b"sign-in-link", bytes),
@@ -140,6 +148,14 @@ impl Line {
         out.extend_from_slice(self.kind().as_bytes());
         let mut w = Text { out };
         match self {
+            Self::Handshake(failed) => w.word(match failed {
+                Some(Handshake::Untrusted) => b"untrusted",
+                Some(Handshake::Expired) => b"expired",
+                Some(Handshake::NotYetValid) => b"not-yet-valid",
+                Some(Handshake::OtherName) => b"other-name",
+                Some(Handshake::Failed) => b"failed",
+                None => b"none",
+            }),
             Self::Lent { number, exit } => {
                 w.number(u64::from(*number));
                 w.login_exit(*exit);
@@ -149,7 +165,7 @@ impl Line {
                 w.bytes(name);
             }
             Self::Journey { version } => w.number(u64::from(*version)),
-            Self::Seed(seed) | Self::Unanswered(seed) => w.number(*seed),
+            Self::Seed(seed) | Self::Unanswered(seed) | Self::Done(seed) => w.number(*seed),
             Self::Clocks { now, wall } | Self::Turn { now, wall } => {
                 w.number(now.as_nanos());
                 w.number(wall.as_nanos());
@@ -201,7 +217,7 @@ impl Line {
                 w.optional(event.as_deref());
             }
             Self::Resize(size) => w.size(*size),
-            Self::Reply { exchange, bytes } => {
+            Self::Reply { exchange, bytes } | Self::Part { exchange, bytes } => {
                 w.number(*exchange);
                 w.bytes(bytes);
             }
@@ -227,6 +243,10 @@ impl Line {
                 w.word(kind);
                 w.bytes(bytes);
                 w.optional(credential.as_deref());
+            }
+            Self::Replacing { credential, stream } => {
+                w.optional(credential.as_deref());
+                w.bytes(stream);
             }
             Self::Noted(note) | Self::Note(note) => w.note(*note),
             Self::Found(bytes) | Self::Stream(bytes) | Self::Keep(bytes) => w.optional(bytes.as_deref()),
@@ -271,6 +291,7 @@ impl Line {
             Self::Version(_) => "version",
             Self::Noted(_) => "noted",
             Self::Found(_) => "found",
+            Self::Handshake(_) => "handshake",
             Self::Note(_) => "note",
             Self::Read => "read",
             Self::Stored { .. } => "stored",
@@ -281,6 +302,8 @@ impl Line {
             Self::Key { .. } => "key",
             Self::Resize(_) => "resize",
             Self::Reply { .. } => "reply",
+            Self::Part { .. } => "part",
+            Self::Done(_) => "done",
             Self::Unanswered(_) => "unanswered",
             Self::Streamed(_) => "streamed",
             Self::Gone => "gone",
@@ -290,6 +313,7 @@ impl Line {
             Self::Opened { .. } => "opened",
             Self::Send { .. } => "send",
             Self::Stream(_) => "stream",
+            Self::Replacing { .. } => "replacing",
             Self::Unstream => "unstream",
             Self::Save { .. } => "save",
             Self::Erase(_) => "erase",
@@ -584,6 +608,7 @@ impl Read<'_> {
             b"request" => Sent::Request,
             b"read" => Sent::Read,
             b"watch" => Sent::Watch,
+            b"batch" => Sent::Batch,
             b"unwatch" => Sent::Unwatch,
             b"stream-gone" => Sent::StreamGone,
             b"sign-in-link" => Sent::SignInLink,
@@ -616,7 +641,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
     let line = match kind {
         b"journey" => {
             let version = r.count()?;
-            if version != 2 {
+            if version != 2 && version != 3 && version != 4 {
                 return Err("unsupported journey version");
             }
             Line::Journey { version }
@@ -653,6 +678,15 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"box" => Line::Box,
         b"noted" => Line::Noted(r.note()?),
         b"found" => Line::Found(r.optional()?),
+        b"handshake" => Line::Handshake(match r.word()? {
+            b"untrusted" => Some(Handshake::Untrusted),
+            b"expired" => Some(Handshake::Expired),
+            b"not-yet-valid" => Some(Handshake::NotYetValid),
+            b"other-name" => Some(Handshake::OtherName),
+            b"failed" => Some(Handshake::Failed),
+            b"none" => None,
+            _ => return Err("unknown handshake failure"),
+        }),
         b"note" => Line::Note(r.note()?),
         b"read" => Line::Read,
         b"address" => Line::Address(r.bytes()?),
@@ -664,6 +698,8 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"key" => Line::Key { key: r.key()?, event: r.optional()? },
         b"resize" => Line::Resize(r.size()?),
         b"reply" => Line::Reply { exchange: r.number()?, bytes: r.bytes()? },
+        b"part" => Line::Part { exchange: r.number()?, bytes: r.bytes()? },
+        b"done" => Line::Done(r.number()?),
         b"unanswered" => Line::Unanswered(r.number()?),
         b"streamed" => Line::Streamed(r.streamed()?),
         b"gone" => Line::Gone,
@@ -673,6 +709,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"opened" => Line::Opened { opened: r.done()? },
         b"send" => Line::Send { exchange: r.number()?, message: r.sent()?, credential: r.optional()? },
         b"stream" => Line::Stream(r.optional()?),
+        b"replacing" => Line::Replacing { credential: r.optional()?, stream: r.bytes()? },
         b"unstream" => Line::Unstream,
         b"save" => Line::Save { key: r.bytes()?, bytes: r.bytes()? },
         b"erase" => Line::Erase(r.bytes()?),

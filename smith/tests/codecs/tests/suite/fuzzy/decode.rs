@@ -2,14 +2,14 @@
 //! (protocol/charter.md, section 8; protocol/transcript.md, section 9;
 //! protocol/channel.md, section 10).
 
-use skein_lib::{Reader, Rng, Writer};
+use skein_lib::{Reader, Rng};
+use smith_channel::Record;
 
 macro_rules! check {
     ($bytes:expr, $family:ident, $record:ident) => {
         if let Ok(value) = $family::$record::decode(&$family::CEILINGS, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), $bytes);
+            let bytes = value.encode(&$family::CEILINGS).expect("decoded value encodes");
+            assert_eq!(bytes.as_ref(), $bytes);
         }
     };
 }
@@ -52,43 +52,22 @@ fn arbitrary_and_mutated_wires_never_panic_and_round_trip_when_valid() {
         check_all(buffer.get(..length).expect("within buffer"));
     }
 
-    let root = skein_scratch::paths::tree().join("crates");
-    for (family, version, record) in [
-        ("smith-charter", "v5", "charter"),
-        ("smith-charter", "v5", "run_result"),
-        ("smith-transcript", "v6", "turn"),
-        ("smith-channel", "v7", "start"),
-        ("smith-channel", "v7", "message"),
-        ("smith-channel", "v7", "message_refused"),
-        ("smith-channel", "v7", "host_answer"),
-        ("smith-channel", "v7", "acknowledge"),
-        ("smith-channel", "v7", "grant_refresh"),
-        ("smith-channel", "v7", "cancel"),
-        ("smith-channel", "v7", "drain"),
-        ("smith-channel", "v7", "admitted"),
-        ("smith-channel", "v7", "call"),
-        ("smith-channel", "v7", "withdraw"),
-        ("smith-channel", "v7", "turn"),
-        ("smith-channel", "v7", "waiting"),
-        ("smith-channel", "v7", "long"),
-        ("smith-channel", "v7", "long_done"),
-        ("smith-channel", "v7", "unauthorized"),
-        ("smith-channel", "v7", "limited"),
-        ("smith-channel", "v7", "account_refused"),
-        ("smith-channel", "v7", "fact"),
-        ("smith-channel", "v7", "live"),
-        ("smith-channel", "v7", "answer"),
-    ] {
-        let name = format!("record_{record}_full.bin");
-        let golden = std::fs::read(root.join(family).join("golden").join(version).join(name)).expect("golden readable");
-        check_all(&golden);
-        for _round in 0_u32..100 {
-            let mut mutated = golden.clone();
-            if !mutated.is_empty() {
-                let index = usize::try_from(rng.below(skein_lib::len_u64(mutated.len()))).expect("index fits");
-                *mutated.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+    for (family, version) in [("charter", 5), ("transcript", 7), ("channel", 7)] {
+        for value in crate::support::goldens::all(family, version)
+            .into_iter()
+            .filter(|value| value.name.starts_with("record_") && value.name.ends_with("_full.bin"))
+        {
+            let golden = value.bytes;
+            check_all(&golden);
+            for _round in 0_u32..100 {
+                let mut mutated = golden.clone();
+                if !mutated.is_empty() {
+                    let index = usize::try_from(rng.below(skein_lib::len_u64(mutated.len()))).expect("index fits");
+                    *mutated.get_mut(index).expect("chosen byte") =
+                        u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+                }
+                check_all(&mutated);
             }
-            check_all(&mutated);
         }
     }
 }

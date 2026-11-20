@@ -11,19 +11,55 @@ use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
 use skein_shell::Host;
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::{Background, Depth, Key, Terminal};
-use temper_client_tui::{BoxLine, Note, Scheme};
+use temper_client_tui::{BoxLine, Note, Origin, Scheme};
 
 mod front;
 mod lending;
 
 const TAG: u64 = 1 << 61;
+fn handshake(error: skein_tls::client::Error) -> temper_client_tui::Handshake {
+    use skein_tls::client::{Certificate, Error};
+    use temper_client_tui::Handshake;
+    match error {
+        Error::Certificate(Certificate::Issuer | Certificate::Invalid) => Handshake::Untrusted,
+        Error::Certificate(Certificate::Expired) => Handshake::Expired,
+        Error::Certificate(Certificate::NotYetValid) => Handshake::NotYetValid,
+        Error::Certificate(Certificate::Name) => Handshake::OtherName,
+        Error::Decrypt
+        | Error::Alert(_)
+        | Error::Protocol
+        | Error::TooLong
+        | Error::FlightTooLong
+        | Error::Truncated
+        | Error::Stream(_)
+        | Error::Other => Handshake::Failed,
+    }
+}
+
+fn handshake_report(
+    origin: &Origin,
+    previous: &mut Option<skein_tls::client::Error>,
+    failed: Option<skein_tls::client::Error>,
+) -> Option<host::Report> {
+    if let Origin::Http(_) = origin {
+        return None;
+    }
+    if *previous == failed {
+        return None;
+    }
+    *previous = failed;
+    Some(host::Report::Handshake { failed: failed.map(handshake) })
+}
+
 const ROOM: u32 = 64;
 const OPENER: Token = Token::new(u64::MAX);
 
 pub struct Settings {
-    pub engine: io::Addr,
+    pub engine: jig_client_shell_native::Engine,
     pub directory: Box<[u8]>,
-    pub address: Box<[u8]>,
+    /// The last origin's theme, only for a directory made by this start.
+    pub theme: Option<jig_client::Record>,
+    pub address: Origin,
     pub scheme: Option<Scheme>,
     pub plain: bool,
     pub version: Box<[u8]>,
@@ -79,7 +115,7 @@ pub struct Run {
     raw: Queue<Submit>,
     told: Queue<io::Event>,
     operations: u32,
-    start: Option<(Option<Scheme>, Box<[u8]>)>,
+    start: Option<(Option<Scheme>, Origin)>,
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
     plain: bool,
     version: Box<[u8]>,
@@ -93,10 +129,13 @@ pub struct Run {
     link_file: Option<Box<[u8]>>,
     local: LocalFile,
     note: Option<Note>,
+    theme: Option<jig_client::Record>,
+    theme_writing: bool,
     notes: Option<FileSave>,
-    address: Box<[u8]>,
+    address: Origin,
+    handshake: Option<skein_tls::client::Error>,
     size: Option<Size>,
-    signed_in: Option<Box<[u8]>>,
+    signed_in: Option<Origin>,
     closing: bool,
     refused: bool,
     terminated: bool,
@@ -118,8 +157,10 @@ impl Run {
         let host = host::Host::new(&host::Settings { limits: settings.limits.clone() }, seed, Time::ZERO, Wall::EPOCH);
         let terminal_settings = limits::terminal(&settings.limits, settings.depth, settings.scheme.is_some());
         let mut shell = jig_client_shell_native::Shell::new(jig_client_shell_native::Settings {
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
             engine: settings.engine,
-            directory: settings.directory,
+            directory: settings.directory.clone(),
             limits: settings.limits.native.connections,
             io: settings.limits.native.io,
         });
@@ -149,9 +190,8 @@ impl Run {
             root
         });
         let box_child = settings.front.map(front::Child::new);
-        let recording = settings.record.map(|root| Recording::new(root, user, seed, settings.files == Some(root)));
-        let shared_notes = recording.as_ref().is_some_and(|recording| recording.notes);
-        let notes = settings.files.filter(|_| !shared_notes).map(|root| FileSave::new(root, user, seed, b"sign-in"));
+        let recording = settings.record.map(|root| Recording::new(root, user, seed));
+        let notes = settings.files.map(|root| FileSave::new(root, user, seed, &settings.directory, b"sign-in"));
         let operations = shell
             .operations()
             .checked_add(Terminal::operations(&terminal_settings).expect("checked terminal operations"))
@@ -196,8 +236,11 @@ impl Run {
             link_file: settings.link_file,
             local: LocalFile::new(root, user),
             note: settings.note,
+            theme: settings.theme,
+            theme_writing: false,
             notes,
             address: settings.address,
+            handshake: None,
             size: None,
             signed_in: None,
             closing: false,
@@ -209,8 +252,8 @@ impl Run {
 
     /// The address the host gave the binary to keep.
     #[must_use]
-    pub fn signed_in(&self) -> Option<&[u8]> {
-        self.signed_in.as_deref()
+    pub fn signed_in(&self) -> Option<&Origin> {
+        self.signed_in.as_ref()
     }
 
     /// Read the filename of `path` beneath its parent descriptor `root`, before
@@ -415,11 +458,6 @@ impl Run {
         {
             notes.noted = Some(note.print(&self.address));
         }
-        if let Some(note) = duties.note
-            && let Some(recording) = self.recording.as_mut().filter(|recording| recording.notes)
-        {
-            recording.save.noted = Some(note.print(&self.address));
-        }
         if let Some(address) = duties.address {
             self.signed_in = Some(address);
         }
@@ -476,7 +514,19 @@ impl Run {
         }
     }
 
-    fn started(&mut self, credential: Option<Secret>, kept: Vec<jig_client::Record>) {
+    fn started(&mut self, credential: Option<Secret>, mut kept: Vec<jig_client::Record>) {
+        if let Some(theme) = self
+            .theme
+            .take()
+            .filter(|_| !kept.iter().any(|record| record.key.as_ref() == temper_client_tui::theme::THEME_KEY))
+        {
+            // Queue this write before the host can ask for any writes of its own.
+            let mut records = skein_lib::List::with_capacity(1);
+            records.push(theme.clone()).expect("one theme record");
+            self.shell.down(jig_client::Request::Save { records });
+            self.theme_writing = true;
+            kept.push(theme);
+        }
         let (scheme, address) = self.start.take().expect("the shell loads once");
         let background = match self.terminal.background() {
             Background::Answered(rgb) => Some(rgb),
@@ -576,7 +626,15 @@ impl Run {
                 reported = true;
             }
             while let Some(event) = self.shell.events().pop() {
+                if self.theme_writing && matches!(&event, jig_client::Event::Stored | jig_client::Event::NotStored) {
+                    self.theme_writing = false;
+                    continue;
+                }
                 self.report(host::Report::Heard(event));
+                reported = true;
+            }
+            if let Some(report) = handshake_report(&self.address, &mut self.handshake, self.shell.refused()) {
+                self.report(report);
                 reported = true;
             }
             if !self.closing && self.size != Some(self.terminal.size()) {
@@ -825,7 +883,6 @@ impl Host for Run {
 }
 
 struct Recording {
-    notes: bool,
     save: FileSave,
     recorder: Option<journey::Recorder>,
     seed: u64,
@@ -833,8 +890,8 @@ struct Recording {
 }
 
 impl Recording {
-    fn new(root: Fd, user: u32, seed: u64, notes: bool) -> Self {
-        Self { notes, save: FileSave::new(root, user, seed, b""), recorder: None, seed, closing: false }
+    fn new(root: Fd, user: u32, seed: u64) -> Self {
+        Self { save: FileSave::new(root, user, seed, b"tui", b""), recorder: None, seed, closing: false }
     }
 
     fn start(&mut self, wall: Wall) {
@@ -879,6 +936,7 @@ struct FileSave {
     active: Option<SavedFile>,
     noted: Option<Box<[u8]>>,
     path: Box<[u8]>,
+    directory: Box<[u8]>,
     retain: bool,
     removals: Vec<Box<[u8]>>,
     stored: bool,
@@ -887,7 +945,7 @@ struct FileSave {
 }
 
 impl FileSave {
-    fn new(root: Fd, user: u32, seed: u64, path: &[u8]) -> Self {
+    fn new(root: Fd, user: u32, seed: u64, directory: &[u8], path: &[u8]) -> Self {
         // Four descriptors cover the parent, private directory, target and temporary.
         let limits = io::file_layer::Limits {
             files: 4,
@@ -910,6 +968,7 @@ impl FileSave {
             active: None,
             noted: None,
             path: path.into(),
+            directory: directory.into(),
             retain: false,
             removals: Vec::new(),
             stored: false,
@@ -1011,7 +1070,7 @@ impl FileSave {
                     Request::OpenPrivate {
                         owner,
                         root: self.root.expect("private save parent"),
-                        path: b"tui".as_slice().into(),
+                        path: self.directory.clone(),
                     },
                 );
             }
@@ -1264,11 +1323,57 @@ impl LocalFile {
 mod tests {
     use super::*;
 
+    #[test]
+    fn tls_errors_have_the_handshakes_words() {
+        use skein_tls::client::{Certificate, Error};
+        use temper_client_tui::Handshake;
+        for (error, expected) in [
+            (Error::Certificate(Certificate::Issuer), Handshake::Untrusted),
+            (Error::Certificate(Certificate::Invalid), Handshake::Untrusted),
+            (Error::Certificate(Certificate::Expired), Handshake::Expired),
+            (Error::Certificate(Certificate::NotYetValid), Handshake::NotYetValid),
+            (Error::Certificate(Certificate::Name), Handshake::OtherName),
+            (Error::Protocol, Handshake::Failed),
+            (Error::Decrypt, Handshake::Failed),
+            (Error::Alert(42), Handshake::Failed),
+            (Error::TooLong, Handshake::Failed),
+            (Error::FlightTooLong, Handshake::Failed),
+            (Error::Truncated, Handshake::Failed),
+            (Error::Stream(skein_lib::stream::Fault::Reset), Handshake::Failed),
+            (Error::Other, Handshake::Failed),
+        ] {
+            assert_eq!(handshake(error), expected, "{error:?}");
+        }
+    }
+
+    #[test]
+    fn handshake_reports_only_changes_and_never_at_http() {
+        use skein_tls::client::{Certificate, Error};
+        let https = Origin::parse(b"https://dev.fabrig.ai").expect("origin");
+        let mut previous = None;
+        assert!(handshake_report(&https, &mut previous, None).is_none());
+        for failed in [
+            Some(Error::Certificate(Certificate::Issuer)),
+            Some(Error::Certificate(Certificate::Invalid)),
+            Some(Error::Certificate(Certificate::Expired)),
+            None,
+        ] {
+            let report = handshake_report(&https, &mut previous, failed).expect("changed failure");
+            let host::Report::Handshake { failed: reported } = report else { panic!("handshake report") };
+            assert_eq!(reported, failed.map(handshake));
+            assert!(handshake_report(&https, &mut previous, failed).is_none(), "unchanged error");
+        }
+        let http = Origin::parse(b"http://127.0.0.1:8367").expect("origin");
+        assert!(handshake_report(&http, &mut previous, Some(Error::Other)).is_none());
+        assert_eq!(previous, None);
+    }
+
     fn settings() -> Settings {
         Settings {
-            engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
-            directory: b"tui".as_slice().into(),
-            address: b"127.0.0.1:8367".as_slice().into(),
+            engine: jig_client_shell_native::Engine::Plain(io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback"))),
+            directory: b"tui/at/127.0.0.1/8367".as_slice().into(),
+            theme: None,
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             scheme: Some(Scheme::Dark),
             plain: false,
             version: Box::default(),
@@ -1374,11 +1479,9 @@ mod tests {
         run.started(None, Vec::new());
         run.box_child.as_mut().expect("front").reports.push(front::Report::Link {
             engine: io::Addr::Ip("[::1]:9400".parse().expect("handed engine")),
-            address: b"[::1]:9400".as_slice().into(),
+            address: temper_client_tui::Origin::Http("[::1]:9400".parse().expect("fixture socket")),
             link: Secret::new(
-                b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                    .as_slice()
-                    .into(),
+                b"http://[::1]:9400/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice().into(),
             ),
         });
         run.event(&io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });

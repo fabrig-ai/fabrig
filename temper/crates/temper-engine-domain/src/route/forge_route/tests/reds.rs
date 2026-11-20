@@ -17,6 +17,7 @@ fn proof(domain: &mut Domain, task: u64) {
                 task,
                 attempt: 1,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 accounts: Box::new([]),
                 placement: Some(Token::new(7)),
@@ -53,6 +54,7 @@ fn hold(domain: &mut Domain, env: &Env<Limits>, task: u64, branch: &[u8]) {
             },
             task,
             writer: None,
+            beside: None,
             design_writers: Box::new([]),
             drift: None,
         }),
@@ -489,6 +491,11 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
         &mut domain,
         &env,
         forge::Stored::Landing(forge::LandingRow {
+            last_event: None,
+            turn_since: None,
+            waiting: None,
+            flake_reruns: Box::new([]),
+            room: None,
             job: None,
             landing: landing::Landing {
                 task: 61,
@@ -500,6 +507,7 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
                 branch: b"temper/8/g7".as_slice().into(),
                 preparation: 0,
                 stale_proofs: 0,
+                last_prepare: None,
                 members: Box::new([landing::Member {
                     round: None,
                     change: 20,
@@ -656,6 +664,7 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
             source: b"check".as_slice().into(),
             ids: Box::new([flake().key]),
             first: Box::new([]),
+            many: false,
         })
     );
     let subscription =
@@ -750,4 +759,50 @@ fn flake_words_cut_at_character_boundaries_and_name_unnamed_repositories_by_numb
     assert!(body.contains(&format!("base {}.", "cd".repeat(32))));
     assert!(body.ends_with("é[cut]"));
     assert!((4095..=4096).contains(&row.body.len()));
+}
+
+#[test]
+fn landed_reads_require_a_recorded_head_and_keep_landed_verification_states() {
+    use crate::wire::{Answer, Ask, answer};
+    use temper_engine_domain_forge_change as change;
+    let (mut domain, env, context) = change_start_fixture();
+    let task = context.task;
+    let attempt = 1;
+    proof(&mut domain, task);
+    let head = [37; 32];
+    assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded);
+    let dependency = 78;
+    let mut asking = change_row(None);
+    asking.task = task;
+    asking.change.task = task;
+    asking.change.early = change::Early::Spent(Box::new([change::StartedFrom { task: dependency, head }]));
+    restore(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
+    assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded, "missing dependency row");
+    for (state, expected) in [
+        (change::State::Producing { requested: true }, Answer::Unlanded),
+        (
+            change::State::Held {
+                was: Box::new(change::State::Producing { requested: true }),
+                why: change::Hold::Failed,
+            },
+            Answer::Unlanded,
+        ),
+        (change::State::NoChange { words: Box::new([]) }, Answer::Unlanded),
+        (change::State::Ended, Answer::Unlanded),
+        (change::State::Red { merge: [38; 32], since: skein_lib::Wall::EPOCH }, Answer::Landed),
+        (change::State::Cleared { merge: [38; 32] }, Answer::Landed),
+        (change::State::Uncleared { merge: [38; 32] }, Answer::Landed),
+    ] {
+        let mut row = change_row(None);
+        row.task = dependency;
+        row.change.task = dependency;
+        row.change.state = state;
+        restore(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+        assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), expected);
+    }
+    let mut asking = change_row(None);
+    asking.task = task;
+    asking.change.task = task;
+    restore(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
+    assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded, "no early start");
 }

@@ -22,11 +22,19 @@ impl Core {
     pub fn open_person_pool(&mut self, project: u32, person: u64) -> (Option<tasks::Event>, Option<tasks::Event>) {
         let period = tasks::Funder::Period { project, period: self.period(project) };
         let open_period = if self.tasks.funding(period).is_none() {
+            let budget = if project == jig_domain_people::DEPLOYMENT {
+                self.period_budget(project)
+            } else {
+                match self.authority.policy(project) {
+                    Some(policy) => policy.period_spend,
+                    None => 0,
+                }
+            };
             Some(tasks::Event::OpenPeriod {
                 reply_to: ReplyTo::new(self.internal(crate::routing::flight::Internal::Delegate)),
                 project,
                 period: self.period(project),
-                budget: self.period_budget(project),
+                budget,
             })
         } else {
             None

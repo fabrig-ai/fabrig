@@ -1,4 +1,5 @@
 //! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
+//! Fixed starts follow temper/docs/design/client/journey-clock.md, 4.3.
 use crate::{
     limits,
     run::{Front, Run, Settings},
@@ -8,16 +9,18 @@ use skein_io::{
     kernel::{Exit, Fd},
 };
 use skein_lib::Duration;
-use skein_shell::{Clock, Config, Host, Input, Kernel, Keys, Watch};
+use skein_shell::{Clock, Config, FixedStart, Host, Input, Kernel, Keys, Watch};
 use skein_ui_screen_terminal::{Depth, LEAVE};
 use std::{
-    net::SocketAddr,
+    net::{SocketAddr, ToSocketAddrs},
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::{Path, PathBuf},
 };
 use temper_client_shell_terminal::address as engine_address;
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme, Unaddressed};
 use temper_shell::{directories, link_file};
+
+mod deployment;
 
 pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
@@ -27,6 +30,11 @@ pub enum Refused {
     NotAnAddress(Box<[u8]>),
     Link,
     NotLoopback,
+    HttpName,
+    HttpsAddress,
+    Resolve { name: String, why: String },
+    Roots(String),
+    FixedStart,
     Directory(String),
 }
 impl Refused {
@@ -42,18 +50,33 @@ impl Refused {
             Self::NotAnAddress(argument) => format!("not an address: {}", String::from_utf8_lossy(argument)),
             Self::Link => format!("a sign-in link is never an argument: run {name} http://HOST:PORT and paste it"),
             Self::NotLoopback => "the engine's address must be on loopback".into(),
+            Self::HttpName => "http:// reaches an engine on this machine alone: use https://NAME".into(),
+            Self::HttpsAddress => "https:// needs the deployment's name".into(),
+            Self::Resolve { name, why } => format!("can't find {name}: {why}"),
+            Self::Roots(why) => format!("the machine's trust roots: {why}"),
+            Self::FixedStart => "TEMPER_INTERNAL_FIXED_START: expected SECONDS,SEED".into(),
             Self::Directory(why) => why.clone(),
         }
     }
 }
 
-pub fn address(argument: &[u8]) -> Result<SocketAddr, Refused> {
-    match engine_address::target(argument) {
-        Ok(engine_address::Target::Address { engine }) => Ok(engine),
-        Ok(engine_address::Target::Link { .. }) => Err(Refused::Link),
-        Err(engine_address::Refused::NotLoopback) => Err(Refused::NotLoopback),
-        Err(engine_address::Refused::NotALink(_)) => Err(Refused::NotAnAddress(argument.into())),
+pub fn address(argument: &[u8]) -> Result<Origin, Refused> {
+    // A link is never an argument, even when its secret is malformed (client/tui/README.md, 1).
+    if let Some(rest) = std::str::from_utf8(argument).ok().and_then(|text| text.strip_prefix("http://"))
+        && let Some((host, path)) = rest.split_once('/')
+        && host.parse::<SocketAddr>().is_ok()
+        && let Some((path, _)) = path.split_once("?secret=")
+        && (path == "jig/v1/sign-in/link"
+            || Some(path.as_bytes()) == temper_client_domain::sign_in::LINK_PAGE.strip_prefix(b"/"))
+    {
+        return Err(Refused::Link);
     }
+    Origin::parse(argument).map_err(|why| match why {
+        Unaddressed::NotAnAddress => Refused::NotAnAddress(argument.into()),
+        Unaddressed::HttpName => Refused::HttpName,
+        Unaddressed::HttpsAddress => Refused::HttpsAddress,
+        Unaddressed::OffLoopback => Refused::NotLoopback,
+    })
 }
 
 pub fn directory(environment: &[EnvironmentEntry]) -> Result<PathBuf, Refused> {
@@ -75,27 +98,115 @@ pub fn recording(environment: &[EnvironmentEntry]) -> bool {
     temper_shell::environment::INTERNAL_RECORD.value(environment).is_some()
 }
 
-#[must_use]
-pub fn kept(bytes: &[u8]) -> Option<SocketAddr> {
-    address(bytes).ok()
+/// Read a walk's start only at a loopback engine (journey-clock.md, 4.3).
+/// # Errors
+/// Refuses a nonempty value that is not a fixed start, naming its variable.
+pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Result<Option<FixedStart>, Refused> {
+    if engine.ip() != std::net::Ipv4Addr::LOCALHOST && engine.ip() != std::net::Ipv6Addr::LOCALHOST {
+        return Ok(None);
+    }
+    let Some(value) = temper_shell::environment::INTERNAL_FIXED_START.value(environment) else { return Ok(None) };
+    FixedStart::read(value).map(Some).ok_or(Refused::FixedStart)
+}
+
+// The TUI's seed stream (temper/docs/design/client/journey-clock.md, 4.3).
+const TUI_SEED_STREAM: u64 = 4;
+
+// Draw a walk's seed on the TUI's stream and keep it with its loop clock at startup.
+pub(crate) fn fixed_run(start: &FixedStart) -> (u64, Clock) {
+    let mut bytes = [0u8; 8];
+    start.draw(TUI_SEED_STREAM, &mut bytes);
+    let seed = u64::from_le_bytes(bytes);
+    (seed, Clock::fixed(start))
 }
 
 #[must_use]
-pub fn selected_address(given: Option<SocketAddr>, link: Option<&[u8]>, saved: Option<SocketAddr>) -> SocketAddr {
+pub fn kept(bytes: &[u8]) -> Option<Origin> {
+    if bytes.len() > 300 {
+        return None;
+    }
+    Origin::parse(bytes).ok()
+}
+
+#[must_use]
+pub fn selected_address(given: Option<Origin>, link: Option<&[u8]>, saved: Option<Origin>) -> Origin {
     given
         .or_else(|| match engine_address::target(link?) {
-            Ok(engine_address::Target::Link { engine, .. }) => Some(engine),
+            Ok(engine_address::Target::Link { engine, .. }) => Some(Origin::Http(engine)),
             Ok(engine_address::Target::Address { .. }) | Err(_) => None,
         })
         .or(saved)
-        .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 8367)))
+        .unwrap_or(Origin::Http(SocketAddr::from(([127, 0, 0, 1], 8367))))
 }
 
 #[must_use]
-pub fn on_box(link: Option<&[u8]>, engine: SocketAddr) -> bool {
+pub fn on_box(link: Option<&[u8]>, engine: &Origin) -> bool {
     match link.map(engine_address::target) {
-        Some(Ok(engine_address::Target::Link { engine: linked, .. })) => linked == engine,
+        Some(Ok(engine_address::Target::Link { engine: linked, .. })) => *engine == Origin::Http(linked),
         Some(Ok(engine_address::Target::Address { .. }) | Err(_)) | None => false,
+    }
+}
+
+// An explicit deployment never reads a local engine's link, including for box detection.
+fn select(
+    given: Option<Origin>,
+    saved: Option<Origin>,
+    link_file: Option<PathBuf>,
+    read: &dyn Fn(&Path) -> Option<skein_lib::Secret>,
+) -> (Origin, Option<PathBuf>, bool) {
+    let link = if let Some(Origin::Https { .. }) = &given { None } else { link_file.as_deref().and_then(read) };
+    let bytes = link.as_ref().map(skein_lib::Secret::expose);
+    let origin = selected_address(given, bytes, saved);
+    let boxed = on_box(bytes, &origin);
+    let link_file = match &origin {
+        Origin::Http(_) => link_file,
+        Origin::Https { .. } => None,
+    };
+    (origin, link_file, boxed)
+}
+
+fn engine(
+    origin: &Origin,
+    environment: &[EnvironmentEntry],
+    resolve: &dyn Fn(&str, u16) -> std::io::Result<Vec<SocketAddr>>,
+) -> Result<jig_client_shell_native::Engine, Refused> {
+    use jig_client_shell_native::{Engine, Tls};
+    match origin {
+        Origin::Http(socket) => Ok(Engine::Plain(skein_io::Addr::Ip(*socket))),
+        Origin::Https { name, port } => {
+            let text = std::str::from_utf8(name).expect("parsed origin has an ASCII name");
+            let name = skein_tls::Name::new(text).ok_or_else(|| Refused::NotAnAddress(origin.print()))?;
+            let addresses =
+                resolve(text, *port).map_err(|why| Refused::Resolve { name: text.into(), why: why.to_string() })?;
+            if addresses.is_empty() {
+                return Err(Refused::Resolve { name: text.into(), why: "no address".into() });
+            }
+            let trust = skein_shell::Trust::Machine {
+                ssl_cert_file: temper_shell::environment::SSL_CERT_FILE
+                    .value(environment)
+                    .map(|bytes| path(bytes).into()),
+            };
+            let roots = skein_shell::read_trust_roots(
+                &trust,
+                &skein_shell::RootBounds { bundle_bytes: 1 << 20, certificates: 1024, certificate_bytes: 65_536 },
+            )
+            .map_err(|why| {
+                Refused::Roots(match why {
+                    skein_shell::RootsRefusal::Unread { path, why } => format!("{}: {why:?}", path.display()),
+                    other @ (skein_shell::RootsRefusal::NoBundle
+                    | skein_shell::RootsRefusal::TooMany { .. }
+                    | skein_shell::RootsRefusal::TooLong { .. }) => format!("{other:?}"),
+                })
+            })?;
+            let (config, _) = skein_tls::Config::from_der(&roots.certificates, &[b"http/1.1"])
+                .map_err(|why| Refused::Roots(format!("{why:?}")))?;
+            Ok(Engine::Tls(Tls {
+                name,
+                host: origin.print().strip_prefix(b"https://").expect("HTTPS origin").into(),
+                addresses: addresses.into(),
+                config,
+            }))
+        }
     }
 }
 
@@ -106,9 +217,9 @@ pub fn link_path(environment: &[EnvironmentEntry], working: &[u8]) -> Option<Pat
 }
 
 #[must_use]
-pub fn read_note(directory: &Path, engine: SocketAddr, user: u32) -> Option<Note> {
+pub fn read_note(directory: &Path, engine: &Origin, user: u32) -> Option<Note> {
     let bytes = skein_shell::read_private_file(&directory.join("sign-in"), Note::MOST, user).ok()?;
-    Note::read(bytes.expose(), engine.to_string().as_bytes())
+    Note::read(bytes.expose(), engine)
 }
 
 #[must_use]
@@ -289,17 +400,21 @@ fn start(
     let directory = directory(environment)?;
     let user = skein_shell::effective_user();
     directories::make_private(&directory, user).map_err(Refused::Directory)?;
-    let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
+    let saved = skein_shell::read_private_file(&directory.join("address"), 300, user)
         .ok()
         .and_then(|bytes| kept(bytes.expose()));
-    let link_file = link_path(environment, working);
-    let (engine, boxed) = {
-        let link = link_file.as_deref().and_then(|path| link_file::read(path, user));
-        let bytes = link.as_ref().map(skein_lib::Secret::expose);
-        let engine = selected_address(given, if given.is_none() { bytes } else { None }, saved);
-        (engine, on_box(bytes, engine))
+    let (origin, link_file, boxed) =
+        select(given, saved.clone(), link_path(environment, working), &|path| link_file::read(path, user));
+    let engine = engine(&origin, environment, &|name, port| (name, port).to_socket_addrs().map(Iterator::collect))?;
+    let fixed = match &origin {
+        Origin::Http(socket) if front.is_none() => fixed_start(environment, *socket)?,
+        Origin::Http(_) | Origin::Https { .. } => None,
     };
-    let note = read_note(&directory, engine, user);
+    let fixed = fixed.as_ref().map(fixed_run);
+    let run_clock = fixed.as_ref().map_or(clock, |(_, clock)| clock);
+    let (origin_directory, made) = deployment::prepare(&directory, &origin, user)?;
+    let theme = deployment::theme(&directory, &origin, user, made);
+    let note = read_note(&origin_directory, &origin, user);
     let link_file = front.as_ref().map_or(link_file, |front| front.link.clone());
     let scheme = scheme(environment);
     let depth = depth(environment);
@@ -338,9 +453,10 @@ fn start(
         let settings = Settings {
             record,
             front,
-            engine: skein_io::Addr::Ip(engine),
-            directory: Box::from(b"tui".as_slice()),
-            address: engine.to_string().into_bytes().into_boxed_slice(),
+            engine,
+            directory: Path::new("tui").join(deployment::relative(&origin)).as_os_str().as_bytes().into(),
+            theme,
+            address: origin,
             scheme,
             plain: plain(environment),
             version: version.into(),
@@ -356,7 +472,10 @@ fn start(
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             }),
         };
-        let seed = skein_shell::seed().expect("kernel seed");
+        let seed = match &fixed {
+            Some((seed, _)) => *seed,
+            None => skein_shell::seed().expect("kernel seed"),
+        };
         let run = local_run(settings, root, user, seed, signals);
         let kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
         Ok((run, kernel, seed, in_front))
@@ -371,9 +490,9 @@ fn start(
     };
     let mut run = run.with_kept(kept);
     let exit = if in_front {
-        drive_front(&mut kernel, clock, &mut run)
+        drive_front(&mut kernel, run_clock, &mut run)
     } else {
-        skein_shell::drive(&mut kernel, clock, &mut run)
+        skein_shell::drive(&mut kernel, run_clock, &mut run)
     };
     skein_fail_stop::before_report(None);
     run.restore_terminal();
@@ -385,10 +504,9 @@ fn start(
         return Ok(1);
     }
     if let Some(signed_in) = run.signed_in() {
-        let mut bytes = b"http://".to_vec();
-        bytes.extend_from_slice(signed_in);
+        let bytes = signed_in.print();
         if self::kept(&bytes) != saved {
-            keep_address(parent, bytes.into_boxed_slice(), user, seed, clock);
+            keep_address(parent, bytes, user, seed, clock);
         }
     }
     Ok(exit_code(&run, exit))
@@ -429,10 +547,11 @@ fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
             assert_eq!(kernel.in_flight(), 0, "a drained run has no kernel operation in flight");
             return run.exit().expect("a drained run's exit");
         }
+        let deadline = clock.until(run.next_deadline());
         let wait = if run.work_pending(now) {
             skein_shell::Wait::No
         } else {
-            run.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
+            deadline.map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
         };
         kernel.submit(run.submissions(), wait);
     }

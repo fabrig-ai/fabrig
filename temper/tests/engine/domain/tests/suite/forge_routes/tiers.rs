@@ -3,7 +3,8 @@ use super::*;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
 use temper_engine_domain_world::tier_runs::{
-    self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, merge, produce_delegated, restart_cut, task, tier, until,
+    self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, change_state, merge, produce_delegated, restart_cut, task,
+    tier, until,
 };
 pub(super) use temper_engine_domain_world::tier_task_show as task_show;
 #[path = "tiers/post.rs"]
@@ -99,7 +100,7 @@ pub(super) fn result(world: &World, number: u64) -> &str {
 
 pub(super) fn cleared(world: &mut World, number: u64) {
     until(world, RUN_TICKS * 3, "change cleared", |world| matches!(task(world, number).phase, tasks::Phase::Ended(_)));
-    assert!(matches!(change(world, number).change.state, State::Cleared { .. }));
+    assert!(matches!(change_state(world, number), State::Cleared { .. }));
     assert!(matches!(panel(world, number), forge_top::PanelStep::Cleared { uncleared: false, .. }));
     assert!(result(world, number).contains("Landed:"), "result is given at cleared");
 }
@@ -214,9 +215,7 @@ fn red_range() -> (World, engine::Assignment, [u64; 3]) {
     );
     let run_task = tier(&world).task.expect("range task");
     let runs = observe_range(&mut world, run_task);
-    until(&mut world, LANDING_TICKS, "blamed change red", |world| {
-        matches!(change(world, b).change.state, State::Red { .. })
-    });
+    until(&mut world, LANDING_TICKS, "blamed change red", |world| matches!(change_state(world, b), State::Red { .. }));
     assert!(!matches!(task(&world, b).phase, tasks::Phase::Ended(_)));
     let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, b) else { panic!("red panel") };
     assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns 2 tests: suite.alpha, suite.beta".as_bytes())]);
@@ -271,7 +270,7 @@ fn a_silent_runner_past_the_bound_ends_landed_uncleared() {
         matches!(task(world, number).phase, tasks::Phase::Ended(_))
     });
     assert!(world.env.wall.as_nanos() >= since.as_nanos() + Duration::from_millis(BOUND_MS).as_nanos());
-    assert!(matches!(change(&world, number).change.state, State::Uncleared { .. }));
+    assert!(matches!(change_state(&world, number), State::Uncleared { .. }));
     assert!(matches!(panel(&mut world, number), forge_top::PanelStep::Cleared { uncleared: true, .. }));
     assert!(
         result(&world, number).contains("Not cleared: no verdict within the verification bound."),
@@ -284,6 +283,203 @@ fn a_silent_runner_past_the_bound_ends_landed_uncleared() {
     assert!(matches!(run.phase, tasks::Phase::Active(_)));
     assert!(run.spec.words.starts_with(b"Tier slow run 1\n"));
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
+}
+
+fn ended_at_landing(turn: bool) {
+    let options = Tier { wait: temper_engine_domain_forge_change::Wait::Landed, ..Tier::default() };
+    let (mut world, chat) = chat_world(turn, options);
+    let number = produce(&mut world, &chat, 93, b"file", b"small fix");
+    until(&mut world, LANDING_TICKS, "change ended at landing", |world| {
+        matches!(task(world, number).phase, tasks::Phase::Ended(_))
+    });
+    let commit = merge(&world, number);
+    assert!(matches!(change(&world, number).change.state, State::Landed { .. }));
+    assert!(
+        !world
+            .store
+            .rows
+            .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+    );
+    let words = result(&world, number);
+    assert!(words.starts_with(std::str::from_utf8(&forge_top::commit_text(&commit)).expect("commit text")), "{words}");
+    assert!(words.contains("Ended at landing; after landing judges it later."), "{words}");
+    assert_eq!(tier(&world).record.sequence, 0, "baseline has not judged yet");
+    let branch = change(&world, number).branch.clone();
+    assert!(
+        world.writes.iter().any(
+            |write| matches!(write, skein_forge::api::Write::DeleteBranch { branch: deleted } if *deleted == branch)
+        ),
+        "branch deleted as the change closes"
+    );
+}
+
+#[test]
+fn a_queued_change_ends_at_landing_before_the_tier_runs() {
+    ended_at_landing(false);
+}
+
+#[test]
+fn a_change_by_turn_ends_at_landing_before_the_tier_runs() {
+    ended_at_landing(true);
+}
+
+#[test]
+fn switching_to_landed_ends_verifying_and_red_changes_and_later_posts_from_the_log() {
+    let mut world = tier_runs::news_world();
+    world.adopt();
+    let mut event = protocol::hello_slots(Token::new(7), 2, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    hello.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(event);
+    let ask = tier_runs::goal(&world);
+    let goal = assigned_chat(&mut world, 92, ask);
+    baseline(&mut world);
+    let red = produce(&mut world, &goal, 93, b"failures", b"suite.alpha\n");
+    until(&mut world, RUN_TICKS * 3, "first change red", |world| {
+        matches!(change(world, red).change.state, State::Red { .. }) && tier(world).posting.is_none()
+    });
+    let before = tier_runs::red_news(&world, goal.task).len();
+    assert_eq!(before, 1);
+    let verifying = produce(&mut world, &goal, 94, b"failures", b"suite.alpha\nsuite.beta\n");
+    assert!(matches!(change(&world, verifying).change.state, State::Landed { .. }));
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_with_change_wait(temper_engine_domain_forge_change::Wait::Landed);
+    until(&mut world, LANDING_TICKS, "switched changes end", |world| {
+        [red, verifying].iter().all(|number| matches!(task(world, *number).phase, tasks::Phase::Ended(_)))
+    });
+    for number in [red, verifying] {
+        let commit = merge(&world, number);
+        assert_eq!(change(&world, number).change.state, State::Uncleared { merge: commit });
+        assert!(
+            result(&world, number)
+                .contains("Not cleared: its project now ends a change at its landing; after landing judges it later."),
+            "{}",
+            result(&world, number)
+        );
+        assert!(
+            !world
+                .store
+                .rows
+                .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+        );
+    }
+    until(&mut world, RUN_TICKS * 3, "later red posts from log", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
+    let pull = change(&world, verifying).pull.expect("member pull");
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(b"Red: slow run 3 blames this landing for suite.beta."))));
+    assert!(
+        tier_runs::red_news(&world, goal.task)
+            .iter()
+            .all(|word| !String::from_utf8_lossy(&word.words).contains("tier slow run 3")),
+        "switched project sends no further red"
+    );
+}
+
+#[test]
+fn switching_a_red_landing_files_its_verdict_once_and_holds_the_next_runs_ids() {
+    let mut world = tier_runs::findings_world();
+    world.adopt();
+    let mut event = protocol::hello_slots(Token::new(7), 3, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    hello.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(event);
+    let milestone = milestones::milestone(&mut world, b"Switched reds");
+    let tasks::Party::Person(person) = task(&world, milestone).requester else { panic!("milestone maker") };
+    let goal = milestones::goal_with_words(
+        &mut world,
+        milestone,
+        false,
+        b"R2 Reds blamed\n\nDraft: temper/docs/design/draft/after-landing-repairs.md",
+    );
+    baseline(&mut world);
+    // Three green observations put the blamed landing in run 5, not the baseline.
+    for sequence in 2..=4 {
+        fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            b"main",
+            b"file",
+            format!("green {sequence}").as_bytes(),
+            1,
+        )
+        .unwrap();
+        until(&mut world, RUN_TICKS, "green range judged", |world| {
+            tier(world).record.sequence == sequence && tier(world).posting.is_none()
+        });
+    }
+    sign_in(&mut world);
+    let number = produce(&mut world, &goal, 94, b"failures", b"x\ny\n");
+    until(&mut world, RUN_TICKS * 3, "landing red in run 5", |world| {
+        matches!(change(world, number).change.state, State::Red { .. }) && tier(world).posting.is_none()
+    });
+    assert_eq!(tier(&world).record.sequence, 5);
+    assert!(red_findings::findings(&world).is_empty(), "a goals red under cleared is news, not a finding");
+    let commit = merge(&world, number);
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_with_change_wait(temper_engine_domain_forge_change::Wait::Landed);
+    until(&mut world, LANDING_TICKS, "switched change ended", |world| {
+        matches!(task(world, number).phase, tasks::Phase::Ended(_))
+    });
+    assert_eq!(change(&world, number).change.state, State::Uncleared { merge: commit });
+    assert!(result(&world, number).contains("Not cleared: its project now ends a change at its landing"));
+    assert!(
+        !world
+            .store
+            .rows
+            .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+    );
+    let rows = red_findings::findings(&world);
+    let [finding] = rows.as_slice() else { panic!("one switched finding: {rows:?}") };
+    assert_eq!(finding.title.as_ref(), b"2 tests fail in slow since R2 landed");
+    assert_eq!(
+        finding.blame,
+        Some(forge_top::FindingBlame {
+            strength: forge_top::BlameStrength::Owned,
+            landings: Box::new([forge_top::BlamedLanding {
+                commit,
+                goals: Box::new([forge_top::BlamedGoal {
+                    goal: goal.task,
+                    milestone: Some(milestone),
+                    person: Some(person)
+                }])
+            }])
+        })
+    );
+    assert_eq!(
+        finding.signature,
+        Some(forge_top::FindingSignature {
+            repository: forge_world::REPO,
+            source: b"slow".as_slice().into(),
+            ids: Box::new([b"x".as_slice().into(), b"y".as_slice().into()]),
+            first: Box::new([]),
+            many: false
+        })
+    );
+    let short = forge_top::commit_text(&commit);
+    let short = std::str::from_utf8(&short[..12]).unwrap();
+    let body = String::from_utf8_lossy(&finding.body);
+    let first = format!("slow run 5 blamed landing {short} on main before its project ended changes at landing.");
+    assert_eq!(body.lines().next(), Some(first.as_str()));
+    assert!(!body.contains("Run: "));
+    assert!(!body.contains("End of job "));
+    let finding = (*finding).clone();
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"unrelated", 1).unwrap();
+    until(&mut world, RUN_TICKS * 3, "inherited red judged", |world| {
+        tier(world).record.sequence == 6 && tier(world).posting.is_none()
+    });
+    assert_eq!(
+        tier(&world).record.failing,
+        policy::Failures::Tests(Box::new([b"x".as_slice().into(), b"y".as_slice().into()]))
+    );
+    assert_eq!(red_findings::findings(&world), [&finding]);
 }
 
 #[test]
@@ -364,7 +560,7 @@ fn a_change_into_a_goals_unfollowed_branch_ends_at_landed() {
     world.external(1, raw::Op::Git(raw::Git::Create { branch: BASE.into(), commit: 1 }));
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Small fix", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256, choices: Box::new([]) };
     delegate.authority = task(&world, chat.task).authority.clone();
     delegate.authority.delegation.depth = delegate.authority.delegation.depth.saturating_sub(1);
     delegate.authority.delegation.tasks = 6;
@@ -634,7 +830,7 @@ fn closing_a_chat_with_a_red_landing_leaves_the_merged_pull_untouched() {
     let number = produce(&mut world, &chat, 93, b"failures", tier_runs::FAILURES);
     verifying(&mut world, number);
     until(&mut world, RUN_TICKS * 3, "landed change red", |world| {
-        matches!(change(world, number).change.state, State::Red { .. })
+        matches!(change_state(world, number), State::Red { .. })
     });
     let row = change(&world, number);
     let pull = row.pull.expect("landed pull");
@@ -740,7 +936,7 @@ fn failed_landing(failures: &[u8], many: bool) -> (World, u64) {
     until(&mut world, RUN_TICKS, "failed landing judged", |world| {
         tier(world).record.sequence == 2 && tier(world).posting.is_none()
     });
-    until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change(world, red).change.state, State::Red { .. }));
+    until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change_state(world, red), State::Red { .. }));
     (world, red)
 }
 
@@ -763,17 +959,90 @@ fn a_full_length_id_stays_in_the_panel_and_has_an_explicit_report_remainder() {
 #[test]
 fn a_many_verdict_keeps_its_explicit_word_and_blamed_commit() {
     let mut failures = Vec::new();
-    for at in 0..17 {
-        failures.extend_from_slice(format!("test-{at}\n").as_bytes());
+    for at in (0..17).rev() {
+        failures.extend_from_slice(format!("t{at:02}\n").as_bytes());
     }
     let (mut world, red) = failed_landing(&failures, true);
     let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, red) else { panic!("red panel") };
     assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns many tests".as_bytes())]);
+    // The lowest sixteen, despite the report's descending order.
+    let ids: Vec<_> = (0..16).map(|at| format!("t{at:02}")).collect();
+    let quoted = ids.iter().map(|id| format!("\"{id}\"")).collect::<Vec<_>>().join(", ");
     let expected = format!(
-        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}",
+        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}\nIts report names: {quoted} and 1 more.",
         String::from_utf8(forge_top::commit_text(&merge(&world, red)).into_vec()).expect("commit text is UTF-8")
     );
     tier_done(&world, 2, &expected);
+    let pull = change(&world, red).pull.expect("member pull");
+    let names = ids.join(", ");
+    let prefix =
+        format!("Red: slow run 2 blames this landing for many tests; its report names {names}, and 1 more.\n\nRun: ");
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(prefix.as_bytes()))));
+}
+
+#[test]
+fn any_task_reads_a_logged_landings_red_tests_and_many_report_names() {
+    for many in [false, true] {
+        let mut failures = Vec::new();
+        for at in 0..if many { 17 } else { 2 } {
+            failures.extend_from_slice(format!("suite::t{at:02}\n").as_bytes());
+        }
+        let (mut world, red) = failed_landing(&failures, many);
+        let landing = merge(&world, red);
+        let unlogged = change(&world, red).change.last_head.unwrap();
+        assert_ne!(landing, unlogged);
+        let tasks::Party::Task(caller) = task(&world, red).requester else { panic!("requester") };
+        let caller = world.assigned.iter().rev().find(|run| run.task == caller).expect("unrelated chat run").clone();
+        for (at, commit) in [landing, unlogged].into_iter().enumerate() {
+            let raw_head = u64::from_be_bytes(commit[8..16].try_into().unwrap());
+            world.external(
+                1,
+                raw::Op::Write(raw::Write::Status {
+                    commit: raw_head,
+                    context: b"own-check".as_slice().into(),
+                    state: raw::Check::Passed,
+                    description: b"forge description".as_slice().into(),
+                    link: Box::new([]),
+                }),
+            );
+            let input =
+                format!(r#"{{"commit":"{}"}}"#, String::from_utf8(forge_top::commit_text(&commit).into_vec()).unwrap());
+            let answer = change_tool::named_read(
+                &mut world,
+                &caller,
+                500 + u32::try_from(at).unwrap(),
+                b"read_checks",
+                input.as_bytes(),
+            );
+            let engine::CallAnswer::ForgeRead(result) = &answer else { panic!("forge read") };
+            let Ok(skein_forge::api::Answer::Checks(statuses)) = result.as_ref() else { panic!("checks") };
+            assert!(statuses.iter().any(|row| row.context.as_ref() == b"own-check" && row.description.as_ref() == b"forge description"));
+            if commit == unlogged {
+                assert!(!statuses.iter().any(|row| {
+                    row.description
+                        .windows(b"found this landing red".len())
+                        .any(|part| part == b"found this landing red")
+                }));
+                continue;
+            }
+            let (local, forge) = statuses.split_last().expect("local red row");
+            assert!(forge.iter().any(|row| row.context.as_ref() == b"own-check"));
+            assert_eq!(local.context.as_ref(), b"temper/verdict/slow");
+            assert_eq!(local.check, skein_forge::api::Check::Failed);
+            assert!(local.url.is_empty());
+            assert_eq!(local.job, None);
+            let expected = if many {
+                let names = (0..16).map(|at| format!("suite::t{at:02}")).collect::<Vec<_>>().join(", ");
+                format!("slow run 2 found this landing red: many tests; its report names {names}, and 1 more.")
+            } else {
+                "slow run 2 found this landing red: suite::t00, suite::t01.".to_owned()
+            };
+            assert_eq!(local.description.as_ref(), expected.as_bytes());
+            let rendered = temper_engine_smith::answer(&answer);
+            assert!(!rendered.error());
+            assert!(std::str::from_utf8(rendered.text()).unwrap().contains(&expected));
+        }
+    }
 }
 
 #[test]
@@ -852,7 +1121,7 @@ fn a_persons_hold_survives_flight_bound_and_restart_then_releases_the_newest_ran
                 [a, b].iter().all(|number| matches!(task(world, *number).phase, tasks::Phase::Ended(_)))
             });
             for number in [a, b] {
-                assert!(matches!(change(&world, number).change.state, State::Uncleared { .. }));
+                assert!(matches!(change_state(&world, number), State::Uncleared { .. }));
                 assert!(result(&world, number).contains("Not cleared: no verdict within the verification bound."));
             }
         }

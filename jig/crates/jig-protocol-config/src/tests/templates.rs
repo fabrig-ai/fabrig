@@ -7,7 +7,9 @@ const GOAL: u32 = 2;
 
 fn with_resources(resources: &[u8]) -> Box<[u8]> {
     let template = fixtures::with(br#""name": "goal", "resources": RESOURCES"#, b"RESOURCES", resources);
-    fixtures::with(fixtures::ENGINE_SMALL, br#""name": "goal""#, &template)
+    let bytes =
+        fixtures::with(fixtures::ENGINE_SMALL, br#""profile": "standard""#, br#""overrides":{"tasks.holdings":4}"#);
+    fixtures::with(&bytes, br#""name": "goal""#, &template)
 }
 
 fn resource_path() -> crate::Path {
@@ -20,7 +22,7 @@ fn a_template_naming_resources_parses_them_in_order() {
         br#"[{"connector": 65535, "symbol": 65535}, {"connector": 0, "symbol": 0},
             {"connector": 0, "symbol": 65535}, {"connector": 65535, "symbol": 0}]"#,
     );
-    let engine = fixtures::engine(&bytes).expect("four resources fit the small profile's holdings");
+    let engine = fixtures::engine(&bytes).expect("four resources fit the fixture's four holdings");
     assert_eq!(engine.limits.core.tasks.holdings, 4);
     assert_eq!(
         engine.templates[1].resources.as_ref(),
@@ -61,7 +63,7 @@ fn a_template_with_more_resources_than_holdings_is_refused() {
         br#"[{"connector": 1, "symbol": 1}, {"connector": 1, "symbol": 2},
             {"connector": 1, "symbol": 3}, {"connector": 1, "symbol": 4}, {"connector": 1, "symbol": 5}]"#,
     );
-    let problems = fixtures::engine(&bytes).expect_err("five resources exceed the small profile's holdings");
+    let problems = fixtures::engine(&bytes).expect_err("five resources exceed the fixture's four holdings");
     assert_eq!(problems.problems.len(), 1);
     assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: resource_path(), what: What::Bound }),);
 }

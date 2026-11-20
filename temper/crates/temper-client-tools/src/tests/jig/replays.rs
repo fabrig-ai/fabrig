@@ -255,6 +255,9 @@ fn a_mismatched_ended_subject_cannot_route_an_act() {
 // Verbs without a retiring subject still send the same key and request, and
 // print its first refusal in both formats. This also guards future table rows.
 const DIRECT_CALLS: &[&[&str]] = &[
+    f::WORKER_ADD,
+    f::WORKER_PLACES,
+    f::WORKER_REMOVE,
     f::TIER_HOLD,
     f::TIER_RELEASE,
     f::FOLLOW_START,
@@ -298,6 +301,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["account", "replace-key", "43", "file", "--key", "replace"],
     &["account", "forget", "43", "--key", "forget"],
     &["account", "rank", "43", "2", "--key", "rank"],
+    &["account", "uses", "43", "--party", "73", "--project", "1", "--key", "uses"],
+    &["account", "uses", "43", "--default", "--key", "default-uses"],
     &["account", "retry", "43", "--key", "retry"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],
     &["account", "verify", "43", "--key", "verify"],
@@ -306,7 +311,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["settings", "propose", "FILE", "--against", "5", "--key", "settings"],
     &["revision", "advance", "5", "--key", "advance"],
     &["revision", "restore", "4", "--key", "restore-4"],
-    &["project", "fund", "1", "200", "--key", "fund"],
+    f::WITHDRAW_CALL,
+    &["project", "fund", "1", "2.00", "--key", "fund"],
     &["project", "amend", "1", "--visibility", "public", "--key", "visibility"],
     &["project", "delete", "1", "--key", "drop-1"],
     &["forge", "setup", "3", "--key", "setup"],
@@ -317,6 +323,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["playground", "start", "--key", "start"],
     &["playground", "end", "--key", "end"],
     &["forge", "remove", "3", "--key", "remove"],
+    &["deployment", "checkpoint", "--key", "checkpoint"],
     &["forge", "setup", "--key", "new-setup"],
     &["forge", "connect", "github", "--key", "new-github"],
     &["push", "add", "subscription.json", "--key", "push-add"],
@@ -366,6 +373,9 @@ fn direct(argv: &[&str]) {
                 None
             };
             let number = root.submit_prepared(parsed.clone(), json, value);
+            if (rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&parsed.tool) {
+                super::workers::serve(&mut root, number, vec![super::workers::row(1, "w1", false)]);
+            }
             let mut accounts = f::accounts();
             if parsed.tool == rows::DISCONNECT_AT {
                 accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().kind = c::AccountKind::SignIn;

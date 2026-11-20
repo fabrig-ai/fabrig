@@ -49,11 +49,10 @@ fn stock_config() -> (engine::Config, engine::Limits, jig_protocol_config::Engin
         &mut crate::startup::Problems::empty(),
     )
     .expect("stock application limits");
-    let mut limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
-    limits.memory_bytes = parsed.memory;
+    let limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
     let mut config = walking::config(7);
     let owner = config.core.owners.first().expect("fixture owner").clone();
-    config.core = jig_protocol_config::core(&parsed, [31; 16], 7);
+    config.core = crate::startup::core(&parsed, [31; 16], 7);
     let mut deployment_owner = owner.clone();
     deployment_owner.project = people::DEPLOYMENT;
     config.core.owners = Box::new([deployment_owner, owner]);
@@ -414,8 +413,9 @@ fn a_design_session_runs_the_drafter_with_no_change_or_goal() {
         (b"delegate", false),
         (b"note", true),
         (b"recall", true),
-        (b"read_branch", true),
-        (b"read_file", true),
+        (b"read_forge", true),
+        (b"read_issues", true),
+        (b"read_ci", true),
     ] {
         assert_eq!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), offered, "{name:?}");
     }

@@ -1,12 +1,17 @@
 # charter: status
 
-2026-11-16. Where the tree's code lags or departs from [charter.md](charter.md).
-
+2026-11-18. Where the tree's code lags or departs from [charter.md](charter.md).
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).
 - **Not yet:** 4, *What a delivery checks*: a repair's and a resolution's
   checkout has no pin of the head their delivery replaces.
+- **Not yet:** 4, *Words a person reads first*: the stock's charters 1,
+  5 and 13 to 16 still give the title's example a draft code and the
+  report headline's the words of how goals run. [in flight: change 8549]
+- **Not yet:** 4, *Words a person reads first*: `temper ctl goal
+  start`'s help still gives its title example a draft code. [in flight:
+  change 8550]
 
 - **Not yet:** 3: a verdict's follow-up tasks.
 - **Not yet:** 3: no supplied real-model landing proves the

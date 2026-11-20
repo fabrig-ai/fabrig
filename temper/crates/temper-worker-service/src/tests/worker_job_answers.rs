@@ -6,6 +6,7 @@ use jig_domain_link::JobKind;
 use root::tooling::{Event, Exit, Request};
 use skein_io as io;
 use skein_lib::{List, Queue, Token, Wall};
+use temper_protocol_worker_wire::v1::Record;
 use temper_worker_domain as root;
 
 const JOB: Token = Token::new(81);
@@ -64,6 +65,8 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         Op::Brings { .. } => Done::Brings { brings: false },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
         Op::Reds { .. }
+        | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Store { .. }
         | Op::Make { .. }
@@ -187,10 +190,10 @@ fn assert_merge_answer(up: &hub::LinkUp, parts: &[jig_protocol_worker_wire::Part
     let mut reader = Reader::new(&part.bytes);
     let left = v1::Left::decode(&fixtures::wire_limits(), &mut reader).unwrap();
     assert!(reader.is_empty());
-    assert_eq!(left.landed().len(), 1);
-    let landed = left.landed().get(0).unwrap();
-    assert_eq!(landed.tag(), (1_u64 << 32_u32) | 3);
-    assert_eq!(landed.commit(), &MERGE_PUSHED);
+    assert_eq!(left.landed.len(), 1);
+    let landed = left.landed.get(0).unwrap();
+    assert_eq!(landed.tag, (1_u64 << 32_u32) | 3);
+    assert_eq!(&landed.commit, &MERGE_PUSHED);
 }
 
 fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
@@ -217,7 +220,7 @@ fn merge_link(
 /// Keep the prepare's fields whole on both sides of the test link.
 fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
     let mut settings = fixtures::worker_settings();
-    settings.jig.limits.hub.detail_bytes = 4096;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.detail_bytes = 4096;
     let agent = fixtures::worker_agent();
     let mut stand = fixtures::WorkerStand::new();
     stand.worker = Worker::new(
@@ -229,7 +232,7 @@ fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
             wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: fixtures::pinned_agent(&settings.jig.agent),
+            agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -301,13 +304,13 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
             );
             let preparation = v1::Preparation::decode(&fixtures::wire_limits(), &mut Reader::new(&part.bytes)).unwrap();
             let v1::Preparation::Refused(tag) = preparation else { panic!("refused repository") };
-            assert_eq!(tag.tag(), (1_u64 << 32_u32) | 3);
+            assert_eq!(tag.tag, (1_u64 << 32_u32) | 3);
             assert_eq!(work, hub::Work { left: None, saved: None });
         } else {
             assert_eq!(failure, hub::JobFailure::Cancelled(hub::Reason::Engine));
             assert_eq!(work.left, Some(part.token));
             let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&part.bytes)).unwrap();
-            assert_eq!(left.landed().get(0).unwrap().commit(), &MERGE_PUSHED);
+            assert_eq!(left.landed.get(0).unwrap().commit, MERGE_PUSHED);
         }
         while worker.notes().pop().is_some() {}
         let root::Event::AssignJob { mut job, spec, .. } = merge_assignment() else { panic!("job assignment") };
@@ -399,6 +402,10 @@ fn failed_run_preparations_name_the_worker_once_across_reconnect() {
 
 #[test]
 fn failed_job_preparations_log_once_across_reconnect() {
+    use root::{
+        Git,
+        checkout::git::{Commit, Into, Want},
+    };
     let (mut worker, mut peer) = merge_worker();
     worker.notes().clear();
     fail_merge(&mut worker, FailureCase::BaseFetch);
@@ -407,6 +414,20 @@ fn failed_job_preparations_log_once_across_reconnect() {
         panic!("failed job preparation");
     };
     assert!(detail.starts_with(b"host worker-a: "));
+    for want in
+        [Want::Branch { branch: b"temper/task-7".as_slice().into() }, Want::Commit { commit: Commit::new(MERGE_BASE) }]
+    {
+        assert_eq!(
+            worker.notes().pop(),
+            Some(crate::worker_alone::Note::Git {
+                run: JOB.raw(),
+                attempt: 2,
+                job: Some((3, b"merge".as_slice().into())),
+                repository: b"app".as_slice().into(),
+                what: Git::Fetch { want, into: Into::Fetched },
+            })
+        );
+    }
     assert_eq!(
         worker.notes().pop(),
         Some(crate::worker_alone::Note::Unprepared {
@@ -428,6 +449,48 @@ fn failed_job_preparations_log_once_across_reconnect() {
     peer.open(&mut worker);
     assert_eq!(merge_answer(&mut peer, &mut worker), (answer, parts));
     assert!(worker.notes().is_empty(), "neither job nor preparation logs again on replay");
+}
+
+/// Operator notes pass through without becoming link records (README.md, 4.3).
+#[test]
+#[expect(clippy::manual_map, reason = "the crate's subset names each optional job kind")]
+fn checkout_notes_keep_the_assignment_and_operation() {
+    use root::{
+        Git,
+        checkout::git::{Commit, Into, Want},
+    };
+    let (mut worker, _) = merge_worker();
+    worker.notes().clear();
+    for (job, what) in [
+        (None, Git::Fetch { want: Want::Branch { branch: b"main".as_slice().into() }, into: Into::Landing }),
+        (Some(JobKind(3)), Git::CheckOut { commit: Commit::new([0xcd; 32]) }),
+    ] {
+        worker.route(root::Request::Git {
+            run: JOB,
+            attempt: Token::new(2),
+            job: match job {
+                Some(kind) => Some((kind, b"merge".as_slice().into())),
+                None => None,
+            },
+            repository: b"app".as_slice().into(),
+            what: what.clone(),
+        });
+        let job = match job {
+            Some(kind) => Some((kind.0, b"merge".as_slice().into())),
+            None => None,
+        };
+        assert_eq!(
+            worker.notes().pop(),
+            Some(crate::worker_alone::Note::Git {
+                run: JOB.raw(),
+                attempt: 2,
+                job,
+                repository: b"app".as_slice().into(),
+                what,
+            })
+        );
+        assert!(worker.notes().is_empty(), "one note for each operation");
+    }
 }
 
 /// Both answer kinds use the wire's detail bound, keeping the host and stage.

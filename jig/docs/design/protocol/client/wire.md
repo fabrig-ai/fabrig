@@ -154,7 +154,12 @@ charter }`, identifying its `reserve_time` member, and turns, time and
 waiting carry theirs as `AgentShortfallTurns`, `AgentShortfallTime` and
 `AgentShortfallWaiting { charter }`. The v21 schema takes these in
 place.
-`TaskWaitSource { state }` names a source's state. `TaskRunWaitRefused { value }` wraps the enum payload
+`TaskWaitSource { state }` names a source's state. An account wait's
+why appends `untooled`, `TaskWaitUntooled { worker: u32 }`, the worker
+setting's number whose login of that source started its program
+without its tools (`../../domain/engine/fleet.md`); the client wire
+moves its version for it, unbridged (temper's `draft/redeploys.md`,
+section 8). `TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header
 bytes. Shared admission types precede their task-wait consumers in the
 schema, as the generator requires. Status and person-facing words are
@@ -169,9 +174,9 @@ template with one, in its project's `defaults` by the template's number, a
 template's own record being a setting's too; and in each project's `models`
 the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
 `picker` (`../../client/domain/contract/documents.md`, 1). The schema, generated
-codecs,
-translations, golden records and served-version declarations carry those
-fields (`README.md`, sections 6 and 11). The
+codecs, translations and served-version declarations carry those fields
+(`README.md`, sections 6 and 11). Tests build their values from schema text
+or constructors, without golden files (skein's `data/codec/README.md`, 6). The
 preview says what a run's check would take now for a task keeping no
 account (`../../domain/accounts.md`, 4.3), never task intent or a reservation;
 no store family carries it or the offer, and application families' versions
@@ -199,10 +204,53 @@ the engine's messages to the client as they come.
   an exchange: one record each way, answered once. Each carries its
   credential (`sign-in.md`) and names its owner and its version (`README.md`, section 6
   ).
+- **A batch** is one exchange carrying many messages: reads, watches'
+  openings and watches' closings, each the record its own exchange
+  carries, at most 64, under the batch's one credential. Its answer is
+  one reply per member, each naming its member, handed out in the
+  order they are released: a read's once every commit it reflects is
+  durable, an opening's once admitted or refused, a closing's once the
+  engine has ended the watch; so one slow read holds back no other
+  member's reply. Each member is the message it would be alone: checked,
+  admitted, reserved and answered as on its own exchange, its reply the
+  record its own exchange's would be, so a member answered busy,
+  refused, signed out or not served is that member's alone. A batch
+  cut short leaves the members answered as they were; each unanswered
+  one is lost as its own exchange would be (2.3). Keyed requests,
+  signing in and out, and approvals keep their own exchanges.
 - **The stream** is one per client, for as long as the client keeps it.
-  Its first message is the hello: the stream's name, the versions the
+  Its opening names the version of jig's wire the client speaks. Its
+  first message is the hello: the stream's name, the versions the
   engine serves of jig's wire and of each application's, and the
-  heartbeat. Every watch the client opens names its stream.
+  heartbeat; then, where the opening named a version the engine serves,
+  `me`'s value (below). Every watch the client opens names its stream.
+- **`me` comes with the stream.** The engine opens a watch of `me` for
+  every stream whose opening names a version it serves, as it would open
+  a client's watch of `me`, the core naming the party from the stream's
+  sign-in (`README.md`, section 5), and names it `0` on that stream. It sends nothing on the stream before
+  the hello, and the hello waits for that watch's first delivery, held
+  until durable as every delivery is: it is the stream's
+  `StreamEvent::Opened`, `Opened { hello, me }`, its `hello` the hello
+  alone's record, so the ranges come first, and its `me` the document
+  in jig's versioned envelope, `Owned`, at the opening's version, whose
+  record is what a delivery of `me` carries. `me`'s later values are
+  deliveries of watch `0`, paced and coalesced as any watch's. The
+  client opens no watch of `me` and never names a watch `0`; an
+  opening naming `0` is refused as a name the stream already holds, and
+  a closing of it is answered as one the client never opened. The watch
+  holds its place in the party's room and the stream's as any watch
+  does (`../../client/domain/contract/README.md`, 5.2), and ends with
+  its stream. Refused or ended, it ends its stream: signed out where
+  the sign-in ended, and otherwise busy (2.2), which the client takes as
+  the stream dropped and opens again after its backoff
+  (`../../client/domain/client/watches.md`, 2).
+- **The hello alone,** `StreamEvent::Hello`, is what the engine sends a
+  stream whose opening names no version, or one it doesn't serve: the
+  stream's name, the ranges and the heartbeat, with no `me` and no watch
+  of it, encoded the same in every version (`README.md`, section 6). So
+  an earlier client, whose opening names none, reads the ranges and is
+  refused by name. A client whose version the hello alone's ranges
+  serve takes it as a record out of its order on the stream.
 - **A client is one run of `jig-client`,** from its start to its end: a
   native process; a browser page from its load until it is left. A link
   followed, or back and forward, within the page's history keeps it
@@ -218,19 +266,23 @@ the engine's messages to the client as they come.
   its caller the streams are full as it does, so a caller whose own
   deadline passes meanwhile is answered full, naming the bound, never
   a silent timeout.
-- **The predecessor's stream is sent gone.** A page that was left, or a
+- **The stream names the one it replaces.** A page that was left, or a
   process that died, may hold its stream, and its watches their places
   in the party's room, until the engine sees the stream's connection
   end: seconds later for a page whose browser drains it, and later
-  still for a connection cut half-open. So the client keeps its
-  stream's name in the small store, saved at each hello (`README.md`, section 7).
-  The first time it would open a stream, a client whose kept records
-  name one sends that stream gone (2.1), and opens its own once that
-  exchange has its terminal, a reply or `Lost`. The engine ends a stream
-  named gone only when it is the sign-in's and still open, so a name
-  kept by another sign-in, or of a stream already ended, does nothing.
-  A store copied (a browser tab duplicated) ends the original's stream
-  once, which the original takes as any drop.
+  still for a connection cut half-open; so may this client's own
+  stream that dropped. So the client keeps its stream's name in the
+  small store, saved at each hello (`README.md`, section 7), and each opening of
+  its stream names the last stream it knew: at its first opening, the
+  one its kept records name, if any; after, its own last hello's.
+  The engine checks the opening's credential, then ends the named
+  stream, when it is the sign-in's and still open, as a stream gone
+  (2.1) ends it, before it admits the new one against the streams'
+  bounds; so a name kept by another sign-in, or of a stream already
+  ended, does nothing, and the opening waits on no other exchange. A
+  store copied (a browser tab duplicated) ends the original's stream
+  once, which the original takes as any drop. A stream gone stays a
+  message any client may send for a stream of its sign-in's.
 - **Heartbeats.** The engine sends a heartbeat on the stream whenever it
   has sent nothing for the heartbeat's span. The link tells each of the
   stream's watches it is alive at each heartbeat and each message; past
@@ -250,31 +302,50 @@ the engine's messages to the client as they come.
 | a read | its owner, version and record: one of jig's reads, or an application's naming its scope and window | the document, a page, or why there is none (`README.md`, section 4) |
 | opening a watch | the stream's name; the client's name for the watch; the subject, with its owner, version and window | admitted, or refused (`README.md`, section 5) |
 | closing a watch | the stream's name and the watch's | closed, once the engine has ended it |
+| a batch | `Batch { members }`: at most 64, each `read: Owned`, `open: Open` or `close: WatchClose`, the record of that message alone | one `BatchReply { member, reply }` per member, in the order released: `member` its place, from 0; `reply` the record its own exchange would answer, or none where that exchange would be answered no record (section 2; `default-http.md`, section 6) |
 | a stream gone | the stream's name | nothing more: the engine ends the stream and its watches, when it is the sign-in's and still open (section 2) |
-| signing in | the printed link's secret; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in (`sign-in.md`) |
-| asking an approval | nothing | the approval's secret, its code and its expiry; refused, not ready or busy (`sign-in.md`) |
-| reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, or the decision's answer; not a browser, signed out, not ready or busy (`sign-in.md`) |
+| signing in | a link's secret, the printed link's, the local link's or an asked one's; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret, with the grant its loopback return brought or none | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in, a grant that doesn't match among them (`sign-in.md`) |
+| asking an approval | its loopback return's port, or none | the approval's secret, its code and its expiry; refused, not ready or busy (`sign-in.md`) |
+| asking a link | nothing more than the asking sign-in's credential | the link's secret and its expiry; refused, signed out, not ready or busy (`sign-in.md`, the asked link) |
+| reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, waiting with its kind, its source and the reader's; or the decision's answer, an approval with a loopback return approved with its port and grant; not a browser, signed out, not ready or busy (`sign-in.md`) |
 | signing out | nothing more than the credential of the sign-in it ends | signed out, or not ready |
 
-On the stream, in its owner's version: the hello; a delivery (a watch's
-document, whole, in its owner's wire); a run's text; a heartbeat; a
+On the stream, in its owner's version: the hello, with `me` or alone
+(section 2); a delivery (a watch's document, whole, in its owner's
+wire), `me`'s among them as watch `0`'s; a run's text; a heartbeat; a
 watch ended, with why.
+
+A batch's records, in `jig-client-protocol-wire`'s schema, from jig's
+client wire 28:
+
+```
+enum Member { read: Owned, open: Open, close: WatchClose }
+record Batch { members: list 64 Member }
+record BatchReply { member: u16 reply: option bytes R }
+```
+
+`R` is at least the largest encoded bound of `ReadAnswer`, `OpenAnswer`
+and `CloseAnswer`, the records a member's own exchange answers. A
+batch names no owner or version of its own: its members name theirs,
+as alone, and a closing none, as alone.
 
 ### 2.2 The clients' component's messages
 
 ```
 in, from the transport:
-  Exchange { exchange, credential, browser, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none; browser, whether the transport carried that credential itself, as a browser's cookie (17.3)
-  StreamOpen { stream, credential }            a client opened its stream
+  Exchange { exchange, credential, browser, via, source, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none; browser, whether the transport carried that credential itself, as a browser's cookie (17.3); via, whether the exchange came by the public name or by the listener's own address, and source, its address or none for unknown (`default-http.md`, 3)
+  StreamOpen { stream, credential, version, replaces }  a client opened its stream, naming jig's wire version or none, and the 16-byte name it replaces or none (section 2)
   StreamTaken { stream }                       the transport took the last message streamed
   StreamGone { stream }                        the stream's connection ended
   ExchangeGone { exchange }                    an exchange's connection ended before its reply: a keyed request's, a read's, a public read's
 in, from the application's server code (never from a client):
   Mint { exchange, identity }                  an identity the application verified: a provider's number, a subject, a login, a name
 out, to the transport:
-  Reply { exchange, message }                  one record: an answer, a page, a watch admitted or refused, a sign-in's credential
+  Reply { exchange, message }                  one record: an answer, a page, a watch admitted or refused, a sign-in's credential; for a batch, only its refusal whole, not a record
+  Part { exchange, message }                   one BatchReply of a batch's, as its member's reply is released
+  Done { exchange }                            a batch's last part handed: its exchange is answered
   Streamed { stream, message }                 the hello, a delivery, a run's text, a heartbeat, a watch ended
-  StreamEnded { stream, why }                  signed out, or the engine stopping
+  StreamEnded { stream, why }                  signed out, the engine stopping, or busy: the stream's `me` refused or ended for want of room (section 2)
   Minted { exchange, credential, expires } | MintRefused { exchange, why }
 out, to the application's startup:
   Link { secret }                              the printed link's one-time secret, each time one is drawn (section 8)
@@ -282,6 +353,13 @@ out, to the application's startup:
   LinkSignedIn                                 the printed link signed a person in, each time (section 8)
 ```
 
+- **An exchange's way and source** are `via: Via`, `Public` or
+  `Listener`, the component's type, which the engine end decides and
+  names, and `source: Option<IpAddr>`, core's address, canonical
+  (`default-http.md`, 3). The component reads them for an approval's
+  kind and source alone (`sign-in.md`, *A sign-in approved by a
+  browser*); a public read and a stream carry neither, and a batch's
+  members are the batch's exchange's.
 - **`Minted` carries the sign-in's expiry,** its wall time, beside the
   credential, so the server gives the credential the sign-in's life, as
   the default mapping's cookie's `Max-Age` (`default-http.md`, 3).
@@ -296,6 +374,30 @@ out, to the application's startup:
 - **One reply per exchange,** made once the core has answered and, for a
   keyed request or a read, once that answer is durable. A transport that
   has lost its client drops the reply.
+- **A batch's replies are parts.** The component decodes a batch whole,
+  within the message's bytes (below) and its 64 members, or answers it
+  `Reply` not a record, with nothing done. It checks the batch's
+  credential once, then takes each member, in the batch's order, as the
+  message it would be alone, and hands its reply out as a `Part`, a
+  `BatchReply` naming it, when that reply is released; a member
+  answered at once (busy, not served, signed out, unknown) is released
+  at once. A member its own exchange would answer with no record (a
+  malformed member, a closing that conflicts) is a part whose reply is
+  none. Once every member's part is handed, `Done`. `ExchangeGone`
+  lets the batch's caller go, as any exchange's: its members' work
+  settles as it would have, and their parts go nowhere.
+- **A batch is admitted as one exchange, its members as many.** It
+  takes one exchange of the sign-in's and of all (below) from its
+  admission until `Done`. Each member reserves what it would alone: a
+  read, a place among the sign-in's reads in flight; an opening, a
+  place among its openings in flight, a watch's place on its stream,
+  and the core's and the views' rooms as alone; a closing, nothing, as
+  alone. A member that finds its room full is answered busy, as alone;
+  the others go on. A batch that finds no exchange's room, the
+  sign-in's or all's, is answered as its messages sent apart would be
+  when each found none: each read and opening busy at once, and each
+  closing taken as alone. A batch admits nothing the same messages sent
+  apart could not: every check of a member's own exchange stands.
 - **A caller gone lets its exchange go.** The transport says
   `ExchangeGone` when an exchange it handed the component ends before
   the component's reply reaches it, its connection ended or failed
@@ -313,9 +415,17 @@ out, to the application's startup:
 - **The credential is checked** on every exchange and every stream
   opened (`sign-in.md`). A stream opened with none, or with one the engine
   does not know, ends at once, `StreamEnded` signed out.
-- **Bounded:** exchanges in flight per sign-in and in all; streams in
-  all, never per sign-in (section 2); a message's bytes, what a stream
+- **Bounded:** exchanges in flight per sign-in and in all, a batch one
+  whatever its members; reads in flight and watches' openings in flight
+  per sign-in, a batch's members each one as alone; streams in
+  all, never per sign-in (section 2); a message's bytes, a batch's
+  among them, and a batch's 64 members; what a stream
   may have queued, mints in flight (`README.md`, section 10).
+- **A stream's opening that names one it replaces** (section 2), once its
+  credential is checked, ends the named stream first when it is the
+  sign-in's and still open, as a stream gone does, then is admitted or
+  refused full as any opening; a name of another sign-in's stream, or of
+  none open, changes nothing.
 
 ### 2.3 The link
 
@@ -325,9 +435,14 @@ out, to the application's startup:
 messages:
 
 ```
-emitted:  Exchange { exchange, credential, message } | OpenStream { credential } | CloseStream | Save { records } | Erase { records }
-heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message } | StreamGone | Stored | NotStored
+emitted:  Exchange { exchange, credential, message } | OpenStream { credential, version, replaces } | CloseStream | Save { records } | Erase { records }
+heard:    Reply { exchange, message } | Part { exchange, message } | Done { exchange } | Lost { exchange } | Streamed { message } | StreamGone | Stored | NotStored
 ```
+
+A batch is one more of `Message`'s kinds, `Batch`, its record a
+`Batch`'s bytes, beside `Read`, `Watch`, `Unwatch` and the rest;
+`replaces` is the 16-byte name of the stream the opening replaces, or
+none.
 
 - **Messages as bytes.** The link encodes each of jig's messages, and
   decodes each reply and each streamed message, with
@@ -338,12 +453,45 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
 - **One attempt per exchange,** whose terminal is a `Reply`, or `Lost`:
   the exchange failed, or ended without a whole reply within the
   exchange's deadline, which the transport keeps
-  (`../../client/domain/client/README.md`, section 13). Retrying is the client's.
+  (`../../client/domain/client/README.md`, section 13). A batch's terminal is `Done`
+  or `Lost`, after a `Part` for each reply that came whole. Retrying is
+  the client's.
+- **Sent at the settling.** The link hands out no `Exchange`,
+  `OpenStream` or `CloseStream` while the client steps: it gathers them,
+  in the order they were asked for, and hands them out when the client
+  settles (`../../client/domain/client/README.md`, 4.1). Then each read, watch's opening and
+  watch's closing that may leave (an opening once the stream has its
+  name, a closing once its opening is admitted, `README.md`, section 5) goes in a
+  batch while more than one does: its members in the order asked, at
+  most 64 and at most `BATCH_BYTES`, 131,072, of the batch's record, the
+  rest in the next batch; a message whose record alone passes
+  `BATCH_BYTES`, and one with no other to go beside it, goes alone on its
+  own exchange. Every other message goes alone, a keyed request with
+  its key, as before. Each exchange, a batch one, takes one of the
+  link's exchanges in flight (`README.md`, section 10); what finds none
+  waits, in order, for a later settling.
+- **Each member is its own.** The link keeps each member's attempt as
+  it would alone, and hands each `Part`'s reply to its member, by the
+  part's `member`, as the reply of that member's own exchange: a
+  record decoded and judged as on its own route; none, as `Lost` on its
+  own route. So a read answered busy ends busy, an opening answered busy
+  is opened again after its backoff, and an opening refused or not
+  served is that watch's alone. At `Lost`, or at `Done` with members
+  unanswered, each unanswered member is lost as alone: a read ends
+  unreachable, and a watch's opening or closing with no answer drops
+  the stream, whose watches the client opens again (`README.md`, section 5). A part
+  naming no member of its batch still unanswered, or whose record does
+  not decode, is the engine's fault: the link takes the batch as lost
+  there, each member then unanswered as above, and reads nothing more of
+  it until its terminal.
 - **The credential** on `Exchange` and `OpenStream` is the one the
   client holds, or none when the transport carries one the client never
   sees (`sign-in.md`).
-- **The stream:** its hello judged against the client's versions
-  (`README.md`, section 6); each delivery and run's text routed to its watch by name;
+- **The stream:** opened naming jig's version, the link's own; its
+  hello judged against the client's versions
+  (`README.md`, section 6), and its `me` handed on as the first value of
+  the client's `me`, watch `0`'s deliveries its later ones (section 2);
+  each delivery and run's text routed to its watch by name;
   heartbeats keeping the watches alive; `StreamGone`, or silence past
   twice the heartbeat, dropping it; the stream refused signed out, a
   `Streamed` message the transport makes, ending the sign-in. A record
@@ -352,7 +500,8 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
   client out of date, `unreadable`
   (`../../client/domain/client/watches.md`, 2); one refused for a bound
   or for its order drops it, to open again after its backoff.
-- **The predecessor's stream:** the stream's name saved at each hello;
-  the name kept at start sent gone before the first `OpenStream`, which
-  waits for that exchange's terminal (section 2).
+- **The stream it replaces:** the stream's name saved at each hello;
+  each `OpenStream` naming the last stream the link knew, the name
+  kept at start before the first hello, its own last hello's after
+  (section 2). No stream gone is sent, and no opening waits for one.
 - **The small store's records** encoded and decoded (`README.md`, section 7).

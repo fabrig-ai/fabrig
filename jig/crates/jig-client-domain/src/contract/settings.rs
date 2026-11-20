@@ -15,7 +15,10 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Limits,
     Model(SettingNumber),
+    Worker(SettingNumber),
+    Provider(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -152,6 +155,13 @@ pub struct Rules {
     pub implies: List<KindImplication>,
     pub requirements: List<PolicyRequirement>,
 }
+/// A limit override carried without resolving its name (domain/engine/settings.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Override {
+    pub name: Box<[u8]>,
+    pub value: u64,
+    pub reason: Box<[u8]>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
     Charter(Box<Charter>),
@@ -159,7 +169,10 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Limits(Box<[Override]>),
     Model(Box<CatalogueEntry>),
+    Worker(Box<WorkerSetting>),
+    Provider(Box<ProviderSetting>),
     Application(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -202,6 +215,10 @@ pub struct RefusalFull {
     pub tasks: List<u64>,
     pub more: u32,
 }
+/// The last charter, template, policy or model number; mirrors jig-domain-people's settings vocabulary.
+pub const NUMBERS: u32 = 64;
+/// The stock's last number; higher numbers through `NUMBERS` are a deployment's own.
+pub const STOCK_NUMBERS: u32 = 32;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
     Shape,
@@ -212,6 +229,9 @@ pub enum SettingFault {
     Grace,
     Owner,
     Judged,
+    Linked,
+    Accounts,
+    Range,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {
@@ -525,4 +545,150 @@ pub enum ModelAct {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeModel {
     pub act: ModelAct,
+}
+
+/// Worker value (jig/docs/design/domain/engine/workers.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerSetting {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub places: u32,
+    pub digest: Option<[u8; 32]>,
+    pub withdrawn: bool,
+}
+/// A stable name's number, or the lowest unused number (workers.md, 2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WorkerNumber {
+    Live(u32),
+    Withdrawn(u32),
+    Free(u32),
+}
+#[must_use]
+pub fn worker_number(workers: &[super::WorkerState], name: &[u8]) -> WorkerNumber {
+    for worker in workers {
+        if worker.name.as_ref() == name {
+            return if worker.withdrawn {
+                WorkerNumber::Withdrawn(worker.number)
+            } else {
+                WorkerNumber::Live(worker.number)
+            };
+        }
+    }
+    let mut number = 1_u32;
+    // At most one more than the number of rows can be the first hole.
+    for _ in 0..=workers.len() {
+        let mut held = false;
+        for worker in workers {
+            held |= worker.number == number;
+        }
+        if !held {
+            return WorkerNumber::Free(number);
+        }
+        number = number.checked_add(1).expect("worker count leaves a free number");
+    }
+    unreachable!("one more candidate than held numbers")
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum EndpointAddress {
+    Socket(core::net::SocketAddr),
+    Host { name: Box<[u8]>, port: u16 },
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderSetting {
+    pub provider: Provider,
+    pub endpoints: Box<[Endpoint]>,
+    pub withdrawn: bool,
+}
+/// One configured LLM provider.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Provider {
+    /// Its name for showing.
+    pub name: Box<[u8]>,
+    pub number: u32,
+    /// The endpoint its added models take (configuration.md, 3).
+    pub endpoint: Option<Box<[u8]>>,
+    /// The program-free endpoint its sign-ins and keys take (configuration.md, 3).
+    pub direct: Option<Box<[u8]>>,
+    pub list: Option<ProviderList>,
+    pub signed_in_plan: bool,
+    pub manage_usage: Option<Box<[u8]>>,
+    /// The sign-in it offers, with its public registration.
+    pub sign_in: Option<Registration>,
+    /// Whether it offers a key.
+    pub keys: bool,
+    /// The programs it offers, such as `claude_code`.
+    pub programs: Box<[Box<[u8]>]>,
+}
+
+/// A provider's public registration for its sign-in: a client secret is refused.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Registration {
+    pub issuer: Box<[u8]>,
+    pub client: Box<[u8]>,
+    pub scopes: Box<[Box<[u8]>]>,
+    pub name_hint: Option<Box<[u8]>>,
+    pub authorization: Box<[u8]>,
+    pub token: Box<[u8]>,
+    pub revocation: Option<Box<[u8]>>,
+    pub keys: Box<[u8]>,
+    pub endpoint_transport: Transport,
+    pub must_grant: Box<[Box<[u8]>]>,
+    pub resource: Option<Box<[u8]>>,
+    pub redirect_path: Box<[u8]>,
+    pub redirect_port: Option<u16>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Endpoint {
+    pub name: Box<[u8]>,
+    pub number: u32,
+    pub dialect: u32,
+    pub provider: Box<[u8]>,
+    pub program: Option<Box<[u8]>>,
+    pub address: EndpointAddress,
+    pub transport: Transport,
+    pub headers: Box<[Header]>,
+    pub connect: Duration,
+    pub handshake: Duration,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Header {
+    pub name: Box<[u8]>,
+    pub value: Box<[u8]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Transport {
+    Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
+    Plaintext,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderList {
+    pub keep: Box<[Box<[u8]>]>,
+    pub drop: Box<[Box<[u8]>]>,
+}
+
+#[cfg(test)]
+mod worker_tests {
+    use super::*;
+    fn row(number: u32, name: &[u8], withdrawn: bool) -> super::super::WorkerState {
+        super::super::WorkerState {
+            number,
+            name: name.into(),
+            places: 1,
+            digest: None,
+            withdrawn,
+            linked: false,
+            since: None,
+        }
+    }
+    #[test]
+    fn worker_number_keeps_withdrawn_names_and_takes_the_lowest_hole() {
+        let rows = [row(1, b"local", false), row(2, b"w1", true)];
+        assert_eq!(worker_number(&rows, b"local"), WorkerNumber::Live(1));
+        assert_eq!(worker_number(&rows, b"w1"), WorkerNumber::Withdrawn(2));
+        assert_eq!(worker_number(&rows, b"w2"), WorkerNumber::Free(3));
+        assert_eq!(worker_number(&[row(2, b"w1", false)], b"w9"), WorkerNumber::Free(1));
+    }
 }

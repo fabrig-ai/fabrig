@@ -5,28 +5,23 @@
 mod tests {
     use skein_codec_tests::{scalars, v1};
     use skein_lib::{Reader, Rng, Writer};
+    use v1::Record;
 
     fn check_field(bytes: &[u8]) {
         if let Ok(value) = v1::Field::decode(&v1::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            assert_eq!(value.encode(&v1::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 
     fn check_report(bytes: &[u8]) {
         if let Ok(value) = v1::Report::decode(&v1::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            assert_eq!(value.encode(&v1::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 
     fn check_marker(bytes: &[u8]) {
         if let Ok(value) = v1::Marker::decode(&v1::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            assert_eq!(value.encode(&v1::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 
@@ -66,6 +61,10 @@ mod tests {
             check_all(buffer.get(..length).expect("within buffer"));
         }
 
+        let goldens = [skein_codec_tests::SAMPLE_SCHEMA, skein_codec_tests::SCALARS_SCHEMA]
+            .into_iter()
+            .flat_map(|text| skein_codegen::values(text).goldens.iter())
+            .collect::<Vec<_>>();
         for name in [
             "record_field_full.bin",
             "record_report_full.bin",
@@ -73,16 +72,8 @@ mod tests {
             "record_empty_full.bin",
             "record_scalars_full.bin",
         ] {
-            let golden = std::fs::read(
-                std::path::Path::new(if name == "record_empty_full.bin" || name == "record_scalars_full.bin" {
-                    "golden/scalars-v1"
-                } else {
-                    "golden/sample-v1"
-                })
-                .join(name),
-            )
-            .expect("golden readable");
-            check_all(&golden);
+            let golden = &goldens.iter().find(|golden| golden.name == name).expect("seed golden").bytes;
+            check_all(golden);
             for _round in 0_u32..200 {
                 let mut mutated = golden.clone();
                 if !mutated.is_empty() {

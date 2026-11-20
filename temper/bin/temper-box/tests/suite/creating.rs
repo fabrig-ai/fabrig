@@ -9,22 +9,38 @@ use skein_lib::{Env, Reader, Time, Wall, Writer};
 fn cluster_engine(name: &str) -> jig_protocol_config::Engine {
     let scratch = crate::support::Scratch::startup(name);
     let cluster = super::cluster_documents(scratch.path());
-    let value = super::cluster_document(&cluster, "engine");
+    let value = temper_playground::documents::Configuration::from_jig(super::cluster_document(&cluster, "engine"));
     let engine = configured_engine(&value);
     scratch.remove();
     engine
 }
 
-fn configured_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+fn configured_engine(value: &temper_playground::documents::Configuration) -> jig_protocol_config::Engine {
     let mut value = value.clone();
     crate::support::configuration::use_stock(&mut value);
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &super::DOCUMENT).expect("engine document");
-    temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
+    temper_service::startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut value.jig,
+    )
+    .expect("stock engine")
 }
 
 fn stock_frame(engine: &jig_protocol_config::Engine) -> Frame {
-    let config = jig_protocol_config::core(engine, [1; 16], 7);
+    let mut engine = engine.clone();
+    let policy = engine.policies.iter().find(|policy| policy.number == 1).expect("stock policy");
+    engine.projects = Box::new([jig_protocol_config::Project {
+        number: 1,
+        name: "Project 1".into(),
+        roles: policy.roles.clone(),
+        policy: policy.policy.clone(),
+        templates: policy.templates.clone(),
+    }]);
+    let config = jig_protocol_config::core(&engine, [1; 16], 7);
     let mut rows = jig_test_profile::fixtures::seeded_project_rows(&config);
     rows.extend([
         Record::People(people::Stored::Person {
@@ -67,7 +83,7 @@ fn offered(frame: &Frame) -> &[u32] {
 }
 
 fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -> jig_client::contract::Me {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     let wire =
         jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
     let mut writer = Writer::new(usize::try_from(wire.measure()).expect("me bytes"));
@@ -122,8 +138,11 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
         git: "http://127.0.0.1:3000/".into(),
     };
     support::configuration(scratch.path(), &forge);
-    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
-    let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+    let bytes =
+        support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document;
+    let value =
+        temper_playground::documents::Configuration::from_jig(serde_json::from_slice(&bytes).expect("deployment JSON"));
     let engine = configured_engine(&value);
     assert_eq!(engine.charters.len(), 12);
     let mut expected: Vec<_> =

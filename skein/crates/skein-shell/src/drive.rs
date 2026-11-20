@@ -135,6 +135,7 @@ pub fn drive(kernel: &mut crate::Kernel, clock: &crate::Clock, host: &mut impl H
         let crate::Now { now, wall } = clock.now();
         host.iterate(now, wall);
         host.drain();
+        let deadline = clock.until(host.next_deadline());
         if host.is_empty() {
             assert!(host.completions().is_empty(), "an empty host has no completions");
             assert!(host.submissions().is_empty(), "an empty host has no submissions");
@@ -144,10 +145,7 @@ pub fn drive(kernel: &mut crate::Kernel, clock: &crate::Clock, host: &mut impl H
         let wait = if host.work_pending(now) {
             crate::Wait::No
         } else {
-            match host.next_deadline() {
-                Some(deadline) => crate::Wait::Until(deadline),
-                None => crate::Wait::Forever,
-            }
+            deadline.map_or(crate::Wait::Forever, crate::Wait::Until)
         };
         kernel.submit(host.submissions(), wait);
     }

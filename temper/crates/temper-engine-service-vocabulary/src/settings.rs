@@ -74,7 +74,7 @@ pub struct Author {
 pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
 
 /// The seeds the shell draws at start, as jig's reference takes them.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Seeds {
     pub deployment: [u8; 16],
     pub seed: u64,
@@ -100,13 +100,19 @@ pub struct Setup {
 /// temper's members (protocol/configuration/README.md, section 2 and protocol/configuration/engine.md).
 #[derive(Debug)]
 pub struct Engine {
+    pub landing_held: bool,
     /// Checked receiving agent reply allowance; none when no local agent is configured.
     pub host_reply_bytes: Option<u32>,
     /// The local agent's charter allowance, smith's `run_bytes`; none when no local agent is configured.
     pub agent_charter_bytes: Option<u64>,
     /// Measured charter costs, also without a local agent (domain/agent/room.md, 4.4).
     pub host_part: temper_engine_domain::room::HostPart,
-    pub machine: temper_forge_setup::machine::Machine,
+    /// Kept setup files supplied by a world; a shell reads them through `PlaceIo`.
+    pub setups: Box<[(u16, temper_forge_setup::setup_file::SetupFile)]>,
+    /// Checked file-only paths for new owned forges (protocol/setup/place.md, 2).
+    pub owned_forgejo: Option<Box<[u8]>>,
+    pub owned_runner: Option<Box<[u8]>>,
+    pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,
@@ -115,7 +121,6 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
-    pub welcome: bool,
     pub program_environment: Box<[u8]>,
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Core kinds carried by startup at the start's limits and first connector (protocol/services.md, 4.2).
@@ -123,8 +128,10 @@ pub struct Engine {
     /// The stock period span carried by startup (protocol/services.md, 4.2).
     pub period_span: skein_lib::Duration,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
-    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,
+    /// Deployment envelope laid out over the store base before runtime overrides.
+    /// Typed component fixtures may leave it absent to lay out their own profile.
+    pub store_limits: Option<jig_protocol_store::Limits>,
 }
 
 pub use temper_service_core::agent::Declaration as Agent;
@@ -179,5 +186,6 @@ pub fn host_part(engine: &jig_protocol_config::Engine, agent: Option<&Agent>) ->
         limits,
         crate::assignment::charter_bound(engine.limits.hub.charter_bytes, allowance),
         &charter_endpoints(engine),
+        &engine.limits.core.brief_core_budgets,
     )
 }

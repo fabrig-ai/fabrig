@@ -1,4 +1,4 @@
-family temper-worker-wire 9
+family temper-worker-wire 12
 
 # Down: the workspace items (protocol/channel.md, 4). Names, branches and
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
@@ -8,7 +8,7 @@ record Merged { branch: bytes 1024 heads: list 64 fixed 32 }
 record Branch { branch: bytes 1024 }
 record Commit { commit: fixed 32 }
 enum Start { merge: Merge, base: Branch, branch: Branch, commit: Commit, saved: Branch, merged: Merged }
-record Writable { push: bytes 1024 expected: option fixed 32 landing: option bytes 1024 }
+record Writable { push: bytes 1024 expected: option fixed 32 landing: option bytes 1024 delivered: option fixed 32 pin: option fixed 32 }
 record Prefixes { branches: list 5 bytes 1024 }
 enum Access { writable: Writable, read_only, prefixes: Prefixes }
 record Repository { tag: u64 name: bytes 1024 remote: bytes 1024 git: option bytes 4096 start: Start access: Access identity: u32 account: option u64 save: option bytes 1024 }
@@ -50,7 +50,8 @@ record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
 record Flake { key: bytes 512 log: bytes 2048 }
 enum Verdict { passed, refused }
 record CheckResults { tag: u64 check_number: u64 tree: bytes 32 base: option bytes 32 verdict: Verdict passed: list 256 bytes 512 failed: list 256 bytes 512 flakes: list 16 Flake }
-enum Ask { reds, results: CheckResults }
+record Head { head: fixed 32 }
+enum Ask { reds, results: CheckResults, landed: Head }
 record Red { key: bytes 512 head: bytes 32 }
 record Reds { reds: list 256 Red }
-enum Answer { reds: Reds, kept }
+enum Answer { reds: Reds, kept, landed, unlanded }

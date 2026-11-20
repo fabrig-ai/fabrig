@@ -7,34 +7,28 @@ use super::fixtures;
 use jig_protocol_config as config;
 
 /// Replace one engine override, keeping every other generated entry.
-pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
-    let original = fixtures::value(document, b"engine.limits.overrides");
-    let parsed =
-        config::document(&original, &config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 }).unwrap();
-    let mut overrides = format!("{{\"{}\":{value}", core::str::from_utf8(name).unwrap());
-    for at in (1..parsed.len().checked_sub(1).unwrap()).step_by(2) {
-        let key = parsed.text(parsed.token(at).unwrap()).unwrap();
-        if key != name {
-            let value = config::read::integer(&parsed, at.checked_add(1).unwrap(), u64::MAX).unwrap();
-            overrides.push_str(",\"");
-            overrides.push_str(core::str::from_utf8(key).unwrap());
-            overrides.push_str("\":");
-            overrides.push_str(&value.to_string());
-        }
-    }
-    overrides.push('}');
-    fixtures::with(document, b"engine.limits.overrides", overrides.as_bytes())
+pub(super) fn limited(document: &(impl fixtures::Input + ?Sized), name: &[u8], value: u64) -> fixtures::Start {
+    let mut configured = fixtures::Input::configured(document);
+    config::overrides::apply(&mut configured.jig, name, value).unwrap();
+    configured
+}
+
+fn named(
+    document: &(impl fixtures::Input + ?Sized),
+    directories: &config::Directories,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    fixtures::Input::configured(document).named(directories)
 }
 
 #[test]
 fn the_stock_passes_jigs_one_check() {
     let init = generated();
-    let without_demo = fixtures::with(&init, b"application.demo", b"null");
-    for (row, document) in [("init", without_demo), ("single model", single_model()), ("demo", init)] {
-        crate::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
+    for (row, document) in [("init", init)] {
+        named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
-        let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        defaults.providers = config::llm::provider_values(&engine.llm);
         assert_eq!(
             defaults.charters[0].policy.instructions.as_ref(),
             include_bytes!("../../../temper-engine-service-stock/src/stock/chat.txt")
@@ -61,7 +55,8 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let document = without_projects();
     let engine = engine(&document);
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
         let resolved = settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
@@ -71,7 +66,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (27_596, Setting::Charter(5)));
+    assert_eq!(run, (27_830, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
@@ -91,6 +86,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
+    let floors = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     // Every positive scalar bound reached by jig's whole-set check is at its
     // floor together. This catches a stock value acquiring another unmet bound.
     let mut minimum = engine.limits;
@@ -98,30 +94,21 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         config::overrides::apply(&mut minimum, name, needed).unwrap();
     }
     assert_eq!(settings::check(&current, &core.settings, &core.connectors, &minimum.core), Ok(()));
-    assert_eq!(
-        crate::stock::floors(
-            &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
-            &minimum
-        ),
-        Ok(())
-    );
+    assert_eq!(crate::stock::floors(&floors, &minimum), Ok(()));
+    let mut at = engine.clone();
     for &(name, needed, setting, words) in rows {
-        let mut at = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+        at.limits = engine.limits;
         config::overrides::apply(&mut at.limits, name, needed).unwrap();
         let mut problems = crate::startup::Problems::empty();
         crate::startup::checks::stock(&at, &mut problems);
         assert!(problems.is_empty(), "{name:?}");
         assert_eq!(settings::check(&current, &core.settings, &core.connectors, &at.limits.core), Ok(()));
-        if let Err(why) = crate::startup::named(&limited(&document, name, needed), &config::Directories::working()) {
+        if let Err(why) = named(&limited(&document, name, needed), &config::Directories::working()) {
             panic!("{name:?} at its floor: {:?}", crate::startup::lines(&why));
         }
         config::overrides::apply(&mut at.limits, name, needed - 1).unwrap();
         assert!(settings::check(&current, &core.settings, &core.connectors, &at.limits.core).is_err(), "{name:?}");
-        let found = crate::stock::floors(
-            &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
-            &at.limits,
-        )
-        .unwrap_err();
+        let found = crate::stock::floors(&floors, &at.limits).unwrap_err();
         assert_eq!(found, crate::stock::Floor { limit: name, configured: needed - 1, needed, setting });
         crate::startup::checks::stock(&at, &mut problems);
         let words = if name == b"core.run_bytes" {
@@ -140,8 +127,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             .as_bytes()
         );
         let refused =
-            crate::startup::named(&limited(&document, name.as_bytes(), needed - 1), &config::Directories::working())
-                .unwrap_err();
+            named(&limited(&document, name.as_bytes(), needed - 1), &config::Directories::working()).unwrap_err();
         assert_eq!(crate::startup::lines(&refused), crate::startup::lines(&problems));
     }
 }
@@ -157,9 +143,9 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
         needed = needed.max(jig_domain_core::charter_owned_bytes(charter).unwrap());
     }
     let document = limited(&document, b"core.run_bytes", needed);
-    let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
+    let refused = named(&document, &config::Directories::working()).unwrap_err();
     assert!(core::str::from_utf8(&crate::startup::lines(&refused)).unwrap().contains("the stock's charter"));
-    crate::startup::named_with(
+    fixtures::named_with(
         &document,
         &config::Directories::working(),
         &crate::stock::Given::Own { jig: own, forge: Box::default(), ways: crate::stock::ways() },
@@ -172,7 +158,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let document = limited(&without_projects(), b"core.policy_bytes", 100);
     // named only parses the document and lists its files. No file read or
     // listener opening can occur before this refusal.
-    let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
+    let found = named(&document, &config::Directories::working()).unwrap_err();
     // The ceiling and standing roles include the prepare job.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
@@ -188,7 +174,7 @@ fn each_member_is_refused_at_startup_naming_temper_ctl_settings() {
         let mut engine = format!("{{\"{member}\":null,").into_bytes();
         engine.extend_from_slice(&original[1..]);
         let document = fixtures::with(&init, b"engine", &engine);
-        let problems = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
+        let problems = named(&document, &config::Directories::working()).unwrap_err();
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
@@ -200,23 +186,26 @@ fn each_member_is_refused_at_startup_naming_temper_ctl_settings() {
 
 #[test]
 fn an_inline_seed_policy_is_refused_naming_its_path() {
-    let document = fixtures::with(&generated(), b"engine.projects", fixtures::INLINE_PROJECTS);
-    let problems = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
+    let init = generated();
+    let original = fixtures::value(&init, b"engine");
+    let engine = [b"{\"projects\":".as_slice(), fixtures::INLINE_PROJECTS, b",", &original[1..]].concat();
+    let document = fixtures::with(&init, b"engine", &engine);
+    let problems = named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(problems.problems.len(), 1);
     assert_eq!(
         crate::startup::lines(&problems).as_ref(),
-        b"engine.projects[0].policy: name a policy, policy: 1; change it with temper ctl settings apply\n"
+        b"engine.projects: moved: projects are made at runtime; make one from the client or temper ctl\n"
     );
 }
 
 #[test]
-fn stock_startup_requires_a_model_before_building_its_charters() {
-    let mut document = generated();
-    for path in [b"engine.llm.providers".as_slice(), b"engine.llm.endpoints"] {
-        document = fixtures::with(&document, path, b"[]");
-    }
-    let found = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.providers: past its bound\n");
+fn stock_startup_keeps_its_models_even_without_running_providers() {
+    let document = fixtures::engine_alone_document();
+    let given = crate::stock::Given::Stock.with_providers(Box::new([]), Box::new([]));
+    let named = crate::startup::named_with(&document, &config::Directories::working(), &given).unwrap();
+    assert_eq!(named.llm.models.len(), 7);
+    assert!(named.llm.providers.is_empty());
+    assert!(named.llm.endpoints.is_empty());
 }
 
 #[test]
@@ -249,7 +238,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
 
 #[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
-    let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
+    let bytes = generated();
     let document =
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
     let at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
@@ -270,7 +259,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
     assert!(engine.templates[0].flags.listed);
     assert_eq!(engine.policies.iter().find(|policy| policy.number == 1).unwrap().policy.period_spend, 41);
-    assert_eq!(engine.projects[0].policy.period_spend, 41);
+    assert!(engine.projects.is_empty());
     assert_eq!(engine.rules.maximum_run_spend, 2);
 }
 
@@ -302,6 +291,7 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
             fixtures::forge_runtime(),
             None,
             &given,
+            None,
         )
         .unwrap();
         assert_eq!(start.engine.ways_stock, expected);
@@ -309,106 +299,65 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
 }
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "ordinary JSON fixtures exercise the enclosing moved member")]
 fn a_documents_models_are_refused_at_their_paths() {
     let init: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    for (parent, member, path) in [
-        ("/engine/llm", "models", "engine.llm.models"),
-        ("/engine/llm/providers/0", "models", "engine.llm.providers[0].models"),
-    ] {
+    for value in [serde_json::json!({"models":[]}), serde_json::json!({"providers":[{"models":[]}]})] {
         let mut document = init.clone();
-        document
-            .pointer_mut(parent)
-            .unwrap()
-            .as_object_mut()
-            .unwrap()
-            .insert(member.into(), serde_json::from_slice::<serde_json::Value>(b"[]").unwrap());
-        let problems =
-            crate::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
+        document["engine"]["llm"] = value;
+        let problems = named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            format!("{path}: settings live in the store; read them with temper ctl DIR settings show\n").as_bytes()
+            b"engine.llm: moved: LLM providers are settings; see them with temper ctl settings show provider\n"
         );
     }
-    let mut document = init;
-    document["engine"]["llm"]["providers"][0].as_object_mut().unwrap().remove("endpoint");
-    let problems = crate::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&problems).as_ref(),
-        b"engine.llm.providers[0].endpoint: missing\nengine.llm.providers[0].keep: unknown reference\n"
-    );
 }
 
 #[test]
 fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
-    let engine = engine(&generated());
-    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let mut engine = engine(&generated());
+    engine.charters[0].policy.alternatives = Box::new([]);
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let mut problems = crate::startup::Problems::empty();
     let core = config::core(&engine, [7; 16], 7);
     let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
     assert!(problems.is_empty());
     assert!(warnings.is_empty());
-    let demo = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 3).unwrap();
-    demo.output = 8191;
+    let rest = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 1).unwrap();
+    rest.output = 8191;
     let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
     assert!(problems.is_empty());
     assert_eq!(warnings.problems.len(), 1);
     assert_eq!(
         crate::startup::lines(&warnings).as_ref(),
-        b"engine.charters[0].alternatives[6]: needs 8192 output tokens; the agent offers 8191 tokens\n"
+        b"engine.charters[0].alternatives[2]: needs 8192 output tokens; the agent offers 8191 tokens\n"
     );
 }
 
-pub(super) fn generated() -> Box<[u8]> {
-    use core::num::NonZeroU16;
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                owned: NonZeroU16::new(8368).unwrap(),
-                forge: NonZeroU16::new(8369).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-        &[1; 32],
-    )
-    .unwrap();
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
+pub(super) fn generated() -> fixtures::Start {
+    static DOCUMENT: std::sync::OnceLock<fixtures::Start> = std::sync::OnceLock::new();
+    DOCUMENT.get_or_init(generate).clone()
+}
+
+/// The immutable init engine shared by fixtures that read its stock facts.
+pub(super) fn initial_engine() -> &'static config::Engine {
+    static ENGINE: std::sync::OnceLock<config::Engine> = std::sync::OnceLock::new();
+    ENGINE.get_or_init(|| engine(&generated()))
+}
+
+fn generate() -> fixtures::Start {
+    fixtures::Start::stock(&temper_config_shell::init_document(false))
 }
 
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let parsed =
+        config::document(document, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    crate::startup::engine(&parsed, parsed.member(0, b"engine").unwrap(), &config::Directories::working()).unwrap()
 }
 
-fn single_model() -> Box<[u8]> {
-    let bytes = generated();
-    let document = fixtures::Json::new(&bytes);
-    let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
-    let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    document.with(&[
-        (b"engine.llm.providers", &providers),
-        (b"engine.llm.endpoints", &endpoints),
-        (b"application.demo", b"null"),
-    ])
-}
-
-fn without_projects() -> Box<[u8]> {
-    let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+fn without_projects() -> fixtures::Start {
+    generated()
 }
 
 #[path = "stock_brief.rs"]
@@ -417,14 +366,14 @@ mod brief;
 #[test]
 fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     let document = generated();
-    crate::named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
+    named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
     let engine = engine(&document);
-    let own = crate::limits::profile(crate::limits::Profile::Standard);
+    let own = crate::limits::stock();
     assert_eq!(own.root.journal.run_bytes, 65_536);
-    assert_eq!(crate::limits::profile(crate::limits::Profile::Small).root.journal.run_bytes, 65_536);
+    assert_eq!(temper_limits_fixtures::small().root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 12_816), (5, 27_596)] {
+    for (number, expected) in [(2, 12_676), (5, 27_830)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
@@ -436,13 +385,19 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
 
 // temper/docs/design/protocol/configuration/settings.md, 1 and 5.
 #[test]
-fn a_standard_document_seeds_project_one_from_stock_policy_one() {
+fn a_standard_document_admits_stock_policy_one_without_seeding_a_project() {
     let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
     document["engine"]["limits"] = serde_json::json!({"profile": "standard"});
-    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
     let bytes = serde_json::to_vec(&document["engine"]).unwrap();
     let parsed = config::document(&bytes, &config::DocumentLimits { bytes: 65_536, tokens: 8192, depth: 32 }).unwrap();
-    let mut engine = config::engine(&parsed, 0, &config::Directories::working(), config::Defaults::Passed).unwrap();
+    let mut engine = config::engine(
+        &parsed,
+        0,
+        &config::Directories::working(),
+        config::Defaults::PassedProviders,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let policy = defaults.policies.get(&1).unwrap();
     let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
@@ -457,12 +412,12 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
         policy.policy.ceiling.delegation.kinds.len(),
         engine.limits.core.authority.executors
     );
-    config::pass(&mut engine, defaults).expect("a standard deployment seeds stock policy 1");
-    assert_eq!(engine.projects.len(), 1);
-    assert_eq!(engine.projects[0].number, 1);
-    assert_eq!(engine.projects[0].policy, engine.policies[0].policy);
+    config::pass_providers(&mut engine, defaults, &crate::stock::providers(), Box::new([]))
+        .expect("a standard deployment seeds stock policy 1");
+    assert!(engine.projects.is_empty());
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
     let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
     assert_eq!(
@@ -471,28 +426,13 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
     );
 }
 
-#[test]
-fn a_seeded_stock_document_names_the_executor_limit() {
-    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
-    document["engine"]["limits"]["overrides"]["authority.executors"] = 18_i32.into();
-    let document = serde_json::to_vec(&document).unwrap();
-    let problems = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&problems).as_ref(),
-        concat!(
-            "engine.projects[0].policy.ceiling.delegation.kinds: policy has 21 executor kinds; authority.executors limit is 18.\n",
-            "engine.projects[0].policy.roles[0].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
-            "engine.projects[0].policy.roles[1].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
-            "engine.projects[0].policy.roles[2].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
-        ).as_bytes()
-    );
-}
-
-#[test]
-fn inits_document_can_seed_stock_policy_one() {
-    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
-    let document = serde_json::to_vec(&document).unwrap();
-    crate::named(&document, &config::Directories::working()).expect("init's limits admit a seeded stock project");
+/// Files named by the generated init document, with fixture digest and secret bytes.
+/// Complete-start checks consume these directly rather than parsing a second time
+/// just to discover the fixture's paths.
+pub(super) fn files() -> crate::settings::Files {
+    let mut entries = skein_lib::List::with_capacity(3);
+    for path in [b"worker.digest".as_slice(), b"worker.secret", b"/config/agent.json"] {
+        entries.push((path.into(), skein_lib::Secret::new(Box::new([b'0'; 64])))).unwrap();
+    }
+    crate::settings::Files { entries }
 }

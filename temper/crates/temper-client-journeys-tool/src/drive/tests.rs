@@ -1,8 +1,10 @@
 use super::*;
 pub(crate) mod forge;
+mod harness_reports;
 mod logging;
 mod page;
 mod places;
+mod requests;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
 pub(super) fn plan() -> Plan {
@@ -22,6 +24,19 @@ pub(super) fn plan() -> Plan {
         OsStr::new("/bin"),
     )
 }
+#[test]
+fn web_mark_fails_unkept_and_the_session_reads_on() {
+    for mut machine in [ready(), ctl_ready()] {
+        let actions = line(&mut machine, "");
+        assert_eq!(answer(&actions).print(), "ok\n");
+        let actions = line(&mut machine, "web mark");
+        assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{actions:?}");
+        assert_eq!(answer(&actions).print(), "failed: line 2: web mark is a journey's line\n");
+        let actions = line(&mut machine, "");
+        assert_eq!(answer(&actions).print(), "ok\n");
+    }
+}
+
 #[test]
 fn ports_are_parsed_and_invalid_lists_refuse_before_preflight() {
     let parse = |ports: &str| {
@@ -188,6 +203,7 @@ fn ready() -> Machine {
         Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=fresh\n".as_slice().into() },
     );
     step(&mut m, Event::FaceDone(Ok(())));
+    step(&mut m, Event::Found(Some(NodeId(0))));
     step(&mut m, Event::FaceDone(Ok(())));
     assert!(matches!(step(&mut m, Event::Found(Some(NodeId(0)))).as_slice(), [Action::Ready]));
     m
@@ -245,7 +261,10 @@ fn startup_orders_sign_ins_and_confines_programs() {
     assert!(step(&mut m, Event::BoxLine { output: Output::Stdout, line: fresh.as_slice().into() }).is_empty());
     assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == fresh));
     assert!(
-        matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:9/")
+        matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+    );
+    assert!(
+        matches!(step(&mut m, Event::Found(Some(NodeId(1)))).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:9/")
     );
     assert!(
         matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
@@ -343,7 +362,7 @@ impl Pages {
             let event = match action {
                 Action::Find(find) => {
                     let name = match find.target {
-                        Target::Role { name, .. } | Target::ExactRole { name, .. } => name,
+                        Target::Role { name, .. } | Target::ExactRole { name, .. } | Target::TextBox { name } => name,
                         Target::Text { text } => text,
                     };
                     let id = if self.page == 0 && name.as_ref() == b"Start" {
@@ -596,6 +615,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     );
     let tui = plan.tui(b"http://127.0.0.1:9").expect("TUI plan");
     assert!(tui.environment.iter().any(|(name, value)| name == "DISPLAY" && value == ":7"));
+    assert!(!tui.environment.iter().any(|(name, _)| name == "TEMPER_INTERNAL_FIXED_START"));
     for opener in ["xdg-open", "open"] {
         assert_eq!(
             fs::read_link(root.join("session/bin").join(opener)).expect("opener link"),

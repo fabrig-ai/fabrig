@@ -25,6 +25,7 @@ use temper_client_domain_forge::{
     },
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, source, v1 as w};
 
 pub const MAKE: Tool = Tool {
@@ -80,6 +81,7 @@ fn text_arg<'a>(call: &'a Call, name: &[u8]) -> Option<&'a [u8]> {
             | Value::Duration(_)
             | Value::Proposal(_)
             | Value::Digest(_)
+            | Value::Sha256(_)
             | Value::Condition(_)
             | Value::Switch
             | Value::Project(_)
@@ -237,6 +239,7 @@ fn prepare(call: &Call, project: u32) -> Result<w::MakeRepository, &'static [u8]
             | Value::Duration(_)
             | Value::Proposal(_)
             | Value::Digest(_)
+            | Value::Sha256(_)
             | Value::Condition(_)
             | Value::Switch
             | Value::Project(_)
@@ -248,17 +251,16 @@ fn prepare(call: &Call, project: u32) -> Result<w::MakeRepository, &'static [u8]
         )
         | None => 1,
     };
-    let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: arg(call, b"no-home").is_none() })
-        .expect("scalar destination");
+    let into = w::MakeInto { project, home: arg(call, b"no-home").is_none() };
     making::ask(forge, org, name, address, Some(into))
         .or(Err(b"destination must be ORG/NAME; use --as ORG/NAME for a copy".as_slice()))
 }
 fn ask(make: w::MakeRepository, limits: &Limits) -> Option<Ask> {
     let bounds = forge::wire_limits(&limits.domain.forge)?;
-    let request = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::MakeRepository(make) }).ok()?;
+    let request = w::Requesting { request: w::Request::MakeRepository(make) };
     Some(Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&request) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: request.encode(&bounds).ok()? },
     })
 }
 fn restored(request: &Ask, limits: &Limits) -> Option<w::MakeRepository> {
@@ -267,7 +269,7 @@ fn restored(request: &Ask, limits: &Limits) -> Option<w::MakeRepository> {
         return None;
     }
     let request = wire::decode_requesting(&record.bytes, &forge::wire_limits(&limits.domain.forge)?)?;
-    let w::Request::MakeRepository(make) = request.into_parts().request else { return None };
+    let w::Request::MakeRepository(make) = request.request else { return None };
     Some(make)
 }
 pub(crate) fn told(state: &mut Maker, client: &Client, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) {
@@ -356,9 +358,9 @@ fn rows(client: &Client, handle: Handle, limits: &Limits) -> Option<Box<[forge::
 }
 fn verdict(make: &w::MakeRepository, rows: &[forge::forges::Row]) -> Option<u8> {
     for forge in rows {
-        if forge.number == make.forge() {
+        if forge.number == make.forge {
             for row in &forge.makings {
-                if row.org.as_ref() == make.org() && row.name.as_ref() == make.name() {
+                if row.org.as_ref() == make.org.as_ref() && row.name.as_ref() == make.name.as_ref() {
                     return match row.state {
                         w::MakingState::Failed(_) => Some(1),
                         w::MakingState::Waiting
@@ -405,7 +407,7 @@ fn finish(called: Called, printed: jig::Printed, out: &mut Queue<Out>) {
 #[expect(clippy::too_many_lines, reason = "the reply enumerates every forge outcome at this boundary")]
 fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> jig::Printed {
     let kept = pending.called.is_none();
-    let row = match pending.make.from() {
+    let row = match &pending.make.from {
         w::MakeFrom::Empty => &MAKE,
         w::MakeFrom::Copy(_) => &COPY,
     };
@@ -420,7 +422,7 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             };
             let mut reader = Reader::new(&record.bytes);
             match w::Answer::decode(&bounds, &mut reader) {
-                Ok(answer) if reader.is_empty() => Some(answer.into_parts().outcome),
+                Ok(answer) if reader.is_empty() => Some(answer.outcome),
                 Ok(_) | Err(_) => return render::failure(b"repository answer decoding failed", json, 1),
             }
         }
@@ -437,7 +439,7 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
     let (status, words, why): (u8, &[u8], Option<&[u8]>) = match decoded {
         Some(w::Outcome::MakeKept) => (0, b"kept", None),
         Some(w::Outcome::MakeRefused(refused)) => {
-            let (code, words) = refusal(refused.why());
+            let (code, words) = refusal(&refused.why);
             (2, words, Some(code))
         }
         Some(
@@ -478,6 +480,8 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             | w::Outcome::Removed
             | w::Outcome::RemoveRefused(_)
             | w::Outcome::Reset
+            | w::Outcome::Checkpointed(_)
+            | w::Outcome::CheckpointRefused(_)
             | w::Outcome::EndRefused(_),
         ) => return render::failure(b"repository answer decoding failed", json, 1),
         None => {
@@ -550,27 +554,27 @@ fn answer_text(pending: &Pending, kept: bool, operation: &[u8], words: &[u8], re
     out.put(b"\n");
     if refused && words.starts_with(b"The project has a home") {
         out.put(b"  temper ctl DIR repository ");
-        match pending.make.from() {
+        match &pending.make.from {
             w::MakeFrom::Empty => out.put(b"make"),
             w::MakeFrom::Copy(_) => out.put(b"copy"),
         }
         out.put(b" --project ");
-        if let Some(into) = w::MakeRepository::into(&pending.make) {
-            out.number(u64::from(into.project()));
+        if let Some(into) = &pending.make.into {
+            out.number(u64::from(into.project));
         }
         out.put(b" --forge ");
-        out.number(u64::from(pending.make.forge()));
+        out.number(u64::from(pending.make.forge));
         out.put(b" ");
-        match pending.make.from() {
+        match &pending.make.from {
             w::MakeFrom::Empty => {}
             w::MakeFrom::Copy(copy) => {
-                render::lists::argument(copy.address(), out);
+                render::lists::argument(&copy.address, out);
                 out.put(b" --as ");
             }
         }
-        out.put(pending.make.org());
+        out.put(&pending.make.org);
         out.put(b"/");
-        out.put(pending.make.name());
+        out.put(&pending.make.name);
         out.put(b" --no-home --key KEY\n");
     }
 }
@@ -598,9 +602,9 @@ fn result(watch: &Watching, rows: Option<&[forge::forges::Row]>, status: u8, lim
     let mut state = None;
     if let Some(rows) = rows {
         for forge in rows {
-            if forge.number == watch.make.forge() {
+            if forge.number == watch.make.forge {
                 for row in &forge.makings {
-                    if row.org.as_ref() == watch.make.org() && row.name.as_ref() == watch.make.name() {
+                    if row.org.as_ref() == watch.make.org.as_ref() && row.name.as_ref() == watch.make.name.as_ref() {
                         state = Some(row);
                     }
                 }
@@ -630,12 +634,12 @@ fn result(watch: &Watching, rows: Option<&[forge::forges::Row]>, status: u8, lim
 }
 fn result_text(watch: &Watching, row: Option<&Making>, status: u8, out: &mut Text) {
     if status == 0 {
-        out.put(watch.make.org());
+        out.put(watch.make.org.as_ref());
         out.put(b"/");
-        out.put(watch.make.name());
+        out.put(watch.make.name.as_ref());
         out.put(b" is in ");
-        let Some(into) = w::MakeRepository::into(&watch.make) else { unreachable!("tools adopt into a project") };
-        out.number(u64::from(into.project()));
+        let Some(into) = &watch.make.into else { unreachable!("tools adopt into a project") };
+        out.number(u64::from(into.project));
         out.put(b".\n");
     } else {
         match row {
@@ -653,14 +657,14 @@ fn result_json(watch: &Watching, row: Option<&Making>, status: u8, out: &mut Enc
     out.key(b"adopted");
     out.boolean(status == 0);
     out.key(b"forge");
-    out.unsigned(u64::from(watch.make.forge()));
+    out.unsigned(u64::from(watch.make.forge));
     out.key(b"org");
-    out.string(watch.make.org());
+    out.string(watch.make.org.as_ref());
     out.key(b"name");
-    out.string(watch.make.name());
+    out.string(watch.make.name.as_ref());
     out.key(b"project");
-    if let Some(into) = w::MakeRepository::into(&watch.make) {
-        out.unsigned(u64::from(into.project()));
+    if let Some(into) = &watch.make.into {
+        out.unsigned(u64::from(into.project));
     } else {
         out.null();
     }
@@ -711,7 +715,7 @@ pub(crate) fn encode(row: &Making, out: &mut Encoder) {
             out.key(b"copy");
             out.object_start();
             out.key(b"address");
-            out.string(copy.address());
+            out.string(&copy.address);
             out.object_end();
         }
     }
@@ -721,9 +725,9 @@ pub(crate) fn encode(row: &Making, out: &mut Encoder) {
         Some(into) => {
             out.object_start();
             out.key(b"project");
-            out.unsigned(u64::from(into.project()));
+            out.unsigned(u64::from(into.project));
             out.key(b"home");
-            out.boolean(into.home());
+            out.boolean(into.home);
             out.object_end();
         }
         None => out.null(),
@@ -755,16 +759,16 @@ fn state_json(state: &w::MakingState, out: &mut Encoder) {
             });
             out.object_start();
             out.key(b"id");
-            out.unsigned(made.id());
+            out.unsigned(made.id);
             out.key(b"branch");
-            out.string(made.branch());
+            out.string(&made.branch);
             out.object_end();
         }
         w::MakingState::Failed(failed) => {
             out.key(b"failed");
             out.object_start();
             out.key(b"step");
-            out.string(match failed.step() {
+            out.string(match &failed.step {
                 w::MakeStep::Admin => b"admin",
                 w::MakeStep::Org => b"org",
                 w::MakeStep::Repository => b"repository",
@@ -773,7 +777,7 @@ fn state_json(state: &w::MakingState, out: &mut Encoder) {
             });
             out.key(b"reason");
             out.object_start();
-            match failed.reason() {
+            match &failed.reason {
                 w::MakeFailure::Taken => {
                     out.key(b"taken");
                     out.object_start();
@@ -803,13 +807,13 @@ fn state_json(state: &w::MakingState, out: &mut Encoder) {
                     out.key(b"refused");
                     out.object_start();
                     out.key(b"status");
-                    out.unsigned(u64::from(refused.status()));
+                    out.unsigned(u64::from(refused.status));
                     out.object_end();
                 }
             }
             out.object_end();
             out.key(b"words");
-            out.string(failed.words());
+            out.string(&failed.words);
             out.object_end();
         }
     }

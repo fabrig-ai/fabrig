@@ -31,9 +31,30 @@ pub enum Cause {
     Range(RangeFailure),
     Walk(WalkFailure),
     Decode(DecodeFailure),
+    History { task: u64, failure: HistoryFailure },
     RowPastPage { needs: u64, has: u64 },
     Join { target: RowSite, failure: JoinFailure },
     Arithmetic(Arithmetic),
+}
+
+/// The check that refused a task history fetch (protocol/store/logs.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum HistoryFailure {
+    LogId,
+    ExtentMissing,
+    ExtentMalformed,
+    PlaceMissing,
+    PlaceMalformed,
+    Unread,
+    Empty,
+    FramePosition,
+    FramePastExtent,
+    FramePastPage,
+    Record,
+    RecordTask,
+    Incomplete,
+    Continuation,
+    Arithmetic,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -54,6 +75,7 @@ pub enum WalkFailure {
 pub enum DecodeFailure {
     Key,
     Value,
+    Lowered(crate::codec::Lowered),
     KeyValueDisagree,
 }
 

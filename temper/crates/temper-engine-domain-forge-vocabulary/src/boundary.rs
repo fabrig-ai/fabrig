@@ -130,6 +130,8 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
+    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 8).
+    pub landing: Box<[u8]>,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
     pub workflows: Box<[Box<[u8]>]>,
 }
@@ -456,10 +458,6 @@ pub struct Place {
 /// The machine's places (temper/docs/design/protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Machine {
-    /// `application.machine.owned.person`'s login; empty with no owned machine.
-    pub owned_person: Box<[u8]>,
-    pub owned: Option<Place>,
-    pub fake: Option<Place>,
     pub github: Place,
     pub github_git_program: Option<Box<[u8]>>,
 }
@@ -474,6 +472,7 @@ pub struct Bot {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EmptyIntent {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
@@ -488,7 +487,7 @@ pub enum FirstIntent {
 /// The set up's admitted input (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpFirst {
-    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
+    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool, sample: bool },
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
@@ -656,6 +655,7 @@ pub enum AdminStop {
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct First {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub state: FirstState,
@@ -750,6 +750,7 @@ pub struct AdoptedRepository {
     pub repository: skein_forge::api::Repository,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
+    pub landing: Box<[u8]>,
     pub role: Role,
     pub home: bool,
     pub kinds: Kinds,
@@ -791,6 +792,7 @@ pub const fn reason(error: skein_forge::api::Error) -> AdoptionRefusal {
         | skein_forge::api::Error::NothingToMerge
         | skein_forge::api::Error::Closed
         | skein_forge::api::Error::Stale
+        | skein_forge::api::Error::BaseMoved { .. }
         | skein_forge::api::Error::Conflict
         | skein_forge::api::Error::Protected
         | skein_forge::api::Error::InvalidAnswer => AdoptionRefusal::InvalidAnswer,
@@ -804,8 +806,17 @@ pub struct Hold {
     pub writer: Option<Writer>,
     /// Runs writing design beside the slot (domain/forge/branches.md, 3).
     pub design_writers: Box<[DesignWriter]>,
+    /// A design head recorded beside another write, and that write waiting on ancestry.
+    pub beside: Option<HeadBeside>,
     /// Last outside change requiring a person to release this hold.
     pub drift: Option<Drift>,
+}
+
+/// Heads ordered by containment before a late write is recorded (domain/forge/branches.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct HeadBeside {
+    pub head: skein_forge::api::Commit,
+    pub waiting: Option<skein_forge::api::Commit>,
 }
 
 /// An outside change and its observation time, retained with the affected hold.
@@ -823,6 +834,8 @@ pub enum DriftChange {
 /// Durable progress while a closing task releases its connector resources.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReleaseRow {
+    /// Its durable place in the outbox line (domain/forge/room.md, 3–4).
+    pub room: Option<u64>,
     pub task: u64,
     pub root: u64,
     pub ending: ReleaseEnding,
@@ -1029,14 +1042,19 @@ pub struct ChangeSource {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub room: Option<u64>,
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
+    pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
     pub ending: Option<Ending>,
     /// Whole-life delegate account; a release resets retry counts alone.
     pub repair_tasks: Box<[u64]>,
@@ -1065,6 +1083,12 @@ pub struct ChangeRow {
     pub spec_revision: u64,
     /// Spec revision read by the step that asked the live review (gates.md, 1, Valid at a spec revision).
     pub gate_revision: u64,
+    /// A flake terminal awaiting the branch read after its end.
+    pub delegate_flake: bool,
+    /// A no-test terminal awaiting the branch read after its end.
+    pub delegate_no_test: bool,
+    /// The branch head when this delegate was asked.
+    pub delegate_head: Option<skein_forge::api::Commit>,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
@@ -1102,6 +1126,12 @@ pub struct ChangeRow {
     /// Open intervals and the last event (landing-history.md, 3.2).
     pub history: Option<crate::history::ChangeHistory>,
 }
+/// A failed receipt superseded by a change's release (temper/docs/design/domain/landing-regate.md, 3–5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Regate {
+    pub receipt: ReceiptKey,
+    pub run: u64,
+}
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCold {
@@ -1112,6 +1142,9 @@ pub struct ChangeCold {
     pub base: Box<[u8]>,
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
     pub base_repair: bool,
     pub producing_charter: u32,
     pub review_charter: u32,
@@ -1128,7 +1161,9 @@ pub struct ChangeCold {
 /// A change's hot store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
+    pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
+    pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1149,6 +1184,12 @@ pub struct ChangeHot {
     pub spec_revision: u64,
     /// Spec revision read by the step that asked the live review (gates.md, 1, Valid at a spec revision).
     pub gate_revision: u64,
+    /// A flake terminal awaiting the branch read after its end.
+    pub delegate_flake: bool,
+    /// A no-test terminal awaiting the branch read after its end.
+    pub delegate_no_test: bool,
+    /// The branch head when this delegate was asked.
+    pub delegate_head: Option<skein_forge::api::Commit>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
     pub drift: Option<change::Hold>,
@@ -1167,13 +1208,18 @@ impl ChangeRow {
     #[expect(clippy::too_many_lines, reason = "each field is moved explicitly into its cold or hot store part")]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
+            room,
             source,
             kept,
+            regate,
             task_release,
             job,
             signed,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1194,6 +1240,9 @@ impl ChangeRow {
             delegate_status,
             spec_revision,
             gate_revision,
+            delegate_flake,
+            delegate_no_test,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1225,6 +1274,9 @@ impl ChangeRow {
                 base,
                 goal,
                 milestone,
+                person,
+                goal_title,
+                draft,
                 base_repair,
                 producing_charter,
                 review_charter,
@@ -1239,7 +1291,9 @@ impl ChangeRow {
                 report,
             },
             ChangeHot {
+                room,
                 kept,
+                regate,
                 task_release,
                 job,
                 signed,
@@ -1258,6 +1312,9 @@ impl ChangeRow {
                 delegate_status,
                 spec_revision,
                 gate_revision,
+                delegate_flake,
+                delegate_no_test,
+                delegate_head,
                 verdicts,
                 gate_remarks,
                 drift,
@@ -1274,7 +1331,7 @@ impl ChangeRow {
     }
     /// Join parts belonging to the same task.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "each cold and hot field is joined explicitly")]
+    #[expect(clippy::too_many_lines, reason = "each field is moved explicitly from its cold or hot store part")]
     pub fn join(cold: ChangeCold, hot: ChangeHot) -> Self {
         let ChangeCold {
             source,
@@ -1284,6 +1341,9 @@ impl ChangeRow {
             base,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             base_repair,
             producing_charter,
             review_charter,
@@ -1298,7 +1358,9 @@ impl ChangeRow {
             report,
         } = cold;
         let ChangeHot {
+            room,
             kept,
+            regate,
             task_release,
             job,
             signed,
@@ -1317,6 +1379,9 @@ impl ChangeRow {
             delegate_status,
             spec_revision,
             gate_revision,
+            delegate_flake,
+            delegate_no_test,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1331,13 +1396,18 @@ impl ChangeRow {
         } = hot;
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
+            room,
             source,
             kept,
+            regate,
             task_release,
             job,
             signed,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1358,6 +1428,9 @@ impl ChangeRow {
             delegate_status,
             spec_revision,
             gate_revision,
+            delegate_flake,
+            delegate_no_test,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1465,6 +1538,7 @@ pub enum Follows {
 /// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AfterLanding {
+    pub wait: temper_engine_domain_forge_change::Wait,
     pub verdict: temper_engine_domain_forge_tiers::Settings,
     pub bound: skein_lib::Duration,
 }
@@ -1480,10 +1554,25 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub last_event: Option<skein_lib::Wall>,
+    pub turn_since: Option<skein_lib::Wall>,
+    pub waiting: Option<landing::Awaited>,
+    pub room: Option<u64>,
     pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
+    pub flake_reruns: Box<[FlakeRerun]>,
+}
+/// A spent key and its durable job cursor (domain/landing-regate.md, 2, 4, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FlakeRerun {
+    pub key: ReceiptKey,
+    pub run: u64,
+    pub findings: Box<[u32]>,
+    pub pending: Box<[skein_forge::api::JobAttempt]>,
+    pub redispatch: bool,
+    pub ended: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LandingEntry {
@@ -1517,6 +1606,7 @@ pub enum Operation {
     Delete,
     Record,
 }
+/// A step's hearing, with no preparation at start (temper/docs/design/domain/landing-preparing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
     pub job: Option<crate::history::JobStep>,
@@ -1524,7 +1614,7 @@ pub struct LandingHeard {
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
     pub failure: Box<[u8]>,
-    pub preparation: landing::Preparation,
+    pub preparation: Option<landing::Preparation>,
     /// Live landings waiting prepared on a member of another live landing.
     pub kept: Box<[u64]>,
     pub released: bool,
@@ -1658,6 +1748,8 @@ pub enum Stored {
     ProposedEffect(ProposedEffect),
     /// One adopted repository.
     Repository(Repository),
+    /// A task held on a configured limit (protocol/configuration/limit-settings.md, 6).
+    LimitHold(LimitHold),
     /// One held resource.
     Hold(Hold),
     /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
@@ -1738,6 +1830,7 @@ pub enum Stored {
         what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
+    PersonBrief(crate::PersonBrief),
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
@@ -1757,6 +1850,37 @@ pub enum Stored {
     HistoryLanding(crate::history::LandingIndex),
     HistoryLast(crate::history::Last),
 }
+/// One durable limit hold; `room` is the operation's additional occupancy
+/// (temper/docs/design/protocol/configuration/limit-settings.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LimitHold {
+    pub task: u64,
+    pub member: Box<[u8]>,
+    pub configured: u64,
+    pub needed: u64,
+    pub revision: u64,
+    pub at: skein_lib::Wall,
+    pub order: u64,
+    pub room: u64,
+    pub set: LimitSet,
+}
+
+/// The occupancy a refused operation would add to; a setting can bound several sets.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum LimitSet {
+    Operation,
+    Entries,
+    Holds,
+    Tasks,
+    Changes,
+    Steps,
+    Subscriptions,
+    Watches,
+    Heads,
+    Repositories,
+    DesignWriters(Name),
+}
+
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProposedEffect {
@@ -1773,6 +1897,7 @@ pub enum Key {
     ProposedEffect(u64),
     Repository(skein_forge::api::Repository),
     Hold(Name),
+    LimitHold(u64),
     Names(u64),
     Subscription { task: u64, topic: Topic },
     BranchHead(Name),
@@ -1814,6 +1939,7 @@ pub enum Key {
     ChangeCold(u64),
     ChangeHot(u64),
     Milestone(u64),
+    PersonBrief { party: u64, project: u32 },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -1909,6 +2035,18 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Take the checked, raised environment's at-once limits in every holder.
+    LimitsRaised,
+    /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
+    SetupPerson {
+        forge: u16,
+        login: Box<[u8]>,
+    },
+    PlaceChosen {
+        request: Token,
+        place: Option<Place>,
+        git_program: Option<Box<[u8]>>,
+    },
     HistoryLoaded {
         load: u64,
         rows: Box<[Stored]>,
@@ -2000,10 +2138,12 @@ pub enum Event {
     },
     StatusTask {
         project: u32,
+        party: u64,
         task: u64,
     },
     StatusRefused {
         project: u32,
+        party: u64,
     },
     StatusHeard {
         task: u64,
@@ -2315,10 +2455,19 @@ pub enum Event {
     Enqueue {
         entry: skein_forge_client::Entry,
     },
+    /// Keep an admitted call's entry into its flight's reserved room.
+    EnqueueCall {
+        owner: Token,
+        entry: skein_forge_client::Entry,
+    },
     /// Keep a projection candidate after core admission.
     KeepProjection {
         row: IssueRow,
         entry: skein_forge_client::Entry,
+    },
+    /// Return a projection flight's room when it ends without an entry.
+    DropProjection {
+        entry: u64,
     },
     /// A milestone's identity and end from the tracked-task projection (domain/milestones.md, 8).
     Milestone {
@@ -2400,6 +2549,9 @@ pub enum Event {
         status: change::Status,
         /// The child explicitly concluded that no change applies.
         no_change: bool,
+        /// A repair concluded with the flake verdict.
+        flake: bool,
+        no_test: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.
@@ -2434,6 +2586,10 @@ pub enum Event {
     },
     /// Re-derive the queue after the root keeps changed review facts (domain/forge/queues.md).
     ReviewsChanged {
+        task: u64,
+    },
+    /// The root cannot step an asked waiter while its task is held.
+    RoomUnavailable {
         task: u64,
     },
     /// Gather fresh forge facts and step one registered change.
@@ -2621,6 +2777,12 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Choose a loopback port before making the record (protocol/setup/place.md, 2).
+    ChoosePlace {
+        request: Token,
+        kind: BoxKind,
+        login: Box<[u8]>,
+    },
     LoadHistory {
         load: u64,
         range: crate::history::HistoryRange,
@@ -2649,6 +2811,7 @@ pub enum Request {
     /// Make Home's brief task (temper/docs/design/domain/forge/attention.md, 3).
     StatusRun {
         project: u32,
+        party: u64,
         since: skein_lib::Wall,
         words: Box<[u8]>,
         findings: Box<[u8]>,
@@ -2676,6 +2839,11 @@ pub enum Request {
         /// The landing's first kept follow, numbered within the finding's project.
         follow: Option<u32>,
         finding: crate::FileFinding,
+    },
+    /// File a landing tier's verdict in the decision keeping it (domain/red-findings.md, 9).
+    FileVerdict {
+        task: u64,
+        filing: crate::findings::VerdictFiling,
     },
     TierDecision {
         task: u64,
@@ -2708,6 +2876,10 @@ pub enum Request {
         task: u64,
         member: u16,
         step: LandingNews,
+    },
+    /// Facts are gathered; the root admits the decision in its due procedure step.
+    LandingReady {
+        task: u64,
     },
     LandingDecision {
         task: u64,
@@ -3014,6 +3186,18 @@ pub enum Request {
         request: Token,
         carried: jig_domain_core_vocabulary::Carried,
     },
+    /// A taskless landing ended in Link (domain/landing-forming.md, 4).
+    LandingUnmade {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        changes: Box<[u64]>,
+    },
+    /// A taskless hold with no live writer dropped in Link.
+    HoldDropped {
+        name: Name,
+        task: u64,
+    },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     LinkNoted {
         forge: u16,
@@ -3069,8 +3253,12 @@ pub struct TierGoal {
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
+    /// The judged run's whole report's names, retained until the next run starts.
+    pub many: Option<temper_engine_domain_forge_tiers::ManyTests>,
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
+    pub waiting: Box<[crate::findings::VerdictFiling]>,
+    pub unkept: u32,
     pub repository: skein_forge::api::Repository,
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,
@@ -3208,13 +3396,44 @@ pub struct LoggedLanding {
     pub branch: Box<[u8]>,
     pub at: skein_lib::Wall,
     pub changes: Box<[LoggedChange]>,
+    pub tiers: Box<[LoggedTier]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LoggedTier {
+    pub tier: Box<[u8]>,
+    pub verdict: LoggedVerdict,
+}
+/// Maximum ids kept by one red log entry, matching the store's list ceiling.
+pub const LOGGED_TESTS: u32 = 64;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LoggedVerdict {
+    Verifying,
+    Cleared {
+        run: u64,
+    },
+    Red {
+        run: u64,
+        failing: Option<u32>,
+        /// Sorted distinct ids blamed on this landing, empty for many failures.
+        tests: Box<[temper_engine_domain_forge_tiers::TestId]>,
+        /// The judged run's report names for many failures.
+        many: Option<temper_engine_domain_forge_tiers::ManyTests>,
+    },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    /// Sorted distinct finding numbers named by the pull request's body, at most eight.
+    pub fixes: Box<[u32]>,
     pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
+    pub goal: Option<u64>,
+    pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
 }
 
 /// The landing transitions reported to its member's goal (domain/landing.md, 4.2).

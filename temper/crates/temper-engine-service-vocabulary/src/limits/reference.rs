@@ -1,24 +1,33 @@
 //! Named limits as checked-in reference pages (temper/docs/design/protocol/documentation.md, 8).
-use super::{NAMES, Profile, Unit, profile};
+use super::{Applies, NAMES, Unit, stock};
 use skein_lib::{Decimal, Overflow, Writer};
 use temper_forge_setup::limits as setup;
 
-/// Temper's, the setup's and the box's override names at the small profile's values.
+/// Temper's, the setup's and the box's override names at the stock's values.
 pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Limits\n\nKind: reference\n\nEvery limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.\n")?;
-    let limits = profile(Profile::Small);
+    out.put(b"# Limits\n\nKind: reference\n\nEvery row belongs to the temper-limits setting: its name, unit, stock value, when a raise applies and what it bounds.\n")?;
+    let mut limits = stock();
+    super::derive(&mut limits, temper_service_core::derived::STOCK).expect("stock carriers fit");
     let mut owner = "";
     for name in &NAMES {
         if name.name.starts_with("setup.") {
             continue;
         }
-        row(name.name, unit(name.unit), (name.value)(&limits), name.line, &mut owner, out)?;
+        row(name.name, unit(name.unit), (name.value)(&limits), name.line, name.applies, &mut owner, out)?;
     }
-    let limits = setup::small();
+    let limits = setup::stock();
     for name in &setup::NAMES {
-        // The shared forge client name is already rendered from the service's profile.
+        // The shared forge client name is already rendered from the service's stock.
         if name.name.starts_with("setup.") {
-            row(name.name, setup_unit(name.unit), (name.value)(&limits), name.line, &mut owner, out)?;
+            row(
+                name.name,
+                setup_unit(name.unit),
+                (name.value)(&limits),
+                name.line,
+                Applies::NextStart,
+                &mut owner,
+                out,
+            )?;
         }
     }
     let limits = setup::host();
@@ -28,38 +37,52 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
             shared |= plan.name == name.name;
         }
         if !shared {
-            row(name.name, setup_unit(name.unit), (name.value)(&limits), name.line, &mut owner, out)?;
+            row(
+                name.name,
+                setup_unit(name.unit),
+                (name.value)(&limits),
+                name.line,
+                Applies::NextStart,
+                &mut owner,
+                out,
+            )?;
         }
     }
     for name in &setup::FETCH_NAMES {
-        row(name.name, setup_unit(name.unit), (name.value)(&setup::FETCH_BYTES), name.line, &mut owner, out)?;
+        row(
+            name.name,
+            setup_unit(name.unit),
+            (name.value)(&setup::FETCH_BYTES),
+            name.line,
+            Applies::NextStart,
+            &mut owner,
+            out,
+        )?;
     }
-    let limits = temper_box_machine::limits::small();
+    let limits = temper_box_machine::limits::stock();
     for name in &temper_box_machine::limits::NAMES {
         let unit = match name.unit {
             temper_box_machine::limits::Unit::Count => "count",
             temper_box_machine::limits::Unit::Bytes => "bytes",
             temper_box_machine::limits::Unit::Milliseconds => "milliseconds",
         };
-        row(name.name, unit, (name.value)(&limits), name.line, &mut owner, out)?;
+        row(name.name, unit, (name.value)(&limits), name.line, Applies::NextStart, &mut owner, out)?;
     }
     Ok(())
 }
 
-/// Jig's engine and worker override names, with small values and the standard tree capacity.
+/// Jig's engine and worker override names at temper's stock, including the stock-agent carriers.
 pub fn engine_reference(out: &mut Writer) -> Result<(), Overflow> {
-    engine_reference_with(out, b"# Engine limits\n\nKind: reference\n\nEvery limit engine.limits.overrides takes: its unit, the small profile's value and what it bounds.\n")
+    engine_reference_with(out, b"# Engine limits\n\nKind: reference\n\nEvery limit in the limits setting: its unit, stock value and what it bounds.\n")
 }
 pub fn engine_reference_with(out: &mut Writer, introduction: &[u8]) -> Result<(), Overflow> {
     out.put(introduction)?;
-    out.put(b"\nThe table uses the small profile, not the standard profile selected by temper-box init. Standard tasks.tree_tasks is ")?;
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
-    out.put(Decimal::of(u64::from(standard.core.tasks.tree_tasks)).as_bytes())?;
-    out.put(b"; small is 32 as listed below. engine.limits.profile selects the profile; engine.limits.overrides replaces named values. Check the box's configuration for its effective value; these are profile defaults.\n\nThe tree limit counts all tasks made over the requester's tree's life, including its root and ended tasks. Ending a task frees live slots, not lifetime capacity; a restart does not reset the count. A task's delegated authority may leave less room than this deployment limit.\n\nA change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).\n")?;
+    out.put(b"\nEvery row belongs to the limits setting. The table uses the stock, including temper's stock-agent carriers; overrides replace named values. The deployment's Limits page shows effective values.\n\nThe tree limit counts all tasks made over the requester's tree's life, including its root and ended tasks. Ending a task frees live slots, not lifetime capacity; a restart does not reset the count. A task's delegated authority may leave less room than this deployment limit.\n\nA change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).\n")?;
     out.put(b"\ntemper sizes the engine's watch rooms itself: a stream holds ")?;
     out.put(Decimal::of(u64::from(temper_engine_domain::WATCHES_PER_STREAM)).as_bytes())?;
     out.put(b" watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.\n")?;
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = temper_service_core::derived::stock();
+    temper_service_core::derived::engine(&mut limits, temper_service_core::derived::STOCK).expect("stock carriers fit");
     let mut owner = "";
     for name in &jig_protocol_config::names::NAMES {
         if name.name == "views.watchers" || name.name == "views.watchers_per_party" {
@@ -70,7 +93,7 @@ pub fn engine_reference_with(out: &mut Writer, introduction: &[u8]) -> Result<()
             jig_protocol_config::names::Unit::Bytes => "bytes",
             jig_protocol_config::names::Unit::Milliseconds => "milliseconds",
         };
-        row(name.name, unit, (name.value)(&limits), name.line, &mut owner, out)?;
+        row(name.name, unit, (name.value)(&limits), name.line, Applies::NextStart, &mut owner, out)?;
     }
     Ok(())
 }
@@ -96,6 +119,7 @@ fn row(
     unit: &str,
     value: u64,
     line: &str,
+    applies: Applies,
     owner: &mut &'static str,
     out: &mut Writer,
 ) -> Result<(), Overflow> {
@@ -103,14 +127,14 @@ fn row(
     if prefix != *owner {
         out.put(b"\n## ")?;
         out.put(prefix.as_bytes())?;
-        out.put(b"\n\n")?;
+        out.put(b"\n\n| Name | Unit | Stock | Applies | Bounds |\n|---|---|---|---|---|\n")?;
         *owner = prefix;
     }
-    out.put(b"- `")?;
+    out.put(b"| `")?;
     out.put(name.as_bytes())?;
-    out.put(b"`: ")?;
+    out.put(b"` | ")?;
     out.put(unit.as_bytes())?;
-    out.put(b", ")?;
+    out.put(b" | ")?;
     let digits = Decimal::of(value);
     let digits = digits.as_bytes();
     for (index, digit) in digits.iter().enumerate() {
@@ -119,7 +143,12 @@ fn row(
         }
         out.put(core::slice::from_ref(digit))?;
     }
-    out.put(b". ")?;
+    out.put(b" | ")?;
+    out.put(match applies {
+        Applies::AtOnce => b"at once",
+        Applies::NextStart => b"next start",
+    })?;
+    out.put(b" | ")?;
     out.put(line.as_bytes())?;
-    out.put(b"\n")
+    out.put(b" |\n")
 }

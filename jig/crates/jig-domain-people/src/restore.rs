@@ -1,11 +1,11 @@
 //! The start's volatile projections and keyed fit evidence (jig/docs/design/domain/engine/restart.md).
-use crate::{Entry, Key, ReplyRef, ResultRef};
+use crate::{Entry, Key, NeedSource, ReplyRef, ResultRef};
 use alloc::boxed::Box;
 
 #[derive(Debug)]
 pub enum RestoreProjection {
     Waiting {
-        task: u64,
+        source: NeedSource,
         entries: Box<[Entry]>,
     },
     Result {

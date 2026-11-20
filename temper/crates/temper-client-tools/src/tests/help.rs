@@ -44,6 +44,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(39), "help_forge_install"),
     (Some(jig::rows::EXPORT_AT), "help_account_export"),
     (Some(jig::rows::IMPORT_AT), "help_account_import"),
+    (Some(jig::rows::USES_AT), "help_account_uses"),
     (Some(jig::rows::SETTINGS_AT), "help_settings_show"),
     (Some(jig::rows::SETTING_AT), "help_settings_show"),
     (Some(jig::rows::REVISION_AT), "help_revision_show"),
@@ -55,6 +56,10 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
+    (Some(jig::rows::WORKER_LIST_AT), "help_worker_list"),
+    (Some(jig::rows::WORKER_ADD_AT), "help_worker_add"),
+    (Some(jig::rows::WORKER_PLACES_AT), "help_worker_places"),
+    (Some(jig::rows::WORKER_REMOVE_AT), "help_worker_remove"),
 ];
 #[test]
 fn the_help_is_the_page_ctl_then_the_tools() {
@@ -86,12 +91,12 @@ fn review_recipe_quotes_the_waiting_changes_output() {
     let mut parts = super::change::approval_parts();
     parts.step = w::Step::First;
     parts.ci = w::Ci::Passed;
-    let mut approval = parts.approvals.get(0).expect("waiting approval").clone().into_parts();
+    let mut approval = parts.approvals.get(0).expect("waiting approval").clone();
     approval.number = 1;
     approval.role = 1;
     approval.freshness = w::RuleFreshness::Exact;
-    *parts.approvals.get_mut(0).expect("waiting approval") = w::Approval::new(&w::CEILINGS, approval).unwrap();
-    let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("waiting change");
+    *parts.approvals.get_mut(0).expect("waiting approval") = approval;
+    let panel = parts;
     let output =
         crate::change::print(Some(&panel), false, None, b"", &fixtures::limits_root(), &crate::change::Holds::new());
     assert_eq!(output.status, 0);
@@ -109,7 +114,7 @@ fn review_recipe_quotes_the_waiting_changes_output() {
         let expected = line
             .replace("PROJECT", "1")
             .replace("ROLE", "1")
-            .replace("URL", core::str::from_utf8(panel.pull().as_ref().expect("pull request").address()).unwrap());
+            .replace("URL", core::str::from_utf8(&panel.pull.as_ref().expect("pull request").address).unwrap());
         let mut found = false;
         for rendered in output.lines() {
             found |= rendered == expected;
@@ -279,7 +284,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
-    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\n"),
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker|provider NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\n"),
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -290,7 +295,7 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 }
 #[test]
 fn each_derivation_names_every_tool() {
-    let mut forms = List::with_capacity(fixtures::TOOL_FORMS);
+    let mut forms = List::with_capacity(fixtures::tool_forms());
     let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
     for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
@@ -310,7 +315,7 @@ fn each_derivation_names_every_tool() {
         let json = jig::json::write_call(table::TOOLS, &call).expect("call JSON");
         assert_eq!(fixtures::from_json(&json), call, "{words:?}");
     }
-    assert_eq!(forms.len(), fixtures::TOOL_FORMS);
+    assert_eq!(forms.len(), fixtures::tool_forms());
     let help = fixtures::help(None);
     let list = help
         .strip_prefix(temper_docs::find(b"ctl").expect("ctl page").text.as_bytes())
@@ -513,9 +518,10 @@ fn the_forge_reference_is_what_the_table_renders() {
     reference_matches(b"forge", b"ctl-forge");
 }
 #[test]
-fn the_playground_reference_is_what_the_table_renders() {
+fn the_playground_push_and_deployment_references_are_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
     reference_matches(b"push", b"ctl-push");
+    reference_matches(b"deployment", b"ctl-deployment");
 }
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;
@@ -555,6 +561,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
     reference_matches(b"role", b"ctl-role");
+    reference_matches(b"milestone", b"ctl-milestone");
 }
 
 #[test]
@@ -571,7 +578,7 @@ fn goal_start_help_explains_the_title_line() {
     assert!(text.contains(concat!(
         "TEXT's first line is the goal's title, as Home and Work show it: ",
         "at most 60 characters naming the work for a person, ",
-        "as \"Store shape S7: history in task logs\"; the rest of TEXT follows on the lines below."
+        "as \"Store shape: history in task logs\"; the rest of TEXT follows on the lines below."
     )));
 }
 
@@ -659,7 +666,7 @@ fn public_reading_walk_names_every_figure_and_visibility_remedy() {
         "core.public.ended",
         "core.public.lines",
         "core.public.depth",
-        "engine.limits.overrides",
+        "`limits` setting",
         "restart",
         "project amend PROJECT --visibility public --key KEY",
         "project show PROJECT",
@@ -679,10 +686,62 @@ fn help_names_invalid_run_end_causes() {
 }
 
 #[test]
+fn landing_help_explains_waits_and_engine_relative_ages() {
+    let page = temper_docs::find(b"landing").expect("landing help");
+    for words in [
+        "waits for:",
+        "the round's pull request to close",
+        "nothing; it steps next",
+        "Ended landings show no wait",
+        "`turn: free`",
+        "`last event unknown`",
+        "engine's document time",
+        "`2d 3h`",
+        "`4h 31m`",
+        "`37m 12s`",
+        "`12s`",
+        "`0s`",
+        "`now`",
+        "`turn_since`",
+        "`step`",
+        "`last_event`",
+        "nanoseconds or null",
+    ] {
+        assert!(page.text.contains(words), "landing help must explain {words}");
+    }
+}
+#[test]
 fn the_landing_reference_is_what_the_table_renders() {
     reference_matches(b"landing", b"ctl-landing");
 }
 #[test]
 fn the_change_reference_is_what_the_table_renders() {
     reference_matches(b"change", b"ctl-change");
+}
+
+#[test]
+fn budget_help_names_the_amount_and_all_as_allowed_reserves() {
+    for (tool, words) in [
+        (
+            jig::rows::GOAL_START_AT,
+            "  --as-allowed: a switch. Take all you may give from your pool, or with --milestone all the milestone has left, instead of a named budget: none is left for the next start while this goal is live\n",
+        ),
+        (
+            jig::rows::MILESTONE_NEW_AT,
+            "  --as-allowed: a switch. Take all you may give from your pool instead of a named budget: none is left for your next start while this milestone is live\n",
+        ),
+    ] {
+        let help = fixtures::help(Some(tool));
+        assert!(skein_lib::bytes::find(&help, words.as_bytes()).is_some());
+        assert!(
+            skein_lib::bytes::find(
+                &help,
+                b"--budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional."
+            )
+            .is_some()
+        );
+        let row = table::TOOLS.get(usize::from(tool)).unwrap();
+        let json = jig::json::write_tool(row, &crate::limits::tools()).unwrap();
+        assert!(skein_lib::bytes::find(&json, br#""kind":"amount""#).is_some());
+    }
 }

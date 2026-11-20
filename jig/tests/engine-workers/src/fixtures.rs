@@ -1,7 +1,8 @@
 //! Prepared constants and per-reader copies (protocol/channel/README.md, 11).
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_engine_workers::{Limits, Worker};
-use skein_io::digest::digest;
+use jig_protocol_worker_wire::Record;
+use skein_lib::sha256::digest;
 use skein_lib::{Duration, Secret, Writer};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
@@ -24,17 +25,7 @@ pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire
     let mut wires = prepared_statement_wires().clone();
     let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
     wires
-        .push(
-            wire::Wire::new(
-                &wire::CEILINGS,
-                wire::WireParts {
-                    name: current.name.as_bytes().into(),
-                    lowest: current.lowest,
-                    layouts: current.layouts,
-                },
-            )
-            .expect("wire"),
-        )
+        .push(wire::Wire { name: current.name.as_bytes().into(), lowest: current.lowest, layouts: current.layouts })
         .expect("wire slot");
     wires
 }
@@ -46,17 +37,11 @@ fn prepared_statement_wires() -> &'static skein_lib::List<jig_protocol_worker_wi
         let mut wires = skein_lib::List::with_capacity(16);
         for spoken in prepared_kept_wires() {
             wires
-                .push(
-                    wire::Wire::new(
-                        &wire::CEILINGS,
-                        wire::WireParts {
-                            name: spoken.name.as_bytes().into(),
-                            lowest: spoken.lowest,
-                            layouts: spoken.layouts.clone(),
-                        },
-                    )
-                    .expect("wire"),
-                )
+                .push(wire::Wire {
+                    name: spoken.name.as_bytes().into(),
+                    lowest: spoken.lowest,
+                    layouts: spoken.layouts.clone(),
+                })
                 .expect("wire slot");
         }
         wires
@@ -116,9 +101,9 @@ pub const LIMITS: Limits = Limits {
 #[must_use]
 pub fn workers() -> Box<[Worker]> {
     Box::new([
-        Worker { name: Box::from(WORKER_A), digest: digest(SECRET_A) },
-        Worker { name: Box::from(WORKER_B), digest: digest(SECRET_B) },
-        Worker { name: Box::from(WORKER_C), digest: digest(SECRET_C) },
+        Worker { number: 1, name: Box::from(WORKER_A), places: 4, digest: Some(digest(SECRET_A)), withdrawn: false },
+        Worker { number: 2, name: Box::from(WORKER_B), places: 4, digest: Some(digest(SECRET_B)), withdrawn: false },
+        Worker { number: 3, name: Box::from(WORKER_C), places: 4, digest: Some(digest(SECRET_C)), withdrawn: false },
     ])
 }
 
@@ -127,19 +112,17 @@ pub fn credential(name: &[u8], secret: &[u8], version: u32) -> Box<[u8]> {
     credential_with_output(name, secret, version, LIMITS.room)
 }
 fn credential_with_output(name: &[u8], secret: &[u8], version: u32, output: u32) -> Box<[u8]> {
-    let limits = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec limits");
-    let value = jig_protocol_worker_wire::Credential::new(
-        &limits,
-        jig_protocol_worker_wire::CredentialParts {
-            name: Box::from(name),
-            secret: Secret::new(Box::from(secret)),
-            wires: statement(version),
-            output,
-        },
-    )
-    .expect("small credential");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured credential");
+    let value = jig_protocol_worker_wire::Credential {
+        opening: jig_protocol_worker_wire::Opening::Link,
+        name: Box::from(name),
+        secret: Secret::new(Box::from(secret)),
+        wires: statement(version),
+        output,
+    };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    value.write(&jig_protocol_worker_wire::CEILINGS, &mut writer).expect("measured credential");
     writer.finish()
 }
 
@@ -225,52 +208,33 @@ pub fn worker(name: &[u8], secret: &[u8], version: u32) -> skein_fake_channel::S
 pub fn hello_record() -> jig_protocol_worker_wire::Hello {
     use jig_protocol_worker_wire as wire;
     use skein_lib::List;
-    let codec = codec();
     let mut models = List::with_capacity(1);
-    models
-        .push(
-            wire::EndpointBound::new(&codec, wire::EndpointBoundParts { endpoint: 1, window: 8192, output: 1024 })
-                .expect("model"),
-        )
-        .expect("one model");
-    let bounds = wire::Bounds::new(
-        &codec,
-        wire::BoundsParts {
-            program_endpoints: List::with_capacity(0),
-            endpoints: models,
-            turns: 8,
-            spend: 100,
-            time: Duration::from_secs(60),
-            waiting: Duration::from_secs(10),
-            checks: Duration::from_secs(2),
-            message_bytes: 16,
-            inbox: 1,
-            unacknowledged: 1,
-            reply_bytes: None,
-        },
-    )
-    .expect("bounds");
+    models.push(wire::EndpointBound { endpoint: 1, window: 8192, output: 1024 }).expect("one model");
+    let bounds = wire::Bounds {
+        program_endpoints: List::with_capacity(0),
+        endpoints: models,
+        turns: 8,
+        spend: 100,
+        time: Duration::from_secs(60),
+        waiting: Duration::from_secs(10),
+        checks: Duration::from_secs(2),
+        message_bytes: 16,
+        inbox: 1,
+        unacknowledged: 1,
+        reply_bytes: None,
+    };
     let mut hosting = List::with_capacity(1);
-    hosting
-        .push(
-            wire::Hosting::new(&codec, wire::HostingParts { task: 7, attempt: 2, phase: wire::Phase::Waiting })
-                .expect("hosting"),
-        )
-        .expect("one hosted run");
+    hosting.push(wire::Hosting { task: 7, attempt: 2, phase: wire::Phase::Waiting }).expect("one hosted run");
     let mut workstreams = List::with_capacity(1);
     workstreams.push(9).expect("one workstream");
-    wire::Hello::new(
-        &codec,
-        wire::HelloParts {
-            slots: 1,
-            stop_bound: Duration::from_secs(20),
-            workstreams,
-            hosting,
-            bounds,
-            jobs: List::with_capacity(0),
-        },
-    )
-    .expect("hello")
+    wire::Hello {
+        slots: 1,
+        stop_bound: Duration::from_secs(20),
+        workstreams,
+        hosting,
+        bounds,
+        jobs: List::with_capacity(0),
+    }
 }
 
 #[must_use]
@@ -282,8 +246,10 @@ pub fn frame(kind: u16, bytes: &[u8]) -> skein_channel::Frame {
 #[must_use]
 pub fn hello_frame() -> skein_channel::Frame {
     let hello = hello_record();
-    let mut writer = Writer::new(skein_lib::length::usize_of(hello.measure()));
-    hello.encode(&mut writer).expect("measured hello");
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    hello.write(&jig_protocol_worker_wire::CEILINGS, &mut writer).expect("measured hello");
     frame(0x0100, &writer.finish())
 }
 #[must_use]
@@ -296,137 +262,88 @@ pub fn reporting_worker(name: &[u8], secret: &[u8]) -> skein_fake_channel::Scrip
 #[must_use]
 pub fn turn_record() -> jig_protocol_worker_wire::Turn {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
     let refused = refused_messages();
-    wire::Turn::new(
-        &codec,
-        wire::TurnParts {
-            task: 7,
-            attempt: 2,
-            number: 3,
-            spent: 29,
-            read: Some(9),
-            refused,
-            opens_window: true,
-            body: Box::from(b"opaque-turn".as_slice()),
-        },
-    )
-    .expect("turn")
+    wire::Turn {
+        task: 7,
+        attempt: 2,
+        number: 3,
+        spent: 29,
+        read: Some(9),
+        refused,
+        opens_window: true,
+        body: Box::from(b"opaque-turn".as_slice()),
+    }
 }
 #[must_use]
 pub fn answer_record() -> jig_protocol_worker_wire::Answer {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
-    let work = wire::Work::new(
-        &codec,
-        wire::WorkParts { left: Some(Box::from(b"left".as_slice())), saved: Some(Box::from(b"saved".as_slice())) },
-    )
-    .expect("work");
-    let ended = wire::Ended::new(&codec, wire::EndedParts { outcome: Box::from(b"opaque-result".as_slice()), work })
-        .expect("ended");
+    let work = wire::Work { left: Some(Box::from(b"left".as_slice())), saved: Some(Box::from(b"saved".as_slice())) };
+    let ended = wire::Ended { outcome: Box::from(b"opaque-result".as_slice()), work };
     let refused = refused_messages();
-    wire::Answer::new(
-        &codec,
-        wire::AnswerParts {
-            task: 7,
-            attempt: 2,
-            turns: 3,
-            spent: 31,
-            read: Some(9),
-            refused,
-            ending: wire::Ending::Ended(ended),
-        },
-    )
-    .expect("answer")
+    wire::Answer {
+        task: 7,
+        attempt: 2,
+        turns: 3,
+        spent: 31,
+        read: Some(9),
+        refused,
+        ending: wire::Ending::Ended(ended),
+    }
 }
 #[must_use]
 pub fn call_record() -> jig_protocol_worker_wire::Call {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
-    wire::Call::new(
-        &codec,
-        wire::CallParts {
-            task: 7,
-            attempt: 2,
-            name: Box::from([0, 2, 7]),
-            tool: Box::from(b"read".as_slice()),
-            writes: false,
-            input: Box::from(b"input".as_slice()),
-            deadline: Duration::from_secs(4),
-            contract: 1,
-        },
-    )
-    .expect("call")
+    wire::Call {
+        task: 7,
+        attempt: 2,
+        name: Box::from([0, 2, 7]),
+        tool: Box::from(b"read".as_slice()),
+        writes: false,
+        input: Box::from(b"input".as_slice()),
+        deadline: Duration::from_secs(4),
+        contract: 1,
+    }
 }
 #[must_use]
 pub fn fact_record() -> jig_protocol_worker_wire::Fact {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
-    let count = wire::Count::new(
-        &codec,
-        wire::CountParts { kind: wire::CountKind::LlmStarted, elapsed: Duration::from_secs(2), value: 3 },
-    )
-    .expect("count");
-    wire::Fact::new(&codec, wire::FactParts { task: 7, attempt: 2, value: wire::FactValue::Count(count) })
-        .expect("fact")
+    let count = wire::Count { kind: wire::CountKind::LlmStarted, elapsed: Duration::from_secs(2), value: 3 };
+    wire::Fact { task: 7, attempt: 2, value: wire::FactValue::Count(count) }
 }
 #[must_use]
 pub fn unauthorized_record() -> jig_protocol_worker_wire::Unauthorized {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
-    wire::Unauthorized::new(&codec, wire::UnauthorizedParts { task: 7, attempt: 2, account: 1, generation: 4 })
-        .expect("unauthorized")
+    wire::Unauthorized { task: 7, attempt: 2, account: 1, generation: 4 }
 }
 #[must_use]
 pub fn limited_record() -> jig_protocol_worker_wire::Limited {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
-    wire::Limited::new(
-        &codec,
-        wire::LimitedParts { task: 7, attempt: 2, account: 1, reset: Some(Duration::from_secs(5)) },
-    )
-    .expect("limited")
+    wire::Limited { task: 7, attempt: 2, account: 1, reset: Some(Duration::from_secs(5)) }
 }
 #[must_use]
 pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     use jig_protocol_worker_wire as wire;
-    let codec = codec();
-    wire::AccountRefused::new(
-        &codec,
-        wire::AccountRefusedParts {
-            task: 7,
-            attempt: 2,
-            account: 1,
-            code: b"forbidden".as_slice().into(),
-            reason: b"suspended".as_slice().into(),
-        },
-    )
-    .expect("account refused")
+    wire::AccountRefused {
+        task: 7,
+        attempt: 2,
+        account: 1,
+        code: b"forbidden".as_slice().into(),
+        reason: b"suspended".as_slice().into(),
+    }
 }
 
-fn codec() -> jig_protocol_worker_wire::v15::Limits {
+fn codec() -> jig_protocol_worker_wire::v18::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
     use jig_protocol_worker_wire as wire;
     let mut refused = skein_lib::List::with_capacity(1);
-    refused
-        .push(
-            wire::Refused::new(&codec(), wire::RefusedParts { name: 8, reason: wire::MessageRefusal::Full })
-                .expect("refusal"),
-        )
-        .expect("one refusal");
+    refused.push(wire::Refused { name: 8, reason: wire::MessageRefusal::Full }).expect("one refusal");
     refused
 }
 
-fn encoded(
-    kind: u16,
-    measure: u32,
-    encode: impl FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>,
-) -> skein_channel::Frame {
-    let mut writer = Writer::new(skein_lib::length::usize_of(measure));
-    encode(&mut writer).expect("measured record");
-    frame(kind, &writer.finish())
+fn encoded<R: Record<Limits = jig_protocol_worker_wire::v18::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
+    frame(kind, &record.encode(&codec()).expect("record within fixture limits"))
 }
 #[must_use]
 pub fn up_frames() -> Vec<skein_channel::Frame> {
@@ -438,25 +355,25 @@ pub fn up_frames() -> Vec<skein_channel::Frame> {
     let refused = account_refused_record();
     vec![
         turn_frame(),
-        encoded(0x0102, call.measure(), |writer| call.encode(writer)),
-        encoded(0x0103, answer.measure(), |writer| answer.encode(writer)),
-        encoded(0x0104, fact.measure(), |writer| fact.encode(writer)),
-        encoded(0x0105, unauthorized.measure(), |writer| unauthorized.encode(writer)),
-        encoded(0x0106, limited.measure(), |writer| limited.encode(writer)),
-        encoded(0x0107, refused.measure(), |writer| refused.encode(writer)),
+        encoded(0x0102, &call),
+        encoded(0x0103, &answer),
+        encoded(0x0104, &fact),
+        encoded(0x0105, &unauthorized),
+        encoded(0x0106, &limited),
+        encoded(0x0107, &refused),
     ]
 }
 
 #[must_use]
 pub fn turn_frame() -> skein_channel::Frame {
     let turn = turn_record();
-    encoded(0x0101, turn.measure(), |writer| turn.encode(writer))
+    encoded(0x0101, &turn)
 }
 
 #[must_use]
 pub fn answer_frame() -> skein_channel::Frame {
     let answer = answer_record();
-    encoded(0x0103, answer.measure(), |writer| answer.encode(writer))
+    encoded(0x0103, &answer)
 }
 
 pub const TOKEN_ONE: &[u8] = b"TOKEN_ONE";

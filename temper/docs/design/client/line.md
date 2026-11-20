@@ -10,8 +10,10 @@
   bearer credential's file and the small store's, both the native
   shell's (`README.md`, section 4).
 - **LINK_OR_ADDRESS** is one of:
-  - the link `temper-box serve` printed,
-    `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`: the client
+  - the link `temper-box serve` printed, at its page,
+    `http://HOST:PORT/sign-in?secret=SECRET`, or the same link at the
+    route, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, as a
+    build before printed it (`README.md`, section 4): the client
     signs in by it first, offering the credential DIRECTORY holds, if
     any, beside it, so that a person still signed in keeps their sign-in
     (`README.md`, section 4);
@@ -61,7 +63,8 @@
 - **Each iteration:** the transport iterates; its loaded records start
   the client (`README.md`, 3.4); signing in, by the link or with the token DIRECTORY
   holds (`README.md`, section 4); the token written once signed in by a link; the
-  transport's events into the domain; the domain's `fire`; the
+  transport's events into the domain; the domain's `fire`; the domain
+  settled once (jig's `client/domain/root.md`, section 3); the
   transport's requests carried; the view built; each whole line made
   into one command and done; a print, when one is due; the output
   written.
@@ -245,7 +248,7 @@ numbered link (5), never by a page's address: `temper-box open` takes the
 engine's address or the sign-in link (1). A browser opens a page by
 its address: a reload, or `/tasks/N` typed or opened, is a new client
 at that address (`web/README.md`, 2.3), and an inbox's address holds its
-filter, so that `/?kind=question` opens the inbox filtered. Of that
+filter, so that `/needs?kind=question` opens the inbox filtered. Of that
 open, the path and its load are the browser's; the rest is the client
 root's, the same under both shells: a root started at a page's address,
 its pages opening that page, asking its reads and drawing it once they

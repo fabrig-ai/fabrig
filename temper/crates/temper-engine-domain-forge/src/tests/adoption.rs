@@ -406,6 +406,54 @@ fn an_adoption_accepts_a_prefix_whose_branches_fit_authority_segments() {
 }
 
 #[test]
+fn an_adoption_keeps_its_landing_apart_from_the_default_branch() {
+    use skein_forge::api;
+    let mut d = domain();
+    let mut adoption = fixtures::adoption();
+    adoption.landing = b"staging".as_slice().into();
+    fixtures::begin_adoption(&mut d, Token::new(4), adoption);
+    for answer in [
+        api::Answer::Permission(api::UserPermission {
+            user: 1,
+            login: Box::new([]),
+            permission: api::Permission::Write,
+        }),
+        api::Answer::Branches(Box::new([])),
+        api::Answer::Settings(adopted().settings),
+    ] {
+        fixtures::answer_next(&mut d, Ok(answer));
+    }
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, api::Op::Read(api::Read::Protection { branch: b"staging".as_slice().into() }));
+    fixtures::answer(&mut d, call, Ok(api::Answer::Protection(None)));
+    let requests =
+        fixtures::answer_next(&mut d, Ok(api::Answer::Collaborators { collaborators: Box::new([]), more: false }));
+    let [.., Request::Adopted { result: Ok(value), .. }] = requests.as_ref() else { panic!("adoption accepted") };
+    assert_eq!(value.repository.landing.as_ref(), b"staging");
+    assert_eq!(value.repository.settings.default_branch.as_ref(), b"main");
+    let mut saved = None;
+    for request in &requests {
+        if let Request::Save { record: Stored::Repository(row), .. } = request {
+            saved = Some(row);
+        }
+    }
+    let saved = saved.expect("adopted repository saved");
+    assert_eq!(saved.landing.as_ref(), b"staging");
+    assert_eq!(saved.settings.default_branch.as_ref(), b"main");
+    outputs(
+        &mut d,
+        Event::ApplicationAnswered {
+            request: Token::new(4),
+            outcome: people::Outcome::Adopted { project: saved.project },
+        },
+    );
+    let Some(ApplicationOutcome::Adopted(outcome)) = d.application_outcome(Token::new(4)) else {
+        panic!("adopted outcome")
+    };
+    assert_eq!(outcome.landing.as_ref(), b"staging");
+}
+
+#[test]
 fn an_adoption_locates_its_repository_before_any_other_read() {
     let mut d = domain();
     d.configured.get_mut(&1).unwrap().mode = Mode::Connected;
@@ -493,7 +541,7 @@ fn a_core_refusal_is_kept_as_jigs_refusal() {
 }
 
 #[test]
-fn a_full_outcome_table_answers_the_application_again_busy() {
+fn a_full_outcome_table_drops_the_oldest_answer_for_the_application() {
     let mut d = domain();
     for index in 1..=LIMITS.applications {
         let request = Token::new(u64::from(index));
@@ -524,8 +572,18 @@ fn a_full_outcome_table_answers_the_application_again_busy() {
             ask: Ask::Adopt(fixtures::adoption()),
         },
     );
-    assert_eq!(requests.as_ref(), &[Request::ApplicationAgain { request: Token::new(99), why: people::Again::Busy }]);
-    assert_eq!(d.application_outcome(Token::new(99)), None);
+    assert!(requests.contains(&Request::Erase { key: Key::Application(1) }));
+    assert!(!requests.contains(&Request::ApplicationAgain { request: Token::new(99), why: people::Again::Busy }));
+    assert_eq!(d.application_outcome(Token::new(1)), None);
+    let requests = outputs(
+        &mut d,
+        Event::ApplicationAnswered {
+            request: Token::new(99),
+            outcome: people::Outcome::Refused(people::Refusal::Unknown),
+        },
+    );
+    assert!(requests.contains(&Request::ApplicationDone { request: Token::new(99), token: Token::new(99) }));
+    assert_eq!(d.application_outcome(Token::new(99)), Some(&ApplicationOutcome::CoreRefused(people::Refusal::Unknown)));
 }
 
 #[test]
@@ -778,7 +836,31 @@ fn thirty_two_adoptions_are_answered_during_retention() {
         },
         &mut out,
     );
-    assert_eq!(out.pop(), Some(Request::ApplicationAgain { request, why: people::Again::Busy }));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Application(1) }));
+    while let Some(output) = out.pop() {
+        assert_ne!(output, Request::ApplicationAgain { request, why: people::Again::Busy });
+    }
+    assert_eq!(d.application_outcome(Token::new(1)), None);
+    step(
+        &mut d,
+        &env,
+        Event::ApplicationAnswered { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) },
+        &mut out,
+    );
+    assert_eq!(d.application_outcome(request), Some(&ApplicationOutcome::CoreRefused(people::Refusal::Unknown)));
+    assert_eq!(
+        out.pop(),
+        Some(Request::Save {
+            record: Stored::Application {
+                token: request.raw(),
+                until: Wall::from_nanos(env.wall.as_nanos() + Duration::from_secs(86400).as_nanos()),
+                outcome: ApplicationOutcome::CoreRefused(people::Refusal::Unknown),
+            },
+            release: None,
+            read_afresh: None,
+        })
+    );
+    assert_eq!(out.pop(), Some(Request::ApplicationDone { request, token: request }));
     assert!(out.is_empty());
 }
 

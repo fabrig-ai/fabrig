@@ -102,6 +102,7 @@ pub fn chat_line() -> TaskLine {
     let ChipPhaseFacts { details, .. } = task.chip.details.as_ref();
     let budget = details.budget.clone();
     TaskLine {
+        parts: List::with_capacity(0),
         chip: task.chip,
         project: PROJECT,
         requester: Requester::Person(PARTY),
@@ -136,21 +137,12 @@ impl Page {
         ] {
             client.step_unlinked(Time::ZERO, Wall::EPOCH, event, &mut emitted);
         }
-        let mut watch = None;
-        while let Some(request) = emitted.pop() {
-            if let jig_client::UnlinkedRequest::Down {
-                down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(Subject::Me) },
-            } = request
-            {
-                watch = Some(token);
-            }
-        }
         client.step_unlinked(
             Time::ZERO,
             Wall::EPOCH,
             Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: watch.expect("me watch"),
+                    watch: Token::new(0),
                     event: WatchEvent::Delivered(Delivery::Me(Box::new(me))),
                 },
             },

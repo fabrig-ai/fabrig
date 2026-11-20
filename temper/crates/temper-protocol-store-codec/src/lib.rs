@@ -4,6 +4,9 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "generated head/held and ending/pending name distinct durable facts")]
-#[path = "generated/v25.rs"]
+#[path = "generated/store.rs"]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "generated setting edits own the named repair settings value")
+)]
 pub mod v25;

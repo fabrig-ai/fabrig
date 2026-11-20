@@ -90,12 +90,13 @@ The opt-in live suite exercises `client::Client` against the public OpenAI Respo
 Anthropic Messages endpoints over certificate-verified TLS. It checks streamed
 text and token usage, multi-turn replay, tool-argument streaming and tool-result
 replay, HTTP connection reuse, and invalid-token failures for each provider.
-There are no retries or credential refreshes. OpenAI's text and tool stories use
-subscription quota and require a valid, unexpired OAuth access token that holds
-the public route's scope, `api.responses.write`. Anthropic tests use an API key.
+There are no retries or credential refreshes. OpenAI's text and tool stories need
+an API key's login, the `auth.json` that `codex login --with-api-key` writes;
+its key holds the public route's scope, `api.responses.write`. The daily live run
+lends that login and runs those stories by name. Anthropic tests use an API key.
 
 The automatic live suite calls a provider only in `openai_unauthorized`, which
-sends the lent login's token replaced by an invalid one. Name a Codex login, then
+sends the lent login's credential replaced by an invalid one. Name a Codex login, then
 run it:
 
 ```sh
@@ -103,11 +104,10 @@ export SKEIN_TEST_LIVE_OPENAI_AUTH="$HOME/.codex/auth.json"
 cargo nextest run -p skein-llm-world --profile live-skein
 ```
 
-The other five provider stories are ignored and manual
-(skein/docs/design/llm/README.status.md, 5). The two OpenAI stories,
-`openai_streamed_text_and_history` and `openai_tool_round_trip`, need a login of
-the same form whose access token holds `api.responses.write`, which the Codex
-login lacks; the owner names it in `SKEIN_TEST_LIVE_OPENAI_AUTH`. The three
+The other five provider stories stay ignored
+(skein/docs/design/llm/README.status.md, 5). The daily live run runs the two OpenAI
+stories, `openai_streamed_text_and_history` and `openai_tool_round_trip`, with a
+lent API key's login, using the owner's command below once for each name. The three
 Anthropic stories, `anthropic_streamed_text_and_history`,
 `anthropic_tool_round_trip` and `anthropic_unauthorized`, need a private plaintext
 key file, which the owner names in `SKEIN_TEST_LIVE_ANTHROPIC_KEY`. The owner sets
@@ -121,8 +121,12 @@ cargo nextest run -p skein-llm-world --test live --profile live-skein --run-igno
 ```
 
 `SKEIN_TEST_LIVE_OPENAI_AUTH` names a Codex `auth.json`, or a directory
-holding one (a `CODEX_HOME`); the tests read its `.tokens.access_token` and pass it as
-`Credential::bearer` to `Endpoint::openai()`. `SKEIN_TEST_LIVE_ANTHROPIC_KEY` names a mode-0600
+holding one (a `CODEX_HOME`). Each OpenAI call reads the regular mode-0600 file
+once, at most 64 KiB plus one byte to detect overflow, refusing oversized files.
+It takes `OPENAI_API_KEY` where a string, refusing an empty string; otherwise it
+takes the non-empty string at `.tokens.access_token`. Either login form supplies
+`Credential::bearer` to `Endpoint::openai()`. No refusal holds a value read from
+the file. `SKEIN_TEST_LIVE_ANTHROPIC_KEY` names a mode-0600
 plaintext file containing the API key. Each Anthropic call reads it once, trims
 surrounding ASCII whitespace, and sends it as `Credential::key` on
 `Endpoint::anthropic()`. An empty, oversized or non-private key file is refused.

@@ -412,9 +412,13 @@ fn a_goal_with_one_level_left_is_refused_as_the_depth_limit() {
 
 #[test]
 fn a_goal_with_half_the_remainder_at_minimum_is_refused_as_funding() {
-    let (mut world, chat) = chat_world(62, 11, 3);
+    let (mut world, chat) = chat_world(12, 11, 3);
+    assert_eq!(chat.run.budget, 6, "the run holds its six-unit reserve floor");
+    delegated(goal(&mut world, &chat, 93, false));
+    let row = live(&world, chat.task);
+    assert_eq!((row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below) / 2, 1);
     assert!(
-        matches!(goal(&mut world, &chat, 93, false), engine::CallAnswer::DelegationRefused(p) if p.why == tasks::Refusal::Funding)
+        matches!(goal(&mut world, &chat, 94, false), engine::CallAnswer::DelegationRefused(p) if p.why == tasks::Refusal::Funding)
     );
 }
 
@@ -460,7 +464,7 @@ fn a_chats_ended_goal_is_listed_by_project() {
             requester: None,
             phase: Some(documents::PhaseClass::Ended),
             label,
-            ..jig_test_profile::fixtures::OWN_TASKS
+            ..jig_test_profile::fixtures::own_tasks()
         };
         let answer = super::paths::read(&mut world, reads::Read::Tasks { query, live: None, ended: None });
         let Some(reads::Answer::Tasks(page)) = answer else { panic!("ended project tasks: {answer:?}") };
@@ -496,7 +500,7 @@ fn a_goal_calls_change_and_its_change_is_made() {
     let change_tool =
         charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
     let schema: serde_json::Value = serde_json::from_slice(&change_tool.schema).expect("change schema");
-    for member in ["changes", "name", "landing", "after", "branch"] {
+    for member in ["changes", "producer", "questions"] {
         assert!(schema["properties"].get(member).is_some(), "plan member {member} offered");
     }
     let change = delegated(call(
@@ -550,11 +554,11 @@ fn a_goal_asks_its_requester_and_the_person_sees_the_question() {
     world.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to,
         sign_in: world.signed_in.expect("owner session"),
-        read: reads::Read::Inbox {
+        read: Box::new(reads::Read::Inbox {
             group: reads::Group::Questions,
             filter: reads::Filter { project: Some(1), goal: None },
             from: None,
-        },
+        }),
     }));
     for _ in 0..200 {
         world.tick();
@@ -820,9 +824,7 @@ fn an_agreed_brief_uses_the_persons_newest_consumed_chat_words() {
         key: [MESSAGE_KEY; 16],
         ask: people::Ask::Say { project: 1, task: chat.task, words: NEWEST.into() },
     }));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let read = Some(live(&world, chat.task).last_message);
     world.send(protocol::turn(Token::new(7), chat.task, chat.attempt, 1, 0, read, b"Read the latest request"));
     world.until(Until::Ready);

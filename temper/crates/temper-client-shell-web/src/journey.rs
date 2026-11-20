@@ -5,6 +5,7 @@ use skein_ui::{Act, NodeId, Role, Tree};
 use skein_ui_web::{mapping::Primary, page::Page};
 mod fields;
 mod line;
+mod normalise;
 mod originals;
 mod record;
 mod redact;
@@ -15,21 +16,24 @@ mod stream;
 mod walk;
 pub use fields::fields_mut;
 pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, lines};
+pub use normalise::{normalise, normalise_lines};
 pub use originals::{SECRET_EVENT, kept_head, originals, typed};
 pub use record::Recorder;
-pub use redact::{Redacted, Unredacted, redact, saved};
+pub use redact::{Redacted, Unredacted, redact, redact_lines, saved, saved_lines};
 pub use replay::prove_drawn;
-pub use replay::{Mark, Refusal, Replay, Stale, prove};
+pub use replay::{Mark, Refusal, Replay, Stale, prove, prove_lines};
 pub use scan::{Found, Place, Shape, What, original, shape};
 pub use setup::{MarkWait, Setup, SetupStep, setup};
 pub use stream::{Event, Plain, Streams, Undecoded};
-pub use temper_client_redaction::{Framing, Kind, Original, Originals, placeholder, redact_field};
+pub use temper_client_redaction::{Framing, Kind, Normalised, Original, Originals, Varying, placeholder, redact_field};
 pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
 mod tests;
 
-/// The start's facts, as the shell reads them (client/web/journeys.md, 3.2).
+/// The start's facts, as the shell reads them (client/web/journeys.md, 3.2;
+/// temper/docs/design/client/journey-clock.md, 4.2).
 pub struct Facts {
+    pub fixed: bool,
     pub seed: u64,
     pub now: Time,
     pub wall: Wall,

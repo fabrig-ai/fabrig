@@ -20,15 +20,16 @@ pub fn limits() -> v1::Limits {
     crate::limits(&BOUNDS).expect("test bounds within ceilings")
 }
 
-pub fn repository_parts(tag: u64, remote: Box<[u8]>) -> v1::RepositoryParts {
-    let limits = limits();
-    let branch = v1::Branch::new(&limits, v1::BranchParts { branch: Box::from(&b"main"[..]) }).expect("base branch");
-    let writable = v1::Writable::new(
-        &limits,
-        v1::WritableParts { push: Box::from(&b"temper/work"[..]), expected: None, landing: None },
-    )
-    .expect("push branch");
-    v1::RepositoryParts {
+pub fn repository(tag: u64, remote: Box<[u8]>) -> v1::Repository {
+    let branch = v1::Branch { branch: Box::from(&b"main"[..]) };
+    let writable = v1::Writable {
+        push: Box::from(&b"temper/work"[..]),
+        expected: None,
+        landing: None,
+        delivered: None,
+        pin: None,
+    };
+    v1::Repository {
         save: None,
         tag,
         name: Box::from(&b"shop"[..]),
@@ -41,31 +42,20 @@ pub fn repository_parts(tag: u64, remote: Box<[u8]>) -> v1::RepositoryParts {
     }
 }
 
-pub fn items(count: u32) -> v1::ItemsParts {
-    let limits = limits();
+pub fn items(count: u32) -> v1::Items {
     let mut repositories = List::with_capacity(count);
     for tag in 0..count {
-        let repository = v1::Repository::new(
-            &limits,
-            repository_parts(u64::from(tag), Box::from(&b"https://forge/acme/shop.git"[..])),
-        )
-        .expect("repository");
+        let repository = repository(u64::from(tag), Box::from(&b"https://forge/acme/shop.git"[..]));
         repositories.push(repository).expect("counted room");
     }
-    v1::ItemsParts { repositories }
+    v1::Items { repositories }
 }
 
 pub fn identity(token: &[u8]) -> v1::Identity {
-    v1::Identity::new(
-        &limits(),
-        v1::IdentityParts {
-            kind: v1::Kind::Forgejo(
-                v1::Token::new(&limits(), v1::TokenParts { token: Secret::new(Box::from(token)) }).expect("token"),
-            ),
-            login: Box::from(&b"temper"[..]),
-            name: Box::from(&b"Temper"[..]),
-            email: Box::from(&b"t@forge.example"[..]),
-        },
-    )
-    .expect("test identity")
+    v1::Identity {
+        kind: v1::Kind::Forgejo(v1::Token { token: Secret::new(Box::from(token)) }),
+        login: Box::from(&b"temper"[..]),
+        name: Box::from(&b"Temper"[..]),
+        email: Box::from(&b"t@forge.example"[..]),
+    }
 }

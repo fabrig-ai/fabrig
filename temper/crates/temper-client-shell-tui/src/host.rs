@@ -37,6 +37,7 @@ enum Phase {
 
 enum Opening {
     Approval,
+    Link,
     Page { address: Box<[u8]> },
 }
 
@@ -50,7 +51,7 @@ pub struct Start {
     pub background: Option<Rgb>,
     pub plain: bool,
     pub version: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: tui::Origin,
     pub local: bool,
     pub boxed: bool,
     pub kept: Vec<jig_client::Record>,
@@ -76,6 +77,9 @@ pub enum Report {
     },
     Local {
         link: Option<Secret>,
+    },
+    Handshake {
+        failed: Option<tui::Handshake>,
     },
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
@@ -106,7 +110,7 @@ pub struct Duties {
     pub asked: Vec<jig_client::Request>,
     pub keep: Option<Option<Secret>>,
     pub note: Option<tui::Note>,
-    pub address: Option<Box<[u8]>>,
+    pub address: Option<tui::Origin>,
     pub local: bool,
     pub open: Option<Box<[u8]>>,
     pub close: bool,
@@ -165,11 +169,19 @@ pub struct Host {
 impl Host {
     #[must_use]
     pub fn new(settings: &Settings, seed: u64, now: Time, wall: Wall) -> Host {
+        let words = limits::checked(&settings.limits).expect("TUI capacities are checked");
+        Self::with_checked_words(settings, words, seed, now, wall)
+    }
+
+    /// The words have passed the native and TUI capacity checks with these settings.
+    pub(crate) fn with_checked_words(
+        settings: &Settings,
+        words: tui::words::Words,
+        seed: u64,
+        now: Time,
+        wall: Wall,
+    ) -> Host {
         let limits = &settings.limits;
-        assert!(limits::valid(limits), "TUI capacities are checked");
-        let (_, words) =
-            temper_client_shell_terminal::limits::view(&limits.native).expect("native view capacities are checked");
-        let words = tui::words::Words::english(words, &limits.native.client).expect("TUI words are checked");
         Host {
             #[cfg(test)]
             events: Vec::new(),
@@ -190,7 +202,8 @@ impl Host {
             focus: Focus::default(),
             frame: Frame::new(limits.most),
             draft_shown: false,
-            mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
             credential: None,
             signing: Set::with_capacity(temper_client_shell_terminal::limits::EXCHANGES),
             local: false,
@@ -222,11 +235,31 @@ impl Host {
         if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. } | Report::Lent { .. }) {
             return Duties::default();
         }
-        let project = self.root.pages().project();
         let mut duties = Duties::default();
+        if self.refused() {
+            match report {
+                Report::Key(Key::Control(b'c')) => self.close(&mut duties),
+                Report::Resize(size) => self.size = size,
+                Report::Start(_)
+                | Report::Due
+                | Report::Key(_)
+                | Report::Heard(_)
+                | Report::Kept { .. }
+                | Report::Opened { .. }
+                | Report::Handshake { .. }
+                | Report::Local { .. }
+                | Report::Front(_)
+                | Report::Stage(_)
+                | Report::Lent { .. } => {}
+            }
+            self.draw();
+            return duties;
+        }
+        let project = self.root.pages().project();
         match report {
             Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
+            Report::Handshake { failed } => self.tell(Told::Handshake { failed }),
             Report::Front(line) => {
                 if let tui::BoxLine::Started { name } = &line {
                     self.notice(tui::Notice::Started { name: name.clone() });
@@ -285,7 +318,17 @@ impl Host {
             Report::Opened { opened } => match self.opens.pop() {
                 Some(Opening::Page { address }) => self.tell(Told::NotOpened { address: (!opened).then_some(address) }),
                 Some(Opening::Approval) | None => self.tell(Told::Opened { opened }),
+                Some(Opening::Link) => {
+                    if !opened {
+                        self.tell(Told::LinkNotOpened);
+                    }
+                }
             },
+        }
+        if self.refused() {
+            self.out.clear();
+            self.draw();
+            return Duties::default();
         }
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
@@ -313,9 +356,6 @@ impl Host {
         {
             self.event(event, &mut duties);
         }
-        if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
-            self.end_local();
-        }
         let link = self.root.client().link();
         let state = link.state;
         let live = state == Link::Live && link.party.is_some();
@@ -337,7 +377,7 @@ impl Host {
             }
         }
         if live && !self.addressed {
-            duties.address = Some(self.state().address().into());
+            duties.address = Some(self.state().address().clone());
             self.addressed = true;
         }
         if live
@@ -350,6 +390,25 @@ impl Host {
         self.lending(&mut duties);
         self.tell_outcome();
         self.approval(&mut duties);
+        root::settle(&mut self.root, &self.env, &mut self.out);
+        self.route(&mut duties);
+        if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
+            self.end_local();
+        }
+
+        let linked = self.root.forge().linked().unwrap_or(false);
+        if self.state().last_linked() != Some(linked) {
+            self.tell(Told::Linked { linked });
+        }
+        self.draw();
+        duties
+    }
+
+    fn refused(&self) -> bool {
+        self.state.as_ref().is_some_and(|state| tui::refused(&self.root, state))
+    }
+
+    fn draw(&mut self) {
         let scheme = match self.root.pages().look().theme {
             terminal::Theme::Dark => tui::Scheme::Dark,
             terminal::Theme::Light => tui::Scheme::Light,
@@ -363,7 +422,6 @@ impl Host {
             &mut self.patches,
         );
         self.patches.clear();
-        duties
     }
 
     fn start(&mut self, start: Start, duties: &mut Duties) {
@@ -498,12 +556,16 @@ impl Host {
             return;
         };
         if self.handed {
-            if link.host.as_ref() != self.state().address() {
+            let Ok(address) = tui::Origin::parse(&skein_lib::bytes::concat(&[b"http://", &link.host])) else {
+                self.end_local();
+                return;
+            };
+            if !same_origin(self.state().address(), &link.host) {
                 self.note = None;
             }
-            self.tell(Told::Address { address: link.host.clone() });
+            self.tell(Told::Address { address });
             self.handed = false;
-        } else if link.host.as_ref() != self.state().address() {
+        } else if !same_origin(self.state().address(), &link.host) {
             self.end_local();
             return;
         }
@@ -571,7 +633,9 @@ impl Host {
             }
         }
         if tui::sign_in_drawn(&self.root, self.state()) {
-            self.tell(Told::Typed { value });
+            if !self.state().address().at_name() {
+                self.tell(Told::Typed { value });
+            }
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
@@ -586,6 +650,9 @@ impl Host {
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive dispatch binds each TUI event to its host acts")]
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
+        if self.refused() {
+            return;
+        }
         match event {
             tui::Event::Own { command } => self.own(command, duties),
             tui::Event::Open { address } => self.open(address, duties),
@@ -617,12 +684,17 @@ impl Host {
                 }
             }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
+            tui::Event::SignIn if self.state().address().at_name() => {
+                if tui::may_ask_again(self.state(), &self.root) {
+                    self.ask();
+                }
+            }
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
             }
             tui::Event::SignIn => match jig_client_protocol_http::printed(&self.mapping, self.state().field()) {
                 Err(_) => self.tell(Told::Refused { refusal: Refusal::NotALink }),
-                Ok(link) if link.host.as_ref() != self.state().address() => {
+                Ok(link) if !same_origin(self.state().address(), &link.host) => {
                     self.tell(Told::Refused { refusal: Refusal::OtherAddress { address: link.host } });
                 }
                 Ok(link) => {
@@ -749,6 +821,21 @@ impl Host {
                 self.tell(Told::Cleared);
                 self.tell(Told::ThemeList { open: true });
                 self.focus.active = None;
+            }
+            tui::Own::Web => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                if let Some(link) = self.state().live_link() {
+                    duties.open = Some(link.expose().into());
+                    self.opens.push(Opening::Link);
+                } else {
+                    let path = match self.root.pages().project() {
+                        Some(project) => root::address::print(&Address::Home { project }),
+                        None => Box::from(b"/".as_slice()),
+                    };
+                    let address = skein_lib::bytes::concat(&[&self.state().address().print(), &path]);
+                    self.open(address, duties);
+                }
             }
             tui::Own::Open => {
                 if let Some(address) = tui::focus(&self.view) {
@@ -971,7 +1058,9 @@ impl Host {
                 .words()
                 .strip_prefix(command.name())
                 .is_some_and(|rest| core::str::from_utf8(rest).is_ok_and(|rest| rest.chars().all(char::is_whitespace))),
-            tui::Own::Brief | tui::Own::Needs | tui::Own::Talk | tui::Own::Theme | tui::Own::Open => false,
+            tui::Own::Brief | tui::Own::Needs | tui::Own::Talk | tui::Own::Theme | tui::Own::Open | tui::Own::Web => {
+                false
+            }
         })
     }
 
@@ -1206,7 +1295,7 @@ impl Host {
     }
 
     fn approval(&mut self, duties: &mut Duties) {
-        if self.closed || self.need.is_some() {
+        if self.closed || self.refused() || self.need.is_some() {
             return;
         }
         if self.root.client().link().state == Link::SignedOut && self.asked_opening != Some(self.state().openings()) {
@@ -1243,7 +1332,8 @@ impl Host {
             | jig_client::Event::SignIn { .. }
             | jig_client::Event::SignOut
             | jig_client::Event::Authorize { .. }
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskLink
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }
@@ -1253,6 +1343,8 @@ impl Host {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. }
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
@@ -1267,6 +1359,9 @@ impl Host {
             None
         };
         self.step(Event::Client { event });
+        if self.refused() {
+            return;
+        }
         if local && self.root.client().link().state == Link::SignedOut {
             match self.root.client().link().not_signed_in {
                 Some(jig_client::NotSignedIn::LinkUsed | jig_client::NotSignedIn::LinkExpired) => self.again_local(),
@@ -1413,6 +1508,9 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if self.refused() {
+            return None;
+        }
         if *key == Key::Control(b'p') {
             return tui::pane_key(&self.view);
         }
@@ -1444,7 +1542,7 @@ impl Host {
 
     #[must_use]
     pub fn deadline(&self) -> Option<Time> {
-        if self.closed {
+        if self.closed || self.refused() {
             return None;
         }
         let tick = self.view.tick().map(|tick| {
@@ -1465,3 +1563,10 @@ impl Host {
 #[cfg(test)]
 #[path = "tests.rs"]
 pub(crate) mod tests;
+
+fn same_origin(origin: &tui::Origin, authority: &[u8]) -> bool {
+    match origin {
+        tui::Origin::Http(_) => origin.authority().as_ref() == authority,
+        tui::Origin::Https { .. } => false,
+    }
+}

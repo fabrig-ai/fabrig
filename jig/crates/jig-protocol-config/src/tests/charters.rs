@@ -160,7 +160,7 @@ fn a_part_refuses_no_reasons() {
     reason = "test fixture lists are ordinary Rust (programming-model.md, 10.2)"
 )]
 fn a_charter_refuses_parts_past_its_limit() {
-    let count = crate::profile(crate::Profile::Small).core.tasks.charter_parts;
+    let count = crate::stock().core.tasks.charter_parts;
     let parts =
         vec![r#"{"on":["first"],"instructions":"a.md"}"#; usize::try_from(count.checked_add(1).unwrap()).unwrap()];
     let value = format!("[{}]", parts.join(","));
@@ -182,8 +182,8 @@ fn a_charter_refuses_policy_and_parts_past_run_bytes() {
     let max = jig_domain_core_vocabulary::policy_owned_bytes(&engine.charters[0].policy).unwrap();
     let max = skein_lib::Decimal::of(max);
     let limits =
-        skein_lib::bytes::concat(&[br#""profile": "small", "overrides": {"core.run_bytes":"#, max.as_bytes(), b"}"]);
-    let document = fixtures::with(&document, br#""profile": "small""#, &limits);
+        skein_lib::bytes::concat(&[br#""profile": "standard", "overrides": {"core.run_bytes":"#, max.as_bytes(), b"}"]);
+    let document = fixtures::with(&document, br#""profile": "standard""#, &limits);
     let problems = fixtures::engine(&document).expect_err("parts exceed remaining run bytes");
     assert_eq!(
         problems.problems.get(0),
@@ -281,7 +281,7 @@ fn a_charter_may_name_models_at_two_endpoints() {
     let alternative = br#""models": [{"name":"other", "endpoint":"second", "window":8192,
         "output":1024, "prices":{"input":1,"cached":1,"output":1,"unit":1000}},"#;
     let endpoint = br#""endpoints": [{"name":"second", "number":2, "dialect":3,
-        "provider":"fake-provider", "address":{"socket":"127.0.0.1:7102"},"transport":"plaintext",
+        "provider":"Fake", "address":{"socket":"127.0.0.1:7102"},"transport":"plaintext",
         "headers":[],"connect_ms":10000,"handshake_ms":10000},"#;
     let document = fixtures::with(fixtures::ENGINE_SMALL, br#""models": ["#, alternative);
     let document = fixtures::with(&document, br#""endpoints": ["#, endpoint);

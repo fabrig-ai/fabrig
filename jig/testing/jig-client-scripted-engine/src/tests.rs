@@ -245,10 +245,12 @@ fn counts() -> ImpactCounts {
 }
 fn task() -> Task {
     Task {
+        tasks_left: 0,
         concluded: None,
         talk: None,
         session: None,
         dependency_facts: skein_lib::List::with_capacity(0),
+        unread: skein_lib::List::with_capacity(0),
         kept_account: None,
         run_wait: None,
         settings: Some(TaskSettings { task: 1, run: None, newest: 1 }),
@@ -512,7 +514,7 @@ fn scenario_all_read_shapes_and_reverse_activity() {
                         task: 8,
                         position,
                         at: Wall::EPOCH,
-                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Ready, resumed: true },
+                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Ready, resumed: true, fresh: None },
                     }),
                     decoded: None,
                 })
@@ -1015,7 +1017,7 @@ mod escalation;
 mod offered;
 mod person_task;
 
-mod deployment;
+pub(crate) mod deployment;
 mod ended_objects;
 
 use jig_client_domain::contract::DecideOn;

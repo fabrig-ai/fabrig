@@ -4,6 +4,7 @@ use jig_client_protocol_world::{
     fixtures::{self, PROJECT},
 };
 use skein_lib::{Duration, length::len_u64};
+use smith_transcript::Record;
 // These handles belong to this story's single read, activity page and task watch.
 const TURN: Handle = Handle { asker: Asker::JIG, number: 31 };
 const ACTIVITY: Handle = Handle { asker: Asker::JIG, number: 32 };
@@ -232,7 +233,7 @@ fn a_message_past_text_reads_back_whole_through_the_engine() {
     assert!(words.len() > usize::try_from(client.text).expect("text fits"));
     assert!(words.len() <= usize::try_from(client.long_text).expect("long_text fits"));
     assert!(words.len() <= usize::try_from(core.core.people.words).expect("people.words fits"));
-    let mut story = Story::reading_chat_with(fixtures::SEED, Box::from(fixtures::TURN_BYTES), client, core);
+    let mut story = Story::reading_chat_with(fixtures::SEED, fixtures::turn_bytes(), client, core);
     let task = story.running_task();
     story.send(
         WORDS,
@@ -264,13 +265,13 @@ fn a_message_past_text_reads_back_whole_through_the_engine() {
 // The component's core peer supplies the carrier; the core world checks who gets each mark.
 fn private_turn() -> jig_domain_core::TurnRecord {
     use smith_transcript::v7 as s;
-    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &fixtures::callable_turn())
-        .expect("callable turn")
-        .into_parts();
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &fixtures::callable_turn()).expect("callable turn");
     turn.system = Some(Box::from(b"## Preferences\n\n1. A private preference\n\n## Work\nDo the work.\n".as_slice()));
-    let turn = s::Turn::new(&s::CEILINGS, turn).expect("private section");
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
-    turn.encode(&mut bytes).expect("measured turn");
+    let turn = turn;
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    turn.write(&smith_transcript::CEILINGS, &mut bytes).expect("measured turn");
     jig_domain_core::TurnRecord {
         opens_window: true,
         task: 1,
@@ -284,7 +285,7 @@ fn private_turn() -> jig_domain_core::TurnRecord {
 }
 
 fn private_turn_over_wire(record: jig_domain_core::TurnRecord, person: u64, withheld: bool) -> c::ArchivedTurn {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire as w;
     use jig_domain_core::{self as core, reads};
     use jig_engine_clients_kit::fixtures as engine;
     use skein_lib::{List, Reader, Writer};

@@ -66,30 +66,24 @@ fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
     );
 }
 
-fn parts(step: w::Step) -> w::ChangePanelParts {
-    let mut parts = p::panel(TASK, step).into_parts();
+fn parts(step: w::Step) -> w::ChangePanel {
+    let mut parts = p::panel(TASK, step);
     parts.owner = Box::from(*b"acme");
     parts.name = Box::from(*b"shop");
     parts.branch = Box::from(*b"temper/9");
     parts.landing = Box::from(*b"main");
-    parts.pull = Some(
-        w::Pull::new(
-            &w::CEILINGS,
-            w::PullParts { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") },
-        )
-        .unwrap(),
-    );
+    parts.pull = Some(w::Pull { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") });
     parts.hold = None;
     parts.runs = None;
     parts.gates = List::with_capacity(0);
     parts
 }
 
-fn panel(parts: w::ChangePanelParts) -> w::ChangePanel {
-    w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
+fn panel(parts: w::ChangePanel) -> w::ChangePanel {
+    parts
 }
 
-fn draw(parts: w::ChangePanelParts) -> Tree {
+fn draw(parts: w::ChangePanel) -> Tree {
     let (mut root, watch) = opened();
     deliver(&mut root, watch, &panel(parts));
     let words = f::words();
@@ -151,11 +145,11 @@ fn queued(place: u32, names: &[u64]) -> w::Step {
     for n in names {
         ahead.push(*n).unwrap();
     }
-    w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead }).unwrap())
+    w::Step::Queued(w::Queued { place, ahead })
 }
 
 fn repair(reason: w::Reason) -> w::Step {
-    w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).unwrap())
+    w::Step::Repairing(w::Repairing { reason })
 }
 
 #[test]
@@ -163,16 +157,9 @@ fn shown_header_has_its_tag_pull_and_optional_safe_external_link() {
     let mut parts = parts(w::Step::Opening);
     for (pull, expected, link) in [
         (parts.pull.clone(), "PR #23 · acme/shop · temper/9 → main", true),
+        (Some(w::Pull { number: 23, address: Box::default() }), "PR #23 · acme/shop · temper/9 → main", false),
         (
-            Some(w::Pull::new(&w::CEILINGS, w::PullParts { number: 23, address: Box::default() }).unwrap()),
-            "PR #23 · acme/shop · temper/9 → main",
-            false,
-        ),
-        (
-            Some(
-                w::Pull::new(&w::CEILINGS, w::PullParts { number: 23, address: Box::from(*b"javascript:bad") })
-                    .unwrap(),
-            ),
+            Some(w::Pull { number: 23, address: Box::from(*b"javascript:bad") }),
             "PR #23 · acme/shop · temper/9 → main",
             false,
         ),
@@ -203,19 +190,14 @@ fn shown_header_has_its_tag_pull_and_optional_safe_external_link() {
 fn each_step_draws_its_current_done_slots_and_its_sentence() {
     for (step, current, sentence, queue_word) in [
         (
-            w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap()),
+            w::Step::Ready(w::InLanding { landing: Some(61) }),
             Some(4),
             "Ready: its landing, task 61, lands it.",
             "Queued",
         ),
+        (w::Step::Ready(w::InLanding { landing: None }), Some(4), "Ready: waiting for room for its landing.", "Queued"),
         (
-            w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: None }).unwrap()),
-            Some(4),
-            "Ready: waiting for room for its landing.",
-            "Queued",
-        ),
-        (
-            w::Step::Preparing(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap()),
+            w::Step::Preparing(w::InLanding { landing: Some(61) }),
             Some(4),
             "Being rebased onto main for its landing.",
             "Queued",
@@ -232,7 +214,7 @@ fn each_step_draws_its_current_done_slots_and_its_sentence() {
         (w::Step::Resolving, Some(4), "Resolving its conflicts with main.", "Queued"),
         (repair(w::Reason::Ci), Some(2), "Repairing: CI failed at its head.", "Queued"),
         (
-            repair(w::Reason::Gate(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 33 }).unwrap())),
+            repair(w::Reason::Gate(w::GateReason { gate: 33 })),
             Some(3),
             "Repairing: gate 33 asked for changes.",
             "Queued",
@@ -240,12 +222,7 @@ fn each_step_draws_its_current_done_slots_and_its_sentence() {
         (repair(w::Reason::Semantic), Some(4), "Repairing: CI failed at its updated head.", "Queued"),
         (repair(w::Reason::Review), Some(3), "Repairing: a person asked for changes on the forge.", "Queued"),
         (w::Step::Landing, Some(5), "Merging at its head.", "Queued"),
-        (
-            w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()),
-            None,
-            "Landed · merge commit abababa",
-            "Queued",
-        ),
+        (w::Step::Landed(w::Landed { merge: [0xab; 32] }), None, "Landed · merge commit abababa", "Queued"),
     ] {
         let tree = draw(parts(step));
         let steps = styled(&tree, look::STEP);
@@ -267,7 +244,7 @@ fn each_step_draws_its_current_done_slots_and_its_sentence() {
 
 #[test]
 fn a_landing_repair_names_its_gate_at_the_queued_step() {
-    let step = repair(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 7 }).unwrap()));
+    let step = repair(w::Reason::Landing(w::GateReason { gate: 7 }));
     let tree = draw(parts(step));
     let current = styled(&tree, look::STEP_CURRENT);
     assert_eq!(current.len(), 1);
@@ -346,6 +323,31 @@ fn each_hold_draws_its_step_and_exact_reason_as_a_notice() {
 }
 
 #[test]
+fn an_outbox_wait_draws_a_notice_after_the_step_line() {
+    let mut parts = parts(w::Step::Opening);
+    parts.wait = Some(w::ChangeWait::OutboxRoom);
+    let tree = draw(parts.clone());
+    let notices = styled(&tree, look::CHANGE_HOLD);
+    assert_eq!(notices.len(), 1);
+    let notice = b"Waiting for room in the forge outbox.";
+    assert_eq!(f::node_text(&tree, notices[0]).as_ref(), notice);
+    let text = f::text(&tree);
+    assert!(position(&text, b"Opening its pull request.").unwrap() < position(&text, notice).unwrap());
+    parts.wait = None;
+    assert!(styled(&draw(parts), look::CHANGE_HOLD).is_empty());
+}
+#[test]
+fn a_held_change_with_an_outbox_wait_draws_its_hold_alone() {
+    let mut parts = parts(w::Step::Opening);
+    parts.wait = Some(w::ChangeWait::OutboxRoom);
+    parts.hold = Some(w::Hold::Stalled);
+    let tree = draw(parts);
+    let notices = styled(&tree, look::CHANGE_HOLD);
+    assert_eq!(notices.len(), 1);
+    assert_eq!(f::node_text(&tree, notices[0]).as_ref(), b"Held while opening: its wait stalled.");
+    assert!(!contains(&tree, "Waiting for room in the forge outbox."));
+}
+#[test]
 fn ci_gates_and_bounds_draw_the_supplied_words_in_order() {
     for (ci, state) in
         [(w::Ci::Unknown, "Not yet"), (w::Ci::Pending, "Running"), (w::Ci::Passed, "Passed"), (w::Ci::Failed, "Failed")]
@@ -359,8 +361,7 @@ fn ci_gates_and_bounds_draw_the_supplied_words_in_order() {
     }
     // A landed change's unknown CI is a restart's forgetting, not CI to come.
     for (ci, state) in [(w::Ci::Unknown, "Not read since the restart"), (w::Ci::Passed, "Passed")] {
-        let mut parts =
-            parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()));
+        let mut parts = parts(w::Step::Landed(w::Landed { merge: [0xab; 32] }));
         parts.ci = ci;
         let tree = draw(parts);
         let rows = styled(&tree, look::GATE);
@@ -380,13 +381,7 @@ fn ci_gates_and_bounds_draw_the_supplied_words_in_order() {
                 (w::Verdict::Changes, "Changes asked"),
             ] {
                 let number = u64::from(parts.gates.len()) + 1;
-                parts
-                    .gates
-                    .push(
-                        w::Gate::new(&w::CEILINGS, w::GateParts { number, kind: kind.clone(), blocks, verdict })
-                            .unwrap(),
-                    )
-                    .unwrap();
+                parts.gates.push(w::Gate { number, kind: kind.clone(), blocks, verdict }).unwrap();
                 expected
                     .push(joined(&[
                         b"Gate ",
@@ -441,13 +436,13 @@ fn the_card_keeps_the_parts_in_design_order() {
 
 #[test]
 fn a_full_length_safe_forge_address_fits_with_its_label() {
-    let mut parts = p::panel(TASK, p::queued()).into_parts();
+    let mut parts = p::panel(TASK, p::queued());
     let mut address = skein_lib::bytes::zeroed(usize::try_from(wire::ADDRESS_BYTES).unwrap());
     address.fill(b'a');
     for (byte, prefix) in address.iter_mut().zip(b"https://forge.example/") {
         *byte = *prefix;
     }
-    parts.pull = Some(w::Pull::new(&w::CEILINGS, w::PullParts { number: u64::MAX, address: address.clone() }).unwrap());
+    parts.pull = Some(w::Pull { number: u64::MAX, address: address.clone() });
     let tree = draw(parts);
     let mut links = List::with_capacity(1);
     for node in tree.nodes() {
@@ -465,7 +460,7 @@ fn playground_toolbar(on_playground: bool, address: &[u8]) -> Tree {
     let playground = root.forge().playground().expect("running playground").forge;
     let mut parts = parts(w::Step::Opening);
     parts.forge = if on_playground { playground } else { playground.checked_add(1).unwrap() };
-    parts.pull = Some(w::Pull::new(&w::CEILINGS, w::PullParts { number: 23, address: address.into() }).unwrap());
+    parts.pull = Some(w::Pull { number: 23, address: address.into() });
     let state = forge::panel::State::Shown(Box::new(panel(parts)));
     let change = forge::change::shown(&state).unwrap();
     let words = f::words();
@@ -510,7 +505,7 @@ fn another_forges_change_keeps_its_link() {
 #[test]
 fn a_playground_address_at_its_receiving_bound_is_still_readable() {
     let fixture = p::panel(TASK, w::Step::Opening);
-    let address = fixture.pull().as_ref().unwrap().address();
+    let address = &fixture.pull.as_ref().unwrap().address;
     let tree = playground_toolbar(true, address);
     assert!(position(&f::text(&tree), address).is_some());
     for node in tree.nodes() {
@@ -522,9 +517,7 @@ fn a_playground_address_at_its_receiving_bound_is_still_readable() {
 fn an_authority_hold_draws_its_count_release_and_way_out() {
     let reason = b"its 6 tasks are made; released without more tasks; cancel: task cancel 2 REASON; or ask afresh; bare release holds again";
     let mut value = parts(w::Step::Gating);
-    value.hold = Some(w::Hold::Authority(
-        w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: reason.as_slice().into() }).unwrap(),
-    ));
+    value.hold = Some(w::Hold::Authority(w::AuthorityHold { reason: reason.as_slice().into() }));
     let tree = draw(value);
     let notice = styled(&tree, look::CHANGE_HOLD);
     assert_eq!(notice.len(), 1);
@@ -537,34 +530,11 @@ fn after_landing_page_draws_each_tier_line_and_the_merge() {
     tiers.push(Box::from(b"fast run 2".as_slice())).unwrap();
     tiers.push(Box::from(b"slow run 3 running".as_slice())).unwrap();
     for (step, label) in [
+        (w::Step::Verifying(w::Verifying { merge: [0xab; 32], tiers: tiers.clone() }), "Verifying"),
+        (w::Step::Red(w::Red { merge: [0xab; 32], tiers: tiers.clone() }), "Red"),
+        (w::Step::Cleared(w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false }), "Cleared"),
         (
-            w::Step::Verifying(
-                w::Verifying::new(&w::CEILINGS, w::VerifyingParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap(),
-            ),
-            "Verifying",
-        ),
-        (
-            w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap()),
-            "Red",
-        ),
-        (
-            w::Step::Cleared(
-                w::Cleared::new(
-                    &w::CEILINGS,
-                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false },
-                )
-                .unwrap(),
-            ),
-            "Cleared",
-        ),
-        (
-            w::Step::Cleared(
-                w::Cleared::new(
-                    &w::CEILINGS,
-                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true },
-                )
-                .unwrap(),
-            ),
+            w::Step::Cleared(w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true }),
             "Landed, uncleared",
         ),
     ] {
@@ -579,7 +549,7 @@ fn after_landing_page_draws_each_tier_line_and_the_merge() {
 
 #[test]
 fn no_ci_rule_draws_not_required_for_a_retained_pending_verdict() {
-    let mut parts = parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()));
+    let mut parts = parts(w::Step::Landed(w::Landed { merge: [0xab; 32] }));
     parts.ci = w::Ci::Pending;
     parts.ci_required = false;
     let tree = draw(parts);
@@ -597,13 +567,7 @@ fn taking_names_the_source_and_its_kept_head_in_the_panel() {
         (Some([0xab; 32]), "taking docs/x abababababababababababababababababababababababababababababababab"),
     ] {
         let mut parts = parts(w::Step::Taking);
-        parts.source = Some(
-            w::PanelSource::new(
-                &w::CEILINGS,
-                w::PanelSourceParts { branch: b"docs/x".as_slice().into(), at: None, kept },
-            )
-            .unwrap(),
-        );
+        parts.source = Some(w::PanelSource { branch: b"docs/x".as_slice().into(), at: None, kept });
         let tree = draw(parts);
         assert!(contains(&tree, expected));
         assert_eq!(styled(&tree, look::STEP_CURRENT).len(), 1);

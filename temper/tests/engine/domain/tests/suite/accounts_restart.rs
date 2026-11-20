@@ -55,6 +55,8 @@ fn config() -> engine::Config {
             },
         ]),
     };
+
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     config
 }
 
@@ -120,7 +122,7 @@ fn kept_store() -> Store {
     driver.protocol.sign_in_sources.insert(source);
     driver.send(engine::Event::Account(accounts::Event::Adopted { source, kept: true }));
     driver.settle();
-    // Replay the real durable commits into a fresh store component.
+    // Open an independent copy of the durable backing in a fresh component.
     driver.store.fork()
 }
 

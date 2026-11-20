@@ -1,85 +1,50 @@
 //! Upgrade commands share serve's configuration checks (protocol/binaries.md).
-use crate::{path, prefixed, setup};
-use skein_shell::{Clock, Config, Kernel};
-use std::os::unix::ffi::OsStrExt;
+use crate::{path, prefixed, stopped};
+use std::os::{fd::IntoRawFd, unix::ffi::OsStrExt};
 use temper_engine_service as service;
-use temper_service_shell::{close, jig_directories};
+use temper_service_shell::close;
 use temper_shell::directories::{self, Directories, EnvironmentEntry};
 
 mod report;
+mod scratch;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 pub(crate) use report::job_counts;
-pub use report::{lines, owner};
+pub use report::{lines, owner, workers_lines};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
     Check(Box<[u8]>),
+    Workers(Box<[u8]>),
     Back,
 }
 
 pub fn configure(
-    check: bool,
+    mode: &str,
     arguments: &[Box<[u8]>],
     environment: &[EnvironmentEntry],
     working: &[u8],
 ) -> Result<(Directories, Request), String> {
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
-    let request = match (check, rest.as_ref()) {
-        (true, [directory]) if !directory.is_empty() && !directory.starts_with(b"-") => {
+    let request = match (mode, rest.as_ref()) {
+        ("--check" | "--workers", [directory]) if !directory.is_empty() && !directory.starts_with(b"-") => {
             let directory = path(working).join(path(directory));
-            Request::Check(directory.as_os_str().as_bytes().into())
+            let directory = directory.as_os_str().as_bytes().into();
+            if mode == "--workers" { Request::Workers(directory) } else { Request::Check(directory) }
         }
-        (false, []) => Request::Back,
-        (true | false, _) => return Err("invalid arguments".into()),
+        ("--back", []) => Request::Back,
+        (_, _) => return Err("invalid arguments".into()),
     };
     Ok((directories, request))
 }
 
-/// No worker root, listener or external system is started.
-fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
-    let bytes = directories.read()?;
-    if matches!(
-        service::startup::nearest(&bytes),
-        Some(service::startup::Shape::Standalone | service::startup::Shape::WorkerAlone)
-    ) {
-        return Err(format!("temper.json names a worker, and {binary} runs none"));
-    }
-    let mut named = setup::check(&bytes, &jig_directories(directories))?.named;
-    let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
-        &mut named.files,
-        &mut named.asked_files,
-        named.sign_in.as_ref(),
-        named.bundle.as_deref(),
-        named.bundle_limits,
-        skein_shell::effective_user(),
-        false,
-    )?;
-    let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(&named.machine)?;
-    let engine = crate::serve::settings(&bytes, directories, &service::stock::Given::Stock);
-    let accounts = crate::serve::accounts(&engine)?;
-    let seeds = crate::serve::seeds(None, None)?;
-    let mut service = service::startup::restoring_with(
-        &bytes,
-        &jig_directories(directories),
-        &files,
-        None,
-        &seeds,
-        Some(accounts),
-        &service::stock::Given::Stock,
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    service.configure_forge_runtime(github, roots);
-    service.configure_google_endpoints(google);
-    if let Some(bundle) = bundle {
-        service.adopt_bundle(bundle);
-    }
-    Ok((service, named.deployment))
-}
-
 pub fn run(binary: &str, directories: &Directories, request: &Request, build_name: &'static str) -> Result<u8, String> {
+    if let Request::Check(source) = request {
+        return checked(binary, directories, request, source, build_name)
+            .map_err(|why| prefixed(&format!("{binary} upgrade"), &why));
+    }
     let (mut service, deployment) =
-        prepare(binary, directories).map_err(|why| prefixed(&format!("{binary} upgrade"), &why))?;
+        stopped::prepare(binary, directories).map_err(|why| prefixed(&format!("{binary} upgrade"), &why))?;
     service.engine_component().build_name(build_name);
     run_prepared(binary, directories, request, service, &deployment)
 }
@@ -94,6 +59,39 @@ pub fn run_prepared(
     run_inner(binary, directories, request, service, deployment)
         .map_err(|why| prefixed(&format!("{binary} upgrade"), &why))
 }
+/// The check restores its copy under the limits a start would take from it
+/// (configuration/limit-settings.md, 3): its engine is sized after the copy opens.
+fn checked(
+    binary: &str,
+    directories: &Directories,
+    request: &Request,
+    source: &[u8],
+    build_name: &'static str,
+) -> Result<u8, String> {
+    let mut owned = Vec::new();
+    let mut made = None;
+    let prepared = stopped::prepare_rehearsal(directories, build_name, |store| {
+        let directory = skein_shell::open_root(path(source))
+            .map_err(|errno| format!("{}: no readable deployment directory: errno {errno}", path(source).display()))?;
+        owned.push(directory);
+        let (scratch, held, fd) = rehearsal_scratch(binary, directories, &mut owned)?;
+        made = Some((scratch, held));
+        store
+            .adopt_rehearsal(directory, fd, skein_shell::effective_user())
+            .map_err(|_| "store refused its rehearsal roots".to_owned())
+    });
+    let exit =
+        prepared.and_then(|(service, _)| stopped::drive(binary, directories, service, source, report(request), false));
+    if let Some((scratch, held)) = made
+        && let Some(line) = scratch::remove(binary, &scratch, held)
+    {
+        println!("{line}");
+    }
+    if exit.is_err() {
+        close(owned);
+    }
+    exit
+}
 fn run_inner(
     binary: &str,
     directories: &Directories,
@@ -102,59 +100,82 @@ fn run_inner(
     deployment: &[u8],
 ) -> Result<u8, String> {
     let source = match request {
-        Request::Check(directory) => directory.as_ref(),
+        Request::Check(directory) | Request::Workers(directory) => directory.as_ref(),
         Request::Back => deployment,
     };
     let directory = skein_shell::open_root(path(source))
         .map_err(|errno| format!("{}: no readable deployment directory: errno {errno}", path(source).display()))?;
     let mut owned = vec![directory];
     let scratch = match request {
-        Request::Check(_) => {
-            let seed = match skein_shell::seed() {
-                Ok(seed) => seed,
-                Err(errno) => {
+        Request::Check(_) | Request::Workers(_) => {
+            let (scratch, held, fd) = match rehearsal_scratch(binary, directories, &mut owned) {
+                Ok(made) => made,
+                Err(why) => {
                     close(owned);
-                    return Err(format!("scratch seed: errno {errno}"));
+                    return Err(why);
                 }
             };
-            let scratch = path(&directories.cache).join(format!("upgrade-{seed:016x}"));
-            let fd = match skein_shell::make_root(&scratch, 0o700) {
-                Ok(fd) => fd,
-                Err(errno) => {
-                    close(owned);
-                    return Err(format!("scratch: errno {errno}"));
-                }
+            let reach = match request {
+                Request::Check(_) => jig_protocol_store::Reach::Whole,
+                Request::Workers(_) => jig_protocol_store::Reach::Openings,
+                Request::Back => unreachable!("rehearsal branch"),
             };
-            owned.push(fd);
-            service.rehearse_store(directory, fd, skein_shell::effective_user()).expect("new rehearsal adopts roots");
-            Some(scratch)
+            service
+                .rehearse_store(directory, fd, skein_shell::effective_user(), reach)
+                .expect("new rehearsal adopts roots");
+            Some((scratch, held))
         }
         Request::Back => {
             service.back_store(directory, skein_shell::effective_user()).expect("new back adopts root");
             None
         }
     };
-    let mut kernel = match Kernel::open(Config { operations: service.operations() }) {
-        Ok(kernel) => kernel,
+    let copy_providers = match request {
+        Request::Check(_) | Request::Workers(_) => false,
+        Request::Back => true,
+    };
+    let exit = stopped::drive(binary, directories, service, source, report(request), copy_providers);
+    if let Some((scratch, held)) = scratch
+        && let Some(line) = scratch::remove(binary, &scratch, held)
+    {
+        println!("{line}");
+    }
+    if exit.is_err() {
+        close(owned);
+    }
+    exit
+}
+/// Sweep the cache, then make and lock this rehearsal's scratch; its store adopts the descriptor.
+fn rehearsal_scratch(
+    binary: &str,
+    directories: &Directories,
+    owned: &mut Vec<skein_io::kernel::Fd>,
+) -> Result<(std::path::PathBuf, std::fs::File, skein_io::kernel::Fd), String> {
+    for line in scratch::sweep(binary, path(&directories.cache)) {
+        println!("{line}");
+    }
+    let (scratch, file) = scratch::make(path(&directories.cache))?;
+    // The store owns the adopted descriptor; its clone holds the lock through removal.
+    let held = match file.try_clone().map_err(|why| scratch::failure(&why)) {
+        Ok(held) => held,
         Err(why) => {
-            close(owned);
-            return Err(why.to_string());
+            if let Some(line) = scratch::remove(binary, &scratch, file) {
+                println!("{line}");
+            }
+            return Err(why);
         }
     };
-    let mut host = temper_service_shell::Host::for_upgrade(
-        binary,
-        service,
-        crate::served::SERVED,
-        directories.clone(),
-        source.into(),
-        |service, binary, directories, source| Some(lines(binary, service.upgrade_report()?, directories, source)),
-    );
-    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
-    if let Some(scratch) = scratch {
-        let _removed = std::fs::remove_dir(scratch);
+    let fd = skein_io::kernel::Fd::new(file.into_raw_fd());
+    owned.push(fd);
+    Ok((scratch, held, fd))
+}
+fn report(request: &Request) -> temper_service_shell::host::UpgradeReport<service::Service> {
+    match request {
+        Request::Workers(_) => |service, binary, directories, source| {
+            Some(workers_lines(binary, service.upgrade_report()?, directories, source))
+        },
+        Request::Check(_) | Request::Back => {
+            |service, binary, directories, source| Some(lines(binary, service.upgrade_report()?, directories, source))
+        }
     }
-    Ok(match exit {
-        skein_io::kernel::Exit::Code(code) => code,
-        skein_io::kernel::Exit::Signal(_) => 1,
-    })
 }

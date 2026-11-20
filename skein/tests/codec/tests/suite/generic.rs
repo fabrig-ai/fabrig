@@ -42,11 +42,15 @@ mod tests {
         let mut count = 0_u32;
         let mut compared = 0_u32;
         for path in paths {
-            let text = std::fs::read_to_string(&path).expect("schema readable");
+            let current = generated::current_text(path.to_str().expect("schema path"));
+            let text = current.map_or_else(|| std::fs::read_to_string(&path).expect("schema readable"), str::to_owned);
             let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
-            let generated_schema = skein_codegen::parse(&text).expect("generator schema");
+            let goldens = current.map_or_else(
+                || skein_codegen::goldens(&skein_codegen::parse(&text).expect("generator schema")),
+                |text| skein_codegen::values(text).goldens.clone(),
+            );
             let family = generated::families().into_iter().find(|family| family.text == text);
-            for golden in skein_codegen::generate(&generated_schema).goldens {
+            for golden in goldens {
                 let root = generic::golden_root(&schema, &golden.name);
                 let node =
                     value.decode(&schema, root, golden.bytes.clone().into_boxed_slice()).expect("golden decodes");
@@ -56,7 +60,7 @@ mod tests {
                     let generated_root =
                         family.roots.iter().find(|root| root.name.as_bytes() == name).expect("generated decoder");
                     match (generated_root.decode)(&golden.bytes) {
-                        generated::Decoded::Value { debug, bytes } => {
+                        generated::Decoded::Value { debug, bytes, .. } => {
                             assert_eq!(
                                 generic::render(&schema, &value, node, root),
                                 debug,
@@ -74,9 +78,10 @@ mod tests {
                 count = count.checked_add(1).expect("golden count");
             }
         }
-        // Five generated families contribute 84, the UI schema contributes 12; every-v2 contributes 28.
-        assert_eq!(count, 124);
-        assert_eq!(compared, 84);
+        // The codec fixtures contribute 154 goldens, including growth's two;
+        // the UI schema contributes 12.
+        assert_eq!(count, 166);
+        assert_eq!(compared, 152);
     }
 }
 
@@ -90,7 +95,7 @@ mod single_byte {
     fn compare(schema: &Schema, root: &Root, value: &mut Value, bytes: &[u8]) {
         let decl = schema.find(root.name.as_bytes()).expect("root");
         match ((root.decode)(bytes), value.decode(schema, decl, bytes.into())) {
-            (Decoded::Value { debug, bytes: encoded }, Ok(node)) => {
+            (Decoded::Value { debug, bytes: encoded, .. }, Ok(node)) => {
                 assert_eq!(value.bytes(), encoded, "{}; input={bytes:02x?}", root.name);
                 assert_eq!(generic::render(schema, value, node, decl), debug, "{}; input={bytes:02x?}", root.name);
             }

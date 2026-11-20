@@ -12,6 +12,7 @@ use jig_client::{
     contract::{self as c, ObjectKey},
 };
 use skein_lib::{Duration, List, Queue, Time, Wall};
+use temper_client_protocol_wire::v1::Record;
 const FIRST: ObjectKey = f::QUESTION;
 const SECOND: ObjectKey = ObjectKey::Question { task: f::TASK, message: 4 };
 const THIRD: ObjectKey = ObjectKey::Question { task: f::TASK, message: 5 };
@@ -867,6 +868,7 @@ fn a_milestone_filter_takes_approvals_of_its_merged_goals() {
                     read: ended.expect("milestone's ended goals read"),
                     result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
                         c::TaskPage {
+                            ended_mark: 0,
                             live: List::uncapped(),
                             live_after: None,
                             ended: c::EndedGroup::Rows {
@@ -1016,6 +1018,39 @@ fn across_count_counts_shared_proposals_once_and_subtracts_a_held_answer() {
 }
 
 #[test]
+fn standing_count_is_cut_only_when_needs_run_past_the_window() {
+    for updates in [false, true] {
+        let (mut root, watch) = count_root();
+        let mut rows = List::with_capacity(5);
+        for number in 1..=4 {
+            rows.push(crate::tests::documents::entry(
+                ObjectKey::Question { task: f::TASK, message: number },
+                fixtures::PROJECT,
+                number,
+                Wall::EPOCH,
+                None,
+            ))
+            .unwrap();
+        }
+        if updates {
+            rows.push(crate::tests::documents::entry(
+                ObjectKey::Result(f::TASK),
+                fixtures::PROJECT,
+                5,
+                Wall::EPOCH,
+                None,
+            ))
+            .unwrap();
+        }
+        let inbox = crate::tests::documents::inbox(rows, 4, c::Count { value: 0, limited: false }, 0, true);
+        super::welcome::deliver(&mut root, watch, c::Delivery::Inbox(Box::new(inbox)));
+        let expected = needs::Count { count: 4, cut: !updates };
+        assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT), expected);
+        assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()), expected);
+    }
+}
+
+#[test]
 fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cut_and_end() {
     for (inbox_cut, more) in [(false, 1), (true, 0)] {
         let (mut root, watch, approvals) = approval_root();
@@ -1048,11 +1083,11 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
         assert!(pages::shown(root.pages()) > before);
         assert_eq!(
             root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
-            needs::Count { count: 3, cut: true }
+            needs::Count { count: 3, cut: more > 0 }
         );
         assert_eq!(
             root.pages().needs().count_across(root.client(), root.forge().approvals()),
-            needs::Count { count: 5, cut: true }
+            needs::Count { count: 5, cut: more > 0 }
         );
         let mut cards = fixture();
         add(&mut cards, SECOND, fixtures::PROJECT);
@@ -1364,25 +1399,16 @@ fn why_root(state: &str, rows: &[(u64, u64, temper_protocol_reaches::Reach)]) ->
         let mut asked = List::with_capacity(16);
         for (index, (task, at, reach)) in rows.iter().enumerate() {
             asked
-                .push(
-                    w::Asked::new(
-                        &w::CEILINGS,
-                        w::AskedParts {
-                            number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
-                            task: *task,
-                            at: *at,
-                            reach: temper_protocol_reaches::reach_record(reach),
-                        },
-                    )
-                    .unwrap(),
-                )
+                .push(w::Asked {
+                    number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
+                    task: *task,
+                    at: *at,
+                    reach: temper_protocol_reaches::reach_record(reach),
+                })
                 .unwrap();
         }
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: state == "cut" },
-        )
-        .unwrap();
+        let document =
+            w::Decisions { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: state == "cut" };
         jig_client::Up::FamilyDelivered {
             watch,
             record: jig_client::Family {
@@ -1640,8 +1666,8 @@ fn stop_classes_read(out: &Queue<crate::Request>) -> Option<skein_lib::Token> {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-            && setting.kind() == 8
+            && let w::Read::Setting(setting) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+            && setting.kind == 8
         {
             return Some(*read);
         }
@@ -1689,11 +1715,12 @@ fn stop_fixture(
     );
     if read {
         let record = temper_protocol_reaches::classes_record(&Classes::stock(Way::YouApprove)).unwrap();
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut writer).unwrap();
-        let bytes = wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .unwrap(),
         );
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+        let bytes = wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) });
         super::welcome::up(
             &mut root,
             jig_client::Up::ReadDone {
@@ -1704,19 +1731,9 @@ fn stop_fixture(
     }
     let mut asked = List::with_capacity(1);
     asked
-        .push(
-            w::Asked::new(
-                &w::CEILINGS,
-                w::AskedParts { number: 1, task: f::TASK, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
-            )
-            .unwrap(),
-        )
+        .push(w::Asked { number: 1, task: f::TASK, at: 0, reach: temper_protocol_reaches::reach_record(&reach) })
         .unwrap();
-    let decisions = w::Decisions::new(
-        &w::CEILINGS,
-        w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
-    )
-    .unwrap();
+    let decisions = w::Decisions { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false };
     super::welcome::up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -1741,20 +1758,14 @@ fn stop_dismissals(fixture: &mut StopFixture, keep: Option<(temper_protocol_reac
     let mut dismissed = List::with_capacity(1);
     if let Some((subject, at)) = keep {
         dismissed
-            .push(w::PersonFact::KeepAsking(
-                w::KeepAsking::new(
-                    &w::CEILINGS,
-                    w::KeepAskingParts {
-                        project: fixtures::PROJECT,
-                        subject: temper_protocol_reaches::subject_record(subject),
-                        at,
-                    },
-                )
-                .unwrap(),
-            ))
+            .push(w::PersonFact::KeepAsking(w::KeepAsking {
+                project: fixtures::PROJECT,
+                subject: temper_protocol_reaches::subject_record(subject),
+                at,
+            }))
             .unwrap();
     }
-    let document = w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap();
+    let document = w::Dismissals { dismissed };
     super::welcome::up(
         &mut fixture.root,
         jig_client::Up::FamilyDelivered {
@@ -1820,18 +1831,18 @@ fn stop_show_elsewhere(root: &mut crate::Domain) {
                 },
         } = request
             && *project == fixtures::PROJECT
-            && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-            && setting.kind() == 8
+            && let w::Read::Setting(setting) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+            && setting.kind == 8
         {
             shown = Some(*handle);
         }
     }
     let classes = temper_protocol_reaches::classes_record(&temper_protocol_reaches::Classes::default()).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).unwrap());
-    classes.encode(&mut writer).unwrap();
-    let record = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
     );
+    classes.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+    let record = wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) });
     ways::told(
         &mut root.forge,
         Time::ZERO,
@@ -1846,8 +1857,10 @@ fn stop_show_elsewhere(root: &mut crate::Domain) {
 }
 fn stop_item(classes: &temper_protocol_reaches::Classes) -> c::SettingItem {
     let record = temper_protocol_reaches::classes_record(classes).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     c::SettingItem {
         setting: c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 },
         edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(writer.finish()) }),
@@ -2056,7 +2069,7 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
     let dismissed = Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Dismissed }).unwrap()),
+        bytes: wire::answer(&w::Answer { outcome: w::Outcome::Dismissed }),
     }));
     let refused =
         Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }));
@@ -2102,7 +2115,6 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "the table follows two cards' reaches through Keep and its queued fact")]
 fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
     use pages::stop_asking::{self, Act as Stop};
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -2123,21 +2135,9 @@ fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
         question.from = Some(c::Requester::Task(42));
         let mut asked = List::with_capacity(2);
         for (number, task, reach) in [(1, f::TASK, first_reach), (2, 42, second_reach)] {
-            asked
-                .push(
-                    w::Asked::new(
-                        &w::CEILINGS,
-                        w::AskedParts { number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
-                    )
-                    .unwrap(),
-                )
-                .unwrap();
+            asked.push(w::Asked { number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach) }).unwrap();
         }
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
-        )
-        .unwrap();
+        let document = w::Decisions { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false };
         super::welcome::up(
             &mut fixture.root,
             jig_client::Up::FamilyDelivered {

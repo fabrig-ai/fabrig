@@ -58,6 +58,43 @@ again when a run leaves one undecided only as 6 says.
   message (../engine/briefs.md, 1.2). It is among
   every run's reasons (6), and, left open by a run that parks idle,
   wakes the task again (`lifecycle.md`, 2).
+- **Words that direct it stay until a run records them.** A task
+  **keeps words** when it is an agent task whose runs start from a
+  brief, never resuming (../engine/executors.md, 2), that is no
+  conversation, does not stand (`standing.md`) and is not ended by its
+  requester (`lifecycle.md`, 9): a task that resumes holds what it read
+  in its window, and a conversation or a standing task is read by its
+  person turn by turn. In a task that keeps words, a words message (1)
+  from a person, or from its requester where that is a task, is
+  **kept** when a turn's fence takes it: the fence takes it from the
+  inbox as it takes every message, and the task keeps it, whole, among
+  its **unrecorded words**, oldest first, until a run of the task
+  records it. Words from any other task, a delegate's or one it was
+  introduced to, are news, taken as every message is.
+  - *Recorded by the run's act.* A run records a message where the
+    next run will find it, in a spec it writes or in a note, and says
+    so: by naming it in `mark_read`, the act that says it was read, or
+    in the `records` of a `note`, which records it once the note is
+    written (../engine/executors.md, 3). What records it is that act,
+    never the core's reading of a spec or a note. Only a run of the
+    task records its words; a number naming none of them records
+    nothing and is answered so.
+  - *Within the inbox's bound.* Unrecorded words count in the inbox's
+    bound, its messages and its bytes, as words waiting in it do, so
+    that words or a question past it are refused at the sender's
+    entrance as the inbox full; the room kept (above) is unchanged.
+  - *In front of every run.* Every run that starts from a brief shows
+    them, whole, in its waiting section (../engine/briefs.md, 1.3);
+    `words` is among its reasons while one is kept (6); one left
+    unrecorded by a run that parks idle wakes the task once
+    (`lifecycle.md`, 2); and the task's document lists them
+    (`../../client/domain/contract/documents.md`, section 1). They end
+    with the task.
+  - *Why:* a run that read a person's words adding work, then parked or
+    was stopped without carrying them into a spec or a note, left them
+    nowhere a later run reads (dev.fabrig.ai, 2026-11-18: two of four
+    asks dropped by one goal; two messages lost by another whose hung
+    run was stopped).
 - **Within what a run reads.** Every message an inbox admits fits a
   run's message bound as it is rendered (smith's `protocol/limits.md`,
   3.9), so no run refuses one as too large: words and questions larger
@@ -88,7 +125,7 @@ again when a run leaves one undecided only as 6 says.
   large, its inbox full, a name in use, or the run ending), or left
   unread (after the answer's fence, the last message it read), stays in
   the inbox, untaken, and wakes the task again when the run ends, as it
-  would had it arrived then (3).
+  would had it arrived then, after a pause where the run parked (3).
 - **Not offered, a message stays too.** A message the run isn't offered
   (6) is neither carried at its start nor relayed to it; it keeps its
   place in the inbox, untaken, and is judged again when the run ends, as a
@@ -139,6 +176,16 @@ A message a run refused, left unread or wasn't offered (2 and 6) is
 judged again when the run ends, as if it arrived then: it wakes the task
 if its kind does, and otherwise waits for the next activation.
 
+**A park that wakes at once waits a pause first.** A run that parks and
+leaves its task due again at once, so judged, on a message, a proposal or
+an escalation it left in place, claims again only after the pause a
+refusal takes (`lifecycle.md`, 6): no try spent, the pause growing with
+each such park in a row, and from the first again once a park leaves its
+task idle. The run after the pause is woken by the same message, as it
+would have been at once. What arrives meanwhile waits for it, as for any
+pause. So a run that parks without reading what wakes it never has one
+start assigned again without backoff (the user, 2026-11-19).
+
 Each charter brings a default policy, named with the charter in
 configuration (`../../protocol/configuration.md`, section 3) and kept with
 it in the settings: an agent task made under the charter, by a batch
@@ -173,7 +220,24 @@ A subscription is a task's standing interest in what changes:
 
 Subscriptions end with the task. A goal's subscriptions to the topics its
 connectors offer for goals are the core's to keep, not its executor's
-(../model.md, 6.2). Their number per task is bounded.
+(../model.md, 6.2). Their number per task is bounded, by `subscriptions`
+(`README.md`, section 6), but for one topic asked apart:
+
+- **One topic apart.** An application may ask a connector's topic for a
+  task apart from the bound (the tasks child's `SubscribeTopicApart`,
+  beside `SubscribeTopic`): admitted while the task holds at most
+  `subscriptions` subscriptions, so one past the bound, and refused
+  otherwise only as any topic is (its task closing or ended, its number
+  taken, no room in its inbox for its news, 2). Every other
+  subscription stops at the bound, counting it. Nothing marks it once
+  made: it is a topic subscription as any other, and the task holds at
+  most one more than the bound, however many it is asked apart. So
+  news the application owes a task, whatever the task subscribed to
+  itself, such as a work item's to the one that holds it, isn't crowded
+  out.
+- **Kept to the bound and one more:** a task's record, its restore and
+  the store's row hold `subscriptions` and one more; a client's view of
+  them keeps its own bound (`../../client/domain/pages.md`).
 
 ## 5. Who may message whom
 
@@ -225,6 +289,10 @@ those parts are for.
   decision gives its kind. So under a charter in parts, a run woken by
   words, a result or news reads the part for questions too, and is
   offered what that part names.
+- **Unrecorded words are a reason.** While the task keeps a words
+  message unrecorded (2), `words` is among the reasons of each of its
+  runs, whatever woke it and whatever its policy, so under a charter in
+  parts a run reads the part for words and is offered what it names.
 - **A continuation and a retry** run for the reasons of the attempt before
   them, kept with the task (`README.md`, section 3), plus the kinds that wake them at
   their own activation. A retry is due by its backoff, not by a message, and

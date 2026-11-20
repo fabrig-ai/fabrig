@@ -24,6 +24,10 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+- **Which tools a run is declared** (`declarations.md`): its charter's
+  families' tools, each in a short declared form within 1,024 bytes, its
+  whole form on the `host-tools` page, and the contract the declarations
+  make, with the versions it answers.
 - **A charter's room** (`room.md`): the allowance a charter is fitted to,
   its brief cut to what the rest leaves, a refusal naming what didn't fit,
   and the checks at start and at each change of settings.
@@ -126,11 +130,23 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 
 | The push | smith's delivery |
 |---|---|
-| landed in every repository with a change, or already landed by this hold's last push | delivered, each receipt `pushed <head> to branch <branch>; your checkout stays detached, as expected` |
-| nothing to push | nothing |
+| landed in every repository with a change, already landed by this hold's last push, or pushed again as the task's own delivery a new hold starts on | delivered, each receipt `pushed <head> to branch <branch>; your checkout stays detached, as expected` |
+| nothing to push, and no delivery of the task's own to push again | nothing |
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
+
+A delivery outlives the run that made it. A producer, a repair or a
+resolution that delivers, then asks and parks, finishes in its next run
+as a change with nothing new: its new hold starts on the head it
+delivered, which the assignment names as the task's own delivery
+(`../forge/change/questions.md`, 1, *Who pushed it*), and the worker
+pushes that head again and answers delivered
+(../worker/checkouts.md, *A task's own delivery outlives its hold*). So
+the stock charter's `deliver`, then `finish` as a change
+(`../../../charters/stock/implementer.md`), holds across a question.
+smith still refuses a genuine nothing, a clean tree with no delivery of
+the task's own (smith's `domain/run.md`, 8.2).
 
 A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker/checkouts.md
 ) has outcomes of its own, and is never stale:
@@ -294,8 +310,8 @@ host:
 - A charter where the process has no local agent: `tools.md`, section 3.
 - A `see` answer by its worker's reply bound: `ask-temper.md`, section 5.
 - The person's forge identity in a chat's brief,: `agents.md`, section 5.
-- A collaborator's login in `read_collaborators`: `tools.md`, section 3.
-- `read_permission`'s login held to the settings family: `tools.md`, section 3.
+- A collaborator's login in `read_forge what=collaborators`: `tools.md`, section 3.
+- `read_forge what=permission`'s login held to the settings family: `tools.md`, section 3.
 - A person known by a login alone: `agents.md`, section 5.
 - Which host tools a charter offers: `tools.md`, section 3.
 - What sizes temper's own way: `agents.md`, section 5.

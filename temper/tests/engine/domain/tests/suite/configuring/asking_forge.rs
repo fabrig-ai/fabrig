@@ -6,37 +6,37 @@ use serde_json::json;
 #[expect(clippy::too_many_lines, reason = "one stock-world table checks the forge addresses, parts and refusals")]
 fn an_asking_chat_reads_the_forge() {
     let mut config = config();
-    config
-        .landings
-        .insert(
-            PROJECT,
-            engine::ProjectLanding {
-                gate_retries: 2,
-                batch: 1,
-                combine_main: engine::Combine::Merge,
-                combine_other: engine::Combine::Squash,
-                gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                landing_attempts: engine::LANDING_ATTEMPTS,
-                check_timeout: None,
-                by: engine::Way::Queue,
-                close_job: None,
-                merge_job: Some(b"scripts/merge".as_slice().into()),
-                after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                repositories: Box::new([engine::RepositoryChecks {
-                    repository: skein_forge::api::Repository { forge: 1, repository: 2 },
-                    gates: Box::new([engine::GateCheck {
-                        name: b"tests".as_slice().into(),
-                        workflow: b"tests.yml".as_slice().into(),
-                        ignored: Box::new([b"docs".as_slice().into()]),
-                        blocking: true,
-                        base: false,
-                        report: None,
-                    }]),
-                    tiers: Box::new([]),
+    temper_engine_domain_world::oracle::config::set_landing(
+        &mut config,
+        PROJECT,
+        temper_landing_fixtures::ProjectLanding {
+            gate_retries: 2,
+            batch: 1,
+            combine_main: engine::Combine::Merge,
+            combine_other: engine::Combine::Squash,
+            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+            landing_attempts: engine::LANDING_ATTEMPTS,
+            check_timeout: None,
+            by: temper_landing_fixtures::Way::Queue,
+            close_job: None,
+            merge_job: Some(b"scripts/merge".as_slice().into()),
+            tier_retries: 2,
+            verification_bound_ms: 7_200_000,
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
+            repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
+                repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+                gates: Box::new([temper_landing_fixtures::GateCheck {
+                    name: b"tests".as_slice().into(),
+                    workflow: b"tests.yml".as_slice().into(),
+                    ignored: Box::new([b"docs".as_slice().into()]),
+                    blocking: true,
+                    base: false,
+                    report: None,
                 }]),
-            },
-        )
-        .unwrap();
+                tiers: Box::new([]),
+            }]),
+        },
+    );
     let mut bounds = limits();
     bounds.authority.segments = 8; // Repository, branch and file resource names.
     bounds.forge.client.answer_bytes = 65_536; // The long file is read whole before see cuts it.

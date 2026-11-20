@@ -4,8 +4,36 @@
 use alloc::boxed::Box;
 
 use super::ROUNDS;
-use crate::bytes::{concat, count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix};
+use crate::bytes::{
+    concat, count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix, utf8_replaced,
+};
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "parse fixture addresses and compare their bytes with core's Display"
+)]
+fn ip_text_matches_core_display_at_the_address_forms() {
+    for text in [
+        "0.0.0.0",
+        "203.0.113.7",
+        "255.255.255.255",
+        "::",
+        "::1",
+        "2001:db8::1",
+        "1:0:0:2:0:0:0:3",
+        "1:0:0:2:0:0:3:4",
+        "::ffff:192.0.2.1",
+        "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+        "1:2:3:4:5:6:0:0",
+        "1:2:3:4:5:6:0:8",
+    ] {
+        let ip: core::net::IpAddr = text.parse().unwrap();
+        assert_eq!(crate::bytes::ip_text(ip).as_ref(), format!("{ip}").as_bytes(), "{text}");
+    }
+}
 
 #[test]
 fn concat_copies_parts_in_order_into_an_exact_length_box() {
@@ -36,6 +64,22 @@ fn utf8_accepts_scalar_values_and_rejects_invalid_encodings() {
         &[0xc2, b'a'], // A leading byte followed by ASCII.
     ] {
         assert!(!is_utf8(bytes), "{bytes:?}");
+    }
+}
+
+#[test]
+fn utf8_replaced_keeps_characters_and_replaces_each_invalid_byte_without_growing() {
+    for (input, expected) in [
+        (b"ok\xffok".as_slice(), b"ok?ok".as_slice()),
+        (b"a\xe2\x82", b"a??"),
+        (b"\xe2\x82X", b"??X"),
+        ("é€".as_bytes(), "é€".as_bytes()),
+        (b"", b""),
+    ] {
+        let text = utf8_replaced(input);
+        assert_eq!(text.as_ref(), expected, "input {input:?}");
+        assert_eq!(text.len(), input.len());
+        assert!(is_utf8(&text));
     }
 }
 
@@ -246,6 +290,25 @@ fn an_empty_reader_reads_nothing_but_nothing() {
     assert_eq!(reader.bytes(0), Some(&b""[..]));
     assert_eq!(reader.skip(0), Some(()));
     assert_eq!(reader.skip(u32::MAX), None);
+}
+
+#[test]
+fn a_measuring_writer_counts_without_allocating_the_bound() {
+    let mut measure = Writer::measure(usize::MAX);
+    assert_eq!(measure.put(b"hello"), Ok(()));
+    assert_eq!(measure.put(b""), Ok(()));
+    assert_eq!(measure.put(b" world"), Ok(()));
+    assert_eq!(measure.written(), 11);
+    let mut out = Writer::new(measure.written());
+    out.put(b"hello world").expect("measured length");
+    assert_eq!(&*out.finish(), b"hello world");
+
+    let mut short = Writer::measure(4);
+    assert_eq!(short.put(b"abc"), Ok(()));
+    assert_eq!(short.put(b"de"), Err(Overflow));
+    assert_eq!((short.written(), short.room()), (3, 1));
+    assert_eq!(short.put(b"d"), Ok(()));
+    assert_eq!((short.written(), short.room()), (4, 0));
 }
 
 #[test]

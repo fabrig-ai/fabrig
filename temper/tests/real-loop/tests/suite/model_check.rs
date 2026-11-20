@@ -1,6 +1,10 @@
 //! A welcome trial on the hosted worker and fake Claude Code
 //! (temper/docs/design/domain/trial.md, 2, 6; temper/docs/design/testing/real-loop.md).
-use temper_real_loop_world::{Exit, Scratch, calls, claude, forge, run_forge_on, terminal};
+use temper_real_loop_world::{
+    Exit, Scratch,
+    calls::{self, D1},
+    claude, fixtures, forge, run_forge_on, terminal,
+};
 
 const SOURCE: &str = "claude-owner";
 
@@ -16,21 +20,27 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
         scratch,
         forge::Fixture {
             configure: |document, _, _| {
-                document["application"]["welcome"] = true.into();
                 // The trial's 64-byte report and the fixture's project and
                 // period/pool room fit this story.
-                let limits = &mut document["engine"]["limits"]["overrides"];
-                limits["tasks.result_bytes"] = 64.into();
-                limits["tasks.funders"] = 6.into();
-                limits["people.projects"] = 3.into();
-                limits["people.holdings"] = 2.into();
-                limits["authority.projects"] = 2.into();
+                document.jig_over("tasks.result_bytes", 64);
+                document.jig_over("tasks.funders", 6);
+                document.jig_over("people.projects", 3);
+                document.jig_over("people.holdings", 2);
+                document.jig_over("authority.projects", 2);
             },
             ..forge::fixture()
         },
         |_| Box::new([]),
         || {
-            vec![
+            let mut steps = vec![calls::sign_in(D1)];
+            steps.extend(fixtures::change_settings(
+                D1,
+                "show-welcome",
+                serde_json::json!([
+                    {"setting":{"kind":"welcome"},"set":{"shown":true}}
+                ]),
+            ));
+            steps.extend([
                 terminal::open_welcome(),
                 terminal::see(b"Use your Claude subscription"),
                 terminal::type_on(b"Use your Claude subscription", b""),
@@ -42,7 +52,8 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
                 terminal::close(),
                 // Ready observes the answer before the trial finishes closing.
                 calls::trial_ended(),
-            ]
+            ]);
+            steps
         },
     );
     let read = ran.terminal();

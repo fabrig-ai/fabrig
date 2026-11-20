@@ -3,6 +3,7 @@
 use super::*;
 use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, Owner, OwnerSet, OwnerSets};
 use alloc::collections::VecDeque;
+use skein_codec::Record as _;
 
 const UPSTREAM_JOB: Job = Job {
     counts: &[],
@@ -42,7 +43,7 @@ pub(super) fn done(store: &mut Store, owner: Owner, name: &str) -> Option<u64> {
     let bytes = fixtures::get_kv(store, &key)?;
     let row =
         crate::registry_v1::Job::decode(&crate::registry_v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    Some(row.ended())
+    Some(row.ended)
 }
 fn app(store: &mut Store, key: &[u8]) -> Option<Box<[u8]>> {
     let key = crate::keys::application(key, store.limits.store.key).unwrap();
@@ -577,7 +578,8 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
             families.push(BASE.sets[0].families[2]);
         }
         let with_written_secret = OwnerSet { families: Box::leak(families.into_boxed_slice()), ..base };
-        let converts = Some(Converts { family: base.families[0].name, value_type: 1, from: [0; 32] });
+        let converts =
+            Some(Converts { family: base.families[0].name, value_type: 1, from: crate::Layouts::One([0; 32]) });
         let bound = Box::leak("n".repeat(64).into_boxed_str());
         let past = Box::leak("n".repeat(65).into_boxed_str());
         for (label, set, jobs, accepted) in [
@@ -612,13 +614,23 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
             (
                 "written family in secrets",
                 with_written_secret,
-                vec![Job { converts: Some(Converts { family: "fixture-token", value_type: 1, from: [0; 32] }), ..job }],
+                vec![Job {
+                    converts: Some(Converts {
+                        family: "fixture-token",
+                        value_type: 1,
+                        from: crate::Layouts::One([0; 32]),
+                    }),
+                    ..job
+                }],
                 false,
             ),
             (
                 "written family missing",
                 base,
-                vec![Job { converts: Some(Converts { family: "absent", value_type: 1, from: [0; 32] }), ..job }],
+                vec![Job {
+                    converts: Some(Converts { family: "absent", value_type: 1, from: crate::Layouts::One([0; 32]) }),
+                    ..job
+                }],
                 false,
             ),
         ] {
@@ -645,8 +657,13 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
 }
 
 #[test]
-fn jig_declares_no_jobs() {
-    assert!(crate::JIG_STORE_SET.jobs.is_empty());
+fn jig_declares_the_escalation_deciders_job() {
+    let [job] = crate::JIG_STORE_SET.jobs else { panic!("one jig job") };
+    assert_eq!(job.name, "escalation-deciders");
+    assert_eq!(job.counts, ["tasks"]);
+    assert!(job.converts.is_none());
+    let [range] = job.keys else { panic!("one hot range") };
+    assert_eq!((range.from, range.to), (&[1, 1, 0][..], &[1, 1, 1][..]));
 }
 
 #[test]

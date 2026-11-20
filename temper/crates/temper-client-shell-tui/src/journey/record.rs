@@ -8,7 +8,7 @@ use jig_client::{Event, Request};
 use skein_lib::{Secret, Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme};
 
 /// The start's facts, in the file's order.
 #[expect(
@@ -24,7 +24,7 @@ pub struct Facts {
     pub background: Option<Rgb>,
     pub plain: bool,
     pub version: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: Origin,
     pub local: bool,
     pub front: bool,
     pub set_up: bool,
@@ -38,7 +38,8 @@ impl Facts {
     /// Make the host as `Run::new` does, leaving Start to its first turn.
     #[must_use]
     pub fn start(&self) -> (Host, Report) {
-        let host = Host::new(&Settings { limits: limits::tui() }, self.seed, self.now, self.wall);
+        let (limits, words) = limits::checked_tui();
+        let host = Host::with_checked_words(&Settings { limits }, words, self.seed, self.now, self.wall);
         let report = Report::Start(Start {
             size: self.size,
             scheme: self.scheme,
@@ -75,7 +76,7 @@ impl Recorder {
     pub fn new(facts: &Facts) -> Self {
         let mut this = Self { file: Vec::new(), turn: None, kept: false };
         for line in [
-            Line::Journey { version: 2 },
+            Line::Journey { version: 4 },
             Line::Seed(facts.seed),
             Line::Clocks { now: facts.now, wall: facts.wall },
             Line::Screen { size: facts.size, scheme: facts.scheme },
@@ -91,7 +92,7 @@ impl Recorder {
         if !facts.version.is_empty() {
             this.keep(&Line::Version(facts.version.clone()));
         }
-        this.keep(&Line::Address(facts.address.clone()));
+        this.keep(&Line::Address(facts.address.print()));
         if facts.local {
             this.keep(&Line::Local);
         }
@@ -129,6 +130,7 @@ impl Recorder {
             Report::Lent { number, exit } => Line::Lent { number: *number, exit: *exit },
             Report::Front(line) => Line::BoxLine(line.print()),
             Report::Stage(stage) => Line::BoxStage(stage.print()),
+            Report::Handshake { failed } => Line::Handshake(*failed),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
@@ -182,6 +184,8 @@ impl Recorder {
 
 fn heard(event: &Event) -> Line {
     match event {
+        Event::Part { exchange, message } => Line::Part { exchange: exchange.raw(), bytes: message.clone() },
+        Event::Done { exchange } => Line::Done(exchange.raw()),
         Event::Reply { exchange, message } => Line::Reply { exchange: exchange.raw(), bytes: message.clone() },
         Event::Lost { exchange } => Line::Unanswered(exchange.raw()),
         Event::StreamGone => Line::Gone,
@@ -200,7 +204,8 @@ fn heard(event: &Event) -> Line {
         | Event::SignIn { .. }
         | Event::SignOut
         | Event::Authorize { .. }
-        | Event::AskApproval
+        | Event::AskLink
+        | Event::AskApproval { .. }
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
         | Event::ApprovalAnswer { .. }
@@ -225,8 +230,12 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
                 message: Sent::of(message),
                 credential: credential.as_ref().map(|secret| secret.expose().into()),
             }),
-            Request::OpenStream { credential } => {
-                lines.push(Line::Stream(credential.as_ref().map(|secret| secret.expose().into())));
+            Request::OpenStream { credential, replaces, .. } => {
+                let credential = credential.as_ref().map(|secret| secret.expose().into());
+                lines.push(match replaces {
+                    Some(stream) => Line::Replacing { credential, stream: Box::from(*stream) },
+                    None => Line::Stream(credential),
+                });
             }
             Request::CloseStream => lines.push(Line::Unstream),
             Request::Save { records } => {
@@ -241,6 +250,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
             }
             Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => {
                 panic!("a duty outside the native shell's seam")
@@ -254,7 +264,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
         lines.push(Line::Note(note));
     }
     if let Some(address) = &duties.address {
-        lines.push(Line::Signed(address.clone()));
+        lines.push(Line::Signed(address.print()));
     }
     if duties.local {
         lines.push(Line::Read);
@@ -286,7 +296,12 @@ pub(super) fn is_ask(line: &Line) -> bool {
 
 pub(super) fn duty_order(line: &Line) -> Option<u8> {
     match line {
-        Line::Send { .. } | Line::Stream(_) | Line::Unstream | Line::Save { .. } | Line::Erase(_) => Some(0),
+        Line::Send { .. }
+        | Line::Stream(_)
+        | Line::Replacing { .. }
+        | Line::Unstream
+        | Line::Save { .. }
+        | Line::Erase(_) => Some(0),
         Line::Keep(_) => Some(1),
         Line::Note(_) => Some(2),
         Line::Signed(_) => Some(3),
@@ -321,6 +336,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Key { .. }
         | Line::Resize(_)
         | Line::Reply { .. }
+        | Line::Part { .. }
+        | Line::Done(_)
         | Line::Unanswered(_)
         | Line::Streamed(_)
         | Line::Gone
@@ -328,9 +345,14 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Unsaved
         | Line::Kept { .. }
         | Line::Opened { .. }
+        | Line::Handshake(_)
         | Line::Found(_)
         | Line::Deadline(_)
         | Line::Mark(_)
         | Line::End(_) => None,
     }
 }
+
+#[cfg(test)]
+#[path = "record/tests.rs"]
+mod tests;

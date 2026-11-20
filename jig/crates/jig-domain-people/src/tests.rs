@@ -377,11 +377,16 @@ fn waiting_cache_keeps_newest_references_and_removes_one_task() {
     assert!(domain.start_complete(&env));
     for task in 1..=3 {
         let entry = Entry { task, project: 1, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH };
-        step(&mut domain, &env, Event::Waiting { task, entries: Box::new([entry]) }, &mut out);
+        step(
+            &mut domain,
+            &env,
+            Event::Waiting { source: NeedSource::Task(task), entries: Box::new([entry]) },
+            &mut out,
+        );
     }
     let cached = domain.cached_waiting(&LIMITS, 1).expect("restored person");
     assert_eq!(cached.iter().map(|entry| entry.task).collect::<Vec<_>>(), [3, 2]);
-    step(&mut domain, &env, Event::Waiting { task: 3, entries: Box::new([]) }, &mut out);
+    step(&mut domain, &env, Event::Waiting { source: NeedSource::Task(3), entries: Box::new([]) }, &mut out);
     let cached = domain.cached_waiting(&LIMITS, 1).expect("restored person");
     assert_eq!(cached.iter().map(|entry| entry.task).collect::<Vec<_>>(), [2]);
 }
@@ -494,6 +499,7 @@ fn owner_makes_a_service_which_can_request_work() {
 
     let unknown_to = test.to();
     let unknown = test.send(Event::SignedIn {
+        until: None,
         held: None,
         reply_to: unknown_to,
         person: 3,
@@ -504,6 +510,7 @@ fn owner_makes_a_service_which_can_request_work() {
     assert_eq!(reply(&unknown), Reply::SignedOut);
     let service_to = test.to();
     let service = test.send(Event::SignedIn {
+        until: None,
         held: None,
         reply_to: service_to,
         person: 4,
@@ -590,7 +597,15 @@ impl Test {
 
     fn signin_bounded(&mut self, person: u64, sign_in: u64, identity: Identity) -> List<Request> {
         let reply_to = self.to();
-        self.send_bounded(Event::SignedIn { held: None, reply_to, person, sign_in, identity, kind: Kind::Person })
+        self.send_bounded(Event::SignedIn {
+            until: None,
+            held: None,
+            reply_to,
+            person,
+            sign_in,
+            identity,
+            kind: Kind::Person,
+        })
     }
 
     fn request_bounded(&mut self, sign_in: u64, key: u8, ask: Ask) -> List<Request> {
@@ -600,7 +615,7 @@ impl Test {
 
     fn signin(&mut self, person: u64, sign_in: u64, identity: Identity) -> Vec<Request> {
         let reply_to = self.to();
-        self.send(Event::SignedIn { held: None, reply_to, person, sign_in, identity, kind: Kind::Person })
+        self.send(Event::SignedIn { until: None, held: None, reply_to, person, sign_in, identity, kind: Kind::Person })
     }
 
     fn request(&mut self, sign_in: u64, key: u8, ask: Ask) -> Vec<Request> {
@@ -747,14 +762,14 @@ fn policy_role_receives_shared_waiting_and_replays_its_key_after_restart() {
         kind: EntryKind::PersonTask,
         at: Wall::EPOCH,
     };
-    live.send(Event::Waiting { task: 7, entries: Box::new([entry]) });
+    live.send(Event::Waiting { source: NeedSource::Task(7), entries: Box::new([entry]) });
     assert_eq!(live.d.cached_waiting(&LIMITS, 1).as_deref(), Some(&[entry][..]));
     assert_eq!(live.d.cached_waiting(&LIMITS, 2).as_deref(), Some(&[entry][..]));
     let ask = Ask::TakePerson { project: 1, task: 7 };
     let request = route(&live.request(10, 1, ask.clone()));
     let answered = live.send(Event::Decided { request, outcome: Outcome::PersonTaken { task: 7 } });
     let saved = saved_answer(&answered);
-    live.send(Event::Waiting { task: 7, entries: Box::new([]) });
+    live.send(Event::Waiting { source: NeedSource::Task(7), entries: Box::new([]) });
     assert_eq!(live.d.cached_waiting(&LIMITS, 1).as_deref(), Some(&[][..]));
     assert_eq!(live.d.cached_waiting(&LIMITS, 2).as_deref(), Some(&[][..]));
 
@@ -816,9 +831,9 @@ fn only_held_policy_roles_consume_inbox_cache_room() {
         kind: EntryKind::PersonTask,
         at: Wall::EPOCH,
     };
-    test.send(Event::Waiting { task: 7, entries: Box::new([absent]) });
+    test.send(Event::Waiting { source: NeedSource::Task(7), entries: Box::new([absent]) });
     let held = Entry { task: 8, whom: Whom::Role { project: 1, role: 99 }, ..absent };
-    test.send(Event::Waiting { task: 8, entries: Box::new([held]) });
+    test.send(Event::Waiting { source: NeedSource::Task(8), entries: Box::new([held]) });
     assert_eq!(test.d.cached_waiting(&test.env.limits, 1).as_deref(), Some(&[held][..]));
     test.send(Event::Roles { project: 1, holdings: Box::new([]) });
     assert_eq!(test.d.cached_waiting(&test.env.limits, 1).as_deref(), Some(&[][..]));
@@ -1669,12 +1684,12 @@ fn needs_count_every_live_entry_across_projects_past_the_cache() {
     for task in 1..=5 {
         let project = if task % 2 == 0 { 2 } else { 1 };
         let entry = Entry { task, project, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH };
-        test.send(Event::Waiting { task, entries: Box::new([entry]) });
+        test.send(Event::Waiting { source: NeedSource::Task(task), entries: Box::new([entry]) });
     }
     assert_eq!(test.d.needs(1), Some(5));
     assert_eq!(test.d.cached_waiting(&LIMITS, 1).unwrap().len(), 2);
-    assert!(test.d.task_needs(1, 1), "oldest need remains counted after cache eviction");
-    test.send(Event::Waiting { task: 1, entries: Box::new([]) });
+    assert!(test.d.source_needs(1, NeedSource::Task(1)), "oldest need remains counted after cache eviction");
+    test.send(Event::Waiting { source: NeedSource::Task(1), entries: Box::new([]) });
     assert_eq!(test.d.needs(1), Some(4));
     test.send(Event::Roles { project: 2, holdings: Box::new([]) });
     assert_eq!(test.d.needs(1), Some(2), "only current project roles contribute");
@@ -1697,13 +1712,13 @@ fn a_role_need_leaves_every_holders_count_when_one_acts() {
             kind: EntryKind::PersonTask,
             at: Wall::EPOCH,
         };
-        test.send(Event::Waiting { task, entries: Box::new([entry]) });
+        test.send(Event::Waiting { source: NeedSource::Task(task), entries: Box::new([entry]) });
     }
     assert_eq!(test.d.needs(1), Some(3));
     assert_eq!(test.d.needs(2), Some(3));
     let request = route(&test.request(10, 1, Ask::TakePerson { project: 1, task: 1 }));
     test.send(Event::Decided { request, outcome: Outcome::PersonTaken { task: 1 } });
-    test.send(Event::Waiting { task: 1, entries: Box::new([]) });
+    test.send(Event::Waiting { source: NeedSource::Task(1), entries: Box::new([]) });
     assert_eq!(test.d.needs(1), Some(2));
     assert_eq!(test.d.needs(2), Some(2));
 }
@@ -2114,6 +2129,121 @@ fn restoration_cannot_open_the_one_person_host_exception() {
 }
 
 #[test]
+fn a_capped_sign_in_saves_and_answers_the_cap_and_ends_by_either_clock() {
+    for monotonic in [false, true] {
+        let mut test = Test::new(Limits { sign_in_lifetime: Duration::from_nanos(500), ..LIMITS });
+        test.env.wall = Wall::from_nanos(1000);
+        test.env.now = Time::from_nanos(50);
+        let cap = Wall::from_nanos(1200);
+        let reply_to = test.to();
+        let requests = test.send(Event::SignedIn {
+            reply_to,
+            person: 1,
+            sign_in: 10,
+            identity: identity(0, 1),
+            kind: Kind::Person,
+            held: None,
+            until: Some(cap),
+        });
+        assert_eq!(reply(&requests), Reply::SignedIn { person: 1, sign_in: 10, expires: cap });
+        assert!(requests.contains(&Request::Save { record: Stored::SignIn { number: 10, person: 1, expires: cap } }));
+        assert_eq!(test.d.pop_fact(), Some(Fact::SignedIn { person: 1, sign_in: 10 }));
+        assert_eq!(test.d.next_wall_expiry(), Some(cap));
+        assert_eq!(test.d.next_deadline(), Some(Time::from_nanos(250)));
+        let mut out = Queue::uncapped();
+        test.env.now = Time::from_nanos(249);
+        fire(&mut test.d, &test.env, &mut out);
+        assert!(out.is_empty(), "the sign-in lives until its capped deadline");
+        if monotonic {
+            test.env.now = Time::from_nanos(250);
+            test.env.wall = Wall::EPOCH;
+        } else {
+            test.env.wall = Wall::from_nanos(1201);
+        }
+        fire(&mut test.d, &test.env, &mut out);
+        assert_signin_erased(&mut out, 10);
+        assert!(out.is_empty());
+        assert_eq!(test.d.sign_in_person(10), None);
+        assert_eq!(test.d.pop_fact(), Some(Fact::SignedOut { sign_in: 10 }));
+        assert!(test.d.pop_fact().is_none());
+        assert_eq!(test.d.next_deadline(), None);
+        assert_eq!(test.d.next_wall_expiry(), None);
+    }
+}
+
+#[test]
+fn a_later_or_absent_cap_keeps_the_lifetime_expiry() {
+    for until in [None, Some(Wall::from_nanos(1500)), Some(Wall::from_nanos(1600))] {
+        let mut test = Test::new(Limits { sign_in_lifetime: Duration::from_nanos(500), ..LIMITS });
+        test.env.wall = Wall::from_nanos(1000);
+        let reply_to = test.to();
+        let requests = test.send(Event::SignedIn {
+            reply_to,
+            person: 1,
+            sign_in: 10,
+            identity: identity(0, 1),
+            kind: Kind::Person,
+            held: None,
+            until,
+        });
+        let expires = Wall::from_nanos(1500);
+        assert_eq!(reply(&requests), Reply::SignedIn { person: 1, sign_in: 10, expires });
+        assert!(requests.contains(&Request::Save { record: Stored::SignIn { number: 10, person: 1, expires } }));
+        assert_eq!(test.d.next_deadline(), Some(Time::from_nanos(500)));
+    }
+}
+
+#[test]
+fn a_cap_not_after_wall_refuses_before_ending_an_expired_sign_in_for_room() {
+    for cap in [999, 1000] {
+        let mut test = Test::new(Limits { sign_ins: 1, sign_in_lifetime: Duration::from_nanos(500), ..LIMITS });
+        test.signin(1, 10, identity(0, 1));
+        while test.d.pop_fact().is_some() {}
+        test.env.wall = Wall::from_nanos(1000);
+        let token = test.to().into_token();
+        let requests = test.send(Event::SignedIn {
+            reply_to: ReplyTo::new(token),
+            person: 2,
+            sign_in: 11,
+            identity: identity(0, 2),
+            kind: Kind::Person,
+            held: None,
+            until: Some(Wall::from_nanos(cap)),
+        });
+        assert_eq!(requests, [Request::Reply { to: ReplyTo::new(token), reply: Reply::Refused(Refusal::Unknown) }]);
+        assert_eq!(test.d.persons(), 1, "no person is made or counted");
+        assert_eq!(test.d.sign_in_person(10), Some(1), "the expired sign-in is not ended to make room");
+        assert_eq!(test.d.sign_in_person(11), None);
+        assert!(test.d.pop_fact().is_none());
+    }
+}
+
+#[test]
+fn a_live_held_sign_in_keeps_its_expiry_whatever_the_cap() {
+    for cap in [999, 1000, 1200, 1600] {
+        let mut test = Test::new(Limits { sign_ins: 1, sign_in_lifetime: Duration::from_nanos(500), ..LIMITS });
+        test.env.wall = Wall::from_nanos(1000);
+        let original = reply(&test.signin(1, 10, identity(0, 1)));
+        while test.d.pop_fact().is_some() {}
+        let token = test.to().into_token();
+        let requests = test.send(Event::SignedIn {
+            reply_to: ReplyTo::new(token),
+            person: 2,
+            sign_in: 11,
+            identity: identity(0, 1),
+            kind: Kind::Person,
+            held: Some(10),
+            until: Some(Wall::from_nanos(cap)),
+        });
+        assert_eq!(requests, [Request::Reply { to: ReplyTo::new(token), reply: original }]);
+        assert_eq!(test.d.next_wall_expiry(), Some(Wall::from_nanos(1500)));
+        assert_eq!(test.d.next_deadline(), Some(Time::from_nanos(500)));
+        assert_eq!(test.d.sign_in_person(11), None);
+        assert!(test.d.pop_fact().is_none());
+    }
+}
+
+#[test]
 fn wall_expiry_and_original_elapsed_expiry_each_end_one_signin_per_fire() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));
@@ -2200,6 +2330,7 @@ fn a_live_held_sign_in_replies_alone_with_its_saved_expiry_even_at_capacity() {
     for sign_in in 11..20 {
         let reply = test.to().into_token();
         let requests = test.send(Event::SignedIn {
+            until: None,
             reply_to: ReplyTo::new(reply),
             person: sign_in,
             sign_in,
@@ -2238,6 +2369,7 @@ fn an_absent_ended_or_expired_held_sign_in_signs_in_afresh() {
         }
         let reply_to = test.to();
         let requests = test.send(Event::SignedIn {
+            until: None,
             reply_to,
             person: 2,
             sign_in: 11,
@@ -2283,6 +2415,7 @@ fn a_full_pool_answers_only_its_limit_and_first_saved_expiry_without_writes() {
     while test.d.pop_fact().is_some() {}
     let token = test.to().into_token();
     let requests = test.send(Event::SignedIn {
+        until: None,
         reply_to: ReplyTo::new(token),
         person: 2,
         sign_in: 12,
@@ -2393,6 +2526,7 @@ fn whose_reads_a_service_and_answers_not_ready_before_restoration() {
     test.send(Event::Restore { record: Stored::Person { number: 2, identity: service.clone() } });
     test.complete();
     test.send(Event::SignedIn {
+        until: None,
         held: None,
         reply_to: whose_destination(),
         person: 2,

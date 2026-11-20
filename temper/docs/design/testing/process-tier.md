@@ -30,6 +30,16 @@
   It does not replay a whole first-run, welcome, settings or account story.
   The shared harness's 22 step checks are registered only by this binary.
 
+- **The native person's first project** (`testing/temper-box-kit/src/person.rs`):
+  with no project, the person makes "Project 1" through the switcher's
+  form and takes it as chosen once the native client's applied address
+  (`../client/README.md`, 2, `NativeClient::address`) is the creation's
+  own `Home` (`../client/view.md`, 3, *A new project*), never when the
+  project's button appears in the tree, so its script never navigates
+  while that opening is armed. On a later start a kept project's button
+  is the choice, as before. A support test in the `suite` binary holds the
+  script blocked until that `Home` is applied.
+
 - **Lower worlds own the behaviours.** Settings proposals and placed
   holds are jig's core and temper's client-tool tests; two parked tasks
   keeping revision R until the owner's advance is `tests/system`'s
@@ -581,9 +591,9 @@
     is kept; Home before a landing and within the sitting after it shows
     no brief; past the sitting, the status run the plan pays for is
     admitted and its brief shown; the plan is usable after. It runs on
-    the stock's budgets, whose period funds the brief beyond the owner's
-    pool (`../domain/forge/attention.md`, 2; `../protocol/configuration/stock.md`), and fails
-    without that funding.
+    the stock's budgets, the person's pool in the project funding the
+    brief as their own work (`../domain/forge/attention.md`, 3;
+    `../protocol/configuration/stock.md`), and fails without that funding.
   - **Home's landing count across restarts,** `suite::status::a_restart_keeps_the_rows`:
     a real landing counted, Skip pressed before it, and after the
     engine's restart a fresh client reads the count and the skip kept.

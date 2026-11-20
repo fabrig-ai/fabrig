@@ -41,7 +41,7 @@ pub struct Limits {
     pub retention: jig_domain_core::RetentionLimits,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
-    pub memory_bytes: u64,
+    pub transcript_memory: u64,
     /// Per-commit store edges, payload byte bounds and journal admission counts.
     pub journal: JournalLimits,
     /// Paged store reads; every startup page must fit whole.
@@ -328,9 +328,9 @@ pub(crate) fn run_charter_bytes(charter: &RunCharter) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<jig_domain_authority::AccountBinding>()).ok()?)?,
         )?;
     match &charter.contract {
-        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } | tasks::Contract::Job { .. } => {}
+        tasks::Contract::Report { .. } | tasks::Contract::Job { .. } => {}
         tasks::Contract::Approval { state, .. } => bytes = bytes.checked_add(skein_lib::len_u64(state.len()))?,
-        tasks::Contract::Verdict { choices } => {
+        tasks::Contract::Verdict { choices } | tasks::Contract::Change { choices, .. } => {
             bytes = bytes.checked_add(
                 skein_lib::len_u64(choices.len()).checked_mul(u64::try_from(size_of::<tasks::Verdict>()).ok()?)?,
             )?;
@@ -443,7 +443,7 @@ pub fn valid(limits: &Limits) -> bool {
     };
     let Some(row) = row_bound(limits) else { return false };
     if limits.watermark == 0
-        || limits.memory_bytes == 0
+        || limits.transcript_memory == 0
         || limits.brief.parts == 0
         || limits.brief.gather == skein_lib::Duration::ZERO
         || limits.forge.brief_sections < brief_fetches

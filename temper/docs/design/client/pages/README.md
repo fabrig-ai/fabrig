@@ -19,6 +19,21 @@ read hasn't answered, on first load or after the link comes back, a page
 keeps what it last knew, rows and words alike, through every refresh; with
 nothing known, a section draws its title with no line under it.
 
+A page redraws from whole answers alone. A read answers whole once its
+value has come, every page of it read through to its last; a read or a
+page of it that ends without its value is no answer, and so, for its row,
+is a row's part not made (`../forge/parts.md`, 5). Neither changes what
+the page drew from the answers before it: a list's rows, its count and
+whether it is cut, a row's headline, the milestone a goal is under. Only
+a whole answer replaces them, and it replaces them whole. So a page whose
+reads answer again, in any order and with any of them ending without its
+value, while nothing changes in the store, draws the same text every
+time. The `inbox` watch delivers again on any task's activity in a
+project the person sees, not only on a change of its needs (jig's
+`client/domain/contract/README.md`, 5.2), and a list's watch on any of its
+rows' activity, so on a running project a page's reads answer again every
+few seconds; what they find unchanged moves nothing.
+
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its
@@ -33,13 +48,13 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 | `Settings { project }` | the whole story's `web/whole-story/how.html`; the greenfield mock's `settings.html` for its foot | How work runs, the first tab of a project's settings: the way the project runs, the path of a change by who acts, the ways as tabs, what reaches the person, a goal's budget, and at its foot what the project shows and its ways of working (`settings.md`, 2, *The page*) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (`settings.md`, 2); the project's `ways` (`../forge/records.md`); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (`settings.md`, 2); show a way's tab and a stop's card in place; "Use this" or "Keep it" (`settings.md`, 2, *A way's acts*) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (`settings.md`, 1) | `me`; the `forges` watch; the playground's read (`../forge/family.md`, 7) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | Deployment's third tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (`settings.md`, 1) | `me`; the accounts document; jig's settings, for an owner's act | none |
-| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | Deployment's fourth tab, Workers: the deployment's hosts, each with its slots and its connection, read-only (`settings.md`, 1) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
+| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | Deployment's fourth tab, Workers: the workers' settings, each with its places and whether it is up, and an owner's add, places and remove (`workers.md`) | `me`; jig's `deployment` document, for a person with a role in the deployment; jig's settings, for an owner's act | jig's `ChangeSettings` of one item (`workers.md`, 1) |
 | `Role { project, charter }` | none: the look request `ask-temper-ways`'s card names the role it opens | one role of the project, a charter: its name, who it is and its facts, as Ask temper's `charter N` view draws it (`settings.md`, 1, *A role's or a rule's page*) | `me`; the forge's read `View` of `charter N` in the project (`../forge/records.md`) | none |
 | `Rule { project, kind, number }` | none, as `Role`'s | one landing rule, of the deployment (kind 1) or the project (kind 2): what it covers and asks, as the view `rule K/N` draws it (`settings.md`, 1, *A role's or a rule's page*) | `me`; the forge's read `View` of `rule K/N` in the project (`../forge/records.md`) | none |
 | `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings: the ways to pick, drawn (`ask-temper.md`, 1, *Ask temper's page*) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (`home.md`, 1); the project's `ways` (`../forge/records.md`) | start an Ask temper chat from its composer; show a stock way from "Stock ways", the way the project runs again, and a stop's card, in place; "Use this" or "Keep it", jig's `ChangeSettings` (`settings.md`, 2) |
 | `Team { project, role }` | the whole story's `web/whole-story/team.html`, and `team/team.html` | a project's areas and their owners, each owner's Now and spend, and Who routes; its standing roles that own no area and one role's card, its head, Now, rules, what wakes it, its sessions this week and its weekly report; a project's people, each with their role, their areas and what waits on them (`team.md`, 1) | `me`; jig's `Read::Project { project }`; the forge's `findings`, for its areas and triager; the roles' watch, a `tasks{query}` of label 3; each role's Now, `Read::Notes`; the card's role, `Subject::Task`, its charter's `View`, its `Read::Activity` and its `report` note; the standing inbox watch and the person's approvals, as Needs you's; a `tasks{query}` watch for each other person read; kind 14's setting, when an act sends | "+ Hand an area to a role" and "Give the area back", kind 14 by `ChangeSettings` or a proposal, and a stock role's start; a role's "Talk to it", a link to its page; a role's Pause and Resume, `Ask::Stop` and `Ask::Release` (`task.md`, 4) |
 | `Talk { project, task }` | the whole story's `tui/whole-story/role.html` | a person's talk with a standing role: the role's chat page in its talk, its conversation from the talk's opening, its name, areas, period's spend and Now (`talk.md`, 1); drawn in the terminal (`../tui/pages/talk.md`), and on the web as a chat until Team's "Talk to it" draws it (`talk.md`, 4) | as `Chat { task }` reads, of the role's task; its Now, `Read::Notes`; the project's findings document, as Needs you's; the project's reads, as `Team`'s | talk, `Ask::Talk`; leave, `Ask::Leave`, on leaving the page; accept a proposal of the talk in place, running work moved |
-| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (`needs-you.md`, 1): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine/settings.md`, 6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (`needs-you.md`, 1, *What the client keeps*); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
+| `Inbox`, at `/needs` (the root, `/`, opens Home: `../web/README.md`, 2.3) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (`needs-you.md`, 1): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its address's query), a proposal of settings in each project it shows in (jig's `domain/engine/settings.md`, 6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (`needs-you.md`, 1, *What the client keeps*); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (`chats.md`, 1): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (`chat/document.md`, 1); the person's facts (`../forge/records.md`) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (`chat/README.md`, 2), its path "Chats /" naming no project, in the playground's project the playground's start (`../forge/family.md`, 7, `welcome.md`, 2); with `draft`, the empty document beside it (`chat/document.md`, 1) | as `Chats`; the playground, from the forge's side (`../forge/family.md`, 7) | start a chat, from the composer or a suggested request; choose Chat or the draft through Split or Draft |
 | `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (`chat/README.md`, 1, *One layout for every chat*): its bar, with its path "Chats /" ("Ask temper /" on an Ask temper chat), naming no project, its heading, its number, its document's act or Start over, Pause or Resume, and Close, then the view group and its spend in the view alone; the context line, only in the playground's project while the playground runs (`../forge/family.md`, 7, `welcome.md`, 2); the conversation (`chat/conversation.md`, 1): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (`../view.md`, 5); the proposals waiting in its subtree (jig's `client/domain/objects.md`, section 10) and the decided proposals of settings its activity says it made, each at the call that made it where its turn names it, and otherwise after the turn that was running when it was made, so that what comes later comes after it (`settings.md`, 2); the composer, while the chat lives: the chooser's feedback above it, its status line first ("✦" and jig's status, "Writing" said "Working"), then its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (`chat/README.md`, 1, *A person's pause*), the hint gaining " · Ctrl+\ switches the draft" whenever the view group shows, then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (`chat/conversation.md`, 1); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (`chat/conversation.md`, 2), `run` while one is live; each `proposal` its `task` names, or its activity's lines say it made; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (`../view.md`, 5); its document, read again when its run writes it (`chat/document.md`, 1); the person's facts (`../forge/records.md`) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "Write it up from this chat" in an empty pane; start a goal from its document; on an Ask temper chat, start over |
@@ -51,7 +66,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 | `Forges` | `forges.html` | inside Deployment's frame while a project is open (`settings.md`, 1): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (`../forge/family.md`, 7); "+ Connect a forge", to `ConnectForge`, but while the playground runs (`../forge/deployment.md`) | the forge's, through the forge's side (`../forge/family.md`, 2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (`../engine.md`) |
 | `ConnectForge { forge }` | `connect-forge.html` | under its path (`settings.md`, 1), connecting one more forge, `forge` the choice it is at: the shared choice cards or a way’s panel, then the open row on Forges, adopting nothing (`../forge/deployment.md`) | the forge's, through the forge's side (`../forge/family.md`, 2) | connect; connect as its admin; set up a Forgejo here (`../engine.md`) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (`welcome.md`, 1): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (`welcome.md`, 2; `../../draft/archive/first-run.md`, 2.3) | the playground's read (`../forge/family.md`, 7); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
-| `Accounts` | `accounts.html` | inside Deployment's frame while a project is open (`settings.md`, 1), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (`accounts.md`, 2, An account's line); opened, that state's words and acts, its trial's line under the head and before the sources (`../../domain/trial.md`, 6.2), its sources in order, each with its state in words and, for a program's, on which hosts (`accounts.md`, 2), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: `accounts.md`, 2) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (`../forge/family.md`, 7); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract/README.md`, 5.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
+| `Accounts` | `accounts.html` | inside Deployment's frame while a project is open (`settings.md`, 1), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (`accounts.md`, 2, An account's line), and its usage windows where held (`accounts.md`, 2, Usage); opened, that state's words and acts, its trial's line under the head and before the sources (`../../domain/trial.md`, 6.2; `accounts.md`, 2, An account's check line), the uses it pays for by name, its sources in order, each with its state in words and, for a program's, on which hosts (`accounts.md`, 2), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: `accounts.md`, 2) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (`../forge/family.md`, 7); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract/README.md`, 5.1); `me`'s LLM providers; jig's `Read::Project` for each project `me` lists, one at a time, as `Members` reads them, while an account's uses name a party (`accounts.md`, 2, An account's line) | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | under its path (`settings.md`, 1), connecting one more LLM account, `way` the way it is at, or none at the choices: the welcome’s cards (`accounts.md`, 2, The ways), then a sign-in’s wait or a key’s or program’s panel; success returns to Accounts with a confirmation line, and other endings keep their words and acts (`accounts.md`, 2, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Members` | none: `../../draft/surfaces.md`, section 8 | Deployment's fifth tab: each project's members, each with the role it holds there, and the person's role in the deployment (`settings.md`, 1) | `me`; jig's `Read::Project` for each project `me` lists, one at a time | none |
 | `Limits` | none: `../../draft/surfaces.md`, section 8 | Deployment's sixth tab: the deployment's capacities as its engine reports them, read-only (`settings.md`, 1) | `me`; jig's `deployment` document, watched as `Builders` watches it | none |
@@ -73,6 +88,64 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 - **Links are by number:** a chip, an entry or a line naming a task
   opens its page, from any page (jig's `client/domain/pages.md`,
   section 2).
+- **A task's title on a line:** a task's title is its words' first line,
+  as jig takes it, and a writer may leave it long. Every line, row and
+  card that names a task by its title draws it cut past 80 characters,
+  by one function of the views' shared parts, `shared::row_title`
+  (`common::chat::row_title`, at `common::chat::ROW_TITLE`, 80): Work's
+  goal row's cut (`work.md`, 1, *Its title*), at the last space that
+  leaves it at most 80 with "…", or at a character's edge where there
+  is none, its punctuation kept. It holds in the browser and the
+  terminal alike, and in the TUI's lines from the same parts:
+  - *Where:* Needs you's from line, its milestone and goal included,
+    and its cards: a question, a proposal (its proposed tasks' headings
+    and the question line a reasonless batch takes from them), a held
+    task, a person task, an approval ("Approve TITLE on …"), funds, a
+    group of findings' asking task (`needs-you.md`, 1); a card's SHORT
+    and the need lines built from it; Home's lines, its cards, chats,
+    milestones and Decided for you's rows (`home.md`, 1); the inbox's,
+    the terminal's cards, their updates and the answered lines; a
+    goal's task rows and its milestone's link (`goal.md`, 2); a task's
+    plan rows (`goal.md`, 2, **A plan row's cells**) and its lineage
+    bar (`task.md`, 2); Work's rows, cards and
+    milestone groups (`work.md`, 1); the chats' rows and the chat
+    switcher's list; a chat's goal bar, a delegation's card and line
+    (`../view.md`, 5) and a proposal's line; the Changes rows; a close's
+    delegate rows (`../README.md`, 3.6); a result's card; How it runs'
+    budget rows; Tell's About line; the public pages' rows, whose
+    "title cut" word follows only a title the cut left whole.
+  - *A link's name* is the cut title too, as Work's goal row's is. The
+    cut is drawn alone: the domain keeps the title whole.
+  - *Whole:* a task's own page's heading, its taskbar's "TN · TITLE"
+    and a change's or a person's header (`task.md`), and a goal's title
+    in its page's header (`goal.md`, 2). A chat's heading keeps its own
+    short form (`chat::short_title`, at 72), a wait's or a dependency's
+    name its cut at 40 (`work.md`, 1, *A wait's names*), and the TUI's
+    launchpad its cut to the row's room, after this one. The TUI's chat
+    cards, a delegated task's and a proposal's, draw the title whole and
+    let the screen wrap it (`../tui/pages/chat.md`, 1, *a card*): the
+    shared lines keep the cut for the browser's terminal, and
+    `shared::proposal_title` gives a proposal's whole.
+- **A task's words after its title:** a card or page that draws a
+  task's title and then its words leaves the words out when they are
+  only the title: whole, not cut, with nothing past their first line
+  feed but spaces, tabs, carriage returns and line feeds. One function
+  of the shared parts says it, `shared::only_title(&DocumentText) ->
+  bool` (`common::chat::only_title`). It holds on the terminal's inbox
+  cards, the goal's page's needs bands, which draw
+  those cards, and an agent's task's "Task brief" (`task.md`, 2).
+  Needs you's held task, funds and person task cards, whose from line
+  names the title, draw only the words past their first line, by a
+  function beside it (`needs-you.md`, 1, *Its title once*). A
+  title the card cuts is then read whole on its task's own page, whose
+  heading keeps it. A proposal's card differs, since its tasks have no
+  page yet: each proposed task's heading is its title, cut, and the
+  words under it are those past the first line, or, where the heading
+  is cut, its words whole, so that its whole first line is on the card
+  once. A person task in words reads as a question and draws no title
+  heading over its words (`needs-you.md`, 1). A goal's page draws no
+  words of its goal (`goal.md`, 2, **Not drawn**), and a chat's request
+  is its conversation's first message, kept.
 - **Away** (the greenfield mock's `home.html`, `phone.html` and
   `settings.html`'s `#away`; `../../domain/forge/attention.md`, 4 and 6;
   `../../draft/what-reaches-you.md`, section 3): a person's switch on a
@@ -146,7 +219,8 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     Home, opens How work runs with that section's heading
     focused, so a browser brings it into view: `Address` holds no anchor, and
     the page takes the request from `Pages` once.
-- **The approval page** (`../../draft/tui.md`, 4.2; jig's
+- **The approval page** (`../../draft/tui.md`, 4.2;
+  `../../draft/tui-remote.md`, 5.3; jig's
   `protocol/client/sign-in.md`, *A sign-in approved by a browser*):
   where a person signed in to the browser approves a terminal's sign-in,
   in the browser alone. Its terminal's side is 7.1.
@@ -163,6 +237,19 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     approval, `jig-client`'s `ReadApproval { code }`, once the link is
     live and an exchange is free, as the `Authorize` place sends its
     own; until then, and while it is read, it says "Reading CODE…".
+  - *The ask's kind decides the press,* as the read answers it (jig's
+    `protocol/client/sign-in.md`, *Its kind*), never the page's origin:
+    a `returned` ask, with a loopback return, is approved by one press,
+    its code read from the address; a `typed` ask, made by the public
+    name with none, only by its code typed into the field, on every
+    origin, the listener's own address through a tunnel among them; a
+    `listener` ask, made by the listener's own address, as on one
+    machine, its code read from the address. The page keeps whether its
+    code came from the address or was typed: a code from the address
+    whose read answers `typed` is dropped, the address replaced with
+    `/terminal` as a code that doesn't read is (`../web/README.md`,
+    2.3), and the field shown, empty, with no alert; a typed code whose
+    read answers `typed` is the ask, waiting.
   - *With no code,* or one the address carried that doesn't read
     (`../web/README.md`, 2.3), it asks for one: a field named "Code" and
     "Check". The field keeps what is typed up to jig's bound on a typed
@@ -186,8 +273,11 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     | asking for a code | "Sign in a terminal?" | "Type the code your terminal shows.", the field | "Check" |
     | a typed code that doesn't read | "Sign in a terminal?" | the same, the field as typed, and the alert "That isn't a terminal's code. Type the eight letters your terminal shows." | "Check" |
     | reading | "Sign in a terminal?" | "Reading CODE…" | none |
-    | the ask, the approval waiting | "Sign in a terminal?" | CODE, large; "Asked AGO" (`../view.md`, 6's *ago*, from the read's wall time); "Approve only a code your own terminal shows." | "Approve", "Refuse" |
+    | the ask, waiting, by the listener's address (`listener`) | "Sign in a terminal?" | CODE, large; "Asked AGO from ADDRESS" (below); "Approve only a code your own terminal shows." | "Approve", "Refuse" |
+    | the ask, waiting, with a loopback return (`returned`) | "Sign in a terminal on this computer?" | CODE, large; "Asked AGO from ADDRESS" | "Approve", "Refuse" |
+    | the ask, waiting, its code typed (`typed`) | "Sign in a terminal?" | CODE, large; "Asked AGO from ADDRESS"; "Approve only a code your own terminal shows."; and, where the ask's source and the reading browser's are both known and differ, "It was asked from another network than this browser's." | "Approve", "Refuse" |
     | deciding | "Sign in a terminal?" | the ask's, "Approving…" or "Refusing…" in its buttons' place | none |
+    | approved, handing the sign-in to the terminal (a loopback return's grant answered) | "Approved" | CODE; "Handing the sign-in to your terminal…" | none |
     | approved, waiting for the terminal's take | "Approved" | CODE; "Waiting for your terminal to sign in…" | none |
     | signed in, taken | "Terminal signed in" | "Signed in. You can close this tab." | none |
     | refused | "Sign-in refused" | "This terminal's sign-in was refused. Nothing was signed in." | none |
@@ -198,11 +288,36 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     | signed out, Google's way given (the view's `Ways`, `google` and an origin) | "Sign in first" | "This browser isn't signed in to temper. Sign in, and this page comes back with your terminal's code." | "Continue with Google", to `ORIGIN/sign-in/google?then=PATH`, PATH the approval's printed address with its code, `/terminal?code=CODE` (`/terminal` with none), percent-encoded as the sign-in page's (`../../protocol/sign-in.md`, section 7) |
     | busy, not ready or lost | "temper couldn't answer just now" | "It is starting or stopping, busy, or out of reach. Try again in a moment." | "Try again" |
 
+  - *Where the ask came from:* AGO is `../view.md`, 6's *ago*, from the
+    read's wall time; ADDRESS the ask's source, an IPv4 address in
+    dotted decimal and an IPv6 one in RFC 5952's text, as core's
+    `IpAddr` prints them, "Asked just now from 203.0.113.7" under a
+    minute, "Asked 3 min ago from 2001:db8::7" after; with
+    none, "from an unknown address". The read's own source, the reading
+    browser's, is said nowhere but in the `typed` row's comparison.
   - *Deciding:* "Approve" and "Refuse" each send `DecideApproval {
     code, approve }` once, when the link is live and an exchange is
     free, and the page is deciding until it is answered: approved,
     refused, used, expired or unknown as the table says. Nothing sends
     a decision by itself, and none is sent again.
+  - *The hand-off,* for an approval answered `Approved { loopback }`
+    with a loopback return (jig's `protocol/client/sign-in.md`,
+    *Approved with a loopback return*): the page is handing, and
+    replaces its address with
+    `http://127.0.0.1:PORT/approved?grant=GRANT`, the root's `Request::Leave {
+    to, replace: true }`, which the browser's shell carries out, so that no history entry holds it: PORT the
+    port of that answer, never one from the page's address, the host
+    always `127.0.0.1`, never one the ask or the address named, the
+    path always `/approved`, GRANT the grant's 32 bytes in base64url
+    with no padding (RFC 4648, 5), 43 characters. The grant is held
+    for that address alone: never shown, kept, logged or put in the
+    small store. The terminal's listener there takes the sign-in and
+    sends the browser back to `/terminal?code=CODE`, which reads it
+    taken: "Terminal signed in" (`../../draft/tui-remote.md`, 5.1). Until
+    the page is left it reads again each second, as approved. A
+    browser that never reaches the terminal leaves the approval
+    approved and untaken, and it ends expired, signing nobody in. An
+    answer approved with no loopback return is approved, as before.
   - *Approved:* the page reads the approval again each second
     (`approve::AGAIN`) while it stays approved, from the answer's
     turn, to learn the terminal's take: taken is signed in, and the
@@ -224,7 +339,10 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     back by the address their terminal shows; a Google deployment prints
     no link, and its "Continue with Google" returns to the approval with
     its code, so a person signing a terminal in there is never stuck
-    (the look request `outside-pages`). The page's codes, acts and
+    (the look request `outside-pages`). Its `then` keeps the address's
+    code whatever the ask: signed out, the page can't read the ask's
+    kind, and a `typed` ask's code is dropped by the read after the
+    sign-in, as above. The page's codes, acts and
     `then` are the TUI's too (`../README.md`, 4.1): only its states' look and words are
     the browser's.
   - *Busy:* a read or a decision answered busy, not ready or lost.

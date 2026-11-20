@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-protocol-config-fixtures.workspace = true
+temper-landing-fixtures.workspace = true
 temper-engine-domain-forge-landing.workspace = true
 temper-protocol-worker-wire.workspace = true
 serde_json.workspace = true
@@ -32,6 +34,7 @@ skein-kv.workspace = true
 temper-protocol-store.workspace = true
 temper-engine-service-vocabulary.workspace = true
 temper-engine-service-stock.workspace = true
+temper-service-core.workspace = true
 skein-lib.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-trials.workspace = true
@@ -58,6 +61,10 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
+skein-fork.workspace = true
+smith-protocol-channel.workspace = true
+temper-limits-fixtures.workspace = true
 temper-engine-service-startup.workspace = true
 smith-transcript.workspace = true
 jig-engine-clients-kit.workspace = true

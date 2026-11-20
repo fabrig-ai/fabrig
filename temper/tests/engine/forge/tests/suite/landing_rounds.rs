@@ -157,7 +157,7 @@ fn a_refused_record_holds_with_the_member_landed_and_release_records_it_again() 
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
-            preparation: landing::Preparation::Idle,
+            preparation: Some(landing::Preparation::Idle),
             failure: Box::new([]),
             released: true,
             cancelled: false,
@@ -212,7 +212,7 @@ fn an_exhausted_prepare_job_holds_its_landing_not_its_member() {
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
-            preparation: landing::Preparation::Failed,
+            preparation: Some(landing::Preparation::Failed),
             failure: b"push refused".as_slice().into(),
             released: false,
             cancelled: false,
@@ -314,7 +314,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
-            preparation: landing::Preparation::Conflict,
+            preparation: Some(landing::Preparation::Conflict),
             failure: b"file".as_slice().into(),
             released: false,
             cancelled: false,
@@ -396,7 +396,7 @@ fn a_successful_prepare_report_takes_its_branch_without_repeating_the_round() {
                 outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
                 dependencies: Box::new([]),
                 held: Box::new([]),
-                preparation: landing::Preparation::Idle,
+                preparation: Some(landing::Preparation::Idle),
                 failure: report.into(),
                 released: false,
                 cancelled: false,
@@ -432,7 +432,7 @@ fn a_successful_prepare_report_is_forgotten_when_the_round_changes() {
                 outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
                 dependencies: Box::new([]),
                 held: Box::new([]),
-                preparation: landing::Preparation::Idle,
+                preparation: Some(landing::Preparation::Idle),
                 failure: report.into(),
                 released: false,
                 cancelled: false,
@@ -491,7 +491,7 @@ fn successful_prepare(released: bool) -> top::LandingHeard {
         outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
         dependencies: Box::new([]),
         held: Box::new([]),
-        preparation: landing::Preparation::Idle,
+        preparation: Some(landing::Preparation::Idle),
         failure: report.into(),
         released,
         cancelled: false,
@@ -560,10 +560,10 @@ fn stale_prepare_round(cut: PrepareCut) {
             if cut == PrepareCut::Asked {
                 world.restart();
             }
-            assert_eq!(
+            assert!(matches!(
                 landings::step_landing_raw(&mut world, LANDING, entry + 100),
-                landing::Decision::Wait { until: None }
-            );
+                landing::Decision::Wait { until: Some(_), on: landing::Awaited::Prefixes }
+            ));
             world.prepare_landing(LANDING, false);
             if cut == PrepareCut::Pushed {
                 world.restart();

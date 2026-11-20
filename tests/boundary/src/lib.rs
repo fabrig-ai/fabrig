@@ -47,12 +47,14 @@ pub fn packages(metadata: &str) -> Result<Vec<Package>, String> {
         .iter()
         .map(|member| member.as_str().ok_or("metadata: invalid workspace member"))
         .collect::<Result<BTreeSet<_>, _>>()?;
+    let mut missing = members.clone();
     let mut packages = Vec::new();
     for package in metadata["packages"].as_array().ok_or("metadata: no packages array")? {
         let id = package["id"].as_str().ok_or("metadata: no package id")?;
         if !members.contains(id) {
             continue;
         }
+        missing.remove(id);
         let name = package["name"].as_str().ok_or("metadata: no package name")?;
         let manifest = package["manifest_path"].as_str().ok_or_else(|| format!("{name}: no manifest_path"))?;
         let directory = Path::new(manifest).parent().ok_or_else(|| format!("{name}: no manifest directory"))?;
@@ -70,13 +72,7 @@ pub fn packages(metadata: &str) -> Result<Vec<Package>, String> {
         }
         packages.push(Package { name: name.to_owned(), directory: normalized(directory), targets });
     }
-    if !members.iter().all(|id| {
-        metadata["packages"]
-            .as_array()
-            .expect("packages checked")
-            .iter()
-            .any(|package| package["id"].as_str() == Some(id))
-    }) {
+    if !missing.is_empty() {
         return Err("metadata: workspace member missing from packages".to_owned());
     }
     Ok(packages)
@@ -92,10 +88,15 @@ enum Token<'a> {
 
 /// A byte scan, not a Rust parse. Only path and include strings are decoded.
 fn tokens(source: &str) -> Vec<Token<'_>> {
+    located_tokens(source).into_iter().map(|(_, token)| token).collect()
+}
+
+fn located_tokens(source: &str) -> Vec<(usize, Token<'_>)> {
     let bytes = source.as_bytes();
     let mut result = Vec::new();
     let mut at = 0;
     while at < bytes.len() {
+        let start = at;
         let rest = &bytes[at..];
         if rest[0].is_ascii_whitespace() {
             at += 1;
@@ -116,21 +117,96 @@ fn tokens(source: &str) -> Vec<Token<'_>> {
                 }
             }
         } else if let Some((length, string)) = literal(rest) {
-            result.push(if string { Token::String(&source[at..at + length]) } else { Token::Literal });
+            result.push((start, if string { Token::String(&source[at..at + length]) } else { Token::Literal }));
             at += length;
         } else if rest[0].is_ascii_alphabetic() || rest[0] == b'_' || rest[0] >= 128 {
             let length = rest
                 .iter()
                 .position(|byte| !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte < 128)
                 .unwrap_or(rest.len());
-            result.push(Token::Word(&source[at..at + length]));
+            result.push((start, Token::Word(&source[at..at + length])));
             at += length;
         } else {
-            result.push(Token::Symbol(rest[0]));
+            result.push((start, Token::Symbol(rest[0])));
             at += 1;
         }
     }
     result
+}
+
+/// Literal `include_str!` inputs and their byte offsets, excluding comments and string contents.
+#[must_use]
+pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
+    let tokens = located_tokens(source);
+    tokens
+        .windows(5)
+        .filter_map(|tokens| match tokens {
+            [
+                (at, Token::Word("include_str")),
+                (_, Token::Symbol(b'!')),
+                (_, Token::Symbol(open)),
+                (_, Token::String(input)),
+                (_, Token::Symbol(close)),
+            ] if [(b'(', b')'), (b'[', b']'), (b'{', b'}')].contains(&(*open, *close)) => Some((*input, *at)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Lines implementing the codec traits, including inside macro bodies.
+/// Comments and literals are not code; generic bounds are not implementations.
+#[must_use]
+pub fn codec_implementation_lines(source: &str) -> Vec<usize> {
+    if !source.contains("impl") || (!source.contains("Record") && !source.contains("Field")) {
+        return Vec::new();
+    }
+    let tokens = located_tokens(source);
+    let mut lines = Vec::new();
+    for (at, (offset, token)) in tokens.iter().enumerate() {
+        if *token != Token::Word("impl") {
+            continue;
+        }
+        let mut header = tokens[at + 1..].iter().map(|(_, token)| *token).peekable();
+        skip_generics(&mut header);
+        let mut name = None;
+        loop {
+            match header.peek() {
+                Some(Token::Word(_)) => name = header.next(),
+                Some(Token::Symbol(b':')) => {
+                    header.next();
+                    continue;
+                }
+                Some(Token::String(_) | Token::Literal | Token::Symbol(_)) | None => break,
+            }
+            if header.peek() != Some(&Token::Symbol(b':')) {
+                break;
+            }
+        }
+        skip_generics(&mut header);
+        if matches!(name, Some(Token::Word("Record" | "Field"))) && header.next() == Some(Token::Word("for")) {
+            lines.push(source[..*offset].bytes().filter(|byte| *byte == b'\n').count() + 1);
+        }
+    }
+    lines
+}
+
+fn skip_generics<'a>(tokens: &mut std::iter::Peekable<impl Iterator<Item = Token<'a>>>) {
+    if tokens.peek() != Some(&Token::Symbol(b'<')) {
+        return;
+    }
+    let mut depth = 0;
+    let mut previous = None;
+    for token in tokens.by_ref() {
+        match token {
+            Token::Symbol(b'<') => depth += 1,
+            Token::Symbol(b'>') if previous != Some(Token::Symbol(b'-')) => depth -= 1,
+            Token::Word(_) | Token::String(_) | Token::Literal | Token::Symbol(_) => (),
+        }
+        if depth == 0 {
+            break;
+        }
+        previous = Some(token);
+    }
 }
 
 /// Returns the entire literal's length, distinguishing strings from byte/C strings
@@ -189,6 +265,52 @@ fn literal(bytes: &[u8]) -> Option<(usize, bool)> {
         }
     }
     None
+}
+
+/// Whether bracket tokens could contain an array with an element other than `u8`.
+/// This conservative prefilter skips comments and literals; candidates still need
+/// a Rust parse to distinguish array types from expressions and macro bodies.
+#[must_use]
+pub fn may_have_counted_arrays(source: &str) -> bool {
+    let tokens = tokens(source);
+    let mut brackets = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token {
+            Token::Symbol(b'[') => {
+                let fixed = tokens.get(index + 1) == Some(&Token::Word("u8"))
+                    && tokens.get(index + 2) == Some(&Token::Symbol(b';'));
+                brackets.push(fixed);
+            }
+            Token::Symbol(b']') => {
+                brackets.pop();
+            }
+            Token::Symbol(b';') if brackets.last() == Some(&false) => return true,
+            Token::Word(_) | Token::String(_) | Token::Symbol(_) | Token::Literal => (),
+        }
+    }
+    false
+}
+
+/// A record module's family stem, distinguished from glue by the generator's
+/// header (tools/crates/design.md, 2.2). Non-Rust files and directories are not records.
+///
+/// # Errors
+/// Returns an error when a Rust file's metadata or source cannot be read.
+pub fn record_family(path: &Path) -> Result<Option<String>, std::io::Error> {
+    Ok(record_source(path)?.map(|_| path.file_stem().expect("Rust file stem").to_string_lossy().into_owned()))
+}
+
+/// Read a generated record module once, distinguishing it from glue by its header.
+/// Non-Rust files and directories are not records.
+///
+/// # Errors
+/// Returns an error when a Rust file's metadata or source cannot be read.
+pub fn record_source(path: &Path) -> Result<Option<String>, std::io::Error> {
+    if path.extension().is_none_or(|extension| extension != "rs") || !fs::metadata(path)?.is_file() {
+        return Ok(None);
+    }
+    let source = fs::read_to_string(path)?;
+    Ok(source.starts_with("// Generated by skein-codegen from ").then_some(source))
 }
 
 /// Whether generated record code holds `cfg(test)` or `#[test]` outside

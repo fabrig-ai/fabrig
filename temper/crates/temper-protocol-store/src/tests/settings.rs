@@ -1,6 +1,7 @@
 //! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 4).
 use super::fixtures;
 use crate::{Undecodable, keys, records, v25 as w};
+use skein_codec::Record;
 use temper_engine_domain_forge_vocabulary::{self as forge, settings as d};
 
 fn rule() -> d::LandingRule {
@@ -52,6 +53,55 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (1, d::Value::Rule(rule())),
         (2, d::Value::Rule(open)),
         (3, d::Value::Charter(u32::MAX)),
+        (
+            4,
+            d::Value::Landing(d::ProjectLanding {
+                by: temper_engine_domain_forge_change::Way::Turn,
+                batch: 2,
+                combine_main: temper_engine_domain_forge_landing::Combine::Squash,
+                combine_other: temper_engine_domain_forge_landing::Combine::Merge,
+                merge_job: Some(b"tools/merge".as_slice().into()),
+                close_job: Some(b"tools/close".as_slice().into()),
+                landing_attempts: 7,
+                check_timeout_ms: Some(60000),
+                gate_retries: 3,
+                gate_timeout_ms: 70000,
+                tier_retries: 4,
+                verification_bound_ms: 90000,
+                wait: temper_engine_domain_forge_change::Wait::Landed,
+                repairs: None,
+            }),
+        ),
+        (
+            5,
+            d::Value::Gates(d::ProjectGates {
+                repositories: Box::new([forge::RepositoryGates {
+                    repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+                    gates: Box::new([temper_engine_domain_forge_landing::Gate {
+                        name: b"gate".as_slice().into(),
+                        workflow: b"gate.yml".as_slice().into(),
+                        ignored: Box::new([b"docs".as_slice().into()]),
+                        blocking: true,
+                        base: true,
+                        report: Some(temper_engine_domain_forge_landing::GateReport {
+                            artifact: b"report".as_slice().into(),
+                            format: temper_engine_domain_forge_tiers::Format::Lines,
+                            fuzzy: Some(b"fuzzy_".as_slice().into()),
+                        }),
+                    }]),
+                    tiers: Box::new([forge::Tier {
+                        name: b"slow".as_slice().into(),
+                        workflow: b"slow.yml".as_slice().into(),
+                        ignored: Box::new([]),
+                        artifact: b"report".as_slice().into(),
+                        format: temper_engine_domain_forge_tiers::Format::Junit,
+                        follows: forge::Follows::Goals,
+                        span: Some(skein_lib::Duration::from_millis(60000)),
+                        description: b"slow tests".as_slice().into(),
+                    }]),
+                }]),
+            }),
+        ),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
@@ -229,22 +279,12 @@ fn setting_rules_decode_at_each_bound_and_refuse_one_more() {
 #[test]
 fn setting_records_refuse_unknown_kinds_and_slot_tags() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for kind in [0, 4, u32::MAX] {
-        let row = w::SettingRow::new(
-            &w::CEILINGS,
-            w::SettingRowParts {
-                kind,
-                scope: 0,
-                number: 1,
-                slot: w::SettingSlot::Default,
-                edit: w::SettingEdit::Remove,
-            },
-        )
-        .unwrap();
-        let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
-        let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-        row.encode(&mut writer).unwrap();
-        assert_eq!(records::decode(&writer.finish(), &bounds), Err(Undecodable::Malformed));
+    for kind in [0, u32::MAX] {
+        let row =
+            w::SettingRow { kind, scope: 0, number: 1, slot: w::SettingSlot::Default, edit: w::SettingEdit::Remove };
+        let row = w::Row { value: w::Value::Setting(row) };
+        let bytes = row.encode(&w::CEILINGS).unwrap();
+        assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable::Malformed));
     }
     for (kind, value) in [
         (9, d::Value::CharterWords(Box::from(b"".as_slice()))),
@@ -325,13 +365,11 @@ fn a_task_owned_follow_round_trips_stored_and_wire_values() {
     follow.owner = d::FollowOwner::Task(52);
     let wire = d::follow_record(&follow).unwrap();
     let mut writer = skein_lib::Writer::new(9);
-    wire.owner().encode(&mut writer).unwrap();
+    wire.owner.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     assert_eq!(writer.finish().as_ref(), &[1, 0, 0, 0, 0, 0, 0, 0, 52]);
-    let owner =
-        w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap());
-    let mut writer = skein_lib::Writer::new(9);
-    owner.encode(&mut writer).unwrap();
-    assert_eq!(writer.finish().as_ref(), &[1, 0, 0, 0, 0, 0, 0, 0, 52]);
+    let owner = w::FollowOwner::Task(w::FollowOwnerTask { task: 52 });
+    let bytes = owner.encode(&w::CEILINGS).unwrap();
+    assert_eq!(bytes.as_ref(), &[1, 0, 0, 0, 0, 0, 0, 0, 52]);
     follow_round_trip(follow);
 }
 
@@ -339,14 +377,17 @@ fn follow_round_trip(follow: d::Follow) {
     use skein_lib::{Reader, Writer};
     use temper_client_protocol_wire::v1;
     let wire = d::follow_record(&follow).unwrap();
-    let mut writer = Writer::new(usize::try_from(wire.measure()).unwrap());
-    wire.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(wire.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+    wire.write(&v1::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     assert_eq!(d::follow_from(v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap()), follow);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for slot in [d::SettingSlot::Change, d::SettingSlot::Proposal(7), d::SettingSlot::Replaced(2)] {
         for edit in [
-            d::Edit::Set(d::SizedValue { value: d::Value::Follow(follow.clone()), size: wire.measure() }),
+            d::Edit::Set(d::SizedValue {
+                value: d::Value::Follow(follow.clone()),
+                size: wire.measure(&v1::CEILINGS).expect("within ceilings"),
+            }),
             d::Edit::Remove,
             d::Edit::Reset,
         ] {
@@ -369,60 +410,145 @@ fn follow_round_trip(follow: d::Follow) {
 #[test]
 fn retired_setting_tags_refuse_with_the_setting_identity() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let mut tag = skein_lib::Writer::new(1);
-    w::Route::Retired.encode(&mut tag).unwrap();
-    assert_eq!(tag.finish().as_ref(), &[1], "the retired route retains the old tag");
-    let mut tag = skein_lib::Writer::new(1);
-    w::Route::Up.encode(&mut tag).unwrap();
-    assert_eq!(tag.finish().as_ref(), &[2], "up is never read as the retired route");
+    let tag = w::Route::Retired.encode(&w::CEILINGS).unwrap();
+    assert_eq!(tag.as_ref(), &[1], "the retired route retains the old tag");
+    let tag = w::Route::Up.encode(&w::CEILINGS).unwrap();
+    assert_eq!(tag.as_ref(), &[2], "up is never read as the retired route");
     for (kind, scope, number, value) in [
-        (
-            6,
-            2,
-            1,
-            w::SettingValue::Questions(
-                w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
-            ),
-        ),
-        (
-            3,
-            0,
-            3,
-            w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap()),
-        ),
+        (6, 2, 1, w::SettingValue::Questions(w::ProjectQuestions { route: w::Route::Retired })),
+        (3, 0, 3, w::SettingValue::Charter(w::CharterValue { number: 6 })),
     ] {
         for slot in [d::SettingSlot::Change, d::SettingSlot::Replaced(2)] {
             let key = d::SettingKey { kind, scope, number, slot };
             let stored_slot = match slot {
                 d::SettingSlot::Change => w::SettingSlot::Change,
-                d::SettingSlot::Replaced(number) => {
-                    w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
-                }
+                d::SettingSlot::Replaced(number) => w::SettingSlot::Replaced(w::Number { number }),
                 d::SettingSlot::Default | d::SettingSlot::Proposal(_) => {
                     unreachable!("the test exercises current and replaced rows")
                 }
             };
-            let row = w::SettingRow::new(
-                &w::CEILINGS,
-                w::SettingRowParts {
-                    kind,
-                    scope,
-                    number,
-                    slot: stored_slot,
-                    edit: w::SettingEdit::Set(
-                        w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value: value.clone(), size: 1 }).unwrap(),
-                    ),
-                },
-            )
-            .unwrap();
-            let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
-            let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-            row.encode(&mut bytes).unwrap();
-            let bytes = bytes.finish();
+            let row = w::SettingRow {
+                kind,
+                scope,
+                number,
+                slot: stored_slot,
+                edit: w::SettingEdit::Set(w::SizedValue { value: value.clone(), size: 1 }),
+            };
+            let row = w::Row { value: w::Value::Setting(row) };
+            let bytes = row.encode(&w::CEILINGS).unwrap();
             assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable::Setting(key)));
             let encoded_key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
             assert_eq!(records::row(&encoded_key, &bytes, &bounds), Err(Undecodable::Setting(key)));
             assert_eq!(records::row(b"wrong key", &bytes, &bounds), Err(Undecodable::Malformed));
         }
     }
+}
+
+#[test]
+fn temper_limits_rows_keep_overrides_and_refuse_bad_order() {
+    use jig_domain_core_vocabulary::settings::Override;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let overrides = Box::new([Override {
+        name: b"forge.entries".as_slice().into(),
+        value: u64::MAX,
+        reason: "développement".as_bytes().into(),
+    }]);
+    let row = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 22, scope: 0, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue { value: d::Value::Limits(overrides.clone()), size: 50 }),
+    });
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = row.clone();
+    let held = meter.end().held();
+    assert_eq!(forge::stored_bytes(&cloned), Some(held));
+    drop(cloned);
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    let twice = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 22, scope: 0, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue {
+            value: d::Value::Limits(Box::new([overrides[0].clone(), overrides[0].clone()])),
+            size: 100,
+        }),
+    });
+    assert_eq!(records::decode(&records::encode(&twice), &bounds), Err(Undecodable::Malformed));
+}
+
+#[test]
+fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
+    use temper_client_protocol_wire::v1;
+    let mut profile = skein_lib::List::with_capacity(1);
+    profile.push(v1::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 900 }).unwrap();
+    let limits = v1::AgentLimits {
+        window: u32::MAX,
+        output: 1,
+        reasoning_item: 1,
+        head_ms: u64::MAX,
+        idle_ms: 1,
+        oversized: v1::Oversized::Drop,
+    };
+    let mut endpoints = skein_lib::List::with_capacity(1);
+    endpoints.push(v1::AgentEndpointLimits { endpoint: b"openai".as_slice().into(), limits: limits.clone() }).unwrap();
+    let value = v1::AgentFigures { profile, endpoints, fallback: limits };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for slot in
+        [d::SettingSlot::Default, d::SettingSlot::Change, d::SettingSlot::Proposal(7), d::SettingSlot::Replaced(2)]
+    {
+        let key = d::SettingKey { kind: 20, scope: 0, number: 1, slot };
+        let row = forge::Stored::Setting(d::SettingRow {
+            key,
+            edit: d::Edit::Set(d::SizedValue {
+                size: value.measure(&v1::CEILINGS).expect("within ceilings"),
+                value: d::Value::AgentFigures(value.clone()),
+            }),
+        });
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
+        let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn repair_settings_with_the_whole_named_llm_round_trip() {
+    let main = d::NamedModel { model: b"catalogue-model".as_slice().into(), effort: Some(b"high".as_slice().into()) };
+    let subagent = d::NamedModel { model: b"helper".as_slice().into(), effort: None };
+    let landing = d::ProjectLanding {
+        wait: temper_engine_domain_forge_change::Wait::Landed,
+        repairs: Some(d::RepairSettings {
+            goals: 16,
+            attempts: 8,
+            deadline_ms: 604_800_000,
+            goal: d::RepairGoalSettings {
+                charter: 5,
+                priority: u32::MAX,
+                budget: u64::MAX,
+                llm: Some(d::NamedLlm {
+                    account: Some(u32::MAX),
+                    main: main.clone(),
+                    subagents: Box::new([subagent.clone()]),
+                    later: Some(d::NamedLater { main: subagent, subagents: Box::new([main]) }),
+                }),
+            },
+        }),
+        ..d::ProjectLanding::default()
+    };
+    let row = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue {
+            size: d::landing_record(&landing)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
+            value: d::Value::Landing(landing),
+        }),
+    });
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }

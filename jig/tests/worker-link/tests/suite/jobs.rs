@@ -2,6 +2,7 @@ use jig_domain_host as host;
 use jig_domain_link::{Form, JobBound, JobKind};
 use jig_protocol_worker_link::{Event, Request};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{Duration, List, Reader, Token};
 
@@ -23,25 +24,18 @@ pub(super) fn answer() -> host::LinkUp {
         },
     }
 }
-fn job_record(limits: &wire::v15::Limits) -> wire::Job {
+fn job_record() -> wire::Job {
     let mut grants = List::with_capacity(1);
     grants.push(fixtures::grant_record(fixtures::application_value())).expect("grant");
-    wire::Job::new(
-        limits,
-        wire::JobParts {
-            task: 8,
-            attempt: 3,
-            kind: 42,
-            spec: Box::from([0, 255, 127]),
-            deadline: Duration::from_secs(4),
-            workspace: Some(
-                wire::Workspace::new(limits, wire::WorkspaceParts { workstream: 3, items: Box::from(&b"items"[..]) })
-                    .expect("workspace"),
-            ),
-            grants,
-        },
-    )
-    .expect("job")
+    wire::Job {
+        task: 8,
+        attempt: 3,
+        kind: 42,
+        spec: Box::from([0, 255, 127]),
+        deadline: Duration::from_secs(4),
+        workspace: Some(wire::Workspace { workstream: 3, items: Box::from(&b"items"[..]) }),
+        grants,
+    }
 }
 
 /// Job kinds cross whole (jig/docs/design/protocol/channel/records.md, 4).
@@ -67,10 +61,10 @@ fn a_hello_carries_its_job_kinds() {
         let records = world.records();
         let codec = wire::sizes::limits(&limits.sizes).expect("codec");
         let hello = wire::Hello::decode(&codec, &mut Reader::new(&records[0][0].body)).expect("hello");
-        assert_eq!(hello.jobs().len(), count);
-        for (job, expected) in hello.jobs().iter().zip(expected) {
+        assert_eq!(hello.jobs.len(), count);
+        for (job, expected) in hello.jobs.iter().zip(expected) {
             assert_eq!(
-                (job.kind(), job.spec(), job.result(), job.deadline()),
+                (job.kind, job.spec, job.result, job.deadline),
                 (expected.kind.0, expected.spec, expected.result, expected.deadline)
             );
         }
@@ -81,8 +75,8 @@ fn a_hello_carries_its_job_kinds() {
 #[test]
 fn a_job_record_reaches_the_hub_as_an_assign_job() {
     let mut world = world();
-    let record = job_record(&fixtures::codec());
-    world.play(fixtures::frame(wire::Kind::Job.number(), &fixtures::encoded(record.measure(), |w| record.encode(w))));
+    let record = job_record();
+    world.play(fixtures::frame(wire::Kind::Job.number(), &fixtures::encoded(&record)));
     assert_eq!(world.order(), ["value", "down"]);
     let Request::Down { down: host::LinkDown::AssignJob { job }, parts } = &world.root()[1] else { panic!("job") };
     assert_eq!(
@@ -115,11 +109,11 @@ fn a_job_answer_goes_up_and_again_after_a_redial() {
         assert_eq!(records[channel].iter().map(|r| r.kind).collect::<Vec<_>>(), [0x0100, 0x0101, 0x010c, 0x0103]);
         let record =
             wire::JobAnswer::decode(&fixtures::codec(), &mut Reader::new(&records[channel][2].body)).expect("answer");
-        assert_eq!((record.task(), record.attempt()), (8, 3));
-        let wire::JobEnding::Finished(end) = record.ending() else { panic!("finished") };
-        assert_eq!(end.result(), [0, 255, 127]);
-        assert_eq!(end.work().left().as_deref(), Some(&b"left"[..]));
-        assert!(end.work().saved().is_none());
+        assert_eq!((record.task, record.attempt), (8, 3));
+        let wire::JobEnding::Finished(end) = &record.ending else { panic!("finished") };
+        assert_eq!(end.result.as_ref(), [0, 255, 127]);
+        assert_eq!(end.work.left.as_deref(), Some(&b"left"[..]));
+        assert!(end.work.saved.is_none());
         if channel == 0 {
             world.lose_channel();
             world.engine(fixtures::engine_accepting());
@@ -127,12 +121,8 @@ fn a_job_answer_goes_up_and_again_after_a_redial() {
             world.down(Event::Hello { hello: fixtures::hello() });
         }
     }
-    let record =
-        wire::Acknowledge::new(&fixtures::codec(), wire::AcknowledgeParts { task: 8, attempt: 3 }).expect("ack");
-    world.play(fixtures::frame(
-        wire::Kind::Acknowledge.number(),
-        &fixtures::encoded(record.measure(), |w| record.encode(w)),
-    ));
+    let record = wire::Acknowledge { task: 8, attempt: 3 };
+    world.play(fixtures::frame(wire::Kind::Acknowledge.number(), &fixtures::encoded(&record)));
     assert!(
         matches!(world.root().last(), Some(Request::Down { down: host::LinkDown::Acknowledge { run, attempt }, .. }) if *run == Token::new(8) && *attempt == Token::new(3))
     );
@@ -144,10 +134,11 @@ fn a_job_past_its_wire_bound_is_refused_as_framing() {
     let mut world = world();
     let mut larger = fixtures::codec();
     larger.job_spec += 1;
-    let mut fields = job_record(&larger).into_parts();
+    let mut fields = job_record();
     fields.spec = vec![0; usize::try_from(larger.job_spec).expect("small")].into();
-    let record = wire::Job::new(&larger, fields).expect("larger job");
-    world.play(fixtures::frame(wire::Kind::Job.number(), &fixtures::encoded(record.measure(), |w| record.encode(w))));
+    let record = fields;
+    let body = record.encode(&larger).expect("job within larger limit");
+    world.play(fixtures::frame(wire::Kind::Job.number(), &body));
     assert_eq!(world.refusals(), [(3, Box::default())]);
     assert!(world.values().is_empty());
     assert!(!world.root().iter().any(|r| matches!(r, Request::Down { .. })));

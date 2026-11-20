@@ -114,6 +114,8 @@ impl Referee<Process> for Judge {
     }
 }
 struct Machine(skein_fake_machine::Machine);
+#[path = "batch.rs"]
+pub mod batch;
 impl skein_world::Machine for Machine {
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
         skein_fake_machine::step(&mut self.0, call, answers);
@@ -142,7 +144,10 @@ fn files() -> jig_test_service::Files {
 #[must_use]
 pub fn settings() -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
-        engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 7100).into()),
+        mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+        engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(
+            (std::net::Ipv4Addr::LOCALHOST, 7100).into(),
+        )),
         directory: b"private".as_slice().into(),
         limits: fixtures::connections_limits(),
         io: skein_io::Limits {

@@ -47,6 +47,8 @@ pub fn workspace(op: &Op) -> Option<Token> {
         Op::Make { workspace, .. } => Some(*workspace),
         Op::Clone { at, .. }
         | Op::Reds { at, .. }
+        | Op::Reset { at, .. }
+        | Op::Pack { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -73,6 +75,8 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
         Op::Reds { .. }
+        | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
@@ -92,6 +96,8 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
         Op::Reds { .. }
+        | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
@@ -109,6 +115,14 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
 #[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
 pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
+        Op::Reset { at, commit: head } => {
+            assert_cloned(disk, &at);
+            assert!(git::object_present(disk, &path(&at), fake(head)));
+            disk.write(&[path(&at).as_slice(), b"/.git/temper-head"].concat(), &fake(head).to_le_bytes());
+            disk.remove(&[path(&at).as_slice(), b"/.git/MERGE_HEAD"].concat());
+            disk.remove(&[path(&at).as_slice(), b"/.git/temper-conflicts"].concat());
+            Done::Committed { commit: head }
+        }
         Op::Reds { at, action } => {
             if !matches!(action, temper_worker_domain_checkout::git::Reds::Clear)
                 && disk.content(&[path(&at).as_slice(), b"/.git/refs/temper/landing"].concat()).is_none()
@@ -158,7 +172,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             }
             Done::Succeeded
         }
-        Op::Look { at, remote } => {
+        Op::Look { at, remote, store: _ } => {
             let directory = path(&at);
             Done::Looked {
                 holds: disk.content(&[directory.as_slice(), b"/.git/temper-remote"].concat()) == Some(remote.as_ref()),
@@ -211,6 +225,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Err(fault) => failed(fault),
             }
         }
+        Op::Pack { .. } => Done::Succeeded,
         Op::Point { at, into, commit } => {
             assert_cloned(disk, &at);
             let reference = match into {
@@ -255,13 +270,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                         Err(fault) => return failed(fault),
                     };
                     if !heads.iter().any(|head| contains(forge, second, *head)) {
-                        return Done::FailedWithOutput {
-                            fault: Fault::Refused,
-                            diagnostic: temper_worker_domain_checkout::git::PushDiagnostic::new(
-                                b"delivery second parent is not reachable from the branch's remote",
-                                0,
-                            ),
-                        };
+                        return Done::ParentUnreachable { head, merging, parent: commit(second) };
                     }
                 }
             }

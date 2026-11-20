@@ -65,6 +65,7 @@ pub fn line() -> TaskLine {
         observation: None,
     };
     TaskLine {
+        parts: List::with_capacity(0),
         chip: Chip {
             task: TASK,
             title: DocumentText::complete(Text::new(Box::from(*b"Hello"), TEXT).expect("title")),
@@ -218,7 +219,7 @@ pub fn deliver_live(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows, more: false }))),
                 },
             },
         },
@@ -289,6 +290,7 @@ pub fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
                 up: jig_client::Up::ReadDone {
                     read,
                     result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows {
@@ -324,36 +326,29 @@ pub fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
     ] {
         temper_client_domain::step(&mut root, &env, event, &mut out);
     }
+    if let Some(me) = &me {
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: skein_lib::Token::new(0),
+                        event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))),
+                    },
+                },
+            },
+            &mut out,
+        );
+    }
     while let Some(request) = out.pop() {
         match request {
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
-                    },
-            } => {
-                if let Some(me) = &me {
-                    temper_client_domain::step(
-                        &mut root,
-                        &env,
-                        Event::Client {
-                            event: jig_client::Event::Up {
-                                up: jig_client::Up::Watched {
-                                    watch,
-                                    event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))),
-                                },
-                            },
-                        },
-                        &mut out,
-                    );
-                }
-            }
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
-            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment => {
                 if let Some(welcome) = welcome {
                     fixtures::deliver_deployment(&mut root, read, welcome, false);
                 }

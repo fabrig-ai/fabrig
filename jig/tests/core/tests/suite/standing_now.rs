@@ -1,5 +1,5 @@
 //! The standing task's own scope and required Now (domain/tasks/standing.md, 6).
-use crate::{closed_proofs, settings_support as support};
+use crate::{run_helpers, settings_support as support};
 use jig_core_world::{
     client_peer::ClientPeer,
     fixtures,
@@ -16,6 +16,10 @@ use jig_test_domain as root;
 use skein_lib::{List, ReplyTo, Token, Wall};
 
 fn start(ending: people::EndedBy, resume: bool, kept: Vec<notes::Entry>) -> (World, u64, u64) {
+    start_with_spend(ending, resume, kept, 40)
+}
+
+fn start_with_spend(ending: people::EndedBy, resume: bool, kept: Vec<notes::Entry>, spend: u64) -> (World, u64, u64) {
     let (mut config, limits) = support::run_configuration();
     config.core.defaults.charters[0].policy.resume = resume;
     let mut rows = jig_test_profile::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
@@ -39,8 +43,8 @@ fn start(ending: people::EndedBy, resume: bool, kept: Vec<notes::Entry>) -> (Wor
     let signed = support::sign_in(&mut world);
     world.sign_in = Some(signed);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
-    closed_proofs::hello(&mut world);
-    let task = create(&mut world, signed, 101, ending);
+    run_helpers::hello(&mut world);
+    let task = create(&mut world, signed, 101, ending, spend);
     (world, signed, task)
 }
 
@@ -49,7 +53,7 @@ fn transcript_text(bytes: &[u8]) -> Option<Box<[u8]>> {
     Some(bytes.into())
 }
 
-fn create(world: &mut World, signed: u64, key: u8, ending: people::EndedBy) -> u64 {
+fn create(world: &mut World, signed: u64, key: u8, ending: people::EndedBy, spend: u64) -> u64 {
     let mut ask = fixtures::chat(world, 1, b"Keep watching".as_slice().into());
     let people::Ask::Create { batch, .. } = &mut ask else { panic!("creation fixture") };
     let member = &mut batch[0];
@@ -57,7 +61,7 @@ fn create(world: &mut World, signed: u64, key: u8, ending: people::EndedBy) -> u
     member.flags.conversation = ending == people::EndedBy::Requester;
     member.tracked = None;
     member.budget = people::Budget::Named;
-    member.authority.spend = 40;
+    member.authority.spend = spend;
     member.authority.tools = 2047;
     let answer = support::ask(world, signed, key, ask);
     let people::Reply::Outcome(people::Outcome::Created { first, .. }) = answer else { panic!("created: {answer:?}") };
@@ -116,6 +120,7 @@ fn note(scope: notes::Scope, name: u64, body: &[u8], recalled: Option<u32>) -> c
             author: notes::Author::Party { party: support::OWNER },
         },
         recalled,
+        records: Box::new([]),
     }
 }
 
@@ -177,7 +182,7 @@ fn a_standing_task_owns_its_now_scope_and_its_project_member_reads_it() {
 
     world.client_peer = client_peer;
     world.sign_in = Some(signed);
-    let other = create(&mut world, signed, 102, people::EndedBy::Result);
+    let other = create(&mut world, signed, 102, people::EndedBy::Result, 40);
     assert_ne!(other, task);
     let before = world.store.rows[&root::Key::Core(core::Key::Notes(notes::Key::Entry { name }))].clone();
     let denied = core::CallPart::ToolDenied {
@@ -202,6 +207,47 @@ fn kept(name: u64, description: &[u8], body: &[u8]) -> notes::Entry {
         revision: 3,
         changed: Wall::from_nanos(123_456_789),
     }
+}
+
+#[test]
+fn a_standing_wake_on_another_endpoint_ends_fresh_with_now_and_the_note_index() {
+    use super::sessions;
+    let (mut world, run, child) = sessions::opened();
+    jig_core_world::stories::per_wake::park(&mut world, run, None);
+    let now_body = b"Watch the build.\nKeep the second line whole.\n";
+    let mut now = kept(20, b"now", now_body);
+    now.scope = notes::Scope::Goal { project: 1, goal: run.0 };
+    world.seed(Box::new([
+        root::Record::Core(core::Record::Notes(notes::Record::Line(notes::Line {
+            name: now.name,
+            scope: now.scope.clone(),
+            description: now.description.clone(),
+            revision: now.revision,
+        }))),
+        root::Record::Core(core::Record::Notes(notes::Record::Entry(now))),
+    ]));
+    let mut proof = world.domain.core().proofs.get(&run.0).expect("saved run proof").clone();
+    proof.endpoint = Some(2);
+    world.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
+    sessions::restart(&mut world, child);
+    sessions::say(&mut world, run.0, 80);
+    assert_eq!(sessions::ends(&world, run.0), [(run.1, tasks::SessionEnd::Fresh)]);
+    let assigned = world.assigned.as_ref().expect("new session assigned");
+    assert_eq!(assigned.task, run.0);
+    assert!(!assigned.run.policy.resume);
+    assert!(assigned.transcript.is_empty());
+    let now = std::str::from_utf8(section(&world, Section::Now).expect("Now whole")).expect("Now text");
+    let (_, body) = now.split_once("\n\n").expect("body separator");
+    assert_eq!(body.as_bytes(), now_body);
+    let index = section(&world, Section::NotesIndex).expect("note index");
+    assert!(index.windows(b"now".len()).any(|bytes| bytes == b"now"));
+    assert_eq!(section(&world, Section::TranscriptTail), None);
+    let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(assigned.task)));
+    let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = &world.store.rows[&key] else {
+        panic!("durable run proof")
+    };
+    assert_eq!(proof.endpoint, Some(assigned.run.policy.model.endpoint));
+    world.close();
 }
 
 #[test]
@@ -271,7 +317,8 @@ fn a_standing_brief_omits_a_normal_tail_but_keeps_the_attempt_it_retries() {
     for (ending, resume) in
         [(people::EndedBy::Standing, false), (people::EndedBy::Standing, true), (people::EndedBy::Requester, false)]
     {
-        let (mut world, _, _) = start(ending, resume, vec![]);
+        // Successive runs retain their twenty-unit reserve floor after halving what remains.
+        let (mut world, _, _) = start_with_spend(ending, resume, vec![], 80);
         world.store.transcript_text(transcript_text);
         let standing = ending == people::EndedBy::Standing;
         world.turn(1, 1, None, b"A normal attempt");
@@ -359,6 +406,7 @@ fn each_now_write_saves_its_first_line_in_the_same_decision() {
             entry,
             recalled: 2,
             range: notes::LineRange { first: 2, remove: 1, join: false },
+            records: Box::new([]),
         },
     );
     assert!(matches!(answer, core::CallPart::NoteWritten { revision: 3, .. }));
@@ -401,9 +449,9 @@ fn other_notes_and_refused_now_writes_leave_no_now_line() {
 
 #[test]
 fn the_now_period_line_uses_the_tasks_funded_allotment() {
-    let (mut world, _, task) = start(people::EndedBy::Standing, false, vec![]);
+    let (mut world, _, task) = start_with_spend(people::EndedBy::Standing, false, vec![], 80);
     assert!(
-        section(&world, Section::Now).expect("Now").starts_with(b"None written yet.\nThis period: spent 0 of 40.\n")
+        section(&world, Section::Now).expect("Now").starts_with(b"None written yet.\nThis period: spent 0 of 80.\n")
     );
     let answer = call(&mut world, 1, note(notes::Scope::Goal { project: 1, goal: task }, 0, b"Watching", None));
     assert!(matches!(answer, core::CallPart::NoteWritten { .. }));
@@ -411,14 +459,14 @@ fn the_now_period_line_uses_the_tasks_funded_allotment() {
     world.end(tasks::End::Parked, 3);
     let read = wake(&mut world, 71);
     let text = std::str::from_utf8(section(&world, Section::Now).expect("Now")).expect("Now text");
-    assert_eq!(text.lines().nth(1), Some("This period: spent 3 of 40."));
+    assert_eq!(text.lines().nth(1), Some("This period: spent 3 of 80."));
     assert_eq!(fixtures::live_row(&world, task).numbers.spent, 3);
     world.turn(1, 0, Some(read), b"Read the period");
     world.end(tasks::End::Parked, 0);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 2, budget: 100, next: None }));
     let read = wake(&mut world, 72);
     let text = std::str::from_utf8(section(&world, Section::Now).expect("Now")).expect("Now text");
-    assert_eq!(text.lines().nth(1), Some("This period: spent 0 of 40."));
+    assert_eq!(text.lines().nth(1), Some("This period: spent 0 of 80."));
     world.turn(1, 0, Some(read), b"Read the renewed period");
     world.end(tasks::End::Parked, 0);
     world.close();

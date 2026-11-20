@@ -25,6 +25,7 @@ const HOST: crate::room::HostPart = crate::room::HostPart {
     modify: 0,
     shell: 0,
     agents: 0,
+    floor: ZERO,
 };
 const CHARTER: u32 = 1;
 const REPLY: Token = Token::new(9);
@@ -448,6 +449,7 @@ fn run_root() -> (Domain, Env<Limits>, u64) {
                 task,
                 attempt: 1,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 accounts: Box::new([]),
                 placement: Some(Token::new(7)),
@@ -641,7 +643,7 @@ fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
 
 // Release the root's decisions against a durable store; the party is the only outside reader.
 #[expect(clippy::wildcard_enum_match_arm, reason = "this fixture only commits settings and receives party replies")]
-fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
+pub(super) fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
     // Each change needs fewer than 64 journal and child continuation handoffs.
     const HANDOFFS: u32 = 64;
     crate::try_step(root, env, Event::Party(input)).unwrap();
@@ -696,4 +698,37 @@ fn an_accepted_stored_proposal_keeps_its_admitted_charter() {
         root.core.current.charter(CHARTER).unwrap().policy.instructions.len(),
         usize::try_from(SHORT_INSTRUCTIONS).unwrap()
     );
+}
+
+#[test]
+fn applying_a_charter_reserves_its_brief_floor_with_or_without_an_agent() {
+    let charter = short_charter();
+    let base = crate::room::HostPart { allowance: 65_536, bound: None, ..HOST };
+    let bytes = base.on_wake(&charter, jig_domain_tasks::Reasons::FIRST).owned;
+    for bound in [Some(100_000), None] {
+        for propose in [false, true] {
+            for (fixed, fits) in [(54_320, false), (51_656, true)] {
+                let (mut root, env) = owner_root();
+                root.host_part = crate::room::HostPart {
+                    bound,
+                    fixed: crate::room::Cost { owned: fixed - bytes, ..ZERO },
+                    floor: crate::room::Cost { owned: 13_880, encoded: 13_500, ..ZERO },
+                    ..base
+                };
+                let input = if propose { proposal() } else { change() };
+                let reply = settled(&mut root, &env, input);
+                if fits && propose {
+                    let people::Reply::Outcome(people::Outcome::Proposed { .. }) = reply else { panic!("{reply:?}") };
+                } else if fits {
+                    assert_eq!(reply, people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }));
+                } else {
+                    assert_eq!(reply, people::Reply::Refused(people::Refusal::Judged {
+                        at: 1,
+                        setting: Setting::Charter(CHARTER),
+                        why: b"charter 1 on a first wake is 54,320 bytes owned before its brief, leaving its brief 11,216 of the 13,880 its floor needs; trim its text, parts or tool families".as_slice().into(),
+                    }));
+                }
+            }
+        }
+    }
 }

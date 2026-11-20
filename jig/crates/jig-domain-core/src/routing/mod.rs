@@ -65,6 +65,19 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::routing::run::turns::route_accepted_turn;
 
+/// Only a widening replaces the funder (jig/docs/design/domain/authority.md, 7).
+pub(crate) fn amendment_funder(
+    core: &Core,
+    before: &tasks::Authority,
+    amendment: &tasks::Amendment,
+    giver: tasks::Funder,
+) -> Option<tasks::Funder> {
+    let after = amendment.authority.as_ref()?;
+    let before = crate::translate::tasks_authority(before);
+    let after = crate::translate::tasks_authority(after);
+    if authority::at_most(&after, &before, &core.authority.rules().implies) { None } else { Some(giver) }
+}
+
 impl Core {
     /// Retain a numbered connector call until its translated answer arrives.
     #[must_use]
@@ -116,6 +129,7 @@ pub(crate) struct Made {
 #[derive(Hash, Debug)]
 pub(crate) struct Creation {
     kind: CreationKind,
+    root: Option<u64>,
     members: Box<[tasks::New]>,
     symbols: Box<[Box<[people::Symbol]>]>,
     at: usize,
@@ -221,6 +235,7 @@ impl Core {
                 authority::Call::Tool
             }
             ToolKind::Delegate
+            | ToolKind::MarkRead
             | ToolKind::Control
             | ToolKind::Decide
             | ToolKind::Propose
@@ -254,7 +269,7 @@ impl Core {
     fn tool_family(&self, kind: &ToolKind) -> authority::Tools {
         match kind {
             ToolKind::Delegate => self.settings.tools.delegate,
-            ToolKind::Message { .. } => self.settings.tools.message,
+            ToolKind::Message { .. } | ToolKind::MarkRead => self.settings.tools.message,
             ToolKind::Control => self.settings.tools.control,
             ToolKind::Decide => self.settings.tools.decide,
             ToolKind::Propose => self.settings.tools.propose,
@@ -285,7 +300,7 @@ impl Core {
 #[derive(Hash, Debug)]
 pub(crate) enum NoteRoute {
     Deletion { project: u32 },
-    Call { to: ReplyTo, key: CallKey },
+    Call { to: ReplyTo, key: CallKey, records: Box<[u64]> },
     Person { request: Token },
     Brief { task: u64 },
     Preferences { task: u64 },
@@ -452,6 +467,11 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
+        Work::Resources(batch) => {
+            let mut out = task::resume_resources(core, env, work, batch);
+            crate::admission::deletion::advance(core, env, &mut out);
+            out
+        }
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Work::PreparationFailed { task, failure } => route_preparation_failed(core, work, task, failure),
@@ -521,6 +541,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             stopping::empty()
         }
         Event::Stopping => stopping::start(core, env),
+        Event::Parts { connector, token, parts } => crate::reads::parts::answered(core, env, connector, token, parts),
+        Event::PartsMarked { connector, tasks } => {
+            view::part_marks::records(core, connector, &tasks);
+            stopping::empty()
+        }
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
             party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
@@ -563,7 +588,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             })));
             out
         }
-        Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
+        Event::SignIn { until, reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held, until),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, work, load, result),
         Event::PublicRead { reply, read } => crate::public::reads::start(core, reply, read),
         Event::PublicAnswered { reply, answer } => crate::public::reads::answered(core, reply, answer),
@@ -650,6 +675,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             saved,
             invalid_saved,
             unusable_history,
+            untooled,
             read,
             refused,
         } => route_answer_payload(
@@ -658,7 +684,17 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             work,
             run,
             attempt,
-            run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused },
+            run::payloads::Answer {
+                payload,
+                cumulative,
+                end,
+                saved,
+                invalid_saved,
+                unusable_history,
+                untooled,
+                read,
+                refused,
+            },
         ),
         Event::AcceptedTurn { task, attempt, turn, accepted, cumulative, read, transcript, opens_window } => {
             let record = crate::TurnRecord {
@@ -767,6 +803,10 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         Timer::Tasks => {
             let mut out = Queue::uncapped();
             step::fire_tasks(core, env, &mut out);
+            tag_task_outputs(core, env, out)
+        }
+        Timer::Resources => {
+            let out = crate::effects::resources::expire(core, env);
             tag_task_outputs(core, env, out)
         }
         Timer::Fleet => {

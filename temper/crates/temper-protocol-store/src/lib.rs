@@ -2,8 +2,10 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+use skein_codec::Record;
 extern crate alloc;
 
+mod lowering;
 mod patch_set;
 pub use patch_set::OWNER_SET;
 
@@ -17,12 +19,26 @@ pub use temper_protocol_store_codec::v25;
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 25;
+pub const STORE_VERSION: u32 = {
+    let [high, low] = v25::VERSION.to_be_bytes();
+    u32::from_be_bytes([0, 0, high, low])
+};
 
-/// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
+/// The least of the five tier landings ceilings (protocol/store.md, section 4).
 #[must_use]
 pub fn tier_landings_ceiling() -> u32 {
-    v25::CEILINGS.tier_row_pending.min(v25::CEILINGS.tier_run_landings).min(v25::CEILINGS.tier_finding_blamed)
+    v25::CEILINGS
+        .tier_row_pending
+        .min(v25::CEILINGS.tier_run_landings)
+        .min(v25::CEILINGS.tier_finding_blamed)
+        .min(v25::CEILINGS.tier_probe_waiting)
+        .min(v25::CEILINGS.tier_posting_landings)
+}
+
+/// The least failing-test and flake id ceiling (protocol/store.md, section 4).
+#[must_use]
+pub fn test_id_ceiling() -> u32 {
+    v25::CEILINGS.failing_test_test_id.min(v25::CEILINGS.tier_flake_test)
 }
 
 /// The most `forge.changes` the tier rows hold at two landings per change plus one.
@@ -49,6 +65,7 @@ pub fn application(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Undecodable {
     Malformed,
+    Lowered(jig_protocol_store::codec::Lowered),
     /// The setting's identity survives refusal of a retired stored value.
     Setting(temper_engine_domain_forge_vocabulary::settings::SettingKey),
 }
@@ -59,8 +76,36 @@ pub struct Bounds {
     // Keep schema limits out of the store's by-value construction frames.
     limits: Box<v25::Limits>,
     forge: temper_engine_domain_forge_vocabulary::Limits,
+    change_words: u32,
+    stock: Option<Box<lowering::Stock>>,
 }
 impl Bounds {
+    /// Raise the runtime codec bounds, retaining the opening stock and format.
+    pub fn raise(&mut self, forge: &temper_engine_domain_forge_vocabulary::Limits) {
+        let mut raised = self.forge;
+        assert!(
+            forge.tasks >= raised.tasks
+                && forge.holds >= raised.holds
+                && forge.entries >= raised.entries
+                && forge.client.entries >= raised.client.entries,
+            "runtime codec bounds only rise"
+        );
+        raised.tasks = forge.tasks;
+        raised.holds = forge.holds;
+        raised.entries = forge.entries;
+        raised.client.entries = forge.client.entries;
+        assert_eq!(raised, *forge, "other codec bounds wait for the next start");
+        let next = bounds(forge, self.change_words).expect("accepted limits fit compile-time codec ceilings");
+        self.limits = next.limits;
+        self.forge = *forge;
+    }
+    /// Retain the opening stock to classify a refused runtime row, without
+    /// changing either the configured decoder or the durable format.
+    #[must_use]
+    pub fn with_stock(mut self, stock: &Self) -> Self {
+        self.stock = Some(Box::new(lowering::Stock { forge: stock.forge, change_words: stock.change_words }));
+        self
+    }
     /// The generated decoder's limits.
     #[must_use]
     pub const fn limits(&self) -> &v25::Limits {
@@ -133,6 +178,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         settings_default_branch: forge.client.answer_bytes,
         permission_value_login: forge.name_bytes,
         adopted_host: forge.name_bytes,
+        adopted_landing: forge.name_bytes,
         adopted_owner: forge.name_bytes,
         adopted_name: forge.name_bytes,
         adopted_prefix: forge.name_bytes,
@@ -152,7 +198,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         ..records::limits(forge)?
     };
     v25::check_limits(&limits).ok()?;
-    Some(Bounds { limits: Box::new(limits), forge: *forge })
+    Some(Bounds { limits: Box::new(limits), forge: *forge, change_words, stock: None })
 }
 
 /// Restart families below byte 128, relative to jig's application tag.

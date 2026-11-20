@@ -1,4 +1,6 @@
 //! The engine's start for serve (temper/docs/design/protocol/binaries.md, 1 and 2 and temper/docs/design/protocol/components.md).
+//! Fixed engine seeds follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
@@ -105,6 +107,10 @@ pub fn github_runtime(
     let log_origins = if machine.is_none() { github_logs::defaults() } else { List::with_capacity(0) };
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
+mod limits;
+pub(crate) use limits::held_failure;
+pub use limits::{Held, Opening, close_limits_store, limits_hold, open_limits, rehearse_limits};
+
 pub fn prepare(
     binary: &str,
     environment: &[EnvironmentEntry],
@@ -123,11 +129,26 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock, false, "")
+    prepare_given(
+        binary,
+        environment,
+        working,
+        directories,
+        bytes,
+        owned,
+        &service::stock::Given::Stock,
+        false,
+        "",
+        &[],
+        None,
+    )
 }
-#[expect(clippy::too_many_arguments, reason = "startup carries the command recording switch beside process facts")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "startup carries process facts and the in-process world's optional typed inputs through the same checked start"
+)]
 fn prepare_given(
-    binary: &str,
+    _binary: &str,
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
@@ -136,18 +157,25 @@ fn prepare_given(
     given: &service::stock::Given,
     record: bool,
     build_name: &'static str,
+    projects: &[config::Project],
+    limits: Option<(&config::Limits, &service::limits::Limits)>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    if matches!(
-        service::startup::nearest(bytes),
-        Some(service::startup::Shape::WorkerAlone | service::startup::Shape::Standalone)
-    ) {
-        return Err(format!("temper.json names a worker, and {binary} runs none"));
-    }
+    let providers = temper_service_shell::providers::read(
+        &path(&directories.data).join("providers.setting"),
+        given.running(),
+        &mut std::io::stderr(),
+    );
+    let given = given.with_providers(providers, Box::new([]));
+    let given = &given;
     service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
+    if let Some((jig, own)) = limits {
+        named = service::startup::named_with_limits(bytes, &jig_directories(directories), given, jig, own)
+            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    }
     let engine = settings(bytes, directories, given);
-    let Runtimes { roots, github } = runtimes(&named.machine)?;
+    let Runtimes { roots, github } = runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
     let Inputs { files, google, bundle } = before_root(
         &mut named.files,
@@ -160,22 +188,74 @@ fn prepare_given(
     )?;
     let accounts = accounts(&engine)?;
     let seeds = seeds(None, None)?;
-    let mut service = service::startup::with_setup_given(
+    let landing = landing_hold(path(&directories.data))?;
+    let inputs = service::startup::LimitInputs::new(
         bytes,
         &jig_directories(directories),
         &files,
+        None,
         &seeds,
-        Some(accounts),
+        given,
+        false,
+        limits,
+    );
+    let models = config::core(&engine, seeds.deployment, seeds.seed).settings.models;
+    let (mut store, state) =
+        open_limits(inputs, &models, path(&directories.data), &named.deployment, user, build_name, owned)?;
+    let start = service::startup::checked_start_with_resolved(
+        bytes,
+        &jig_directories(directories),
+        &files,
+        None,
+        &seeds,
         List::with_capacity(0),
         Some(&checked),
         given,
-        program_environment(directories, environment, working, &printed::running_word(environment)),
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        &state.in_force,
+    );
+    let mut start = match start {
+        Ok(start) => start,
+        Err(why) => {
+            close_limits_store(&mut store)?;
+            return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
+        }
+    };
+    if !projects.is_empty() {
+        start.engine.jig.owners = start
+            .engine
+            .jig
+            .owners
+            .iter()
+            .flat_map(|owner| {
+                projects.iter().map(|project| jig_domain_people::InitialOwner {
+                    project: project.number,
+                    identity: owner.identity.clone(),
+                })
+            })
+            .collect();
+        start.engine.jig.projects = projects.into();
+    }
+    start.engine.program_environment =
+        program_environment(directories, environment, working, &printed::running_word(environment));
+    let mut service =
+        match service::startup::restoring_prepared(start.engine, &seeds, Some(accounts), start.forges, start.io) {
+            Ok(service) => service,
+            Err(why) => {
+                close_limits_store(&mut store)?;
+                return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
+            }
+        };
+    service.engine_component().take_limit_store(store, state);
+    if let Some(line) = landing {
+        eprintln!("{line}");
+        service.engine_component().hold_landings(true);
+    }
     service.engine_component().build_name(build_name);
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
-    adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
+    if let Some(bundle) = bundle {
+        service.engine_component().adopt_bundle(bundle);
+    }
     Ok((service, named.deployment))
 }
 /// The kernel operations an engine alone keeps in flight at most, without retaining its descriptors.
@@ -194,13 +274,15 @@ pub fn prepare_in(
     working: &[u8],
     directories: &Directories,
 ) -> Result<service::Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare(binary, environment, working, directories, &bytes, &mut owned);
+    let result = prepare(binary, environment, working, directories, bytes, &mut owned);
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
@@ -210,15 +292,51 @@ pub fn prepare_in_with(
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<service::Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, &bytes, &mut owned, given, false, "")
-        .map(|(service, _)| service);
+    let result =
+        prepare_given(binary, environment, working, directories, bytes, &mut owned, given, false, "", &[], None)
+            .map(|(service, _)| service);
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
+/// Prepare an in-process world's engine with typed seeds and limits beside its file.
+pub fn prepare_in_with_inputs_and_limits(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    projects: &[config::Project],
+    limits: Option<(&config::Limits, &service::limits::Limits)>,
+) -> Result<service::Service, String> {
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let mut owned = Vec::new();
+    let result = prepare_given(
+        binary,
+        environment,
+        working,
+        directories,
+        &read.document,
+        &mut owned,
+        given,
+        false,
+        "",
+        projects,
+        limits,
+    )
+    .map(|(service, _)| service);
+    if result.is_err() {
+        close(owned);
+    }
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
+}
+
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     binary: &str,
@@ -230,8 +348,13 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false, "")
-        .map(|(service, _)| service.operations());
+    let result =
+        prepare_given(binary, environment, working, directories, config, &mut owned, given, false, "", &[], None)
+            .and_then(|(mut service, _)| {
+                let operations = service.operations();
+                close_limits_store(service.engine_component().store())?;
+                Ok(operations)
+            });
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
@@ -246,10 +369,12 @@ pub fn run(
     temper_service_shell::run(
         binary,
         directories,
+        temper_config_shell::Shape::EngineAlone,
         environment,
         crate::served::SERVED,
+        &skein_shell::Clock::new(),
         |_| Ok(()),
-        |bytes, owned, ()| {
+        |bytes, _programs, owned, ()| {
             prepare_given(
                 binary,
                 environment,
@@ -260,6 +385,8 @@ pub fn run(
                 &service::stock::Given::Stock,
                 record,
                 build_name,
+                &[],
+                None,
             )
             .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
         },
@@ -286,9 +413,9 @@ pub struct Runtimes {
     pub roots: skein_tls::Config,
     pub github: service::ForgeRuntime,
 }
-pub fn runtimes(machine: &temper_forge_setup::machine::Machine) -> Result<Runtimes, String> {
+pub fn runtimes(test_github: Option<&temper_forge_setup::machine::GitHubMachine>) -> Result<Runtimes, String> {
     let roots = trust(None)?;
-    let github = github_runtime(machine.github.as_ref(), &roots)?;
+    let github = github_runtime(test_github, &roots)?;
     Ok(Runtimes { roots, github })
 }
 /// Engine inputs checked after agent preflight and before the worker root.
@@ -345,6 +472,28 @@ pub fn seeds(link_secret: Option<Secret>, local_secret: Option<Secret>) -> Resul
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     Ok(Seeds { deployment, installation, seed, crypto, link_secret, local_secret })
 }
+/// Fixed engine draws (temper/docs/design/protocol/setup/box.md, 5;
+/// temper/docs/design/client/journey-clock.md, 4.1). Link and local secrets stay the box's.
+#[must_use]
+pub fn seeds_from(start: &skein_shell::FixedStart, link_secret: Option<Secret>, local_secret: Option<Secret>) -> Seeds {
+    let mut crypto = [0_u8; 32];
+    start.draw(1, &mut crypto);
+    let mut drawn = [0_u8; 32];
+    start.draw(2, &mut drawn);
+    let mut deployment = [0_u8; 16];
+    deployment.copy_from_slice(drawn.get(..16).expect("32-byte draw"));
+    start.draw(3, &mut drawn);
+    let mut installation = [0_u8; 16];
+    installation.copy_from_slice(drawn.get(..16).expect("32-byte draw"));
+    Seeds {
+        deployment,
+        installation,
+        seed: start.seed,
+        crypto: Secret::new(Box::new(crypto)),
+        link_secret,
+        local_secret,
+    }
+}
 /// Adopt the engine's store and page after the caller has configured its service.
 pub fn adopt(
     service: &mut service::Engine,
@@ -369,3 +518,33 @@ mod program_environment;
 
 #[cfg(test)]
 mod tests;
+
+/// Check presence alone, never content; the result belongs to the whole run
+/// (temper/docs/design/domain/landing-settings.md, 1.3).
+pub fn landing_hold(data: &std::path::Path) -> Result<Option<String>, String> {
+    let path = data.join("landing-held");
+    match std::fs::symlink_metadata(&path) {
+        Ok(_) => Ok(Some(format!("landing held: {}; remove it and restart to land", path.display()))),
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(why) => Err(format!("{}: {why}", path.display())),
+    }
+}
+
+#[cfg(test)]
+mod landing_hold_tests {
+    #[test]
+    fn landing_held_is_presence_only_and_names_its_path() {
+        let scratch = skein_scratch::Scratch::new("landing-held");
+        assert_eq!(super::landing_hold(scratch.path()).expect("absent hold"), None);
+        let path = scratch.path().join("landing-held");
+        for content in [b"".as_slice(), b"any content\n"] {
+            std::fs::write(&path, content).expect("hold file");
+            assert_eq!(
+                super::landing_hold(scratch.path()).expect("present hold"),
+                Some(format!("landing held: {}; remove it and restart to land", path.display()))
+            );
+        }
+        std::fs::remove_file(&path).expect("release for the next start");
+        assert_eq!(super::landing_hold(scratch.path()).expect("removed hold"), None);
+    }
+}
