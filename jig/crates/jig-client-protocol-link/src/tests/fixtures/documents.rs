@@ -186,29 +186,22 @@ pub fn tasks() -> c::Tasks {
     c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false }
 }
 pub fn task_with_lineage(count: u32) -> w::Task {
-    let lim = *limits().wire();
-    let mut parts = task_record().into_parts();
+    let mut parts = task_record();
     parts.lineage_chips = chip_pieces(count);
-    w::Task::new(&lim, parts).unwrap()
+    parts
 }
 pub fn text_record() -> w::RunText {
-    let lim = *limits().wire();
-    w::RunText::new(
-        &lim,
-        w::RunTextParts {
-            writing: None,
-            attempt: 41,
-            began: Some(u64::MAX),
-            turn: w::ProvisionalTurnName::new(&lim, w::ProvisionalTurnNameParts { attempt: 41, number: 7, retry: 3 })
-                .unwrap(),
-            from: 5,
-            through: 11,
-            text: Box::from(b"offset".as_slice()),
-            cut: true,
-            call: None,
-        },
-    )
-    .unwrap()
+    w::RunText {
+        writing: None,
+        attempt: 41,
+        began: Some(u64::MAX),
+        turn: w::ProvisionalTurnName { attempt: 41, number: 7, retry: 3 },
+        from: 5,
+        through: 11,
+        text: Box::from(b"offset".as_slice()),
+        cut: true,
+        call: None,
+    }
 }
 pub fn run_text_expected() -> c::RunText {
     c::RunText {
@@ -224,10 +217,9 @@ pub fn run_text_expected() -> c::RunText {
     }
 }
 pub fn task_with_piece(bytes: &[u8]) -> w::Task {
-    let lim = *limits().wire();
-    let mut parts = task_record().into_parts();
+    let mut parts = task_record();
     parts.lineage_chips = Box::from(bytes);
-    w::Task::new(&lim, parts).unwrap()
+    parts
 }
 pub fn limits_for_document(bytes: u64) -> Limits {
     let mut client = *limits().client();
@@ -246,30 +238,21 @@ pub fn task_with_two_chips() -> c::Task {
     value
 }
 pub fn run_text_one_past_text_limit() -> w::RunText {
-    let mut parts = text_record().into_parts();
+    let mut parts = text_record();
     parts.text = Box::from([b'x'; 33]);
-    w::RunText::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 
 pub fn raw_live_call() -> w::LiveCall {
-    let lim = *limits().wire();
-    let identity = w::CallIdentity::new(
-        &lim,
-        w::CallIdentityParts { owner: 17, sequence: 2, retry: 3, id: Box::from(b"provider".as_slice()) },
-    )
-    .unwrap();
-    let value = w::CurrentCall::new(
-        &lim,
-        w::CurrentCallParts {
-            identity,
-            tool: Box::from(b"read".as_slice()),
-            input: Box::from(b"x".as_slice()),
-            cut: true,
-            began: Some(0),
-        },
-    )
-    .unwrap();
-    w::LiveCall::Raw(w::LiveCallRaw::new(&lim, w::LiveCallRawParts { value }).unwrap())
+    let identity = w::CallIdentity { owner: 17, sequence: 2, retry: 3, id: Box::from(b"provider".as_slice()) };
+    let value = w::CurrentCall {
+        identity,
+        tool: Box::from(b"read".as_slice()),
+        input: Box::from(b"x".as_slice()),
+        cut: true,
+        began: Some(0),
+    };
+    w::LiveCall::Raw(w::LiveCallRaw { value })
 }
 pub fn raw_live_call_expected() -> c::LiveCall {
     c::LiveCall::Raw(c::CurrentCall {
@@ -281,21 +264,16 @@ pub fn raw_live_call_expected() -> c::LiveCall {
     })
 }
 pub fn decoded_live_call() -> w::LiveCall {
-    let lim = *limits().wire();
-    let value = w::Call::new(
-        &lim,
-        w::CallParts {
-            number: 11,
-            tool: Box::from(b"read".as_slice()),
-            input: Box::from(b"x".as_slice()),
-            outcome: Some(Box::from(b"yes".as_slice())),
-            failed: false,
-            objects: List::with_capacity(0),
-            parts: Box::from([]),
-        },
-    )
-    .unwrap();
-    w::LiveCall::Decoded(w::LiveCallDecoded::new(&lim, w::LiveCallDecodedParts { value }).unwrap())
+    let value = w::Call {
+        number: 11,
+        tool: Box::from(b"read".as_slice()),
+        input: Box::from(b"x".as_slice()),
+        outcome: Some(Box::from(b"yes".as_slice())),
+        failed: false,
+        objects: List::with_capacity(0),
+        parts: Box::from([]),
+    };
+    w::LiveCall::Decoded(w::LiveCallDecoded { value })
 }
 pub fn decoded_live_call_expected() -> c::LiveCall {
     c::LiveCall::Decoded(c::Call {
@@ -310,21 +288,18 @@ pub fn decoded_live_call_expected() -> c::LiveCall {
 }
 
 pub fn task_with_resource_path(count: u32) -> w::Task {
-    let mut wire = *limits().wire();
-    wire.part_key_path_value = count;
-    let mut parts = task_record().into_parts();
+    let mut parts = task_record();
     let w::TaskContractDocument::Approval(approval) = parts.result_contract else { panic!("approval fixture") };
-    let mut approval = approval.into_parts();
-    let mut part = approval.part.into_parts();
+    let mut approval = approval;
+    let mut part = approval.part;
     let mut path = List::with_capacity(count);
     for _ in 0..count {
         path.push(Box::from(b"segment".as_slice())).unwrap();
     }
-    part.key = w::PartKey::Path(w::PartKeyPath::new(&wire, w::PartKeyPathParts { value: path }).unwrap());
-    approval.part = w::Part::new(&wire, part).unwrap();
-    parts.result_contract =
-        w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(&wire, approval).unwrap());
-    w::Task::new(&wire, parts).unwrap()
+    part.key = w::PartKey::Path(w::PartKeyPath { value: path });
+    approval.part = part;
+    parts.result_contract = w::TaskContractDocument::Approval(approval);
+    parts
 }
 
 pub fn task_with_authority_grants(count: u32) -> (w::Task, c::Task) {
@@ -342,14 +317,10 @@ pub fn task_with_authority_grants(count: u32) -> (w::Task, c::Task) {
             })
             .unwrap();
     }
-    let mut parts = task_record().into_parts();
-    parts.authority = w::AuthorityDocument::new(
-        &w::CEILINGS,
-        w::AuthorityDocumentParts {
-            cut: false,
-            authority: translate::asks::wire_owner_authority(&expected.authority.authority, &w::CEILINGS).unwrap(),
-        },
-    )
-    .unwrap();
-    (w::Task::new(&w::CEILINGS, parts).unwrap(), expected)
+    let mut parts = task_record();
+    parts.authority = w::AuthorityDocument {
+        cut: false,
+        authority: translate::asks::wire_owner_authority(&expected.authority.authority, &w::CEILINGS).unwrap(),
+    };
+    (parts, expected)
 }

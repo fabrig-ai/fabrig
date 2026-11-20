@@ -1,79 +1,56 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{live, pieces, task, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn object(value: d::InboxObject, limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
+pub fn object(value: d::InboxObject, _limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
     Ok(match value {
-        d::InboxObject::Question { message } => {
-            w::InboxObject::Question(w::InboxObjectQuestion::new(limits, w::InboxObjectQuestionParts { message })?)
-        }
-        d::InboxObject::Proposal { proposer, number } => w::InboxObject::Proposal(w::InboxObjectProposal::new(
-            limits,
-            w::InboxObjectProposalParts {
-                proposer: match proposer {
-                    jig_domain_people::Proposer::Task(value) => {
-                        w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value })?)
-                    }
-                    jig_domain_people::Proposer::Party(value) => {
-                        w::Proposer::Party(w::ProposerParty::new(limits, w::ProposerPartyParts { value })?)
-                    }
-                },
-                number,
+        d::InboxObject::Question { message } => w::InboxObject::Question(w::InboxObjectQuestion { message }),
+        d::InboxObject::Proposal { proposer, number } => w::InboxObject::Proposal(w::InboxObjectProposal {
+            proposer: match proposer {
+                jig_domain_people::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value }),
+                jig_domain_people::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value }),
             },
-        )?),
-        d::InboxObject::Escalation { revision } => w::InboxObject::Escalation(w::InboxObjectEscalation::new(
-            limits,
-            w::InboxObjectEscalationParts { revision },
-        )?),
+            number,
+        }),
+        d::InboxObject::Escalation { revision } => w::InboxObject::Escalation(w::InboxObjectEscalation { revision }),
         d::InboxObject::PersonTask => w::InboxObject::PersonTask,
-        d::InboxObject::Reply { message } => {
-            w::InboxObject::Turn(w::InboxObjectTurn::new(limits, w::InboxObjectTurnParts { message })?)
-        }
-        d::InboxObject::Result { position } => {
-            w::InboxObject::Result(w::InboxObjectResult::new(limits, w::InboxObjectResultParts { position })?)
-        }
+        d::InboxObject::Reply { message } => w::InboxObject::Turn(w::InboxObjectTurn { message }),
+        d::InboxObject::Result { position } => w::InboxObject::Result(w::InboxObjectResult { position }),
     })
 }
 pub fn cursor(value: d::Cursor, limits: &w::Limits) -> Result<w::InboxCursor, w::Problem> {
     Ok(match value {
-        d::Cursor::Number { number } => {
-            w::InboxCursor::Number(w::InboxCursorNumber::new(limits, w::InboxCursorNumberParts { number })?)
-        }
-        d::Cursor::Inbox { task, object: value, at } => w::InboxCursor::Inbox(w::InboxCursorInbox::new(
-            limits,
-            w::InboxCursorInboxParts {
-                task,
-                object: object(value, limits)?,
-                at: match at {
-                    Some(item) => Some(item.as_nanos()),
-                    None => None,
-                },
-            },
-        )?),
-    })
-}
-pub fn entry(value: &d::InboxEntry, limits: &w::Limits) -> Result<w::InboxEntry, w::Problem> {
-    w::InboxEntry::new(
-        limits,
-        w::InboxEntryParts {
-            projects: value.projects.clone(),
-            reply: match &value.reply {
-                Some(item) => Some(super::queries::line(item, limits)?),
-                None => None,
-            },
-            task: task::link(&value.task, limits)?,
-            project: value.project,
-            object: object(value.object, limits)?,
-            activity: value.activity,
-            at: match value.at {
+        d::Cursor::Number { number } => w::InboxCursor::Number(w::InboxCursorNumber { number }),
+        d::Cursor::Inbox { task, object: value, at } => w::InboxCursor::Inbox(w::InboxCursorInbox {
+            task,
+            object: object(value, limits)?,
+            at: match at {
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-            unread: value.unread,
-            cursor: cursor(value.cursor, limits)?,
+        }),
+    })
+}
+pub fn entry(value: &d::InboxEntry, limits: &w::Limits) -> Result<w::InboxEntry, w::Problem> {
+    Ok(w::InboxEntry {
+        projects: value.projects.clone(),
+        reply: match &value.reply {
+            Some(item) => Some(super::queries::line(item, limits)?),
+            None => None,
         },
-    )
+        task: task::link(&value.task, limits)?,
+        project: value.project,
+        object: object(value.object, limits)?,
+        activity: value.activity,
+        at: match value.at {
+            Some(item) => Some(item.as_nanos()),
+            None => None,
+        },
+        unread: value.unread,
+        cursor: cursor(value.cursor, limits)?,
+    })
 }
 pub fn selection(
     value: Option<&List<d::InboxSelection>>,
@@ -88,54 +65,47 @@ pub fn selection(
         for number in &row.goals {
             goals.push(*number).expect("supplied roots fit");
         }
-        rows.push(w::InboxSelection::new(
-            limits,
-            w::InboxSelectionParts { cursor: cursor(row.cursor, limits)?, goals },
-        )?)
-        .expect("supplied selections fit");
+        rows.push(w::InboxSelection { cursor: cursor(row.cursor, limits)?, goals }).expect("supplied selections fit");
     }
-    Ok(Some(selection_pieces(&rows, bound, path)?))
+    Ok(Some(selection_pieces(&rows, bound, path, limits)?))
 }
 pub fn document(value: &d::Inbox, limits: &w::Limits) -> Result<w::Inbox, w::Problem> {
     let mut needs = List::with_capacity(value.needs.len());
     for row in &value.needs {
         needs.push(entry(row, limits)?).expect("supplied rows fit");
     }
-    let needs = entry_pieces(&needs, limits.inbox_needs, w::Path::InboxNeeds)?;
+    let needs = entry_pieces(&needs, limits.inbox_needs, w::paths::INBOX_NEEDS, limits)?;
     let mut updates = List::with_capacity(value.updates.len());
     for row in &value.updates {
         updates.push(entry(row, limits)?).expect("supplied rows fit");
     }
-    let updates = entry_pieces(&updates, limits.inbox_updates, w::Path::InboxUpdates)?;
+    let updates = entry_pieces(&updates, limits.inbox_updates, w::paths::INBOX_UPDATES, limits)?;
 
-    w::Inbox::new(
-        limits,
-        w::InboxParts {
-            party: value.party,
-            needs,
-            updates,
-            next: match value.next {
-                Some(item) => Some(cursor(item, limits)?),
-                None => None,
-            },
-            cached_needs: value.cached_needs,
-            cached_updates: live::count(value.cached_updates, limits)?,
-            results_seen: value.results_seen,
-            updates_time_complete: value.updates_time_complete,
-            selection: selection(
-                value.selection.as_ref(),
-                limits,
-                limits.inbox_selection_some,
-                w::Path::InboxSelection,
-            )?,
+    Ok(w::Inbox {
+        party: value.party,
+        needs,
+        updates,
+        next: match value.next {
+            Some(item) => Some(cursor(item, limits)?),
+            None => None,
         },
-    )
+        cached_needs: value.cached_needs,
+        cached_updates: live::count(value.cached_updates, limits)?,
+        results_seen: value.results_seen,
+        updates_time_complete: value.updates_time_complete,
+        selection: selection(value.selection.as_ref(), limits, limits.inbox_selection_some, w::paths::INBOX_SELECTION)?,
+    })
 }
-fn entry_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn entry_pieces(
+    rows: &List<w::InboxEntry>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -143,11 +113,16 @@ fn entry_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result
     }
     pieces(&encoded, bound, path)
 }
-fn selection_pieces(rows: &List<w::InboxSelection>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn selection_pieces(
+    rows: &List<w::InboxSelection>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }

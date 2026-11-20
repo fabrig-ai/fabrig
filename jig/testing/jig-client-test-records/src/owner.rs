@@ -1,109 +1,72 @@
-use super::{List, chip_from_rows, chip_root_fact, frame_record, limits, task_record, w, wire_owner_chip_details_row};
+use super::{List, chip_from_rows, chip_root_fact, frame_record, task_record, w, wire_owner_chip_details_row};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 extern crate alloc;
 
 #[must_use]
 pub fn frame_two_projects_record() -> w::Me {
-    let lim = limits();
-    let mut parts = frame_record().into_parts();
-    let mut identity = parts.party.into_parts();
-    identity.login = w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from("é".as_bytes()), cut: true })
-        .expect("literal UTF-8 login");
-    parts.party = w::MeParty::new(&lim, identity).expect("literal frame party");
+    let mut parts = frame_record();
+    let mut identity = parts.party;
+    identity.login = w::DocumentText { bytes: Box::from("é".as_bytes()), cut: true };
+    parts.party = identity;
     let mut projects = List::with_capacity(2);
     for (project, role) in [(3, w::HeldRole::Owner), (5, w::HeldRole::Observer)] {
         projects
-            .push(
-                w::MeProject::new(
-                    &lim,
-                    w::MeProjectParts {
-                        left_out: 0,
-                        defaults: List::with_capacity(0),
-                        public: None,
-                        templates: Box::from([]),
-                        creating: None,
-                        project,
-                        name: w::DocumentText::new(
-                            &lim,
-                            w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false },
-                        )
-                        .expect("project name"),
-                        role,
-                        pool: None,
-                        models: List::with_capacity(0),
-                    },
-                )
-                .expect("literal fixture fits"),
-            )
+            .push(w::MeProject {
+                left_out: 0,
+                defaults: List::with_capacity(0),
+                public: None,
+                templates: Box::from([]),
+                creating: None,
+                project,
+                name: w::DocumentText { bytes: Box::from(*b"Tally"), cut: false },
+                role,
+                pool: None,
+                models: List::with_capacity(0),
+            })
             .expect("literal fixture fits");
     }
     let mut size = 0_u32;
     for project in &projects {
-        size = size.checked_add(project.measure()).expect("fixture sizes").checked_add(4).expect("piece header");
+        size = size
+            .checked_add(project.measure(&crate::limits()).expect("bounded fixture"))
+            .expect("fixture sizes")
+            .checked_add(4)
+            .expect("piece header");
     }
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(size));
     for project in &projects {
-        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(project.measure()));
-        project.encode(&mut encoded).expect("fixture encode");
+        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(
+            project.measure(&crate::limits()).expect("bounded fixture"),
+        ));
+        project.write(&crate::limits(), &mut encoded).expect("fixture encode");
         skein_codec::piece::write(&mut out, &encoded.finish()).expect("fixture piece");
     }
     parts.projects = out.finish();
-    w::Me::new(&lim, parts).expect("literal fixture fits")
+    parts
 }
 #[must_use]
 pub fn owner_phase_records() -> [w::ChipPhase; 6] {
-    let lim = limits();
     [
-        w::ChipPhase::Waiting(
-            w::ChipPhaseWaiting::new(
-                &lim,
-                w::ChipPhaseWaitingParts { dependencies: List::with_capacity(0), more: false, holds: false },
-            )
-            .expect("literal fixture fits"),
-        ),
-        w::ChipPhase::Active(
-            w::ChipPhaseActive::new(&lim, w::ChipPhaseActiveParts { value: w::RunStage::Idle })
-                .expect("literal fixture fits"),
-        ),
-        w::ChipPhase::Person(
-            w::ChipPhasePerson::new(
-                &lim,
-                w::ChipPhasePersonParts {
-                    address: w::PersonAddress::Role(
-                        w::PersonAddressRole::new(&lim, w::PersonAddressRoleParts { value: 17 })
-                            .expect("literal fixture fits"),
-                    ),
-                    taken_by: Some(19),
-                    since: Some(23),
-                },
-            )
-            .expect("literal fixture fits"),
-        ),
-        w::ChipPhase::Closing(
-            w::ChipPhaseClosing::new(&lim, w::ChipPhaseClosingParts { value: w::ClosingStage::Effects })
-                .expect("literal fixture fits"),
-        ),
-        w::ChipPhase::Held(
-            w::ChipPhaseHeld::new(
-                &lim,
-                w::ChipPhaseHeldParts {
-                    reason: w::HoldCategory::Uncertain(
-                        w::HoldCategoryUncertain::new(&lim, w::HoldCategoryUncertainParts { entry: 29 })
-                            .expect("literal fixture fits"),
-                    ),
-                    revision: 31,
-                },
-            )
-            .expect("literal fixture fits"),
-        ),
+        w::ChipPhase::Waiting(w::ChipPhaseWaiting { dependencies: List::with_capacity(0), more: false, holds: false }),
+        w::ChipPhase::Active(w::ChipPhaseActive { value: w::RunStage::Idle }),
+        w::ChipPhase::Person(w::ChipPhasePerson {
+            address: w::PersonAddress::Role(w::PersonAddressRole { value: 17 }),
+            taken_by: Some(19),
+            since: Some(23),
+        }),
+        w::ChipPhase::Closing(w::ChipPhaseClosing { value: w::ClosingStage::Effects }),
+        w::ChipPhase::Held(w::ChipPhaseHeld {
+            reason: w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry: 29 }),
+            revision: 31,
+        }),
         w::ChipPhase::Ended,
     ]
 }
 #[must_use]
 pub fn owner_chip_record(phase: w::ChipPhase, compact: w::Phase) -> w::Chip {
-    let lim = limits();
     let mut root = match chip_root_fact() {
-        w::Fact::Chip(value) => value.into_parts(),
+        w::Fact::Chip(value) => value,
         w::Fact::ChipPhase(_)
         | w::Fact::Closing(_)
         | w::Fact::Ending(_)
@@ -113,22 +76,12 @@ pub fn owner_chip_record(phase: w::ChipPhase, compact: w::Phase) -> w::Chip {
         | w::Fact::ChipEnding(_)
         | w::Fact::ResultValue(_) => unreachable!("literal chip root"),
     };
-    let mut fields = root.value.into_parts();
+    let mut fields = root.value;
     fields.phase = compact;
-    root.value = w::ChipFields::new(&lim, fields).expect("literal fixture fits");
+    root.value = fields;
     chip_from_rows(&[
-        w::Fact::Chip(w::ChipRow::new(&lim, root).expect("literal fixture fits")),
-        w::Fact::ChipPhase(
-            w::ChipPhaseRow::new(
-                &lim,
-                w::ChipPhaseRowParts {
-                    parent: Some(0),
-                    value: w::ChipPhaseOwnerFields::new(&lim, w::ChipPhaseOwnerFieldsParts { phase, details: 2 })
-                        .expect("literal fixture fits"),
-                },
-            )
-            .expect("literal fixture fits"),
-        ),
+        w::Fact::Chip(root),
+        w::Fact::ChipPhase(w::ChipPhaseRow { parent: Some(0), value: w::ChipPhaseOwnerFields { phase, details: 2 } }),
         w::Fact::ChipDetails(Box::new(wire_owner_chip_details_row())),
     ])
 }
@@ -138,47 +91,34 @@ pub fn owner_waiting_chip_record() -> w::Chip {
 }
 #[must_use]
 pub fn task_with_hold_record() -> w::Task {
-    let lim = limits();
-    let mut parts = task_record().into_parts();
+    let mut parts = task_record();
     parts.chip = owner_waiting_chip_record();
     parts.hold = Some(hold_record());
-    w::Task::new(&lim, parts).expect("literal fixture fits")
+    parts
 }
 #[must_use]
 pub fn hold_record() -> w::ChipHold {
-    let lim = limits();
-    w::ChipHold::new(
-        &lim,
-        w::ChipHoldParts {
-            words: None,
-            placed: None,
-            circle: None,
-            account: None,
-            source: None,
-            reason: w::HoldCategory::Uncertain(
-                w::HoldCategoryUncertain::new(&lim, w::HoldCategoryUncertainParts { entry: 29 })
-                    .expect("literal fixture fits"),
-            ),
-            revision: 31,
-            before: w::PriorPhase::Waiting,
-            escalation: None,
-            tries: w::FailureTries::new(
-                &lim,
-                w::FailureTriesParts {
-                    transient: 2,
-                    permanent: 3,
-                    run: 5,
-                    agent: 7,
-                    lost: 11,
-                    invalid: 13,
-                    infrastructure: 17,
-                },
-            )
-            .expect("literal fixture fits"),
-            hold_wait_since: Some(17),
+    w::ChipHold {
+        words: None,
+        placed: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry: 29 }),
+        revision: 31,
+        before: w::PriorPhase::Waiting,
+        escalation: None,
+        tries: w::FailureTries {
+            transient: 2,
+            permanent: 3,
+            run: 5,
+            agent: 7,
+            lost: 11,
+            invalid: 13,
+            infrastructure: 17,
         },
-    )
-    .expect("literal fixture fits")
+        hold_wait_since: Some(17),
+    }
 }
 
 #[must_use]

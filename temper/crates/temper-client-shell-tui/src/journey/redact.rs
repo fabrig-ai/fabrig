@@ -1,6 +1,7 @@
 //! TUI originals and fields (temper/docs/design/client/tui/journeys.md, 5).
 use super::{Framing, Kind, Line, Originals, Sent, Streamed, Unreadable};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{
     Reader, Writer,
     base64::{self, Alphabet},
@@ -149,14 +150,13 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                 match message {
                     Sent::SignInApproval(bytes) => {
                         if let Ok(value) = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)) {
-                            let parts = value.into_parts();
-                            candidates.push((Kind::Approval, parts.secret.into_exposed()));
-                            candidates.extend(parts.grant.map(|grant| (Kind::Approval, grant.into_exposed())));
+                            candidates.push((Kind::Approval, value.secret.into_exposed()));
+                            candidates.extend(value.grant.map(|grant| (Kind::Approval, grant.into_exposed())));
                         }
                     }
                     Sent::SignInLink(bytes) => {
                         if let Ok(value) = w::LinkSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)) {
-                            candidates.push((Kind::Link, value.into_parts().secret.into_exposed()));
+                            candidates.push((Kind::Link, value.secret.into_exposed()));
                         }
                     }
                     Sent::Authorize(_)

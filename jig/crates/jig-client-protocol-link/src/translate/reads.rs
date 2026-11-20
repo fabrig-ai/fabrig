@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_client_domain::Readable;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Reader, Writer, bytes, length::len_u64};
 
@@ -15,105 +16,78 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
         c::Read::Setting(value) => w::Read::Setting(super::settings::wire_read_setting(value, limits)?),
         c::Read::Revision(value) => w::Read::Revision(super::settings::wire_read_revision(value, limits)?),
         c::Read::Revisions(value) => w::Read::Revisions(super::settings::wire_read_revisions(value, limits)?),
-        c::Read::Tasks { query, live, ended } => w::Read::Tasks(w::ReadTasks::new(
-            limits,
-            w::ReadTasksParts {
-                query: super::queries::query(query, limits)?,
-                live: cursor(live.as_ref(), limits)?,
-                ended: cursor(ended.as_ref(), limits)?,
-            },
-        )?),
+        c::Read::Tasks { query, live, ended } => w::Read::Tasks(w::ReadTasks {
+            query: super::queries::query(query, limits)?,
+            live: cursor(live.as_ref(), limits)?,
+            ended: cursor(ended.as_ref(), limits)?,
+        }),
         c::Read::Turn { task, attempt, turn } => {
-            w::Read::Turn(w::ReadTurn::new(limits, w::ReadTurnParts { task: *task, attempt: *attempt, turn: *turn })?)
+            w::Read::Turn(w::ReadTurn { task: *task, attempt: *attempt, turn: *turn })
         }
-        c::Read::TaskText { task, field, from } => w::Read::TaskText(w::ReadTaskText::new(
-            limits,
-            w::ReadTaskTextParts {
-                task: *task,
-                field: match field {
-                    c::TaskTextField::Specification => w::TaskTextField::Specification,
-                    c::TaskTextField::Instructions => w::TaskTextField::Instructions,
-                    c::TaskTextField::Result => w::TaskTextField::Result,
-                },
-                from: *from,
+        c::Read::TaskText { task, field, from } => w::Read::TaskText(w::ReadTaskText {
+            task: *task,
+            field: match field {
+                c::TaskTextField::Specification => w::TaskTextField::Specification,
+                c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                c::TaskTextField::Result => w::TaskTextField::Result,
             },
-        )?),
-        c::Read::ActivityBeside { task, position, side } => w::Read::ActivityBeside(w::ReadActivityBeside::new(
-            limits,
-            w::ReadActivityBesideParts {
-                task: *task,
-                position: *position,
-                side: match side {
-                    c::Side::Earlier => w::ActivitySide::Earlier,
-                    c::Side::Later => w::ActivitySide::Later,
-                },
+            from: *from,
+        }),
+        c::Read::ActivityBeside { task, position, side } => w::Read::ActivityBeside(w::ReadActivityBeside {
+            task: *task,
+            position: *position,
+            side: match side {
+                c::Side::Earlier => w::ActivitySide::Earlier,
+                c::Side::Later => w::ActivitySide::Later,
             },
-        )?),
+        }),
         c::Read::Me => w::Read::Me,
-        c::Read::Task { task } => w::Read::Task(w::ReadTask::new(limits, w::ReadTaskParts { task: *task })?),
-        c::Read::Proposal { proposal } => w::Read::Proposal(w::ReadProposal::new(
-            limits,
-            w::ReadProposalParts { proposal: wire_proposal_key(proposal, limits)? },
-        )?),
-        c::Read::Escalation { task } => {
-            w::Read::Escalation(w::ReadEscalation::new(limits, w::ReadEscalationParts { task: *task })?)
+        c::Read::Task { task } => w::Read::Task(w::ReadTask { task: *task }),
+        c::Read::Proposal { proposal } => {
+            w::Read::Proposal(w::ReadProposal { proposal: wire_proposal_key(proposal, limits)? })
         }
-        c::Read::Question { task, message } => {
-            w::Read::Question(w::ReadQuestion::new(limits, w::ReadQuestionParts { task: *task, message: *message })?)
+        c::Read::Escalation { task } => w::Read::Escalation(w::ReadEscalation { task: *task }),
+        c::Read::Question { task, message } => w::Read::Question(w::ReadQuestion { task: *task, message: *message }),
+        c::Read::PersonTask { task } => w::Read::PersonTask(w::ReadPersonTask { task: *task }),
+        c::Read::Result { task } => w::Read::Result(w::ReadResult { task: *task }),
+        c::Read::Ended { task, after } => {
+            w::Read::Ended(w::ReadEnded { task: *task, after: cursor(after.as_ref(), limits)? })
         }
-        c::Read::PersonTask { task } => {
-            w::Read::PersonTask(w::ReadPersonTask::new(limits, w::ReadPersonTaskParts { task: *task })?)
+        c::Read::History { task, subtree, after } => {
+            w::Read::History(w::ReadHistory { task: *task, subtree: *subtree, after: cursor(after.as_ref(), limits)? })
         }
-        c::Read::Result { task } => w::Read::Result(w::ReadResult::new(limits, w::ReadResultParts { task: *task })?),
-        c::Read::Ended { task, after } => w::Read::Ended(w::ReadEnded::new(
-            limits,
-            w::ReadEndedParts { task: *task, after: cursor(after.as_ref(), limits)? },
-        )?),
-        c::Read::History { task, subtree, after } => w::Read::History(w::ReadHistory::new(
-            limits,
-            w::ReadHistoryParts { task: *task, subtree: *subtree, after: cursor(after.as_ref(), limits)? },
-        )?),
-        c::Read::Activity { task, before } => w::Read::Activity(w::ReadActivity::new(
-            limits,
-            w::ReadActivityParts { task: *task, before: cursor(before.as_ref(), limits)? },
-        )?),
-        c::Read::Inbox { group, project, kind, goal, after } => w::Read::Inbox(w::ReadInbox::new(
-            limits,
-            w::ReadInboxParts {
-                group: inbox_group(*group),
-                project: *project,
-                kind: inbox_kind(*kind),
-                goal: *goal,
-                after: cursor(after.as_ref(), limits)?,
-            },
-        )?),
-        c::Read::Spend { project, after } => w::Read::Spend(w::ReadSpend::new(
-            limits,
-            w::ReadSpendParts { project: *project, after: cursor(after.as_ref(), limits)? },
-        )?),
-        c::Read::Project { project } => {
-            w::Read::Project(w::ReadProject::new(limits, w::ReadProjectParts { project: *project })?)
+        c::Read::Activity { task, before } => {
+            w::Read::Activity(w::ReadActivity { task: *task, before: cursor(before.as_ref(), limits)? })
         }
+        c::Read::Inbox { group, project, kind, goal, after } => w::Read::Inbox(w::ReadInbox {
+            group: inbox_group(*group),
+            project: *project,
+            kind: inbox_kind(*kind),
+            goal: *goal,
+            after: cursor(after.as_ref(), limits)?,
+        }),
+        c::Read::Spend { project, after } => {
+            w::Read::Spend(w::ReadSpend { project: *project, after: cursor(after.as_ref(), limits)? })
+        }
+        c::Read::Project { project } => w::Read::Project(w::ReadProject { project: *project }),
         c::Read::Notes { scope, description, after } => {
             let description = match description {
                 Some(value) => Some(bytes::copy_of(value.bytes())),
                 None => None,
             };
-            w::Read::Notes(w::ReadNotes::new(
-                limits,
-                w::ReadNotesParts {
-                    scope: wire_note_scope(scope, limits)?,
-                    description,
-                    after: cursor(after.as_ref(), limits)?,
-                },
-            )?)
+            w::Read::Notes(w::ReadNotes {
+                scope: wire_note_scope(scope, limits)?,
+                description,
+                after: cursor(after.as_ref(), limits)?,
+            })
         }
         c::Read::Deployment => w::Read::Deployment,
     })
 }
-fn cursor(value: Option<&c::Cursor>, limits: &w::Limits) -> Result<Option<w::Cursor>, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn cursor(value: Option<&c::Cursor>, _limits: &w::Limits) -> Result<Option<w::Cursor>, w::Problem> {
     match value {
-        Some(value) => Ok(Some(w::Cursor::new(limits, w::CursorParts { value: bytes::copy_of(value.value.bytes()) })?)),
+        Some(value) => Ok(Some(w::Cursor { value: bytes::copy_of(value.value.bytes()) })),
         None => Ok(None),
     }
 }
@@ -142,22 +116,22 @@ pub fn owned(value: Readable, limits: &w::Limits) -> Result<w::Owned, w::Problem
     let (owner, version, record) = match value {
         Readable::Jig(value) => {
             let value = read(&value, limits)?;
-            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-            value.encode(&mut writer).expect("measured read");
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+            value.write(limits, &mut writer).expect("measured read");
             (w::Owner::Jig, VERSION, writer.finish())
         }
         Readable::Family { scope, window, record: value } => {
-            let owner = w::Family::new(limits, w::FamilyParts { number: value.family })?;
+            let owner = w::Family { number: value.family };
             (w::Owner::Family(owner), value.version, super::envelope::record(scope, window, value, limits)?)
         }
     };
-    w::Owned::new(limits, w::OwnedParts { owner, version, record })
+    Ok(w::Owned { owner, version, record })
 }
 #[must_use]
 pub fn none(value: &w::ReadNone) -> c::ReadNone {
     match value {
-        w::ReadNone::TooLarge(value) => c::ReadNone::TooLarge { bytes: value.bytes() },
-        w::ReadNone::TooLinked(value) => c::ReadNone::TooLinked { joins: value.joins() },
+        w::ReadNone::TooLarge(value) => c::ReadNone::TooLarge { bytes: value.bytes },
+        w::ReadNone::TooLinked(value) => c::ReadNone::TooLinked { joins: value.joins },
         w::ReadNone::Malformed => c::ReadNone::Malformed,
         w::ReadNone::Unknown => c::ReadNone::Unknown,
         w::ReadNone::Refused => c::ReadNone::Refused,
@@ -190,7 +164,7 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
             }))
         }
         w::ReadValue::Revision(v) => {
-            c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(v.value(), limits) {
+            c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(&v.value, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))
@@ -224,7 +198,6 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
 }
 
 fn task_text(value: w::TaskText, limits: &Limits) -> Result<c::TaskText, Undecodable> {
-    let value = value.into_parts();
     let Ok(text) = c::Text::new(value.words, limits.client().text) else { return Err(Undecodable::TooLarge) };
     let end = value.from.checked_add(len_u64(text.bytes().len())).ok_or(Undecodable::Malformed)?;
     let next = if end < value.total { Some(end) } else { None };

@@ -86,14 +86,11 @@ fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
     let value = charter(&file);
     let wire = crate::wire::settings_wire_charter(&value, &Limits::standard().settings).unwrap();
     assert_eq!(
-        wire.wake().words(),
-        &jig_client_protocol_wire::WakeRule::Batch(
-            jig_client_protocol_wire::WakeRuleBatch::new(
-                &Limits::standard().settings,
-                jig_client_protocol_wire::WakeRuleBatchParts { count: 0, age: Duration::ZERO }
-            )
-            .unwrap()
-        )
+        (&wire.wake.words),
+        &jig_client_protocol_wire::WakeRule::Batch(jig_client_protocol_wire::WakeRuleBatch {
+            count: 0,
+            age: Duration::ZERO
+        })
     );
     assert_eq!(value.wake.news, c::WakeRule::Paced { span: Duration::ZERO });
 }
@@ -541,13 +538,11 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
             c::RevisionReplaced::Value(set),
         ),
         (
-            w::RevisionReplaced::TooLarge(w::Size::new(&limits.settings, w::SizeParts { bytes: 1_000_000 }).unwrap()),
+            w::RevisionReplaced::TooLarge(w::Size { bytes: 1_000_000 }),
             c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
         ),
         (
-            w::RevisionReplaced::Application(
-                w::ApplicationSize::new(&limits.settings, w::ApplicationSizeParts { size: 12 }).unwrap(),
-            ),
+            w::RevisionReplaced::Application(w::ApplicationSize { size: 12 }),
             c::RevisionReplaced::Application { size: 12 },
         ),
         (w::RevisionReplaced::Default, c::RevisionReplaced::Default),
@@ -555,11 +550,7 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
         (w::RevisionReplaced::NotOffered, c::RevisionReplaced::NotOffered),
     ];
     for (replaced, expected) in cases {
-        let item = w::RevisionItem::new(
-            &limits.settings,
-            w::RevisionItemParts { setting: w::Setting::Rules, edit: w::RevisionEdit::Reset, replaced },
-        )
-        .unwrap();
+        let item = w::RevisionItem { setting: w::Setting::Rules, edit: w::RevisionEdit::Reset, replaced };
         let restored = crate::wire::settings_restore_revision_item(&item, &limits).unwrap();
         assert_eq!(restored.replaced, expected);
     }
@@ -591,8 +582,8 @@ fn a_settings_file_template_names_its_resources() {
     let value = template(&template_file(br#", "resources":[{"connector":1,"symbol":1}]"#), &limits);
     assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
-    assert_eq!(wire.resources().get(0).unwrap().connector(), 1);
-    assert_eq!(wire.resources().get(0).unwrap().symbol(), 1);
+    assert_eq!(wire.resources.get(0).unwrap().connector, 1);
+    assert_eq!(wire.resources.get(0).unwrap().symbol, 1);
     assert_eq!(crate::wire::documents_me_template(&wire, &limits).unwrap(), value);
 }
 #[test]
@@ -645,7 +636,7 @@ fn a_charters_tools_round_trip() {
     assert_eq!(source.tools, 1536);
     let limits = Limits::standard();
     let wire = crate::wire::settings_wire_charter(&source, &limits.settings).unwrap();
-    assert_eq!(wire.tools(), 1536);
+    assert_eq!(wire.tools, 1536);
     let restored = crate::wire::settings_restore_charter(&wire, &limits).unwrap();
     assert_eq!(restored, source);
     let bounds = JsonLimits { depth: 32, length: 8192 };

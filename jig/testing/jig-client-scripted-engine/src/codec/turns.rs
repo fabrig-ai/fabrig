@@ -3,16 +3,16 @@ use super::{List, bytes, c, problem, w};
 use smith_transcript::Record;
 use smith_transcript::v7 as t;
 
-pub(super) fn turn_bytes(value: &c::TurnRead, limits: &w::Limits) -> Result<w::TurnBytes, w::Problem> {
+pub(super) fn turn_bytes(value: &c::TurnRead, _limits: &w::Limits) -> Result<w::TurnBytes, w::Problem> {
     let bytes = match value {
         c::TurnRead::Decoded(value) => turn(value)?,
         c::TurnRead::Undecodable { why: c::TurnProblem::Version { found } } => found.to_be_bytes().into(),
         c::TurnRead::Undecodable { why: c::TurnProblem::Malformed } => Box::new([]),
         c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes } } => {
-            return Ok(w::TurnBytes::TooLarge(w::TurnTooLarge::new(limits, w::TurnTooLargeParts { bytes: *bytes })?));
+            return Ok(w::TurnBytes::TooLarge(w::TurnTooLarge { bytes: *bytes }));
         }
     };
-    Ok(w::TurnBytes::Carried(w::TurnCarried::new(limits, w::TurnCarriedParts { bytes })?))
+    Ok(w::TurnBytes::Carried(w::TurnCarried { bytes }))
 }
 
 fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {

@@ -1,6 +1,7 @@
 //! Authenticated reads and their one durable answer (protocol/client/README.md, 4).
 use super::{cursor, objects, pages, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -9,52 +10,49 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
     Some(match value {
         w::Read::Settings => reads::Read::Settings,
         w::Read::Setting(value) => read_setting(value),
-        w::Read::Revision(value) => reads::Read::Revision { number: value.number() },
-        w::Read::Revisions(value) => reads::Read::Revisions { before: *value.before() },
-        w::Read::Tasks(value) => {
-            let value = value.into_parts();
-            reads::Read::Tasks {
-                query: super::queries::query(value.query)?,
-                live: decode_cursor(value.live)?,
-                ended: decode_cursor(value.ended)?,
-            }
-        }
-        w::Read::Turn(value) => reads::Read::Turn { task: value.task(), attempt: value.attempt(), turn: value.turn() },
+        w::Read::Revision(value) => reads::Read::Revision { number: value.number },
+        w::Read::Revisions(value) => reads::Read::Revisions { before: value.before },
+        w::Read::Tasks(value) => reads::Read::Tasks {
+            query: super::queries::query(value.query)?,
+            live: decode_cursor(value.live)?,
+            ended: decode_cursor(value.ended)?,
+        },
+        w::Read::Turn(value) => reads::Read::Turn { task: value.task, attempt: value.attempt, turn: value.turn },
         w::Read::TaskText(value) => read_task_text(value),
         w::Read::ActivityBeside(value) => reads::Read::ActivityBeside {
-            task: value.task(),
-            position: value.position(),
-            side: match value.side() {
+            task: value.task,
+            position: value.position,
+            side: match &value.side {
                 w::ActivitySide::Earlier => reads::Side::Earlier,
                 w::ActivitySide::Later => reads::Side::Later,
             },
         },
         w::Read::Me => reads::Read::Frame,
-        w::Read::Task(value) => reads::Read::Task { task: value.task() },
+        w::Read::Task(value) => reads::Read::Task { task: value.task },
         w::Read::Proposal(value) => reads::Read::Proposal {
-            proposer: match value.proposal().proposer() {
-                w::Proposer::Task(value) => people::Proposer::Task(value.value()),
-                w::Proposer::Party(value) => people::Proposer::Party(value.value()),
+            proposer: match &value.proposal.proposer {
+                w::Proposer::Task(value) => people::Proposer::Task(value.value),
+                w::Proposer::Party(value) => people::Proposer::Party(value.value),
             },
-            proposal: value.proposal().number(),
+            proposal: value.proposal.number,
         },
-        w::Read::Escalation(value) => reads::Read::Escalation { task: value.task() },
-        w::Read::Question(value) => reads::Read::Question { task: value.task(), message: value.message() },
-        w::Read::PersonTask(value) => reads::Read::PersonTask { task: value.task() },
-        w::Read::Result(value) => reads::Read::Result { task: value.task() },
+        w::Read::Escalation(value) => reads::Read::Escalation { task: value.task },
+        w::Read::Question(value) => reads::Read::Question { task: value.task, message: value.message },
+        w::Read::PersonTask(value) => reads::Read::PersonTask { task: value.task },
+        w::Read::Result(value) => reads::Read::Result { task: value.task },
         w::Read::Ended(value) => read_ended(value)?,
         w::Read::History(value) => read_history(value)?,
         w::Read::Activity(value) => read_activity(value)?,
         w::Read::Inbox(value) => read_inbox(value)?,
         w::Read::Spend(value) => {
-            let parts = value.into_parts();
+            let parts = value;
             let from = match parts.after {
-                Some(value) => Some(cursor::decode(value.value())?),
+                Some(value) => Some(cursor::decode(value.value.as_ref())?),
                 None => None,
             };
             reads::Read::Spend { project: parts.project, from }
         }
-        w::Read::Project(value) => reads::Read::Project { project: value.project() },
+        w::Read::Project(value) => reads::Read::Project { project: value.project },
         w::Read::Notes(value) => read_notes(value)?,
         w::Read::Deployment => reads::Read::Deployment,
     })
@@ -82,16 +80,16 @@ fn group(parent: w::InboxReadGroup, kind: Option<w::InboxGroup>) -> Option<reads
 fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
     Some(match value {
         w::NoteScope::Tasks(_) => return None,
-        w::NoteScope::Party(value) => notes::Scope::Party { party: value.party() },
+        w::NoteScope::Party(value) => notes::Scope::Party { party: value.party },
         w::NoteScope::Deployment => notes::Scope::Deployment,
-        w::NoteScope::Project(value) => notes::Scope::Project { project: value.value() },
-        w::NoteScope::Task(value) => notes::Scope::Goal { project: value.project(), goal: value.task() },
+        w::NoteScope::Project(value) => notes::Scope::Project { project: value.value },
+        w::NoteScope::Task(value) => notes::Scope::Goal { project: value.project, goal: value.task },
         w::NoteScope::Resource(value) => {
-            let parts = value.into_parts();
-            let pattern = parts.pattern.into_parts();
+            let parts = value;
+            let pattern = parts.pattern;
             let last = match pattern.last {
-                w::PatternEnd::Exact(value) => notes::Last::Exact(value.into_parts().value),
-                w::PatternEnd::Open(value) => notes::Last::Open(value.into_parts().value),
+                w::PatternEnd::Exact(value) => notes::Last::Exact(value.value),
+                w::PatternEnd::Open(value) => notes::Last::Open(value.value),
             };
             notes::Scope::Resources {
                 project: parts.project,
@@ -101,21 +99,17 @@ fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
         }
     })
 }
-pub(crate) fn none(why: reads::Why, limits: &w::Limits) -> w::ReadAnswer {
+pub(crate) fn none(why: reads::Why, _limits: &w::Limits) -> w::ReadAnswer {
     let value = match why {
-        reads::Why::TooLarge { bytes } => w::ReadNone::TooLarge(
-            w::TurnTooLarge::new(limits, w::TurnTooLargeParts { bytes }).expect("no bounded field"),
-        ),
-        reads::Why::TooLinked { joins } => w::ReadNone::TooLinked(
-            w::ReadTooLinked::new(limits, w::ReadTooLinkedParts { joins }).expect("no bounded field"),
-        ),
+        reads::Why::TooLarge { bytes } => w::ReadNone::TooLarge(w::TurnTooLarge { bytes }),
+        reads::Why::TooLinked { joins } => w::ReadNone::TooLinked(w::ReadTooLinked { joins }),
         reads::Why::Malformed => w::ReadNone::Malformed,
         reads::Why::Unknown => w::ReadNone::Unknown,
         reads::Why::Busy => w::ReadNone::Busy,
         reads::Why::Gone => w::ReadNone::Gone,
         reads::Why::SignedOut => w::ReadNone::SignedOut,
     };
-    w::ReadAnswer::None(w::ReadAnswerNone::new(limits, w::ReadAnswerNoneParts { value }).expect("no bounded field"))
+    w::ReadAnswer::None(w::ReadAnswerNone { value })
 }
 pub(crate) fn answer(
     read: &reads::Read,
@@ -130,10 +124,9 @@ pub(crate) fn answer(
         reads::Answer::Setting(value) => {
             w::ReadValue::Setting(super::settings::setting_document(value, models, limits)?)
         }
-        reads::Answer::Revision(value) => w::ReadValue::Revision(w::ReadRevisionAnswer::new(
-            limits,
-            w::ReadRevisionAnswerParts { value: super::settings::revision(value, models, limits)? },
-        )?),
+        reads::Answer::Revision(value) => {
+            w::ReadValue::Revision(w::ReadRevisionAnswer { value: super::settings::revision(value, models, limits)? })
+        }
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
         reads::Answer::Tasks(page) => {
@@ -146,17 +139,18 @@ pub(crate) fn answer(
         reads::Answer::Page(page) => pages::page(models, read, page, private, limits)?,
         reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, private, limits)?,
     };
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("measured value");
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+    value.write(limits, &mut out).expect("measured value");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(crate) fn owned(
     owner: w::Owner,
     version: u32,
     record: Box<[u8]>,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
-    Ok(w::ReadAnswer::Value(w::Owned::new(limits, w::OwnedParts { owner, version, record })?))
+    Ok(w::ReadAnswer::Value(w::Owned { owner, version, record }))
 }
 pub(crate) fn decode(bytes: &[u8], limits: &w::Limits) -> Option<reads::Read> {
     let mut reader = Reader::new(bytes);
@@ -170,54 +164,48 @@ pub(crate) fn decode(bytes: &[u8], limits: &w::Limits) -> Option<reads::Read> {
 #[expect(clippy::option_option, reason = "outer absence is malformed, inner absence is the initial cursor")]
 fn decode_cursor(value: Option<w::Cursor>) -> Option<Option<reads::Cursor>> {
     match value {
-        Some(value) => Some(Some(cursor::decode(value.value())?)),
+        Some(value) => Some(Some(cursor::decode(value.value.as_ref())?)),
         None => Some(None),
     }
 }
 
-fn task_text(value: &reads::TaskText, limits: &w::Limits) -> Result<w::TaskText, w::Problem> {
-    w::TaskText::new(
-        limits,
-        w::TaskTextParts {
-            task: value.task,
-            field: match value.field {
-                reads::TaskTextField::Specification => w::TaskTextField::Specification,
-                reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
-                reads::TaskTextField::Result => w::TaskTextField::Result,
-            },
-            from: value.from,
-            total: value.total,
-            next: value.next,
-            words: skein_lib::bytes::copy_of(&value.bytes),
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn task_text(value: &reads::TaskText, _limits: &w::Limits) -> Result<w::TaskText, w::Problem> {
+    Ok(w::TaskText {
+        task: value.task,
+        field: match value.field {
+            reads::TaskTextField::Specification => w::TaskTextField::Specification,
+            reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
+            reads::TaskTextField::Result => w::TaskTextField::Result,
         },
-    )
+        from: value.from,
+        total: value.total,
+        next: value.next,
+        words: skein_lib::bytes::copy_of(&value.bytes),
+    })
 }
 
 fn read_setting(value: w::ReadSetting) -> reads::Read {
     {
         let mut proposal = None;
-        if let Some(key) = value.proposal() {
+        if let Some(key) = &value.proposal {
             proposal = Some((
-                match key.proposer() {
-                    w::Proposer::Party(party) => people::Proposer::Party(party.value()),
-                    w::Proposer::Task(task) => people::Proposer::Task(task.value()),
+                match &key.proposer {
+                    w::Proposer::Party(party) => people::Proposer::Party(party.value),
+                    w::Proposer::Task(task) => people::Proposer::Task(task.value),
                 },
-                key.number(),
+                key.number,
             ));
         }
-        reads::Read::Setting {
-            setting: super::settings::setting(value.setting()),
-            revision: value.revision(),
-            proposal,
-        }
+        reads::Read::Setting { setting: super::settings::setting(&value.setting), revision: value.revision, proposal }
     }
 }
 
 fn read_task_text(value: w::ReadTaskText) -> reads::Read {
     reads::Read::TaskText {
-        task: value.task(),
-        from: value.from(),
-        field: match value.field() {
+        task: value.task,
+        from: value.from,
+        field: match &value.field {
             w::TaskTextField::Specification => reads::TaskTextField::Specification,
             w::TaskTextField::Instructions => reads::TaskTextField::Instructions,
             w::TaskTextField::Result => reads::TaskTextField::Result,
@@ -227,9 +215,9 @@ fn read_task_text(value: w::ReadTaskText) -> reads::Read {
 
 fn read_ended(value: w::ReadEnded) -> Option<reads::Read> {
     Some({
-        let parts = value.into_parts();
+        let parts = value;
         let from = match parts.after {
-            Some(value) => Some(cursor::decode(value.value())?),
+            Some(value) => Some(cursor::decode(value.value.as_ref())?),
             None => None,
         };
         reads::Read::EndedDelegates { task: parts.task, from }
@@ -238,9 +226,9 @@ fn read_ended(value: w::ReadEnded) -> Option<reads::Read> {
 
 fn read_history(value: w::ReadHistory) -> Option<reads::Read> {
     Some({
-        let parts = value.into_parts();
+        let parts = value;
         let from = match parts.after {
-            Some(value) => Some(cursor::decode(value.value())?),
+            Some(value) => Some(cursor::decode(value.value.as_ref())?),
             None => None,
         };
         reads::Read::History { task: parts.task, subtree: parts.subtree, from }
@@ -249,9 +237,9 @@ fn read_history(value: w::ReadHistory) -> Option<reads::Read> {
 
 fn read_activity(value: w::ReadActivity) -> Option<reads::Read> {
     Some({
-        let parts = value.into_parts();
+        let parts = value;
         let before = match parts.before {
-            Some(value) => Some(cursor::decode(value.value())?),
+            Some(value) => Some(cursor::decode(value.value.as_ref())?),
             None => None,
         };
         reads::Read::Activity { task: parts.task, before }
@@ -260,10 +248,10 @@ fn read_activity(value: w::ReadActivity) -> Option<reads::Read> {
 
 fn read_inbox(value: w::ReadInbox) -> Option<reads::Read> {
     Some({
-        let parts = value.into_parts();
+        let parts = value;
         let group = group(parts.group, parts.kind)?;
         let from = match parts.after {
-            Some(value) => Some(cursor::decode(value.value())?),
+            Some(value) => Some(cursor::decode(value.value.as_ref())?),
             None => None,
         };
         reads::Read::Inbox { group, filter: reads::Filter { project: parts.project, goal: parts.goal }, from }
@@ -272,9 +260,9 @@ fn read_inbox(value: w::ReadInbox) -> Option<reads::Read> {
 
 fn read_notes(value: w::ReadNotes) -> Option<reads::Read> {
     Some({
-        let parts = value.into_parts();
+        let parts = value;
         let from = match parts.after {
-            Some(value) => Some(cursor::decode(value.value())?),
+            Some(value) => Some(cursor::decode(value.value.as_ref())?),
             None => None,
         };
         match parts.scope {
@@ -282,7 +270,7 @@ fn read_notes(value: w::ReadNotes) -> Option<reads::Read> {
                 if parts.description.is_some() {
                     return None;
                 }
-                reads::Read::Notes { project: value.project(), from }
+                reads::Read::Notes { project: value.project, from }
             }
             scope @ (w::NoteScope::Deployment
             | w::NoteScope::Project(_)

@@ -32,7 +32,7 @@ pub use objects::document;
 pub use queries::line as task_line;
 
 fn problem(reason: skein_codec::Reason) -> w::Problem {
-    w::Problem { path: w::Path::OwnedRecord, reason }
+    w::Problem { path: w::paths::OWNED_RECORD, reason }
 }
 fn count(value: usize) -> Result<u32, w::Problem> {
     match u32::try_from(value) {

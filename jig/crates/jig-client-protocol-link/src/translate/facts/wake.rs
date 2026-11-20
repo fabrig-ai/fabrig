@@ -6,8 +6,8 @@ pub(crate) fn wake_rule(value: &w::WakeRule) -> c::WakeRule {
     match value {
         w::WakeRule::Never => c::WakeRule::Never,
         w::WakeRule::Immediate => c::WakeRule::Immediate,
-        w::WakeRule::Batch(row) => c::WakeRule::Batch { count: row.count(), age: row.age() },
-        w::WakeRule::Paced(row) => c::WakeRule::Paced { span: row.span() },
+        w::WakeRule::Batch(row) => c::WakeRule::Batch { count: row.count, age: row.age },
+        w::WakeRule::Paced(row) => c::WakeRule::Paced { span: row.span },
     }
 }
 
@@ -21,12 +21,12 @@ pub(crate) fn results_wake(value: &w::ResultsWake) -> c::ResultsWake {
 
 pub(crate) fn wake_policy(value: &w::WakePolicy) -> c::WakePolicy {
     c::WakePolicy {
-        words: wake_rule(value.words()),
-        notices: wake_rule(value.notices()),
-        news: wake_rule(value.news()),
-        results: results_wake(value.results()),
-        questions: value.questions(),
-        answers: value.answers(),
-        timers: value.timers(),
+        words: wake_rule(&value.words),
+        notices: wake_rule(&value.notices),
+        news: wake_rule(&value.news),
+        results: results_wake(&value.results),
+        questions: value.questions,
+        answers: value.answers,
+        timers: value.timers,
     }
 }

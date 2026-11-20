@@ -1,12 +1,15 @@
 //! Settings requests, reads and the watch reach the core.
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_engine_clients_kit::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
 macro_rules! encoded {
     ($value:expr) => {{
         let value = $value;
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured fixture");
+        let mut out = Writer::new(skein_lib::length::usize_of(
+            value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured fixture");
         out.finish()
     }};
 }
@@ -15,24 +18,14 @@ fn settings_requests_reach_the_core_and_keep_its_stale_fact() {
     let limits = fixtures::limits().wire;
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
-    let ask = w::Ask::ChangeSettings(
-        w::ChangeSettings::new(
-            &limits,
-            w::ChangeSettingsParts { against: 4, items: Box::new([]), running: w::Running::Stays },
-        )
-        .expect("change"),
-    );
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
-            key: [7; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: encoded!(&ask),
-            value: None,
-        },
-    )
-    .expect("keyed");
+    let ask = w::Ask::ChangeSettings(w::ChangeSettings { against: 4, items: Box::new([]), running: w::Running::Stays });
+    let keyed = w::Keyed {
+        key: [7; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: encoded!(&ask),
+        value: None,
+    };
     let socket = peer.post(b"/jig/v1/request", encoded!(&keyed), Some(&bearer));
     let Some(jig_domain_core::Event::ChangeSettings { reply_to, sign_in, key, digest, change }) = peer.take_core()
     else {
@@ -53,10 +46,10 @@ fn settings_requests_reach_the_core_and_keep_its_stale_fact() {
     let answer =
         w::KeyedAnswer::decode(&limits, &mut Reader::new(peer.answered(socket).expect("answer"))).expect("wire answer");
     let w::KeyedAnswer::FinalAnswer(owned) = answer else { panic!("final answer") };
-    let final_value = w::Final::decode(&limits, &mut Reader::new(owned.record())).expect("final");
+    let final_value = w::Final::decode(&limits, &mut Reader::new(owned.record.as_ref())).expect("final");
     let w::Final::Refused(refused) = final_value else { panic!("stale refusal") };
-    let w::Refusal::Stale(value) = refused.refusal() else { panic!("stale fact") };
-    assert_eq!(value.newest(), 5);
+    let w::Refusal::Stale(value) = &refused.refusal else { panic!("stale fact") };
+    assert_eq!(value.newest, 5);
 }
 
 #[test]
@@ -120,21 +113,12 @@ fn settings_reads_and_watch_reach_the_core() {
     let bearer = fixtures::signed_in(&mut peer);
     for read in [
         w::Read::Settings,
-        w::Read::Setting(
-            w::ReadSetting::new(
-                &limits,
-                w::ReadSettingParts { setting: w::Setting::Rules, revision: 4, proposal: None },
-            )
-            .expect("setting"),
-        ),
-        w::Read::Revision(w::ReadRevision::new(&limits, w::ReadRevisionParts { number: 4 }).expect("revision")),
-        w::Read::Revisions(w::ReadRevisions::new(&limits, w::ReadRevisionsParts { before: Some(5) }).expect("page")),
+        w::Read::Setting(w::ReadSetting { setting: w::Setting::Rules, revision: 4, proposal: None }),
+        w::Read::Revision(w::ReadRevision { number: 4 }),
+        w::Read::Revisions(w::ReadRevisions { before: Some(5) }),
     ] {
-        let owned = w::Owned::new(
-            &limits,
-            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded!(&read) },
-        )
-        .expect("owned");
+        let owned =
+            w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded!(&read) };
         let socket = peer.post(b"/jig/v1/read", encoded!(&owned), Some(&bearer));
         let Some(jig_domain_core::Event::Read { reply, .. }) = peer.take_core() else {
             panic!("settings read reaches core")
@@ -150,16 +134,12 @@ fn settings_reads_and_watch_reach_the_core() {
     // A fresh seeded peer installs the same first test credential for its stream.
     let mut peer = Peer::signed_in(&fixtures::settings(), fixtures::FIRST_SIGN_IN);
     let stream = peer.open_stream();
-    let subject = w::Owned::new(
-        &limits,
-        w::OwnedParts {
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: encoded!(&w::Subject::Settings),
-        },
-    )
-    .expect("subject");
-    let open = w::Open::new(&limits, w::OpenParts { stream, watch: 999, subject }).expect("open");
+    let subject = w::Owned {
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        record: encoded!(&w::Subject::Settings),
+    };
+    let open = w::Open { stream, watch: 999, subject };
     let socket = peer.post(b"/jig/v1/watch", encoded!(&open), Some(&bearer));
     let Some(jig_domain_core::Event::Watch { watcher, subject, .. }) = peer.take_core() else {
         panic!("settings watch reaches core")

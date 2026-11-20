@@ -1,4 +1,5 @@
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures::{self, Peer};
@@ -26,9 +27,7 @@ fn answer(peer: &Peer, socket: Token) -> w::KeyedAnswer {
         .expect("wire answer")
 }
 fn end(watch: u64, why: w::WatchEnd) -> w::StreamEvent {
-    w::StreamEvent::Ended(
-        w::WatchEnded::new(&fixtures::limits().wire, w::WatchEndedParts { watch, why }).expect("ending"),
-    )
+    w::StreamEvent::Ended(w::WatchEnded { watch, why })
 }
 fn second_stream(peer: &mut Peer) -> [u8; 16] {
     let spent = peer.printed_link();
@@ -40,26 +39,22 @@ fn second_stream(peer: &mut Peer) -> [u8; 16] {
     peer.open_stream()
 }
 fn keyed() -> Box<[u8]> {
-    let lim = fixtures::limits().wire;
-    let ask = w::Ask::Message(
-        w::Message::new(&lim, w::MessageParts { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
-            .expect("ask"),
-    );
-    let mut bytes = Writer::new(skein_lib::length::usize_of(ask.measure()));
-    ask.encode(&mut bytes).expect("ask bytes");
-    let record = w::Keyed::new(
-        &lim,
-        w::KeyedParts {
-            key: [5; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: bytes.finish(),
-            value: None,
-        },
-    )
-    .expect("keyed");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut bytes).expect("keyed bytes");
+    let ask = w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"hello".as_slice()) });
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("ask bytes");
+    let record = w::Keyed {
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("keyed bytes");
     bytes.finish()
 }
 #[test]
@@ -105,15 +100,15 @@ fn after_stop_a_read_is_served() {
     let mut peer = signed();
     let lim = fixtures::limits().wire;
     let value = w::Read::Me;
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("read bytes");
-    let record = w::Owned::new(
-        &lim,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-    )
-    .expect("read owner");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut bytes).expect("owner bytes");
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("read bytes");
+    let record = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("owner bytes");
     let socket = peer.accepted_post(b"/jig/v1/read", bytes.finish());
     peer.event(Event::Stop);
     let Some(core::Event::Read { reply, sign_in, read }) = peer.take_core() else { panic!("read served") };
@@ -122,10 +117,7 @@ fn after_stop_a_read_is_served() {
     peer.answer_read(reply, core::reads::Answer::None(core::reads::Why::Unknown));
     assert_eq!(
         w::ReadAnswer::decode(&lim, &mut Reader::new(peer.answered(socket).expect("read answer"))),
-        Ok(w::ReadAnswer::None(
-            w::ReadAnswerNone::new(&lim, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
-                .expect("literal unknown")
-        )),
+        Ok(w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown })),
         "read"
     );
 }
@@ -134,14 +126,12 @@ fn after_stop_a_new_watch_is_ended_as_stopping() {
     let mut peer = signed();
     let stream = peer.open_stream();
     let lim = fixtures::limits().wire;
-    let owned = w::Owned::new(
-        &lim,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: Box::new([0]) },
-    )
-    .expect("frame subject");
-    let open = w::Open::new(&lim, w::OpenParts { stream, watch: 1, subject: owned }).expect("watch open");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(open.measure()));
-    open.encode(&mut bytes).expect("open bytes");
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: Box::new([0]) };
+    let open = w::Open { stream, watch: 1, subject: owned };
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        open.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    open.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("open bytes");
     let socket = peer.accepted_post(b"/jig/v1/watch", bytes.finish());
     peer.event(Event::Stop);
     assert_eq!(

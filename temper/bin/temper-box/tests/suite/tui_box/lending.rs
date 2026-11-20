@@ -1,6 +1,7 @@
 //! Process wiring for a terminal lent to the found box (client/tui/box.md, Lending's tests).
 use super::{Binary, Command, Delegate, Expectation, Host, Mode, Referee, Streams, Terminal, real, support};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Size, Submit},
@@ -128,33 +129,35 @@ impl Peer {
         }
     }
     fn opened(&mut self, open: &w::Open) -> Box<[u8]> {
-        if open.subject().owner() == &w::Owner::Jig {
-            let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+        if open.subject.owner == w::Owner::Jig {
+            let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject.record.as_ref()))
                 .expect("subject");
             if matches!(subject, w::Subject::Terminal(_)) {
-                self.respond(self.stream.expect("event stream"), terminal(open.watch()));
+                self.respond(self.stream.expect("event stream"), terminal(open.watch));
             }
         }
         let answer = w::OpenAnswer::Admitted;
-        let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-        answer.encode(&mut writer).expect("admitted");
+        let mut writer = Writer::new(
+            usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("answer size"),
+        );
+        answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("admitted");
         writer.finish()
     }
     fn batch(&mut self, owner: Token, bytes: &[u8]) {
         let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch request");
         let mut frames = Vec::new();
-        for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+        for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
             let reply = match member {
                 w::Member::Open(open) => self.opened(&open),
                 w::Member::Read(_) | w::Member::Close(_) => Box::new([]),
             };
-            let part = w::BatchReply::new(
-                &w::CEILINGS,
-                w::BatchReplyParts { member: u16::try_from(place).expect("at most 64 members"), reply: Some(reply) },
-            )
-            .expect("member reply");
-            let mut writer = Writer::new(usize::try_from(part.measure()).expect("part size"));
-            part.encode(&mut writer).expect("part bytes");
+            let part = w::BatchReply { member: u16::try_from(place).expect("at most 64 members"), reply: Some(reply) };
+            let mut writer = Writer::new(
+                usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("part size"),
+            );
+            part.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("part bytes");
             let bytes = writer.finish();
             frames.extend_from_slice(&u32::try_from(bytes.len()).expect("frame size").to_be_bytes());
             frames.extend_from_slice(&bytes);
@@ -255,100 +258,71 @@ fn response(body: &[u8]) -> Vec<u8> {
     .concat()
 }
 fn signed_in() -> Vec<u8> {
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(skein_lib::Secret::new(Box::new([7; 40]))), party: 17, expires: u64::MAX },
-        )
-        .expect("signed in"),
+    let answer = w::SignInAnswer::SignedIn(w::SignedIn {
+        token: Some(skein_lib::Secret::new(Box::new([7; 40]))),
+        party: 17,
+        expires: u64::MAX,
+    });
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("size"),
     );
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("size"));
-    answer.encode(&mut writer).expect("sign-in answer");
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("sign-in answer");
     response(&writer.finish())
 }
 fn hello() -> Vec<u8> {
     let mut served = skein_lib::List::with_capacity(1);
     served
-        .push(
-            w::Served::new(
-                &w::CEILINGS,
-                w::ServedParts {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-            )
-            .expect("served version"),
-        )
+        .push(w::Served {
+            owner: w::Owner::Jig,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
         .expect("one version");
-    let hello =
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello");
-    sse(&w::StreamEvent::Opened(
-        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: me() }).expect("opened stream"),
-    ))
+    let hello = w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
+    sse(&w::StreamEvent::Opened(w::Opened { hello, me: me() }))
 }
 fn me() -> w::Owned {
-    let text =
-        || w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::new([]), cut: false }).expect("text");
-    let me = w::Me::new(
-        &w::CEILINGS,
-        w::MeParts {
-            party: w::MeParty::new(
-                &w::CEILINGS,
-                w::MePartyParts { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
-            )
-            .expect("party"),
-            projects: Box::new([]),
-            needs: w::Needs::new(
-                &w::CEILINGS,
-                w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-            )
-            .expect("needs"),
-            needs_total: 0,
-            updates: w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false }).expect("count"),
-            results_seen: 0,
-            cut: false,
-            retention: Duration::from_secs(1000),
-            deployment_role: None,
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 256,
-            words_bytes: 8192,
-        },
-    )
-    .expect("me without projects");
+    let text = || w::DocumentText { bytes: Box::new([]), cut: false };
+    let me = w::Me {
+        party: w::MeParty { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
+        projects: Box::new([]),
+        needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+        needs_total: 0,
+        updates: w::Count { value: 0, limited: false },
+        results_seen: 0,
+        cut: false,
+        retention: Duration::from_secs(1000),
+        deployment_role: None,
+        providers: Box::new([]),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        words_bytes: 8192,
+    };
     let value = w::DeliveryValue::Me(me);
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("size"));
-    value.encode(&mut writer).expect("me document");
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() })
-        .expect("envelope")
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("size"),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("me document");
+    w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() }
 }
 fn terminal(watch: u64) -> Vec<u8> {
-    let login = w::TerminalLogin::new(
-        &w::CEILINGS,
-        w::TerminalLoginParts { number: 1, provider: 7, name: b"work".as_slice().into(), cancelled: false },
-    )
-    .expect("login");
-    let value = w::DeliveryValue::Terminal(
-        w::Terminal::new(&w::CEILINGS, w::TerminalParts { login: Some(login) }).expect("terminal"),
+    let login = w::TerminalLogin { number: 1, provider: 7, name: b"work".as_slice().into(), cancelled: false };
+    let value = w::DeliveryValue::Terminal(w::Terminal { login: Some(login) });
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("size"),
     );
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("size"));
-    value.encode(&mut writer).expect("terminal document");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("envelope");
-    sse(&w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
-    ))
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("terminal document");
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
+    sse(&w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
 fn sse(event: &w::StreamEvent) -> Vec<u8> {
     use skein_lib::base64::{self, Alphabet};
-    let mut writer = Writer::new(usize::try_from(event.measure()).expect("size"));
-    event.encode(&mut writer).expect("event");
+    let mut writer = Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("size"),
+    );
+    event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("event");
     let bytes = writer.finish();
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("size")).expect("base64 size");
     let mut writer = Writer::new(usize::try_from(size).expect("size"));

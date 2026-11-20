@@ -1,69 +1,51 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{chips, pieces, task, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_views as views;
 use skein_lib::{List, Writer, bytes};
-pub fn current_call(value: &views::Call, limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {
-    w::CurrentCall::new(
-        limits,
-        w::CurrentCallParts {
-            identity: w::CallIdentity::new(
-                limits,
-                w::CallIdentityParts {
-                    owner: value.identity.owner.raw(),
-                    sequence: value.identity.sequence,
-                    retry: value.identity.retry,
-                    id: bytes::copy_of(&value.identity.id),
-                },
-            )?,
-            tool: bytes::copy_of(&value.tool),
-            input: bytes::copy_of(&value.input),
-            cut: value.cut,
-            began: match value.began {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
+pub fn current_call(value: &views::Call, _limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {
+    Ok(w::CurrentCall {
+        identity: w::CallIdentity {
+            owner: value.identity.owner.raw(),
+            sequence: value.identity.sequence,
+            retry: value.identity.retry,
+            id: bytes::copy_of(&value.identity.id),
         },
-    )
+        tool: bytes::copy_of(&value.tool),
+        input: bytes::copy_of(&value.input),
+        cut: value.cut,
+        began: match value.began {
+            Some(item) => Some(item.as_nanos()),
+            None => None,
+        },
+    })
 }
 pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText, w::Problem> {
-    w::RunText::new(
-        limits,
-        w::RunTextParts {
-            writing: match &value.writing {
-                Some(call) => writing_call(call, limits)?,
-                None => None,
-            },
-            attempt: value.turn.attempt,
-            began: None,
-            turn: w::ProvisionalTurnName::new(
-                limits,
-                w::ProvisionalTurnNameParts {
-                    attempt: value.turn.attempt,
-                    number: value.turn.turn,
-                    retry: value.turn.retry,
-                },
-            )?,
-            from: value.from,
-            through: value.to,
-            text: bytes::copy_of(&value.text),
-            cut: value.cut,
-            call: match &value.call {
-                Some(call) => Some(w::LiveCall::Raw(w::LiveCallRaw::new(
-                    limits,
-                    w::LiveCallRawParts { value: current_call(call, limits)? },
-                )?)),
-                None => None,
-            },
+    Ok(w::RunText {
+        writing: match &value.writing {
+            Some(call) => writing_call(call, limits)?,
+            None => None,
         },
-    )
+        attempt: value.turn.attempt,
+        began: None,
+        turn: w::ProvisionalTurnName { attempt: value.turn.attempt, number: value.turn.turn, retry: value.turn.retry },
+        from: value.from,
+        through: value.to,
+        text: bytes::copy_of(&value.text),
+        cut: value.cut,
+        call: match &value.call {
+            Some(call) => Some(w::LiveCall::Raw(w::LiveCallRaw { value: current_call(call, limits)? })),
+            None => None,
+        },
+    })
 }
 #[expect(
     clippy::disallowed_methods,
     reason = "protocol/client/README.md 5: this protocol owner validates retained input UTF-8"
 )]
-pub fn writing_call(value: &views::WritingCall, limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
+pub fn writing_call(value: &views::WritingCall, _limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
     let mut skip: usize = 0;
     if value.from != 0 {
         for byte in &value.input {
@@ -87,60 +69,51 @@ pub fn writing_call(value: &views::WritingCall, limits: &w::Limits) -> Result<Op
     let Some(through) = from.checked_add(u32::try_from(length).expect("bounded input")) else {
         return Ok(None);
     };
-    Ok(Some(w::WritingCall::new(
-        limits,
-        w::WritingCallParts {
-            id: bytes::copy_of(&value.id),
-            tool: bytes::copy_of(&value.tool),
-            from,
-            through,
-            input: bytes::copy_of(input.get(..length).expect("complete character prefix")),
-            cut: value.cut,
-        },
-    )?))
+    Ok(Some(w::WritingCall {
+        id: bytes::copy_of(&value.id),
+        tool: bytes::copy_of(&value.tool),
+        from,
+        through,
+        input: bytes::copy_of(input.get(..length).expect("complete character prefix")),
+        cut: value.cut,
+    }))
 }
 
 pub fn run(value: &d::Run, limits: &w::Limits) -> Result<w::RunState, w::Problem> {
-    w::RunState::new(
-        limits,
-        w::RunStateParts {
-            task: value.task,
-            attempt: value.attempt,
-            committed_turn: value.committed_turn,
-            writing: match &value.writing {
-                Some(item) => Some(writing(item, limits)?),
-                None => None,
-            },
-            call: match &value.call {
-                Some(item) => Some(current_call(item, limits)?),
-                None => None,
-            },
+    Ok(w::RunState {
+        task: value.task,
+        attempt: value.attempt,
+        committed_turn: value.committed_turn,
+        writing: match &value.writing {
+            Some(item) => Some(writing(item, limits)?),
+            None => None,
         },
-    )
+        call: match &value.call {
+            Some(item) => Some(current_call(item, limits)?),
+            None => None,
+        },
+    })
 }
-pub fn count(value: d::Count, limits: &w::Limits) -> Result<w::Count, w::Problem> {
+pub fn count(value: d::Count, _limits: &w::Limits) -> Result<w::Count, w::Problem> {
     let (number, limited) = match value {
         d::Count::Known(n) => (n, false),
         d::Count::AtLeast(n) => (n, true),
     };
-    w::Count::new(limits, w::CountParts { value: number, limited })
+    Ok(w::Count { value: number, limited })
 }
-pub fn phases(value: d::PhaseCounts, limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
-    w::PhaseCounts::new(
-        limits,
-        w::PhaseCountsParts {
-            waiting: value.waiting,
-            idle: value.idle,
-            starting: value.starting,
-            running: value.running,
-            backing_off: value.backing_off,
-            closing: value.closing,
-            held: value.held,
-            done: value.done,
-            failed: value.failed,
-            cancelled: value.cancelled,
-        },
-    )
+pub fn phases(value: d::PhaseCounts, _limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
+    Ok(w::PhaseCounts {
+        waiting: value.waiting,
+        idle: value.idle,
+        starting: value.starting,
+        running: value.running,
+        backing_off: value.backing_off,
+        closing: value.closing,
+        held: value.held,
+        done: value.done,
+        failed: value.failed,
+        cancelled: value.cancelled,
+    })
 }
 
 pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w::Problem> {
@@ -152,50 +125,43 @@ pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w:
     for row in &value.dependencies {
         dependencies.push(task::link(row, limits)?).expect("supplied dependencies fit");
     }
-    let dependencies = task::links_pieces(&dependencies, limits.tree_row_dependencies, w::Path::TreeRowDependencies)?;
-    w::TreeRow::new(
-        limits,
-        w::TreeRowParts {
-            chip: chips::chip(&value.chip, limits)?,
-            parent: value.parent,
-            depth: value.depth,
-            proposals,
-            spent: value.spent,
-            dependencies,
-            cut: value.cut,
-        },
-    )
+    let dependencies =
+        task::links_pieces(&dependencies, limits.tree_row_dependencies, w::paths::TREE_ROW_DEPENDENCIES, limits)?;
+    Ok(w::TreeRow {
+        chip: chips::chip(&value.chip, limits)?,
+        parent: value.parent,
+        depth: value.depth,
+        proposals,
+        spent: value.spent,
+        dependencies,
+        cut: value.cut,
+    })
 }
 pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Result<w::Tree, w::Problem> {
     let mut rows = List::with_capacity(value.rows.len());
     for row in &value.rows {
         rows.push(tree_row(row, limits)?).expect("supplied rows fit");
     }
-    let rows = tree_pieces(&rows, limits.tree_rows, w::Path::TreeRows)?;
+    let rows = tree_pieces(&rows, limits.tree_rows, w::paths::TREE_ROWS, limits)?;
     let mut folded = List::with_capacity(value.folded.len());
     for row in &value.folded {
         folded
-            .push(w::TreeFold::new(
-                limits,
-                w::TreeFoldParts {
-                    parent: row.parent,
-                    phases: phases(row.phases, limits)?,
-                    held_below: row.held_below,
-                },
-            )?)
+            .push(w::TreeFold { parent: row.parent, phases: phases(row.phases, limits)?, held_below: row.held_below })
             .expect("supplied folds fit");
     }
-    w::Tree::new(
-        limits,
-        w::TreeParts { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next },
-    )
+    Ok(w::Tree { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next })
 }
 
-fn tree_pieces(rows: &List<w::TreeRow>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn tree_pieces(
+    rows: &List<w::TreeRow>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -220,14 +186,14 @@ mod tests {
     #[test]
     fn an_incomplete_character_waits_until_the_next_piece_completes_it() {
         let first = writing_call(&call(0, b"\xc3"), &w::CEILINGS).expect("wire").expect("identity");
-        assert_eq!((first.from(), first.through(), first.input()), (0, 0, b"".as_slice()));
+        assert_eq!((first.from, first.through, first.input.as_ref()), (0, 0, b"".as_slice()));
         let second = writing_call(&call(0, b"\xc3\xa9"), &w::CEILINGS).expect("wire").expect("whole character");
-        assert_eq!((second.from(), second.through(), second.input()), (0, 2, "é".as_bytes()));
+        assert_eq!((second.from, second.through, second.input.as_ref()), (0, 2, "é".as_bytes()));
     }
     #[test]
     fn a_trim_skips_continuation_bytes_and_invalid_utf8_omits_writing() {
         let value = writing_call(&call(1, b"\xa9x"), &w::CEILINGS).expect("wire").expect("suffix");
-        assert_eq!((value.from(), value.through(), value.input(), value.cut()), (2, 3, b"x".as_slice(), true));
+        assert_eq!((value.from, value.through, value.input.as_ref(), value.cut), (2, 3, b"x".as_slice(), true));
         assert!(writing_call(&call(0, b"\xff"), &w::CEILINGS).expect("wire").is_none());
     }
 }

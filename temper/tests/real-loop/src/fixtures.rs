@@ -179,7 +179,7 @@ pub(crate) fn local_places(directory: &Path) -> u32 {
         &mut skein_lib::Reader::new(&bytes),
     )
     .expect("fixture local copy")
-    .places()
+    .places
 }
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
@@ -520,20 +520,19 @@ pub(crate) fn finish_configuration(
         flags["requester"] = true.into();
     }
     if let Some(places) = flags["local_places"].as_u64() {
-        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
-        let local = WorkerSetting::new(
-            &CEILINGS,
-            WorkerSettingParts {
-                number: 1,
-                name: b"local".as_slice().into(),
-                places: u32::try_from(places).expect("fixture places"),
-                digest: None,
-                withdrawn: false,
-            },
-        )
-        .expect("fixture local setting");
-        let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded local value"));
-        local.encode(&mut writer).expect("fixture local bytes");
+        use jig_client_protocol_wire::WorkerSetting;
+        let local = WorkerSetting {
+            number: 1,
+            name: b"local".as_slice().into(),
+            places: u32::try_from(places).expect("fixture places"),
+            digest: None,
+            withdrawn: false,
+        };
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("bounded local value"),
+        );
+        local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("fixture local bytes");
         private(&directory.join("local.setting"), &writer.finish())?;
     }
     private(&directory.join("world-settings.json"), &serde_json::to_vec(&flags)?)?;

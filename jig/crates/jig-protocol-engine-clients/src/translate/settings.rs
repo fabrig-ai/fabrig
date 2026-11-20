@@ -1,6 +1,7 @@
 //! Settings' whole values and bounded history on the client wire (client/domain/contract/README.md, 4).
 use super::{me, objects, owner, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_authority as a;
 use jig_domain_core_vocabulary::{self as core, documents as d, reads, settings as s};
 use jig_domain_tasks as t;
@@ -18,13 +19,10 @@ pub struct InputError {
 /// Decode the length-prefixed settings items carried by `ChangeSettings` and
 /// `ProposeSettings`, sharing the client entrance's value and model translation.
 pub fn items(items: Box<[u8]>, models: &[crate::Model], limits: &w::Limits) -> Result<Box<[s::Item]>, InputError> {
-    let value = match w::ChangeSettings::new(
-        limits,
-        w::ChangeSettingsParts { against: 0, items, running: w::Running::Stays },
-    ) {
-        Ok(value) => value,
-        Err(problem) => return Err(InputError { field: problem.path }),
-    };
+    let value = w::ChangeSettings { against: 0, items, running: w::Running::Stays };
+    if let Err(problem) = value.measure(limits) {
+        return Err(InputError { field: problem.path });
+    }
     match change(value, models, limits) {
         Ok(value) => Ok(value.items),
         Err(problem) => Err(InputError { field: problem.path }),
@@ -34,144 +32,113 @@ pub fn items(items: Box<[u8]>, models: &[crate::Model], limits: &w::Limits) -> R
 #[must_use]
 pub fn setting(value: &w::Setting) -> s::Setting {
     match value {
-        w::Setting::Charter(v) => s::Setting::Charter(v.number()),
-        w::Setting::Template(v) => s::Setting::Template(v.number()),
-        w::Setting::Policy(v) => s::Setting::Policy(v.number()),
-        w::Setting::Model(v) => s::Setting::Model(v.number()),
-        w::Setting::Worker(v) => s::Setting::Worker(v.number()),
-        w::Setting::Provider(v) => s::Setting::Provider(v.number()),
+        w::Setting::Charter(v) => s::Setting::Charter(v.number),
+        w::Setting::Template(v) => s::Setting::Template(v.number),
+        w::Setting::Policy(v) => s::Setting::Policy(v.number),
+        w::Setting::Model(v) => s::Setting::Model(v.number),
+        w::Setting::Worker(v) => s::Setting::Worker(v.number),
+        w::Setting::Provider(v) => s::Setting::Provider(v.number),
         w::Setting::Rules => s::Setting::Rules,
         w::Setting::Limits => s::Setting::Limits,
-        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
-        w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
+        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project },
+        w::Setting::Application(v) => s::Setting::Application { kind: v.kind, scope: v.scope, number: v.number },
     }
 }
-pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
+pub fn name(value: s::Setting, _limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
         jig_domain_people::Setting::ProjectPolicy { project } => {
-            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
         }
-        s::Setting::Charter(number) => {
-            w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        s::Setting::Template(number) => {
-            w::Setting::Template(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        s::Setting::Policy(number) => {
-            w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        s::Setting::Model(n) => w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?),
-        s::Setting::Worker(n) => {
-            w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?)
-        }
-        s::Setting::Provider(n) => {
-            w::Setting::Provider(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?)
-        }
+        s::Setting::Charter(number) => w::Setting::Charter(w::SettingNumber { number }),
+        s::Setting::Template(number) => w::Setting::Template(w::SettingNumber { number }),
+        s::Setting::Policy(number) => w::Setting::Policy(w::SettingNumber { number }),
+        s::Setting::Model(n) => w::Setting::Model(w::SettingNumber { number: n }),
+        s::Setting::Worker(n) => w::Setting::Worker(w::SettingNumber { number: n }),
+        s::Setting::Provider(n) => w::Setting::Provider(w::SettingNumber { number: n }),
         s::Setting::Rules => w::Setting::Rules,
         s::Setting::Limits => w::Setting::Limits,
-        s::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
-            limits,
-            w::ApplicationSettingParts { kind, scope, number },
-        )?),
+        s::Setting::Application { kind, scope, number } => {
+            w::Setting::Application(w::ApplicationSetting { kind, scope, number })
+        }
     })
 }
 pub fn head(value: &s::Head, limits: &w::Limits) -> Result<w::RevisionHead, w::Problem> {
-    w::RevisionHead::new(
-        limits,
-        w::RevisionHeadParts {
-            number: value.number,
-            against: value.against,
-            at: value.at.as_nanos(),
-            by: match value.by {
-                s::Decider::FirstStart => w::RevisionDecider::FirstStart,
-                s::Decider::Release => w::RevisionDecider::Release,
-                s::Decider::List { provider } => {
-                    w::RevisionDecider::List(w::RevisionList::new(limits, w::RevisionListParts { provider })?)
-                }
-                s::Decider::Party(number) => {
-                    w::RevisionDecider::Party(w::RevisionParty::new(limits, w::RevisionPartyParts { number })?)
-                }
-            },
-            proposal: match value.proposal {
-                Some((proposer, number)) => {
-                    Some(super::task::proposal(&d::ProposalRef { proposer, number: u64::from(number) }, limits)?)
-                }
-                None => None,
-            },
-            moved: value.moved,
+    Ok(w::RevisionHead {
+        number: value.number,
+        against: value.against,
+        at: value.at.as_nanos(),
+        by: match value.by {
+            s::Decider::FirstStart => w::RevisionDecider::FirstStart,
+            s::Decider::Release => w::RevisionDecider::Release,
+            s::Decider::List { provider } => w::RevisionDecider::List(w::RevisionList { provider }),
+            s::Decider::Party(number) => w::RevisionDecider::Party(w::RevisionParty { number }),
         },
-    )
+        proposal: match value.proposal {
+            Some((proposer, number)) => {
+                Some(super::task::proposal(&d::ProposalRef { proposer, number: u64::from(number) }, limits)?)
+            }
+            None => None,
+        },
+        moved: value.moved,
+    })
 }
 pub fn document(value: &d::Settings, limits: &w::Limits) -> Result<w::SettingsDocument, w::Problem> {
     let mut settings = List::with_capacity(value.settings.len());
     for line in &value.settings {
         settings
-            .push(w::SettingLine::new(
-                limits,
-                w::SettingLineParts {
-                    setting: name(line.setting, limits)?,
-                    name: match &line.name {
-                        Some(value) => Some(owner::text(value, limits)?),
-                        None => None,
-                    },
-                    follows: match line.follows {
-                        d::Follows::Overlay => w::SettingFollows::Overlay,
-                        d::Follows::Default => w::SettingFollows::Default,
-                        d::Follows::Change => w::SettingFollows::Change,
-                    },
-                    last: line.last,
-                    application: match &line.application {
-                        Some(v) => Some(application_state(v, limits)?),
-                        None => None,
-                    },
+            .push(w::SettingLine {
+                setting: name(line.setting, limits)?,
+                name: match &line.name {
+                    Some(value) => Some(owner::text(value, limits)?),
+                    None => None,
                 },
-            )?)
+                follows: match line.follows {
+                    d::Follows::Overlay => w::SettingFollows::Overlay,
+                    d::Follows::Default => w::SettingFollows::Default,
+                    d::Follows::Change => w::SettingFollows::Change,
+                },
+                last: line.last,
+                application: match &line.application {
+                    Some(v) => Some(application_state(v, limits)?),
+                    None => None,
+                },
+            })
             .expect("settings line count");
     }
     let mut held = List::with_capacity(value.held.len());
     for row in &value.held {
-        held.push(w::HeldRevision::new(
-            limits,
-            w::HeldRevisionParts { head: head(&row.head, limits)?, holders: row.holders },
-        )?)
-        .expect("held count");
+        held.push(w::HeldRevision { head: head(&row.head, limits)?, holders: row.holders }).expect("held count");
     }
     let mut pending = List::with_capacity(value.pending.len());
     for row in &value.pending {
         let proposer =
             super::task::proposal(&d::ProposalRef { proposer: row.proposer, number: u64::from(row.number) }, limits)?
-                .into_parts()
                 .proposer;
-        pending
-            .push(w::SettingsProposal::new(limits, w::SettingsProposalParts { proposer, number: row.number })?)
-            .expect("proposal count");
+        pending.push(w::SettingsProposal { proposer, number: row.number }).expect("proposal count");
     }
-    w::SettingsDocument::new(limits, w::SettingsDocumentParts { newest: value.newest, settings, held, pending })
+    Ok(w::SettingsDocument { newest: value.newest, settings, held, pending })
 }
-fn model(value: &core::Model, limits: &w::Limits) -> Result<w::SettingModel, w::Problem> {
+fn model(value: &core::Model, _limits: &w::Limits) -> Result<w::SettingModel, w::Problem> {
     let mut efforts = List::with_capacity(super::count(value.efforts.len())?);
     for effort in &value.efforts {
         efforts.push(effort.clone()).expect("effort count");
     }
-    w::SettingModel::new(
-        limits,
-        w::SettingModelParts {
-            provider: value.provider,
-            dialect: value.dialect,
-            endpoint: value.endpoint,
-            program: value.program.clone(),
-            name: value.name.clone(),
-            window: value.window,
-            output: value.output,
-            input_price: value.input_price,
-            cached_price: value.cached_price,
-            cache_write_price: value.cache_write_price,
-            output_price: value.output_price,
-            price_unit: value.price_unit,
-            efforts,
-            effort: value.effort.clone(),
-        },
-    )
+    Ok(w::SettingModel {
+        provider: value.provider,
+        dialect: value.dialect,
+        endpoint: value.endpoint,
+        program: value.program.clone(),
+        name: value.name.clone(),
+        window: value.window,
+        output: value.output,
+        input_price: value.input_price,
+        cached_price: value.cached_price,
+        cache_write_price: value.cache_write_price,
+        output_price: value.output_price,
+        price_unit: value.price_unit,
+        efforts,
+        effort: value.effort.clone(),
+    })
 }
 fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::Problem> {
     let policy = &value.policy;
@@ -186,57 +153,46 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
             name.push(segment.clone()).expect("segment count");
         }
         documents
-            .push(w::CharterDocument::new(
-                limits,
-                w::CharterDocumentParts {
-                    connector: item.connector,
-                    name,
-                    path: item.path.clone(),
-                    heading: item.heading.clone(),
-                },
-            )?)
+            .push(w::CharterDocument {
+                connector: item.connector,
+                name,
+                path: item.path.clone(),
+                heading: item.heading.clone(),
+            })
             .expect("document count");
     }
     let mut parts = List::with_capacity(super::count(value.parts.len())?);
     for item in &value.parts {
-        parts
-            .push(w::CharterPart::new(
-                limits,
-                w::CharterPartParts { on: item.on.0, instructions: item.instructions.clone() },
-            )?)
-            .expect("part count");
+        parts.push(w::CharterPart { on: item.on.0, instructions: item.instructions.clone() }).expect("part count");
     }
-    w::Charter::new(
-        limits,
-        w::CharterParts {
-            parts,
-            documents,
-            rest: value.rest,
-            resume: policy.resume,
-            inspect: policy.inspect,
-            modify: policy.modify,
-            shell: policy.shell,
-            agents: policy.agents,
-            number: value.number,
-            instructions: policy.instructions.clone(),
-            waiting: policy.waiting,
-            turns: policy.turns,
-            time: policy.time,
-            reserve_turns: policy.reserve_turns,
-            reserve_time: policy.reserve_time,
-            model: model(&policy.model, limits)?,
-            alternatives,
-            call_timeout: policy.call_timeout,
-            tools: policy.tools.0,
-            hosts: match value.hosts {
-                jig_domain_fleet::Kinds::Workers => w::SettingHosts::Workers,
-                jig_domain_fleet::Kinds::Engine => w::SettingHosts::Engine,
-                jig_domain_fleet::Kinds::Both => w::SettingHosts::Both,
-            },
-            spend: value.spend,
-            wake: owner::wake(value.wake, limits)?,
+    Ok(w::Charter {
+        parts,
+        documents,
+        rest: value.rest,
+        resume: policy.resume,
+        inspect: policy.inspect,
+        modify: policy.modify,
+        shell: policy.shell,
+        agents: policy.agents,
+        number: value.number,
+        instructions: policy.instructions.clone(),
+        waiting: policy.waiting,
+        turns: policy.turns,
+        time: policy.time,
+        reserve_turns: policy.reserve_turns,
+        reserve_time: policy.reserve_time,
+        model: model(&policy.model, limits)?,
+        alternatives,
+        call_timeout: policy.call_timeout,
+        tools: policy.tools.0,
+        hosts: match value.hosts {
+            jig_domain_fleet::Kinds::Workers => w::SettingHosts::Workers,
+            jig_domain_fleet::Kinds::Engine => w::SettingHosts::Engine,
+            jig_domain_fleet::Kinds::Both => w::SettingHosts::Both,
         },
-    )
+        spend: value.spend,
+        wake: owner::wake(value.wake, limits)?,
+    })
 }
 fn authority(value: &a::Authority, models: &[crate::Model], limits: &w::Limits) -> Result<w::Authority, w::Problem> {
     objects::goal::authority(models, &core::task_authority(value), limits)
@@ -254,38 +210,26 @@ fn pattern(value: &a::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Prob
     )
 }
 fn grant(value: &a::Grant, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
-    w::Grant::new(
-        limits,
-        w::GrantParts { connector: value.connector, kind: value.kind, pattern: pattern(&value.pattern, limits)? },
-    )
+    Ok(w::Grant { connector: value.connector, kind: value.kind, pattern: pattern(&value.pattern, limits)? })
 }
 fn requirements(values: &[a::Requirement], limits: &w::Limits) -> Result<List<w::PolicyRequirement>, w::Problem> {
     let mut rows = List::with_capacity(super::count(values.len())?);
     for v in values {
-        rows.push(w::PolicyRequirement::new(
-            limits,
-            w::PolicyRequirementParts {
-                connector: v.connector,
-                kind: v.kind,
-                pattern: pattern(&v.pattern, limits)?,
-                judge: w::PolicyJudge::new(
-                    limits,
-                    w::PolicyJudgeParts {
-                        connector: v.judge.connector,
-                        requirement: v.judge.requirement,
-                        parameters: v.judge.parameters,
-                    },
-                )?,
-                guard: match v.guard {
-                    a::Guard::Guarded => w::PolicyGuard::Guarded,
-                    a::Guard::Observed { freshness } => w::PolicyGuard::Observed(w::PolicyGuardObserved::new(
-                        limits,
-                        w::PolicyGuardObservedParts { freshness },
-                    )?),
-                },
-                must_be_guarded: v.must_be_guarded,
+        rows.push(w::PolicyRequirement {
+            connector: v.connector,
+            kind: v.kind,
+            pattern: pattern(&v.pattern, limits)?,
+            judge: w::PolicyJudge {
+                connector: v.judge.connector,
+                requirement: v.judge.requirement,
+                parameters: v.judge.parameters,
             },
-        )?)
+            guard: match v.guard {
+                a::Guard::Guarded => w::PolicyGuard::Guarded,
+                a::Guard::Observed { freshness } => w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness }),
+            },
+            must_be_guarded: v.must_be_guarded,
+        })
         .expect("requirement count");
     }
     Ok(rows)
@@ -303,80 +247,62 @@ fn policy(
     let mut roles = List::with_capacity(super::count(p.roles.len())?);
     for v in &p.roles {
         roles
-            .push(w::PolicyEditRole::new(
-                limits,
-                w::PolicyEditRoleParts {
-                    number: v.number,
-                    authority: authority(&v.authority, models, limits)?,
-                    period_spend: v.period_spend,
-                    requests: v.requests.0,
-                    decides: v.decides.0,
-                },
-            )?)
+            .push(w::PolicyEditRole {
+                number: v.number,
+                authority: authority(&v.authority, models, limits)?,
+                period_spend: v.period_spend,
+                requests: v.requests.0,
+                decides: v.decides.0,
+            })
             .expect("role count");
     }
     let mut permissions = List::with_capacity(super::count(value.permissions.len())?);
     for v in &value.permissions {
         permissions
-            .push(w::PolicyPermission::new(
-                limits,
-                w::PolicyPermissionParts { connector: v.connector, permission: v.permission, role: v.role },
-            )?)
+            .push(w::PolicyPermission { connector: v.connector, permission: v.permission, role: v.role })
             .expect("permission count");
     }
     let mut overrides = List::with_capacity(super::count(value.templates.len())?);
     for v in &value.templates {
         overrides.push(v.clone()).expect("template override count");
     }
-    w::SettingPolicy::new(
-        limits,
-        w::SettingPolicyParts {
-            escalation_role: p.escalation_role,
-            ceiling: authority(&p.ceiling, models, limits)?,
-            projections,
-            period_spend: p.period_spend,
-            roles,
-            requirements: requirements(&p.requirements, limits)?,
-            permissions,
-            templates: me::overrides(&overrides, limits)?,
-        },
-    )
+    Ok(w::SettingPolicy {
+        escalation_role: p.escalation_role,
+        ceiling: authority(&p.ceiling, models, limits)?,
+        projections,
+        period_spend: p.period_spend,
+        roles,
+        requirements: requirements(&p.requirements, limits)?,
+        permissions,
+        templates: me::overrides(&overrides, limits)?,
+    })
 }
 fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Result<w::Rules, w::Problem> {
     let mut implies = List::with_capacity(super::count(value.implies.entries().len())?);
     for v in value.implies.entries() {
         implies
-            .push(w::KindImplication::new(
-                limits,
-                w::KindImplicationParts { connector: v.connector, kind: v.kind, implies: v.implies },
-            )?)
+            .push(w::KindImplication { connector: v.connector, kind: v.kind, implies: v.implies })
             .expect("implication count");
     }
-    w::Rules::new(
-        limits,
-        w::RulesParts {
-            ceiling: authority(&value.ceiling, models, limits)?,
-            period_spend: value.period_spend,
-            minimum_run_spend: value.minimum_run_spend,
-            maximum_run_spend: value.maximum_run_spend,
-            implies,
-            requirements: requirements(&value.requirements, limits)?,
-        },
-    )
+    Ok(w::Rules {
+        ceiling: authority(&value.ceiling, models, limits)?,
+        period_spend: value.period_spend,
+        minimum_run_spend: value.minimum_run_spend,
+        maximum_run_spend: value.maximum_run_spend,
+        implies,
+        requirements: requirements(&value.requirements, limits)?,
+    })
 }
 pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
         s::Value::Provider(v) => w::SettingValue::Provider(Box::new(providers::encode(v, limits)?)),
-        s::Value::Worker(v) => w::SettingValue::Worker(Box::new(w::WorkerSetting::new(
-            limits,
-            w::WorkerSettingParts {
-                number: v.number,
-                name: v.name.clone(),
-                places: v.places,
-                digest: v.digest,
-                withdrawn: v.withdrawn,
-            },
-        )?)),
+        s::Value::Worker(v) => w::SettingValue::Worker(Box::new(w::WorkerSetting {
+            number: v.number,
+            name: v.name.clone(),
+            places: v.places,
+            digest: v.digest,
+            withdrawn: v.withdrawn,
+        })),
         s::Value::Model(v) => w::SettingValue::Model(Box::new(catalogue(v, limits)?)),
         s::Value::Overlay(v) => w::SettingValue::Overlay(Box::new(overlay(v, limits)?)),
         s::Value::Charter(v) => w::SettingValue::Charter(Box::new(charter(v, limits)?)),
@@ -384,10 +310,7 @@ pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> R
         s::Value::Policy(v) => w::SettingValue::Policy(Box::new(policy(v, models, limits)?)),
         s::Value::Rules(v) => w::SettingValue::Rules(Box::new(rules(v, models, limits)?)),
         s::Value::Limits(v) => w::SettingValue::Limits(limits_value(v, limits)?),
-        s::Value::Application(bytes) => w::SettingValue::Application(w::ApplicationValue::new(
-            limits,
-            w::ApplicationValueParts { bytes: bytes.clone() },
-        )?),
+        s::Value::Application(bytes) => w::SettingValue::Application(w::ApplicationValue { bytes: bytes.clone() }),
     })
 }
 pub fn setting_document(
@@ -395,29 +318,26 @@ pub fn setting_document(
     models: &[crate::Model],
     limits: &w::Limits,
 ) -> Result<w::SettingDocument, w::Problem> {
-    w::SettingDocument::new(
-        limits,
-        w::SettingDocumentParts {
-            overlay: match &v.overlay {
-                Some(item) => Some(overlay(item, limits)?),
-                None => None,
-            },
-            setting: name(v.setting, limits)?,
-            revision: v.revision,
-            value: match &v.value {
-                Some(v) => Some(value(v, models, limits)?),
-                None => None,
-            },
-            application: match &v.application {
-                Some(v) => Some(application_state(v, limits)?),
-                None => None,
-            },
-            proposed: match &v.proposed {
-                Some(v) => Some(sized_edit(v, limits)?),
-                None => None,
-            },
+    Ok(w::SettingDocument {
+        overlay: match &v.overlay {
+            Some(item) => Some(overlay(item, limits)?),
+            None => None,
         },
-    )
+        setting: name(v.setting, limits)?,
+        revision: v.revision,
+        value: match &v.value {
+            Some(v) => Some(value(v, models, limits)?),
+            None => None,
+        },
+        application: match &v.application {
+            Some(v) => Some(application_state(v, limits)?),
+            None => None,
+        },
+        proposed: match &v.proposed {
+            Some(v) => Some(sized_edit(v, limits)?),
+            None => None,
+        },
+    })
 }
 pub fn revision(
     v: &reads::RevisionAnswer,
@@ -426,10 +346,9 @@ pub fn revision(
 ) -> Result<w::RevisionAnswer, w::Problem> {
     Ok(match v {
         reads::RevisionAnswer::Unknown => w::RevisionAnswer::Unknown,
-        reads::RevisionAnswer::Forgotten { oldest } => w::RevisionAnswer::Forgotten(w::RevisionForgotten::new(
-            limits,
-            w::RevisionForgottenParts { oldest: *oldest },
-        )?),
+        reads::RevisionAnswer::Forgotten { oldest } => {
+            w::RevisionAnswer::Forgotten(w::RevisionForgotten { oldest: *oldest })
+        }
         reads::RevisionAnswer::Revision { revision, value_bytes } => {
             let mut pieces = List::with_capacity(super::count(
                 revision.items.len().checked_add(revision.applications.len()).expect("bounded revision items"),
@@ -438,53 +357,41 @@ pub fn revision(
                 let edit = match &item.edit {
                     s::Edit::Set(v) => {
                         let value = value(v, models, limits)?;
-                        let bytes = u64::from(value.measure());
+                        let bytes = u64::from(value.measure(limits)?);
                         if bytes > (*value_bytes).min(u64::from(limits.owned_record)) {
-                            w::RevisionEdit::TooLarge(w::Size::new(limits, w::SizeParts { bytes })?)
+                            w::RevisionEdit::TooLarge(w::Size { bytes })
                         } else {
-                            w::RevisionEdit::Set(w::SettingSet::new(limits, w::SettingSetParts { value })?)
+                            w::RevisionEdit::Set(w::SettingSet { value })
                         }
                     }
                     s::Edit::Removed => w::RevisionEdit::Removed,
                     s::Edit::Reset => w::RevisionEdit::Reset,
                 };
-                let item = w::RevisionItem::new(
-                    limits,
-                    w::RevisionItemParts {
-                        setting: name(item.setting, limits)?,
-                        edit,
-                        replaced: replaced(&item.replaced, *value_bytes, models, limits)?,
-                    },
-                )?;
-                let mut out = Writer::new(skein_lib::length::usize_of(item.measure()));
-                item.encode(&mut out).expect("measured item");
+                let item = w::RevisionItem {
+                    setting: name(item.setting, limits)?,
+                    edit,
+                    replaced: replaced(&item.replaced, *value_bytes, models, limits)?,
+                };
+                let mut out = Writer::new(skein_lib::length::usize_of(item.measure(limits)?));
+                item.write(limits, &mut out).expect("measured item");
                 pieces.push(out.finish()).expect("item count");
             }
             for item in &revision.applications {
                 let setting = s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
-                let edit = w::RevisionEdit::Application(w::ApplicationEdit::new(
-                    limits,
-                    w::ApplicationEditParts { edit: sized_edit(&item.edit, limits)? },
-                )?);
-                let row = w::RevisionItem::new(
-                    limits,
-                    w::RevisionItemParts {
-                        setting: name(setting, limits)?,
-                        edit,
-                        replaced: application_replaced(&item.replaced, limits)?,
-                    },
-                )?;
-                let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-                row.encode(&mut out).expect("measured application item");
+                let edit = w::RevisionEdit::Application(w::ApplicationEdit { edit: sized_edit(&item.edit, limits)? });
+                let row = w::RevisionItem {
+                    setting: name(setting, limits)?,
+                    edit,
+                    replaced: application_replaced(&item.replaced, limits)?,
+                };
+                let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+                row.write(limits, &mut out).expect("measured application item");
                 pieces.push(out.finish()).expect("application item count");
             }
-            w::RevisionAnswer::Revision(w::RevisionDocument::new(
-                limits,
-                w::RevisionDocumentParts {
-                    head: head(&revision.head, limits)?,
-                    items: super::pieces(&pieces, limits.revision_document_items, w::Path::RevisionDocumentItems)?,
-                },
-            )?)
+            w::RevisionAnswer::Revision(w::RevisionDocument {
+                head: head(&revision.head, limits)?,
+                items: super::pieces(&pieces, limits.revision_document_items, w::paths::REVISION_DOCUMENT_ITEMS)?,
+            })
         }
     })
 }
@@ -494,26 +401,19 @@ pub fn revisions(v: &reads::RevisionsPage, limits: &w::Limits) -> Result<w::Revi
         let mut items = List::with_capacity(row.items.len());
         for item in &row.items {
             items
-                .push(w::RevisionItemHead::new(
-                    limits,
-                    w::RevisionItemHeadParts {
-                        setting: name(item.setting, limits)?,
-                        edit: match item.edit {
-                            reads::RevisionEdit::Set => w::RevisionItemEdit::Set,
-                            reads::RevisionEdit::Removed => w::RevisionItemEdit::Removed,
-                            reads::RevisionEdit::Reset => w::RevisionItemEdit::Reset,
-                        },
+                .push(w::RevisionItemHead {
+                    setting: name(item.setting, limits)?,
+                    edit: match item.edit {
+                        reads::RevisionEdit::Set => w::RevisionItemEdit::Set,
+                        reads::RevisionEdit::Removed => w::RevisionItemEdit::Removed,
+                        reads::RevisionEdit::Reset => w::RevisionItemEdit::Reset,
                     },
-                )?)
+                })
                 .expect("preview count");
         }
-        rows.push(w::RevisionRow::new(
-            limits,
-            w::RevisionRowParts { head: head(&row.head, limits)?, items, more: row.more },
-        )?)
-        .expect("page count");
+        rows.push(w::RevisionRow { head: head(&row.head, limits)?, items, more: row.more }).expect("page count");
     }
-    w::RevisionsPage::new(limits, w::RevisionsPageParts { rows, next: v.next, forgotten: v.forgotten })
+    Ok(w::RevisionsPage { rows, next: v.next, forgotten: v.forgotten })
 }
 
 pub(crate) fn item_heads(
@@ -523,10 +423,7 @@ pub(crate) fn item_heads(
     let mut result = List::with_capacity(items.len());
     for item in items {
         result
-            .push(w::RevisionItemHead::new(
-                limits,
-                w::RevisionItemHeadParts { setting: name(item.setting, limits)?, edit: item_edit(item.edit) },
-            )?)
+            .push(w::RevisionItemHead { setting: name(item.setting, limits)?, edit: item_edit(item.edit) })
             .expect("bounded heads");
     }
     Ok(result)
@@ -548,11 +445,11 @@ fn review_value(
         None => w::ReviewValue::None,
         Some(v) => {
             let value = value(v, models, limits)?;
-            let bytes = u64::from(value.measure());
+            let bytes = u64::from(value.measure(limits)?);
             if bytes > bound.min(u64::from(limits.owned_record)) {
-                w::ReviewValue::TooLarge(w::Size::new(limits, w::SizeParts { bytes })?)
+                w::ReviewValue::TooLarge(w::Size { bytes })
             } else {
-                w::ReviewValue::Value(w::SettingSet::new(limits, w::SettingSetParts { value })?)
+                w::ReviewValue::Value(w::SettingSet { value })
             }
         }
     })
@@ -566,37 +463,31 @@ pub(crate) fn review(
     let mut used = 0_u64;
     let mut cut = false;
     for item in &v.items {
-        let row = w::ReviewItem::new(
-            limits,
-            w::ReviewItemParts {
-                setting: name(item.setting, limits)?,
-                edit: item_edit(item.edit),
-                now: review_value(item.now.as_ref(), v.value_bytes, models, limits)?,
-                origin: match item.origin {
-                    Some((changed, revision)) => {
-                        let revision = w::OriginRevision::new(limits, w::OriginRevisionParts { revision })?;
-                        if changed { w::SettingOrigin::Change(revision) } else { w::SettingOrigin::Default(revision) }
-                    }
-                    None => w::SettingOrigin::NotOffered,
-                },
-                would_be: review_value(item.would_be.as_ref(), v.value_bytes, models, limits)?,
-                application: match &item.application {
-                    Some(v) => Some(w::ApplicationReview::new(
-                        limits,
-                        w::ApplicationReviewParts {
-                            edit: sized_edit(&v.edit, limits)?,
-                            now: match &v.now {
-                                Some(v) => Some(application_state(v, limits)?),
-                                None => None,
-                            },
-                        },
-                    )?),
-                    None => None,
-                },
+        let row = w::ReviewItem {
+            setting: name(item.setting, limits)?,
+            edit: item_edit(item.edit),
+            now: review_value(item.now.as_ref(), v.value_bytes, models, limits)?,
+            origin: match item.origin {
+                Some((changed, revision)) => {
+                    let revision = w::OriginRevision { revision };
+                    if changed { w::SettingOrigin::Change(revision) } else { w::SettingOrigin::Default(revision) }
+                }
+                None => w::SettingOrigin::NotOffered,
             },
-        )?;
+            would_be: review_value(item.would_be.as_ref(), v.value_bytes, models, limits)?,
+            application: match &item.application {
+                Some(v) => Some(w::ApplicationReview {
+                    edit: sized_edit(&v.edit, limits)?,
+                    now: match &v.now {
+                        Some(v) => Some(application_state(v, limits)?),
+                        None => None,
+                    },
+                }),
+                None => None,
+            },
+        };
         used = used
-            .checked_add(u64::from(row.measure()))
+            .checked_add(u64::from(row.measure(limits)?))
             .expect("bounded review bytes")
             .checked_add(4)
             .expect("frame bytes");
@@ -604,43 +495,38 @@ pub(crate) fn review(
             cut = true;
             break;
         }
-        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut bytes).expect("measured review item");
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut bytes).expect("measured review item");
         pieces.push(bytes.finish()).expect("review count");
     }
-    w::SettingsReview::new(
-        limits,
-        w::SettingsReviewParts {
-            key: v.key,
-            newest: v.newest,
-            items: super::pieces(&pieces, limits.settings_review_items, w::Path::SettingsReviewItems)?,
-            cut,
-        },
-    )
+    Ok(w::SettingsReview {
+        key: v.key,
+        newest: v.newest,
+        items: super::pieces(&pieces, limits.settings_review_items, w::paths::SETTINGS_REVIEW_ITEMS)?,
+        cut,
+    })
 }
 
-fn application_state(v: &s::application::State, limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
-    let follows =
-        match v.follows {
-            s::application::Follows::Default => w::ApplicationFollows::Default,
-            s::application::Follows::Changed { revision } => w::ApplicationFollows::Changed(
-                w::ApplicationRevision::new(limits, w::ApplicationRevisionParts { revision })?,
-            ),
-            s::application::Follows::Removed { revision } => w::ApplicationFollows::Removed(
-                w::ApplicationRevision::new(limits, w::ApplicationRevisionParts { revision })?,
-            ),
-        };
+fn application_state(v: &s::application::State, _limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
+    let follows = match v.follows {
+        s::application::Follows::Default => w::ApplicationFollows::Default,
+        s::application::Follows::Changed { revision } => {
+            w::ApplicationFollows::Changed(w::ApplicationRevision { revision })
+        }
+        s::application::Follows::Removed { revision } => {
+            w::ApplicationFollows::Removed(w::ApplicationRevision { revision })
+        }
+    };
     let mut charters = List::with_capacity(super::count(v.charters.len())?);
     for &number in &v.charters {
         charters.push(number).expect("charter count");
     }
-    w::ApplicationState::new(limits, w::ApplicationStateParts { follows, size: v.size, charters })
+    Ok(w::ApplicationState { follows, size: v.size, charters })
 }
-fn sized_edit(v: &s::application::SizedEdit, limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn sized_edit(v: &s::application::SizedEdit, _limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
     Ok(match v {
-        s::application::SizedEdit::Set { size } => {
-            w::SizedEdit::Set(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
-        }
+        s::application::SizedEdit::Set { size } => w::SizedEdit::Set(w::ApplicationSize { size: *size }),
         s::application::SizedEdit::Remove => w::SizedEdit::Remove,
         s::application::SizedEdit::Reset => w::SizedEdit::Reset,
     })
@@ -655,11 +541,11 @@ fn replaced(
     Ok(match v {
         s::Replaced::Value(v) => {
             let value = value(v, models, limits)?;
-            let bytes = u64::from(value.measure());
+            let bytes = u64::from(value.measure(limits)?);
             if bytes > value_bytes.min(u64::from(limits.owned_record)) {
-                w::RevisionReplaced::TooLarge(w::Size::new(limits, w::SizeParts { bytes })?)
+                w::RevisionReplaced::TooLarge(w::Size { bytes })
             } else {
-                w::RevisionReplaced::Value(w::SettingSet::new(limits, w::SettingSetParts { value })?)
+                w::RevisionReplaced::Value(w::SettingSet { value })
             }
         }
         s::Replaced::Default => w::RevisionReplaced::Default,
@@ -667,10 +553,11 @@ fn replaced(
         s::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
     })
 }
-fn application_replaced(v: &s::application::Replaced, limits: &w::Limits) -> Result<w::RevisionReplaced, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn application_replaced(v: &s::application::Replaced, _limits: &w::Limits) -> Result<w::RevisionReplaced, w::Problem> {
     Ok(match v {
         s::application::Replaced::Changed { size } => {
-            w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+            w::RevisionReplaced::Application(w::ApplicationSize { size: *size })
         }
         s::application::Replaced::Default => w::RevisionReplaced::Default,
         s::application::Replaced::Removed => w::RevisionReplaced::Removed,
@@ -679,33 +566,27 @@ fn application_replaced(v: &s::application::Replaced, limits: &w::Limits) -> Res
 }
 
 fn catalogue(value: &s::CatalogueModel, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
-    w::CatalogueEntry::new(
-        limits,
-        w::CatalogueEntryParts {
-            number: value.number,
-            model: model(&value.model, limits)?,
-            shown: value.shown.clone(),
-            description: value.description.clone(),
-            picker: value.picker,
-            withdrawn: value.withdrawn,
-            estimated: value.estimated,
-            source: match value.source {
-                s::ModelSource::Stock => w::ModelSource::Stock,
-                s::ModelSource::List => w::ModelSource::List,
-                s::ModelSource::Person => w::ModelSource::Person,
-            },
+    Ok(w::CatalogueEntry {
+        number: value.number,
+        model: model(&value.model, limits)?,
+        shown: value.shown.clone(),
+        description: value.description.clone(),
+        picker: value.picker,
+        withdrawn: value.withdrawn,
+        estimated: value.estimated,
+        source: match value.source {
+            s::ModelSource::Stock => w::ModelSource::Stock,
+            s::ModelSource::List => w::ModelSource::List,
+            s::ModelSource::Person => w::ModelSource::Person,
         },
-    )
+    })
 }
 
 #[must_use]
 pub fn model_act(value: w::ChangeModel) -> s::catalogue::ModelAct {
-    match value.into_parts().act {
-        w::ModelAct::Picker(value) => s::catalogue::ModelAct::Picker { number: value.number(), on: value.on() },
-        w::ModelAct::Add(value) => {
-            let value = value.into_parts();
-            s::catalogue::ModelAct::Add { provider: value.provider, name: value.name }
-        }
+    match value.act {
+        w::ModelAct::Picker(value) => s::catalogue::ModelAct::Picker { number: value.number, on: value.on },
+        w::ModelAct::Add(value) => s::catalogue::ModelAct::Add { provider: value.provider, name: value.name },
     }
 }
 
@@ -729,15 +610,12 @@ fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Prob
                     name.push(segment.clone()).expect("segment count");
                 }
                 documents
-                    .push(w::CharterDocument::new(
-                        limits,
-                        w::CharterDocumentParts {
-                            connector: item.connector,
-                            name,
-                            path: item.path.clone(),
-                            heading: item.heading.clone(),
-                        },
-                    )?)
+                    .push(w::CharterDocument {
+                        connector: item.connector,
+                        name,
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
                     .expect("document count");
             }
             Some(documents)
@@ -746,61 +624,51 @@ fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Prob
     };
     let mut parts = List::with_capacity(super::count(value.parts.len())?);
     for item in &value.parts {
-        parts
-            .push(w::CharterPart::new(
-                limits,
-                w::CharterPartParts { on: item.on.0, instructions: item.instructions.clone() },
-            )?)
-            .expect("part count");
+        parts.push(w::CharterPart { on: item.on.0, instructions: item.instructions.clone() }).expect("part count");
     }
-    w::Overlay::new(
-        limits,
-        w::OverlayParts {
-            rest: value.rest,
-            inspect: value.inspect,
-            modify: value.modify,
-            shell: value.shell,
-            agents: value.agents,
-            waiting: value.waiting,
-            resume: value.resume,
-            turns: value.turns,
-            time: value.time,
-            reserve_turns: value.reserve_turns,
-            reserve_time: value.reserve_time,
-            call_timeout: value.call_timeout,
-            spend: value.spend,
-            model: match &value.model {
-                Some(item) => Some(model(item, limits)?),
-                None => None,
-            },
-            alternatives,
-            documents,
-            parts,
-            instructions: value.instructions.clone(),
-            tools: match value.tools {
-                Some(item) => Some(item.0),
-                None => None,
-            },
-            hosts: match value.hosts {
-                Some(jig_domain_fleet::Kinds::Workers) => Some(w::SettingHosts::Workers),
-                Some(jig_domain_fleet::Kinds::Engine) => Some(w::SettingHosts::Engine),
-                Some(jig_domain_fleet::Kinds::Both) => Some(w::SettingHosts::Both),
-                None => None,
-            },
+    Ok(w::Overlay {
+        rest: value.rest,
+        inspect: value.inspect,
+        modify: value.modify,
+        shell: value.shell,
+        agents: value.agents,
+        waiting: value.waiting,
+        resume: value.resume,
+        turns: value.turns,
+        time: value.time,
+        reserve_turns: value.reserve_turns,
+        reserve_time: value.reserve_time,
+        call_timeout: value.call_timeout,
+        spend: value.spend,
+        model: match &value.model {
+            Some(item) => Some(model(item, limits)?),
+            None => None,
         },
-    )
+        alternatives,
+        documents,
+        parts,
+        instructions: value.instructions.clone(),
+        tools: match value.tools {
+            Some(item) => Some(item.0),
+            None => None,
+        },
+        hosts: match value.hosts {
+            Some(jig_domain_fleet::Kinds::Workers) => Some(w::SettingHosts::Workers),
+            Some(jig_domain_fleet::Kinds::Engine) => Some(w::SettingHosts::Engine),
+            Some(jig_domain_fleet::Kinds::Both) => Some(w::SettingHosts::Both),
+            None => None,
+        },
+    })
 }
 
-fn limits_value(values: &[s::Override], limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn limits_value(values: &[s::Override], _limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
     let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
     for value in values {
         overrides
-            .push(w::Override::new(
-                limits,
-                w::OverrideParts { name: value.name.clone(), value: value.value, reason: value.reason.clone() },
-            )?)
+            .push(w::Override { name: value.name.clone(), value: value.value, reason: value.reason.clone() })
             .expect("override count");
     }
-    w::LimitsValue::new(limits, w::LimitsValueParts { overrides })
+    Ok(w::LimitsValue { overrides })
 }
 mod providers;

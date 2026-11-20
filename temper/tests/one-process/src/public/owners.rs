@@ -1,6 +1,7 @@
 //! A landed public goal read at both owners (temper/docs/design/protocol/sign-in.md, 2.5).
 use super::{checks::PROXY, http::Answer, proxy::Proxy, service, service_checks, visitor::Visitor};
 use crate::{ctl::Caller, fixtures, referee::Store};
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as p;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
@@ -251,7 +252,7 @@ impl Walk {
                 }
                 let board = p::PublicBoard::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
                     .map_err(|why| format!("board: {why:?}"))?;
-                let goals: Vec<_> = board.live().iter().chain(board.ended().iter()).collect();
+                let goals: Vec<_> = board.live.iter().chain(board.ended.iter()).collect();
                 match (&(goals.len()), &(1)) {
                     (left, right) if left != right => {
                         let finding = format!("one tracked goal, conversation excluded: {}", self.diagnostic());
@@ -260,17 +261,17 @@ impl Walk {
                     _ => {}
                 }
                 let goal = goals[0];
-                if !(goal.line().goal()) {
+                if !(goal.line.goal) {
                     return Err(format!("assertion failed: {}", stringify!(goal.line().goal())));
                 }
-                match (&(goal.line().parent()), &(&None)) {
+                match (&(&goal.line.parent), &(&None)) {
                     (left, right) if left != right => {
                         let finding = String::from("conversation ancestry never crosses");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                     }
                     _ => {}
                 }
-                match (&(goal.line().title()), &(b"@edit Public change title")) {
+                match (&(goal.line.title.as_ref()), &(b"@edit Public change title")) {
                     (left, right) if left != right => {
                         let finding = String::from("assertion `left == right` failed");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -278,12 +279,12 @@ impl Walk {
                     _ => {}
                 }
                 match (
-                    &(goal.line().delegates().working()
-                        + goal.line().delegates().waiting()
-                        + goal.line().delegates().held()
-                        + goal.line().delegates().closing()
-                        + goal.line().delegates().ended()),
-                    &(goal.tree().len()),
+                    &(goal.line.delegates.working
+                        + goal.line.delegates.waiting
+                        + goal.line.delegates.held
+                        + goal.line.delegates.closing
+                        + goal.line.delegates.ended),
+                    &(goal.tree.len()),
                 ) {
                     (left, right) if left != right => {
                         let finding = String::from("assertion `left == right` failed");
@@ -291,7 +292,7 @@ impl Walk {
                     }
                     _ => {}
                 }
-                self.task = Some(goal.line().task());
+                self.task = Some(goal.line.task);
                 self.stage = 4;
             }
             200..=205 => return self.cross_project(visitor, project),
@@ -412,7 +413,7 @@ impl Walk {
             203 => {
                 let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.last(visitor)?.body))
                     .map_err(|why| format!("public projects: {why:?}"))?;
-                match (&(projects.projects().len()), &(2)) {
+                match (&(projects.projects.len()), &(2)) {
                     (left, right) if left != right => {
                         let finding = String::from("assertion `left == right` failed");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -420,18 +421,18 @@ impl Walk {
                     _ => {}
                 }
                 let other_row = projects
-                    .projects()
+                    .projects
                     .iter()
-                    .find(|row| row.project() != project)
+                    .find(|row| row.project != project)
                     .ok_or_else(|| String::from("other project"))?;
-                match (&(other_row.name()), &(b"Other public project")) {
+                match (&(other_row.name.as_ref()), &(b"Other public project")) {
                     (left, right) if left != right => {
                         let finding = String::from("the public record carries the project's name");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                     }
                     _ => {}
                 }
-                let other = other_row.project();
+                let other = other_row.project;
                 let task = self.task.ok_or_else(|| String::from("a genuinely public task of project one"))?;
                 for (address, task) in [(crate::fixtures::CLIENTS, task), (PROXY, task), (crate::fixtures::CLIENTS, 0)]
                 {
@@ -509,7 +510,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
         0 => {
             let projects = p::PublicProjects::decode(&p::CEILINGS, &mut reader)
                 .map_err(|why| format!("projects record: {why:?}"))?;
-            match (&(projects.projects().iter().map(p::PublicProject::project).collect::<Vec<_>>()), &([project])) {
+            match (&(projects.projects.iter().map(|value| value.project).collect::<Vec<_>>()), &([project])) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -520,14 +521,14 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
         1 => {
             let board =
                 p::PublicBoard::decode(&p::CEILINGS, &mut reader).map_err(|why| format!("board record: {why:?}"))?;
-            match (&(board.project()), &(project)) {
+            match (&(board.project), &(project)) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                 }
                 _ => {}
             }
-            match (&(board.live().len() + board.ended().len()), &(1)) {
+            match (&(board.live.len() + board.ended.len()), &(1)) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -538,14 +539,14 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
         2 => {
             let card =
                 p::PublicCard::decode(&p::CEILINGS, &mut reader).map_err(|why| format!("card record: {why:?}"))?;
-            match (&(card.line().task()), &(task)) {
+            match (&(card.line.task), &(task)) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                 }
                 _ => {}
             }
-            match (&(card.line().title()), &(b"@edit Public change title")) {
+            match (&(card.line.title.as_ref()), &(b"@edit Public change title")) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -556,28 +557,28 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
         3..=5 => {
             let application = p::PublicApplication::decode(&p::CEILINGS, &mut reader)
                 .map_err(|why| format!("forge record in its public envelope: {why:?}"))?;
-            match (&(application.tasks().iter().copied().collect::<Vec<_>>()), &([task])) {
+            match (&(application.tasks.iter().copied().collect::<Vec<_>>()), &([task])) {
                 (left, right) if left != right => {
                     let finding = String::from("only the public member is named; the landing's task stays private");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                 }
                 _ => {}
             }
-            forge_references(row, application.record())?;
+            forge_references(row, application.record.as_ref())?;
         }
         6 | 7 => {
             use jig_client_protocol_wire as w;
             let versions =
                 w::NotServed::decode(&w::CEILINGS, &mut reader).map_err(|why| format!("not-served record: {why:?}"))?;
-            match (&(versions.served().len()), &(1)) {
+            match (&(versions.served.len()), &(1)) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                 }
                 _ => {}
             }
-            let version = versions.served().iter().next().ok_or_else(|| String::from("served version"))?;
-            match (&(version.first(), version.last()), &(if row == 6 { (1, 1) } else { (4, 4) })) {
+            let version = versions.served.iter().next().ok_or_else(|| String::from("served version"))?;
+            match (&(version.first, version.last), &(if row == 6 { (1, 1) } else { (4, 4) })) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));

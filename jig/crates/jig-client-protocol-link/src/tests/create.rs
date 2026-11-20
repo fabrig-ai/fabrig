@@ -6,15 +6,15 @@ fn a_create_s_tasks_cross_as_pieces_within_the_request_s_bytes() {
     let ask = fixtures::create_ask();
     let record = translate::asks::ask(&ask, limits.wire()).unwrap();
     let w::Ask::Create(value) = &record else { panic!("create") };
-    assert_eq!(value.project(), fixtures::PROJECT);
-    let mut reader = Reader::new(value.tasks());
+    assert_eq!(value.project, fixtures::PROJECT);
+    let mut reader = Reader::new(value.tasks.as_ref());
     let first = skein_codec::piece::split(&mut reader).unwrap().unwrap();
     let second = skein_codec::piece::split(&mut reader).unwrap().unwrap();
     assert_eq!(skein_codec::piece::split(&mut reader), Ok(None));
     let first = w::NewTask::decode(limits.wire(), &mut Reader::new(&first)).unwrap();
     let second = w::NewTask::decode(limits.wire(), &mut Reader::new(&second)).unwrap();
-    assert_eq!(first.spec().words(), b"kept");
-    assert_eq!(second.label(), 14);
+    assert_eq!(first.spec.words.as_ref(), b"kept");
+    assert_eq!(second.label, 14);
     assert_eq!(translate::store::restore_ask(record, &limits), Ok(ask));
 }
 #[test]
@@ -85,8 +85,10 @@ fn a_new_tasks_closer_crosses_the_wire_both_ways() {
         task.flags.ended_by = ended_by;
         let ask = c::Ask::Create { project: 7, tasks: fixtures::list([task]) };
         let wire = translate::asks::ask(&ask, limits.wire()).unwrap();
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
-        wire.encode(&mut out).unwrap();
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(
+            wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let wire = w::Ask::decode(limits.wire(), &mut Reader::new(&out.finish())).unwrap();
         assert_eq!(translate::store::restore_ask(wire, &limits), Ok(ask));
     }

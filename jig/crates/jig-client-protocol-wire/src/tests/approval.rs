@@ -1,4 +1,5 @@
 //! Approval codes and secret prints (jig/docs/design/protocol/client/sign-in.md).
+use crate::Record as _;
 use crate::{ApprovalAsked, ApprovalCode, ApprovalSignIn, CEILINGS};
 use alloc::fmt::format;
 use skein_lib::{Reader, Writer};
@@ -92,15 +93,15 @@ fn debug_of_an_approval_shows_the_secrets_length_never_its_bytes() {
         assert!(debug.contains(length), "{debug}");
         assert!(pretty.replace([' ', '\n', ','], "").contains(&length.replace(' ', "")), "{pretty}");
     }
-    let encoded = super::fixtures::encoded(&asked, ApprovalAsked::measure, ApprovalAsked::encode);
+    let encoded = super::fixtures::encoded(&asked);
     assert_eq!(encoded, asked_bytes);
     let decoded = ApprovalAsked::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip ask");
-    assert_eq!(decoded.secret().expose(), ASKED_CANARY.as_bytes());
+    assert_eq!(decoded.secret.expose(), ASKED_CANARY.as_bytes());
     assert_eq!(decoded, asked);
-    let encoded = super::fixtures::encoded(&take, ApprovalSignIn::measure, ApprovalSignIn::encode);
+    let encoded = super::fixtures::encoded(&take);
     assert_eq!(encoded, take_bytes);
     let decoded = ApprovalSignIn::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip take");
-    assert_eq!(decoded.secret().expose(), TAKE_CANARY.as_bytes());
+    assert_eq!(decoded.secret.expose(), TAKE_CANARY.as_bytes());
     assert_eq!(decoded, take);
 }
 
@@ -132,47 +133,32 @@ fn approval_records_round_trip_optional_returns_grants_and_sources() {
     macro_rules! round_trip {
         ($ty:ident, $value:expr) => {{
             let value = $value;
-            let bytes = super::fixtures::encoded(&value, $ty::measure, $ty::encode);
+            let bytes = super::fixtures::encoded(&value);
             let decoded = $ty::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("round trip");
             assert_eq!(decoded, value);
-            assert_eq!(super::fixtures::encoded(&decoded, $ty::measure, $ty::encode), bytes);
+            assert_eq!(super::fixtures::encoded(&decoded), bytes);
             bytes
         }};
     }
     for port in [None, Some(43210)] {
-        let ask = ApprovalAsk::new(&CEILINGS, ApprovalAskParts { port }).expect("ask");
-        assert_eq!(ask.port(), &port);
+        let ask = ApprovalAsk { port };
+        assert_eq!(ask.port, port);
         round_trip!(ApprovalAsk, ask);
     }
     for returned in [false, true] {
         let grant = if returned { Some(Secret::new(Box::new([9; 32]))) } else { None };
-        let take =
-            ApprovalSignIn::new(&CEILINGS, ApprovalSignInParts { secret: Secret::new(Box::new([7; 32])), grant })
-                .expect("take");
-        assert_eq!(take.grant().is_some(), returned);
+        let take = ApprovalSignIn { secret: Secret::new(Box::new([7; 32])), grant };
+        assert_eq!(take.grant.is_some(), returned);
         round_trip!(ApprovalSignIn, take);
-        let loopback = if returned {
-            Some(
-                ApprovalLoopback::new(
-                    &CEILINGS,
-                    ApprovalLoopbackParts { port: 43210, grant: Secret::new(Box::new([9; 32])) },
-                )
-                .expect("loopback"),
-            )
-        } else {
-            None
-        };
-        let approved = ApprovalApproved::new(&CEILINGS, ApprovalApprovedParts { loopback }).expect("approved");
+        let loopback =
+            if returned { Some(ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) }) } else { None };
+        let approved = ApprovalApproved { loopback };
         round_trip!(ApprovalDecided, ApprovalDecided::Approved(approved));
     }
     for (tag, kind) in [(0, ApprovalKind::Listener), (1, ApprovalKind::Returned), (2, ApprovalKind::Typed)] {
         for source in [None, Some([7; 16])] {
             for reader in [None, Some([8; 16])] {
-                let waiting = ApprovalWaiting::new(
-                    &CEILINGS,
-                    ApprovalWaitingParts { asked: 100, kind: kind.clone(), source, reader },
-                )
-                .expect("waiting");
+                let waiting = ApprovalWaiting { asked: 100, kind: kind.clone(), source, reader };
                 let bytes = round_trip!(ApprovalWaiting, waiting);
                 assert_eq!(bytes.get(8), Some(&tag), "approval kind's tag");
             }

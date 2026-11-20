@@ -26,27 +26,15 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     host.requests();
     host.heard(Heard::StreamOpened);
     let mut served = List::with_capacity(2);
-    for (owner, version) in [
-        (w::Owner::Jig, VERSION),
-        (
-            w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge family"),
-            ),
-            wire::CLIENT_VERSION,
-        ),
-    ] {
-        served
-            .push(
-                w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version })
-                    .expect("served family"),
-            )
-            .expect("two families");
+    for (owner, version) in
+        [(w::Owner::Jig, VERSION), (w::Owner::Family(w::Family { number: wire::FORGE }), wire::CLIENT_VERSION)]
+    {
+        served.push(w::Served { owner, first: version, last: version }).expect("two families");
     }
     streamed(
         &mut host,
         &jig_client_test_records::opened(
-            w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-                .expect("hello"),
+            w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
             jig_client_test_records::frame_record(),
         ),
     );
@@ -54,41 +42,31 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
     host.requests();
-    let mut me = jig_client_test_records::frame_record().into_parts();
-    let provider = w::ProviderOffer::new(
-        &w::CEILINGS,
-        w::ProviderOfferParts {
-            provider: 17,
-            name: w::DocumentText::new(
-                &w::CEILINGS,
-                w::DocumentTextParts { bytes: b"openai".as_slice().into(), cut: false },
-            )
-            .expect("name"),
-            sign_in: true,
-            key: true,
-            programs_cut: false,
-            none: false,
-            signed_in_plan: true,
-            programs: List::with_capacity(0),
-            manage_usage: None,
-            key_bytes: 4096,
-        },
-    )
-    .expect("provider");
-    me.providers = encoded(provider.measure() + 4, |writer| {
-        writer.put(&provider.measure().to_be_bytes())?;
-        provider.encode(writer)
-    });
-    let value = w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).expect("me"));
+    let mut me = jig_client_test_records::frame_record();
+    let provider = w::ProviderOffer {
+        provider: 17,
+        name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
+        sign_in: true,
+        key: true,
+        programs_cut: false,
+        none: false,
+        signed_in_plan: true,
+        programs: List::with_capacity(0),
+        manage_usage: None,
+        key_bytes: 4096,
+    };
+    let bytes = provider.encode(&w::CEILINGS).expect("bounded fixture encoding");
+    let mut writer = skein_lib::Writer::new(bytes.len().checked_add(4).expect("provider piece fits"));
+    writer.put(&u32::try_from(bytes.len()).expect("provider length fits").to_be_bytes()).expect("piece prefix");
+    writer.put(&bytes).expect("piece body");
+    me.providers = writer.finish();
+    let value = w::DeliveryValue::Me(me);
     streamed(
         &mut host,
-        &w::StreamEvent::Delivery(
-            w::Delivery::new(
-                &w::CEILINGS,
-                w::DeliveryParts { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
-            )
-            .expect("me delivery"),
-        ),
+        &w::StreamEvent::Delivery(w::Delivery {
+            watch,
+            document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+        }),
     );
     admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
@@ -110,7 +88,7 @@ fn admit_watches(host: &mut Host) {
                 host.heard(Heard::Answered {
                     exchange: id,
                     status: 200,
-                    body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                    body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
                     headers: Vec::new(),
                 });
                 admitted = true;
@@ -131,22 +109,19 @@ fn press_sign_in() -> (Host, Duties) {
 fn answer_sign_in(host: &mut Host) -> Duties {
     host.client(jig_client::Event::Stored);
     let (signing, _) = exchange(host);
-    let started = w::DocumentOutcome::AccountSignInStarted(
-        w::OutcomeAccountSignInStarted::new(
-            &w::CEILINGS,
-            w::OutcomeAccountSignInStartedParts { source: 43, address: ADDRESS.into() },
-        )
-        .expect("sign-in started"),
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: started }).expect("outcome"),
-    );
-    let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
-    let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));
+    let started = w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted {
+        source: 43,
+        address: ADDRESS.into(),
+    });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value: started });
+    let answer = w::Final::Done(w::Done { outcome });
+    let answer = w::KeyedAnswer::FinalAnswer(owned(
+        answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
+    ));
     host.report(Report::Heard(Heard::Answered {
         exchange: signing,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
         headers: Vec::new(),
     }))
 }

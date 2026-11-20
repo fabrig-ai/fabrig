@@ -10,25 +10,21 @@ pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits
     Ok::<_, w::Problem>(match value {
         c::ReadValue::Settings(value) => w::ReadValue::Settings(wire_settings_document(value, limits)?),
         c::ReadValue::Setting(value) => w::ReadValue::Setting(wire_setting_document(value, limits)?),
-        c::ReadValue::Revision(value) => w::ReadValue::Revision(w::ReadRevisionAnswer::new(
-            limits,
-            w::ReadRevisionAnswerParts { value: wire_revision_answer(value, limits)? },
-        )?),
-        c::ReadValue::TaskText(value) => w::ReadValue::TaskText(w::TaskText::new(
-            limits,
-            w::TaskTextParts {
-                task: value.task,
-                field: match value.field {
-                    c::TaskTextField::Specification => w::TaskTextField::Specification,
-                    c::TaskTextField::Instructions => w::TaskTextField::Instructions,
-                    c::TaskTextField::Result => w::TaskTextField::Result,
-                },
-                from: value.from,
-                total: value.total,
-                next: value.next,
-                words: Box::from(value.text.bytes()),
+        c::ReadValue::Revision(value) => {
+            w::ReadValue::Revision(w::ReadRevisionAnswer { value: wire_revision_answer(value, limits)? })
+        }
+        c::ReadValue::TaskText(value) => w::ReadValue::TaskText(w::TaskText {
+            task: value.task,
+            field: match value.field {
+                c::TaskTextField::Specification => w::TaskTextField::Specification,
+                c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                c::TaskTextField::Result => w::TaskTextField::Result,
             },
-        )?),
+            from: value.from,
+            total: value.total,
+            next: value.next,
+            words: Box::from(value.text.bytes()),
+        }),
         c::ReadValue::Revisions(value) => w::ReadValue::Revisions(wire_revisions_page(value, limits)?),
         c::ReadValue::Tasks(value) => w::ReadValue::Tasks(wire_task_page(value, limits)?),
         c::ReadValue::Project(value) => w::ReadValue::Project(wire_project(value, limits)?),
@@ -51,56 +47,39 @@ pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits
     })
 }
 
-pub(in crate::codec) fn wire_cursor(value: &c::Cursor, limits: &w::Limits) -> Result<w::Cursor, w::Problem> {
-    w::Cursor::new(limits, w::CursorParts { value: bytes::copy_of(value.value.bytes()) })
+pub(in crate::codec) fn wire_cursor(value: &c::Cursor, _limits: &w::Limits) -> Result<w::Cursor, w::Problem> {
+    Ok(w::Cursor { value: bytes::copy_of(value.value.bytes()) })
 }
 
 pub(in crate::codec) fn wire_history_page(
     value: &c::HistoryPage,
     limits: &w::Limits,
 ) -> Result<w::HistoryPage, w::Problem> {
-    w::HistoryPage::new(
-        limits,
-        w::HistoryPageParts {
-            cut: value.cut,
-            rows: pieces(
-                value.rows.iter().map(|item| wire_history_row(item, limits)),
-                w::HistoryRow::measure,
-                w::HistoryRow::encode,
-            )?,
-            before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
-            after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
-        },
-    )
+    Ok(w::HistoryPage {
+        cut: value.cut,
+        rows: pieces(value.rows.iter().map(|item| wire_history_row(item, limits)), limits)?,
+        before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
+        after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_activity_page(
     value: &c::ActivityPage,
     limits: &w::Limits,
 ) -> Result<w::ActivityPage, w::Problem> {
-    w::ActivityPage::new(
-        limits,
-        w::ActivityPageParts {
-            cut: value.cut,
-            rows: pieces(
-                value.rows.iter().map(|item| wire_decoded_activity_line(item, limits)),
-                w::DecodedActivityLine::measure,
-                w::DecodedActivityLine::encode,
-            )?,
-            before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
-            after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
-        },
-    )
+    Ok(w::ActivityPage {
+        cut: value.cut,
+        rows: pieces(value.rows.iter().map(|item| wire_decoded_activity_line(item, limits)), limits)?,
+        before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
+        after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_note_page(value: &c::NotePage, limits: &w::Limits) -> Result<w::NotePage, w::Problem> {
-    w::NotePage::new(
-        limits,
-        w::NotePageParts {
-            cut: value.cut,
-            rows: pieces(value.rows.iter().map(|item| wire_note(item, limits)), w::Note::measure, w::Note::encode)?,
-            before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
-            after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
-        },
-    )
+    Ok(w::NotePage {
+        cut: value.cut,
+        rows: pieces(value.rows.iter().map(|item| wire_note(item, limits)), limits)?,
+        before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
+        after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
+    })
 }

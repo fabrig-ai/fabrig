@@ -7,9 +7,9 @@ fn a_send_becomes_one_post_with_its_key() {
         panic!("expected exchange")
     };
     let record = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&body)).unwrap();
-    assert_eq!(record.key(), &fixtures::KEY);
-    assert_eq!(record.owner(), &w::Owner::Jig);
-    assert_eq!(record.version(), jig_client_protocol_wire::VERSION);
+    assert_eq!((&record.key), &fixtures::KEY);
+    assert_eq!((&record.owner), &w::Owner::Jig);
+    assert_eq!(record.version, jig_client_protocol_wire::VERSION);
 }
 #[test]
 fn done_is_handed_up_final_with_its_outcome() {
@@ -193,10 +193,11 @@ fn a_seen_over_a_conversation_names_its_task() {
         panic!("request bytes")
     };
     let keyed = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).expect("keyed request");
-    let request = w::Ask::decode(fixtures::limits().wire(), &mut Reader::new(keyed.request())).expect("jig request");
+    let request =
+        w::Ask::decode(fixtures::limits().wire(), &mut Reader::new(keyed.request.as_ref())).expect("jig request");
     let w::Ask::Seen(seen) = request else { panic!("seen") };
-    let w::SeenThrough::Conversation(conversation) = seen.through() else { panic!("conversation") };
-    assert_eq!((conversation.task(), conversation.through()), (u64::MAX, u64::MAX));
+    let w::SeenThrough::Conversation(conversation) = &seen.through else { panic!("conversation") };
+    assert_eq!((conversation.task, conversation.through), (u64::MAX, u64::MAX));
 }
 
 const TEMPLATE_ROWS: [(u32, u32); 3] = [(2, 2), (16, 16), (32, 16)];

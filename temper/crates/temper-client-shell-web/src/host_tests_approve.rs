@@ -15,14 +15,11 @@ fn exchange(host: &mut Host, path: &[u8]) -> u32 {
     requests[0]
 }
 fn waiting(host: &mut Host, exchange: u32, kind: w::ApprovalKind) {
-    let answer = w::ApprovalState::Waiting(
-        w::ApprovalWaiting::new(&w::CEILINGS, w::ApprovalWaitingParts { asked: 0, kind, source: None, reader: None })
-            .expect("waiting"),
-    );
+    let answer = w::ApprovalState::Waiting(w::ApprovalWaiting { asked: 0, kind, source: None, reader: None });
     host.heard(Heard::Answered {
         exchange,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&w::CEILINGS).expect("bounded answer"),
         headers: Vec::new(),
     });
     host.requests();
@@ -92,25 +89,13 @@ fn the_loopback_handoff_uses_the_answers_port_and_replaces_once() {
     host.show = None;
     host.event(Event::Act { action: root::Action::Approve(root::approve::Act::Approve) });
     let decide = exchange(&mut host, b"/jig/v1/approval/decide");
-    let answer = w::ApprovalDecided::Approved(
-        w::ApprovalApproved::new(
-            &w::CEILINGS,
-            w::ApprovalApprovedParts {
-                loopback: Some(
-                    w::ApprovalLoopback::new(
-                        &w::CEILINGS,
-                        w::ApprovalLoopbackParts { port: 43210, grant: skein_lib::Secret::new(Box::new([0xff; 32])) },
-                    )
-                    .expect("loopback return"),
-                ),
-            },
-        )
-        .expect("approved"),
-    );
+    let answer = w::ApprovalDecided::Approved(w::ApprovalApproved {
+        loopback: Some(w::ApprovalLoopback { port: 43210, grant: skein_lib::Secret::new(Box::new([0xff; 32])) }),
+    });
     host.heard(Heard::Answered {
         exchange: decide,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&w::CEILINGS).expect("bounded answer"),
         headers: Vec::new(),
     });
     let duties = host.report(Report::Start);
@@ -142,7 +127,7 @@ fn the_approval_address_prints_its_code_and_reads_once() {
                 && call.path.as_ref() == b"/jig/v1/approval/read"
             {
                 let read = w::ApprovalRead::decode(&w::CEILINGS, &mut Reader::new(&call.body)).unwrap();
-                assert_eq!(read.code(), b"WDJBMJHT");
+                assert_eq!((&read.code), b"WDJBMJHT");
                 count += 1;
             }
         }

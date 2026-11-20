@@ -375,8 +375,10 @@ fn waiting(row: w::TrialRow, wait: Option<jig_client_protocol_wire::TaskRunWait>
     let mut row = row;
     row.run_wait = match wait {
         Some(wait) => {
-            let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
-            wait.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(
+                usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
+            wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             Some(writer.finish())
         }
         None => None,

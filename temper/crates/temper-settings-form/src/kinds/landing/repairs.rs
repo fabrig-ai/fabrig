@@ -2,7 +2,7 @@
 use super::{number, uint};
 use crate::file::{Decoder, Error, Fields, error, field, optional};
 use skein_json::{Kind, writer::Encoder};
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 use temper_client_protocol_wire::v1 as w;
 use temper_client_protocol_wire::v1::Record;
 
@@ -44,12 +44,8 @@ fn goal(d: &Decoder<'_>, at: u32) -> Result<w::RepairGoalSettings, Error> {
             let choice = crate::wire::llm_wire_choice(Some(&choice), &d.limits)
                 .or(Err(error(b"llm", b"wire value bound")))?
                 .expect("a choice was given");
-            let mut out = Writer::new(skein_lib::usize_of(choice.measure()));
-            choice.encode(&mut out).expect("measured template choice");
-            Some(
-                w::NamedLlm::decode(&d.kinds, &mut Reader::new(&out.finish()))
-                    .or(Err(error(b"llm", b"wire value bound")))?,
-            )
+            let bytes = choice.encode(&d.limits).or(Err(error(b"llm", b"wire value bound")))?;
+            Some(w::NamedLlm::decode(&d.kinds, &mut Reader::new(&bytes)).or(Err(error(b"llm", b"wire value bound")))?)
         }
     };
     {

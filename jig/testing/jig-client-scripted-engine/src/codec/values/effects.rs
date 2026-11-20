@@ -3,14 +3,9 @@ use super::super::{c, w};
 use super::wire_impact;
 pub(in crate::codec) fn wire_effect(value: &c::Effect, limits: &w::Limits) -> Result<w::Effect, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Effect::Release(value) => w::Effect::Release(w::EffectRelease::new(
-            limits,
-            w::EffectReleaseParts { what: wire_release_effect(value, limits)? },
-        )?),
+        c::Effect::Release(value) => w::Effect::Release(w::EffectRelease { what: wire_release_effect(value, limits)? }),
         c::Effect::Cancel(value) => w::Effect::Cancel(wire_impact(value, limits)?),
-        c::Effect::Move { reservation } => {
-            w::Effect::MoveTask(w::EffectMove::new(limits, w::EffectMoveParts { reservation: *(reservation) })?)
-        }
+        c::Effect::Move { reservation } => w::Effect::MoveTask(w::EffectMove { reservation: *(reservation) }),
     })
 }
 

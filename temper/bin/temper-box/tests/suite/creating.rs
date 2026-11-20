@@ -1,4 +1,5 @@
 //! Stock creation offers fit their receivers (jig/docs/design/client/domain/contract/documents.md, 3).
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::{
     Core, Record,
     documents::{self, Document, Frame},
@@ -86,8 +87,10 @@ fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -
     use jig_client_protocol_wire as w;
     let wire =
         jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
-    let mut writer = Writer::new(usize::try_from(wire.measure()).expect("me bytes"));
-    wire.encode(&mut writer).expect("encoded me");
+    let mut writer = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me bytes"),
+    );
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("encoded me");
     let client = temper_client_shell_web::limits::client().client;
     let limits = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("browser limits");
     let bytes = writer.finish();

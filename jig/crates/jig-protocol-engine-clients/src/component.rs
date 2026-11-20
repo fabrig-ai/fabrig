@@ -7,6 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
@@ -80,7 +81,7 @@ impl Component {
         let Ok(hello) = crate::translate::watches::hello([0; 16], &settings, &env.limits.wire) else {
             return Err(Unusable::Limits);
         };
-        if hello.measure() > env.limits.queued_bytes {
+        if hello.measure(&env.limits.wire).unwrap_or(u32::MAX) > env.limits.queued_bytes {
             return Err(Unusable::Limits);
         }
         if let Some(secret) = &given
@@ -586,7 +587,7 @@ impl Component {
                     connection.respond(crate::Reply::NotARecord);
                     return;
                 };
-                let digest = sign_in::digest(record.secret().expose());
+                let digest = sign_in::digest(record.secret.expose());
                 self.expire_links(env.now);
                 if self.asked_sign_in(env, connection, &digest, out) {
                     return;
@@ -609,7 +610,7 @@ impl Component {
                     return;
                 }
                 let Some(which) = live else {
-                    let (answer, past) = self.link_answer(record.secret().expose());
+                    let (answer, past) = self.link_answer(record.secret.expose());
                     if past != Some(LinkKind::Startup(Which::Local)) && past != Some(LinkKind::Asked) {
                         self.fresh_link(Which::Printed, env, out);
                     }
@@ -775,7 +776,7 @@ impl Component {
             | people::Reply::Again(_)
             | people::Reply::Refused(_) => {
                 let answer = crate::translate::answers::answer(&reply, &self.settings.models, &env.limits.wire);
-                self.answer(exchange, answer);
+                self.answer(exchange, answer, &env.limits.wire);
             }
         }
     }
@@ -788,7 +789,7 @@ impl Component {
                     None => skein_lib::Secret::new(Box::new([])),
                 };
                 let answer = crate::translate::answers::moving_out(account, number, record, &env.limits.wire);
-                self.answer(exchange, answer);
+                self.answer(exchange, answer, &env.limits.wire);
             }
             Waiting::LinkAskWhose { .. }
             | Waiting::AskedWhose { .. }
@@ -811,17 +812,17 @@ impl Component {
             }
         }
     }
-    fn answer(&mut self, exchange: Token, answer: Result<w::KeyedAnswer, w::Problem>) {
+    fn answer(&mut self, exchange: Token, answer: Result<w::KeyedAnswer, w::Problem>, limits: &w::Limits) {
         let Some(owner) = self.owner(exchange) else {
             return;
         };
         let connection = self.connections.get_mut(&owner).expect("exchange owner");
-        match answer {
-            Ok(answer) => {
-                let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-                answer.encode(&mut body).expect("measured answer");
-                connection.respond(crate::Reply::Record(body.finish()));
-            }
+        let bytes = match answer {
+            Ok(answer) => answer.encode(limits),
+            Err(problem) => Err(problem),
+        };
+        match bytes {
+            Ok(bytes) => connection.respond(crate::Reply::Record(bytes)),
             Err(_) => connection.close(),
         }
     }
@@ -833,13 +834,13 @@ impl Component {
         };
         match waiting {
             Waiting::Ask { family: Some(number), version, .. } if number == family => {
-                let answer = match w::Family::new(&env.limits.wire, w::FamilyParts { number }) {
+                let answer = match Ok(w::Family { number }) {
                     Ok(value) => {
                         crate::translate::answers::owned(w::Owner::Family(value), version, record, &env.limits.wire)
                     }
                     Err(problem) => Err(problem),
                 };
-                self.answer(exchange, answer);
+                self.answer(exchange, answer, &env.limits.wire);
             }
             Waiting::LinkAskWhose { .. }
             | Waiting::AskedWhose { .. }

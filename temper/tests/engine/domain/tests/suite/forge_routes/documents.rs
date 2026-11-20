@@ -240,7 +240,7 @@ fn document_items(number: u32, value: &serde_json::Value) -> Box<[jig_domain_cor
     else {
         panic!("settings change")
     };
-    jig_protocol_engine_clients::translate::settings::items(change.items().into(), &[], &limits.settings)
+    jig_protocol_engine_clients::translate::settings::items(change.items.as_ref().into(), &[], &limits.settings)
         .expect("settings items reach the core")
 }
 

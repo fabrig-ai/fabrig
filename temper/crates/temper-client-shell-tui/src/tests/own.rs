@@ -9,14 +9,14 @@ fn web_host(project: bool, printed: bool) -> (Host, u64) {
     let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
     let duties = reply(&mut host, local_exchange(&signing), sign_in_bytes(&signed_in_answer()));
     admit(&mut host, duties);
-    let mut me = launchpad_me(project).into_parts();
+    let mut me = launchpad_me(project);
     if project {
         let bytes = skein_codec::piece::split(&mut Reader::new(&me.projects)).unwrap().unwrap();
-        let mut row = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
+        let mut row = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         row.project = 1;
-        me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, row).unwrap())]);
+        me.projects = pieces(&[project_bytes(&row)]);
     }
-    let hello = hello_for_me(&host, w::Me::new(&w::CEILINGS, me).unwrap());
+    let hello = hello_for_me(&host, me);
     let duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     let duties = admit(&mut host, duties);
@@ -33,9 +33,7 @@ fn web_host(project: bool, printed: bool) -> (Host, u64) {
 fn web_linked(host: &mut Host, watch: u64, linked: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as f};
     let record = wire::forges(&f::Forges { forges: List::with_capacity(0), linked });
-    let event = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document: goal::family(record) }).unwrap(),
-    );
+    let event = w::StreamEvent::Delivery(w::Delivery { watch, document: goal::family(record) });
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));
@@ -237,7 +235,7 @@ fn an_unoffered_name_with_space_is_a_chats_message() {
     let duties = stored(&mut host, duties);
     let asks = sent_ask(&duties);
     let [(_, w::Ask::Message(message))] = asks.as_slice() else { panic!("chat message: {asks:?}") };
-    assert_eq!(message.words(), b"/change ");
+    assert_eq!(message.words.as_ref(), b"/change ");
     assert_eq!(host.words(), []);
 }
 
@@ -281,14 +279,11 @@ fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
             let [(exchange, w::Ask::Create(create))] = asks.as_slice() else {
                 panic!("{command:?}, refused={refused}: {asks:?}")
             };
-            let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks())).unwrap().unwrap();
+            let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks.as_ref())).unwrap().unwrap();
             let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-            assert_eq!((task.label(), task.spec().words()), (label, expected));
+            assert_eq!((task.label, task.spec.words.as_ref()), (label, expected));
             if refused {
-                let answer = w::Final::Refused(
-                    w::Refused::new(&w::CEILINGS, w::RefusedParts { refusal: w::Refusal::NotOffered, at: None })
-                        .unwrap(),
-                );
+                let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
                 let duties = reply(&mut host, *exchange, final_bytes(&answer));
                 admit(&mut host, duties);
                 assert_eq!(host.state().place(), Some(command));
@@ -400,41 +395,33 @@ fn a_places_empty_box_has_no_launchpad_or_pane_keys() {
 
 fn picker_host() -> Host {
     let (mut host, watch, _) = signed_host(true);
-    let model = w::MeModel::new(
-        &w::CEILINGS,
-        w::MeModelParts {
-            new_until: None,
-            number: 1,
-            source: w::ModelSource::Stock,
-            estimated: false,
-            name: b"model".as_slice().into(),
-            provider: None,
-            window: 8192,
-            output: 1024,
-            efforts: List::with_capacity(0),
-            effort: None,
-            prices: w::MePrices::new(
-                &w::CEILINGS,
-                w::MePricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-            )
-            .unwrap(),
-            description: None,
-            shown: None,
-            accounts: List::from_boxed(Box::new([1])),
-            picker: true,
-        },
-    )
-    .unwrap();
-    let mut me = launchpad_me(true).into_parts();
+    let model = w::MeModel {
+        new_until: None,
+        number: 1,
+        source: w::ModelSource::Stock,
+        estimated: false,
+        name: b"model".as_slice().into(),
+        provider: None,
+        window: 8192,
+        output: 1024,
+        efforts: List::with_capacity(0),
+        effort: None,
+        prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+        description: None,
+        shown: None,
+        accounts: List::from_boxed(Box::new([1])),
+        picker: true,
+    };
+    let mut me = launchpad_me(true);
     let mut projects = Vec::new();
     let mut reader = Reader::new(&me.projects);
     while let Some(bytes) = skein_codec::piece::split(&mut reader).unwrap() {
-        let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
+        let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         project.models = List::from_boxed(Box::new([model.clone()]));
-        projects.push(project_bytes(&w::MeProject::new(&w::CEILINGS, project).unwrap()));
+        projects.push(project_bytes(&project));
     }
     me.projects = pieces(&projects);
-    let duties = delivery(&mut host, watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
+    let duties = delivery(&mut host, watch, &w::DeliveryValue::Me(me));
     admit(&mut host, duties);
     host
 }
