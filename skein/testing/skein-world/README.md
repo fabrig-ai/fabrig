@@ -26,6 +26,9 @@ child's roots; a kill closes every descriptor still owned by the child.
 Parent and child may select the same directory, but never share descriptor
 ownership.
 
+The `faults` module keeps one run's injected faults, closed intervals, struck
+identities and six independent counters (`skein/docs/design/testing/sweeps.md`, 3).
+
 The `domain` module is the shared machinery of domain worlds:
 
 - `Schedule`, `Key` and latency `Span`: deterministic delivery times,

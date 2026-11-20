@@ -29,6 +29,8 @@
 //! traces and an observation referee. Services keep their own fakes and
 //! scenario expectations; these utilities are shared by temper and smith.
 //!
+//! [`faults`] records each run's injected faults, intervals, identities and counters.
+//!
 //! A scenario's processes are one type, the scenario's own (an enum of its
 //! service and its fakes, say), implementing [`Host`]; the boundary
 //! contracts are each process's to keep, as its loop is its own.
@@ -42,6 +44,7 @@ pub use deadline::{Deadline, Expired, Figures, Starved, pass_starved, starved_pa
 pub mod domain;
 #[cfg(unix)]
 pub mod end_to_end;
+pub mod faults;
 pub mod files;
 mod heap;
 mod outcome;
@@ -55,6 +58,9 @@ pub mod stream;
 #[cfg(unix)]
 mod tree;
 mod world;
+
+#[cfg(test)]
+mod tests;
 
 pub use heap::Memory;
 pub use outcome::Outcome;
