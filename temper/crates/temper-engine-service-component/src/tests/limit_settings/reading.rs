@@ -46,7 +46,13 @@ fn the_limits_read_unifies_names_and_preserves_stock_setting_and_running_figures
     );
     assert!(!entries.waiting);
     assert_eq!(entries.line.as_ref(), crate::limits::find(b"forge.entries").unwrap().line.as_bytes());
-    assert_eq!(&named(&read, b"tasks.tasks").applies, &w::LimitApplies::NextStart);
+    for (name, applies) in [
+        (b"tasks.tasks".as_slice(), w::LimitApplies::NextStart),
+        (b"checkout.remote_timeout_ms", w::LimitApplies::Live),
+        (b"link.stall_ms", w::LimitApplies::Live),
+    ] {
+        assert_eq!(named(&read, name).applies, applies, "{}", String::from_utf8_lossy(name));
+    }
     let transcript = named(&read, b"transcript_memory");
     assert_eq!(&transcript.held, &Some(1234));
     assert_eq!(&transcript.unit, &w::LimitUnit::Bytes);

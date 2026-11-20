@@ -72,7 +72,9 @@ fn at_once(before: &Resolved, next: &Resolved) -> bool {
         }
         match row.applies {
             crate::limits::Applies::AtOnce if new > old => {}
-            crate::limits::Applies::AtOnce | crate::limits::Applies::NextStart => return false,
+            crate::limits::Applies::AtOnce | crate::limits::Applies::Live | crate::limits::Applies::NextStart => {
+                return false;
+            }
         }
     }
     true
