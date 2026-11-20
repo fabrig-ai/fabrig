@@ -131,50 +131,35 @@ pub fn env() -> Env<Limits> {
         },
     }
 }
-pub fn start(limits: &w::Limits) -> w::Ask {
-    w::Ask::Message(
-        w::Message::new(limits, w::MessageParts { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
-            .expect("message"),
-    )
+pub fn start(_limits: &w::Limits) -> w::Ask {
+    w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
 }
 pub fn revision(value: u64) -> w::Revision {
-    w::Revision::new(&wire(), w::RevisionParts { value }).expect("revision")
+    w::Revision { value }
 }
 pub fn amendment(release: Option<w::Revision>, reason: &[u8]) -> w::Ask {
-    let value = Box::new(
-        w::Amend::new(
-            &wire(),
-            w::AmendParts {
-                project: 3,
-                task: 8,
-                revision: Some(revision(6)),
-                reason: Box::from(reason),
-                change: w::Amendment::new(
-                    &wire(),
-                    w::AmendmentParts {
-                        llm: None,
-                        tracked: None,
-                        addressed: None,
-                        spec: None,
-                        wake: None,
-                        dependencies: Some(List::with_capacity(0)),
-                        authority: None,
-                        instructions: Some(Box::new([])),
-                    },
-                )
-                .expect("change"),
-            },
-        )
-        .expect("amend"),
-    );
+    let value = Box::new(w::Amend {
+        project: 3,
+        task: 8,
+        revision: Some(revision(6)),
+        reason: Box::from(reason),
+        change: w::Amendment {
+            llm: None,
+            tracked: None,
+            addressed: None,
+            spec: None,
+            wake: None,
+            dependencies: Some(List::with_capacity(0)),
+            authority: None,
+            instructions: Some(Box::new([])),
+        },
+    });
     match release {
         Some(revision) => compound(
             3,
             &[
                 w::Operation::Amend(value),
-                w::Operation::Release(
-                    w::Release::new(&wire(), w::ReleaseParts { project: 3, task: 8, revision, again: None }).unwrap(),
-                ),
+                w::Operation::Release(w::Release { project: 3, task: 8, revision, again: None }),
             ],
         ),
         None => w::Ask::Amend(value),
@@ -275,18 +260,7 @@ pub fn other_asks() -> [(w::Ask, people::Ask); 17] {
     let limits = wire();
     let mut holdings = List::with_capacity(1);
     holdings
-        .push(
-            w::Holding::new(
-                &limits,
-                w::HoldingParts {
-                    party: 7,
-                    role: w::HeldRole::Policy(
-                        w::HeldRolePolicy::new(&limits, w::HeldRolePolicyParts { role: u32::MAX }).expect("role"),
-                    ),
-                },
-            )
-            .expect("holding"),
-        )
+        .push(w::Holding { party: 7, role: w::HeldRole::Policy(w::HeldRolePolicy { role: u32::MAX }) })
         .expect("room");
     let mut references = List::with_capacity(1);
     references.push(u64::MAX).expect("room");
@@ -310,131 +284,84 @@ pub fn other_asks() -> [(w::Ask, people::Ask); 17] {
         edit_note_case(&limits, references),
     ]
 }
-fn write_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn write_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::Message(
-            w::Message::new(limits, w::MessageParts { project: 3, task: 8, words: Box::from(b"say".as_slice()) })
-                .expect("Write"),
-        ),
+        w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"say".as_slice()) }),
         p::Ask::Say { project: 3, task: 8, words: Box::from(b"say".as_slice()) },
     )
 }
-fn answer_question_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn answer_question_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        answer(w::AnswerOn::Question(
-            w::AnswerQuestion::new(
-                limits,
-                w::AnswerQuestionParts { task: 8, message: 19, words: Box::from(b"answer".as_slice()) },
-            )
-            .expect("AnswerQuestion"),
-        )),
+        answer(w::AnswerOn::Question(w::AnswerQuestion {
+            task: 8,
+            message: 19,
+            words: Box::from(b"answer".as_slice()),
+        })),
         p::Ask::AnswerQuestion { project: 3, task: 8, question: 19, words: Box::from(b"answer".as_slice()) },
     )
 }
-fn take_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn take_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
-    (
-        w::Ask::Take(w::Take::new(limits, w::TakeParts { project: 3, task: 8 }).expect("Take")),
-        p::Ask::TakePerson { project: 3, task: 8 },
-    )
+    (w::Ask::Take(w::Take { project: 3, task: 8 }), p::Ask::TakePerson { project: 3, task: 8 })
 }
-fn hand_back_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn hand_back_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
-    (
-        w::Ask::HandBack(w::HandBack::new(limits, w::HandBackParts { project: 3, task: 8 }).expect("HandBack")),
-        p::Ask::HandBackPerson { project: 3, task: 8 },
-    )
+    (w::Ask::HandBack(w::HandBack { project: 3, task: 8 }), p::Ask::HandBackPerson { project: 3, task: 8 })
 }
-fn release_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn release_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::Release(
-            w::Release::new(limits, w::ReleaseParts { project: 3, task: 8, revision: revision(6), again: Some(false) })
-                .expect("Release"),
-        ),
+        w::Ask::Release(w::Release { project: 3, task: 8, revision: revision(6), again: Some(false) }),
         p::Ask::Release { project: 3, task: 8, revision: 6, again: Some(false) },
     )
 }
-fn stop_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn stop_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
-    (
-        w::Ask::Stop(w::Stop::new(limits, w::StopParts { project: 3, task: 8 }).expect("Stop")),
-        p::Ask::Stop { project: 3, task: 8 },
-    )
+    (w::Ask::Stop(w::Stop { project: 3, task: 8 }), p::Ask::Stop { project: 3, task: 8 })
 }
-fn cancel_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn cancel_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::Cancel(
-            w::Cancel::new(
-                limits,
-                w::CancelParts { grace: None, project: 3, task: 8, reason: Box::from(b"cancel".as_slice()) },
-            )
-            .expect("Cancel"),
-        ),
+        w::Ask::Cancel(w::Cancel { grace: None, project: 3, task: 8, reason: Box::from(b"cancel".as_slice()) }),
         p::Ask::Cancel { project: 3, task: 8, reason: Box::from(b"cancel".as_slice()), grace: None },
     )
 }
-fn take_over_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn take_over_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::MoveTask(
-            w::Move::new(limits, w::MoveParts { project: 3, task: 8, reason: Box::from(b"take".as_slice()) })
-                .expect("move"),
-        ),
+        w::Ask::MoveTask(w::Move { project: 3, task: 8, reason: Box::from(b"take".as_slice()) }),
         p::Ask::Move { project: 3, task: 8, reason: Box::from(b"take".as_slice()) },
     )
 }
-fn set_pool_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn set_pool_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::SetPool(
-            w::SetPool::new(limits, w::SetPoolParts { project: 3, party: u64::MAX, budget: u64::MAX })
-                .expect("SetPool"),
-        ),
+        w::Ask::SetPool(w::SetPool { project: 3, party: u64::MAX, budget: u64::MAX }),
         p::Ask::SetPool { project: 3, person: u64::MAX, budget: u64::MAX },
     )
 }
-fn mark_seen_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn mark_seen_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::Seen(
-            w::Seen::new(
-                limits,
-                w::SeenParts {
-                    through: w::SeenThrough::Conversation(
-                        w::SeenConversation::new(limits, w::SeenConversationParts { task: 8, through: u64::MAX })
-                            .expect("seen"),
-                    ),
-                },
-            )
-            .expect("MarkSeen"),
-        ),
+        w::Ask::Seen(w::Seen {
+            through: w::SeenThrough::Conversation(w::SeenConversation { task: 8, through: u64::MAX }),
+        }),
         p::Ask::MarkSeen { seen: p::Seen::Conversation { task: 8, through: u64::MAX } },
     )
 }
-fn answer_person_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn answer_person_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        answer(w::AnswerOn::Person(
-            w::AnswerPerson::new(
-                limits,
-                w::AnswerPersonParts {
-                    task: 8,
-                    revision: revision(6),
-                    answer: w::PersonAnswer::Approved(
-                        w::PersonAnswerApproved::new(
-                            limits,
-                            w::PersonAnswerApprovedParts { state: Box::new([255, 0]), words: Some(Box::new([])) },
-                        )
-                        .expect("answer"),
-                    ),
-                },
-            )
-            .expect("AnswerPerson"),
-        )),
+        answer(w::AnswerOn::Person(w::AnswerPerson {
+            task: 8,
+            revision: revision(6),
+            answer: w::PersonAnswer::Approved(w::PersonAnswerApproved {
+                state: Box::new([255, 0]),
+                words: Some(Box::new([])),
+            }),
+        })),
         p::Ask::AnswerPerson {
             project: 3,
             task: 8,
@@ -443,30 +370,14 @@ fn answer_person_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn decide_proposal_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn decide_proposal_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        decide(w::DecideOn::Proposal(
-            w::DecideProposal::new(
-                limits,
-                w::DecideProposalParts {
-                    proposal: w::ProposalKey::new(
-                        limits,
-                        w::ProposalKeyParts {
-                            proposer: w::Proposer::Party(
-                                w::ProposerParty::new(limits, w::ProposerPartyParts { value: u64::MAX })
-                                    .expect("party"),
-                            ),
-                            number: 5,
-                        },
-                    )
-                    .expect("proposal"),
-                    decision: w::Decision::Accepted,
-                    running: None,
-                },
-            )
-            .expect("DecideProposal"),
-        )),
+        decide(w::DecideOn::Proposal(w::DecideProposal {
+            proposal: w::ProposalKey { proposer: w::Proposer::Party(w::ProposerParty { value: u64::MAX }), number: 5 },
+            decision: w::Decision::Accepted,
+            running: None,
+        })),
         p::Ask::DecideProposal {
             project: 3,
             proposer: p::Proposer::Party(u64::MAX),
@@ -476,68 +387,46 @@ fn decide_proposal_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn set_roles_case(limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, people::Ask) {
+fn set_roles_case(_limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::SetRoles(w::SetRoles::new(limits, w::SetRolesParts { project: 3, holdings }).expect("SetRoles")),
+        w::Ask::SetRoles(w::SetRoles { project: 3, holdings }),
         p::Ask::SetRoles {
             project: 3,
             holdings: Box::new([p::Holding { person: 7, role: p::Role::Policy { role: u32::MAX } }]),
         },
     )
 }
-fn make_service_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn make_service_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::MakeService(
-            w::MakeService::new(
-                limits,
-                w::MakeServiceParts { project: 3, name: Box::from(b"service".as_slice()), role: w::HeldRole::Owner },
-            )
-            .expect("MakeService"),
-        ),
+        w::Ask::MakeService(w::MakeService {
+            project: 3,
+            name: Box::from(b"service".as_slice()),
+            role: w::HeldRole::Owner,
+        }),
         p::Ask::MakeService { project: 3, name: Box::from(b"service".as_slice()), role: p::Role::Owner },
     )
 }
-fn change_policy_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn change_policy_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::ChangePolicy(
-            w::ChangePolicy::new(
-                limits,
-                w::ChangePolicyParts {
-                    project: 3,
-                    edit: w::PolicyEdit::ProjectSpend(
-                        w::PolicyEditProjectSpend::new(
-                            limits,
-                            w::PolicyEditProjectSpendParts { period_spend: u64::MAX },
-                        )
-                        .expect("spend"),
-                    ),
-                },
-            )
-            .expect("ChangePolicy"),
-        ),
+        w::Ask::ChangePolicy(w::ChangePolicy {
+            project: 3,
+            edit: w::PolicyEdit::ProjectSpend(w::PolicyEditProjectSpend { period_spend: u64::MAX }),
+        }),
         p::Ask::ChangePolicy { project: 3, change: p::PolicyChange::ProjectSpend { period_spend: u64::MAX } },
     )
 }
-fn delete_note_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn delete_note_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::DeleteNote(
-            w::DeleteNote::new(
-                limits,
-                w::DeleteNoteParts {
-                    project: 3,
-                    note: 9,
-                    scope: w::NoteScope::Task(
-                        w::NoteScopeTask::new(limits, w::NoteScopeTaskParts { project: 3, task: 8 }).expect("scope"),
-                    ),
-                    revision: revision(u64::from(u32::MAX)),
-                },
-            )
-            .expect("DeleteNote"),
-        ),
+        w::Ask::DeleteNote(w::DeleteNote {
+            project: 3,
+            note: 9,
+            scope: w::NoteScope::Task(w::NoteScopeTask { project: 3, task: 8 }),
+            revision: revision(u64::from(u32::MAX)),
+        }),
         p::Ask::EditNote {
             project: 3,
             name: 9,
@@ -546,24 +435,18 @@ fn delete_note_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn edit_note_case(limits: &w::Limits, references: List<u64>) -> (w::Ask, people::Ask) {
+fn edit_note_case(_limits: &w::Limits, references: List<u64>) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
-        w::Ask::EditNote(
-            w::EditNote::new(
-                limits,
-                w::EditNoteParts {
-                    project: 3,
-                    note: 9,
-                    scope: w::NoteScope::Deployment,
-                    revision: revision(6),
-                    description: Box::new([]),
-                    body: Box::new([]),
-                    references,
-                },
-            )
-            .expect("EditNote"),
-        ),
+        w::Ask::EditNote(w::EditNote {
+            project: 3,
+            note: 9,
+            scope: w::NoteScope::Deployment,
+            revision: revision(6),
+            description: Box::new([]),
+            body: Box::new([]),
+            references,
+        }),
         p::Ask::EditNote {
             project: 3,
             name: 9,
@@ -579,78 +462,42 @@ fn edit_note_case(limits: &w::Limits, references: List<u64>) -> (w::Ask, people:
 }
 
 pub fn authority_ask() -> (w::Ask, people::Ask) {
-    let limits = wire();
-    let pattern = w::Pattern::new(
-        &limits,
-        w::PatternParts {
-            segments: List::with_capacity(0),
-            last: w::PatternEnd::Open(
-                w::PatternEndOpen::new(&limits, w::PatternEndOpenParts { value: Box::new([255, 0]) }).expect("end"),
-            ),
-        },
-    )
-    .expect("pattern");
-    let grant =
-        w::Grant::new(&limits, w::GrantParts { connector: 5, kind: 6, pattern: pattern.clone() }).expect("grant");
-    let mut writer = Writer::new(skein_lib::length::usize_of(grant.measure()));
-    grant.encode(&mut writer).expect("grant bytes");
+    let pattern = w::Pattern {
+        segments: List::with_capacity(0),
+        last: w::PatternEnd::Open(w::PatternEndOpen { value: Box::new([255, 0]) }),
+    };
+    let grant = w::Grant { connector: 5, kind: 6, pattern: pattern.clone() };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        grant.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    grant.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("grant bytes");
     let bytes = writer.finish();
     let grants = piece(&bytes);
-    let resource = w::ResourceScope::new(&limits, w::ResourceScopeParts { connector: 7, pattern }).expect("scope");
-    let mut writer = Writer::new(skein_lib::length::usize_of(resource.measure()));
-    resource.encode(&mut writer).expect("scope bytes");
+    let resource = w::ResourceScope { connector: 7, pattern };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        resource.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    resource.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("scope bytes");
     let bytes = writer.finish();
     let note_resources = piece(&bytes);
     let mut kinds = List::with_capacity(1);
-    kinds
-        .push(w::AuthorityExecutor::Role(
-            w::AuthorityExecutorRole::new(&limits, w::AuthorityExecutorRoleParts { value: u32::MAX })
-                .expect("executor"),
-        ))
-        .expect("room");
-    let authority = w::Authority::new(
-        &limits,
-        w::AuthorityParts {
-            models: None,
-            tools: u64::MAX,
-            grants,
-            delegation: w::Delegation::new(&limits, w::DelegationParts { kinds, tasks: 9, depth: 10 })
-                .expect("delegation"),
-            spend: u64::MAX,
-            deadline: Some(99),
-            notes: 255,
-            note_resources,
-        },
-    )
-    .expect("authority");
-    let request = w::Ask::ChangePolicy(
-        w::ChangePolicy::new(
-            &limits,
-            w::ChangePolicyParts {
-                project: 3,
-                edit: w::PolicyEdit::Role(
-                    w::PolicyEditRoleValue::new(
-                        &limits,
-                        w::PolicyEditRoleValueParts {
-                            value: w::PolicyEditRole::new(
-                                &limits,
-                                w::PolicyEditRoleParts {
-                                    number: 11,
-                                    authority,
-                                    period_spend: 12,
-                                    requests: 13,
-                                    decides: 14,
-                                },
-                            )
-                            .expect("policy role"),
-                        },
-                    )
-                    .expect("role edit"),
-                ),
-            },
-        )
-        .expect("policy"),
-    );
+    kinds.push(w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value: u32::MAX })).expect("room");
+    let authority = w::Authority {
+        models: None,
+        tools: u64::MAX,
+        grants,
+        delegation: w::Delegation { kinds, tasks: 9, depth: 10 },
+        spend: u64::MAX,
+        deadline: Some(99),
+        notes: 255,
+        note_resources,
+    };
+    let request = w::Ask::ChangePolicy(w::ChangePolicy {
+        project: 3,
+        edit: w::PolicyEdit::Role(w::PolicyEditRoleValue {
+            value: w::PolicyEditRole { number: 11, authority, period_spend: 12, requests: 13, decides: 14 },
+        }),
+    });
     (request, expected_authority())
 }
 fn piece(bytes: &[u8]) -> Box<[u8]> {
@@ -688,23 +535,10 @@ fn expected_authority() -> people::Ask {
     }
 }
 pub fn malformed_piece() -> w::Ask {
-    let limits = wire();
-    w::Ask::ChangePolicy(
-        w::ChangePolicy::new(
-            &limits,
-            w::ChangePolicyParts {
-                project: 3,
-                edit: w::PolicyEdit::Projections(
-                    w::PolicyEditProjections::new(
-                        &limits,
-                        w::PolicyEditProjectionsParts { grants: Box::new([0, 0, 0, 2, 0]) },
-                    )
-                    .expect("opaque piece"),
-                ),
-            },
-        )
-        .expect("policy"),
-    )
+    w::Ask::ChangePolicy(w::ChangePolicy {
+        project: 3,
+        edit: w::PolicyEdit::Projections(w::PolicyEditProjections { grants: Box::new([0, 0, 0, 2, 0]) }),
+    })
 }
 
 #[path = "fixtures/answers.rs"]
@@ -738,8 +572,7 @@ impl Exchange {
         final_record(self.answer(owner), &self.env.limits.wire)
     }
     pub fn application(&mut self) -> (Token, ReplyTo) {
-        let family =
-            w::Owner::Family(w::Family::new(&self.env.limits.wire, w::FamilyParts { number: 9 }).expect("family"));
+        let family = w::Owner::Family(w::Family { number: 9 });
         let owner = self.send(crate::Message::Request(keyed(family, 2, Box::from(b"abc".as_slice()))));
         self.authenticate();
         let Some(Request::Application(crate::ToApplication::Request { reply_to, .. })) = self.out.pop() else {
@@ -790,9 +623,9 @@ pub fn translated(reply: &people::Reply, limits: &w::Limits) -> w::Final {
 pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
     match record {
         w::KeyedAnswer::FinalAnswer(value) => {
-            assert_eq!(value.owner(), &w::Owner::Jig);
-            assert_eq!(value.version(), jig_client_protocol_wire::VERSION);
-            w::Final::decode(limits, &mut skein_lib::Reader::new(value.record())).expect("jig answer")
+            assert_eq!((&value.owner), &w::Owner::Jig);
+            assert_eq!(value.version, jig_client_protocol_wire::VERSION);
+            w::Final::decode(limits, &mut skein_lib::Reader::new(value.record.as_ref())).expect("jig answer")
         }
         other @ (w::KeyedAnswer::NotServed(_)
         | w::KeyedAnswer::Busy

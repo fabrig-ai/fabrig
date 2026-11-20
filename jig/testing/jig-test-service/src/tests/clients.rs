@@ -1,4 +1,5 @@
 use crate::{PartyOutput, engine, route, tests::fixtures as f};
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -230,13 +231,11 @@ fn link_body(engine: &mut crate::Engine) -> Box<[u8]> {
     let link = engine.clients.as_mut().expect("clients").links.pop().expect("printed link");
     let at = skein_lib::bytes::find(&link, b"secret=").expect("query").checked_add(7).expect("query start");
     let secret = base64::decode(Alphabet::Url, link.get(at..).expect("secret bytes"), 32).expect("secret");
-    let value = w::LinkSignIn::new(
-        &engine.clients.as_ref().expect("clients").env.limits.wire,
-        w::LinkSignInParts { secret: skein_lib::Secret::new(secret) },
-    );
-    let value = value.expect("bounded sign-in record");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured record");
+    let value = w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured record");
     writer.finish()
 }
 #[test]
@@ -579,29 +578,24 @@ fn response_body(peer: &Peer) -> &[u8] {
         .expect("body start");
     peer.wire.received.get(at..).expect("response body")
 }
-fn application_read(engine: &crate::Engine) -> Box<[u8]> {
+fn application_read(_engine: &crate::Engine) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = &engine.clients.as_ref().expect("clients").env.limits.wire;
-    let owner = w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: 1 }).expect("test family"));
-    let window = w::Window::new(limits, w::WindowParts { rows: 2, after: None }).expect("window");
-    let value = w::FamilyRecord::new(
-        limits,
-        w::FamilyRecordParts {
-            scope: w::Scope::Deployment,
-            window,
-            record: jig_client_test_protocol_wire::codec::read(&jig_test_connector::ClientSubject::Deployment),
-        },
-    )
-    .expect("family record");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured family record");
-    let record = w::Owned::new(
-        limits,
-        w::OwnedParts { owner, version: jig_client_test_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("test owned read");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured read");
+    let owner = w::Owner::Family(w::Family { number: 1 });
+    let window = w::Window { rows: 2, after: None };
+    let value = w::FamilyRecord {
+        scope: w::Scope::Deployment,
+        window,
+        record: jig_client_test_protocol_wire::codec::read(&jig_test_connector::ClientSubject::Deployment),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured family record");
+    let record = w::Owned { owner, version: jig_client_test_protocol_wire::VERSION, record: writer.finish() };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured read");
     writer.finish()
 }
 #[test]
@@ -633,7 +627,7 @@ fn a_core_refusal_finishes_an_application_read() {
         let answer =
             w::ReadAnswer::decode(limits, &mut skein_lib::Reader::new(response_body(&peer))).expect("read answer");
         let w::ReadAnswer::None(answer) = answer else { panic!("{label}: refusal") };
-        assert_eq!(*answer.value(), expected, "{label}");
+        assert_eq!(answer.value, expected, "{label}");
         assert_eq!(peer.closed, 1, "{label}");
     }
 }

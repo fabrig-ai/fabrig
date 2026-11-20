@@ -3,6 +3,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Held, Key, Record};
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, RequestRecord};
 
 #[derive(Debug)]
@@ -53,7 +54,7 @@ impl Recovery {
             }
             jig_client::Request::Exchange { message: jig_client::Message::Request(bytes), .. } => {
                 if let Ok(request) = w::Keyed::decode(limits.wire(), &mut Reader::new(bytes)) {
-                    self.sent_name(*request.key());
+                    self.sent_name(request.key);
                 }
             }
             _ => {}
@@ -130,10 +131,10 @@ pub fn restore(entry: &Record, limits: &Limits) -> Option<RequestRecord<Held>> {
     }
     let mut reader = Reader::new(&entry.bytes);
     let kept = w::Kept::decode(limits.wire(), &mut reader).ok()?;
-    if reader.remaining() != 0 || kept.store_version() != jig_client_domain::TABLE_VERSION {
+    if reader.remaining() != 0 || kept.store_version != jig_client_domain::TABLE_VERSION {
         return None;
     }
-    let mut reader = Reader::new(kept.record());
+    let mut reader = Reader::new(kept.record.as_ref());
     let row = translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader).ok()?, limits).ok()?;
     if reader.remaining() != 0 || row.key.as_slice() != entry.key.as_ref() {
         return None;

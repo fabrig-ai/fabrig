@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_forge_setup::host;
 use skein_http::{Method, server::Call};
-use skein_lib::{Decimal, Token, Writer};
+use skein_lib::{Token, Writer};
 
 fn number(bytes: &[u8]) -> Option<u64> {
     if bytes.is_empty() {
@@ -126,14 +126,6 @@ fn query(bytes: &[u8]) -> Option<Query> {
     }
     Some(Query { installation, action, state })
 }
-fn fallback(forge: u16) -> Box<[u8]> {
-    let digits = Decimal::of(u64::from(forge));
-    let mut writer =
-        Writer::new(b"/forges/connect?forge=".len().checked_add(digits.as_bytes().len()).expect("bounded fallback"));
-    writer.put(b"/forges/connect?forge=").expect("fallback room");
-    writer.put(digits.as_bytes()).expect("forge room");
-    writer.finish()
-}
 fn escaped(byte: &u8) -> &[u8] {
     match byte {
         b'&' => b"&amp;",
@@ -173,12 +165,7 @@ pub(crate) const MANIFEST_STYLE_HASH: &[u8] = b"TQZJOm41BLEytzyheObcS0v2KWTO9WQp
 pub(crate) const MANIFEST_SCRIPT_HASH: &[u8] = b"JrFcwlKHdmmuH1N1ZfBSAzAIt5hrhzBSBaqsKQjvCmQ=";
 /// The form posting GitHub's manifest to `target`, submitted by its one script and
 /// with no external resources; attributes escape. Refuses a page past `max`.
-pub(super) fn form(target: &[u8], manifest: &[u8], back: Option<&[u8]>, forge: u16, max: u32) -> Option<Box<[u8]>> {
-    let digits = Decimal::of(u64::from(forge));
-    let (back_prefix, back) = match back {
-        Some(back) => (b"".as_slice(), back),
-        None => (b"/forges/connect?forge=".as_slice(), digits.as_bytes()),
-    };
+pub(super) fn form(target: &[u8], manifest: &[u8], max: u32) -> Option<Box<[u8]>> {
     let parts = [
         HEAD,
         STYLE,
@@ -188,11 +175,9 @@ pub(super) fn form(target: &[u8], manifest: &[u8], back: Option<&[u8]>, forge: u
         "</script></head><body><header><a href=\"/\">temper</a></header><main><h1>temper’s App, on GitHub</h1><form method=\"post\" action=\""
             .as_bytes(),
         b"\"><input type=\"hidden\" name=\"manifest\" value=\"",
-        b"\"><button type=\"submit\" class=\"primary\">Continue to GitHub</button></form><p class=\"quiet\"><a href=\"",
-        back_prefix,
-        b"\">Back to temper</a></p></main></body></html>",
+        b"\"><button type=\"submit\" class=\"primary\">Continue to GitHub</button></form></main></body></html>",
     ];
-    let values = [b"".as_slice(), b"", b"", b"", b"", target, manifest, b"", back, b""];
+    let values = [b"".as_slice(), b"", b"", b"", b"", target, manifest, b""];
     let mut length = 0_usize;
     for (part, value) in parts.iter().zip(values) {
         length = length.checked_add(part.len())?;
@@ -212,14 +197,13 @@ pub(super) fn form(target: &[u8], manifest: &[u8], back: Option<&[u8]>, forge: u
     }
     Some(writer.finish())
 }
-pub(super) fn page(
-    clients: &mut crate::clients::Clients,
-    call: Token,
-    status: u16,
-    heading: &[u8],
-    why: &[u8],
-    back: &[u8],
-) {
+pub(super) fn page(clients: &mut crate::clients::Clients, call: Token, status: u16, heading: &[u8], why: &[u8]) {
+    shell(clients, call, status, heading, why, b"<p>You can close this tab.</p>");
+}
+pub(super) fn connected(clients: &mut crate::clients::Clients, call: Token) {
+    shell(clients, call, 200, b"GitHub is connected", b"temper has the installation; you may close this tab.", b"");
+}
+fn shell(clients: &mut crate::clients::Clients, call: Token, status: u16, heading: &[u8], why: &[u8], end: &[u8]) {
     let parts = [
         HEAD,
         STYLE,
@@ -227,54 +211,36 @@ pub(super) fn page(
         heading,
         b"</h1><p>",
         why,
-        b"</p><a class=\"primary\" href=\"",
+        b"</p>",
+        end,
+        b"</main></body></html>",
     ];
-    let suffix = b"\">Back to temper</a></main></body></html>";
-    let mut length = suffix.len();
+    let mut length = 0_usize;
     for part in parts {
         length = length.checked_add(part.len()).expect("bounded page");
-    }
-    for byte in back {
-        length = length.checked_add(escaped(byte).len()).expect("bounded escaped return");
     }
     let mut writer = Writer::new(length);
     for part in parts {
         writer.put(part).expect("measured page");
     }
-    for byte in back {
-        writer.put(escaped(byte)).expect("measured return");
-    }
-    writer.put(suffix).expect("measured suffix");
     clients.github_answer(call, status, None, &writer.finish());
 }
-pub(crate) fn busy(clients: &mut crate::clients::Clients, call: Token, target: &[u8]) {
-    let back = match forge(split(target).0) {
-        Some((forge, _)) => Some(fallback(forge)),
-        None => None,
-    };
-    page(
-        clients,
-        call,
-        503,
-        b"temper is busy; try again.",
-        b"Start again from temper.",
-        back.as_deref().unwrap_or(b"/forges"),
-    );
+pub(crate) fn busy(clients: &mut crate::clients::Clients, call: Token) {
+    page(clients, call, 503, b"temper is busy; try again.", b"Start again from temper.");
 }
-pub(super) fn ended(engine: &mut Engine, call: Token, forge: u16) {
+pub(super) fn ended(engine: &mut Engine, call: Token) {
     page(
         &mut engine.clients,
         call,
         410,
         b"This link has ended",
         b"It was used already, it expired, or temper restarted since. Start again from temper.",
-        &fallback(forge),
     );
 }
-fn route(engine: &mut Engine, call: Token, head: Call) {
-    let (path, bytes) = split(&head.target);
+fn route(engine: &mut Engine, call: Token, visit: Call) {
+    let (path, bytes) = split(&visit.target);
     let Some((forge, route)) = forge(path) else {
-        page(&mut engine.clients, call, 404, b"Forge not found", b"Start again from temper.", b"/forges");
+        page(&mut engine.clients, call, 404, b"Forge not found", b"Start again from temper.");
         return;
     };
     let configured = match engine.workers.forges.get(forge) {
@@ -282,15 +248,15 @@ fn route(engine: &mut Engine, call: Token, head: Call) {
         None => false,
     };
     if !configured {
-        page(&mut engine.clients, call, 404, b"Forge not found", b"Start again from temper.", &fallback(forge));
+        page(&mut engine.clients, call, 404, b"Forge not found", b"Start again from temper.");
         return;
     }
-    if head.method != Method::Get {
-        page(&mut engine.clients, call, 405, b"Use GET", b"Open this link with GET.", &fallback(forge));
+    if visit.method != Method::Get {
+        page(&mut engine.clients, call, 405, b"Use GET", b"Open this link with GET.");
         return;
     }
     if bytes.len() > usize::try_from(engine.clients.query_bytes).expect("query bound") {
-        bad_request(engine, call, forge);
+        bad_request(engine, call);
         return;
     }
     match route {
@@ -306,26 +272,20 @@ fn route(engine: &mut Engine, call: Token, head: Call) {
         None
     };
     let Some(query) = parsed else {
-        page(
-            &mut engine.clients,
-            call,
-            400,
-            b"This visit could not be read",
-            b"Start again from temper.",
-            &fallback(forge),
-        );
+        page(&mut engine.clients, call, 400, b"This visit could not be read", b"Start again from temper.");
         return;
     };
     if query.action.as_ref() == b"request" {
         let Some(state) = query.state else {
-            ended(engine, call, forge);
+            ended(engine, call);
             return;
         };
         let Some(back) = super::public::take_back(engine, forge, &state) else {
-            ended(engine, call, forge);
+            ended(engine, call);
             return;
         };
-        page(&mut engine.clients, call, 200, b"GitHub sent a request, not an installation", "Only an owner of an organization can install temper’s App there, and temper can’t wait for an owner to approve it yet: an installation approved later isn’t used. Install it on your own account, or on an organization you own.".as_bytes(), back.back.as_deref().unwrap_or(&fallback(forge)));
+        super::public::way_ended(engine, forge, Some(&back.state), super::public::REQUEST_WHY);
+        page(&mut engine.clients, call, 200, b"GitHub sent a request, not an installation", "Only an owner of an organization can install temper’s App there, and temper can’t wait for an owner to approve it yet: an installation approved later isn’t used. Install it on your own account, or on an organization you own.".as_bytes());
         return;
     }
     let installation = query.installation.expect("validated install or update");
@@ -333,23 +293,22 @@ fn route(engine: &mut Engine, call: Token, head: Call) {
         if super::lifecycle::accepted(engine, forge).contains(&installation.get()) {
             engine.clients.github_answer(call, 303, Some(b"/forges"), b"");
         } else {
-            ended(engine, call, forge);
+            ended(engine, call);
         }
         return;
     };
-    // The host alone authenticates/consumes the state; this map holds presentation only.
-    let back = match super::public::take_back(engine, forge, &state) {
-        Some(return_to) => return_to.back,
-        None => None,
+    // The host alone authenticates/consumes the state; the routing holds its back and diagnostic ownership.
+    let (back, held, until) = match super::public::take_back(engine, forge, &state) {
+        Some(return_to) => (return_to.back, Some(return_to.state), return_to.until),
+        None => (None, None, engine.env.now.saturating_add(engine.setup.life)),
     };
     if engine.setup.busy(forge) && engine.setup.waiting.room() > 0 {
         // The forge's one run, as the reconcile after a manifest's Connected, ends first.
-        let until = engine.env.now.saturating_add(engine.setup.life);
-        let waiting = super::Waiting { forge, call, installation, state, back, until };
+        let waiting = super::Waiting { forge, call, installation, state, back, held, until };
         engine.setup.waiting.push(waiting);
         return;
     }
-    accept(engine, call, forge, installation, state, back);
+    accept(engine, call, forge, installation, state, back, held);
 }
 fn accept(
     engine: &mut Engine,
@@ -358,16 +317,22 @@ fn accept(
     installation: NonZeroU64,
     state: Box<[u8]>,
     back: Option<Box<[u8]>>,
+    held: Option<Box<[u8]>>,
 ) {
     if engine.setup.busy(forge)
         || engine.setup.runs.len() == engine.setup.env.limits.runs
         || engine.setup.public.len() == engine.setup.public.capacity()
     {
-        ended(engine, call, forge);
+        super::public::way_ended(engine, forge, held.as_deref(), super::public::BUSY_WHY);
+        ended(engine, call);
         return;
     }
     let run = super::lifecycle::next_run(&mut engine.setup.lifecycle);
-    engine.setup.public.insert(run, super::public::Caller::Accept { forge, call, back }).expect("public room checked");
+    engine
+        .setup
+        .public
+        .insert(run, super::public::Caller::Accept { forge, call, back, held })
+        .expect("public room checked");
     engine
         .setup
         .staged
@@ -375,15 +340,8 @@ fn accept(
         .expect("staged room");
     super::request(engine, run);
 }
-fn bad_request(engine: &mut Engine, call: Token, forge: u16) {
-    page(
-        &mut engine.clients,
-        call,
-        400,
-        b"This visit could not be read",
-        b"Start again from temper.",
-        &fallback(forge),
-    );
+fn bad_request(engine: &mut Engine, call: Token) {
+    page(&mut engine.clients, call, 400, b"This visit could not be read", b"Start again from temper.");
 }
 struct ManifestQuery {
     state: Box<[u8]>,
@@ -426,12 +384,12 @@ fn manifest_visit(engine: &mut Engine, call: Token, forge: u16, route: Route, by
         Route::Setup => unreachable!("manifest visits"),
     };
     let Some(ManifestQuery { state, code }) = manifest_query(bytes, redirect) else {
-        bad_request(engine, call, forge);
+        bad_request(engine, call);
         return;
     };
     if !redirect {
         let Some(page) = engine.setup.page(forge, &state, engine.env.now) else {
-            ended(engine, call, forge);
+            ended(engine, call);
             return;
         };
         let web = match engine.workers.forges.get(forge) {
@@ -442,23 +400,27 @@ fn manifest_visit(engine: &mut Engine, call: Token, forge: u16, route: Route, by
         return;
     }
     let live = engine.setup.take_page(forge, &state, engine.env.now);
-    let back = match super::public::take_back(engine, forge, &state) {
-        Some(back) => back.back,
-        None => None,
+    let (back, held) = match super::public::take_back(engine, forge, &state) {
+        Some(back) => (back.back, Some(back.state)),
+        None => (None, None),
     };
-    if !live
-        || super::lifecycle::busy(engine, forge)
+    if !live {
+        ended(engine, call);
+        return;
+    }
+    if super::lifecycle::busy(engine, forge)
         || engine.setup.runs.len() == engine.setup.env.limits.runs
         || engine.setup.public.len() == engine.setup.public.capacity()
     {
-        ended(engine, call, forge);
+        super::public::way_ended(engine, forge, held.as_deref(), super::public::BUSY_WHY);
+        ended(engine, call);
         return;
     }
     let run = super::lifecycle::next_run(&mut engine.setup.lifecycle);
     engine
         .setup
         .public
-        .insert(run, super::public::Caller::Redirect { forge, call, back })
+        .insert(run, super::public::Caller::Redirect { forge, call, back, held })
         .expect("public room checked");
     engine
         .setup
@@ -476,13 +438,14 @@ pub(super) fn advance(engine: &mut Engine) {
             break;
         }
         let waiting = engine.setup.waiting.pop().expect("waiting count");
-        if !engine.setup.busy(waiting.forge) {
-            let super::Waiting { forge, call, installation, state, back, .. } = waiting;
-            accept(engine, call, forge, installation, state, back);
-        } else if engine.env.now < waiting.until {
-            engine.setup.waiting.push(waiting);
+        if engine.env.now >= waiting.until {
+            super::public::way_ended(engine, waiting.forge, waiting.held.as_deref(), super::public::BUSY_WHY);
+            ended(engine, waiting.call);
+        } else if !engine.setup.busy(waiting.forge) {
+            let super::Waiting { forge, call, installation, state, back, held, .. } = waiting;
+            accept(engine, call, forge, installation, state, back, held);
         } else {
-            ended(engine, waiting.call, waiting.forge);
+            engine.setup.waiting.push(waiting);
         }
     }
     for _ in 0..engine.clients.github_calls.len() {
@@ -520,18 +483,15 @@ mod tests {
     fn pump(engine: &mut Engine, peer: &mut Peer) {
         for _ in 0_u32..4 {
             peer.pump(engine, false);
-            advance(engine);
+            super::super::advance(engine);
         }
         peer.pump(engine, false);
     }
-    fn shell(response: &[u8], status: &[u8], heading: &[u8], back: &[u8]) {
+    fn shell(response: &[u8], status: &[u8], heading: &[u8]) {
         assert!(response.starts_with(status), "{}", core::str::from_utf8(response).unwrap());
         for part in [
             HEAD,
             b"<header><a href=\"/\">temper</a></header>",
-            b"class=\"primary\"",
-            b"Back to temper</a>",
-            back,
             b"Cache-Control: no-store",
             b"Referrer-Policy: no-referrer",
             b"Content-Type: text/html; charset=utf-8",
@@ -545,71 +505,69 @@ mod tests {
         assert!(contains(response, &policy));
         assert_eq!(hash(response, b"<style>", b"</style>").as_ref(), PAGE_STYLE_HASH);
         assert!(!contains(response, b"<script>"));
+        assert!(!contains(response, b"<a class=\"primary\""));
+        assert!(!contains(response, b"Back to temper"));
+        assert_eq!(skein_lib::bytes::count(response, b"<a ", 2), 1, "only the header's mark links");
         let body = skein_lib::bytes::find(response, b"\r\n\r\n").unwrap().checked_add(4).unwrap();
         let name = core::str::from_utf8(heading).unwrap();
         super::super::tests::measure_page(name, response.len().checked_sub(body).unwrap());
     }
     #[test]
-    fn errors_and_ended_visits_use_the_shell_and_fallback() {
-        for (method, target, status, heading, back) in [
+    fn errors_and_ended_visits_use_the_close_tab_shell() {
+        for (method, target, status, heading, why) in [
             (
                 b"GET".as_slice(),
                 b"/forges/1/github/setup".as_slice(),
                 b"HTTP/1.1 400".as_slice(),
                 b"This visit could not be read".as_slice(),
-                b"href=\"/forges/connect?forge=1\"".as_slice(),
+                b"Start again from temper.".as_slice(),
             ),
-            (b"GET", b"/forges/no/github/setup", b"HTTP/1.1 404", b"Forge not found", b"href=\"/forges\""),
+            (b"GET", b"/forges/no/github/setup", b"HTTP/1.1 404", b"Forge not found", b"Start again from temper."),
+            (b"GET", b"/forges/2/github/setup", b"HTTP/1.1 404", b"Forge not found", b"Start again from temper."),
+            (b"POST", b"/forges/1/github/setup", b"HTTP/1.1 405", b"Use GET", b"Open this link with GET."),
             (
                 b"GET",
-                b"/forges/2/github/setup",
-                b"HTTP/1.1 404",
-                b"Forge not found",
-                b"href=\"/forges/connect?forge=2\"",
-            ),
-            (b"POST", b"/forges/1/github/setup", b"HTTP/1.1 405", b"Use GET", b"href=\"/forges/connect?forge=1\""),
-            (
-                b"GET",
-                b"/forges/1/github/setup?setup_action=request&state=unknown",
+                b"/forges/1/github/setup?installation_id=7&setup_action=install&state=unknown",
                 b"HTTP/1.1 410",
                 b"This link has ended",
-                b"href=\"/forges/connect?forge=1\"",
+                b"It was used already, it expired, or temper restarted since. Start again from temper.",
             ),
         ] {
             let mut service = service();
             let engine = service.engine.as_mut().unwrap();
             let mut peer = Peer::new(engine, method, target, &[], None);
             pump(engine, &mut peer);
-            shell(peer.received(), status, heading, back);
+            shell(peer.received(), status, heading);
+            let body =
+                [b"<h1>".as_slice(), heading, b"</h1><p>", why, b"</p><p>You can close this tab.</p></main>"].concat();
+            assert!(contains(peer.received(), &body));
+            assert!(!contains(peer.received(), b"href=\"/forges/connect"));
         }
     }
     #[test]
     fn full_route_queue_uses_the_busy_shell_with_known_or_unknown_forge() {
-        for (target, back) in [
-            (b"/forges/1/github/setup".as_slice(), b"href=\"/forges/connect?forge=1\"".as_slice()),
-            (b"/forges/no/github/setup", b"href=\"/forges\""),
-        ] {
+        for target in [b"/forges/1/github/setup".as_slice(), b"/forges/no/github/setup"] {
             let mut service = service();
             let engine = service.engine.as_mut().unwrap();
             engine.clients.github_calls = skein_lib::Queue::with_capacity(0);
             let mut peer = Peer::new(engine, b"GET", target, &[], None);
             pump(engine, &mut peer);
-            shell(peer.received(), b"HTTP/1.1 503", b"temper is busy; try again.", back);
+            shell(peer.received(), b"HTTP/1.1 503", b"temper is busy; try again.");
+            assert!(contains(peer.received(), b"<p>Start again from temper.</p><p>You can close this tab.</p></main>"));
         }
     }
     #[test]
-    fn request_uses_the_shell_and_escapes_the_held_back_address() {
-        for (back, escaped) in [
-            (Some(b"/forges?x=\"<>&y=1".as_slice()), b"href=\"/forges?x=&quot;&lt;&gt;&amp;y=1\"".as_slice()),
-            (None, b"href=\"/forges/connect?forge=1\""),
-        ] {
+    fn request_uses_the_close_tab_shell_and_consumes_the_held_back_address() {
+        for back in [Some(b"/forges?x=\"<>&y=1".as_slice()), None] {
             let mut service = service();
             let engine = service.engine.as_mut().unwrap();
             super::super::public::hold(engine, 1, Box::from(b"held".as_slice()), back.map(Box::from));
             let mut peer =
                 Peer::new(engine, b"GET", b"/forges/1/github/setup?setup_action=request&state=held", &[], None);
             pump(engine, &mut peer);
-            shell(peer.received(), b"HTTP/1.1 200", b"GitHub sent a request, not an installation", escaped);
+            shell(peer.received(), b"HTTP/1.1 200", b"GitHub sent a request, not an installation");
+            assert!(contains(peer.received(), b"an organization you own.</p><p>You can close this tab.</p></main>"));
+            assert!(engine.setup.backs.is_empty());
         }
     }
     #[test]
@@ -625,7 +583,10 @@ mod tests {
             engine
                 .setup
                 .public
-                .insert(run, super::super::public::Caller::Accept { forge: 1, call, back: back.map(Box::from) })
+                .insert(
+                    run,
+                    super::super::public::Caller::Accept { forge: 1, call, back: back.map(Box::from), held: None },
+                )
                 .unwrap();
             super::super::public::ended(
                 engine,
@@ -638,8 +599,12 @@ mod tests {
                 assert!(contains(peer.received(), b"Location: /forges?first=1&next=2\r\n"));
                 assert!(peer.received().ends_with(b"temper has the installation; you may close this tab."));
             } else {
-                shell(peer.received(), b"HTTP/1.1 200", b"GitHub is connected", b"href=\"/forges\"");
-                assert!(contains(peer.received(), b"temper has the installation; you may close this tab."));
+                shell(peer.received(), b"HTTP/1.1 200", b"GitHub is connected");
+                assert!(contains(
+                    peer.received(),
+                    b"<h1>GitHub is connected</h1><p>temper has the installation; you may close this tab.</p></main>"
+                ));
+                assert!(!contains(peer.received(), b"<p>You can close this tab.</p>"));
             }
         }
     }
@@ -647,23 +612,23 @@ mod tests {
     fn the_manifest_form_escapes_its_attributes_and_refuses_a_page_past_its_bound() {
         let target = b"http://forge.test/settings/apps/new?state=s&x=\"<>";
         let manifest = br#"{"name":"temper-abc"}"#;
-        let back = b"/forges?first=\"<>&next=2";
-        let page = form(target, manifest, Some(back), 1, 4096).expect("form fits");
+        let page = form(target, manifest, 4096).expect("form fits");
         assert!(contains(&page, b"action=\"http://forge.test/settings/apps/new?state=s&amp;x=&quot;&lt;&gt;\""));
         assert!(contains(&page, b"value=\"{&quot;name&quot;:&quot;temper-abc&quot;}\""));
-        assert!(contains(&page, b"href=\"/forges?first=&quot;&lt;&gt;&amp;next=2\""));
         assert!(contains(&page, b"<button type=\"submit\" class=\"primary\">Continue to GitHub</button>"));
         assert!(contains(&page, "<h1>temper’s App, on GitHub</h1>".as_bytes()));
         assert!(contains(&page, b"<header><a href=\"/\">temper</a></header><main>"));
-        assert!(contains(&page, b"<p class=\"quiet\"><a href=\""));
+        assert!(page.ends_with(b"Continue to GitHub</button></form></main></body></html>"));
+        assert!(!contains(&page, b"Back to temper"));
+        assert_eq!(skein_lib::bytes::count(&page, b"<a ", 2), 1);
         assert!(page.starts_with(b"<!doctype html><html lang=\"en\">"));
         assert!(
             skein_lib::bytes::find(&page, b"<script>").unwrap() < skein_lib::bytes::find(&page, b"<body>").unwrap(),
             "the script hides the page before the body is parsed"
         );
         let fits = u32::try_from(page.len()).unwrap();
-        assert!(form(target, manifest, Some(back), 1, fits).is_some());
-        assert!(form(target, manifest, Some(back), 1, fits - 1).is_none());
+        assert!(form(target, manifest, fits).is_some());
+        assert!(form(target, manifest, fits - 1).is_none());
     }
     #[test]
     #[expect(
@@ -688,10 +653,10 @@ mod tests {
     }
     #[test]
     fn the_manifest_script_hash_matches_the_form_page() {
-        let page = form(b"http://forge.test/settings/apps/new?state=s", b"{}", None, 1, 4096).unwrap();
+        let page = form(b"http://forge.test/settings/apps/new?state=s", b"{}", 4096).unwrap();
         assert_eq!(hash(&page, b"<script>", b"</script>").as_ref(), MANIFEST_SCRIPT_HASH);
         assert_eq!(hash(&page, b"<style>", b"</style>").as_ref(), MANIFEST_STYLE_HASH);
-        assert!(contains(&page, b"href=\"/forges/connect?forge=1\""));
+        assert!(!contains(&page, b"Back to temper"));
         let mut service = service();
         let engine = service.engine.as_mut().unwrap();
         engine.setup.hold(1, Box::from(b"held".as_slice()), page);
@@ -709,6 +674,6 @@ mod tests {
         .concat();
         assert!(contains(peer.received(), &policy));
         assert!(contains(peer.received(), "<h1>temper’s App, on GitHub</h1>".as_bytes()));
-        assert!(contains(peer.received(), b"href=\"/forges/connect?forge=1\""));
+        assert!(!contains(peer.received(), b"Back to temper"));
     }
 }

@@ -4,8 +4,10 @@ use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Secret, Writer};
 
 fn answer(value: &w::LinkAskAnswer) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }
 fn asked() -> AskedLink {
@@ -24,13 +26,10 @@ fn a_link_is_asked_and_its_answer_told_once() {
         }
         for (body, expected) in [
             (
-                Some(answer(&w::LinkAskAnswer::Asked(
-                    w::LinkAsked::new(
-                        &w::CEILINGS,
-                        w::LinkAskedParts { secret: Secret::new(Box::new([7; 32])), expires: 300 },
-                    )
-                    .unwrap(),
-                ))),
+                Some(answer(&w::LinkAskAnswer::Asked(w::LinkAsked {
+                    secret: Secret::new(Box::new([7; 32])),
+                    expires: 300,
+                }))),
                 asked(),
             ),
             (None, AskedLink::NotAsked(NotAsked::Lost)),
@@ -72,10 +71,7 @@ fn a_link_is_asked_and_its_answer_told_once() {
 fn no_print_of_an_asked_link_shows_its_secret() {
     const CANARY: &[u8] = b"asked-link-secret-canary-0123456";
     let asked = || AskedLink::Asked { secret: Secret::new(Box::from(CANARY)), expires: 300 };
-    let record = w::LinkAskAnswer::Asked(
-        w::LinkAsked::new(&w::CEILINGS, w::LinkAskedParts { secret: Secret::new(Box::from(CANARY)), expires: 300 })
-            .unwrap(),
-    );
+    let record = w::LinkAskAnswer::Asked(w::LinkAsked { secret: Secret::new(Box::from(CANARY)), expires: 300 });
     let body = answer(&record);
     let reply = Event::Reply { exchange: skein_lib::Token::new(1), message: body.clone() };
     let link_reply = jig_client_protocol_link::Event::Reply { exchange: skein_lib::Token::new(1), message: body };

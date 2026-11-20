@@ -102,6 +102,20 @@ repository, beside the kinds it makes (`../../agent/tools.md`, 1): a reviewer
 reads its own pull request and its files, and a repair a failed job's
 log, through the reads an agent may call, past what its brief carries.
 
+Every agent delegate of a change, its producer, repairs, reviews and
+resolutions alike, and its approvals' and checks' tasks, has its words
+end with the change's current spec and rulings: the change's number
+and spec revision, its words as they stand, each amendment's reason
+and each answer given on it, read from the change task and its record
+(`questions.md`, 1, *What every delegate is told*). They outrank its
+original request: the pull request's title and body, CI's remarks and
+reviews' are supporting evidence, and to preserve the requested change
+is to preserve it as they state it (`repairs.md`). An amendment reaches
+the delegate live when it is taken, a producer, repair or resolution
+(`questions.md`, 1, *Its requester's words and amendments*), and a
+review's verdict counts only at the spec revision it judged
+(`gates.md`, 1, *Valid at a spec revision*).
+
 A change made with questions `none` asks no one. What to change is
 agreed before it is asked for, by a goal that asks first where its
 person wants to agree a plan (`../../agent/agents.md`, 2), and the procedure
@@ -119,8 +133,8 @@ reply commits with the step that takes what it answers, so a retried
 step answers once. A party's words stay unanswered, since a procedure's step
 messages tasks alone (jig's `domain/tasks/messages.md`, 5): they are taken and
 dropped, and the change's page says that a change takes no words. An
-amendment of its words reaches its live producer under either route
-(`questions.md`, 1, *Its requester's words and amendments*); its
+amendment reaches its live producer, repair or resolution under either
+route (`questions.md`, 1, *Its requester's words and amendments*); its
 cancels are its own (4).
 
 A goal across repositories is several change tasks, ordered by their

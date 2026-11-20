@@ -67,7 +67,7 @@
     },
     {
       id: '2', label: '2', hour: 1 / 60, act: 1, title: 'On GitHub: its App',
-      summary: 'Connect GitHub sent the tab to temper’s manifest page, which posted temper’s manifest to GitHub as it loaded. GitHub’s form makes the App under Sam’s own account, always: nothing asks for an organization. Nothing in temper shows a connect under way.',
+      summary: 'Connect GitHub opened a tab at temper’s manifest page, which posted temper’s manifest to GitHub as it loaded. GitHub’s form makes the App under Sam’s own account, always: nothing asks for an organization. The original page waits for GitHub.',
       look: [
         ['github.html?at=create&from=welcome', 'GitHub: Create GitHub App for sam'],
         ['forges.html', 'Forges: still no forge of yours'],
@@ -76,14 +76,14 @@
     },
     {
       id: '3', label: '3', hour: 2 / 60, act: 1, title: 'On GitHub: where to install',
-      summary: 'Sam created the App. GitHub sent the tab to temper’s redirect, which kept the App’s key and sent it on to the App’s install page. GitHub lists Sam’s account and organizations: the organization menu is GitHub’s. Had Sam come back to temper here, Connect a forge would offer Install on GitHub.',
+      summary: 'Sam created the App. GitHub sent the tab to temper’s redirect, which kept the App’s key and sent it on to the App’s install page. GitHub lists Sam’s account and organizations: the organization menu is GitHub’s. The original page is still waiting, and a reload would offer Install on GitHub.',
       look: [
         ['github.html?at=install&from=welcome', 'GitHub: where to install temper’s App'],
         ['github.html?at=account&account=sam&from=welcome', 'GitHub: on sam, all its repositories or those selected'],
         ['github.html?at=account&account=brightline&from=welcome', 'GitHub: an organization Sam doesn’t own, a request'],
-        ['github.html?at=refused&why=request&from=welcome', 'Back from a request: temper’s own page'],
+        ['github.html?at=refused&why=request&from=welcome', 'The new tab ends: a request, not an installation'],
         ['github.html?at=refused&why=ended&from=welcome', 'A link that has ended: temper’s own page'],
-        ['connect-forge.html?forge=2', 'Connect a forge, had Sam come back: Install on GitHub'],
+        ['connect-forge.html?forge=2', 'Connect a forge, after a reload: Install on GitHub'],
         ['forges.html', 'Forges: GitHub, connecting'],
       ],
       apply(w) {
@@ -95,7 +95,7 @@
     },
     {
       id: '4', label: '4', hour: 3 / 60, act: 1, title: 'Installed',
-      summary: 'Sam installed temper’s App on sam, keeping GitHub’s default, all its repositories. GitHub sent the tab to temper’s setup route, which took the installation and sent the tab back to the wizard: choose the repository to start in. A forge of Sam’s is connected, so the playground, never started, is retired.',
+      summary: 'Sam installed temper’s App on sam, keeping GitHub’s default, all its repositories. GitHub sent the tab to temper’s setup route, which took the installation and says the new tab may close. The wizard sees the installation on its watch. A forge of Sam’s is connected, so the playground, never started, is retired.',
       look: [
         ['welcome.html?at=forge&forge=2', 'The wizard: choose a repository to start in'],
         ['connect-forge.html?forge=2', 'Connect a forge: the same Ready'],

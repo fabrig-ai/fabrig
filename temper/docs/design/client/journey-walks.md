@@ -408,6 +408,27 @@ service, over HTTP, rather than joined to the engine's root.
   7`, a host of the world's; and the service given its accounts'
   runtime. So the bearer the issuer grants is one the world's model
   takes. Story A's own start holds no issuer and its own providers.
+- **The forge's sign-in through temper, as a box's:** the engine's
+  OpenID provider as `temper-box init --box` writes it
+  (`../protocol/setup/place.md`, 6, *The box's provider*): its signing
+  key, `provider.key` in the data directory, made from `SEED` on the
+  world's disk, private; no client; `addresses` `[1]`. The owned forge's
+  `SetUp` adds the client `forgejo` and the setup file's `sign_in` names
+  it, as on a box, and the peer says the group's `source` step (4.4). So
+  the engine serves the forge's `temper-forge-sign-in` fact, and a page
+  that draws the forge's repository draws its link, `work/hello ↗` to
+  `http://127.0.0.1:10002/user/oauth2/temper?redirect_to=%2Fwork%2Fhello`,
+  as `project-landing`'s does. The fact reaches the page as a browser's
+  does, in the page the clients' listener serves: the walk's start
+  adopts a browser bundle of one HTML page and no other file
+  (`web/README.md`, 2.2), in memory, so the engine serves that page
+  with its forges' metas, and `web::Page`, at its start and at each
+  reload, fetches the page at the path it starts at and gives the host
+  each `temper-forge-sign-in` meta's content, read by
+  `temper_client_view::forge_sign_in::Forges::read` as the web shell's
+  start reads them. The native host draws the page; the bundle's page
+  is read only for its metas. Story A's own start holds no provider and
+  no bundle.
 - **A box's bounds:** where story A's configuration
   (`temper_playground::documents::configuration::story_a`) holds a bound
   tighter than a box's, and a step a box takes is refused by it, the
@@ -424,10 +445,12 @@ service, over HTTP, rather than joined to the engine's root.
   3.3's start: 80 columns by 24 rows, its build `0.0.0
   (000000000000)`, the service's origin, a terminal that answers no
   scheme. A walk that needs it signed in says `tui approve`.
-- **The same bytes every time:** the simulator owns the schedule, and
-  the browser takes `SEED`, each TUI `facts::tui_seed`, and both the
-  world's clocks, so a walk takes the
-  same turns on any host, on any day.
+- **The same bytes every time:** the simulator owns the schedule. The
+  browser's first start takes `SEED`; each reload takes the next seed
+  from a `skein_lib::Rng` started at `SEED`, as a browser load supplies
+  fresh entropy, so its request keys name new acts, not an earlier
+  load's. Each TUI takes `facts::tui_seed`, and both clients the world's
+  clocks, so a walk takes the same turns on any host, on any day.
 
 ### 4.2 Each line
 
@@ -444,7 +467,8 @@ time.
 - **`web reload PATH`:** the page started again at PATH: the world, its
   cookies and the page's small store kept; a new host and its page,
   with the sign-in ways the start had and the store's records, no
-  secret, as a browser's reload builds them
+  secret, and the served page's forge metas and a fresh seed from
+  4.1's sequence, as a browser's reload builds them
   (`temper-client-shell-web`'s start); then `wait` for the main region.
 - **`web mark`:** in the walked journey, a mark: the page's HTML, its
   heading (`print::heading`), and the tree kept for the link (2.4); in
@@ -527,6 +551,12 @@ no group's steps, no listener of its own, no `box.log`, no record under
   | 10 s | `step N prepare` |
   | 12 s | `step N run` |
   | 14 s | the handover laid, then `started N` |
+
+  A group whose setup file names a `sign_in` (4.1) takes the box's
+  `source` step after `run`: `step N source` at 14 s, `source N added`
+  at 16 s, then the handover and `started N` at 18 s
+  (`../protocol/setup/box.md`, 1). A later `start N` for that group says
+  `source N added` again before its `started N`.
 
 - **The handover:** at `started N`'s time, before the line, the peer lays
   what the box's preparation leaves the engine
@@ -760,7 +790,13 @@ its own process.
   playground's project, its own `scripts.json`: a chat, Split, "Write it
   up from this chat" and its scripted document, "Start goal…", the
   sheet's "Start goal", the goal's page with its report and its
-  "Draft" link, and that link back to the chat.
+  "Draft" link, and that link back to the chat. In an owned project,
+  another walk sets up Hello on `work/hello`, signs in with ChatGPT,
+  reloads Home and Chats, then starts a chat answered from an `asked`
+  cue. Its new chat waits for the repository's line before marking;
+  its second turn revises the draft, its goal prints a report and
+  lands, and its Draft link returns to both replies. Printed twice,
+  the same bytes, including after those reloads.
 - **The walker and the program,** simulated, on journeys of the tests'
   own in scratch roots: walked and printed; printed twice, the same
   bytes; a control that never appears stopping the walk by its journey

@@ -81,44 +81,39 @@ pub fn project() -> c::Project {
     }
 }
 pub fn with_account(until: Option<u64>) -> w::Deployment {
-    let lim = *limits().wire();
-    let account = w::Account::new(
-        &lim,
-        w::AccountParts {
-            list: None,
-            facts: List::with_capacity(0),
-            provider_name: None,
-            manage_usage: None,
-            plan: false,
-            usable: true,
-            expiring: false,
-            attention: true,
-            cut: false,
-            number: 1,
-            place: 0,
-            uses: None,
-            provider: None,
-            display: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false }).unwrap(),
-            holder: w::AccountHolder::Deployment,
-            sources: Box::from([]),
-            generation: Some(0),
-            state: w::AccountState::Later(
-                w::AccountStateLater::new(&lim, w::AccountStateLaterParts { until }).unwrap(),
-            ),
-            spent_until: None,
-            runs: Box::from([]),
-            waiting: Box::from([]),
-        },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(account.measure()).unwrap());
-    account.encode(&mut bytes).unwrap();
+    let account = w::Account {
+        list: None,
+        facts: List::with_capacity(0),
+        provider_name: None,
+        manage_usage: None,
+        plan: false,
+        usable: true,
+        expiring: false,
+        attention: true,
+        cut: false,
+        number: 1,
+        place: 0,
+        uses: None,
+        provider: None,
+        display: w::DocumentText { bytes: Box::from([]), cut: false },
+        holder: w::AccountHolder::Deployment,
+        sources: Box::from([]),
+        generation: Some(0),
+        state: w::AccountState::Later(w::AccountStateLater { until }),
+        spent_until: None,
+        runs: Box::from([]),
+        waiting: Box::from([]),
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(account.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    account.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let mut piece = Writer::new(bytes.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut piece, &bytes).unwrap();
-    let mut parts = deployment_record().into_parts();
+    let mut parts = deployment_record();
     parts.accounts = piece.finish();
-    w::Deployment::new(&lim, parts).unwrap()
+    parts
 }
 pub fn account_expected(until: Option<u64>) -> c::Deployment {
     let until = match until {

@@ -3,6 +3,7 @@
 //! The connector judges the criteria of its held rules. The root supplies verified
 //! project roles for authenticated reviewers; it does not interpret the forge's
 //! CI, containment, gate or review facts. Judgements are for one named head.
+//! Agent verdicts also name the current spec revision (gates.md, 1, Valid at a spec revision).
 
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -82,10 +83,20 @@ fn gate(
     head: skein_forge::api::Commit,
     clean: &[skein_forge::api::Commit],
     evidence: &ChangeEvidence,
+    reviews: (&[change::Gate], u64),
 ) -> Verdict {
     let mut met = false;
     let mut waiting = false;
     for report in &evidence.gates {
+        let mut current = true;
+        for gate in reviews.0 {
+            if gate.number == report.number && !report.at_revision(gate.kind, reviews.1) {
+                current = false;
+            }
+        }
+        if !current {
+            continue;
+        }
         if report.number != u64::from(number) || !valid(report.head, head, clean, freshness) {
             continue;
         }
@@ -214,6 +225,7 @@ pub fn judge(
     clean: &[skein_forge::api::Commit],
     evidence: &ChangeEvidence,
     reviewers: &[Reviewer],
+    reviews: (&[change::Gate], u64),
 ) -> Verdict {
     if evidence.head != Some(head) {
         return Verdict::Wait;
@@ -227,7 +239,7 @@ pub fn judge(
             } else {
                 let mut result = Verdict::Met;
                 for number in &repository.checks {
-                    match gate(*number, Freshness::Exact, head, clean, evidence) {
+                    match gate(*number, Freshness::Exact, head, clean, evidence, reviews) {
                         Verdict::Refuse => return Verdict::Refuse,
                         Verdict::Wait => result = Verdict::Wait,
                         Verdict::Met => {}
@@ -237,7 +249,7 @@ pub fn judge(
             }
         }
         Criterion::UpToDate => status(evidence.contains_base),
-        Criterion::Gate { number, freshness } => gate(number, freshness, head, clean, evidence),
+        Criterion::Gate { number, freshness } => gate(number, freshness, head, clean, evidence, reviews),
         Criterion::Approval { role, people, freshness } => {
             approval(role, people, freshness, head, clean, reviewers, evidence.reviews_complete)
         }

@@ -68,14 +68,15 @@ fn build(
     limits.brief.read_bytes = 512;
     limits.brief.budgets.pull = 384;
     limits.brief.budgets.ci = 384;
-    limits.brief.brief_bytes = 768;
+    limits.brief.budgets.task = 2048;
+    limits.brief.brief_bytes = 4096;
     limits.tasks.tasks = 16;
     limits.tasks.project_tasks = 16;
     limits.tasks.delegates = 4;
     limits.tasks.tree_tasks = 16;
     limits.tasks.depth = 3;
     limits.tasks.parameters = 8;
-    limits.tasks.spec_bytes = 512;
+    limits.tasks.spec_bytes = 4096;
     limits.tasks.executor_kinds = 2;
     limits.documents.executors = limits.tasks.executor_kinds;
     limits.tasks.authority_grants = 10;

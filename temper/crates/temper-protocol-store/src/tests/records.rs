@@ -540,6 +540,53 @@ fn a_changes_execution_clock_round_trips_for_each_last_reading() {
     }
 }
 
+#[test]
+fn review_revisions_round_trip_and_older_reports_default_to_zero() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut row = fixtures::change_row(State::Gating { head: [15; 32], asked: Box::new([21]) });
+    row.spec_revision = 7;
+    row.gate_revision = 5;
+    row.verdicts[0].revision = u64::MAX;
+    let stored = fixtures::change_hot(row.clone());
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored.clone()));
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family
+        .current
+        .replace("status: ChangeStatus revision: u64 = 0", "status: ChangeStatus")
+        .replace(" spec_revision: u64 = 0 gate_revision: u64 = 0", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut bytes = records::encode(&stored);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.spec_revision = 0;
+    row.gate_revision = 0;
+    row.verdicts[0].revision = 0;
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
+}
+
 /// Registered additions default during layout conversion, without a version move.
 #[test]
 fn a_change_written_without_a_checked_delegate_decodes_with_none() {
@@ -2192,6 +2239,7 @@ fn a_changes_questions_round_trip_unchanged() {
     row.questions = Questions {
         route: Route::Up,
         answered: Box::new([]),
+        amended: Box::new([]),
         taken: 3,
         open: open.into_boxed(),
         waiting: Box::new([
@@ -2207,13 +2255,14 @@ fn a_changes_questions_round_trip_unchanged() {
 /// questions.md, 1, Its answers, kept for later work: the bounded record survives a restart.
 #[test]
 fn a_changes_kept_answers_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{ANSWERS_KEPT, Answered, Route, State};
+    use temper_engine_domain_forge_change::{AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Route, State};
     let mut row = fixtures::change_row(State::Producing { requested: true });
     row.questions.route = Route::Up;
     let mut answered = skein_lib::List::with_capacity(u32::try_from(ANSWERS_KEPT).unwrap());
     for number in 1..=u64::try_from(ANSWERS_KEPT).unwrap() {
         answered
             .push(Answered {
+                revision: number,
                 asker: 7,
                 number,
                 line: b"Question: keep both lines?".as_slice().into(),
@@ -2222,6 +2271,11 @@ fn a_changes_kept_answers_round_trip_unchanged() {
             .unwrap();
     }
     row.questions.answered = answered.into_boxed();
+    let mut amended = skein_lib::List::with_capacity(u32::try_from(AMENDMENTS_KEPT).unwrap());
+    for revision in 1..=u64::try_from(AMENDMENTS_KEPT).unwrap() {
+        amended.push(Amended { revision, reason: b"Drop the file".as_slice().into() }).unwrap();
+    }
+    row.questions.amended = amended.into_boxed();
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let stored = fixtures::change_hot(row);
     assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
@@ -2237,33 +2291,45 @@ fn a_change_row_written_without_kept_answers_decodes_with_none() {
         }
     }
     let family = family.unwrap();
-    let before =
-        family.current.replace(" answered: list 16 Answered = []", "").replace(" answered: list 16 Answered", "");
-    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
-    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
-    let stored = fixtures::change_hot(fixtures::change_row(temper_engine_domain_forge_change::State::Producing {
-        requested: true,
-    }));
-    let mut bytes = records::encode(&stored);
-    // Write the row at the preceding layout, then read it as the registry does.
-    for (source, target) in [(&new, &old), (&old, &new)] {
-        let plan = skein_codec::layout::Plan::derive(
-            source,
-            source.root(b"Row", None).unwrap(),
-            &[],
-            target,
-            target.root(b"Row", None).unwrap(),
-            &[],
-        )
-        .unwrap();
-        let mut work = skein_codec::layout::Workspace::new();
-        assert!(work.fit(&plan));
-        let mut out = skein_lib::Buffer::with_capacity(131_072);
-        plan.convert(&bytes, &mut out, &mut work).unwrap();
-        bytes = out.as_slice().into();
+    for keep_answers in [false, true] {
+        let mut before = family.current.replace(" amended: list 16 Amended = []", "").replace(" revision: u64 = 0", "");
+        if !keep_answers {
+            before = before.replace(" answered: list 16 Answered = []", "");
+        }
+        let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+        let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+        if keep_answers {
+            row.questions.answered = Box::new([temper_engine_domain_forge_change::Answered {
+                revision: 0,
+                asker: 7,
+                number: 3,
+                line: b"Which?".as_slice().into(),
+                answer: b"Both".as_slice().into(),
+            }]);
+        }
+        let stored = fixtures::change_hot(row);
+        let mut bytes = records::encode(&stored);
+        // Write the preceding layout, then read it through the registered layout conversion.
+        for (source, target) in [(&new, &old), (&old, &new)] {
+            let plan = skein_codec::layout::Plan::derive(
+                source,
+                source.root(b"Row", None).unwrap(),
+                &[],
+                target,
+                target.root(b"Row", None).unwrap(),
+                &[],
+            )
+            .unwrap();
+            let mut work = skein_codec::layout::Workspace::new();
+            assert!(work.fit(&plan));
+            let mut out = skein_lib::Buffer::with_capacity(131_072);
+            plan.convert(&bytes, &mut out, &mut work).unwrap();
+            bytes = out.as_slice().into();
+        }
+        let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+        assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
     }
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
 }
 
 #[test]
@@ -3405,6 +3471,7 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
             open,
             waiting: skein_lib::List::with_capacity(0),
             answered: skein_lib::List::with_capacity(0),
+            amended: skein_lib::List::with_capacity(0),
         };
         let row = w::Row { value: w::Value::ChangeHot(parts) };
         let bytes = row.encode(&w::CEILINGS).unwrap();

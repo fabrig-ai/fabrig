@@ -100,27 +100,21 @@ impl Workers {
     }
     /// Keep the box's setting after restore and each committed worker change (configuration/figures.md, 4).
     pub(crate) fn local(&mut self, workers: &[jig_domain_core::settings::WorkerSetting]) {
-        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+        use jig_client_protocol_wire::WorkerSetting;
         let Some(copy) = &mut self.local else { return };
         for worker in workers {
             if worker.number != 1 || worker.name.as_ref() != b"local" || worker.withdrawn {
                 continue;
             }
-            let value = WorkerSetting::new(
-                &CEILINGS,
-                WorkerSettingParts {
-                    number: worker.number,
-                    name: worker.name.clone(),
-                    places: worker.places,
-                    digest: worker.digest,
-                    withdrawn: worker.withdrawn,
-                },
-            )
-            .expect("checked worker setting fits its wire");
+            let value = WorkerSetting {
+                number: worker.number,
+                name: worker.name.clone(),
+                places: worker.places,
+                digest: worker.digest,
+                withdrawn: worker.withdrawn,
+            };
             if copy.value.as_ref() != Some(&value) {
-                let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-                value.encode(&mut writer).expect("measured local value");
-                copy.writes.push(writer.finish());
+                copy.writes.push(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded local value"));
                 copy.value = Some(value);
             }
             break;

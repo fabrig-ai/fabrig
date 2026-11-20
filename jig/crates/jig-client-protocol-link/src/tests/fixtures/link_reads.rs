@@ -12,7 +12,7 @@ pub fn notes_read() -> c::Read {
     }
 }
 pub fn notes_scope_record() -> w::NoteScope {
-    w::NoteScope::Task(w::NoteScopeTask::new(limits().wire(), w::NoteScopeTaskParts { project: 7, task: 9 }).unwrap())
+    w::NoteScope::Task(w::NoteScopeTask { project: 7, task: 9 })
 }
 
 pub fn family_read() -> Family {
@@ -151,29 +151,30 @@ impl Harness {
     }
 }
 pub fn encoded_read_answer(value: &w::ReadAnswer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 pub fn read_none_answer(value: w::ReadNone) -> Box<[u8]> {
-    encoded_read_answer(&w::ReadAnswer::None(
-        w::ReadAnswerNone::new(limits().wire(), w::ReadAnswerNoneParts { value }).unwrap(),
-    ))
+    encoded_read_answer(&w::ReadAnswer::None(w::ReadAnswerNone { value }))
 }
 pub fn family_read_answer(family: u16, version: u32) -> Box<[u8]> {
-    let lim = *limits().wire();
-    let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: family }).unwrap());
-    let value = w::Owned::new(&lim, w::OwnedParts { owner, version, record: family_read().bytes }).unwrap();
+    let owner = w::Owner::Family(w::Family { number: family });
+    let value = w::Owned { owner, version, record: family_read().bytes };
     encoded_read_answer(&w::ReadAnswer::Value(value))
 }
 
 pub fn encoded_read_value(value: &w::ReadValue) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 pub fn jig_read_record_answer(record: Box<[u8]>, version: u32) -> Box<[u8]> {
-    let value = w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version, record }).unwrap();
+    let value = w::Owned { owner: w::Owner::Jig, version, record };
     encoded_read_answer(&w::ReadAnswer::Value(value))
 }
 pub fn jig_read_value_answer(value: &w::ReadValue) -> Box<[u8]> {

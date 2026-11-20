@@ -747,7 +747,7 @@ fn a_seeded_github_apps_records_start_one_connected_forge_as_its_bot_and_serve_a
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
     let SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("started service answers") };
-    assert_eq!(answer.party(), 1, "the deployment's owner signs in after the seeded start");
+    assert_eq!(answer.party, 1, "the deployment's owner signs in after the seeded start");
 }
 
 #[test]

@@ -1,36 +1,34 @@
 //! Populated settings decode with their content intact.
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Writer};
 
 #[test]
 fn populated_charter_decodes_its_parts() {
     let parts = skein_lib::List::from_boxed(Box::new([
-        w::CharterPart::new(&w::CEILINGS, w::CharterPartParts { on: 1, instructions: b"first part".as_slice().into() })
-            .unwrap(),
-        w::CharterPart::new(
-            &w::CEILINGS,
-            w::CharterPartParts { on: 2050, instructions: "later part λ".as_bytes().into() },
-        )
-        .unwrap(),
+        w::CharterPart { on: 1, instructions: b"first part".as_slice().into() },
+        w::CharterPart { on: 2050, instructions: "later part λ".as_bytes().into() },
     ]));
     let bytes = super::client_values::value("record_charter_smallest.bin");
     let mut input = Reader::new(bytes);
     let value = w::Charter::decode(&w::CEILINGS, &mut input).unwrap();
     assert!(input.is_empty());
-    let mut populated = value.into_parts();
+    let mut populated = value;
     populated.parts = parts;
-    let value = w::Charter::new(&w::CEILINGS, populated).unwrap();
-    let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut out).unwrap();
+    let value = populated;
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let bytes = out.finish();
     let mut input = Reader::new(&bytes);
     let decoded = w::Charter::decode(&w::CEILINGS, &mut input).unwrap();
     assert!(input.is_empty());
-    assert_eq!(decoded.parts().len(), 2);
-    assert_eq!(decoded.parts().get(0).unwrap().on(), 1);
-    assert_eq!(decoded.parts().get(0).unwrap().instructions(), b"first part");
-    assert_eq!(decoded.parts().get(1).unwrap().on(), 2050);
-    assert_eq!(decoded.parts().get(1).unwrap().instructions(), "later part λ".as_bytes());
+    assert_eq!(decoded.parts.len(), 2);
+    assert_eq!(decoded.parts.get(0).unwrap().on, 1);
+    assert_eq!(decoded.parts.get(0).unwrap().instructions.as_ref(), b"first part");
+    assert_eq!(decoded.parts.get(1).unwrap().on, 2050);
+    assert_eq!(decoded.parts.get(1).unwrap().instructions.as_ref(), "later part λ".as_bytes());
 }
 
 #[test]

@@ -31,6 +31,7 @@ impl Domain {
             let mut verdict = c::Status::Unknown;
             for report in &row.verdicts {
                 if gate.number == report.number
+                    && report.at_revision(gate.kind, row.spec_revision)
                     && row.change.last_head.is_some()
                     && (Some(report.head) == row.change.last_head
                         || (gate.freshness == c::Freshness::Clean && row.change.clean.contains(&report.head)))

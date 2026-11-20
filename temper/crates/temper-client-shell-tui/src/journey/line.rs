@@ -1,5 +1,6 @@
 //! The strict byte codec (temper/docs/design/client/tui/journeys.md, 3.2 and 3.3;
 //! temper/docs/design/client/web/journeys.md, 3.2).
+use crate::loopback::{Answer, Returned};
 use jig_client::contract::LoginExit;
 use skein_lib::{Time, Wall};
 use skein_ui_screen::{Rgb, Size};
@@ -41,6 +42,11 @@ pub enum Line {
     Opened { opened: bool },
     Found(Option<Box<[u8]>>),
     Handshake(Option<Handshake>),
+    Listening(Option<u16>),
+    Returned(Returned),
+    Listen,
+    Unlisten,
+    Answer(Answer),
     BoxLine(Box<[u8]>),
     BoxStage(Box<[u8]>),
     Lent { number: u32, exit: LoginExit },
@@ -148,6 +154,25 @@ impl Line {
         out.extend_from_slice(self.kind().as_bytes());
         let mut w = Text { out };
         match self {
+            Self::Listening(port) => {
+                if let Some(port) = port {
+                    w.number(u64::from(*port));
+                } else {
+                    w.word(b"none");
+                }
+            }
+            Self::Returned(returned) => {
+                w.word(if returned.get { b"get" } else { b"other" });
+                w.bytes(&returned.target);
+                w.optional(returned.host.as_deref());
+            }
+            Self::Answer(answer) => match answer {
+                Answer::Redirect { to } => {
+                    w.word(b"redirect");
+                    w.bytes(to);
+                }
+                Answer::NotFound => w.word(b"not-found"),
+            },
             Self::Handshake(failed) => w.word(match failed {
                 Some(Handshake::Untrusted) => b"untrusted",
                 Some(Handshake::Expired) => b"expired",
@@ -197,6 +222,8 @@ impl Line {
                 w.bytes(bytes);
             }
             Self::Plain
+            | Self::Listen
+            | Self::Unlisten
             | Self::Front
             | Self::SetUp
             | Self::Unlend
@@ -292,6 +319,11 @@ impl Line {
             Self::Noted(_) => "noted",
             Self::Found(_) => "found",
             Self::Handshake(_) => "handshake",
+            Self::Listening(_) => "listening",
+            Self::Returned(_) => "returned",
+            Self::Listen => "listen",
+            Self::Unlisten => "unlisten",
+            Self::Answer(_) => "answer",
             Self::Note(_) => "note",
             Self::Read => "read",
             Self::Stored { .. } => "stored",
@@ -634,6 +666,7 @@ fn hex(byte: u8) -> Result<u8, &'static str> {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one dispatch reads every journey record in the line grammar")]
 fn read(line: &[u8]) -> Result<Line, &'static str> {
     let end = line.iter().position(|byte| *byte == b' ').unwrap_or(line.len());
     let (kind, rest) = line.split_at(end);
@@ -686,6 +719,28 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
             b"failed" => Some(Handshake::Failed),
             b"none" => None,
             _ => return Err("unknown handshake failure"),
+        }),
+        b"listening" => Line::Listening(if r.rest == b" none" {
+            r.word()?;
+            None
+        } else {
+            Some(u16::try_from(r.number()?).map_err(|_| "number overflow")?)
+        }),
+        b"returned" => Line::Returned(Returned {
+            get: match r.word()? {
+                b"get" => true,
+                b"other" => false,
+                _ => return Err("unknown return method"),
+            },
+            target: r.bytes()?,
+            host: r.optional()?,
+        }),
+        b"listen" => Line::Listen,
+        b"unlisten" => Line::Unlisten,
+        b"answer" => Line::Answer(match r.word()? {
+            b"redirect" => Answer::Redirect { to: r.bytes()? },
+            b"not-found" => Answer::NotFound,
+            _ => return Err("unknown return answer"),
         }),
         b"note" => Line::Note(r.note()?),
         b"read" => Line::Read,

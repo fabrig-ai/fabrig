@@ -6,13 +6,11 @@ pub(in crate::codec) fn wire_task_result(
     limits: &w::Limits,
 ) -> Result<w::TaskResult, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::TaskResult::Document(value) => w::TaskResult::Document(Box::new(w::TaskResultDocument::new(
-            limits,
-            w::TaskResultDocumentParts { value: wire_result_document(value, limits)? },
-        )?)),
-        c::TaskResult::Ending(value) => w::TaskResult::Ending(w::TaskResultEnding::new(
-            limits,
-            w::TaskResultEndingParts { value: facts::chip_ending(value, limits)? },
-        )?),
+        c::TaskResult::Document(value) => {
+            w::TaskResult::Document(Box::new(w::TaskResultDocument { value: wire_result_document(value, limits)? }))
+        }
+        c::TaskResult::Ending(value) => {
+            w::TaskResult::Ending(w::TaskResultEnding { value: facts::chip_ending(value, limits)? })
+        }
     })
 }

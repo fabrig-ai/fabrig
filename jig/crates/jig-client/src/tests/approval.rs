@@ -7,8 +7,10 @@ pub(super) fn code() -> ApprovalCode {
     ApprovalCode::parse(b"BCDF-GHJK").unwrap()
 }
 pub(super) fn take_answer(answer: &w::ApprovalSignInAnswer) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }
 pub(super) fn taking() -> With {
@@ -50,7 +52,7 @@ fn an_approval_is_asked_read_and_decided_once_each() {
             let body = match message {
                 Message::ApprovalAsk(body) => {
                     let record = w::ApprovalAsk::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
-                    assert_eq!(record.port(), &port);
+                    assert_eq!(record.port, port);
                     assert_eq!(credential, &None);
                     Box::from([1])
                 }
@@ -62,10 +64,10 @@ fn an_approval_is_asked_read_and_decided_once_each() {
                     assert_eq!(credential, &if held { Some(fixtures::credential(&CREDENTIAL)) } else { None });
                     let record = w::ApprovalDecide::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
                     assert_eq!(
-                        record.approve(),
+                        record.approve,
                         expected == (Approval::Decided { code: code(), decided: Decided::Approved { loopback: None } })
                     );
-                    if record.approve() { Box::from([0, 0]) } else { Box::from([1]) }
+                    if record.approve { Box::from([0, 0]) } else { Box::from([1]) }
                 }
                 other @ (Message::LinkAsk(_)
                 | Message::Authorize(_)
@@ -90,9 +92,9 @@ fn an_approval_is_asked_read_and_decided_once_each() {
 fn signed_out_answer(decide: bool) -> Box<[u8]> {
     let mut bytes = Writer::new(1);
     if decide {
-        w::ApprovalDecided::SignedOut.encode(&mut bytes).unwrap();
+        w::ApprovalDecided::SignedOut.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     } else {
-        w::ApprovalState::SignedOut.encode(&mut bytes).unwrap();
+        w::ApprovalState::SignedOut.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     }
     bytes.finish()
 }
@@ -170,13 +172,11 @@ fn no_print_of_an_approval_shows_its_secret() {
         prints.push(print).unwrap();
     }
     let exchange = c.exchange();
-    let body = take_answer(&w::ApprovalSignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(fixtures::credential(CREDENTIAL_CANARY)), party: 7, expires: 300 },
-        )
-        .unwrap(),
-    ));
+    let body = take_answer(&w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+        token: Some(fixtures::credential(CREDENTIAL_CANARY)),
+        party: 7,
+        expires: 300,
+    }));
     let reply = Event::Reply { exchange, message: body.clone() };
     for print in [format!("{reply:?}"), format!("{reply:#?}")] {
         prints.push(print).unwrap();
@@ -281,7 +281,7 @@ fn a_waiting_take_keeps_its_grant_and_not_granted_drops_only_the_grant() {
             panic!("one unsigned repeated take")
         };
         let record = w::ApprovalSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
-        assert_eq!(record.secret().expose(), &[7; 32]);
-        assert_eq!(record.grant(), &grant);
+        assert_eq!(record.secret.expose(), &[7; 32]);
+        assert_eq!(record.grant, grant);
     }
 }

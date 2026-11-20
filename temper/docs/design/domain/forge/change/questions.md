@@ -167,15 +167,32 @@ stored setting naming it is refused, not read, naming the setting
   among its answers at the step that takes it, whatever becomes of it
   then: relayed down, held, or taken and dropped for an asker that
   ended. Each keeps the question's asker and number, its first line as
-  the open question kept it, and the answer's words whole, within the
-  message bound. The record keeps the 16 newest, the oldest leaving it
+  the open question kept it, the answer's words whole, within the
+  message bound, and the change task's spec revision as the step that
+  took it read it. The record keeps the 16 newest, the oldest leaving it
   as a seventeenth is taken; they outlive their questions and a
   restart, and a change with questions `none` keeps none. They are an
   added field of a registered family's record, with an empty default,
-  so a record from before reads none (jig's `protocol/store/layouts.md`).
-  The change's later reviews, repairs and resolutions read them (*What
-  later work is told*, below); the panel shows its open questions
-  alone, as before (2026-11-15).
+  so a record from before reads none, and an answer kept before its
+  revision was reads revision 0 (jig's `protocol/store/layouts.md`).
+  Every delegate the change makes reads them (*What every delegate is
+  told*, below); the panel shows its open questions alone, as before
+  (2026-11-15).
+- **Its amendments, kept for later work.** Each amendment of the change
+  that its step takes (*Its requester's words and amendments*, below),
+  whoever made it and whatever it changed, is kept on its record with
+  the step that takes it, under either question route: its reason's
+  words, cut from their end to the message bound and marked `…`, and
+  the change task's spec revision as that step read it, the revision
+  after the amendment. The record keeps the 16 newest, the oldest
+  leaving it as a seventeenth is taken; they outlive the inbox and a
+  restart, an added field with an empty default as the answers are. A
+  refused step keeps none, the amendment staying in the inbox for the
+  step after it. Amendments that reach the change's inbox before one
+  step merge there into one, the newest reason (jig's
+  `domain/tasks/messages.md`, 2), so the record keeps that reason
+  alone; the spec revision kept with it holds every amendment's words
+  (2026-11-17, `../../../draft/delegate-rulings.md`, 1).
 - **Its history** keeps every question and answer: the asked tasks'
   question positions and the change's own (jig's `domain/tasks/messages.md`,
   2). A ruling that concerns many changes is design: a designer's
@@ -202,11 +219,12 @@ question (2026-11-15, `../../../draft/producer-reach.md`, 2 and 3). The
 change's producer is its producing task (`README.md`, 2, step 1), live
 from its making until it closes: waiting, active (running, parked, or
 kept by its own question) or held (jig's `domain/tasks/lifecycle.md`).
-Its repairs and resolutions are not its producer: their briefs are made
-from what failed, with what the change is asked now at their words' end
-(*What later work is told*, below), not from the change's words alone,
-and words to the change while one of them is its only live agent
-receive the fallback feedback.
+Its repairs and resolutions are not its producer: their words are made
+from what failed, and end, as every delegate's do, with the change's
+current spec and rulings (*What every delegate is told*, below). An
+amendment reaches them as it reaches its producer (below); words to the
+change while one of them is its only live agent receive the fallback
+feedback.
 What follows holds under either question route.
 
 - **Its requester's words pass to its live producer.** Words in the
@@ -268,12 +286,14 @@ What follows holds under either question route.
   where the step has message room.
 - **An amendment reaches its live producer.** An amendment of the
   change (jig's `domain/tasks/changes.md`), by whoever may amend it,
-  taken at a step while the change has a live producer whose spec words
+  taken at a step while the change has a live producer whose spec
+  words before their context (*What every delegate is told*, below)
   are not those the change would give a new producer now (`README.md`,
   2, step 1: its words, then its scope, with *Early starts*' lines
   after their first line), amends that producer in the
   same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
-  with those words, naming its spec's revision as the core last told
+  with those words and the context as it stands after the amendment,
+  naming its spec's revision as the core last told
   the change, and with the reason `Task C, your change, was amended to
   spec revision R. Your spec now holds its amended words; work to them
   from here on. Its reason: REASON`, C the change's number, R the
@@ -285,53 +305,103 @@ What follows holds under either question route.
   (jig's `domain/tasks/changes.md`, *An amendment is a message*). The
   producer's next run's brief reads the amended spec. Amendments taken
   at one step make one amendment of the producer, its reason the last
-  one's. An amendment that leaves the producer's words as they are (its
-  dependencies, its authority or its wake alone) amends nothing of it.
+  one's. An amendment that leaves the producer's words before their
+  context as they are (its dependencies, its authority or its wake
+  alone) amends nothing of it, though its reason is kept (*Its
+  amendments, kept for later work*, above) for the delegates made after it.
   With no live producer, nothing is amended: the next producer is made
   from the change's words as they stand. The amendment commits with the
   step that takes it, so a refused step leaves it in the change's inbox
   for the next, which names the revision as it then stands.
+- **An amendment reaches its live repair or resolution.** An amendment
+  taken at a step while the change's delegate is a repair or a
+  resolution still live (waiting, active or held) amends it in the same
+  step, as the producer is amended: its spec as it stands, its words
+  kept as they were made up to their context, then the context as the
+  change gives it after the amendment, in the room the words before it
+  leave, naming its spec's revision as the core last told the change,
+  and with the reason `Task C, your change, was amended to spec
+  revision R. Your spec's context now holds its current spec and
+  rulings; work to them from here on. Its reason: REASON`, C, R and
+  REASON as for the producer, the whole cut from its end to the
+  message bound and marked `…`. Every amendment taken amends it, since
+  its context names the revision and keeps the reason; amendments
+  taken at one step make one amendment of it, its reason the last
+  one's. jig tells it as it tells the producer (above). So a change
+  with no producing step, as a goal's landing (`README.md`, 1), reaches
+  its live repairs and resolutions too. A review, an approval or a
+  check live then is not amended: a review's verdict counts only at the
+  spec revision it was asked at (`gates.md`, 1, *Valid at a spec
+  revision*) (2026-11-17, `../../../draft/delegate-rulings.md`, 2).
 - **An amendment never answers.** It settles and clears no question:
   the change's question stays asked of its requester, and the
   producer's stays open.
-- **What later work is told.** A ruling on the change reaches its later
-  work, not its asker alone: an answer given on it, and its request as
-  a requester's amendment revised it. Every gate task it makes (a
-  review, a person's approval, a check: `gates.md`, 1), at its own head
-  or a landing's target, and every repair and resolution it makes
-  (`repairs.md`) has its words end with what the change is asked now,
-  in the room the task's spec bound leaves after its pinned parameters
-  and the words before it. The block, its lines joined by line feeds:
-  - a blank line, then `What this change is asked now: its request as
-    revised and the answers given on it. Where they differ from its
-    title, its original request or the preservation rule, they come
-    first.`;
-  - where its record keeps answers (above), `Answers given on it,
-    newest first:`, then for each, newest first, `Task A asked: LINE`
-    and `Answer: ANSWER`, A the asker's number, LINE the question's
-    first line and ANSWER the answer's words, as the record keeps them;
-  - `Its request, at spec revision R:`, then the change's words as they
-    stand, R the change task's spec revision: its words as made where
-    R is 0, as a requester's amendment revised them where it is more.
+- **What every delegate is told.** A ruling on the change reaches all
+  its work, not its asker alone: an answer given on it, an amendment's
+  reason, and its words as amended. Every agent delegate the change
+  makes, its producer, its repairs, its resolutions and its gate tasks
+  (a review, a person's approval, a check: `gates.md`, 1), at its own
+  head or a landing's target, has its words end with the change's
+  context: its current spec and rulings, in the room the task's spec
+  bound leaves after its pinned parameters and the delegate's own
+  required words. The context is read at the step that makes the
+  delegate, from the change task (its words and its spec revision) and
+  from its record (its answers and amendments, above), never from an
+  inbox message or a relay entry gone once taken, so a delegate made
+  after a ruling carries it, across a restart too; one live when an
+  amendment is taken hears it as above. The context, its lines joined
+  by line feeds:
+  - a blank line, then `This change's current spec and rulings: task C
+    at spec revision R. They come first: its original request, its pull
+    request's title and body, and CI's and reviews' remarks are
+    supporting evidence, and where they differ from these, follow
+    these. To preserve the requested change is to preserve it as its
+    current spec and rulings state it.`, C the change's number and R
+    its task's spec revision;
+  - where its record keeps answers or amendments, `Rulings, newest
+    first:`, then each: an answer as `Task A asked, at spec revision V:
+    LINE` and `Answer: ANSWER`, an amendment as `Amended to spec
+    revision V: REASON`, A the asker's number, V the revision kept with
+    it, LINE the question's first line, ANSWER and REASON the words, as
+    the record keeps them. Newest first is by revision, the latest
+    first; within one revision its answers come first, then the
+    amendment that made it, each kind latest first as taken;
+  - for every delegate but the producer, `Its current spec, at revision
+    R:`, then the change's words as they stand: as made where R is 0,
+    as amended where it is more; for the producer, whose own words are
+    the change's, `Its current spec is your spec's words above.`
 
-  Its fixed lines (the opening, the answers' label where there are
-  answers, and the request's label) are carried whole or not at all:
-  where they do not fit the room left, the task's words carry none of
-  the block, since what they require comes first. The answers and the
-  request share the room the fixed lines leave: the answers take what
-  they need up to half of it, or more where the request needs less than
-  the other half, and the request the rest; each is cut from its end
-  and marked `…` where it does not fit, so the newest answers and the
-  request's opening stay. Both are read at the step that makes the task,
-  so a task made after an answer or an amendment carries it, and one
-  made before does not; a live repair or resolution is not amended.
-  The producer is not told this way: its spec is the change's words, an
-  amendment reaches it as above, and an answer to its own question
-  reaches it whole. The review charter and the implementer charter put
-  the request as revised and these answers before the title, the
-  original request and the preservation rule where they differ, and so
-  do the repair's and the resolution's preservation words
-  (`repairs.md`) (2026-11-15).
+  It is required: cut with a marker, never dropped silently. Its fixed
+  lines (the opening, the rulings' label where there are rulings, the
+  spec's line, and room for a cut's markers) are carried whole; where
+  the room the delegate's own required words leave cannot hold them, no
+  delegate is made, and the change holds as for any delegate it cannot
+  describe (`change delegate cannot be described within its
+  authority`). The producer alone is made without them where they don't
+  fit: its words are the change's, kept whole (`README.md`, 1), and its
+  context takes the room they leave. The context's room is taken before
+  the delegate's optional parts (a resolution's merge-job result, a
+  blamed repair's changes landing below it, a producer's early-start
+  lines and its scope), which take what it leaves. The rulings and the
+  spec share the room the fixed lines leave: the rulings take what they
+  need up to half of it, or more where the spec needs less than the
+  other half, and the spec the rest. The rulings are cut from their
+  end, the newest kept, a ruling cut within its words marked `…`, then
+  a line `[N older rulings left out]` where any is; the spec is cut
+  from its end, marked `…`, then a line `[Its spec is cut here; read_task
+  on task C reads it whole.]`. In the brief the context rides in the
+  task section, which the plan keeps as required, cut from its end with
+  its count marked and never omitted (jig's `domain/engine/briefs.md`,
+  1), and which the charter's fit cuts last (`../../agent/room.md`, 2).
+
+  The review charter and the implementer charter say the same: the
+  current spec and rulings outrank the title, the original request, the
+  pull request's body and any remarks. So do the repair's and the
+  resolution's preservation words (`repairs.md`), and a review's words,
+  which give the pull request's title as supporting evidence
+  (`gates.md`, 1). The context is fact the code carries, so it holds
+  under a project's own charters too (2026-11-17,
+  `../../../draft/delegate-rulings.md`, 1).
 
 ### Early starts
 
@@ -629,15 +699,9 @@ rest of the branch lands while a sign-off waits a night
   Default: so; `decided` tells such an agent that it can ask no one
   (`../../agent/tools.md`).
 
-- **An answer and a later revision** (`questions.md`, 1, *What later work
-  is told*): the block gives the answers and the request as revised side
-  by side, with no time between them, so where an amendment made after
-  an answer says otherwise, the reader is not told which is newer. Keeping
-  the request's revision beside each answer would tell it. Default: so;
-  a requester that overrules an answer says so in the amendment's words.
-
-- **A later producer and the answers** (`questions.md`, 1, *What later
-  work is told*): a producer made after an answer to a repair's or a
-  resolution's question reads the change's words alone, as made or
-  revised. Default: so; a change makes its producer once, and a ruling
-  its producer must follow goes in an amendment, which reaches it.
+- **Words to a live repair** (`questions.md`, 1, *Its requester's words
+  and amendments*): a requester's words reach a live producer alone; a
+  live repair or resolution hears an amendment, not words, and words
+  while one of them is the only live agent receive the fallback
+  feedback. Default: so; a ruling it must follow goes in an amendment or
+  an answer, which its context keeps.

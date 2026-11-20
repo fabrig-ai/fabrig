@@ -1,5 +1,6 @@
 //! A window's in-memory rate crosses the engine's client stream whole.
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as a;
 use jig_domain_core::{self as core, documents as d};
 use jig_engine_clients_world::fixtures::{self, Peer};
@@ -60,28 +61,28 @@ fn usage_windows_reach_a_client_with_and_without_a_rate() {
         peer.release_delivery(watcher, document(rate));
         let events = peer.events(stream);
         let w::StreamEvent::Delivery(delivery) = events.last().expect("accounts delivered") else { panic!("delivery") };
-        assert_eq!(delivery.document().owner(), &w::Owner::Jig);
-        assert_eq!(delivery.document().version(), 38);
+        assert_eq!(delivery.document.owner, w::Owner::Jig);
+        assert_eq!(delivery.document.version, w::VERSION);
         let w::DeliveryValue::Accounts(accounts) =
-            w::DeliveryValue::decode(&w::CEILINGS, &mut Reader::new(delivery.document().record())).unwrap()
+            w::DeliveryValue::decode(&w::CEILINGS, &mut Reader::new(&delivery.document.record)).unwrap()
         else {
             panic!("accounts")
         };
-        let mut reader = Reader::new(accounts.accounts());
+        let mut reader = Reader::new(&accounts.accounts);
         let length = reader.u32().unwrap();
         let bytes = reader.bytes(length).unwrap();
         let row = w::AccountLine::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-        let fact = row.facts().get(0).unwrap();
-        let w::AccountFactValue::Window(window) = fact.value() else { panic!("window") };
-        assert_eq!(*window.rate(), rate);
-        assert_eq!(*window.used(), Some(2350));
-        assert_eq!(*window.length(), Some(Duration::from_secs(18_000)));
-        assert_eq!(*window.resets(), Some(99));
-        assert_eq!(window.state(), a::WINDOW_OPEN);
-        assert_eq!(fact.label(), b"five_hour");
-        assert_eq!(fact.seen(), 11);
-        assert_eq!(*fact.source(), Some(2));
-        assert_eq!(fact.origin(), a::ORIGIN_PROGRAM);
+        let fact = row.facts.get(0).unwrap();
+        let w::AccountFactValue::Window(window) = &fact.value else { panic!("window") };
+        assert_eq!(window.rate, rate);
+        assert_eq!(window.used, Some(2350));
+        assert_eq!(window.length, Some(Duration::from_secs(18_000)));
+        assert_eq!(window.resets, Some(99));
+        assert_eq!(window.state, a::WINDOW_OPEN);
+        assert_eq!(fact.label.as_ref(), b"five_hour");
+        assert_eq!(fact.seen, 11);
+        assert_eq!(fact.source, Some(2));
+        assert_eq!(fact.origin, a::ORIGIN_PROGRAM);
         assert!(reader.is_empty());
         assert_eq!(peer.requested_subject(), Some(&core::documents::Watched::Accounts));
     }

@@ -1,6 +1,7 @@
 //! Settled exchanges and each member's own reply (protocol/client/wire.md, 2.3).
 use crate::{BATCH_BYTES, Link, Message, Request, component::Gathered};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Map, Queue, Reader, Token, Writer};
 
 impl Link {
@@ -72,7 +73,8 @@ impl Link {
         let mut members = List::with_capacity(64);
         let mut attempts = Map::with_capacity(64);
         if let Some(first_member) = member(&message, self.limits.wire()) {
-            let mut bytes = 4_u32.saturating_add(first_member.measure());
+            let mut bytes =
+                4_u32.saturating_add(first_member.measure(self.limits.wire()).expect("bounded client record"));
             members.push(first_member).expect("first member");
             attempts.insert(0, exchange).expect("first member");
             for _ in 0..self.gathered.len() {
@@ -92,7 +94,7 @@ impl Link {
                     continue;
                 }
                 let Some(part) = member(body, self.limits.wire()) else { break };
-                let size = bytes.saturating_add(part.measure());
+                let size = bytes.saturating_add(part.measure(self.limits.wire()).expect("bounded client record"));
                 if size > BATCH_BYTES {
                     break;
                 }
@@ -104,9 +106,11 @@ impl Link {
             }
         }
         let message = if members.len() > 1 {
-            let batch = w::Batch::new(self.limits.wire(), w::BatchParts { members }).expect("checked members");
-            let mut writer = Writer::new(skein_lib::length::usize_of(batch.measure()));
-            batch.encode(&mut writer).expect("measured batch");
+            let batch = w::Batch { members };
+            let mut writer = Writer::new(skein_lib::length::usize_of(
+                batch.measure(self.limits.wire()).expect("bounded client record"),
+            ));
+            batch.write(self.limits.wire(), &mut writer).expect("measured batch");
             self.batches.insert(exchange, attempts).expect("internal batches are uncapped");
             Message::Batch(writer.finish())
         } else {
@@ -125,7 +129,6 @@ impl Link {
             self.batch_lost(exchange, out);
             return;
         };
-        let part = part.into_parts();
         let Some(member) = self.batches.get_mut(&exchange).expect("known batch").remove(&part.member) else {
             self.batch_lost(exchange, out);
             return;

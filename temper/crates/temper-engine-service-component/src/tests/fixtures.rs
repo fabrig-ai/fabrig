@@ -1869,23 +1869,22 @@ pub fn forge_connecting(
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let record = wire::requesting(&w::Requesting { request });
     let engine = service.engine.as_mut().unwrap();
-    let limits = &engine.clients.env.limits.wire;
-    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
-    family.encode(&mut bytes).unwrap();
-    let keyed = j::Keyed::new(
-        limits,
-        j::KeyedParts {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: Some(bundle),
-        },
-    )
-    .unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
-    keyed.encode(&mut bytes).unwrap();
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
+    let keyed = j::Keyed {
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: Some(bundle),
+    };
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     peer.pump(engine, true);
     let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
@@ -1894,7 +1893,7 @@ pub fn forge_connecting(
     else {
         panic!("family terminal")
     };
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().outcome;
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record.as_ref())).unwrap().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
 

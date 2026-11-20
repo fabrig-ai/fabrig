@@ -89,7 +89,6 @@ fn origins_refuse_by_cause_without_accepting_url_parts() {
 
 #[test]
 fn named_places_and_approval_tabs_use_the_origin() {
-    let code = super::approval::code();
     for (port, place, tab) in [
         (443, b"dev.fabrig.ai".as_slice(), b"https://dev.fabrig.ai/terminal".as_slice()),
         (8443, b"dev.fabrig.ai:8443", b"https://dev.fabrig.ai:8443/terminal"),
@@ -98,7 +97,11 @@ fn named_places_and_approval_tabs_use_the_origin() {
         for boxed in [false, true] {
             assert_eq!(crate::place(&origin, boxed).as_ref(), place);
         }
-        assert_eq!(crate::approval_address(&origin, code).as_ref(), tab);
+        assert_eq!(crate::approval_address(&origin, None).as_ref(), tab);
+        assert_eq!(
+            crate::approval_address(&origin, Some(super::approval::code())).as_ref(),
+            concat(&[tab, b"?code=WDJB-MJHT"]).as_ref(),
+        );
     }
 }
 
@@ -108,7 +111,7 @@ fn origin_phrases_fit_the_longest_name_and_page() {
     use skein_ui::phrases::Hole;
     let origin = Origin::Https { name: long_name(), port: 65535 };
     let printed = origin.print();
-    let tab = crate::approval_address(&origin, super::approval::code());
+    let tab = crate::approval_address(&origin, Some(super::approval::code()));
     let path = temper_client_domain::address::print(&temper_client_domain::Address::Team {
         project: u32::MAX,
         role: Some(u64::MAX),
@@ -121,13 +124,21 @@ fn origin_phrases_fit_the_longest_name_and_page() {
     );
     assert_eq!(words.say(Word::ApprovalNoTab, &[Hole::Name(tab.clone())]), concat(&[b"No tab? Open ", &tab]));
     assert_eq!(words.say(Word::OpenAt, &[Hole::Name(page.clone())]), concat(&[b"Open ", &page, b" in your browser."]));
-    let tui = crate::Tui::new(&origin);
-    let root = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
-        code: super::approval::code(),
-        expires: skein_lib::Wall::from_nanos(600_000_000_000),
-    }));
-    let mut view = super::fixtures::view();
-    super::fixtures::build(&mut view, &tui, &root);
+    let mut tui = crate::Tui::new(&origin);
+    tui.step(crate::Told::Browse);
+    tui.step(crate::Told::Opened { opened: false });
     let bounds = crate::limits(&super::fixtures::limits(), &skein_ui::Limits::EMPTY, 512).unwrap();
-    super::limits::fits(view.tree(), &bounds);
+    for port in [None, Some(43210)] {
+        let root = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+            port,
+            code: super::approval::code(),
+            expires: skein_lib::Wall::from_nanos(600_000_000_000),
+        }));
+        let mut view = super::fixtures::view();
+        super::fixtures::build(&mut view, &tui, &root);
+        if port.is_some() {
+            super::fixtures::find(view.tree(), skein_ui::Role::Paragraph, &tab);
+        }
+        super::limits::fits(view.tree(), &bounds);
+    }
 }

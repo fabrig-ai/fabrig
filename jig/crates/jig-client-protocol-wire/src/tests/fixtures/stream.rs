@@ -16,111 +16,82 @@ pub fn stream_limits() -> Limits {
     limits
 }
 
-pub fn wire_family(limits: &Limits) -> Owner {
-    Owner::Family(Family::new(limits, FamilyParts { number: u16::MAX }).expect("whole family identity"))
+pub fn wire_family(_limits: &Limits) -> Owner {
+    Owner::Family(Family { number: u16::MAX })
 }
 
-pub fn served(limits: &Limits, owner: Owner) -> Served {
-    Served::new(limits, ServedParts { owner, first: u32::MAX, last: u32::MAX }).expect("whole served range")
+pub fn served(_limits: &Limits, owner: Owner) -> Served {
+    Served { owner, first: u32::MAX, last: u32::MAX }
 }
 
 pub fn hello(limits: &Limits) -> Hello {
     let mut owners = List::with_capacity(2);
     owners.push(served(limits, Owner::Jig)).expect("first owner");
     owners.push(served(limits, wire_family(limits))).expect("second owner");
-    Hello::new(
-        limits,
-        HelloParts { stream: [255; 16], served: owners, heartbeat: skein_lib::Duration::from_nanos(u64::MAX) },
-    )
-    .expect("two owners in hello")
+    Hello { stream: [255; 16], served: owners, heartbeat: skein_lib::Duration::from_nanos(u64::MAX) }
 }
 
 pub fn stream_owned(limits: &Limits) -> Owned {
-    Owned::new(limits, OwnedParts { owner: wire_family(limits), version: u32::MAX, record: bytes(limits.owned_record) })
-        .expect("record at configured ceiling")
+    Owned { owner: wire_family(limits), version: u32::MAX, record: bytes(limits.owned_record) }
 }
 
 pub fn current_call(limits: &Limits) -> CurrentCall {
-    let identity = CallIdentity::new(
-        limits,
-        CallIdentityParts {
-            owner: u64::MAX,
-            sequence: u32::MAX,
-            retry: u32::MAX,
-            id: ceiling_text(limits.call_identity_id),
-        },
-    )
-    .expect("whole provider call identity");
-    CurrentCall::new(
-        limits,
-        CurrentCallParts {
-            identity,
-            tool: ceiling_text(limits.current_call_tool),
-            input: ceiling_text(limits.current_call_input),
-            cut: true,
-            began: None,
-        },
-    )
-    .expect("raw provisional call")
+    let identity = CallIdentity {
+        owner: u64::MAX,
+        sequence: u32::MAX,
+        retry: u32::MAX,
+        id: ceiling_text(limits.call_identity_id),
+    };
+    CurrentCall {
+        identity,
+        tool: ceiling_text(limits.current_call_tool),
+        input: ceiling_text(limits.current_call_input),
+        cut: true,
+        began: None,
+    }
 }
 
 pub fn decoded_call(limits: &Limits) -> Call {
-    Call::new(
-        limits,
-        CallParts {
-            number: u64::MAX,
-            tool: ceiling_text(limits.call_tool),
-            input: ceiling_text(limits.call_input),
-            outcome: Some(ceiling_text(limits.call_outcome_some)),
-            failed: true,
-            objects: List::with_capacity(0),
-            parts: Box::from([]),
-        },
-    )
-    .expect("decoded source call")
+    Call {
+        number: u64::MAX,
+        tool: ceiling_text(limits.call_tool),
+        input: ceiling_text(limits.call_input),
+        outcome: Some(ceiling_text(limits.call_outcome_some)),
+        failed: true,
+        objects: List::with_capacity(0),
+        parts: Box::from([]),
+    }
 }
 
 pub fn raw_live_call(limits: &Limits) -> LiveCall {
-    LiveCall::Raw(LiveCallRaw::new(limits, LiveCallRawParts { value: current_call(limits) }).expect("raw call source"))
+    LiveCall::Raw(LiveCallRaw { value: current_call(limits) })
 }
 
 pub fn decoded_live_call(limits: &Limits) -> LiveCall {
-    LiveCall::Decoded(
-        LiveCallDecoded::new(limits, LiveCallDecodedParts { value: decoded_call(limits) })
-            .expect("decoded call source"),
-    )
+    LiveCall::Decoded(LiveCallDecoded { value: decoded_call(limits) })
 }
 
 pub fn run_text(limits: &Limits, call: LiveCall) -> RunText {
-    let turn = ProvisionalTurnName::new(
-        limits,
-        ProvisionalTurnNameParts { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX },
-    )
-    .expect("whole provisional retry name");
-    RunText::new(
-        limits,
-        RunTextParts {
-            writing: None,
-            attempt: u64::MAX,
-            began: Some(u64::MAX),
-            turn,
-            from: u32::MAX,
-            through: u32::MAX,
-            text: ceiling_text(limits.run_text_text),
-            cut: true,
-            call: Some(call),
-        },
-    )
-    .expect("provisional text at its configured ceiling")
+    let turn = ProvisionalTurnName { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX };
+    RunText {
+        writing: None,
+        attempt: u64::MAX,
+        began: Some(u64::MAX),
+        turn,
+        from: u32::MAX,
+        through: u32::MAX,
+        text: ceiling_text(limits.run_text_text),
+        cut: true,
+        call: Some(call),
+    }
 }
 
-pub fn ended(limits: &Limits, why: WatchEnd) -> WatchEnded {
-    WatchEnded::new(limits, WatchEndedParts { watch: u64::MAX, why }).expect("named ending")
+pub fn ended(_limits: &Limits, why: WatchEnd) -> WatchEnded {
+    WatchEnded { watch: u64::MAX, why }
 }
 
 pub fn stream_events(limits: &Limits) -> [StreamEvent; 5] {
-    let delivery = Delivery::new(limits, DeliveryParts { watch: u64::MAX, document: stream_owned(limits) })
-        .expect("whole owned delivery");
+    let delivery = Delivery { watch: u64::MAX, document: stream_owned(limits) };
     [
         StreamEvent::Hello(hello(limits)),
         StreamEvent::Delivery(delivery),
@@ -130,68 +101,54 @@ pub fn stream_events(limits: &Limits) -> [StreamEvent; 5] {
     ]
 }
 
-pub fn tree_subject(limits: &Limits) -> Subject {
-    Subject::Tree(
-        SubjectTree::new(limits, SubjectTreeParts { task: u64::MAX, window: u32::MAX }).expect("whole tree window"),
-    )
+pub fn tree_subject(_limits: &Limits) -> Subject {
+    Subject::Tree(SubjectTree { task: u64::MAX, window: u32::MAX })
 }
 
 pub fn open_tree(limits: &Limits) -> Open {
     let subject = tree_subject(limits);
-    let record = encoded(&subject, Subject::measure, Subject::encode);
-    let subject = Owned::new(limits, OwnedParts { owner: Owner::Jig, version: VERSION, record })
-        .expect("jig subject in its owner's version");
-    Open::new(limits, OpenParts { stream: [7; 16], watch: u64::MAX, subject }).expect("open named tree")
+    let record = encoded(&subject);
+    let subject = Owned { owner: Owner::Jig, version: VERSION, record };
+    Open { stream: [7; 16], watch: u64::MAX, subject }
 }
 
-pub fn waiting_account_state(limits: &Limits, until: Option<u64>) -> AccountState {
-    AccountState::Later(
-        AccountStateLater::new(limits, AccountStateLaterParts { until }).expect("supplied optional next-ask wall"),
-    )
+pub fn waiting_account_state(_limits: &Limits, until: Option<u64>) -> AccountState {
+    AccountState::Later(AccountStateLater { until })
 }
 
-pub fn account(limits: &Limits, state: AccountState) -> Account {
-    Account::new(
-        limits,
-        AccountParts {
-            list: None,
-            facts: List::with_capacity(0),
-            provider_name: None,
-            manage_usage: None,
-            number: u32::MAX,
-            place: 0,
-            uses: None,
-            provider: None,
-            display: DocumentText::new(limits, DocumentTextParts { bytes: Box::from([]), cut: false })
-                .expect("empty display"),
-            holder: AccountHolder::Deployment,
-            sources: Box::from([]),
-            generation: Some(u64::MAX),
-            state,
-            plan: false,
-            usable: true,
-            expiring: false,
-            attention: true,
-            cut: true,
-            spent_until: None,
-            runs: Box::from([]),
-            waiting: Box::from([]),
-        },
-    )
-    .expect("whole supplied account facts")
+pub fn account(_limits: &Limits, state: AccountState) -> Account {
+    Account {
+        list: None,
+        facts: List::with_capacity(0),
+        provider_name: None,
+        manage_usage: None,
+        number: u32::MAX,
+        place: 0,
+        uses: None,
+        provider: None,
+        display: DocumentText { bytes: Box::from([]), cut: false },
+        holder: AccountHolder::Deployment,
+        sources: Box::from([]),
+        generation: Some(u64::MAX),
+        state,
+        plan: false,
+        usable: true,
+        expiring: false,
+        attention: true,
+        cut: true,
+        spent_until: None,
+        runs: Box::from([]),
+        waiting: Box::from([]),
+    }
 }
 
-pub fn ended_goal_holding(limits: &Limits) -> GoalHolding {
+pub fn ended_goal_holding(_limits: &Limits) -> GoalHolding {
     let mut path = List::with_capacity(2);
     path.push(Box::from(b"one/two".as_slice())).expect("first literal segment");
     path.push(Box::from([255, 0])).expect("second opaque segment");
-    GoalHolding::Write(
-        GoalHoldingWrite::new(limits, GoalHoldingWriteParts { connector: u16::MAX, path, kind: 0 })
-            .expect("whole raw goal holding"),
-    )
+    GoalHolding::Write(GoalHoldingWrite { connector: u16::MAX, path, kind: 0 })
 }
 
 pub fn stream_text(limits: &Limits, call: LiveCall) -> StreamText {
-    StreamText::new(limits, StreamTextParts { watch: 37, value: run_text(limits, call) })
-        .expect("text tagged with its watch")
+    StreamText { watch: 37, value: run_text(limits, call) }
 }

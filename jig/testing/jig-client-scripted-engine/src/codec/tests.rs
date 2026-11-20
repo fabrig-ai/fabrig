@@ -3,6 +3,7 @@ use super::*;
 use crate::tests::{REQUESTER, REQUESTER_SIGN_IN};
 use crate::{Bounds, Engine, Invalid, Script, Truth, Up};
 use jig_client_protocol_link::{Undecodable, translate};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Time, Token};
 
 fn frame() -> c::Me {
@@ -30,8 +31,11 @@ fn frame() -> c::Me {
 fn scripted_front_refuses_the_document_the_link_refuses_over_its_bound() {
     let value = c::ReadValue::Me(Box::new(frame()));
     let record = values::wire_read_value(&value, &w::CEILINGS).expect("wire frame fits");
-    let bytes = encoded(&record, w::ReadValue::measure, w::ReadValue::encode).expect("measured document");
-    let exact = Bounds { document_bytes: u64::from(record.measure()), ..Bounds::default() };
+    let bytes = encoded(&record, &w::CEILINGS).expect("measured document");
+    let exact = Bounds {
+        document_bytes: u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")),
+        ..Bounds::default()
+    };
     assert_eq!(translate::reads::value(&bytes, &front::limits(&exact).expect("valid limits")), Ok(value.clone()));
     let mut truth = Truth::default();
     truth.frames.insert(REQUESTER, frame());
@@ -67,18 +71,18 @@ fn scripted_answers_and_watch_documents_are_the_links_decoded_values() {
 fn recursive_fact_pieces_preserve_parent_indexes_and_child_order() {
     let value = c::HoldReason::Dependency { task: 7, how: c::Ending::Done };
     let record = facts::hold_reason(&value, &w::CEILINGS).expect("recursive facts fit");
-    let mut reader = skein_lib::Reader::new(record.rows());
+    let mut reader = skein_lib::Reader::new(record.rows.as_ref());
     let root = skein_codec::piece::split(&mut reader).expect("piece length").expect("root piece");
     let root = w::Fact::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&root)).expect("generated root codec");
     let w::Fact::HoldReason(root) = root else { panic!("hold-reason root") };
-    assert_eq!(*root.parent(), None);
-    let w::HoldReasonFields::Dependency(dependency) = root.value() else { panic!("dependency fields") };
-    assert_eq!(dependency.how(), 1);
+    assert_eq!(root.parent, None);
+    let w::HoldReasonFields::Dependency(dependency) = &root.value else { panic!("dependency fields") };
+    assert_eq!(dependency.how, 1);
     let child = skein_codec::piece::split(&mut reader).expect("piece length").expect("child piece");
     let child = w::Fact::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&child)).expect("generated child codec");
     let w::Fact::Ending(child) = child else { panic!("ending child") };
-    assert_eq!(*child.parent(), Some(0));
-    assert_eq!(child.value(), &w::EndingFields::Done);
+    assert_eq!(child.parent, Some(0));
+    assert_eq!((&child.value), &w::EndingFields::Done);
     assert!(reader.is_empty());
 }
 
@@ -178,7 +182,7 @@ fn a_job_chip_round_trips_wire_to_domain_to_wire() {
 #[test]
 fn job_kinds_hello_refusal_round_trips() {
     let record = values::wire_hello_refusal(&c::HelloRefusal::JobKinds, &w::CEILINGS).expect("unit refusal");
-    let bytes = encoded(&record, w::HelloRefusal::measure, w::HelloRefusal::encode).expect("encoded refusal");
+    let bytes = encoded(&record, &w::CEILINGS).expect("encoded refusal");
     let decoded = w::HelloRefusal::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("decoded refusal");
     assert_eq!(decoded, record);
 }

@@ -1,7 +1,7 @@
 # launchpad-chat
 
 On a fresh `temper box --fake-backends`: the browser signed in by the
-box's printed link, the setup following `project-landing` to Hello with
+box's printed link, the setup taking `project-landing`'s steps to Hello with
 the ChatGPT plan and "work/hello is in Hello", then `temper` started at
 the box's address. The browser approves the terminal, the launchpad is
 marked, `/` opens the commands, Escape closes them, and a question sent

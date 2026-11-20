@@ -1079,6 +1079,10 @@ pub struct ChangeRow {
     /// The current child and its latest standing; a held close job stays named while live.
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// Root projection of the change task's `revisions.spec`; jig owns the revision.
+    pub spec_revision: u64,
+    /// Spec revision read by the step that asked the live review (gates.md, 1, Valid at a spec revision).
+    pub gate_revision: u64,
     /// A flake terminal awaiting the branch read after its end.
     pub delegate_flake: bool,
     /// A no-test terminal awaiting the branch read after its end.
@@ -1176,6 +1180,10 @@ pub struct ChangeHot {
     pub effect: change::EffectResult,
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// Root projection of the change task's `revisions.spec`; jig owns the revision.
+    pub spec_revision: u64,
+    /// Spec revision read by the step that asked the live review (gates.md, 1, Valid at a spec revision).
+    pub gate_revision: u64,
     /// A flake terminal awaiting the branch read after its end.
     pub delegate_flake: bool,
     /// A no-test terminal awaiting the branch read after its end.
@@ -1230,6 +1238,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            spec_revision,
+            gate_revision,
             delegate_flake,
             delegate_no_test,
             delegate_head,
@@ -1300,6 +1310,8 @@ impl ChangeRow {
                 effect,
                 delegate,
                 delegate_status,
+                spec_revision,
+                gate_revision,
                 delegate_flake,
                 delegate_no_test,
                 delegate_head,
@@ -1365,6 +1377,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            spec_revision,
+            gate_revision,
             delegate_flake,
             delegate_no_test,
             delegate_head,
@@ -1412,6 +1426,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            spec_revision,
+            gate_revision,
             delegate_flake,
             delegate_no_test,
             delegate_head,
@@ -2263,6 +2279,11 @@ pub enum Event {
         request: Token,
         answer: InstallAnswer,
         stopped: Option<Box<[u8]>>,
+    },
+    /// The latest held GitHub way ended without an installation (client/forge/served.md, 1).
+    WayEnded {
+        forge: u16,
+        why: Box<[u8]>,
     },
     ConnectEnded {
         stop: Option<AdminStop>,

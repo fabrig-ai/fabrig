@@ -88,9 +88,12 @@ fn reference_items(model: &engine::Model, words: u32) -> Box<[settings::Item]> {
         shown: None,
         picker: true,
     };
-    let mut items =
-        jig_protocol_engine_clients::translate::settings::items(change.items().into(), &[catalogue], &limits.settings)
-            .expect("reference settings reach the core with catalogue models");
+    let mut items = jig_protocol_engine_clients::translate::settings::items(
+        change.items.as_ref().into(),
+        &[catalogue],
+        &limits.settings,
+    )
+    .expect("reference settings reach the core with catalogue models");
     for item in &mut items {
         match &mut item.edit {
             settings::Edit::Set(settings::Value::Overlay(overlay)) => {

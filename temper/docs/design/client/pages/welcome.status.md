@@ -1,7 +1,6 @@
 # welcome: status
 
-2026-11-19. Where the tree's code lags or departs from [welcome.md](welcome.md).
-
+2026-11-20. Where the tree's code lags or departs from [welcome.md](welcome.md).
 
 
 - **Not yet:** 1: two endings leave nothing under "Model none yet"

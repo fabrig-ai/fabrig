@@ -30,6 +30,7 @@ fn reviewed_history(kind: change::GateKind, freshness: change::Freshness, histor
     row.change.gates = Box::new([change::Gate { number: GATE, kind, blocking: true, freshness, eager: true }]);
     row.change.clean = if history { Box::new([earlier]) } else { Box::new([]) };
     row.verdicts = Box::new([change::GateReport {
+        revision: 0,
         number: GATE,
         head: if history { earlier } else { head },
         status: change::Status::Passed,

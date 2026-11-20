@@ -203,12 +203,7 @@ fn enter_opens_and_watches_the_left_off_chat() {
                 == Some(Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
         let duties = host.report(Report::Key(Key::Enter));
         read_exchange(&duties, "activity");
-        watch(
-            &duties,
-            &w::Subject::Task(
-                w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: NEWEST }).expect("task subject"),
-            ),
-        );
+        watch(&duties, &w::Subject::Task(w::SubjectTask { task: NEWEST }));
         selected && host.root.pages().address() == &Address::Chat { task: NEWEST }
     };
     assert!(passed);
@@ -300,7 +295,9 @@ fn sending_home_words_creates_one_asking_task() {
     let duties = give(&mut host, Event::Send);
     let asks = sent_ask(&duties);
     assert_eq!(asks.len(), 1);
-    assert!(matches!(&asks[0].1, w::Ask::Create(create) if create.project() == 3 && one_asking_task(create.tasks())));
+    assert!(
+        matches!(&asks[0].1, w::Ask::Create(create) if create.project == 3 && one_asking_task(create.tasks.as_ref()))
+    );
     assert!(host.state().box_written() > 0);
 }
 
@@ -333,7 +330,7 @@ fn sending_chat_words_emits_one_message() {
         let duties = give(&mut host, Event::Send);
         let asks = sent_ask(&duties);
         asks.len() == 1
-            && matches!(&asks[0].1, w::Ask::Message(message) if message.task() == 7 && message.words() == b"Continue")
+            && matches!(&asks[0].1, w::Ask::Message(message) if message.task == 7 && message.words.as_ref() == b"Continue")
             && host.state().box_written() > before
     };
     assert!(passed);
@@ -502,7 +499,7 @@ fn answers_wait_for_the_hold_then_send_their_words() {
             let asks = sent_ask(&duties);
             aside
                 && asks.len() == 1
-                && matches!(&asks[0].1, w::Ask::Answer(answer) if answer.project() == 3 && matches!(answer.on(), w::AnswerOn::Question(question) if question.words() == if words { b"Use a comma".as_slice() } else { b"Comma".as_slice() }))
+                && matches!(&asks[0].1, w::Ask::Answer(answer) if answer.project == 3 && matches!( &answer.on, w::AnswerOn::Question(question) if question.words.as_ref() == if words { b"Use a comma".as_slice() } else { b"Comma".as_slice() }))
                 && host.root.pages().chat().is_some_and(|chat| chat.words.is_empty())
                 && host.state().aside().is_none()
         };

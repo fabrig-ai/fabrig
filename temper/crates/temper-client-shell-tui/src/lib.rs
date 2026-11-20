@@ -4,6 +4,7 @@
 pub mod host;
 pub mod journey;
 pub mod limits;
+pub mod loopback;
 pub mod opener;
 pub mod run;
 pub mod start;

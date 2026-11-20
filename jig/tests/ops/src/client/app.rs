@@ -4,6 +4,7 @@ use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
 use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
 use jig_client_kit::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
 use jig_client_kit::observe;
+use jig_client_protocol_wire::Record as _;
 use jig_client_view::Owner;
 use jig_ops_client_domain::{
     self as domain, Action, Address, Event, Request, infrastructure as infra, observability as obs,
@@ -276,13 +277,13 @@ impl App for Ops {
         {
             use jig_client_protocol_wire as w;
             let keyed = w::Keyed::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("keyed Ops bytes");
-            if *keyed.owner() == w::Owner::Jig {
+            if keyed.owner == w::Owner::Jig {
                 return jig_client_protocol_kit::observe::client_sent(request);
             }
-            let request = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request()))
+            let request = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref()))
                 .expect("family request");
-            let ask = domain::wire::ask_value(request.record()).expect("whole environment ask");
-            return Some(infrastructure_sent(*exchange, *keyed.key(), &ask));
+            let ask = domain::wire::ask_value(request.record.as_ref()).expect("whole environment ask");
+            return Some(infrastructure_sent(*exchange, keyed.key, &ask));
         }
         let Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, key, request, .. } },
@@ -407,21 +408,15 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
 mod tests {
     use super::*;
     use jig_client_protocol_wire as w;
-    use skein_lib::{Overflow, Token, Writer};
+    use skein_lib::Token;
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
     use crate::PROJECT;
     const OBSERVED_TASK: u64 = 8;
 
-    fn encoded<T>(
-        value: &T,
-        measure: fn(&T) -> u32,
-        encode: fn(&T, &mut Writer) -> std::result::Result<(), Overflow>,
-    ) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
-        encode(value, &mut writer).expect("measured wire fixture");
-        writer.finish()
+    fn encoded<T: w::Record<Limits = w::Limits>>(value: &T) -> Box<[u8]> {
+        value.encode(&w::CEILINGS).expect("bounded wire fixture")
     }
 
     fn requests(ask: jig_client::Ask) -> [Request; 2] {
@@ -429,31 +424,17 @@ mod tests {
             jig_client::Ask::Jig(ask) => {
                 let ask =
                     jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("bounded jig fixture");
-                (w::Owner::Jig, jig_client_protocol_wire::VERSION, encoded(&ask, w::Ask::measure, w::Ask::encode))
+                (w::Owner::Jig, jig_client_protocol_wire::VERSION, encoded(&ask))
             }
             jig_client::Ask::Family { scope: Scope::Project(project), record } => {
-                let owner =
-                    w::Family::new(&w::CEILINGS, w::FamilyParts { number: record.family }).expect("family fixture");
-                let scope = w::ScopeProject::new(&w::CEILINGS, w::ScopeProjectParts { value: *project })
-                    .expect("project fixture");
-                let envelope = w::FamilyRequest::new(
-                    &w::CEILINGS,
-                    w::FamilyRequestParts { scope: w::Scope::Project(scope), record: record.bytes.clone() },
-                )
-                .expect("bounded family fixture");
-                (
-                    w::Owner::Family(owner),
-                    record.version,
-                    encoded(&envelope, w::FamilyRequest::measure, w::FamilyRequest::encode),
-                )
+                let owner = w::Family { number: record.family };
+                let scope = w::ScopeProject { value: *project };
+                let envelope = w::FamilyRequest { scope: w::Scope::Project(scope), record: record.bytes.clone() };
+                (w::Owner::Family(owner), record.version, encoded(&envelope))
             }
             jig_client::Ask::Family { .. } => panic!("fixture uses a project scope"),
         };
-        let keyed = w::Keyed::new(
-            &w::CEILINGS,
-            w::KeyedParts { key: REQUEST_KEY, owner, version, request: bytes, value: None },
-        )
-        .expect("bounded keyed fixture");
+        let keyed = w::Keyed { key: REQUEST_KEY, owner, version, request: bytes, value: None };
         [
             Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down {
@@ -464,7 +445,7 @@ mod tests {
                 request: jig_client::Request::Exchange {
                     exchange: ATTEMPT,
                     credential: None,
-                    message: jig_client::Message::Request(encoded(&keyed, w::Keyed::measure, w::Keyed::encode)),
+                    message: jig_client::Message::Request(encoded(&keyed)),
                 },
             },
         ]

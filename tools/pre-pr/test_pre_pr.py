@@ -1147,6 +1147,7 @@ else:
                     dict(binary_id='api::rules', test_name='replay', outcome='passed')]}))
                 return 0, 'passed again\n'
             profile = 'default' if directory.name == 'tests' else 'fuzzy'
+            self.assertEqual(env['TIERS_PRE_PR_TARGETS'], '1')
             directories[profile] = directory
             expected = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
             if profile in taken:

@@ -1,5 +1,6 @@
 //! Public answer reservations (jig/docs/design/client/domain/contract/README.md, section 10).
 
+use crate::Record;
 use crate::public_v1;
 
 /// The public index's collection bounds, within the public schema's ceilings.

@@ -9,6 +9,7 @@
 )]
 mod tests {
     use jig_client_protocol_wire as w;
+    use jig_client_protocol_wire::Record as _;
     use skein_lib::{Duration, Env, List, Queue, Reader, Time, Wall};
     use temper_client_domain::{
         self as domain, Address, Event, GoalsFilter, Request, WorkFilter,
@@ -46,32 +47,33 @@ mod tests {
     }
     fn page_members(batch: &w::Batch) -> Vec<String> {
         let mut order = Vec::new();
-        for member in batch.members() {
+        for member in &batch.members {
             let (subject, watch) = match member {
-                w::Member::Open(open) => (open.subject(), true),
+                w::Member::Open(open) => ((&open.subject), true),
                 w::Member::Read(read) => (read, false),
                 w::Member::Close(_) => panic!("no cold-open closing"),
             };
-            match subject.owner() {
+            match &subject.owner {
                 w::Owner::Jig if watch => {
                     if let w::Subject::Tasks(tasks) =
-                        w::Subject::decode(&w::CEILINGS, &mut Reader::new(subject.record())).expect("subject")
-                        && tasks.query().label() != &Some(3)
+                        w::Subject::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref())).expect("subject")
+                        && tasks.query.label != Some(3)
                     {
-                        order.push(format!("watch {}", tasks.query().label().expect("page label")));
+                        order.push(format!("watch {}", tasks.query.label.expect("page label")));
                     }
                 }
-                w::Owner::Jig => match w::Read::decode(&w::CEILINGS, &mut Reader::new(subject.record())).expect("read")
-                {
-                    w::Read::Tasks(tasks) => order.push(format!("read {}", tasks.query().label().expect("page label"))),
-                    w::Read::Inbox(_) => order.push("needs".into()),
-                    _ => {}
-                },
+                w::Owner::Jig => {
+                    match w::Read::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref())).expect("read") {
+                        w::Read::Tasks(tasks) => order.push(format!("read {}", tasks.query.label.expect("page label"))),
+                        w::Read::Inbox(_) => order.push("needs".into()),
+                        _ => {}
+                    }
+                }
                 w::Owner::Family(_) if watch => {
                     use temper_client_protocol_wire::{self as wire, v1 as f};
-                    let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(subject.record()))
+                    let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref()))
                         .expect("family scope and window");
-                    match &wire::decode_watching(envelope.record(), &f::CEILINGS).expect("watch").watch {
+                    match &wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).expect("watch").watch {
                         f::Watch::Changes(_) => order.push("changes".into()),
                         f::Watch::Drafts(_) => order.push("drafts".into()),
                         _ => {}
@@ -289,7 +291,7 @@ mod tests {
         assert_eq!(engine.replaces, [if reload { Some([7; 16]) } else { None }]);
         if reload {
             assert_eq!(
-                engine.keyed.iter().map(|request| *request.key()).collect::<Vec<_>>(),
+                engine.keyed.iter().map(|request| request.key).collect::<Vec<_>>(),
                 [[11; 16], [12; 16]],
                 "each retained key keeps its route and identity"
             );

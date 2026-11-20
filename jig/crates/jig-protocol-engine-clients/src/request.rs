@@ -1,6 +1,7 @@
 //! Keyed request admission and version envelopes (protocol/client/README.md, 3 and 6).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::length::len_u64;
 impl Component {
     pub(super) fn request(
@@ -23,16 +24,13 @@ impl Component {
             self.respond(exchange, routes::busy());
             return;
         }
-        let keyed = match w::Keyed::decode(&env.limits.wire, &mut skein_lib::Reader::new(body)) {
-            Ok(value) => value.into_parts(),
-            Err(_) => {
-                self.not_a_record(owner);
-                return;
-            }
+        let Ok(keyed) = w::Keyed::decode(&env.limits.wire, &mut skein_lib::Reader::new(body)) else {
+            self.not_a_record(owner);
+            return;
         };
         let family = match &keyed.owner {
             w::Owner::Jig => None,
-            w::Owner::Family(value) => Some(value.number()),
+            w::Owner::Family(value) => Some(value.number),
         };
         if !self.serves(family, keyed.version) {
             let answer =
@@ -52,29 +50,29 @@ impl Component {
                     self.not_a_record(owner);
                     return;
                 };
-                let scope = crate::served::scope(record.scope());
+                let scope = crate::served::scope(&record.scope);
                 if let Some(value) = keyed.value {
                     let request = CarriedRequest::Application {
                         key: keyed.key,
-                        family: family.number(),
+                        family: family.number,
                         version: keyed.version,
                         scope,
-                        digest: sign_in::carrying(record.record(), &value),
-                        record: record.into_parts().record,
+                        digest: sign_in::carrying(record.record.as_ref(), &value),
+                        record: record.record,
                         carried_digest: skein_lib::sha256::digest(value.expose()),
                     };
                     self.carry(exchange, sign_in, request, value, Some(crate::CarriedKind::Value), out);
                     return;
                 }
-                let digest = sign_in::digest(record.record()).expose().try_into().expect("32-byte digest");
+                let digest = sign_in::digest(record.record.as_ref()).expose().try_into().expect("32-byte digest");
                 let request = crate::ToApplication::Request {
                     reply_to: ReplyTo::new(exchange),
                     sign_in,
                     key: keyed.key,
-                    family: family.number(),
+                    family: family.number,
                     version: keyed.version,
                     scope,
-                    record: record.into_parts().record,
+                    record: record.record,
                     digest,
                     carried: None,
                 };
@@ -98,7 +96,7 @@ impl Component {
         exchange: Token,
         sign_in: u64,
         owner: Token,
-        keyed: w::KeyedParts,
+        keyed: w::Keyed,
         out: &mut Queue<Request>,
     ) {
         let mut kind = None;
@@ -106,7 +104,7 @@ impl Component {
             Ok(value) => {
                 let value = match value {
                     w::Ask::Propose(value)
-                        if match value.action() {
+                        if match &value.action {
                             w::ProposeAction::Settings(_) => true,
                             w::ProposeAction::Batch(_) | w::ProposeAction::Amendment(_) => false,
                         } =>
@@ -234,7 +232,7 @@ impl Component {
                     if len_u64(carried.len()) > bound && carrying.is_some() {
                         let reply = people::Reply::Refused(people::Refusal::Limit { which: people::LimitKind::Words });
                         let answer = crate::translate::answers::answer(&reply, &self.settings.models, &env.limits.wire);
-                        self.answer(exchange, answer);
+                        self.answer(exchange, answer, &env.limits.wire);
                         return;
                     }
                 }
@@ -332,7 +330,7 @@ impl Component {
 /// The value's digest is the sole secret-derived fact admitted to the core.
 fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKind>)> {
     let change = match ask {
-        w::Ask::AccountChange(row) => row.change(),
+        w::Ask::AccountChange(row) => &row.change,
         w::Ask::ReadLists(_)
         | w::Ask::ChangeModel(_)
         | w::Ask::ChangeSettings(_)
@@ -372,10 +370,10 @@ fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKi
         | w::Ask::SignOut(_) => return None,
     };
     match change {
-        w::AccountChange::AddKey(row) => Some((*row.digest(), Some(crate::CarriedKind::Key))),
-        w::AccountChange::ReplaceKey(row) => Some((*row.digest(), Some(crate::CarriedKind::Key))),
-        w::AccountChange::FinishSignIn(row) => Some((*row.digest(), None)),
-        w::AccountChange::MoveIn(row) => Some((*row.digest(), Some(crate::CarriedKind::Moved))),
+        w::AccountChange::AddKey(row) => Some((row.digest, Some(crate::CarriedKind::Key))),
+        w::AccountChange::ReplaceKey(row) => Some((row.digest, Some(crate::CarriedKind::Key))),
+        w::AccountChange::FinishSignIn(row) => Some((row.digest, None)),
+        w::AccountChange::MoveIn(row) => Some((row.digest, Some(crate::CarriedKind::Moved))),
         w::AccountChange::LoginProgram(_)
         | w::AccountChange::CancelLogin(_)
         | w::AccountChange::LoginEnded(_)
@@ -395,7 +393,7 @@ fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKi
 /// Only account key changes and a moved file carry jig values.
 fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes: u32) -> u64 {
     let change = match ask {
-        w::Ask::AccountChange(row) => row.change(),
+        w::Ask::AccountChange(row) => &row.change,
         w::Ask::ReadLists(_)
         | w::Ask::ChangeModel(_)
         | w::Ask::ChangeSettings(_)

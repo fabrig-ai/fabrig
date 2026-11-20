@@ -18,6 +18,8 @@ pub struct Domain {
     pub(crate) approving: crate::approve::Flight,
     pub(crate) approval_revision: u64,
     pub(crate) asked: Option<crate::asked::State>,
+    pub(crate) asked_port: Option<u16>,
+    pub(crate) asked_secret: Option<skein_lib::Secret>,
     pub(crate) signed_out: bool,
     pub(crate) terminal: crate::pages::accounts::terminal_login::Terminal,
 }
@@ -54,6 +56,8 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
         approving: crate::approve::Flight::Idle,
         approval_revision: 0,
         asked: None,
+        asked_port: None,
+        asked_secret: None,
         signed_out: false,
         terminal: crate::pages::accounts::terminal_login::Terminal::new(),
     }

@@ -1,6 +1,12 @@
-//! Seeded argument bytes and mutations of origins, with no resolver or network.
-use skein_lib::Rng;
-use temper_client_shell_tui::start::{self, Refused};
+//! Seeded argument and loopback request bytes, with no resolver or network.
+use skein_lib::{
+    Rng, Writer,
+    base64::{self, Alphabet},
+};
+use temper_client_shell_tui::{
+    loopback::{self, Returned},
+    start::{self, Refused},
+};
 use temper_client_tui::Origin;
 
 fn check(bytes: &[u8], seed: u64) {
@@ -78,6 +84,71 @@ fn argument_bytes_and_mutated_origins_never_panic_and_keep_their_meaning() {
                 }
             }
             check(&bytes, seed);
+        }
+    }
+}
+
+const RETURN_HOST: &[u8] = b"127.0.0.1:43210";
+
+fn naive_grant(request: &Returned) -> Option<Box<[u8]>> {
+    if !request.get || request.host.as_deref() != Some(RETURN_HOST) {
+        return None;
+    }
+    let (prefix, text) = request.target.split_at_checked(16)?;
+    if prefix != b"/approved?grant=" {
+        return None;
+    }
+    let bytes = base64::decode(Alphabet::Url, text, 32).ok()?;
+    (bytes.len() == 32).then_some(bytes)
+}
+
+fn random_bytes(rng: &mut Rng, len: usize) -> Box<[u8]> {
+    (0..len).map(|_| u8::try_from(rng.below(256)).expect("byte")).collect()
+}
+
+fn mutate(rng: &mut Rng, bytes: &mut [u8]) {
+    let len = u64::try_from(bytes.len()).expect("small fixture");
+    let at = usize::try_from(rng.below(len)).expect("offset");
+    let flips = u8::try_from(1 + rng.below(255)).expect("nonzero byte");
+    *bytes.get_mut(at).expect("mutation position") ^= flips;
+}
+
+#[test]
+fn loopback_grants_agree_with_the_naive_rule_for_bytes_and_mutations() {
+    for seed in 1..=16 {
+        let mut rng = Rng::new(seed);
+        for _ in 0..128 {
+            let mut encoded = Writer::new(43);
+            base64::encode(Alphabet::Url, &random_bytes(&mut rng, 32), &mut encoded).expect("43 bytes");
+            let good = Returned {
+                get: true,
+                target: [b"/approved?grant=".as_slice(), &encoded.finish()].concat().into(),
+                host: Some(RETURN_HOST.into()),
+            };
+            let mut target_mutation = good.clone();
+            mutate(&mut rng, &mut target_mutation.target);
+            let mut host_mutation = good.clone();
+            mutate(&mut rng, host_mutation.host.as_deref_mut().expect("Host"));
+            let target_len = usize::try_from(rng.below(96)).expect("size");
+            let host_len = usize::try_from(rng.below(32)).expect("size");
+            let random_host = Some(random_bytes(&mut rng, host_len));
+            for request in [
+                target_mutation,
+                host_mutation,
+                Returned { target: random_bytes(&mut rng, target_len), ..good.clone() },
+                Returned { host: random_host, ..good.clone() },
+                Returned { get: false, ..good.clone() },
+                good,
+            ] {
+                assert_eq!(
+                    loopback::grant(&request, 43210).map(skein_lib::Secret::into_exposed),
+                    naive_grant(&request),
+                    "seed {seed}, method get={}, target={:?}, Host={:?}",
+                    request.get,
+                    request.target,
+                    request.host,
+                );
+            }
         }
     }
 }

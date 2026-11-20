@@ -315,9 +315,9 @@ fn the_github_row_names_its_app_by_slug_and_lists_its_installations() {
     assert!(forge::forges::accepted(&row));
 }
 #[test]
-fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
+fn install_sends_no_way_back_and_points_once_only_from_the_answer() {
     let (mut root, _, _) = connect::opened(true);
-    let mut out = act(&mut root, forge::Act::Install { forge: 2, back: b"/forges/connect?forge=2".as_slice().into() });
+    let mut out = act(&mut root, forge::Act::Install { forge: 2 });
     let mut attempt = None;
     while let Some(request) = out.pop() {
         if let Request::Leave { .. } = &request {
@@ -334,7 +334,7 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
             else {
                 panic!("Install")
             };
-            assert_eq!(install.back.as_deref(), Some(b"/forges/connect?forge=2".as_slice()));
+            assert_eq!(install.back, None);
         }
     }
     let attempt = attempt.unwrap();
@@ -352,24 +352,27 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
         why: None,
     };
     let mut out = event(&mut root, Event::Client { event: jig_client::Event::Up { up: up.clone() } });
-    let mut leaves = 0_u32;
+    let mut points = 0_u32;
     while let Some(request) = out.pop() {
-        if let Request::Leave { to, .. } = request {
-            leaves += 1;
+        if let Request::Leave { .. } = request {
+            panic!("GitHub never leaves the page");
+        }
+        if let Request::Tab { tab: crate::Tab::Point { to } } = request {
+            points += 1;
             assert_eq!(to.as_ref(), b"https://fake.invalid/install");
         }
     }
-    assert_eq!(leaves, 1);
+    assert_eq!(points, 1);
     let mut duplicate = event(&mut root, Event::Client { event: jig_client::Event::Up { up } });
     while let Some(request) = duplicate.pop() {
-        if let Request::Leave { .. } = &request {
-            panic!("only the first answer may leave the page");
+        if let Request::Leave { .. } | Request::Tab { .. } = request {
+            panic!("no duplicate departure");
         }
     }
 }
 
 fn manifest(root: &mut crate::Domain) -> Queue<Request> {
-    act(root, forge::Act::ConnectManifest { forge: 2, back: b"/forges/connect".as_slice().into() })
+    act(root, forge::Act::ConnectManifest { forge: 2 })
 }
 #[test]
 fn manifest_connect_needs_a_party() {
@@ -391,7 +394,7 @@ fn manifest_connect_waits_for_the_pending_app_answer() {
 #[test]
 fn manifest_connect_shares_the_pending_install_guard() {
     let (mut root, _, _) = connect::opened(true);
-    act(&mut root, forge::Act::Install { forge: 2, back: b"/forges/connect".as_slice().into() });
+    act(&mut root, forge::Act::Install { forge: 2 });
     assert!(manifest(&mut root).is_empty());
 }
 

@@ -4,30 +4,23 @@ pub(in crate::codec) fn wire_wake_policy(
     value: &c::WakePolicy,
     limits: &w::Limits,
 ) -> Result<w::WakePolicy, w::Problem> {
-    w::WakePolicy::new(
-        limits,
-        w::WakePolicyParts {
-            words: wire_wake_rule(&value.words, limits)?,
-            notices: wire_wake_rule(&value.notices, limits)?,
-            news: wire_wake_rule(&value.news, limits)?,
-            results: wire_results_wake(&value.results, limits)?,
-            questions: value.questions,
-            answers: value.answers,
-            timers: value.timers,
-        },
-    )
+    Ok(w::WakePolicy {
+        words: wire_wake_rule(&value.words, limits)?,
+        notices: wire_wake_rule(&value.notices, limits)?,
+        news: wire_wake_rule(&value.news, limits)?,
+        results: wire_results_wake(&value.results, limits)?,
+        questions: value.questions,
+        answers: value.answers,
+        timers: value.timers,
+    })
 }
 
-pub(in crate::codec) fn wire_wake_rule(value: &c::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
+pub(in crate::codec) fn wire_wake_rule(value: &c::WakeRule, _limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::WakeRule::Never => w::WakeRule::Never,
         c::WakeRule::Immediate => w::WakeRule::Immediate,
-        c::WakeRule::Batch { count, age } => {
-            w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count: *(count), age: *(age) })?)
-        }
-        c::WakeRule::Paced { span } => {
-            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span: *span })?)
-        }
+        c::WakeRule::Batch { count, age } => w::WakeRule::Batch(w::WakeRuleBatch { count: *(count), age: *(age) }),
+        c::WakeRule::Paced { span } => w::WakeRule::Paced(w::WakeRulePaced { span: *span }),
     })
 }
 
@@ -46,41 +39,30 @@ pub(in crate::codec) fn wire_subscriptions(
     value: &c::Subscriptions,
     limits: &w::Limits,
 ) -> Result<w::Subscriptions, w::Problem> {
-    w::Subscriptions::new(
-        limits,
-        w::SubscriptionsParts { entries: list(value.entries.iter().map(|item| wire_subscription(item, limits)))? },
-    )
+    Ok(w::Subscriptions { entries: list(value.entries.iter().map(|item| wire_subscription(item, limits)))? })
 }
 
 pub(in crate::codec) fn wire_subscription(
     value: &c::Subscription,
     limits: &w::Limits,
 ) -> Result<w::Subscription, w::Problem> {
-    w::Subscription::new(
-        limits,
-        w::SubscriptionParts { number: value.number, kind: wire_subscription_kind(&value.kind, limits)? },
-    )
+    Ok(w::Subscription { number: value.number, kind: wire_subscription_kind(&value.kind, limits)? })
 }
 
 pub(in crate::codec) fn wire_subscription_kind(
     value: &c::SubscriptionKind,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::SubscriptionKind, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::SubscriptionKind::Task { target, held, result } => w::SubscriptionKind::Task(w::SubscriptionKindTask::new(
-            limits,
-            w::SubscriptionKindTaskParts { target: *(target), held: *(held), result: *(result) },
-        )?),
-        c::SubscriptionKind::Timer { at, period } => w::SubscriptionKind::Timer(w::SubscriptionKindTimer::new(
-            limits,
-            w::SubscriptionKindTimerParts {
-                at: (at).as_nanos(),
-                period: (period).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            },
-        )?),
-        c::SubscriptionKind::Topic { connector, topic } => w::SubscriptionKind::Topic(w::SubscriptionKindTopic::new(
-            limits,
-            w::SubscriptionKindTopicParts { connector: *(connector), topic: *(topic) },
-        )?),
+        c::SubscriptionKind::Task { target, held, result } => {
+            w::SubscriptionKind::Task(w::SubscriptionKindTask { target: *(target), held: *(held), result: *(result) })
+        }
+        c::SubscriptionKind::Timer { at, period } => w::SubscriptionKind::Timer(w::SubscriptionKindTimer {
+            at: (at).as_nanos(),
+            period: (period).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        }),
+        c::SubscriptionKind::Topic { connector, topic } => {
+            w::SubscriptionKind::Topic(w::SubscriptionKindTopic { connector: *(connector), topic: *(topic) })
+        }
     })
 }

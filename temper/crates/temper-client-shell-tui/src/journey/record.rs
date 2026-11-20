@@ -131,6 +131,8 @@ impl Recorder {
             Report::Front(line) => Line::BoxLine(line.print()),
             Report::Stage(stage) => Line::BoxStage(stage.print()),
             Report::Handshake { failed } => Line::Handshake(*failed),
+            Report::Listening { port } => Line::Listening(*port),
+            Report::Returned(returned) => Line::Returned(returned.clone()),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
@@ -272,6 +274,15 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     if let Some(address) = &duties.open {
         lines.push(Line::Browse(address.clone()));
     }
+    if duties.listen {
+        lines.push(Line::Listen);
+    }
+    if duties.unlisten {
+        lines.push(Line::Unlisten);
+    }
+    if let Some(answer) = &duties.answer {
+        lines.push(Line::Answer(answer.clone()));
+    }
     if let Some(stop) = duties.stop {
         lines.push(match stop {
             crate::host::Stop::First => Line::StopBox,
@@ -307,10 +318,13 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         Line::Signed(_) => Some(3),
         Line::Read => Some(4),
         Line::Browse(_) => Some(5),
-        Line::StopBox | Line::StopBoxAgain => Some(6),
-        Line::Lend { .. } => Some(7),
-        Line::Unlend => Some(8),
-        Line::Quit => Some(9),
+        Line::Listen => Some(6),
+        Line::Unlisten => Some(7),
+        Line::Answer(_) => Some(8),
+        Line::StopBox | Line::StopBoxAgain => Some(9),
+        Line::Lend { .. } => Some(10),
+        Line::Unlend => Some(11),
+        Line::Quit => Some(12),
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
@@ -346,6 +360,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Kept { .. }
         | Line::Opened { .. }
         | Line::Handshake(_)
+        | Line::Listening(_)
+        | Line::Returned(_)
         | Line::Found(_)
         | Line::Deadline(_)
         | Line::Mark(_)

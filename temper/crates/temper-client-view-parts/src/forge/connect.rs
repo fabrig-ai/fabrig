@@ -134,6 +134,11 @@ pub fn main(
         ),
         look::SETTINGS_HEADLINE,
     );
+    if github_wait(b, root, w, None, crate::away::Form::Connection, forge) {
+        b.close();
+        b.close();
+        return;
+    }
     match shown {
         Shown::Details(Choice::Elsewhere) => elsewhere(b, root, w, bindings, Some(accounts)),
         Shown::Choose | Shown::Details(_) => body(b, root, w, bindings, forge, choice, Place::Connect, sign_in),
@@ -190,12 +195,7 @@ pub(crate) fn body(
                     b,
                     Control::PrimaryButton {
                         name: &w.say(Word::ConnectGitHub, &[]),
-                        to: forge.insert(Meaning::Forges(forge::forges::Act::GitHub {
-                            back: temper_client_domain::address::print(&match place {
-                                Place::Connect => Address::Forges,
-                                Place::Welcome => place.address(None),
-                            }),
-                        })),
+                        to: forge.insert(Meaning::Forges(forge::forges::Act::GitHub)),
                     },
                 ),
                 Choice::Elsewhere => elsewhere(b, root, w, bindings, None),
@@ -248,6 +248,9 @@ pub fn welcome(
     choice: Option<Choice>,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
+    if github_wait(b, root, w, None, crate::away::Form::Welcome, forge) {
+        return;
+    }
     if choice.is_none()
         && let Some(row) = connect::unfinished(connect::records(root.forges()), connect::playground(root.forge()))
     {
@@ -587,25 +590,16 @@ pub fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Forg
     w.text(b, Word::ForgeNotFinished, &[]);
     b.close();
     super::forges::removal_words(b, w, row);
+    if let Some(line) = forge::words::last_connect(row) {
+        crate::cards::text(b, Role::Paragraph, &line);
+    }
     let removing = match &root.forge().setup_form().removal {
         Some(removal) => removal.forge == row.number && removal.request.is_some(),
         None => false,
     };
     for act in &connect::unfinished_acts(row) {
         let (word, act) = match act {
-            connect::UnfinishedAct::GoOn => (
-                Word::ForgeGoOn,
-                forge::forges::Act::GoOn {
-                    forge: row.number,
-                    back: temper_client_domain::address::print(
-                        &if let Address::Welcome { .. } = root.pages().address() {
-                            root.pages().address().clone()
-                        } else {
-                            Address::Forges
-                        },
-                    ),
-                },
-            ),
+            connect::UnfinishedAct::GoOn => (Word::ForgeGoOn, forge::forges::Act::GoOn { forge: row.number }),
             connect::UnfinishedAct::StartOver => {
                 let end = if let Address::Welcome { .. } = root.pages().address() {
                     forge::forges::StartOverEnd::Welcome
@@ -782,6 +776,65 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBinding
     }
     b.close();
 }
+/// The same note as a sign-in, without its paste (client/forge/deployment.md, While it waits).
+pub(crate) fn github_wait(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    number: Option<u16>,
+    form: crate::away::Form,
+    bindings: &mut ForgeBindings,
+) -> bool {
+    let Some(pending) = root.forge().app() else { return false };
+    if let Some(number) = number
+        && pending.forge != number
+    {
+        return false;
+    }
+    let Some(way) = &pending.way else { return false };
+    let mut own = way.refused || w.shell == Shell::Terminal;
+    let address = if let Some(forge) = pending.install_again() {
+        Some(crate::away::Target::Button { binding: bindings.insert(Meaning::Install { forge }) })
+    } else {
+        match &way.address {
+            Some(address) if pending.kind == Some(forge::github::WayKind::Connect) && w.shell == Shell::Browser => {
+                match forge::github::origin_path(address) {
+                    Some(path) => Some(crate::away::Target::Bound {
+                        address: copy_of(path),
+                        binding: bindings.insert(Meaning::OpenGitHub { to: address.clone() }),
+                    }),
+                    None => {
+                        own = true;
+                        Some(crate::away::Target::External { address: address.clone() })
+                    }
+                }
+            }
+            Some(address) => Some(crate::away::Target::External { address: address.clone() }),
+            None => None,
+        }
+    };
+    crate::away::waiting(
+        b,
+        w,
+        &crate::away::Note {
+            title: w.say(if own { Word::GitHubAwayOwn } else { Word::GitHubAwayTitle }, &[]),
+            body: w.say(
+                if pending.kind == Some(forge::github::WayKind::Install) {
+                    Word::GitHubAwayInstall
+                } else {
+                    Word::GitHubAwayConnect
+                },
+                &[],
+            ),
+            link: w.say(if own { Word::GitHubAwayOpen } else { Word::WelcomeAwayAgain }, &[]),
+            address,
+            form,
+            refused: own,
+        },
+        bindings.text_per_node(),
+    );
+    true
+}
 pub(crate) fn app_control(
     b: &mut Builder,
     root: &Domain,
@@ -797,7 +850,9 @@ pub(crate) fn app_control(
         connect::default_choice(connect::records(root.forges()), connect::playground(root.forge()), owned(root))
             == Some(connect::Choice::GitHub)
     } else {
-        word != Word::ForgeInstallAnother && back != Some(Place::Welcome.address(None))
+        word != Word::ForgeInstallAnother
+            && word != Word::GitHubChooseRepositories
+            && back != Some(Place::Welcome.address(None))
     };
     let connect_card = back == Some(Place::Connect.address(None));
     let pending = root.forge().app();
@@ -814,16 +869,14 @@ pub(crate) fn app_control(
         );
     } else {
         let meaning = match back {
-            Some(back) if word == Word::ForgeConnectGitHub => {
+            Some(_) if word == Word::ForgeConnectGitHub => {
                 if number == 0 {
-                    Meaning::Forges(forge::forges::Act::GitHub {
-                        back: temper_client_domain::address::print(&if connect_card { Address::Forges } else { back }),
-                    })
+                    Meaning::Forges(forge::forges::Act::GitHub)
                 } else {
-                    Meaning::ConnectManifest { forge: number, back: if connect_card { Address::Forges } else { back } }
+                    Meaning::ConnectManifest { forge: number }
                 }
             }
-            Some(back) => Meaning::Install { forge: number, back },
+            Some(_) => Meaning::Install { forge: number },
             None => Meaning::ConnectApp(number),
         };
         let to = bindings.insert(meaning);
@@ -843,23 +896,6 @@ pub(crate) fn app_control(
         if let forge::github::Answer::Entrance(refusal) = answer {
             b.open(Role::Alert);
             w.refusal(b, refusal.refusal(), w.name_bytes);
-            b.close();
-        }
-        // A path's departure is never refused, so only a whole address needs a link meanwhile.
-        if let forge::github::Answer::Link(address) = answer
-            && !address.starts_with(b"/")
-        {
-            b.open(Role::Link);
-            b.name(&name);
-            b.text(Run::Plain, &name);
-            b.external(address);
-            b.style(if connect_card {
-                if primary { look::CONNECT_PRIMARY } else { look::CONNECT_SECONDARY }
-            } else if primary {
-                look::FLOW_PRIMARY
-            } else {
-                look::FLOW_SECONDARY
-            });
             b.close();
         }
     }

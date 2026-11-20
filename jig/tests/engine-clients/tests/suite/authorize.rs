@@ -1,15 +1,14 @@
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::Event;
 use skein_lib::{Reader, Writer};
 fn record() -> Box<[u8]> {
-    let record = w::Authorize::new(
-        &w::CEILINGS,
-        w::AuthorizeParts { query: Box::from(b"client_id=app&response_type=code".as_slice()) },
-    )
-    .expect("bounded fixture");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("bounded fixture");
+    let record = w::Authorize { query: Box::from(b"client_id=app&response_type=code".as_slice()) };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("bounded fixture");
     writer.finish()
 }
 fn answer(peer: &Peer, exchange: skein_lib::Token) -> w::AuthorizeAnswer {
@@ -32,7 +31,7 @@ fn without_a_provider_authorization_is_refused_before_credential_checking() {
             peer.post(b"/jig/v1/authorize", record(), None)
         };
         let w::AuthorizeAnswer::Refused(refused) = answer(&peer, exchange) else { panic!("no provider") };
-        assert_eq!(refused.why(), &w::AuthorizeWhy::NoProvider);
+        assert_eq!((&refused.why), &w::AuthorizeWhy::NoProvider);
         assert!(peer.take_core().is_none(), "no people read or mutation");
     }
 }

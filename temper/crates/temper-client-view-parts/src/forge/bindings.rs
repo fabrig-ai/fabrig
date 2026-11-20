@@ -25,8 +25,9 @@ pub enum Meaning {
     AppId,
     AppKey,
     ConnectApp(u16),
-    ConnectManifest { forge: u16, back: temper_client_domain::Address },
-    Install { forge: u16, back: temper_client_domain::Address },
+    ConnectManifest { forge: u16 },
+    Install { forge: u16 },
+    OpenGitHub { to: Box<[u8]> },
     SetUp(u16),
     SetUpAtOnce(u16),
     SetupField(forge::forges::SetupField),
@@ -53,12 +54,17 @@ pub struct Bindings {
     next: u64,
     connector: u16,
     checks: u32,
+    text_per_node: u32,
     pub ways_row: Option<(u32, WaysRow)>,
 }
 impl Bindings {
     #[must_use]
-    pub fn new(capacity: u32, checks: u32, connector: u16) -> Self {
-        Self { entries: List::with_capacity(capacity), next: 0, connector, checks, ways_row: None }
+    pub fn new(capacity: u32, checks: u32, connector: u16, text_per_node: u32) -> Self {
+        Self { entries: List::with_capacity(capacity), next: 0, connector, checks, text_per_node, ways_row: None }
+    }
+    #[must_use]
+    pub const fn text_per_node(&self) -> u32 {
+        self.text_per_node
     }
     pub fn begin(&mut self) {
         self.entries.clear();
@@ -148,13 +154,9 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::AdminWay(way) => Action::Forge(forge::Act::AdminWay(way)),
                 Meaning::ConnectAdmin(forge) => Action::Forge(forge::Act::ConnectAdmin { forge }),
                 Meaning::ConnectApp(forge) => Action::Forge(forge::Act::ConnectApp { forge }),
-                Meaning::ConnectManifest { forge, back } => Action::Forge(forge::Act::ConnectManifest {
-                    forge,
-                    back: temper_client_domain::address::print(&back),
-                }),
-                Meaning::Install { forge, back } => {
-                    Action::Forge(forge::Act::Install { forge, back: temper_client_domain::address::print(&back) })
-                }
+                Meaning::ConnectManifest { forge } => Action::Forge(forge::Act::ConnectManifest { forge }),
+                Meaning::Install { forge } => Action::Forge(forge::Act::Install { forge }),
+                Meaning::OpenGitHub { to } => Action::Forge(forge::Act::OpenGitHub { to }),
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),
                 Meaning::PlaceField(_)
                 | Meaning::AdminField(_)
@@ -280,6 +282,7 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
             | Meaning::ConnectApp(_)
             | Meaning::ConnectManifest { .. }
             | Meaning::Install { .. }
+            | Meaning::OpenGitHub { .. }
             | Meaning::SetUp(_)
             | Meaning::SetUpAtOnce(_)
             | Meaning::SetupField(_)

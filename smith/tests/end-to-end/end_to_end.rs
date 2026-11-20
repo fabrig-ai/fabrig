@@ -146,12 +146,12 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
     let scratch = Scratch::new();
     let mut settings: toml::Value =
         toml::from_str(std::str::from_utf8(&support::fake_provider_settings(&scratch)).unwrap()).unwrap();
-    let host = smith_real_world::loopback();
+    let issuer = smith_real_world::address(34_444);
     let redirect = smith_real_world::redirect_port();
     settings["endpoints"]["openai"].as_table_mut().unwrap().insert("account".into(), "openai".into());
     settings["accounts"]["openai"] = toml::Value::try_from(serde_json::json!({
-        "source":"sign_in", "client_id":"client", "authorization_url":format!("http://{host}:34444/authorize"),
-        "token_url":format!("http://{host}:34444/token"), "redirect_uri":format!("http://127.0.0.1:{redirect}/callback"),
+        "source":"sign_in", "client_id":"client", "authorization_url":format!("http://{issuer}/authorize"),
+        "token_url":format!("http://{issuer}/token"), "redirect_uri":format!("http://127.0.0.1:{redirect}/callback"),
         "scope":"read", "token_format":"form"
     }))
     .unwrap();
@@ -176,7 +176,7 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
         ],
     );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(String::from_utf8_lossy(&ran.stdout).contains(&format!("Sign in: http://{host}:34444/authorize")));
+    assert!(String::from_utf8_lossy(&ran.stdout).contains(&format!("Sign in: http://{issuer}/authorize")));
     assert!(scratch.path().join("credentials/tokens/openai").is_file());
     let checkout = scratch.checkout();
     let after = checkout.head().unwrap();
@@ -677,8 +677,8 @@ fn smith_login_signs_in_against_the_fake_issuer_and_exits_0() {
     login_settings(
         &scratch,
         &format!(
-            "client_id='client'\nauthorization_url='http://{host}:34444/authorize'\ntoken_url='http://{host}:34444/token'\nredirect_uri='http://127.0.0.1:{redirect}/callback'\nscope='read'\ntoken_format='form'\n",
-            host = smith_real_world::loopback(),
+            "client_id='client'\nauthorization_url='http://{issuer}/authorize'\ntoken_url='http://{issuer}/token'\nredirect_uri='http://127.0.0.1:{redirect}/callback'\nscope='read'\ntoken_format='form'\n",
+            issuer = smith_real_world::address(34_444),
             redirect = smith_real_world::redirect_port()
         ),
     );

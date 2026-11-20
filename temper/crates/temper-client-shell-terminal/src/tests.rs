@@ -31,6 +31,20 @@ fn a_jig_read_reaches_the_link_with_its_own_token() {
     assert_eq!(what, fixtures::inbox_read());
 }
 #[test]
+fn origin_tab_points_keep_the_whole_address_for_the_terminal() {
+    let address = b"http://127.0.0.1:4100/forges/3/github/manifest?state=S";
+    for tab in [
+        client::Tab::PointOnOrigin { to: address.as_slice().into() },
+        client::Tab::Point { to: address.as_slice().into() },
+    ] {
+        let Down::Notice(route::Notice::Leave { to }) = route::down(client::Request::Tab { tab }) else {
+            panic!("a pointed tab gives the terminal its address");
+        };
+        assert_eq!(to.as_ref(), address);
+    }
+}
+
+#[test]
 fn a_table_record_saved_then_kept_comes_back_the_same() {
     let limits = fixtures::link_limits();
     {
@@ -137,24 +151,27 @@ fn the_native_preset_receives_every_supported_membership() {
     use skein_lib::{Reader, Writer};
     // Small and Standard serve up to nine memberships (client/ctl/README.md, 9).
     for (count, accepted) in [(3, true), (9, true), (10, false)] {
-        let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
+        let mut parts = jig_client_test_records::frame_two_projects_record();
         let mut reader = Reader::new(&parts.projects);
         let size = reader.u32().expect("membership size");
         let project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(reader.bytes(size).expect("membership")))
             .expect("membership record");
         let mut projects = Vec::new();
         for number in 1..=count {
-            let mut row = project.clone().into_parts();
+            let mut row = project.clone();
             row.project = number;
-            let row = w::MeProject::new(&w::CEILINGS, row).expect("membership");
-            let mut bytes = Writer::new(usize::try_from(row.measure()).expect("membership fits"));
-            row.encode(&mut bytes).expect("measured membership");
+            let row = row;
+            let mut bytes = Writer::new(
+                usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("membership fits"),
+            );
+            row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured membership");
             let bytes = bytes.finish();
             projects.extend_from_slice(&u32::try_from(bytes.len()).expect("membership size").to_be_bytes());
             projects.extend_from_slice(&bytes);
         }
         parts.projects = projects.into();
-        let frame = w::Me::new(&w::CEILINGS, parts).expect("me frame");
+        let frame = parts;
         let received = link::translate::documents::frame(frame, &fixtures::link_limits());
         assert_eq!(received.is_ok(), accepted, "{count} memberships through native preset: {received:?}");
         if let Ok(frame) = received {

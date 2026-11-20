@@ -1,6 +1,7 @@
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Request, SecretsRequest};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::{Reader, ReplyTo, Token};
 #[test]
@@ -10,10 +11,7 @@ fn a_family_request_the_people_child_refuses_is_answered_under_jig_s_owner() {
     exchange.reply(to, p::Reply::Refused(p::Refusal::KeyConflict));
     assert_eq!(
         exchange.final_answer(owner),
-        w::Final::Refused(
-            w::Refused::new(&f::wire(), w::RefusedParts { at: None, refusal: w::Refusal::KeyConflict })
-                .expect("refused")
-        )
+        w::Final::Refused(w::Refused { at: None, refusal: w::Refusal::KeyConflict })
     );
     assert!(exchange.component.pending.exchanges.is_empty());
     assert!(exchange.out.is_empty());
@@ -88,9 +86,9 @@ fn outcomes_keep_every_supplied_fact() {
     for to in [7, 91] {
         let final_answer = f::translated(&p::Reply::Outcome(p::Outcome::Proposed { proposal: 31, to }), &f::wire());
         let w::Final::Done(done) = final_answer else { panic!("done") };
-        let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
-        let w::DocumentOutcome::Proposed(row) = owner.value() else { panic!("proposal") };
-        assert_eq!((row.proposal(), row.to()), (31, to));
+        let w::Outcome::Document(owner) = &done.outcome else { panic!("owner outcome") };
+        let w::DocumentOutcome::Proposed(row) = &owner.value else { panic!("proposal") };
+        assert_eq!((row.proposal, row.to), (31, to));
     }
     let limits = f::wire();
     for cases in [f::outcomes().as_slice(), f::decision_outcomes().as_slice(), f::seen_outcomes().as_slice()] {
@@ -109,7 +107,7 @@ fn a_service_result_contains_its_party_and_no_credential() {
     )
     .expect("service answer");
     let mut out = skein_lib::Writer::new(25);
-    answer.encode(&mut out).expect("25-byte party-only answer");
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("25-byte party-only answer");
     assert_eq!(out.finish().as_ref(), &f::SERVICE_ANSWER);
 }
 #[test]
@@ -118,13 +116,8 @@ fn an_account_sign_in_is_answered_with_its_source_and_address() {
     for length in [0, 1, usize::try_from(p::ADDRESS).unwrap()] {
         let address: Box<[u8]> = skein_lib::bytes::zeroed(length);
         let outcome = p::Outcome::AccountSignInStarted { source: u32::MAX, address: address.clone() };
-        let expected = w::DocumentOutcome::AccountSignInStarted(
-            w::OutcomeAccountSignInStarted::new(
-                &limits,
-                w::OutcomeAccountSignInStartedParts { source: u32::MAX, address },
-            )
-            .unwrap(),
-        );
+        let expected =
+            w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted { source: u32::MAX, address });
         assert_eq!(f::translated(&p::Reply::Outcome(outcome), &limits), account_sign_in_done(expected, &limits));
     }
 }
@@ -132,13 +125,10 @@ fn an_account_sign_in_is_answered_with_its_source_and_address() {
 fn an_account_sign_out_is_answered_with_whether_it_was_confirmed() {
     let limits = f::wire();
     for confirmed in [false, true] {
-        let expected = w::DocumentOutcome::AccountSignedOut(
-            w::OutcomeAccountSignedOut::new(
-                &limits,
-                w::OutcomeAccountSignedOutParts { confirmed, failed_hosts: skein_lib::List::with_capacity(0) },
-            )
-            .unwrap(),
-        );
+        let expected = w::DocumentOutcome::AccountSignedOut(w::OutcomeAccountSignedOut {
+            confirmed,
+            failed_hosts: skein_lib::List::with_capacity(0),
+        });
         assert_eq!(
             f::translated(
                 &p::Reply::Outcome(p::Outcome::AccountSignedOut { confirmed, failed_hosts: Box::new([]) }),
@@ -198,14 +188,12 @@ fn ended_refusals_keep_one_sparse_row_and_its_wall_time() {
 fn done_ending_round_trips(limits: &w::Limits) {
     let refusal =
         crate::translate::refusals::refusal(p::Refusal::Ended { how: p::Ending::Done }, limits).expect("ending fits");
-    let value = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { at: None, refusal }).expect("refusal"));
-    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("final answer");
-    let owned = w::Owned::new(
-        limits,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() },
-    )
-    .expect("owned final");
+    let value = w::Final::Refused(w::Refused { at: None, refusal });
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("final answer");
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() };
     assert_eq!(
         jig_client_protocol_link::translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), &f::client_limits()),
         Ok(jig_client_domain::contract::Answer::Refused {
@@ -269,13 +257,8 @@ fn authority_refusals_keep_the_known_facts_and_optional_proposal_verdict() {
     {
         for (source, expected) in &cases {
             let source = p::Refusal::Authority { lacking: *source, proposable };
-            let expected = w::Refusal::Authority(
-                w::RefusalAuthority::new(
-                    &limits,
-                    w::RefusalAuthorityParts { lacking: expected.clone(), proposable: boolean },
-                )
-                .expect("authority"),
-            );
+            let expected =
+                w::Refusal::Authority(w::RefusalAuthority { lacking: expected.clone(), proposable: boolean });
             assert_eq!(crate::translate::refusals::refusal(source, &limits).expect("authority fits"), expected);
         }
     }
@@ -297,7 +280,7 @@ fn a_sparse_ending_past_its_piece_bound_is_refused() {
     let limits = w::Limits { ending_rows: 5, ..f::wire() };
     assert_eq!(
         crate::translate::refusals::refusal(p::Refusal::Ended { how: p::Ending::Done }, &limits),
-        Err(w::Problem { path: w::Path::EndingRows, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::paths::ENDING_ROWS, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -323,11 +306,7 @@ fn a_read_outside_its_owners_range_names_the_served_ranges() {
 fn an_opening_outside_its_owners_range_is_answered_not_served() {
     let mut exchange = Exchange::new();
     let stream = exchange.open_stream();
-    let subject = w::Owned::new(
-        &f::wire(),
-        w::OwnedParts { owner: w::Owner::Jig, version: UNSERVED_VERSION, record: Box::new([255]) },
-    )
-    .expect("opaque subject");
+    let subject = w::Owned { owner: w::Owner::Jig, version: UNSERVED_VERSION, record: Box::new([255]) };
     let owner = exchange.open_record(stream, REFUSED_WATCH, subject);
     assert_eq!(
         w::OpenAnswer::decode(&f::wire(), &mut Reader::new(exchange.response(owner).1)),
@@ -336,9 +315,9 @@ fn an_opening_outside_its_owners_range_is_answered_not_served() {
     assert!(exchange.out.is_empty());
 }
 
-fn account_sign_in_done(value: w::DocumentOutcome, limits: &w::Limits) -> w::Final {
-    let outcome = w::Outcome::Document(w::OutcomeDocument::new(limits, w::OutcomeDocumentParts { value }).unwrap());
-    w::Final::Done(w::Done::new(limits, w::DoneParts { outcome }).unwrap())
+fn account_sign_in_done(value: w::DocumentOutcome, _limits: &w::Limits) -> w::Final {
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value });
+    w::Final::Done(w::Done { outcome })
 }
 
 #[test]
@@ -347,7 +326,10 @@ fn an_account_sign_in_answer_over_the_address_bound_is_refused_at_its_address() 
     let result = crate::translate::answers::answer(&p::Reply::Outcome(outcome), &f::models(), &f::wire());
     assert_eq!(
         result.err(),
-        Some(w::Problem { path: w::Path::OutcomeAccountSignInStartedAddress, reason: skein_codec::Reason::Bound })
+        Some(w::Problem {
+            path: w::paths::OUTCOME_ACCOUNT_SIGN_IN_STARTED_ADDRESS,
+            reason: skein_codec::Reason::Bound
+        })
     );
 }
 
@@ -389,8 +371,10 @@ fn live_task_refusals_round_trip_the_client_wire() {
     let limits = f::wire();
     let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 2 }));
     let record = crate::translate::answers::answer(&reply, &[], &limits).unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let record = w::KeyedAnswer::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let mut tasks = List::with_capacity(2);
@@ -406,30 +390,11 @@ fn live_task_refusals_round_trip_the_client_wire() {
 fn project_outcomes_keep_the_project_number() {
     let limits = f::wire();
     for (outcome, expected) in [
-        (
-            p::Outcome::Renamed { project: 3 },
-            w::DocumentOutcome::Renamed(
-                w::OutcomeRenamed::new(&limits, w::OutcomeRenamedParts { project: 3 }).expect("renamed"),
-            ),
-        ),
-        (
-            p::Outcome::ProjectMade { project: 4 },
-            w::DocumentOutcome::ProjectMade(
-                w::OutcomeProjectMade::new(&limits, w::OutcomeProjectMadeParts { project: 4 }).expect("made"),
-            ),
-        ),
+        (p::Outcome::Renamed { project: 3 }, w::DocumentOutcome::Renamed(w::OutcomeRenamed { project: 3 })),
+        (p::Outcome::ProjectMade { project: 4 }, w::DocumentOutcome::ProjectMade(w::OutcomeProjectMade { project: 4 })),
     ] {
-        let expected = w::Final::Done(
-            w::Done::new(
-                &limits,
-                w::DoneParts {
-                    outcome: w::Outcome::Document(
-                        w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected }).expect("owner"),
-                    ),
-                },
-            )
-            .expect("done"),
-        );
+        let expected =
+            w::Final::Done(w::Done { outcome: w::Outcome::Document(w::OutcomeDocument { value: expected }) });
         assert_eq!(f::translated(&p::Reply::Outcome(outcome), &limits), expected);
     }
 }
@@ -442,21 +407,9 @@ fn project_refusals_keep_their_facts() {
         (p::Refusal::NameTaken, w::Refusal::NameTaken),
         (
             p::Refusal::Limit { which: p::LimitKind::Projects },
-            w::Refusal::Limit(
-                w::RefusalLimit::new(
-                    &limits,
-                    w::RefusalLimitParts {
-                        which: w::Limit::Admission(
-                            w::LimitAdmission::new(
-                                &limits,
-                                w::LimitAdmissionParts { which: w::AdmissionLimit::Projects },
-                            )
-                            .expect("admission limit"),
-                        ),
-                    },
-                )
-                .expect("limit"),
-            ),
+            w::Refusal::Limit(w::RefusalLimit {
+                which: w::Limit::Admission(w::LimitAdmission { which: w::AdmissionLimit::Projects }),
+            }),
         ),
     ];
     for (rule, expected) in [
@@ -468,24 +421,15 @@ fn project_refusals_keep_their_facts() {
     ] {
         cases.push((
             p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Name(rule) },
-            w::Refusal::Malformed(
-                w::RefusalMalformed::new(
-                    &limits,
-                    w::RefusalMalformedParts {
-                        at: 0,
-                        why: w::Malformed::Name(
-                            w::MalformedName::new(&limits, w::MalformedNameParts { rule: expected })
-                                .expect("name rule"),
-                        ),
-                    },
-                )
-                .expect("malformed"),
-            ),
+            w::Refusal::Malformed(w::RefusalMalformed {
+                at: 0,
+                why: w::Malformed::Name(w::MalformedName { rule: expected }),
+            }),
         ));
     }
     for (why, expected) in cases {
         let w::Final::Refused(value) = f::translated(&p::Reply::Refused(why), &limits) else { panic!("refused") };
-        assert_eq!(value.refusal(), &expected);
+        assert_eq!((&value.refusal), &expected);
     }
 }
 
@@ -498,33 +442,19 @@ fn answers_full_carries_its_facts_on_the_current_wire() {
     let (owner, to) = exchange.ask();
     exchange.reply(to, p::Reply::Again(p::Again::Full { held: FULL_HELD, room_at: FULL_ROOM }));
     let w::KeyedAnswer::AnswersFull(value) = exchange.answer(owner) else { panic!("answers full") };
-    assert_eq!((value.held(), value.room_at()), (FULL_HELD, FULL_ROOM.as_nanos()));
+    assert_eq!((value.held, value.room_at), (FULL_HELD, FULL_ROOM.as_nanos()));
 }
 
 #[test]
 fn project_removed_encodes_as_its_owner_outcome() {
-    let limits = f::wire();
     for project in [0, 3, u32::MAX] {
         let mut exchange = Exchange::new();
         let (owner, to) = exchange.ask();
         exchange.reply(to, p::Reply::Outcome(p::Outcome::ProjectRemoved { project }));
-        let expected = w::DocumentOutcome::ProjectRemoved(
-            w::OutcomeProjectRemoved::new(&limits, w::OutcomeProjectRemovedParts { project }).expect("project"),
-        );
+        let expected = w::DocumentOutcome::ProjectRemoved(w::OutcomeProjectRemoved { project });
         assert_eq!(
             exchange.final_answer(owner),
-            w::Final::Done(
-                w::Done::new(
-                    &limits,
-                    w::DoneParts {
-                        outcome: w::Outcome::Document(
-                            w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected },)
-                                .expect("owner outcome")
-                        )
-                    },
-                )
-                .expect("done")
-            )
+            w::Final::Done(w::Done { outcome: w::Outcome::Document(w::OutcomeDocument { value: expected }) })
         );
         assert!(exchange.component.pending.exchanges.is_empty());
         assert!(exchange.out.is_empty());
@@ -533,29 +463,15 @@ fn project_removed_encodes_as_its_owner_outcome() {
 
 #[test]
 fn visibility_set_answers_as_its_document_outcome() {
-    let limits = f::wire();
     for public in [false, true] {
         let project = u32::MAX;
         let mut exchange = Exchange::new();
         let (owner, to) = exchange.ask();
         exchange.reply(to, p::Reply::Outcome(p::Outcome::VisibilitySet { project, public }));
-        let expected = w::DocumentOutcome::VisibilitySet(
-            w::OutcomeVisibilitySet::new(&limits, w::OutcomeVisibilitySetParts { project, public }).expect("project"),
-        );
+        let expected = w::DocumentOutcome::VisibilitySet(w::OutcomeVisibilitySet { project, public });
         assert_eq!(
             exchange.final_answer(owner),
-            w::Final::Done(
-                w::Done::new(
-                    &limits,
-                    w::DoneParts {
-                        outcome: w::Outcome::Document(
-                            w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected },)
-                                .expect("owner outcome")
-                        )
-                    },
-                )
-                .expect("done")
-            )
+            w::Final::Done(w::Done { outcome: w::Outcome::Document(w::OutcomeDocument { value: expected }) })
         );
         assert!(exchange.component.pending.exchanges.is_empty());
         assert!(exchange.out.is_empty());

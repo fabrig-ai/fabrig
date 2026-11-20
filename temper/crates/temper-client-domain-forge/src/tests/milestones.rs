@@ -153,8 +153,10 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
         jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
     let mut line = row();
     let goal = jig_client_test_records::task_line_record();
-    let mut writer = Writer::new(usize::try_from(goal.measure()).unwrap());
-    goal.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(goal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    goal.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
     let goal_row =

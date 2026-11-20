@@ -71,9 +71,11 @@ and links to the forge for code. What is still open is listed in
   (linked to the installation's page on GitHub), stopped and why.
 - **The browser's steps of a connect are temper's routes** on the
   clients' listener (`served.md`, 1): the manifest's page, GitHub's redirect and
-  its setup, each authenticated by a one-use state alone. A browser's
-  tab goes to a connect's link and comes back to the page that sent
-  it; the terminal prints the link and never opens it.
+  its setup, each authenticated by a one-use state alone. A browser
+  opens a new tab for a connect's or an install's link, and the page
+  that sent it waits and moves on by itself on the `forges` watch
+  (`deployment.md`, *GitHub's way, in a new tab*); the terminal prints
+  the link and never opens it.
 
 ## 2. A change's panel
 

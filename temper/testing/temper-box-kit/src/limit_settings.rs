@@ -1,5 +1,6 @@
 //! Subprocess fixtures apply their figures through ctl before restarting
 //! (temper/docs/design/protocol/configuration/limit-settings.md, 8).
+use jig_client_protocol_wire::Record as _;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 use temper_playground::documents::Configuration;
@@ -72,14 +73,13 @@ pub fn configuration_at(directory: &Path, shape: temper_config_shell::Shape) -> 
 
 /// A subprocess's places are its worker setting, never its file's slots.
 pub fn local_places(root: &Path, places: u32) {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
-    let local = WorkerSetting::new(
-        &CEILINGS,
-        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false },
-    )
-    .expect("fixture local setting");
-    let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("local bound"));
-    local.encode(&mut writer).expect("local setting");
+    use jig_client_protocol_wire::WorkerSetting;
+    let local = WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("local bound"),
+    );
+    local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("local setting");
     super::write_private(&root.join("local.setting"), &writer.finish());
     let item = json!({"setting":{"kind":"worker","number":1},"set":{"name":"local","places":places,"digest":null}});
     super::write_private(

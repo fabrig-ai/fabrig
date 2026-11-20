@@ -1,4 +1,5 @@
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::{self as core, documents as d};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
@@ -6,25 +7,18 @@ use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Wall, Writer};
 
 fn request() -> Box<[u8]> {
-    let limits = fixtures::limits().wire;
-    let ask = w::Ask::Lift(
-        w::Lift::new(&limits, w::LiftParts { hold: u64::MAX, revision: u64::MAX, with_tasks: true }).expect("lift"),
-    );
-    let mut bytes = Writer::new(ask.measure() as usize);
-    ask.encode(&mut bytes).expect("ask");
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
-            key: [9; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: bytes.finish(),
-            value: None,
-        },
-    )
-    .expect("keyed");
-    let mut bytes = Writer::new(keyed.measure() as usize);
-    keyed.encode(&mut bytes).expect("keyed bytes");
+    let ask = w::Ask::Lift(w::Lift { hold: u64::MAX, revision: u64::MAX, with_tasks: true });
+    let mut bytes = Writer::new(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("ask");
+    let keyed = w::Keyed {
+        key: [9; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = Writer::new(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("keyed bytes");
     bytes.finish()
 }
 
@@ -44,7 +38,7 @@ fn answer(reply: p::Reply) -> w::Final {
     else {
         panic!("final")
     };
-    w::Final::decode(&limits, &mut Reader::new(record.record())).expect("native answer")
+    w::Final::decode(&limits, &mut Reader::new(record.record.as_ref())).expect("native answer")
 }
 
 #[test]
@@ -53,9 +47,9 @@ fn lift_and_lifted_cross_the_native_boundary_without_losing_the_count() {
     else {
         panic!("done")
     };
-    let w::Outcome::Document(outcome) = done.outcome() else { panic!("owner") };
-    let w::DocumentOutcome::Lifted(value) = outcome.value() else { panic!("lifted") };
-    assert_eq!((value.hold(), value.released()), (u64::MAX, u32::MAX));
+    let w::Outcome::Document(outcome) = &done.outcome else { panic!("owner") };
+    let w::DocumentOutcome::Lifted(value) = &outcome.value else { panic!("lifted") };
+    assert_eq!((value.hold, value.released), (u64::MAX, u32::MAX));
 }
 
 #[test]
@@ -67,13 +61,13 @@ fn both_hold_owners_and_the_independent_moved_revision_cross_the_native_boundary
         }))) else {
             panic!("refused")
         };
-        let w::Refusal::Authority(value) = refused.refusal() else { panic!("authority") };
-        assert_eq!(value.proposable(), &None);
-        let w::Lacking::HoldOwner(value) = value.lacking() else { panic!("hold owner") };
-        assert_eq!(value.hold(), u64::MAX);
-        match (owner, value.owner()) {
-            (p::HoldOwner::Party { person }, w::HoldOwner::Party(value)) => assert_eq!(value.person(), person),
-            (p::HoldOwner::Task { task }, w::HoldOwner::Task(value)) => assert_eq!(value.task(), task),
+        let w::Refusal::Authority(value) = &refused.refusal else { panic!("authority") };
+        assert_eq!((&value.proposable), &None);
+        let w::Lacking::HoldOwner(value) = &value.lacking else { panic!("hold owner") };
+        assert_eq!(value.hold, u64::MAX);
+        match (owner, (&value.owner)) {
+            (p::HoldOwner::Party { person }, w::HoldOwner::Party(value)) => assert_eq!(value.person, person),
+            (p::HoldOwner::Task { task }, w::HoldOwner::Task(value)) => assert_eq!(value.task, task),
             _ => panic!("owner kind preserved"),
         }
     }
@@ -82,10 +76,10 @@ fn both_hold_owners_and_the_independent_moved_revision_cross_the_native_boundary
     }))) else {
         panic!("refused")
     };
-    let w::Refusal::Moved(value) = refused.refusal() else { panic!("moved") };
-    assert_eq!(value.now().value(), u64::MAX);
-    let w::Moved::PlacedHold(value) = value.what() else { panic!("placed revision") };
-    assert_eq!(value.revision(), u64::MAX);
+    let w::Refusal::Moved(value) = &refused.refusal else { panic!("moved") };
+    assert_eq!(value.now.value, u64::MAX);
+    let w::Moved::PlacedHold(value) = &value.what else { panic!("placed revision") };
+    assert_eq!(value.revision, u64::MAX);
 }
 
 #[test]
@@ -118,18 +112,19 @@ fn placed_hold_documents_preserve_the_smallest_and_full_owner_facts() {
         };
         let encoded =
             jig_protocol_engine_clients::translate::chips::held(&line, &w::CEILINGS).expect("document translation");
-        let mut bytes = Writer::new(encoded.measure() as usize);
-        encoded.encode(&mut bytes).expect("hold bytes");
+        let mut bytes =
+            Writer::new(encoded.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+        encoded.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("hold bytes");
         let decoded = w::ChipHold::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).expect("decode");
         assert_eq!(decoded, encoded);
-        let value = decoded.placed().as_ref().expect("placed facts");
+        let value = decoded.placed.as_ref().expect("placed facts");
         assert_eq!(
-            (value.number(), value.revision(), value.placed_at(), value.lifted(), value.may_lift()),
+            (value.number, value.revision, value.placed_at, value.lifted, value.may_lift),
             (number, number, number, full, full)
         );
-        assert_eq!(value.reason(), placed.reason.as_ref());
+        assert_eq!(value.reason.as_ref(), placed.reason.as_ref());
         assert!(matches!(
-            (value.mode(), value.scope()),
+            ((&value.mode), (&value.scope)),
             (w::HoldMode::Stop, w::HoldScope::Subtree(_)) | (w::HoldMode::Drain, w::HoldScope::Project)
         ));
     }
@@ -146,7 +141,7 @@ fn a_lift_capacity_diagnostic_keeps_the_hold_identity() {
     };
     let record =
         jig_protocol_engine_clients::translate::deployment::person_refusal(&value, &w::CEILINGS).expect("diagnostic");
-    let w::PersonCapacityAction::Lift(action) = record.action() else { panic!("lift action") };
-    assert_eq!(action.hold(), u64::MAX);
-    assert_eq!(record.project(), &None);
+    let w::PersonCapacityAction::Lift(action) = &record.action else { panic!("lift action") };
+    assert_eq!(action.hold, u64::MAX);
+    assert_eq!((&record.project), &None);
 }

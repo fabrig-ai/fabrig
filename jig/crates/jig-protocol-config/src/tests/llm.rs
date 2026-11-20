@@ -469,10 +469,10 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         )
         .unwrap();
         let model = wire.get(0).unwrap();
-        assert_eq!(model.shown().as_deref(), expected);
-        assert_eq!(model.picker(), picker);
-        assert_eq!(model.effort().as_deref(), effort);
-        assert!(model.accounts().is_empty());
+        assert_eq!(model.shown.as_deref(), expected);
+        assert_eq!(model.picker, picker);
+        assert_eq!(model.effort.as_deref(), effort);
+        assert!(model.accounts.is_empty());
     }
 }
 

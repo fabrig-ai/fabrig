@@ -4,6 +4,7 @@ use crate::{
     translate::{Untranslatable, asks::ask},
 };
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 #[test]
 fn a_message_record_becomes_the_cores_say() {
@@ -18,21 +19,14 @@ fn a_decision_record_keeps_its_revision() {
     let limits = f::wire();
     let cases = [
         (w::Decision::PassedUp, p::EscalationDecision::Pass),
-        (
-            w::Decision::Released(
-                w::DecisionReleased::new(&limits, w::DecisionReleasedParts { again: None }).expect("release"),
-            ),
-            p::EscalationDecision::Release,
-        ),
+        (w::Decision::Released(w::DecisionReleased { again: None }), p::EscalationDecision::Release),
     ];
     for (decision, expected) in cases {
-        let value = f::decide(w::DecideOn::Escalation(
-            w::DecideEscalation::new(
-                &limits,
-                w::DecideEscalationParts { task: 8, revision: f::revision(u64::MAX), decision },
-            )
-            .expect("decision"),
-        ));
+        let value = f::decide(w::DecideOn::Escalation(w::DecideEscalation {
+            task: 8,
+            revision: f::revision(u64::MAX),
+            decision,
+        }));
         assert_eq!(
             ask(value, &f::models(), &limits),
             Ok(p::Ask::DecideEscalation { project: 3, task: 8, revision: u64::MAX, decision: expected })
@@ -64,21 +58,18 @@ fn an_amendment_record_keeps_its_release_and_reason() {
     }
 }
 fn invalid() -> w::Ask {
-    let limits = f::wire();
-    f::decide(w::DecideOn::Escalation(
-        w::DecideEscalation::new(
-            &limits,
-            w::DecideEscalationParts { task: 8, revision: f::revision(6), decision: w::Decision::Accepted },
-        )
-        .expect("valid record with inapplicable decision"),
-    ))
+    f::decide(w::DecideOn::Escalation(w::DecideEscalation {
+        task: 8,
+        revision: f::revision(6),
+        decision: w::Decision::Accepted,
+    }))
 }
 #[test]
 fn an_ask_that_does_not_translate_reaches_no_core() {
     let value = invalid();
     assert_eq!(
         ask(value.clone(), &f::models(), &f::wire()),
-        Err(Untranslatable { path: w::Path::DecideEscalationDecision })
+        Err(Untranslatable { path: w::paths::DECIDE_ESCALATION_DECISION })
     );
     let mut exchange = Exchange::new();
     for bytes in [f::encode_ask(&value), f::encode_ask(&f::malformed_piece()), Box::new([255]), {
@@ -98,7 +89,7 @@ fn an_ask_that_does_not_translate_reaches_no_core() {
 #[test]
 fn an_application_record_is_routed_with_its_digest() {
     let mut exchange = Exchange::new();
-    let family = w::Owner::Family(w::Family::new(&f::wire(), w::FamilyParts { number: 9 }).expect("family"));
+    let family = w::Owner::Family(w::Family { number: 9 });
     exchange.send(crate::Message::Request(f::keyed(family, 2, Box::from(b"abc".as_slice()))));
     exchange.authenticate();
     let Some(Request::Application(ToApplication::Request { sign_in, key, family, version, record, digest, .. })) =
@@ -152,13 +143,13 @@ fn a_piece_past_its_decoded_sum_is_refused() {
     let limits = f::wire();
     let (wire, _) = f::authority_ask();
     let small = w::Limits { authority_grants: 19, ..limits };
-    assert_eq!(ask(wire, &f::models(), &small), Err(Untranslatable { path: w::Path::AuthorityGrants }));
+    assert_eq!(ask(wire, &f::models(), &small), Err(Untranslatable { path: w::paths::AUTHORITY_GRANTS }));
 }
 
 #[test]
 fn an_undecodable_application_record_is_answered_bad_request() {
     let mut exchange = Exchange::new();
-    let family = w::Owner::Family(w::Family::new(&f::wire(), w::FamilyParts { number: 9 }).expect("family"));
+    let family = w::Owner::Family(w::Family { number: 9 });
     let owner = exchange.send(crate::Message::Request(f::keyed(family, 2, Box::new([255]))));
     exchange.authenticate();
     let Some(Request::Application(ToApplication::Request { reply_to, .. })) = exchange.out.pop() else {
@@ -176,11 +167,7 @@ fn an_undecodable_application_record_is_answered_bad_request() {
 #[test]
 fn a_decide_on_an_escalation_reaches_the_people_child_with_its_revision() {
     let limits = f::wire();
-    let target = w::DecideEscalation::new(
-        &limits,
-        w::DecideEscalationParts { task: 8, revision: f::revision(u64::MAX), decision: w::Decision::PassedUp },
-    )
-    .expect("escalation");
+    let target = w::DecideEscalation { task: 8, revision: f::revision(u64::MAX), decision: w::Decision::PassedUp };
     assert_eq!(
         ask(f::decide(w::DecideOn::Escalation(target)), &f::models(), &limits),
         Ok(p::Ask::DecideEscalation { project: 3, task: 8, revision: u64::MAX, decision: p::EscalationDecision::Pass })
@@ -190,11 +177,7 @@ fn a_decide_on_an_escalation_reaches_the_people_child_with_its_revision() {
 fn a_cancel_with_a_grace_reaches_the_people_child_with_its_span() {
     const GRACE: skein_lib::Duration = skein_lib::Duration::from_millis(200);
     let limits = f::wire();
-    let cancel = w::Cancel::new(
-        &limits,
-        w::CancelParts { project: 3, task: 8, reason: b"enough".as_slice().into(), grace: Some(GRACE) },
-    )
-    .expect("cancel");
+    let cancel = w::Cancel { project: 3, task: 8, reason: b"enough".as_slice().into(), grace: Some(GRACE) };
     assert_eq!(
         ask(w::Ask::Cancel(cancel), &f::models(), &limits),
         Ok(p::Ask::Cancel { project: 3, task: 8, reason: b"enough".as_slice().into(), grace: Some(GRACE) })
@@ -238,17 +221,12 @@ fn a_policy_change_of_template_overrides_reaches_the_people_child() {
 #[test]
 fn a_propose_of_an_amendment_reaches_the_people_child_with_its_reason() {
     let limits = f::wire();
-    let action = w::ProposeAction::Amendment(Box::new(
-        w::ProposeAmendment::new(
-            &limits,
-            w::ProposeAmendmentParts { task: 8, revision: f::revision(9), change: f::empty_amendment(None) },
-        )
-        .expect("amendment"),
-    ));
-    let value = w::Ask::Propose(
-        w::Propose::new(&limits, w::ProposeParts { project: 3, action, reason: b"more work".as_slice().into() })
-            .expect("proposal"),
-    );
+    let action = w::ProposeAction::Amendment(Box::new(w::ProposeAmendment {
+        task: 8,
+        revision: f::revision(9),
+        change: f::empty_amendment(None),
+    }));
+    let value = w::Ask::Propose(w::Propose { project: 3, action, reason: b"more work".as_slice().into() });
     assert_eq!(
         ask(value, &f::models(), &limits),
         Ok(p::Ask::Propose {
@@ -266,15 +244,12 @@ fn a_sign_in_ask_is_made_a_people_ask_for_its_holder() {
         (w::AskAccountHolder::Own, p::AccountHolder::Own),
         (w::AskAccountHolder::Deployment, p::AccountHolder::Deployment),
     ] {
-        let wire = w::Ask::SignIn(
-            w::AskSignIn::new(&limits, w::AskSignInParts { holder: holder.clone(), provider: u32::MAX }).unwrap(),
-        );
+        let wire = w::Ask::SignIn(w::AskSignIn { holder: holder.clone(), provider: u32::MAX });
         assert_eq!(
             ask(wire, &f::models(), &limits),
             Ok(p::Ask::AccountSignIn { holder: expected, provider: u32::MAX })
         );
-        let wire =
-            w::Ask::SignOut(w::AskSignOut::new(&limits, w::AskSignOutParts { holder, source: u32::MAX }).unwrap());
+        let wire = w::Ask::SignOut(w::AskSignOut { holder, source: u32::MAX });
         assert_eq!(ask(wire, &f::models(), &limits), Ok(p::Ask::AccountSignOut { holder: expected, source: u32::MAX }));
     }
 }
@@ -284,17 +259,11 @@ fn project_records_reach_people_with_their_whole_name_and_policy() {
     let limits = f::wire();
     for (record, expected) in [
         (
-            w::Ask::Rename(
-                w::Rename::new(&limits, w::RenameParts { project: 3, name: b"Tally".as_slice().into() })
-                    .expect("rename"),
-            ),
+            w::Ask::Rename(w::Rename { project: 3, name: b"Tally".as_slice().into() }),
             p::Ask::Rename { project: 3, name: "Tally".into() },
         ),
         (
-            w::Ask::MakeProject(
-                w::MakeProject::new(&limits, w::MakeProjectParts { name: b"Tally".as_slice().into(), policy: 7 })
-                    .expect("make"),
-            ),
+            w::Ask::MakeProject(w::MakeProject { name: b"Tally".as_slice().into(), policy: 7 }),
             p::Ask::MakeProject { name: "Tally".into(), policy: 7 },
         ),
     ] {
@@ -307,9 +276,7 @@ fn remove_project_decodes_to_the_people_ask() {
     let limits = f::wire();
     for project in [0, 3, u32::MAX] {
         for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
-            let value = w::Ask::RemoveProject(
-                w::RemoveProject::new(&limits, w::RemoveProjectParts { project, grace }).expect("project"),
-            );
+            let value = w::Ask::RemoveProject(w::RemoveProject { project, grace });
             assert_eq!(ask(value.clone(), &f::models(), &limits), Ok(p::Ask::RemoveProject { project, grace }));
             let mut exchange = Exchange::new();
             exchange.send(crate::Message::Request(f::keyed(
@@ -335,9 +302,7 @@ fn set_visibility_reaches_the_people_child_as_sent() {
     let limits = f::wire();
     for project in [0, 3, u32::MAX] {
         for public in [false, true] {
-            let value = w::Ask::SetVisibility(
-                w::SetVisibility::new(&limits, w::SetVisibilityParts { project, public }).expect("project"),
-            );
+            let value = w::Ask::SetVisibility(w::SetVisibility { project, public });
             assert_eq!(ask(value.clone(), &f::models(), &limits), Ok(p::Ask::SetVisibility { project, public }));
             let mut exchange = Exchange::new();
             exchange.send(crate::Message::Request(f::keyed(
@@ -359,41 +324,30 @@ fn set_visibility_reaches_the_people_child_as_sent() {
 }
 
 fn tasks_scope() -> w::NoteScope {
-    w::NoteScope::Tasks(w::NoteScopeTasks::new(&f::wire(), w::NoteScopeTasksParts { project: 3 }).unwrap())
+    w::NoteScope::Tasks(w::NoteScopeTasks { project: 3 })
 }
 
 #[test]
 fn an_edit_naming_tasks_is_refused() {
     let limits = f::wire();
-    let value = w::Ask::EditNote(
-        w::EditNote::new(
-            &limits,
-            w::EditNoteParts {
-                project: 3,
-                note: 8,
-                scope: tasks_scope(),
-                revision: f::revision(1),
-                description: Box::new([]),
-                body: Box::new([]),
-                references: skein_lib::List::with_capacity(0),
-            },
-        )
-        .unwrap(),
-    );
-    assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::Path::EditNoteScope }));
+    let value = w::Ask::EditNote(w::EditNote {
+        project: 3,
+        note: 8,
+        scope: tasks_scope(),
+        revision: f::revision(1),
+        description: Box::new([]),
+        body: Box::new([]),
+        references: skein_lib::List::with_capacity(0),
+    });
+    assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::paths::EDIT_NOTE_SCOPE }));
 }
 
 #[test]
 fn a_deletion_naming_tasks_is_refused() {
     let limits = f::wire();
-    let value = w::Ask::DeleteNote(
-        w::DeleteNote::new(
-            &limits,
-            w::DeleteNoteParts { project: 3, note: 8, scope: tasks_scope(), revision: f::revision(1) },
-        )
-        .unwrap(),
-    );
-    assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::Path::DeleteNoteScope }));
+    let value =
+        w::Ask::DeleteNote(w::DeleteNote { project: 3, note: 8, scope: tasks_scope(), revision: f::revision(1) });
+    assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::paths::DELETE_NOTE_SCOPE }));
 }
 
 #[test]
@@ -409,8 +363,10 @@ fn talk_and_leave_from_the_link_decode_to_the_people_acts() {
         (c::Ask::Leave { project: 3, task: 8 }, p::Ask::Leave { project: 3, task: 8 }),
     ] {
         let record = jig_client_protocol_link::translate::asks::ask(&source, &limits).unwrap();
-        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let record = w::Ask::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(ask(record.clone(), &f::models(), &limits), Ok(expected));
     }

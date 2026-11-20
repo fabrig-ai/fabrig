@@ -1194,6 +1194,7 @@ fn past_until_it_draws_off_and_asks_a_wake() {
             f::tree_limits().bindings,
             f::domain_limits().forge.checks,
             f::FORGE,
+            f::tree_limits().text_per_node,
         ),
         f::PROJECT,
         &mut times,

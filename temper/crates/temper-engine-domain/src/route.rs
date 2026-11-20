@@ -464,6 +464,7 @@ fn route_core_with_job(
                 parts::saved(domain, &record);
                 forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
+                forge_route::revision_saved(domain, env, decision, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
                 limit_settings::saved(domain, env, decision, &record);
@@ -877,6 +878,20 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
     let mut out = Queue::uncapped();
+    // Task saves keep the projection current during a gather and at merge
+    // judgement. Refresh restored projections before reads start, and the
+    // subject at each change step (gates.md, 1, Valid at a spec revision).
+    if let forge::Event::ReadAfresh = &event {
+        for task in domain.forge.change_tasks() {
+            if let Some(row) = domain.core.tasks.task(task) {
+                domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);
+            }
+        }
+    } else if let forge::Event::StepChange { task, .. } = &event
+        && let Some(row) = domain.core.tasks.task(*task)
+    {
+        domain.forge.refresh_spec_revision(*task, row.revisions.spec, &mut out);
+    }
     if let forge::Event::PersonOf { .. } = &event {
         let party = domain.core.people.sole_owner();
         forge::step(&mut domain.forge, &environment_forge(env), forge::Event::Owner { party }, &mut out);

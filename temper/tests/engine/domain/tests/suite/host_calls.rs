@@ -1067,7 +1067,7 @@ fn reference_person_settings() -> Vec<jig_domain_core::settings::Item> {
     else {
         panic!("settings change")
     };
-    jig_protocol_engine_clients::translate::settings::items(change.items().into(), &[], &limits.settings)
+    jig_protocol_engine_clients::translate::settings::items(change.items.as_ref().into(), &[], &limits.settings)
         .expect("reference core settings")
         .into_vec()
 }

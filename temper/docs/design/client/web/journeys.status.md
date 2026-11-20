@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-20. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 
 
@@ -84,8 +84,6 @@ is current too (`../tui/journeys.status.md`).
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
-  - 9: `project-landing` has its `setup` and no `walk` of version 2, so it is still walked on a box.
-  - 9: `chat-draft` has no `walk`, `scripts.json` or pages.
 - **Departs:**
   - 5.1: a `--redact` TEXT that is empty or starts `--` is a table refusal with usage, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
   - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.

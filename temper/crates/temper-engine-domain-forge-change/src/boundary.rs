@@ -58,12 +58,22 @@ pub struct Gate {
     pub eager: bool,
 }
 
-/// A gate's current verdict and the head it names.
+/// A gate's verdict at its head and asked spec revision
+/// (temper/docs/design/domain/forge/change/gates.md, 1, Valid at a spec revision).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct GateReport {
     pub number: u64,
     pub head: Commit,
     pub status: Status,
+    pub revision: u64,
+}
+
+impl GateReport {
+    /// Only agent reviews judge a spec revision; approvals and checks keep their validity.
+    #[must_use]
+    pub fn at_revision(self, kind: GateKind, revision: u64) -> bool {
+        kind != GateKind::Agent || self.revision == revision
+    }
 }
 
 /// Failures to obtain a gate's verdict at the change's last head.
@@ -387,6 +397,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// The change task's current `revisions.spec`, projected by the root.
+    pub revision: u64,
     pub wait: Wait,
     /// The head selected once from the source (temper/docs/design/domain/forge/change/opened.md, 4).
     pub taken: Option<Commit>,
@@ -649,15 +661,28 @@ pub struct Questions {
     pub waiting: Box<[Waiting]>,
     /// The newest answers, kept oldest first for later work.
     pub answered: Box<[Answered]>,
+    /// The newest amendments, kept oldest first under either question route.
+    pub amended: Box<[Amended]>,
 }
 
 /// Answers kept for later work at most.
 pub const ANSWERS_KEPT: usize = 16;
+/// Amendments kept for later work at most.
+pub const AMENDMENTS_KEPT: usize = 16;
+
+/// An amendment kept for later work (domain/forge/change/questions.md, 1,
+/// Its amendments, kept for later work).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Amended {
+    pub revision: u64,
+    pub reason: Box<[u8]>,
+}
 
 /// A ruling kept for later work (temper/docs/design/domain/forge/change/questions.md, 1,
 /// Its answers, kept for later work).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Answered {
+    pub revision: u64,
     pub asker: u64,
     pub number: u64,
     pub line: Box<[u8]>,

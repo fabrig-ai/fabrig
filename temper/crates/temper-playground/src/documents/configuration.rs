@@ -246,7 +246,7 @@ pub fn story_a(document: Value) -> Configuration {
     world.jig_over("tasks.parameters", 5_u64);
     world.jig_over("tasks.contract_choices", 2_u64);
     world.jig_over("tasks.result_bytes", 128_u64);
-    world.jig_over("tasks.spec_bytes", 187_u64);
+    world.jig_over("tasks.spec_bytes", 2048_u64);
     world.jig_over("tasks.tasks", 4_u64);
     world.jig_over("tasks.tree_tasks", 6_u64);
     world.jig_over("views.runs", 1_u64);

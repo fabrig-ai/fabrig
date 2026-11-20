@@ -127,6 +127,38 @@ fn tui_walks_print_frames_and_assets_under_the_tui_root() {
 }
 
 #[test]
+fn an_owned_forge_link_prints_the_same_bytes_twice() {
+    let f = Fixture::new();
+    f.journey(
+        "owned-link",
+        r#"walk 2
+web press link "Set up temper"
+web press link "Run on this machine"
+web press button "Run on this machine"
+web press button "Continue with ChatGPT"
+web press button "Create your project"
+web see "work/hello is in Hello"
+web reload "/projects/1"
+web see "work/hello \xe2\x86\x97"
+web mark
+"#,
+    );
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["owned-link"]));
+    ok(&f.print(&b, &["owned-link"]));
+    let first = bytes(&a);
+    let second = bytes(&b);
+    assert_eq!(first.keys().collect::<Vec<_>>(), second.keys().collect::<Vec<_>>());
+    let page = Path::new(WEB).join("owned-link/01.html");
+    let html = String::from_utf8_lossy(&first[&page]);
+    assert!(html.contains("http://127.0.0.1:10002/user/oauth2/temper?redirect_to=%2Fwork%2Fhello"));
+    for (path, bytes) in first {
+        assert!(second[&path].eq(&bytes), "bytes differ at {}", path.display());
+    }
+}
+
+#[test]
 fn tui_prints_twice_have_identical_bytes() {
     let f = Fixture::new();
     f.tui_journey("t", T);
@@ -153,6 +185,94 @@ fn tui_keys_link_the_marked_frame_to_the_next_page() {
     let last = fs::read_to_string(out.join(TUI).join("t/02.html")).expect("last");
     assert!(!last.contains("data-journey-key"));
     assert!(fs::read_to_string(out.join(TUI).join("t/02.txt")).expect("theme frame").contains("Theme"));
+}
+
+#[test]
+fn a_delegated_question_walks_its_choices_and_prints_repeatably() {
+    let f = Fixture::new();
+    f.journey("project", W);
+    f.tui_journey(
+        "question",
+        r#"walk 2
+after project
+tui approve
+tui see "Ask for a change, or ask temper."
+tui key paste "/change Choose a report format"
+tui key enter
+tui see "A report format question waits for you."
+tui see "report-format: text or table?"
+tui key paste "/new"
+tui key enter
+tui see "n to walk"
+tui see "/chats 1"
+tui see "Choose a report format: report-format"
+tui mark
+tui key char "n"
+tui see "Next"
+tui mark
+tui key enter
+tui see "Nothing else needs you."
+tui mark
+"#,
+    );
+    // The playground's first chat is T1; its delegated goal is T2.
+    fs::write(
+        f.root().join(TUI).join("question/scripts.json"),
+        r#"{
+  "asked": [{
+    "cue": "Choose a report format",
+    "turns": [{
+      "lines": [{"call": "goal", "arguments": {"words": "Ask which report format."}}],
+      "finish": "tool_calls", "tokens": 32
+    }, "A report format question waits for you."]
+  }],
+  "cued": [{
+    "cue": "Ask which report format.",
+    "turns": [{
+      "lines": [{"call": "message", "arguments": {
+        "target": 1, "form": "question",
+        "words": "report-format: text or table?\nChoice: Text (recommended)\nChoice: Table"
+      }}], "finish": "tool_calls", "tokens": 32
+    }, {
+      "lines": [{"call": "wait", "arguments": {}}],
+      "finish": "tool_calls", "tokens": 16
+    }, {
+      "lines": [{"call": "finish", "arguments": {
+        "form": "report", "text": "The report format is agreed.", "fields": {}
+      }}], "finish": "tool_calls", "tokens": 16
+    }],
+    "inputs": [{"cue": "Text", "turn": 2}, {"cue": "Table", "turn": 2},
+               {"cue": "Message ", "turn": 1}, {"cue": "", "turn": 0}]
+  }],
+  "otherwise": ["No scripted request matched."]
+}"#,
+    )
+    .expect("question scripts");
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["question"]));
+    ok(&f.print(&b, &["question"]));
+    assert_eq!(bytes(&a), bytes(&b), "both prints have the same bytes, including assets");
+    let pages = bytes(&a.join(TUI).join("question"));
+    assert_eq!(
+        pages.keys().map(|p| p.to_str().expect("name")).collect::<Vec<_>>(),
+        ["01.html", "01.txt", "02.html", "02.txt", "03.html", "03.txt"]
+    );
+    let launchpad = String::from_utf8_lossy(&pages[Path::new("01.txt")]);
+    assert!(launchpad.contains("n to walk"), "{launchpad}");
+    let launchpad_html = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(launchpad_html.contains("data-journey-key=\"n\" data-journey-next=\"02.html\""), "{launchpad_html}");
+    let prompt = String::from_utf8_lossy(&pages[Path::new("02.txt")]);
+    assert!(prompt.contains("report-format: text or table?"), "{prompt}");
+    assert!(prompt.contains("❯ 1. Text"), "the recommended choice is active: {prompt}");
+    assert!(prompt.contains("2. Table"), "{prompt}");
+    let prompt_html = String::from_utf8_lossy(&pages[Path::new("02.html")]);
+    assert!(prompt_html.contains("data-journey-key=\"enter\" data-journey-next=\"03.html\""), "{prompt_html}");
+    let answered = String::from_utf8_lossy(&pages[Path::new("03.txt")]);
+    assert!(answered.contains("Nothing else needs you."), "{answered}");
+    assert!(!answered.contains("Needs you"), "{answered}");
+    assert!(!answered.contains("n to walk"), "{answered}");
+    assert!(!String::from_utf8_lossy(&pages[Path::new("03.html")]).contains("data-journey-key"));
 }
 
 #[test]
@@ -519,6 +639,122 @@ fn usage_refuses_unmoved_names_and_output_inside_either_root_even_through_links(
         assert_eq!(answer.code, 2, "{}: {answer:?}", out.display());
         assert_eq!(answer.stdout, "");
     }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "the owned project's walk and box-form model scripts stay together")]
+fn an_owned_projects_chat_and_draft_goal_print_repeatably() {
+    let f = Fixture::new();
+    f.journey(
+        "owned-chat",
+        r#"walk 2
+web press link "Set up temper"
+web press link "Run on this machine"
+web press button "Run on this machine"
+web press button "Continue with ChatGPT"
+web press button "Create your project"
+web see "work/hello is in Hello"
+web reload "/projects/1"
+web see "Hello is ready."
+web reload "/chats"
+web press link "+ New chat"
+web see "Say what you want; the agent works in work/hello."
+web mark
+web input textbox "What do you want done?" "first question"
+web press button "Send"
+web see "First scripted reply."
+web press button "Split"
+web press button "Write it up from this chat"
+web see "Away mode keeps decisions for the person's return."
+web see "I wrote the Away mode draft."
+web press button "Chat"
+web input textbox "Message" "second question"
+web press button "Send"
+web see "Second scripted reply."
+web mark
+web press button "Split"
+web see "A running goal keeps going."
+web press button "Start goal\xe2\x80\xa6"
+web see "Start a goal from away-mode.md"
+web mark
+web press button "Start goal"
+web see "The owned project's goal wrote its report."
+web see "Nothing remains in this demonstration."
+web see "landed"
+web mark
+web press link "Draft"
+web see "First scripted reply."
+web see "Second scripted reply."
+web mark
+"#,
+    );
+    // Hello is project 1: its first chat is T2, its draft is note 3
+    // (revised to revision 2), and that draft starts goal T3.
+    fs::write(
+        f.root().join(WEB).join("owned-chat/scripts.json"),
+        r##"{
+  "asked": [{
+    "cue": "first question",
+    "turns": ["First scripted reply."]
+  }, {
+    "cue": "second question",
+    "turns": [{
+      "lines": [{"call": "note", "arguments": {
+        "scope": {"kind": "goal", "project": 1, "goal": 2},
+        "name": 3, "recalled": 1,
+        "description": "Away mode",
+        "body": "# Away mode\n\nAway mode keeps decisions for the person's return.\n\nA running goal keeps going.\n"
+      }}], "finish": "tool_calls", "tokens": 64
+    }, "Second scripted reply."]
+  }],
+  "cued": [{
+    "cue": "Write this up as a draft beside us.",
+    "turns": [{
+      "lines": [{"call": "note", "arguments": {
+        "scope": {"kind": "goal", "project": 1, "goal": 2},
+        "description": "Away mode",
+        "body": "# Away mode\n\nAway mode keeps decisions for the person's return.\n"
+      }}], "finish": "tool_calls", "tokens": 64
+    }, "I wrote the Away mode draft."]
+  }, {
+    "cue": "away-mode\n\nImplement this draft.",
+    "turns": [{
+      "lines": [{"call": "note", "arguments": {
+        "scope": {"kind": "goal", "project": 1, "goal": 3},
+        "description": "report: The owned project's goal wrote its report.",
+        "body": "I wrote this report in Hello.\n\nLeft: Nothing remains in this demonstration.\nRisk: This scripted model does not change a repository."
+      }}], "finish": "tool_calls", "tokens": 64
+    }, {
+      "lines": [{"call": "finish", "arguments": {
+        "form": "report", "text": "The owned project's goal wrote its report.", "fields": {}
+      }}], "finish": "tool_calls", "tokens": 16
+    }]
+  }],
+  "otherwise": ["No scripted request matched."]
+}"##,
+    )
+    .expect("model scripts");
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["owned-chat"]));
+    ok(&f.print(&b, &["owned-chat"]));
+    assert_eq!(bytes(&a), bytes(&b), "both prints have the same bytes, including assets");
+    let pages = bytes(&a.join(WEB).join("owned-chat"));
+    let new_chat = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(new_chat.contains("Say what you want; the agent works in work/hello."), "{new_chat}");
+    let chat = String::from_utf8_lossy(&pages[Path::new("02.html")]);
+    assert!(chat.contains("First scripted reply."), "{chat}");
+    assert!(chat.contains("Second scripted reply."), "{chat}");
+    let sheet = String::from_utf8_lossy(&pages[Path::new("03.html")]);
+    assert!(sheet.contains("Start a goal from away-mode.md"), "{sheet}");
+    assert!(sheet.contains("A running goal keeps going."), "{sheet}");
+    let goal = String::from_utf8_lossy(&pages[Path::new("04.html")]);
+    assert!(goal.contains("The owned project&#39;s goal wrote its report."), "{goal}");
+    assert!(goal.contains("Nothing remains in this demonstration."), "{goal}");
+    assert!(goal.contains("data-journey-next=\"05.html\""), "Draft links back to the chat: {goal}");
+    let returned = String::from_utf8_lossy(&pages[Path::new("05.html")]);
+    assert!(returned.contains("First scripted reply."), "{returned}");
+    assert!(returned.contains("Second scripted reply."), "{returned}");
 }
 
 #[test]

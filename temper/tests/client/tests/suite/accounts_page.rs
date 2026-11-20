@@ -78,7 +78,7 @@ fn row_sign_in_visit(front: &mut Joint, root: &mut Root) {
 #[test]
 fn accounts_row_opens_before_the_answer_and_points_once_without_leaving() {
     let (mut front, mut root) = row_sign_in_press();
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert_eq!(front.tabs, [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }]);
     assert!(
         root.person()
             .pages()
@@ -96,7 +96,7 @@ fn accounts_row_opens_before_the_answer_and_points_once_without_leaving() {
     row_sign_in_visit(&mut front, &mut root);
     accounts::settle(&mut front, &mut root);
     let expected = [
-        d::Tab::Open { provider: accounts::PROVIDER },
+        d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } },
         d::Tab::Point { to: b"https://issuer/visit".as_slice().into() },
     ];
     assert_eq!(front.tabs, expected);
@@ -113,7 +113,10 @@ fn accounts_row_refused_answer_closes_the_tab_without_leaving() {
     let (mut front, mut root) = row_sign_in_press();
     row_sign_in_visit(&mut front, &mut root);
     accounts::refused_answer(&mut front, &mut root);
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert_eq!(
+        front.tabs,
+        [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }, d::Tab::Close]
+    );
     assert_eq!(root.person().pages().address(), &Address::Accounts);
     assert_eq!(front.shows.len(), 0);
     assert_eq!(front.leaves.len(), 0);
@@ -124,7 +127,7 @@ fn accounts_row_refused_tab_keeps_its_link_without_pointing() {
     accounts::event(&mut front, &mut root, d::Event::TabRefused.into());
     row_sign_in_visit(&mut front, &mut root);
     accounts::settle(&mut front, &mut root);
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert_eq!(front.tabs, [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }]);
     let drawn = view(&root);
     assert!(
         drawn

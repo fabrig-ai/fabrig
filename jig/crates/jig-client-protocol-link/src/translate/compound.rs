@@ -4,13 +4,14 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 pub(super) fn encode(project: u32, values: &List<c::Operation>, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     let mut records = List::with_capacity(values.len());
     let mut size = 0_u32;
     for value in values {
         let record = operation(value, limits)?;
-        size = size.checked_add(record.measure()).ok_or(problem())?.checked_add(4).ok_or(problem())?;
+        size = size.checked_add(record.measure(limits)?).ok_or(problem())?.checked_add(4).ok_or(problem())?;
         if size > limits.compound_operations {
             return Err(problem());
         }
@@ -18,10 +19,10 @@ pub(super) fn encode(project: u32, values: &List<c::Operation>, limits: &w::Limi
     }
     let mut out = Writer::new(skein_lib::length::usize_of(size));
     for record in records.into_boxed() {
-        out.put(&record.measure().to_be_bytes()).expect("measured piece");
-        record.encode(&mut out).expect("measured operation");
+        out.put(&record.measure(limits)?.to_be_bytes()).expect("measured piece");
+        record.write(limits, &mut out).expect("measured operation");
     }
-    Ok(w::Ask::Compound(w::Compound::new(limits, w::CompoundParts { project, operations: out.finish() })?))
+    Ok(w::Ask::Compound(w::Compound { project, operations: out.finish() }))
 }
 fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w::Problem> {
     let ask = match value.clone() {
@@ -76,13 +77,13 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
     })
 }
 pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::Problem> {
-    let mut reader = Reader::new(value.operations());
+    let mut reader = Reader::new(&value.operations);
     let mut count = 0_u32;
     while piece(&mut reader)?.is_some() {
         count = count.checked_add(1).ok_or(problem())?;
     }
     let mut operations = List::with_capacity(count);
-    let mut reader = Reader::new(value.operations());
+    let mut reader = Reader::new(&value.operations);
     while let Some(bytes) = piece(&mut reader)? {
         let record = w::Operation::decode(limits.receiving(), &mut Reader::new(&bytes))?;
         let ask = match record {
@@ -139,10 +140,10 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
         };
         operations.push(operation).expect("same capacity");
     }
-    Ok(c::Ask::Compound { project: value.project(), operations })
+    Ok(c::Ask::Compound { project: value.project, operations })
 }
 fn problem() -> w::Problem {
-    w::Problem { path: w::Path::CompoundOperations, reason: skein_codec::Reason::Bound }
+    w::Problem { path: w::paths::COMPOUND_OPERATIONS, reason: skein_codec::Reason::Bound }
 }
 
 fn piece(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {

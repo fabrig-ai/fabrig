@@ -3439,6 +3439,12 @@ fn adoption_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &T
 pub fn forge_progress(root: &mut dyn Routing, env: &Env<Limits>) {
     let Address::ConnectForge { forge } = root.pages().address() else { return };
     let Some(number) = crate::forge::connect::following(*forge, root.forge()) else { return };
+    forge_ended(root, env, number);
+}
+
+/// A GitHub way's watch replaces a connection page even when the way stopped.
+pub fn forge_ended(root: &mut dyn Routing, env: &Env<Limits>, number: u16) {
+    let Address::ConnectForge { .. } = root.pages().address() else { return };
     root.event(env, Event::Went { address: Address::Forges });
     root.pages_mut().forges_opened = Some(number);
     root.request(env, Request::Replace { address: Address::Forges });

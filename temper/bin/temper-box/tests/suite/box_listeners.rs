@@ -1,5 +1,6 @@
 //! The real box's first block and held socket (temper/docs/design/protocol/setup/box.md, 2, and temper/docs/design/protocol/setup/testing.md, 4).
 use box_link::command;
+use jig_client_protocol_wire::Record as _;
 use skein_world::{Deadline, Expired};
 use std::{
     fs,
@@ -46,10 +47,12 @@ fn used(link: &[u8]) -> std::io::Result<bool> {
     let secret = base64::decode(Alphabet::Url, text.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("fixture encoding");
     let limits = jig_protocol_config_fixtures::small().clients.wire;
-    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-        .expect("link record");
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("record length"));
-    record.encode(&mut out).expect("measured record");
+    let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("record length"),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured record");
     let body = out.finish();
     let address = box_link::address(link);
     let mut socket = Socket::connect("spent link", support::WITHIN, address, Scope::Owned)?;

@@ -9,6 +9,11 @@
   change 7115].
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
+- **Not yet:** 1, what every agent delegate is given: a producer's words
+  carry no context, and the others' name no amendment [in flight: change
+  6059].
+- **Not yet:** 1, an amendment reaches a live repair or resolution [in
+  flight: change 6068].
 - **Not yet:** 2, step 1: an early start merges its dependencies' branch
   heads as last read, not their last checked heads [in flight: change
   4064].
