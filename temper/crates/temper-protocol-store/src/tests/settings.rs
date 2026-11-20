@@ -543,7 +543,9 @@ fn repair_settings_with_the_whole_named_llm_round_trip() {
     let row = forge::Stored::Setting(d::SettingRow {
         key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
         edit: d::Edit::Set(d::SizedValue {
-            size: d::landing_record(&landing).measure(),
+            size: d::landing_record(&landing)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
             value: d::Value::Landing(landing),
         }),
     });

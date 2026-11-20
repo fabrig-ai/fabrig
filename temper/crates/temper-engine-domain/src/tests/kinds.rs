@@ -2127,7 +2127,9 @@ fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (
     let mut store = resume_fixture::StartStore::new();
     if let Some(landing) = landing {
         let value = settings::SizedValue {
-            size: settings::landing_record(&landing).measure(),
+            size: settings::landing_record(&landing)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
             value: settings::Value::Landing(landing),
         };
         let row = Record::Forge {
@@ -2146,7 +2148,9 @@ fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (
 }
 fn keep_repairs(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
     let value = settings::SizedValue {
-        size: settings::landing_record(&landing).measure(),
+        size: settings::landing_record(&landing)
+            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings"),
         value: settings::Value::Landing(landing),
     };
     domain.forge.keep_settings(

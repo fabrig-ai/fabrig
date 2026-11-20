@@ -314,7 +314,13 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "settings edits own their typed value, including named repair settings")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "settings edits own their typed value, including named repair settings"
+    )
+)]
 pub enum Edit {
     Set(SizedValue),
     Remove,
