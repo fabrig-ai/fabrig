@@ -1,6 +1,7 @@
 //! Clearing, many ids and durable waiting, in judged-run order (red-findings.md, 2, 5–7).
 use super::*;
 mod judging;
+pub(crate) mod repairs;
 
 fn next(d: &mut Domain, mut failing: p::Failures, originally: &[&[u8]]) {
     if let p::Failures::Tests(ids) = &mut failing {

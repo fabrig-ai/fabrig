@@ -60,9 +60,9 @@ fn landing() -> s::ProjectLanding {
     }
 }
 fn world() -> (World, engine::Assignment) {
-    world_with(true, false)
+    world_with(true, false, 4)
 }
-fn world_with(closer_kind: bool, prior: bool) -> (World, engine::Assignment) {
+fn world_with(closer_kind: bool, prior: bool, seeded_findings: u32) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -73,6 +73,7 @@ fn world_with(closer_kind: bool, prior: bool) -> (World, engine::Assignment) {
         StoryLimits {
             kinds: true,
             goal_closer: true,
+            delegation_depth: Some(5),
             tier: Some(tier_runs::Tier {
                 wait: temper_engine_domain_forge_change::Wait::Landed,
                 ..tier_runs::Tier::default()
@@ -104,7 +105,7 @@ fn world_with(closer_kind: bool, prior: bool) -> (World, engine::Assignment) {
         }),
     };
     let mut rows = vec![Record::Forge { row: Box::new(forge::Stored::Setting(setting)) }];
-    rows.extend((1..=4).map(|number| {
+    rows.extend((1..=seeded_findings).map(|number| {
         let mut row = finding(number);
         if prior && number == 1 {
             row.repair = Some(forge::FindingRepair {
@@ -145,6 +146,8 @@ fn world_with(closer_kind: bool, prior: bool) -> (World, engine::Assignment) {
     batch[0].label = 3;
     batch[0].flags.conversation = false;
     batch[0].flags.ended_by = people::EndedBy::Standing;
+    // Leave depth for the repair goal, its closer and the closer's landing change.
+    batch[0].authority.delegation.depth = 4;
     batch[0].budget = people::Budget::AsAllowed { cap: Some(100) };
     let triager = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
     tiers::baseline(&mut world);
@@ -317,7 +320,7 @@ fn assert_routed(world: &World, goal: u64) {
 
 #[test]
 fn an_owner_repairs_as_the_triagers_delegate_and_keeps_prior_failing_ids_until_judged() {
-    let (mut world, triager) = world_with(true, true);
+    let (mut world, triager) = world_with(true, true, 4);
     let before = row(&world, 1).repair.as_ref().expect("repair story fixture").failing.clone();
     let project = 1;
     world.send(engine::Event::Party(engine::PartyInput::Application {
@@ -391,7 +394,7 @@ fn repair_refuses_no_standing_triager_permission_funding_and_jigs_making_without
     assert_eq!(row(&world, 1), &before);
     assert!(task(&world, triager.task).delegates.is_empty());
     world.close();
-    let (mut world, triager) = world_with(false, false);
+    let (mut world, triager) = world_with(false, false, 4);
     let before = row(&world, 1).clone();
     let numbers = task(&world, triager.task).numbers;
     let answer =
@@ -404,7 +407,7 @@ fn repair_refuses_no_standing_triager_permission_funding_and_jigs_making_without
 }
 
 #[test]
-fn two_live_repair_goals_refuse_a_third_call_naming_their_distinct_numbers() {
+fn two_live_repair_goals_refuse_a_third_until_one_ends() {
     let (mut world, triager) = world();
     let first =
         world.scripted_call(&triager, 180, call(&triager, r#"{"act":"repair","numbers":[1],"words":"fix one"}"#).tool);
@@ -424,5 +427,112 @@ fn two_live_repair_goals_refuse_a_third_call_naming_their_distinct_numbers() {
     );
     assert_eq!(row(&world, 3), &before);
     assert_eq!(task(&world, triager.task).delegates.as_ref(), &[first, second]);
+
+    let goal = assignment(&mut world, first);
+    goal_landing::finish_goal(&mut world, &goal);
+    assert_eq!(row(&world, 1).repair.as_ref().expect("first repair").until, None);
+    assert!(row(&world, 2).repair.as_ref().expect("second repair").until.is_some());
+    let third = repair(&mut world, &triager, 183, 3);
+    let third = made(&third);
+    assert!(![first, second].contains(&third));
+    assert_eq!(row(&world, 3).goal, Some(third));
+    assert!(row(&world, 3).repair.as_ref().expect("third repair").until.is_some());
+    world.close();
+}
+
+fn assignment(world: &mut World, goal: u64) -> engine::Assignment {
+    until(world, LANDING_TICKS, "repair goal assigned", |world| world.assigned.iter().any(|run| run.task == goal));
+    world.assigned.iter().find(|run| run.task == goal).expect("repair goal assignment").clone()
+}
+
+fn repair(world: &mut World, triager: &engine::Assignment, name: u64, number: u32) -> engine::CallAnswer {
+    let input = format!(r#"{{"act":"repair","numbers":[{number}],"words":"Fix the remaining failure."}}"#);
+    world.scripted_call(triager, name, call(triager, &input).tool)
+}
+
+fn assert_back(world: &World, triager: u64, number: u32, goal: u64, attempt: u8, run: u64) {
+    let back = row(world, number);
+    assert_eq!((back.state, back.goal, back.hander, back.cleared), (forge::FindingState::New, None, None, None));
+    let repair = back.repair.as_ref().expect("returned repair");
+    assert_eq!((repair.goal, repair.attempts, repair.until, repair.judging), (goal, attempt, None, None));
+    assert_eq!(repair.failing.as_ref(), [Box::from(b"suite.alpha".as_slice())]);
+    let why = format!("repair goal {goal} ended and slow run {run} still fails 1 of its tests");
+    assert_eq!(back.why.as_deref(), Some(why.as_bytes()));
+    let back_line = format!("Back: {why}");
+    let news = news(world, triager);
+    assert!(
+        news.iter().any(|word| {
+            core::str::from_utf8(&word.words).expect("news is text").lines().nth(2) == Some(back_line.as_str())
+        }),
+        "missing {back_line:?} in {:?}",
+        news.iter().map(|word| String::from_utf8_lossy(&word.words)).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn a_landed_repair_still_red_returns_for_one_retry_then_asks_before_repairing_again() {
+    let (mut world, triager) = world_with(true, false, 0);
+    external_red(&mut world);
+    let filed = findings(&world);
+    let [finding] = filed.as_slice() else { panic!("one red filed by the run") };
+    let number = finding.number;
+    assert_eq!(finding.state, forge::FindingState::New);
+    let first = made(&repair(&mut world, &triager, 180, number));
+    let goal = assignment(&mut world, first);
+    let branch = goal.workspace.repositories[0].push.clone().expect("repair goal branch");
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"partial fix", 1)
+        .expect("repair goal pushed");
+    goal_landing::status(&mut world, head, raw::Check::Passed);
+    goal_closes::park_goal(&mut world, &goal);
+    let closer = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge::Stored::Closer(row) if row.goal == first => Some(row.task),
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .unwrap_or_else(|| panic!("repair goal should make its closer: {:?}", task(&world, first).phase));
+    let landing = goal_closer::wait_landing(&mut world, closer);
+    until(&mut world, LANDING_TICKS, "repair goal ended at its landing", |world| {
+        goal_landing::ended(world, first).is_some()
+            && row(world, number).repair.as_ref().expect("landed repair").until.is_none()
+    });
+    assert_eq!(tier(&world).record.last_run, Some(2), "goal ends before the covering run is judged");
+    let merge = tier_runs::merge(&world, landing);
+    let waiting = row(&world, number);
+    assert_eq!((waiting.state, waiting.goal), (forge::FindingState::Routed, Some(first)));
+    let pending = waiting.repair.as_ref().expect("waiting repair");
+    assert_eq!(
+        (pending.attempts, pending.until, pending.judging),
+        (1, None, Some(forge::RepairJudging::Landing(merge)))
+    );
+    until(&mut world, RUN_TICKS * 3, "repair landing judged", |world| {
+        tier(world).record.last_run == Some(3) && tier(world).posting.is_none()
+    });
+    assert_back(&world, triager.task, number, first, 1, 3);
+
+    let second = made(&repair(&mut world, &triager, 181, number));
+    assert_ne!(second, first);
+    let words = core::str::from_utf8(&task(&world, second).spec.words).expect("repair spec is text");
+    assert!(
+        words.contains(&format!("Attempt 2 of 2.\nStill failing after goal {first}: 1 of its tests.\n")),
+        "{words}"
+    );
+    let goal = assignment(&mut world, second);
+    let main = goal_branch::branch_tip(&mut world, b"main");
+    goal_landing::finish_goal(&mut world, &goal);
+    assert_eq!(goal_branch::branch_tip(&mut world, b"main"), main, "the retry did not land");
+    assert_eq!(tier(&world).record.last_run, Some(3), "no new run for the unlanded repair");
+    assert_back(&world, triager.task, number, second, 2, 3);
+
+    let answer = repair(&mut world, &triager, 182, number);
+    assert_eq!(
+        temper_engine_smith::answer(&answer).text(),
+        format!("ask before repairing finding 1/{number} again").as_bytes()
+    );
     world.close();
 }

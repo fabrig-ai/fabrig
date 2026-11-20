@@ -221,6 +221,8 @@ pub struct StoryLimits {
     pub forge_tasks: Option<u32>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
+    /// Ceiling for a scripted change tree deeper than the default four levels.
+    pub delegation_depth: Option<u32>,
     pub landing_attempts: Option<u8>,
     pub landing_deployment: Option<Box<[engine::LandingRule]>>,
     pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
@@ -867,7 +869,7 @@ impl World {
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
-                    rules.ceiling.delegation.depth = 4;
+                    rules.ceiling.delegation.depth = timing.delegation_depth.unwrap_or(4);
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
                 policy.ceiling.tools = authority::Tools(tools.unwrap_or(1023));

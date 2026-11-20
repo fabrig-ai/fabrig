@@ -250,7 +250,15 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         return Err(Undecodable::Malformed);
     }
     if why.is_some() != hander.is_some() {
-        return Err(Undecodable::Malformed);
+        // Goal judging returns a landed red with a why but no hander. A
+        // retry keeps that why while routing the finding to the new goal.
+        let returned = match kind {
+            w::FindingKind::Red => why.is_some() && blame.is_some() && repair.is_some(),
+            w::FindingKind::Qa | w::FindingKind::Flake | w::FindingKind::Review | w::FindingKind::Feedback => false,
+        };
+        if !returned {
+            return Err(Undecodable::Malformed);
+        }
     }
     let signature = match signature {
         Some(signature) => Some(decode_signature(signature)?),
