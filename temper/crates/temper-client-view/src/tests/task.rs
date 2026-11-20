@@ -2042,6 +2042,52 @@ fn a_tracked_task_hands_over_to_the_goals_page() {
 }
 
 #[test]
+fn a_goals_terminal_regions_keep_reds_between_landing_and_how_it_runs() {
+    use super::fixtures::goal as g;
+    use temper_client_protocol_wire::v1 as w;
+    let mut side = g::Side::empty();
+    side.reds = Some(g::reds(
+        fixtures::PROJECT,
+        &[g::red(14, b"3 tests fail in nightly since S7 landed", w::FindingState::New)],
+        false,
+    ));
+    let note = c::Note {
+        number: 1,
+        revision: c::Revision { value: 1 },
+        scope: c::NoteScope::Task { project: fixtures::PROJECT, task: g::TASK },
+        description: g::text(b"report: Six tasks landed."),
+        body: g::text(b"The report.\nDecided: Keep the change small."),
+        writer: c::NoteAuthor::Task { task: g::TASK, attempt: 1 },
+        tasks: List::uncapped(),
+        changed: Some(g::NOW),
+        acts: List::uncapped(),
+        cut: false,
+    };
+    let mut task = g::document();
+    task.acts = g::offers(&[c::ActKind::Message]);
+    let root = g::root_with_side(task, g::DONE, g::TOTAL, Some(note), true, side);
+    let view = fixtures::page_view(&root);
+    let tree = view.tree();
+    let header = styled(tree, look::GOAL_HEAD);
+    let mut previous = header;
+    for name in [
+        b"Needs you".as_slice(),
+        b"Report",
+        b"Tasks",
+        b"Landing",
+        b"Reds after landing",
+        b"How it runs",
+        b"Decided by the goal",
+    ] {
+        let at = usize::try_from(fixtures::find(tree, Role::Region, name).expect("goal region").0).unwrap();
+        assert!(at > previous, "{name:?} follows the previous region");
+        previous = at;
+    }
+    let composer = index_of(tree, Role::TextArea, b"Tell Away mode something");
+    assert!(previous < composer);
+}
+
+#[test]
 fn a_goals_terminal_delegate_line_separates_title_and_state() {
     let mut task = f::document();
     task.chip.task = TASK;

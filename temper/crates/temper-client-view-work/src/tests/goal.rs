@@ -17,10 +17,11 @@ use skein_lib::{Env, List, Queue, Time, Wall};
 use skein_ui::{Builder, Role, Run, Style, Tree};
 
 use temper_client_domain::{Address, Domain, Event, Request, pages::Act};
+use temper_client_protocol_wire::v1 as w;
 
 pub(super) use super::fixtures::goal::{
-    DONE, DRAFT_WORDS, MADE, MINUTE, NOW, Side, TASK, TOTAL, document, offers, paused_document, press, question, root,
-    root_with_side, sent_attempt, text,
+    DONE, DRAFT_WORDS, MADE, MINUTE, NOW, Side, TASK, TOTAL, document, offers, paused_document, press, question, red,
+    reds, root, root_with_side, sent_attempt, text,
 };
 
 const UPDATED: Wall = Wall::from_nanos(380 * MINUTE);
@@ -1009,6 +1010,171 @@ fn more_of_its_tasks_past_a_page() {
             let tree = draw(&root, &words).0;
             assert_eq!(contains_run(&tree, b"More of its tasks are not shown."), expected);
         }
+    }
+}
+
+const RED_PROJECT: u32 = 2;
+const RED_TITLE: &[u8] = b"3 tests fail in nightly since S7 landed";
+
+fn red_root(rows: &[w::FindingRowParts], cut: bool) -> Domain {
+    let mut side = Side::empty();
+    side.reds = Some(reds(RED_PROJECT, rows, cut));
+    let mut task = document();
+    task.project = RED_PROJECT;
+    root_with_side(task, DONE, TOTAL, None, false, side)
+}
+
+fn red_lines(tree: &Tree) -> Box<[(Box<[u8]>, bool)]> {
+    let at = named_index(tree, Role::Region, b"Reds after landing");
+    let mut lines = List::uncapped();
+    for index in at..node_end(tree, at) {
+        let node = &tree.nodes()[index];
+        if node.styles.as_slice().contains(&look::GOAL_LINE) {
+            lines
+                .push((fixtures::node_text(tree, index), node.styles.as_slice().contains(&look::GOAL_LINE_NEEDS)))
+                .unwrap();
+        }
+    }
+    lines.into_boxed()
+}
+
+#[test]
+fn reds_after_landing_say_where_each_stands() {
+    let rows = [
+        red(14, RED_TITLE, w::FindingState::New),
+        w::FindingRowParts { goal: Some(830), ..red(13, RED_TITLE, w::FindingState::Routed) },
+        red(12, RED_TITLE, w::FindingState::Routed),
+        red(11, RED_TITLE, w::FindingState::Backlog),
+        w::FindingRowParts {
+            reason: Some(b"No repair planned".as_slice().into()),
+            ..red(10, RED_TITLE, w::FindingState::Dropped)
+        },
+        w::FindingRowParts {
+            cleared: Some(
+                w::FindingClearing::new(
+                    &w::CEILINGS,
+                    w::FindingClearingParts { tier: b"nightly".as_slice().into(), run: 412, at: 23 },
+                )
+                .unwrap(),
+            ),
+            ..red(9, b"1 test fails in nightly since S7 landed", w::FindingState::Routed)
+        },
+    ];
+    let root = red_root(&rows, false);
+    let expected = [
+        ("2/14 3 tests fail in nightly since S7 landed · waiting for triage", true),
+        ("2/13 3 tests fail in nightly since S7 landed · being repaired by goal 830", true),
+        ("2/12 3 tests fail in nightly since S7 landed · being repaired", true),
+        ("2/11 3 tests fail in nightly since S7 landed · in the backlog", true),
+        ("2/10 3 tests fail in nightly since S7 landed · dropped: No repair planned", true),
+        ("2/9 1 test fails in nightly since S7 landed · cleared by nightly run 412", false),
+    ];
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let lines = red_lines(&tree);
+        assert_eq!(lines.len(), expected.len());
+        for ((actual, needs), (text, expected_needs)) in lines.iter().zip(expected) {
+            assert_eq!(actual.as_ref(), text.as_bytes());
+            assert_eq!(*needs, expected_needs);
+        }
+        let landing = named_index(&tree, Role::Region, b"Landing");
+        let reds = named_index(&tree, Role::Region, b"Reds after landing");
+        let how = named_index(&tree, Role::Region, b"How it runs");
+        assert!(landing < reds && reds < how);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the expected task-line joins a supplied cut title")]
+fn reds_after_landing_cut_titles_like_tasks() {
+    for (title, cut) in row_titles() {
+        let root = red_root(&[red(14, title.as_bytes(), w::FindingState::New)], false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            assert_eq!(red_lines(&tree)[0].0.as_ref(), format!("2/14 {cut} · waiting for triage").as_bytes());
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the story supplies the wire's largest UTF-8 title and drop reason")]
+fn red_lines_keep_wire_bounded_titles_and_drop_reasons() {
+    let title = "é".repeat(100);
+    let cut = format!("{}…", "é".repeat(79));
+    let reason = "r".repeat(400);
+    let root = red_root(
+        &[
+            red(14, title.as_bytes(), w::FindingState::New),
+            w::FindingRowParts {
+                reason: Some(reason.as_bytes().into()),
+                ..red(13, RED_TITLE, w::FindingState::Dropped)
+            },
+        ],
+        false,
+    );
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let lines = red_lines(&tree);
+        assert_eq!(lines[0].0.as_ref(), format!("2/14 {cut} · waiting for triage").as_bytes());
+        assert_eq!(
+            lines[1].0.as_ref(),
+            format!("2/13 3 tests fail in nightly since S7 landed · dropped: {reason}").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn cut_reds_say_more_in_facts() {
+    for cut in [true, false] {
+        let root = red_root(&[red(14, RED_TITLE, w::FindingState::New)], cut);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            if cut {
+                assert_eq!(section_text(&tree, b"Reds after landing").as_ref(), b"More of its reds are not shown.");
+            } else {
+                assert!(!contains_run(&tree, b"More of its reds are not shown."));
+            }
+        }
+    }
+}
+
+#[test]
+fn reds_after_landing_are_absent_until_nonempty() {
+    for delivered in [None, Some(false), Some(true)] {
+        let mut side = Side::empty();
+        side.reds = match delivered {
+            Some(cut) => Some(reds(RED_PROJECT, &[], cut)),
+            None => None,
+        };
+        let mut task = document();
+        task.project = RED_PROJECT;
+        let root = root_with_side(task, DONE, TOTAL, None, false, side);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            for node in tree.nodes() {
+                assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Reds after landing"));
+            }
+            assert!(!contains_run(&tree, b"More of its reds are not shown."));
+        }
+    }
+}
+
+#[test]
+fn a_done_goal_owing_reds_stays_done() {
+    let mut task = document();
+    task.project = RED_PROJECT;
+    end(&mut task, c::ChipEnding::Done(c::ResultValue::Report(text(b"Landed the change."))));
+    let baseline = root(task.clone(), DONE, TOTAL, None, false);
+    let mut side = Side::empty();
+    side.reds = Some(reds(RED_PROJECT, &[red(14, RED_TITLE, w::FindingState::New)], false));
+    let owing = root_with_side(task, DONE, TOTAL, None, false, side);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let before = draw(&baseline, &words).0;
+        let after = draw(&owing, &words).0;
+        assert_eq!(red_lines(&after).len(), 1);
+        assert_eq!(heading(&after), heading(&before));
+        assert_eq!(styled_text(&after, look::GOAL_META), styled_text(&before, look::GOAL_META));
+        assert_eq!(section_text(&after, b"Landing"), section_text(&before, b"Landing"));
     }
 }
 

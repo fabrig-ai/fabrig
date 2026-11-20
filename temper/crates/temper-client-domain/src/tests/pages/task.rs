@@ -1497,6 +1497,13 @@ fn goal() -> (Task, f::Fixture) {
     (page, fixture)
 }
 fn opening_goal_reads(out: &mut Queue<Request>) {
+    let Some(Request::Client(Event::Watch { subject, .. })) = out.pop() else {
+        panic!("the goal's findings watch");
+    };
+    assert_eq!(
+        subject,
+        crate::forge::findings::goal_watching(fixtures::PROJECT, f::TASK, &fixtures::limits().forge).unwrap()
+    );
     let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Task { .. }), .. })) = out.pop() else {
         panic!("the goal's requester read");
     };
@@ -1512,8 +1519,8 @@ fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     let (page, mut fixture) = goal();
     let ended = page.ended.as_ref().unwrap();
     assert_eq!(page.shape, Shape::Tracked);
-    // The ended page is followed by the report, own-line and requester handles.
-    assert_eq!(page.next, ended.handle.number + 4);
+    // The ended page is followed by the findings, report, own-line and requester handles.
+    assert_eq!(page.next, ended.handle.number + 5);
     assert_ne!(ended.handle, page.document);
     assert_ne!(ended.handle, page.tree);
     assert_ne!(ended.handle, page.activity);

@@ -21,17 +21,22 @@ pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
 #[must_use]
 pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::FindingsSubject::new(
-        &bounds,
-        w::FindingsSubjectParts {
-            project,
-            filter: w::FindingsFilter::Triage(
-                w::FindingsTriage::new(&bounds, w::FindingsTriageParts { state, mine }).ok()?,
-            ),
-        },
-    )
-    .ok()?;
-    let watching = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Findings(subject) }).ok()?;
+    let filter =
+        w::FindingsFilter::Triage(w::FindingsTriage::new(&bounds, w::FindingsTriageParts { state, mine }).ok()?);
+    filtered_watching(project, filter, &bounds)
+}
+
+/// The findings blamed on a goal, in every state, cleared or not.
+#[must_use]
+pub fn goal_watching(project: u32, goal: u64, limits: &Limits) -> Option<Watchable> {
+    let bounds = wire_limits(limits)?;
+    let filter = w::FindingsFilter::Goal(w::FindingsGoal::new(&bounds, w::FindingsGoalParts { goal }).ok()?);
+    filtered_watching(project, filter, &bounds)
+}
+
+fn filtered_watching(project: u32, filter: w::FindingsFilter, bounds: &w::Limits) -> Option<Watchable> {
+    let subject = w::FindingsSubject::new(bounds, w::FindingsSubjectParts { project, filter }).ok()?;
+    let watching = w::Watching::new(bounds, w::WatchingParts { watch: w::Watch::Findings(subject) }).ok()?;
     Some(Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },

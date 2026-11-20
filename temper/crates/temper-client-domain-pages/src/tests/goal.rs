@@ -12,6 +12,7 @@ use crate::{
 use fixtures::{acts, chat as f};
 use jig_client::{Handle, Readable, Readout, Told, contract as c};
 use skein_lib::{Duration, List, Queue, Time, Wall};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 const OTHER: u64 = 89;
 const LATER: Wall = Wall::from_nanos(10);
 const COUNTS: Counts = Counts { done: 6, total: 9 };
@@ -63,6 +64,149 @@ fn reads(requests: &[Request]) -> Box<[(Handle, c::Read)]> {
         }
     }
     reads.into_boxed()
+}
+fn findings_watch(requests: &[Request], project: u32, goal: u64) -> Handle {
+    for request in requests {
+        if let Request::Client(jig_client::Event::Watch {
+            handle,
+            subject: jig_client::Watchable::Family { scope, record, .. },
+        }) = request
+            && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
+            && let w::Watch::Findings(subject) = watching.watch()
+        {
+            assert_eq!(*scope, c::Scope::Project(project));
+            assert_eq!(subject.project(), project);
+            let w::FindingsFilter::Goal(filter) = subject.filter() else { panic!("goal filter") };
+            assert_eq!(filter.goal(), goal);
+            return *handle;
+        }
+    }
+    panic!("goal findings watch")
+}
+fn open_findings(h: &mut Harness, requests: &[Request]) -> (Handle, skein_lib::Token) {
+    let handle = findings_watch(requests, tracked().project, f::TASK);
+    let mut watching = None;
+    for request in requests {
+        if let Request::Client(jig_client::Event::Watch { handle: watched, subject }) = request
+            && *watched == handle
+        {
+            watching = Some(jig_client::Event::Watch { handle, subject: subject.clone() });
+            break;
+        }
+    }
+    let request = watching.unwrap();
+    let mut out = Queue::uncapped();
+    h.fixture.client.step_unlinked(Time::ZERO, Wall::EPOCH, request, &mut out);
+    for request in &out {
+        if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } } = request {
+            return (handle, *watch);
+        }
+    }
+    panic!("findings opened")
+}
+fn deliver_findings(
+    h: &mut Harness,
+    handle: Handle,
+    watch: skein_lib::Token,
+    project: u32,
+    rows: &[w::FindingRow],
+    cut: bool,
+) {
+    let document = w::Findings::new(
+        &w::CEILINGS,
+        w::FindingsParts {
+            project,
+            rows: List::from_boxed(rows.into()),
+            areas: List::with_capacity(0),
+            triager: None,
+            holder: w::Holder::Party(
+                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: fixtures::PARTY }).unwrap(),
+            ),
+            cut,
+        },
+    )
+    .unwrap();
+    h.fixture.client.step_unlinked(
+        Time::ZERO,
+        Wall::EPOCH,
+        jig_client::Event::Up {
+            up: jig_client::Up::FamilyDelivered {
+                watch,
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::findings(&document),
+                },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    h.event(Event::Told { told: Told::Changed { handle } });
+}
+fn red(number: u32, cleared: bool) -> w::FindingRow {
+    w::FindingRow::new(
+        &w::CEILINGS,
+        w::FindingRowParts {
+            number,
+            kind: w::FindingKind::Red,
+            severity: w::Severity::High,
+            area: None,
+            state: w::FindingState::New,
+            title: b"A red test".as_slice().into(),
+            holder: w::Holder::Party(
+                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: fixtures::PARTY }).unwrap(),
+            ),
+            at: u64::from(number),
+            why: None,
+            hander: None,
+            goal: None,
+            reason: None,
+            cleared: if cleared {
+                Some(
+                    w::FindingClearing::new(
+                        &w::CEILINGS,
+                        w::FindingClearingParts { tier: b"nightly".as_slice().into(), run: 412, at: 23 },
+                    )
+                    .unwrap(),
+                )
+            } else {
+                None
+            },
+        },
+    )
+    .unwrap()
+}
+#[test]
+fn an_ended_goal_watches_its_reds_too() {
+    let mut task = tracked();
+    f::phase(&mut task, c::ChipPhase::Ended);
+    task.chip.details.details.ending = Some(done());
+    let mut h = Harness::new(task.clone());
+    findings_watch(&h.take(), task.project, f::TASK);
+    h.deliver(task);
+    for request in &h.take() {
+        if let Request::Client(jig_client::Event::Watch { subject: jig_client::Watchable::Family { .. }, .. }) = request
+        {
+            panic!("the goal's findings watch stays open");
+        }
+    }
+}
+#[test]
+fn goal_reds_keep_uncleared_first_and_cut_and_reject_another_project() {
+    let mut h = Harness::new(tracked());
+    let requests = h.take();
+    let (handle, watch) = open_findings(&mut h, &requests);
+    assert!(h.goal().reds.is_empty());
+    let rows = [red(19, true), red(18, false), red(17, true), red(16, false)];
+    deliver_findings(&mut h, handle, watch, tracked().project, &rows, true);
+    assert_eq!(h.goal().reds.as_ref(), &[rows[1].clone(), rows[3].clone(), rows[0].clone(), rows[2].clone()]);
+    assert!(h.goal().reds_cut);
+    deliver_findings(&mut h, handle, watch, 99, &[], false);
+    assert_eq!(h.goal().reds.len(), 4);
+    assert!(h.goal().reds_cut);
+    deliver_findings(&mut h, handle, watch, tracked().project, &[], false);
+    assert!(h.goal().reds.is_empty());
+    assert!(!h.goal().reds_cut);
 }
 fn report_read(requests: &[Request]) -> Option<Handle> {
     for (handle, read) in &reads(requests) {
@@ -126,6 +270,7 @@ fn a_tracked_task_reads_its_report_and_line_and_opens_its_inbox() {
     let task = tracked();
     let mut h = Harness::new(task.clone());
     let requests = h.take();
+    findings_watch(&requests, task.project, f::TASK);
     assert_eq!(h.pages.task().unwrap().shape, Shape::Tracked);
     assert!(h.pages.task().unwrap().goal.is_some());
     let report = report_read(&requests).expect("goal report read");
@@ -402,7 +547,8 @@ fn leaving_the_page_closes_its_inbox() {
     let mut h = Harness::new(tracked());
     let opened = h.take();
     let inbox = h.pages.inbox().unwrap();
-    let handles = [inbox.entries, inbox.queries[0], inbox.queries[1]];
+    let handles =
+        [inbox.entries, inbox.queries[0], inbox.queries[1], findings_watch(&opened, tracked().project, f::TASK)];
     let mut all = List::uncapped();
     for (handle, _) in &reads(&opened) {
         all.push(*handle).unwrap();
@@ -424,12 +570,16 @@ fn leaving_the_page_closes_its_inbox() {
 #[test]
 fn no_longer_tracked_closes_the_inbox_and_goal_reads() {
     let mut h = Harness::new(tracked());
-    h.take();
+    let opened = h.take();
+    let findings = findings_watch(&opened, tracked().project, f::TASK);
     let entries = h.pages.inbox().unwrap().entries;
     h.deliver(f::task());
     assert!(h.pages.inbox().is_none());
     assert!(h.pages.task().unwrap().goal.is_none());
-    assert!(h.take().contains(&Request::Client(jig_client::Event::Unwatch { handle: entries })));
+    let closed = h.take();
+    for handle in [entries, findings] {
+        assert!(closed.contains(&Request::Client(jig_client::Event::Unwatch { handle })));
+    }
 }
 #[test]
 fn draft_of_reads_a_lines_start_alone() {
