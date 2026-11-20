@@ -85,8 +85,26 @@ fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
 fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
     use jig_protocol_worker_wire::Agreed;
     assert_eq!(
-        note_line("custom", temper_engine_service::Note::WorkerFigures { limits: 440, endpoints: 2, revision: 7 }),
+        note_line(
+            "custom",
+            temper_engine_service::Note::WorkerFigures {
+                limits: 440,
+                endpoints: 2,
+                revision: temper_engine_service::FiguresRevision::Agents(7),
+            }
+        ),
         "custom serve: figures for workers: 440 limits, 2 endpoints, agents setting revision 7\n"
+    );
+    assert_eq!(
+        note_line(
+            "custom",
+            temper_engine_service::Note::WorkerFigures {
+                limits: 440,
+                endpoints: 2,
+                revision: temper_engine_service::FiguresRevision::Limits(8),
+            }
+        ),
+        "custom serve: figures for workers: 440 limits, 2 endpoints, limit settings revision 8\n"
     );
     assert_eq!(
         note_line("custom", temper_engine_service::Note::WorkerFiguresTaken { worker: b"worker-a".as_slice().into() }),

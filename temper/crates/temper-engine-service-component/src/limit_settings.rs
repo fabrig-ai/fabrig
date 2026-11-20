@@ -1,10 +1,12 @@
-//! Limit settings at startup and admission (configuration/limit-settings.md, 3–4).
+//! Startup, admission and taking limits (temper/docs/design/protocol/configuration/limit-settings.md, 3–5).
 pub(crate) mod admission;
 pub(crate) mod reading;
+use crate::limits::Applies;
 use crate::store::Store;
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, settings::Override};
 use jig_protocol_config::{Path, What};
+use skein_lib::{List, Map};
 use temper_engine_domain_forge::{self as forge, settings};
 pub use temper_engine_service_startup::startup::{LimitInputs, LimitKind, Resolved, resolve_limits};
 use temper_engine_service_startup::startup::{Problems, What as StartWhat};
@@ -14,6 +16,9 @@ pub struct LimitSettings {
     pub inputs: LimitInputs,
     pub jig: Box<[Override]>,
     pub temper: Box<[Override]>,
+    /// The overrides that resolve to the figures in force.
+    pub jig_taken: Box<[Override]>,
+    pub temper_taken: Box<[Override]>,
     pub in_force: Resolved,
     /// Zero until the root restores the settings revision. Revisions start at one.
     pub revision: u32,
@@ -34,50 +39,118 @@ impl crate::Engine {
     pub fn limits_in_force_mut(&mut self) -> Option<&mut LimitSettings> {
         self.limits_in_force.as_deref_mut()
     }
-    /// Take a revision whole at once only when all changed figures are raises
-    /// of the names declared at-once (configuration/limit-settings.md, 4–5).
+    /// Take a checked whole revision, or its live figures alone.
     pub(crate) fn limits_committed(&mut self, revision: u32, jig: Box<[Override]>, temper: Box<[Override]>) {
-        if let Some(state) = &mut self.limits_in_force {
-            state.revision = revision;
-            state.jig = jig;
-            state.temper = temper;
-            if state.held {
+        let Some(state) = &mut self.limits_in_force else { return };
+        state.revision = revision;
+        state.jig = jig;
+        state.temper = temper;
+        if state.held {
+            return;
+        }
+        let Ok(next) = resolve_limits(&state.inputs, &state.jig, &state.temper) else { return };
+        let moved = Moved::between(&state.in_force, &next);
+        let (next, moved, jig_taken, temper_taken) = if moved.whole {
+            (next, moved, state.jig.clone(), state.temper.clone())
+        } else {
+            let jig = live_list(LimitKind::Jig, &state.jig_taken, &state.jig);
+            let temper = live_list(LimitKind::Temper, &state.temper_taken, &state.temper);
+            let Ok(next) = resolve_limits(&state.inputs, &jig, &temper) else { return };
+            let moved = Moved::between(&state.in_force, &next);
+            if moved.other || next.root != state.in_force.root {
                 return;
             }
-            let next = resolve_limits(&state.inputs, &state.jig, &state.temper)
-                .expect("durable limit settings passed entry resolution");
-            if !at_once(&state.in_force, &next) {
-                return;
-            }
+            (next, moved, jig, temper)
+        };
+        if next.root != state.in_force.root {
             self.store.routes.raise_limits(&next.root.forge);
             self.env.limits = next.root;
             temper_engine_domain::try_step(&mut self.domain, &self.env, temper_engine_domain::Event::LimitsRaised)
                 .expect("a durable raise is always admitted");
-            state.in_force = next;
+        }
+        if moved.live || moved.other {
+            self.workers.limits_taken(self.env.now, &state.in_force, &next, moved.live, revision, &mut self.events);
+        }
+        state.jig_taken = jig_taken;
+        state.temper_taken = temper_taken;
+        state.in_force = next;
+    }
+}
+
+struct Moved {
+    whole: bool,
+    live: bool,
+    other: bool,
+}
+impl Moved {
+    fn between(before: &Resolved, next: &Resolved) -> Self {
+        let mut moved = Self { whole: true, live: false, other: false };
+        for row in &jig_protocol_config::names::NAMES {
+            moved.figure(row.applies, (row.value)(&before.jig), (row.value)(&next.jig));
+        }
+        for row in &crate::limits::NAMES {
+            moved.figure(row.applies, (row.value)(&before.temper), (row.value)(&next.temper));
+        }
+        moved
+    }
+
+    fn figure(&mut self, applies: Applies, before: u64, next: u64) {
+        if before == next {
+            return;
+        }
+        match applies {
+            Applies::Live => self.live = true,
+            Applies::AtOnce => {
+                self.other = true;
+                self.whole &= next > before;
+            }
+            Applies::NextStart => {
+                self.other = true;
+                self.whole = false;
+            }
         }
     }
 }
 
-fn at_once(before: &Resolved, next: &Resolved) -> bool {
-    for row in &jig_protocol_config::names::NAMES {
-        if (row.value)(&before.jig) != (row.value)(&next.jig) {
-            return false;
+fn live_name(kind: LimitKind, name: &[u8]) -> bool {
+    let applies = match kind {
+        LimitKind::Jig => {
+            let Some(row) = jig_protocol_config::names::find(name) else { return false };
+            row.applies
+        }
+        LimitKind::Temper => {
+            let Some(row) = crate::limits::find(name) else { return false };
+            row.applies
+        }
+    };
+    applies == Applies::Live
+}
+
+fn live_list(kind: LimitKind, taken: &[Override], durable: &[Override]) -> Box<[Override]> {
+    // The two sources contribute disjoint names; retain the setting's name order.
+    let count = u32::try_from(taken.len().saturating_add(durable.len())).expect("checked override counts");
+    let mut selected = Map::with_capacity(count);
+    for item in taken {
+        if !live_name(kind, &item.name) {
+            assert!(
+                selected.insert(item.name.as_ref(), item).expect("counted overrides").is_none(),
+                "override names are unique within one list"
+            );
         }
     }
-    for row in &crate::limits::NAMES {
-        let old = (row.value)(&before.temper);
-        let new = (row.value)(&next.temper);
-        if old == new {
-            continue;
-        }
-        match row.applies {
-            crate::limits::Applies::AtOnce if new > old => {}
-            crate::limits::Applies::AtOnce | crate::limits::Applies::Live | crate::limits::Applies::NextStart => {
-                return false;
-            }
+    for item in durable {
+        if live_name(kind, &item.name) {
+            assert!(
+                selected.insert(item.name.as_ref(), item).expect("counted overrides").is_none(),
+                "override names are unique within one list"
+            );
         }
     }
-    true
+    let mut list = List::with_capacity(selected.len());
+    for (_, item) in &selected {
+        list.push((*item).clone()).expect("counted overrides");
+    }
+    list.into_boxed()
 }
 
 impl Store {
@@ -117,10 +190,9 @@ impl Store {
         } else {
             temper_service_core::derived::STOCK.payload
         };
-        let resolved = match held {
-            Some((jig, temper)) => resolve_limits(&inputs, jig, temper)?,
-            None => resolve_limits(&inputs, &jig, &temper)?,
-        };
+        let (jig_taken, temper_taken) = held.unwrap_or((&jig, &temper));
+        let resolved = resolve_limits(&inputs, jig_taken, temper_taken)?;
+        let (jig_taken, temper_taken) = (Box::from(jig_taken), Box::from(temper_taken));
         let application = temper_protocol_store::application(&resolved.root.forge, resolved.root.tasks.spec_bytes)
             .ok_or(bad(b"temper-limits"))?;
         if let Err(why) = self.host.install_limits(
@@ -142,7 +214,16 @@ impl Store {
                 .with_stock(&bounds),
             &inputs.seeds,
         );
-        Ok(LimitSettings { inputs, jig, temper, in_force: resolved, revision: 0, held: held.is_some() })
+        Ok(LimitSettings {
+            inputs,
+            jig,
+            temper,
+            jig_taken,
+            temper_taken,
+            in_force: resolved,
+            revision: 0,
+            held: held.is_some(),
+        })
     }
     /// Opening's terminal is consumed before building the root. Other terminals
     /// (notably the census) stay queued for the root's normal first pass.

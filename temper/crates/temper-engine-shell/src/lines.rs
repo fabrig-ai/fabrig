@@ -640,8 +640,12 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
 
         temper_engine_service::Note::WorkerFigures { limits, endpoints, revision } => {
+            let (setting, revision) = match revision {
+                temper_engine_service::FiguresRevision::Agents(revision) => ("agents setting", revision),
+                temper_engine_service::FiguresRevision::Limits(revision) => ("limit settings", revision),
+            };
             format!(
-                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, agents setting revision {revision}\n"
+                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, {setting} revision {revision}\n"
             )
         }
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {

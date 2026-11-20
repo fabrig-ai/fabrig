@@ -1,5 +1,5 @@
-//! The service judges complete setting lists with the start's resolver.
-use super::{build, inputs, item, opening};
+//! Admission and live takes use the start's resolver (temper/docs/design/protocol/configuration/limit-settings.md, 4).
+use super::{build, inputs, item, opening, reading};
 use crate::limit_settings::{LimitSettings, admission, resolve_limits};
 use crate::tests::fixtures;
 use jig_domain_core::{self as core, settings as s};
@@ -15,18 +15,27 @@ const TEMPER: s::Setting = s::Setting::Application { kind: 22, scope: 0, number:
 fn state() -> LimitSettings {
     let inputs = inputs();
     let in_force = resolve_limits(&inputs, &[], &[]).unwrap();
-    LimitSettings { inputs, jig: Box::new([]), temper: Box::new([]), in_force, revision: 1, held: false }
+    LimitSettings {
+        inputs,
+        jig: Box::new([]),
+        temper: Box::new([]),
+        jig_taken: Box::new([]),
+        temper_taken: Box::new([]),
+        in_force,
+        revision: 1,
+        held: false,
+    }
 }
-fn jig(values: Box<[s::Override]>) -> s::Item {
+pub(in crate::tests) fn jig(values: Box<[s::Override]>) -> s::Item {
     s::Item { setting: s::Setting::Limits, edit: s::Edit::Set(s::Value::Limits(values)) }
 }
-fn temper(values: Box<[s::Override]>) -> s::Item {
+pub(in crate::tests) fn temper(values: Box<[s::Override]>) -> s::Item {
     s::Item {
         setting: TEMPER,
         edit: s::Edit::Set(s::Value::Application(temper_engine_smith::kinds::encode(&f::Value::Limits(values)))),
     }
 }
-fn party(items: Box<[s::Item]>, propose: bool, against: u32) -> root::Event {
+pub(in crate::tests) fn party(items: Box<[s::Item]>, propose: bool, against: u32) -> root::Event {
     let event = if propose {
         core::Event::ProposeSettings {
             reply_to: ReplyTo::new(REPLY),
@@ -208,12 +217,17 @@ fn non_limit_requests_bypass_resolution_and_limit_items_replace_the_whole_list()
 }
 
 fn owned() -> Box<crate::Service> {
+    owned_with_held(false)
+}
+
+pub(in crate::tests) fn owned_with_held(held: bool) -> Box<crate::Service> {
     let mut input = inputs();
     let mut document: serde_json::Value = serde_json::from_slice(&input.document).unwrap();
     document["engine"]["owners"] = serde_json::json!([{"provider":1_u32,"subject":"owner-a"}]);
     input.document = serde_json::to_vec(&document).unwrap().into_boxed_slice();
     let mut store = opening(&input, None);
-    let state = store.resolve_settings(input, None).unwrap();
+    let held = if held { Some((&[][..], &[][..])) } else { None };
+    let state = store.resolve_settings(input, held).unwrap();
     let mut service = build(store, state);
     fixtures::restart(&mut service);
     assert_eq!(
@@ -297,7 +311,6 @@ fn durable_words_update_the_service_lists_but_not_its_running_figures() {
 }
 
 fn lowered_start() -> Box<crate::Service> {
-    let mut service = owned();
     let values: Box<[s::Override]> = Box::new([
         item(b"forge.client.entries", 8),
         item(b"forge.entries", 8),
@@ -307,6 +320,11 @@ fn lowered_start() -> Box<crate::Service> {
         item(b"forge.tasks", 2),
         item(b"transcript_memory", 1024),
     ]);
+    restart_with_temper_limits(values)
+}
+
+fn restart_with_temper_limits(values: Box<[s::Override]>) -> Box<crate::Service> {
+    let mut service = owned();
     service.engine.as_mut().unwrap().step(party(Box::new([temper(values)]), false, 1));
     fixtures::settle_root(&mut service, &mut Queue::uncapped());
     let input = service.engine.as_mut().unwrap().limits_in_force.take().unwrap().inputs;
@@ -338,6 +356,7 @@ fn durable_raises_reach_the_running_environment_and_in_force_together() {
     let state = engine.limits_in_force().unwrap();
     assert_eq!(state.revision, 3);
     assert_eq!(state.temper, values);
+    assert_eq!(state.temper_taken, values);
     assert_eq!(engine.env.limits, state.in_force.root);
     assert_eq!(engine.env.limits.forge.entries, 16);
     assert_eq!(engine.env.limits.forge.client.entries, 16);
@@ -379,6 +398,90 @@ fn lowerings_and_mixed_revisions_wait_whole_for_the_next_start() {
     }
 }
 
+const REMOTE: &[u8] = b"checkout.remote_timeout_ms";
+
+#[test]
+fn durable_live_timeout_raises_and_lowers_whole() {
+    let mut service = owned();
+    let engine = service.engine.as_ref().unwrap();
+    let before = engine.env.limits;
+    assert_eq!(engine.limits_in_force().unwrap().in_force.temper.checkout.remote_timeout.as_millis(), 60_000);
+    for (against, timeout) in [(1, 600_000), (2, 30_000)] {
+        let values: Box<[_]> = Box::new([item(REMOTE, timeout)]);
+        service.engine.as_mut().unwrap().step(party(Box::new([temper(values.clone())]), false, against));
+        fixtures::settle_root(&mut service, &mut Queue::uncapped());
+        let engine = service.engine.as_ref().unwrap();
+        let state = engine.limits_in_force().unwrap();
+        assert_eq!(state.revision, against + 1);
+        assert_eq!(
+            state.in_force.temper.checkout.remote_timeout.as_millis(),
+            timeout,
+            "the live timeout applies in either direction"
+        );
+        assert_eq!(state.temper_taken, values);
+        assert_eq!(engine.env.limits, before);
+        let row = reading::read_named(state, REMOTE);
+        assert_eq!(row.in_force, Some(timeout));
+        assert!(!row.waiting);
+    }
+}
+
+#[test]
+fn mixed_revisions_take_only_the_live_timeout() {
+    let mut service = owned();
+    let before = service.engine.as_ref().unwrap().env.limits;
+    for (against, timeout) in [(1, 600_000), (2, 30_000)] {
+        let taken = [item(REMOTE, timeout)];
+        let values = Box::new([taken[0].clone(), item(b"live_goals", 60)]);
+        service.engine.as_mut().unwrap().step(party(Box::new([temper(values)]), false, against));
+        fixtures::settle_root(&mut service, &mut Queue::uncapped());
+        let engine = service.engine.as_ref().unwrap();
+        let state = engine.limits_in_force().unwrap();
+        assert_eq!(state.revision, against + 1);
+        assert_eq!(state.temper_taken.as_ref(), &taken, "the taken lists replace only the live override");
+        let checked = resolve_limits(&state.inputs, &[], &taken).unwrap();
+        assert_eq!(state.in_force.temper, checked.temper);
+        assert_eq!(state.in_force.root, before);
+        assert_eq!(engine.env.limits, before);
+        let row = reading::read_named(state, REMOTE);
+        assert_eq!(row.in_force, Some(timeout));
+        assert!(!row.waiting);
+        let goals = reading::read_named(state, b"live_goals");
+        assert_eq!(goals.setting.as_ref().unwrap().value, 60);
+        assert_eq!(goals.in_force, Some(40));
+        assert!(goals.waiting);
+    }
+}
+
+#[test]
+fn an_invalid_live_mix_takes_nothing() {
+    // The start holds checkout.message_bytes at least as high as the carrier payload.
+    let high = item(b"tool_payload", 64_000);
+    let mut service = restart_with_temper_limits(Box::new([high.clone()]));
+    let engine = service.engine.as_mut().unwrap();
+    let against = engine.domain.settings_revision();
+    let state = engine.limits_in_force().unwrap();
+    let before = state.in_force.temper;
+    let stock = resolve_limits(&state.inputs, &[], &[]).unwrap();
+    let message = item(b"checkout.message_bytes", u64::from(stock.temper.checkout.message_bytes));
+    assert_eq!(state.temper_taken.as_ref(), ::core::slice::from_ref(&high));
+    assert!(message.value < high.value);
+    let mix = [message.clone(), high.clone()];
+    let refusal = resolve_limits(&state.inputs, &[], &mix).unwrap_err();
+    let line = temper_engine_service_startup::startup::lines(&refusal);
+    let line = String::from_utf8_lossy(&line);
+    assert!(line.contains("checkout.message_bytes") && line.contains("the source's derivation"), "{line}");
+    let values: Box<[_]> = Box::new([message, item(REMOTE, 600_000)]);
+    assert!(resolve_limits(&state.inputs, &[], &values).is_ok(), "the revision passes as a whole");
+    engine.step(party(Box::new([temper(values.clone())]), false, against));
+    fixtures::settle_root(&mut service, &mut Queue::uncapped());
+    let state = service.engine.as_ref().unwrap().limits_in_force().unwrap();
+    assert_eq!(state.revision, against + 1);
+    assert_eq!(state.temper, values);
+    assert_eq!(state.in_force.temper, before, "neither live figure is taken");
+    assert_eq!(state.temper_taken.as_ref(), &[high]);
+}
+
 #[test]
 fn limits_held_never_takes_a_raise() {
     let mut service = lowered_start();
@@ -386,15 +489,18 @@ fn limits_held_never_takes_a_raise() {
     let before = engine.env.limits;
     let state = engine.limits_in_force_mut().unwrap();
     state.held = true;
-    let mut values = state.temper.clone();
+    let mut values = state.temper.to_vec();
+    values.insert(0, item(REMOTE, 600_000));
     for value in &mut values {
         if value.name.as_ref() == b"transcript_memory" {
             value.value *= 2;
         }
     }
-    engine.limits_committed(3, Box::new([]), values);
+    engine.limits_committed(3, Box::new([]), values.into_boxed_slice());
     assert_eq!(engine.env.limits, before);
-    assert_eq!(engine.limits_in_force().unwrap().in_force.root, before);
+    let state = engine.limits_in_force().unwrap();
+    assert_eq!(state.in_force.root, before);
+    assert_eq!(state.in_force.temper.checkout.remote_timeout.as_millis(), 60_000);
 }
 
 #[test]
