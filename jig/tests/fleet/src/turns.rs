@@ -267,7 +267,9 @@ impl World {
                     self.channel = None;
                     self.see(Seen::Refused);
                 }
-                Request::ReadList { .. }
+                Request::ReadUsage { .. }
+                | Request::UsageRead { .. }
+                | Request::ReadList { .. }
                 | Request::ListRead { .. }
                 | Request::ProgramEmail { .. }
                 | Request::Assign { .. }
@@ -281,6 +283,7 @@ impl World {
                 | Request::Undelivered { .. }
                 | Request::Grant { .. }
                 | Request::Unauthorized { .. }
+                | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::AccountRefused { .. }
                 | Request::NotStarted { .. }
@@ -311,6 +314,7 @@ impl World {
         let channel = Token::new(self.channels);
         self.channel = Some(channel);
         let hello = Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: crate::fixtures::bounds(),
             stop_bound: self.settings.stop_bound,

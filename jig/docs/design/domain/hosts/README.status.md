@@ -1,6 +1,7 @@
 # hosts: status
 
-2026-11-12. Where jig's code lags or departs from [README.md](README.md).
+2026-11-19. Where jig's code lags or departs from [README.md](README.md).
+
 
 
 `hub.md`, section 4 has no known gap in turn fences taking only offered messages:

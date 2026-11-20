@@ -2,6 +2,7 @@
 //! sections 3 and 4.1). Keeps typed results and bounded stderr detail; knows
 //! no login contents, executable paths or I/O. The half returns these to its host.
 
+use crate::UsageWindow;
 use alloc::boxed::Box;
 
 /// A program source check returned by the half to its host (protocol/programs.md, section 3).
@@ -26,11 +27,24 @@ pub enum ProgramSignOut {
     Failed(ProgramFailure),
 }
 
-/// A failed source operation returned to the host, with its bounded stderr tail.
+/// A usage read returned by the half after inspection and child settlement (protocol/programs.md, 5.11).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProgramUsage {
+    /// The program reported up to eight subscription allowance windows.
+    Read(Box<[UsageWindow]>),
+    /// Inspection found no source directory.
+    NotSignedIn,
+    /// The local command reported tokens or cost, so its answer is not used.
+    Spent,
+    /// The inspection or command failed with bounded detail.
+    Failed(ProgramFailure),
+}
+
+/// A failed source operation returned to the host, with bounded operator detail.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProgramFailure {
     pub reason: FailureReason,
-    /// Standard error only, bounded by the host's `detail_bytes`.
+    /// Standard error's tail, or a usage result's error text, bounded by the host's `detail_bytes`.
     pub detail: Box<[u8]>,
 }
 

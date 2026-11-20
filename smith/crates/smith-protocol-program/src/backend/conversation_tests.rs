@@ -249,6 +249,7 @@ fn finished_reply(up: &Queue<ToDomain>) -> &llm::Completion {
             ToDomain::Completed { completion, .. } => return completion,
             ToDomain::BuiltinResult { .. }
             | ToDomain::ReadVersion { .. }
+            | ToDomain::Usage { .. }
             | ToDomain::Failed { .. }
             | ToDomain::Cancelled { .. }
             | ToDomain::Text { .. } => {}
@@ -559,6 +560,7 @@ fn advisor_finish(up: &Queue<ToDomain>) {
             ToDomain::Text { .. } => {}
             ToDomain::BuiltinResult { .. }
             | ToDomain::ReadVersion { .. }
+            | ToDomain::Usage { .. }
             | ToDomain::Failed { .. }
             | ToDomain::Cancelled { .. } => panic!("only the held completion"),
         }

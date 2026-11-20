@@ -2186,6 +2186,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 0,
             channel: Token::new(10),
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::from_secs(1),
@@ -2214,6 +2215,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 1,
             channel: Token::new(11),
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -4071,6 +4073,7 @@ fn deployment_worker_settings_join_names_and_keep_admission_and_loss_times() {
             worker: 0,
             channel: Token::new(10),
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

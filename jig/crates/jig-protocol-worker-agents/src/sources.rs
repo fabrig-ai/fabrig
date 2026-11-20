@@ -5,12 +5,13 @@ use alloc::boxed::Box;
 use jig_domain_host::sources;
 use jig_domain_link::{LoginMethod, LoginState, SignOutResult, SourceFailure, SourceName};
 use skein_io::{self as io, file, kernel::Fd};
-use skein_lib::{Queue, Time, Token};
+use skein_lib::{Queue, Time, Token, Wall};
 use smith_host_domain as smith;
 use smith_host_protocol::{ListLaunch, ListRead, ProgramSource, SourceAnswer, SourceAsk, SourceInspection};
 use smith_protocol_program::Programs;
 
 mod files;
+mod usage;
 pub use files::FileStage;
 
 const ENVIRONMENT_ENTRIES: u32 = 64;
@@ -102,13 +103,14 @@ pub struct Component {
     resources: Option<Resources>,
     command: Option<Command>,
     reading: Option<Reading>,
+    usage: Option<usage::Reading>,
     detail: u32,
 }
 impl Component {
     /// Keep the host bound on redacted failure detail.
     #[must_use]
     pub fn new(detail: u32) -> Self {
-        Self { resources: None, command: None, reading: None, detail }
+        Self { resources: None, command: None, reading: None, usage: None, detail }
     }
     /// Adopt shell resources before any source command starts.
     pub fn configure(&mut self, resources: Resources) -> Result<(), Resources> {
@@ -135,6 +137,9 @@ impl Component {
     /// Whether an I/O or file owner belongs to this source operation.
     #[must_use]
     pub fn owns(&self, owner: Token) -> bool {
+        if let Some(usage) = &self.usage {
+            return usage.owns(owner);
+        }
         if let Some(reading) = &self.reading {
             return reading.child.owns(owner);
         }
@@ -149,7 +154,7 @@ impl Component {
     /// Whether no source command or inspection remains active.
     #[must_use]
     pub fn settled(&self) -> bool {
-        self.command.is_none() && self.reading.is_none()
+        self.command.is_none() && self.reading.is_none() && self.usage.is_none()
     }
     /// Inspect a check's directories before spawning; sign-out runs directly.
     #[expect(clippy::too_many_arguments, reason = "the host's source binding and lower queues travel together")]
@@ -199,6 +204,10 @@ impl Component {
     }
     /// Deliver one owned child event and take a settled answer.
     pub fn from_io(&mut self, event: io::Event, below: &mut Queue<io::Request>) -> Option<(Token, sources::Answer)> {
+        if let Some(usage) = &mut self.usage {
+            usage.receive_io(event, below);
+            return self.usage_answer(below);
+        }
         if let Some(reading) = &mut self.reading {
             reading.child.from_io(event, below);
             return self.read_answer();
@@ -219,6 +228,10 @@ impl Component {
         below: &mut Queue<io::Request>,
         files: &mut Queue<file::Request>,
     ) -> Option<(Token, sources::Answer)> {
+        if let Some(usage) = &mut self.usage {
+            usage.receive_file(event, files);
+            return self.usage_answer(below);
+        }
         self.command
             .as_mut()
             .expect("owned inspection")
@@ -230,6 +243,10 @@ impl Component {
     }
     /// Enforce the check's deadline across inspection and the child command.
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) -> Option<(Token, sources::Answer)> {
+        if let Some(usage) = &mut self.usage {
+            usage.fire(now, below);
+            return self.usage_answer(below);
+        }
         if let Some(reading) = &mut self.reading {
             reading.child.fire(now, below);
             return self.read_answer();
@@ -247,6 +264,9 @@ impl Component {
     /// The active inspection or child's next deadline.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
+        if let Some(usage) = &self.usage {
+            return usage.next_deadline();
+        }
         if let Some(reading) = &self.reading {
             return reading.child.next_deadline();
         }
@@ -282,12 +302,45 @@ impl Component {
     }
     /// Cancel the child while retaining ownership until all its resources settle.
     pub fn cancel_read(&mut self, read: u64, below: &mut Queue<io::Request>) -> Option<(Token, sources::Answer)> {
+        if let Some(usage) = &mut self.usage {
+            usage.cancel(read, below);
+            return self.usage_answer(below);
+        }
         if let Some(reading) = &mut self.reading
             && reading.read == read
         {
             reading.child.cancel(below);
         }
         self.read_answer()
+    }
+    /// Inspect and read usage without a run or credential grant, placing reset years by the host's ask time.
+    #[expect(clippy::too_many_arguments, reason = "the source binding and lower queues cross together")]
+    pub fn read_usage(
+        &mut self,
+        read: u64,
+        io_owner: Token,
+        source: SourceName,
+        root: Fd,
+        deadline: Time,
+        asked: Wall,
+        below: &mut Queue<io::Request>,
+        files: &mut Queue<file::Request>,
+    ) -> Option<(Token, sources::Answer)> {
+        assert!(self.settled(), "host serializes usage reads and source commands");
+        match usage::Reading::new(read, io_owner, source, root, deadline, asked, self.resources.as_ref(), files) {
+            Ok(reading) => self.usage = Some(reading),
+            Err(outcome) => return Some((Token::new(read), sources::Answer::Usage(bound_usage(outcome, self.detail)))),
+        }
+        self.usage_answer(below)
+    }
+    fn usage_answer(&mut self, below: &mut Queue<io::Request>) -> Option<(Token, sources::Answer)> {
+        let answer = self.usage.as_mut()?.advance(
+            self.resources.as_ref().expect("configured usage resources"),
+            self.detail,
+            below,
+        )?;
+        self.usage = None;
+        Some(answer)
     }
     fn read_answer(&mut self) -> Option<(Token, sources::Answer)> {
         let reading = self.reading.as_mut()?;
@@ -440,4 +493,12 @@ fn directory_name(path: &[u8]) -> &[u8] {
 fn bounded(bytes: Box<[u8]>, bound: u32) -> Box<[u8]> {
     let bound = skein_lib::length::usize_of(bound);
     if bytes.len() <= bound { bytes } else { Box::from(bytes.get(..bound).expect("bounded failure detail")) }
+}
+
+fn bound_usage(outcome: jig_domain_link::UsageOutcome, bound: u32) -> jig_domain_link::UsageOutcome {
+    use jig_domain_link::UsageOutcome;
+    match outcome {
+        UsageOutcome::Failed { reason, detail } => UsageOutcome::Failed { reason, detail: bounded(detail, bound) },
+        outcome @ (UsageOutcome::Read(_) | UsageOutcome::NotSignedIn | UsageOutcome::Spent) => outcome,
+    }
 }

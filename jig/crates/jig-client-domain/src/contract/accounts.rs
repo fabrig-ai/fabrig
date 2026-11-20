@@ -214,6 +214,7 @@ pub enum AccountFactValue {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AccountWindow {
+    pub rate: Option<u32>,
     pub length: Option<Duration>,
     pub used: Option<u16>,
     pub resets: Option<Wall>,

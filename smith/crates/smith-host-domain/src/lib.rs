@@ -41,7 +41,9 @@ mod limits;
 
 mod long;
 
+mod usage;
 mod values;
+pub use usage::{UsageState, UsageWindow};
 
 mod source_name;
 
@@ -71,7 +73,7 @@ pub use facts::Fact;
 
 pub use list::{ListFailure, ListOutcome, ListedModel};
 
-pub use program::{FailureReason, ProgramCheck, ProgramFailure, ProgramMethod, ProgramSignOut};
+pub use program::{FailureReason, ProgramCheck, ProgramFailure, ProgramMethod, ProgramSignOut, ProgramUsage};
 
 pub use inbox::Inbox;
 

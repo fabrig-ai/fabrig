@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_channel::CHANNEL_SCHEMA,
-        smith_channel::v11,
+        smith_channel::v12,
         limits [
             directory_name,
             directory_path,
@@ -48,6 +48,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             turn_body,
             account_refused_code,
             account_refused_reason,
+            usage_window_label,
             completion_fault_code,
             completion_fault_request_id,
             completion_fault_field,
@@ -79,6 +80,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             LongDone,
             Unauthorized,
             Limited,
+            Usage,
             AccountRefused,
             Fact,
             Answer => (67_108_890, 67_108_864),

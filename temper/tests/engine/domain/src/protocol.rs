@@ -64,6 +64,7 @@ pub fn hello_with(channel: Token, worker: u32, slots: u32, bounds: Bounds, hosti
         engine::Link::Hello {
             worker,
             hello: jig_domain_link::Hello {
+                reads_usage: true,
                 jobs: Box::new([JobBound { kind: JobKind(1), ..merge_bound() }, merge_bound()]),
                 slots,
                 stop_bound: Duration::from_millis(100),
@@ -467,6 +468,8 @@ impl Protocol {
             }
             accounts::Request::Component(accounts::ToComponent::Release { .. } | accounts::ToComponent::Close)
             | accounts::Request::Programs { .. }
+            | accounts::Request::CancelUsage { .. }
+            | accounts::Request::ReadUsage { .. }
             | accounts::Request::ReadList { .. }
             | accounts::Request::CheckProgram { .. }
             | accounts::Request::SignOutProgram { .. }

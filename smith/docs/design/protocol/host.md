@@ -107,6 +107,15 @@ The contract is ../domain/host.md's.
   standard input, reads the answer from its standard output, and answers it, or
   deadline on expiry, once the child has settled. It holds the value no longer
   than that. Like a check, it is no record of the channel's and takes no slot.
+- **Reading a program's usage.** When its host asks, with a program
+  source, the check's deadline and the host's wall time, by which the
+  read places each reset's year (programs.md, 5.11), the half inspects both directory
+  levels as a check does, then runs the program's usage command in the
+  source's environment (programs.md, 5.11), and answers once the child
+  has settled: its windows, at most 8, each as the channel's usage notice
+  has one (channel.md, section 4); not signed in; spent; or failed,
+  missing, deadline, unreadable or exited, with its detail. Like a
+  check, it is no record of the channel's and takes no slot.
 - **Signing out of a program source.** When its host asks, the half
   runs the program's own sign-out in the source's configuration
   directory and environment, with the host's deadline (programs.md,
