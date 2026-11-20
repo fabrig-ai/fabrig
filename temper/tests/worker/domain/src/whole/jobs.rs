@@ -172,7 +172,8 @@ impl World {
                 self.owed.push_back(Event::Done { owner, done });
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
-            Request::Git { .. }
+            Request::Paused { .. }
+            | Request::Git { .. }
             | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }

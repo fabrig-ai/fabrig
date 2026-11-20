@@ -15,6 +15,7 @@ pub(crate) fn shutdown(domain: &mut Domain, env: &Env<Limits>, drain: bool) {
         return;
     }
     domain.stopping = true;
+    domain.link_drain_at = None;
     domain.stop_at = Some(env.now.saturating_add(env.limits.stop_bound));
     let event = if drain {
         domain.drain_at = Some(env.now.saturating_add(env.limits.drain));
@@ -23,6 +24,15 @@ pub(crate) fn shutdown(domain: &mut Domain, env: &Env<Limits>, drain: bool) {
         host::Event::CancelAll { reason: host::Reason::Shutdown }
     };
     route::host_step(domain, env, event);
+}
+
+pub(crate) fn paused(domain: &mut Domain, env: &Env<Limits>, state: jig_domain_link::PauseState) {
+    domain.link_drain_at = match state {
+        jig_domain_link::PauseState::Draining => Some(env.now.saturating_add(env.limits.drain)),
+        jig_domain_link::PauseState::Taking
+        | jig_domain_link::PauseState::Paused
+        | jig_domain_link::PauseState::Drained => None,
+    };
 }
 
 /// Only the attempts cancelled by this loss are subject to its deadline.
@@ -67,6 +77,7 @@ pub(crate) fn cut(domain: &Domain, owner: Token) -> bool {
 
 pub(crate) fn next(domain: &Domain) -> Option<Time> {
     let mut next = skein_lib::earliest(domain.drain_at, domain.stop_at);
+    next = skein_lib::earliest(next, domain.link_drain_at);
     for (_, stop) in &domain.contact_stops {
         if !stop.cut {
             next = skein_lib::earliest(next, Some(stop.at));
@@ -94,6 +105,10 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     if passed(domain.drain_at, env.now) {
         domain.drain_at = None;
         route::host_step(domain, env, host::Event::CancelAll { reason: host::Reason::Shutdown });
+    }
+    if passed(domain.link_drain_at, env.now) {
+        domain.link_drain_at = None;
+        route::host_step(domain, env, host::Event::DrainPassed);
     }
     let mut owners = List::with_capacity(domain.contact_stops.len());
     for (owner, stop) in &domain.contact_stops {

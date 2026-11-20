@@ -20,6 +20,7 @@ pub fn worker_service_ending(
     ending_with_binary(binary, service.end(), failed, directories, store)
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "each worker note has one exhaustive line translation")]
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
         service::Note::Git { run, attempt, job, repository, what } => {
@@ -63,6 +64,7 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
             line.push('\n');
             line
         }
+        service::Note::Paused { state, drain } => pause_line(binary, state, drain),
         service::Note::FiguresChanged => {
             "the engine's figures changed; they apply at this worker's next start\n".into()
         }
@@ -244,6 +246,19 @@ fn refusal(reason: temper_worker_service::Refusal) -> String {
 #[cfg(test)]
 #[path = "worker_lines_tests.rs"]
 mod tests;
+
+fn pause_line(binary: &str, state: jig_domain_link::PauseState, drain: skein_lib::Duration) -> String {
+    let words = match state {
+        jig_domain_link::PauseState::Taking => "taking work again, as the engine asked".to_owned(),
+        jig_domain_link::PauseState::Paused => "paused: no new run or job, as the engine asked".to_owned(),
+        jig_domain_link::PauseState::Draining => format!(
+            "draining: each run stops at its turn's end, the rest cut in {} s, as the engine asked",
+            drain.as_nanos() / 1_000_000_000
+        ),
+        jig_domain_link::PauseState::Drained => "drained: no run or job left; a stop now loses nothing".to_owned(),
+    };
+    format!("{binary} worker: {words}\n")
+}
 
 fn signalled_line(binary: &str, run: u64, attempt: u64, signal: &str, from: Option<u32>) -> String {
     let sender = match from {

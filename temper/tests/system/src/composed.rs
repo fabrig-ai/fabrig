@@ -1478,7 +1478,8 @@ impl World {
                 let _moves = self.forge.moves();
             }
             // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
-            worker::Request::Git { .. }
+            worker::Request::Paused { .. }
+            | worker::Request::Git { .. }
             | worker::Request::AgentSignalled { .. }
             | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }

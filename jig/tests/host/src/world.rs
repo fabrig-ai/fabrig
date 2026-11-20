@@ -34,6 +34,8 @@ pub struct Settings {
     /// The chance, per mille, at the end of an iteration, that the engine's
     /// assignment of a run hosted is sent again: the host drops it.
     pub duplicates: u32,
+    /// Seeded pause, drain, resume and drain-bound inputs alongside the workload.
+    pub pauses: bool,
 }
 
 /// A spell without contact with the engine: when it starts, how long it
@@ -134,6 +136,7 @@ impl Settings {
             outage: None,
             shutdown: None,
             duplicates: 0,
+            pauses: false,
         }
     }
 
@@ -185,6 +188,7 @@ impl Settings {
             }),
             shutdown: None,
             duplicates: 2,
+            pauses: true,
             ..calm
         }
     }
@@ -293,6 +297,7 @@ struct Hosted {
     /// by then.
     word: Option<Word>,
     stopped_first: bool,
+    drained: bool,
 }
 
 /// How a run's agent's start went, as far as the world has seen.
@@ -344,6 +349,7 @@ pub struct World {
     kept: BTreeSet<(Token, Token)>,
     /// Whether the host has taken a shutdown.
     shut: bool,
+    pause: jig_domain_link::PauseState,
     stats: Stats,
     trace: Trace,
     refusals: crate::refusals::Referee,
@@ -389,6 +395,7 @@ impl World {
             relays: BTreeSet::new(),
             kept: BTreeSet::new(),
             shut: false,
+            pause: jig_domain_link::PauseState::Taking,
             stats: Stats::default(),
             trace,
             refusals: crate::refusals::Referee::default(),
@@ -410,6 +417,18 @@ impl World {
         if let Some(at) = settings.shutdown {
             let at = Time::ZERO.saturating_add(at.draw(&mut rng));
             world.wire.send(at, Delivery::Shutdown);
+        }
+        if settings.pauses {
+            for _ in 0..32 {
+                let event = match rng.below(4) {
+                    0 => Event::Down(LinkDown::Pause { mode: jig_domain_link::PauseMode::Pause }),
+                    1 => Event::Down(LinkDown::Pause { mode: jig_domain_link::PauseMode::Drain }),
+                    2 => Event::Down(LinkDown::Pause { mode: jig_domain_link::PauseMode::Resume }),
+                    _ => Event::DrainPassed,
+                };
+                let at = Time::ZERO.saturating_add(Span::millis(0, 120_000).draw(&mut rng));
+                world.wire.send(at, Delivery::Host { event, stale: false });
+            }
         }
         let begin = world.engine.begin();
         world.acts(begin);
@@ -478,13 +497,20 @@ impl World {
             self.trace.log(self.now, format_args!("host resumes"));
             let before = self.stage.out.len();
             host::resume(&mut self.host, &self.stage.env, &mut self.stage.out);
+            self.check_drained();
             made.push((Taken::Other, self.stage.out.len() - before));
         }
         while let Some(Arrival { event, stale, duplicate }) = self.stage.next_event() {
             self.trace.log(self.now, format_args!("host <- {event:?}"));
             let taken = if duplicate { Taken::Duplicate } else { self.take(&event, stale) };
             let before = self.stage.out.len();
+            let paused = self.host.pause_state() != jig_domain_link::PauseState::Taking;
+            let unanswered = self.host.unanswered();
             host::step(&mut self.host, &self.stage.env, event, &mut self.stage.out);
+            if paused && matches!(taken, Taken::Assign { .. } | Taken::JobAssign { .. }) {
+                assert_eq!(self.host.unanswered(), unanswered, "no run or job admitted while not taking");
+            }
+            self.check_drained();
             made.push((taken, self.stage.out.len() - before));
         }
         for (taken, count) in made {
@@ -529,7 +555,7 @@ impl World {
                     // the step answers it is judged as such.
                     let mut left = Vec::from_iter(leaving);
                     for request in &requests {
-                        if let Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) = request {
+                        if let Request::Agent(ToAgent::Cancel { agent }) = request {
                             self.leave(*agent);
                             left.push(*agent);
                             if let Taken::Started { owner, agent: started } = taken
@@ -582,6 +608,14 @@ impl World {
             }
         }
         Ok(())
+    }
+
+    fn check_drained(&self) {
+        if self.host.pause_state() == jig_domain_link::PauseState::Drained {
+            assert_eq!(self.host.hosted(), 0, "drained hosts nothing");
+            assert_eq!(self.host.retained_turns(), 0, "drained keeps no unacknowledged turn");
+            assert_eq!(self.host.kept_answers(), 0, "drained keeps no unacknowledged answer");
+        }
     }
 
     fn path(&mut self, path: &'static str) {
@@ -658,7 +692,8 @@ impl World {
                 self.stats.reports += 1;
                 Taken::Other
             }
-            Event::ListRead { .. }
+            Event::DrainPassed
+            | Event::ListRead { .. }
             | Event::SourceAnswered { .. }
             | Event::Ask { .. }
             | Event::LinkLost
@@ -786,6 +821,7 @@ impl World {
                     launch: Launch::Unasked,
                     word: None,
                     stopped_first: false,
+                    drained: false,
                 };
                 assert!(self.hosted.insert(*owner, entry).is_none(), "a hosted run's token is its own");
                 assert!(self.admitted.insert((run, attempt), *owner).is_none(), "an attempt is admitted once");
@@ -819,6 +855,7 @@ impl World {
                 | ToAgent::Acknowledge { .. },
             )
             | Request::Asked { .. }
+            | Request::Paused { .. }
             | Request::Job(_)
             | Request::DeliverJob { .. }
             | Request::Hello { .. }
@@ -853,6 +890,7 @@ impl World {
         self.refusals.request(&request)?;
         self.trace.log(self.now, format_args!("host -> {request:?}"));
         match request {
+            Request::Paused { state } => self.pause = state,
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
@@ -945,12 +983,18 @@ impl World {
                 }
                 self.parcel(request);
             }
-            Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) => {
+            Request::Agent(ToAgent::Drain { agent }) => {
+                let owner = *self.agents.get(&agent).expect("a drain names a started agent");
+                self.hosted.get_mut(&owner).expect("a drain names a hosted run").drained = true;
+                self.parcel(request);
+            }
+            Request::Agent(ToAgent::Cancel { agent }) => {
                 assert!(self.left.contains(&agent), "a stop is of a run that leaves live");
                 self.parcel(Request::Agent(ToAgent::Cancel { agent }));
             }
             Request::Prepare { .. } => {
                 assert!(!self.shut, "a worker shutting down admits no more runs");
+                assert_eq!(self.pause, jig_domain_link::PauseState::Taking, "a paused worker admits no runs");
                 self.parcel(request);
             }
             Request::Abort { owner } => {
@@ -1152,6 +1196,9 @@ fn check_word(hosted: &Hosted, answer: &host::Ending) {
         Some(Word::Parked) => assert!(matches_parked(answer), "a run that said it parked is answered so: {answer:?}"),
         Some(Word::Rules) => {
             assert_eq!(failure, Some(Failure::Agent(AgentFailure::Rules)), "saying too much breaks the rules");
+        }
+        Some(Word::Failed(RunFailure::Cancelled)) if hosted.drained && !hosted.stopped_first => {
+            assert_eq!(failure, Some(Failure::Cancelled(Reason::Shutdown)), "a drain's turn end is shutdown");
         }
         Some(Word::Failed(RunFailure::Cancelled)) if hosted.stopped_first => match failure {
             Some(Failure::Cancelled(_) | Failure::Agent(_)) => {}

@@ -31,6 +31,7 @@ pub struct Hub {
     pub(crate) answers: Map<(Token, Token), Id<Hosted>>,
     /// The root is shutting down: it admits no more runs.
     pub(crate) shut: bool,
+    pub(crate) pause: jig_domain_link::PauseState,
     pub(crate) refusals_lost: u64,
 }
 
@@ -51,6 +52,7 @@ impl Hub {
             turns: Turns::new(limits),
             answers: Map::with_capacity(limits.slots),
             shut: false,
+            pause: jig_domain_link::PauseState::Taking,
             refusals_lost: 0,
         }
     }
@@ -81,6 +83,12 @@ impl Hub {
             }
         }
         false
+    }
+
+    /// The link pause for this process, independent of shutdown.
+    #[must_use]
+    pub const fn pause_state(&self) -> jig_domain_link::PauseState {
+        self.pause
     }
 
     /// Runs hosted: the slots taken, closed runs included until they are
@@ -150,7 +158,7 @@ impl Hub {
     /// domain's stage, before its input events.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        !self.ready.is_empty()
+        !self.ready.is_empty() || drained(self)
     }
 
     /// The oldest fact not yet drained. The parent drains them at its own
@@ -294,6 +302,11 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             hosted::finished(domain, env, owner, hosted::Last { turns, spent, finish, read }, out);
         }
         Event::RelayCancelled { run, attempt, call } => hosted::relay_cancelled(domain, run, attempt, &call, out),
+        Event::DrainPassed => {
+            if !domain.shut && domain.pause == jig_domain_link::PauseState::Draining {
+                hosted::cancel_all(domain, Reason::Shutdown);
+            }
+        }
         Event::Drain => {
             shutting_down(domain, out);
             hosted::drain(domain, out);
@@ -312,6 +325,8 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);
             if domain.shut {
                 out.push(Request::Up(LinkUp::Draining));
+            } else if domain.pause != jig_domain_link::PauseState::Taking {
+                out.push(Request::Up(LinkUp::Paused { state: domain.pause }));
             }
         }
         Event::Job(event) => crate::jobs::reported(domain, env, event, out),
@@ -376,14 +391,60 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),
-            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link builds this step.
-            LinkDown::Pause { .. } => {}
+            LinkDown::Pause { mode } => pause(domain, mode, out),
             LinkDown::Cancel { run, attempt } => hosted::cancel(domain, env, run, attempt, out),
             LinkDown::Relayed { run, attempt, call, answer } => {
                 hosted::relayed(domain, run, attempt, &call, answer, out);
             }
             LinkDown::Acknowledge { run, attempt } => crate::answers::acknowledge(domain, run, attempt),
         },
+    }
+    check_drained(domain, out);
+}
+
+// jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+fn pause(domain: &mut Hub, mode: jig_domain_link::PauseMode, out: &mut Queue<Request>) {
+    use jig_domain_link::{PauseMode, PauseState};
+    if domain.shut {
+        return;
+    }
+    let state = match mode {
+        PauseMode::Resume => PauseState::Taking,
+        PauseMode::Pause => match domain.pause {
+            PauseState::Taking => PauseState::Paused,
+            PauseState::Paused | PauseState::Draining | PauseState::Drained => domain.pause,
+        },
+        PauseMode::Drain => match domain.pause {
+            PauseState::Taking | PauseState::Paused => PauseState::Draining,
+            PauseState::Draining | PauseState::Drained => domain.pause,
+        },
+    };
+    let changed = state != domain.pause;
+    say_pause(domain, state, out);
+    if changed && state == PauseState::Draining {
+        hosted::drain(domain, out);
+    }
+}
+
+fn say_pause(domain: &mut Hub, state: jig_domain_link::PauseState, out: &mut Queue<Request>) {
+    out.push(Request::Up(LinkUp::Paused { state }));
+    if state != domain.pause {
+        domain.pause = state;
+        out.push(Request::Paused { state });
+    }
+}
+
+fn drained(domain: &Hub) -> bool {
+    !domain.shut
+        && domain.pause == jig_domain_link::PauseState::Draining
+        && domain.hosted() == 0
+        && domain.retained_turns() == 0
+        && domain.kept_answers() == 0
+}
+
+fn check_drained(domain: &mut Hub, out: &mut Queue<Request>) {
+    if drained(domain) {
+        say_pause(domain, jig_domain_link::PauseState::Drained, out);
     }
 }
 
@@ -406,6 +467,7 @@ pub fn resume(domain: &mut Hub, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// source checks, for a root that admits those as new work.
 pub fn resume_runs(domain: &mut Hub, env: &Env<Limits>, out: &mut Queue<Request>) {
     hosted::resume(domain, env, out);
+    check_drained(domain, out);
 }
 
 /// Fires the source checks that are due: new work, which a root admits

@@ -23,6 +23,11 @@ pub enum Note {
         what: temper_worker_domain::Git,
     },
     FiguresChanged,
+    /// A link pause's operator line (domain/worker/README.md, 2).
+    Paused {
+        state: jig_domain_link::PauseState,
+        drain: skein_lib::Duration,
+    },
     Cancelling {
         run: u64,
         attempt: u64,

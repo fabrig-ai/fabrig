@@ -320,6 +320,7 @@ fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mu
             out.push(Request::Source { owner, name, operation, deadline });
         }
         host::Request::SourceFault => out.push(Request::SourceFault),
+        host::Request::Paused { .. } => {}
         host::Request::Up(up) => out.push(Request::Link(up)),
         host::Request::Hello { hello } => {
             out.push(Request::Hello(hello));

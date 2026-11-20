@@ -625,6 +625,7 @@ impl World {
     fn route(&mut self, request: Request) -> Result<(), String> {
         self.refusals.request(&request)?;
         match request {
+            Request::Paused { .. } => {}
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }

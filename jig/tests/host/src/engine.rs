@@ -235,6 +235,7 @@ impl Engine {
             Request::Job(_)
             | Request::DeliverJob { .. }
             | Request::Hello { .. }
+            | Request::Paused { .. }
             | Request::CancelRelay { .. }
             | Request::Prepare { .. }
             | Request::Abort { .. }

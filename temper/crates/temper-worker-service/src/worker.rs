@@ -899,6 +899,9 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Paused { state } => {
+                self.notes.push(crate::worker_alone::Note::Paused { state, drain: self.env.limits.drain });
+            }
             root::Request::Git { run, attempt, job, repository, what } => {
                 self.note_git(run, attempt, job, repository, what);
             }

@@ -138,7 +138,8 @@ impl Measured {
                     cancelled.push(Event::RelayCancelled { run, attempt, call });
                     continue;
                 }
-                Request::Asked { .. }
+                Request::Paused { .. }
+                | Request::Asked { .. }
                 | Request::Abort { .. }
                 | Request::Agent(
                     ToAgent::Message { .. }
@@ -513,6 +514,7 @@ fn source_replacement_at_capacity_completes_every_check() {
                 | Request::SourceFault
                 | Request::Up(_)
                 | Request::Asked { .. }
+                | Request::Paused { .. }
                 | Request::Hello { .. }
                 | Request::Agent(
                     ToAgent::Message { .. }

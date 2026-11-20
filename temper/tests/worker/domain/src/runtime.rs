@@ -288,7 +288,8 @@ impl World {
                 assert!(hello.hosting.len() <= 1);
             }
             Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn)?,
-            Request::Git { .. }
+            Request::Paused { .. }
+            | Request::Git { .. }
             | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }

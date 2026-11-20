@@ -131,6 +131,8 @@ pub enum Git {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A link pause changed; the service writes its operator line.
+    Paused { state: jig_domain_link::PauseState },
     /// Each fetch and check out as the checkout asks it (domain/worker/README.md, 4.3).
     Git {
         run: Token,

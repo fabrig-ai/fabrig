@@ -78,6 +78,8 @@ pub struct Domain {
     pub(crate) stopping: bool,
     /// Shutdown's current-turn grace, armed once.
     pub(crate) drain_at: Option<Time>,
+    /// A link drain's bound, dropped when resumed, drained or told to stop.
+    pub(crate) link_drain_at: Option<Time>,
     /// Whole stop bound from shutdown; the service abandons at it.
     pub(crate) stop_at: Option<Time>,
     /// Per-attempt rest-of-bound deadlines, retained through reconnects.
@@ -217,6 +219,7 @@ impl Domain {
             tooling_out: Queue::uncapped(),
             stopping: false,
             drain_at: None,
+            link_drain_at: None,
             stop_at: None,
             contact_stops: Map::with_capacity(slots),
             past: false,

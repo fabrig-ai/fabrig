@@ -7,6 +7,8 @@ impl World {
         match request {
             Request::Prepare { .. } => self.assigned(run, attempt, request),
             Request::Job(host::ToJob::Run { owner, .. }) => {
+                assert!(!self.shut);
+                assert_eq!(self.pause, jig_domain_link::PauseState::Taking, "a paused worker admits no job");
                 let entry = Hosted {
                     agent: None,
                     delivered: None,
@@ -14,6 +16,7 @@ impl World {
                     launch: Launch::Asked,
                     word: None,
                     stopped_first: false,
+                    drained: false,
                 };
                 assert!(self.hosted.insert(*owner, entry).is_none());
                 assert!(self.admitted.insert((run, attempt), *owner).is_none());
@@ -24,6 +27,7 @@ impl World {
             }
             other @ (Request::Agent(_)
             | Request::Asked { .. }
+            | Request::Paused { .. }
             | Request::Job(host::ToJob::Stop { .. })
             | Request::DeliverJob { .. }
             | Request::ReadList { .. }
