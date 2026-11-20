@@ -60,9 +60,9 @@ as for any moved wire (temper's `draft/redeploys.md`, 7.2). Up from 16
 nothing changes.
 
 Usage windows (`../../domain/accounts.md`, 3.7) take `jig-worker-wire`
-18, in one move: `usage` and `usage read` up, `read usage` down. Below
-18 the two up records are unheld, so a worker of 18 is refused at the
-opening by an engine of 17, as above; the engine sends `read usage` only
+19, in one move: `usage` and `usage read` up, `read usage` down. Below
+19 the two up records are unheld, so a worker of 19 is refused at the
+opening by an engine of 18, as above; the engine sends `read usage` only
 on a channel whose agreed version has it, as `wires`. The floor stays 16.
 In jig's link vocabulary, `jig-domain-link`, the lowest that the hub, the
 fleet and the accounts child all name:
