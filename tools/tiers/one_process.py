@@ -427,13 +427,18 @@ def cargo_test_roots(cargo, selection, env):
     return roots
 
 
-def pre_pr_listings(selection, metadata, filters, cargo, env):
+def profile_target_groups(selection, metadata, filters, cargo, env):
     """Skip integration targets that neither delivery profile can select."""
-    if not selection or len(selection) % 2 or any(flag != '-p' for flag in selection[::2]):
-        return [selection]
     members = {package['name']: package for package in metadata['packages']}
+    if selection == ['--workspace']:
+        ids = set(metadata['workspace_members'])
+        names = sorted(name for name, package in members.items() if package['id'] in ids)
+    elif selection and len(selection) % 2 == 0 and all(flag == '-p' for flag in selection[::2]):
+        names = selection[1::2]
+    else:
+        return [selection]
     broad, narrowed, omitted = [], [], {}
-    for name in selection[1::2]:
+    for name in names:
         package = members[name]
         keep, skip = [], {}
         for target in package['targets']:
@@ -464,13 +469,30 @@ def pre_pr_listings(selection, metadata, filters, cargo, env):
         for group in groups:
             actual.update(cargo_test_roots(cargo, group, env))
         if actual != expected:
-            print('pre-pr: keeping full listing (Cargo build roots differ)', flush=True)
+            print('profile targets: keeping full listing (Cargo build roots differ)', flush=True)
             return [selection]
     except (OSError, subprocess.CalledProcessError, KeyError, ValueError):
-        print('pre-pr: keeping full listing (Cargo build roots unavailable)', flush=True)
+        print('profile targets: keeping full listing (Cargo build roots unavailable)', flush=True)
         return [selection]
-    print('pre-pr: skip linking ' + ', '.join(sorted(omitted.values())), flush=True)
+    print('profile targets: skip linking ' + ', '.join(sorted(omitted.values())), flush=True)
     return groups
+
+
+def profile_targets(selection, metadata, config, cargo, env):
+    """Plan a build or listing from the union of the focused and fuzzy filters."""
+    try:
+        profiles = tomllib.loads(Path(config).read_text()).get('profile', {})
+        focused = profiles.get('default', {}).get('default-filter', 'all()')
+        fuzzy = profiles.get('fuzzy', {}).get('default-filter', focused)
+        return profile_target_groups(selection, metadata, (filterset(focused), filterset(fuzzy)), cargo, env)
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        print(f'profile targets: keeping full listing ({error})', flush=True)
+        return [selection]
+
+
+def read_metadata(cargo, env):
+    return json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
+                                              env=env, stdin=subprocess.DEVNULL, text=True))
 
 
 def workspace_binaries(metadata, listing, table):
@@ -925,18 +947,13 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         print(text, end='', flush=True)
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
-    def read_metadata():
-        return json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
-                                                  env=env, stdin=subprocess.DEVNULL, text=True))
-
     env = env.copy()
-    pre_pr = env.pop('TIERS_PRE_PR_TARGETS', '') == '1'
-    if pre_pr and profile in ('default', 'fuzzy') and picks is None and not caller_filter and selections is None:
-        profiles = tomllib.loads(Path(config).read_text()).get('profile', {})
-        focused = profiles.get('default', {}).get('default-filter', 'all()')
-        fuzzy = profiles.get('fuzzy', {}).get('default-filter', focused)
-        metadata = read_metadata()
-        selections = pre_pr_listings(selection, metadata, (filterset(focused), filterset(fuzzy)), [*prefix, cargo], env)
+    pre_pr_targets = env.pop('TIERS_PRE_PR_TARGETS', '') == '1'
+    profile_build = env.pop('TIERS_PROFILE_TARGETS', '') == '1'
+    if ((pre_pr_targets or profile_build) and profile in ('default', 'fuzzy')
+            and picks is None and not caller_filter and selections is None):
+        metadata = read_metadata(cargo, env)
+        selections = profile_targets(selection, metadata, config, [*prefix, cargo], env)
 
     # Listing and build belong to the caller's prefix; metadata builds nothing.
     listings = []
@@ -958,7 +975,7 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
             raise
         listings.append(json_listing(listing_output.decode('utf-8', 'backslashreplace')))
     if metadata is None:
-        metadata = read_metadata()
+        metadata = read_metadata(cargo, env)
     listing = merge_listings(listings) if listings else {
         'rust-build-meta': {'target-directory': metadata['target_directory']}, 'rust-suites': {}}
     if picks is not None:
