@@ -418,7 +418,17 @@ service, over HTTP, rather than joined to the engine's root.
   the engine serves the forge's `temper-forge-sign-in` fact, and a page
   that draws the forge's repository draws its link, `work/hello ↗` to
   `http://127.0.0.1:10002/user/oauth2/temper?redirect_to=%2Fwork%2Fhello`,
-  as `project-landing`'s does. Story A's own start holds no provider.
+  as `project-landing`'s does. The fact reaches the page as a browser's
+  does, in the page the clients' listener serves: the walk's start
+  adopts a browser bundle of one HTML page and no other file
+  (`web/README.md`, 2.2), in memory, so the engine serves that page
+  with its forges' metas, and `web::Page`, at its start and at each
+  reload, fetches the page at the path it starts at and gives the host
+  each `temper-forge-sign-in` meta's content, read by
+  `temper_client_view::forge_sign_in::Forges::read` as the web shell's
+  start reads them. The native host draws the page; the bundle's page
+  is read only for its metas. Story A's own start holds no provider and
+  no bundle.
 - **A box's bounds:** where story A's configuration
   (`temper_playground::documents::configuration::story_a`) holds a bound
   tighter than a box's, and a step a box takes is refused by it, the
@@ -454,8 +464,9 @@ time.
 - **`web reload PATH`:** the page started again at PATH: the world, its
   cookies and the page's small store kept; a new host and its page,
   with the sign-in ways the start had and the store's records, no
-  secret, as a browser's reload builds them
-  (`temper-client-shell-web`'s start); then `wait` for the main region.
+  secret, and the served page's forge metas (4.1), as a browser's
+  reload builds them (`temper-client-shell-web`'s start); then `wait`
+  for the main region.
 - **`web mark`:** in the walked journey, a mark: the page's HTML, its
   heading (`print::heading`), and the tree kept for the link (2.4); in
   an ancestor, nothing.
