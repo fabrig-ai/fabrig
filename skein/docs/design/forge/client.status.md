@@ -1,6 +1,10 @@
 # forge-client: status
 
-2026-11-17. Where skein's code lags or departs from [client.md](client.md).
+2026-11-20. Where skein's code lags or departs from [client.md](client.md).
+
+- **Not yet:** 7.8: the bound as one function, `stop_bound` (`outbox/stop.rs` computes it inline) [in flight: change 10967].
+- **Not yet:** 8: what it still owes, its owed fresh reads and its entries not yet looked for, answered to its owner [in flight: change 10971].
+- **Not yet:** 5: its holders, the calls holding the slab's places in admission order [in flight: change 10972].
 
 
 - **Not yet:** 4: a branch never there rests at `slow` like any absent branch (`keep/answer.rs`, `rest_resource`).

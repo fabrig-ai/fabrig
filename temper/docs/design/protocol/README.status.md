@@ -1,7 +1,10 @@
 # README: status
 
-2026-11-15. Where temper's code lags or departs from [README.md](README.md).
+2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 6.3: a step of the start past the report bound, its line and its kinds [in flight: change 10971].
+- **Not yet:** 6.3: a full table past the report bound, its lines, and the census's words on the deployment's forges [in flight: change 10972].
+- **Not yet:** 6.3: the report bound, `WAIT_REPORT`, and the clock of its doublings, `Report` [in flight: change 10967].
 
 
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
