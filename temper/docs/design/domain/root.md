@@ -713,16 +713,23 @@ each step the core asks for:
    before this step, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
-5. **The forge reads afresh,** then **settles its outbox** (forge/README.md,
-   section 9).
-6. **The calendar is given the periods** (`routing.md`, 7): for each restored
+5. **The calendar is given the periods** (`routing.md`, 7): for each restored
    project, its current period's number, start and next start, and its
    policy's spend per period, from the core; it says what each needs and
    arms its deadline.
-7. **Decisions open:** every due task is activated.
+6. **Decisions open:** every due task is activated, and the service
+   admits its clients.
+7. **The forge catches up** (`forge/catching-up.md`): as the core asks
+   it at the opening, the root gives the forge `Event::CatchUp`, and
+   passes its `RestartDone` reports of its fresh reads and its settle
+   to the core, which records them by connector; the forge reads afresh
+   and settles its outbox (forge/README.md, section 9) while the engine
+   serves. The root's own procedures on the forge's facts, the trains'
+   forming (`form_landings`) and the limit holds' reconcile, wait for
+   the forge's fresh reads (`forge/catching-up.md`, 4).
 
-Until decisions open, the forge's hints are dropped and its timers fire
-from its restore on.
+Until decisions open, the forge's hints are dropped; its own timers
+fire from the beginning of its catching up.
 
 ### 8.2 Stopping
 

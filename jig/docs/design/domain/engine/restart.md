@@ -50,17 +50,33 @@ next only once the root says this one is done (../root.md, section 8).
    attempt `Fenced`), and one no worker listed that committed nothing
    ends not started, as an engine claim does (../tasks/lifecycle.md, 2). Nothing new is assigned before every claim loaded has
    reached the fleet.
-4. **Read afresh.** Each connector reads, for the live tasks that name
-   them, the resources its system owns.
-5. **Settle the outboxes.** Each connector resolves every entry not
-   committed as made, as its recovery class says (../connectors.md, 4.3):
-   looked for by its key or the state it leads to, written again if it
-   is a set; one not found waits for the retry deadline committed with
-   its last attempt, which the restart keeps; one of a kind that cannot
-   be recovered holds its task for a person.
-6. **Decide afresh.** Every procedure steps once on the facts read;
-   every agent task due gets a run; every inbox's messages are relayed or
-   wake as their policy says.
+4. **Open.** Once the runs are adopted, decisions open: the engine's
+   own records are in, and nothing it serves waits for a connector.
+   People sign in and out, chats, settings, task and census reads,
+   worker links and adopted runs go on; every agent task due gets a
+   run; every inbox's messages are relayed or wake as their policy
+   says.
+5. **Each connector catches up** from the opening, while the engine
+   serves (../connectors.md, 14), its two halves together:
+   - **it reads afresh,** for the live tasks that name them, the
+     resources its system owns;
+   - **it settles its outbox,** each entry not committed as made
+     resolved as its recovery class says (../connectors.md, 4.3): looked
+     for by its key or the state it leads to, written again if it is a
+     set; one not found waits for the retry deadline committed with its
+     last attempt, which the restart keeps; one of a kind that cannot be
+     recovered holds its task for a person.
+
+   It reports each half, and has caught up once both have ended.
+   Nothing bounds it, and nothing of the engine's waits on it but what
+   step 6 names.
+6. **Decide afresh, a resource at a time.** Every procedure steps from
+   the opening as its wakes come; a decision on a fact a connector owns
+   waits for that fact's first fresh read, or for the connector's fresh
+   reads (../connectors.md, 5.1), and never judges a resource from what
+   the store held alone; a write waits for the uncertain entries before
+   it on its lane (../connectors.md, 4.2). A run's call that needs a
+   connector waits in that call, within the run's own deadlines.
 
 Workers keep the answers and turns they were not acknowledged for, and
 send them again after their hello; the core commits any it does not
@@ -195,8 +211,14 @@ the start; the core owns its order. `Core::start_begin(pending, at)`
 takes the store's pending flag and the start's time; the core then
 answers `Action::Step(phase)` for each `Phase` in turn: `LoadCore`,
 `LoadInbox`, `RestoreConnector { connector }` for each connector,
-`Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, then `ReadAfresh` and
-`SettleOutbox` for each connector, and `Open`. The root serves the
+`Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, and `Open`. As `Open`
+is done the core asks each connector to catch up, `Ask::CatchUp` (step
+5), and the root passes each connector's report of a half back with
+`catch_up_done(connector, stage)`, `stage` its
+`effects::connector::RestartStage`, `ReadAfresh` or `Settled`;
+`caught_up(connector)` says whether both have come since the opening.
+No phase follows `Open`, so nothing the start gates waits for a
+connector. The root serves the
 phase and reports it with `start_done(env, phase, out)`, and gives the
 sweep its people rows with `start_sweep(env, SweepInput, out)`; it never
 picks a successor. `Action::Commit(continuation)` asks the root to put
@@ -248,8 +270,9 @@ would make a commit:
   nothing, and whatever the run sends after is for an attempt the core no
   longer holds, and dropped. Its writer slots are released: the run may
   still write until its process ends, but nothing is placed while the
-  engine stops, and the next start reads every resource afresh before it
-  places anything (`restart.md`, steps 4 and 6). A job's claim is left as it stands, for the
+  engine stops, and the next start places no run that writes a
+  resource before its connector has read it afresh (`restart.md`, steps 5
+  and 6; `../tasks/holds.md`, 3). A job's claim is left as it stands, for the
   next start to settle as a crash leaves it, since its one effect may
   have happened. A crash, or a second signal before that decision
   commits, leaves every such claim to the next start, which settles it

@@ -477,7 +477,7 @@ the client wire (`README.md`, section 11).
 
   | The gate | REASON |
   |---|---|
-  | the root not yet opened | `starting: STEP`, the start's step in 9.1's words: `loading the core's records`, `loading the inbox`, `loading the forge's records`, `linking the forge's records`, `sweeping`, `switching the store`, `committing the wires`, `adopting runs`, `reading the forge afresh`, `settling the forge's outbox`, `opening decisions` |
+  | the root not yet opened | `starting: STEP`, the start's step in 9.1's words: `loading the core's records`, `loading the inbox`, `loading the forge's records`, `linking the forge's records`, `sweeping`, `switching the store`, `committing the wires`, `adopting runs`, `opening decisions`; the forge's catching up comes after the opening and holds no client (`../domain/forge/catching-up.md`) |
   | the forges' records not yet loaded and connected | `loading the forges' records` |
   | the first periods not yet given | `opening the first periods` |
   | the forges' names not yet resolved, GitHub's apart (`forge/README.md`, 2.6) | `resolving the forges' names` |
