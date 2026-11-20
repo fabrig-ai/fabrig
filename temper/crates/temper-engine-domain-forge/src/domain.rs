@@ -10045,13 +10045,15 @@ pub(crate) fn erase_removed_repositories(
     !kept
 }
 
+// A making's write waits until after the settle; reading afresh ends on reads
+// alone (temper/docs/design/domain/forge/branches.md, 1).
 fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
     if d.restart_fresh == Some(true)
         && d.landing.pending.is_empty()
         && d.pending_ci.is_empty()
         && d.goal_file_reads.is_empty()
         && d.lost.is_empty()
-        && d.makings.is_empty()
+        && !goal_branch::reading_afresh(d)
     {
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
