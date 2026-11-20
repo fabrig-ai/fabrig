@@ -1,6 +1,8 @@
 # process-tier: status
 
-2026-11-18. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-20. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+
+- **Not yet:** the cluster's story of a worker stopped as its unit does, with a stray signal to its agent [in flight: change 10984].
 
 
 

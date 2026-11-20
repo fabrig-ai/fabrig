@@ -23,6 +23,10 @@ within deadlines; next start holds claims as long. Redeploy names those
 told; operator-started drills follow landing (`domain/root.md`, 8.2;
 `domain/worker/README.md`, section 2; jig's `protocol/channel/restart.md`;
 R8, goal 4843).
+An owner pauses, drains or resumes a linked worker (`temper ctl worker`);
+drained, it stays linked until resumed or stopped. The unit signals the
+worker alone, within its printed stop bound, and an agent leaves a stray
+signal to its worker (`domain/worker/README.md`, 2; `client/ctl/workers.md`).
 Minutes of model-provider unreachability hold no task: runs wait as
 infrastructure failures. Model-call failure holds name calls from structured
 fields alone (`draft/run-provider-outage.status.md`;

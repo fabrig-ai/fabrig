@@ -7,6 +7,9 @@
 - **Not yet:** 5, *The base's build has a target of its own*: the check's base runs inherit its `CARGO_TARGET_DIR`, or none (`tools/pre-pr/pre_pr.py`, `judge_base`) [in flight: change 9655].
 - **Not yet:** 4.3, *Each fetch and check out*: the worker logs no fetch or check out [in flight: change 9674].
 - **Not yet:** 4.3, *Each assignment*: serve writes no line as an assignment leaves for a worker [in flight: change 9704].
+- **Not yet:** 2, *The stop bound is printed*: the worker prints no stop bound, and temper's help gives its unit `KillMode=control-group` [in flight: change 10977].
+- **Not yet:** 2, *Asked over its link, the worker pauses or drains, and stays up*: the worker drains only at a termination signal, and then stops [in flight: change 10982].
+- **Not yet:** 2, *A signal to its agents is the worker's to decide*: an agent cancels its run on its own signal [in flight: change 10976].
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline.
 
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
