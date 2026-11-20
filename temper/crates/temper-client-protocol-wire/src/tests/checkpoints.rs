@@ -5,14 +5,9 @@ use skein_lib::Reader;
 
 #[test]
 fn checkpoints_carry_the_request_and_both_terminal_forms_at_current_version() {
-<<<<<<< HEAD
     let request = w::Requesting { request: w::Request::Checkpoint };
     let [high, low] = w::VERSION.to_be_bytes();
     let request_bytes = [high, low, 26];
-=======
-    let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::Checkpoint }).unwrap();
-    let request_bytes = [0, 40, 26];
->>>>>>> refs/hand8/10367
     assert_eq!(crate::requesting(&request).as_ref(), request_bytes);
     assert_eq!(crate::decode_requesting(&request_bytes, &w::CEILINGS), Some(request));
     let checkpoint =
@@ -21,36 +16,21 @@ fn checkpoints_carry_the_request_and_both_terminal_forms_at_current_version() {
     let success = w::Outcome::Checkpointed(checkpoint);
     let golden = super::golden("enum_outcome_checkpointed_smallest.bin");
     let mut writer = skein_lib::Writer::new(golden.len().checked_add(2).unwrap());
-<<<<<<< HEAD
     writer.put(&[high, low]).unwrap();
     writer.put(golden).unwrap();
     let success_bytes = writer.finish();
     let refused = w::Outcome::CheckpointRefused(w::CheckpointRefused { why: w::CheckpointWhy::NotOwner });
     for (outcome, bytes) in [(success, success_bytes), (refused, Box::from([high, low, 41, 0]))] {
         let answer = w::Answer { outcome };
-=======
-    writer.put(&[0, 40]).unwrap();
-    writer.put(golden).unwrap();
-    let success_bytes = writer.finish();
-    let refused = w::Outcome::CheckpointRefused(
-        w::CheckpointRefused::new(&w::CEILINGS, w::CheckpointRefusedParts { why: w::CheckpointWhy::NotOwner }).unwrap(),
-    );
-    for (outcome, bytes) in [(success, success_bytes), (refused, Box::from([0, 40, 41, 0]))] {
-        let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap();
->>>>>>> refs/hand8/10367
         assert_eq!(crate::answer(&answer).as_ref(), bytes.as_ref());
         let mut reader = Reader::new(&bytes);
         assert_eq!(w::Answer::decode(&w::CEILINGS, &mut reader), Ok(answer));
         assert!(reader.is_empty());
     }
-<<<<<<< HEAD
     let [high, low] = w::VERSION.checked_sub(1).unwrap().to_be_bytes();
     assert_eq!(
         crate::decode_requesting(&[high, low, 26], &w::CEILINGS),
         None,
         "the previous client layout is not bridged"
     );
-=======
-    assert_eq!(crate::decode_requesting(&[0, 39, 26], &w::CEILINGS), None, "the previous client layout is not bridged");
->>>>>>> refs/hand8/10367
 }

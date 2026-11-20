@@ -49,7 +49,6 @@ workers = "127.0.0.1:8369"   # where workers connect, on loopback
 owner = "sam@example.com"   # the first owner, read at the first start alone
 webhooks = "127.0.0.1:8368"
 
-<<<<<<< HEAD
 [sign_in.google]
 client = "CLIENT_ID"
 secret = "secrets/google-client.secret"   # in the data directory, mode 0600
@@ -67,15 +66,6 @@ and `addresses = [3]`; add `[[openid.clients]]` with `id = "forgejo"`,
 `redirect = "https://git.example.com/user/oauth2/temper/callback"`.
 `[[sign_in.forges]]`: `forge = 1`, `client = "forgejo"`.
 Step 3 creates key and secret, prints this command; run once after step 4:
-=======
-For Forgejo sign-in, set
-`engine.clients.provider`: `{"key":"provider.key","clients":[{"id":
-"forgejo","secret":"forgejo-client.secret","redirect_uri":
-"https://git.example.com/user/oauth2/temper/callback"}],"addresses":
-[3]}`, and in `application.sign_in`, `"forges":[{"forge":1,"client":
-"forgejo"}]`. Step 3's forge preparation creates key and secret and prints this command;
-run once after step 4:
->>>>>>> refs/hand8/9200
 
 ```
 temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
@@ -89,11 +79,7 @@ More runs: `temper ctl DIR worker places w1 PLACES --key KEY`.
 Places are the worker setting's, taken at next opening from engine figures. Engine limits: `limits`; starts name short ones. Each place is an agent
 process, up to `agents`' `declared.memory`.
 
-<<<<<<< HEAD
 Expect: valid TOML; not running.
-=======
-Expect: valid JSON; not running.
->>>>>>> refs/hand8/9200
 
 If not: step 3 names bad keys.
 
@@ -196,7 +182,6 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-<<<<<<< HEAD
 - Worker `CONFIG/temper.toml` (`temper-worker help config`):
 
 ```toml
@@ -214,31 +199,13 @@ PATH = "/usr/bin:/bin"
   figures, apply limits, write private `ROOT/agent/agent.json`, and run
   sibling `temper-agent`. No `claude` member: worker PATH's `claude`, else
   fetched; `[programs]` can name its absolute path.
-=======
-- `temper-worker serve`: three dirs. Example's `workers[0]`:
-  `engine` `{"socket":"127.0.0.1:8369"}`, `name` `"w1"`,
-  `secret` `"secrets/w1.secret"`; top-level only `workers` and
-  `application`. Remove
-  `application.workers`, worker `limits` and `agent`,
-  `application.limits` and config's `agent.json`: refused as moved.
-  Each start: fetch engine figures, apply limits, write private
-  `ROOT/agent/agent.json`, run sibling `temper-agent`.
-  No `claude` member: worker PATH's `claude`, else fetched.
->>>>>>> refs/hand8/9200
   Step 3 unit: `KillMode=control-group` (no agent or command outlives it),
   `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
   Raise this timeout with the worker's bound.
   `ReadWritePaths` its home; without `PrivateTmp=yes`, Claude Code fails
   `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
-<<<<<<< HEAD
   `[environment]`: optional table of strings; unique names (temper help box).
   Absent: the worker's own `HOME` and `PATH`. Otherwise: exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them; no other process variables.
-=======
-  `application.environment`: optional list, not a map; unique names:
-  `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
-  Absent: worker's own `HOME` and `PATH`. A list gives its entries plus
-  worker's `HOME`/`PATH` where omitted; no other process variables.
->>>>>>> refs/hand8/9200
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
@@ -262,13 +229,8 @@ journalctl -u temper -o cat | grep 'task TASK run'
 
 ## 6. Sign in, through a tunnel, and connect the forge
 
-<<<<<<< HEAD
 The proxy refuses the link's public page and route. Give ctl the listener's
 origin, on `engine` as `temper`:
-=======
-The proxy refuses public links; give ctl the listener's origin,
-on `engine` as `temper`:
->>>>>>> refs/hand8/9200
 
 ```
 journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -

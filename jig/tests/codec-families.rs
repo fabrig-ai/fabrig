@@ -28,10 +28,6 @@ pub const FAMILIES: &[Family] = &[
         text: jig_client_protocol_wire::CLIENT_SCHEMA,
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-<<<<<<< HEAD
-=======
-        schemas: &["schema/client-v38.schema", "schema/client-v38-part1.schema"],
->>>>>>> refs/hand8/9200
         generated: &["src/generated/client.rs"],
     },
     Family {

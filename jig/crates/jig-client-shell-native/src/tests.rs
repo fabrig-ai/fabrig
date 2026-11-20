@@ -168,13 +168,9 @@ fn the_stream_s_bytes_reach_the_link_in_order() {
         }
     }
     assert_eq!(bytes, b"firstsecond");
-<<<<<<< HEAD
-    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=38 HTTP/1.1\r\n"));
-=======
     assert!(peer.wire.received.starts_with(
         format!("GET /jig/v1/stream?version={} HTTP/1.1\r\n", jig_client_protocol_wire::VERSION).as_bytes()
     ));
->>>>>>> refs/hand8/9200
     peer.shell.down(Time::ZERO, client::Request::CloseStream, &mut peer.below);
     peer.drive();
     assert!(peer.wire.finished);

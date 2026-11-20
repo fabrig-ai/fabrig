@@ -54,36 +54,11 @@ pub struct ProjectGates {
 }
 
 pub fn landing_record(v: &ProjectLanding) -> w::ProjectLanding {
-<<<<<<< HEAD
     w::ProjectLanding {
+        repairs: super::repairs::record(v.repairs.as_ref()),
         by: match v.by {
             temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
             temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
-=======
-    w::ProjectLanding::new(
-        &w::CEILINGS,
-        w::ProjectLandingParts {
-            repairs: super::repairs::record(v.repairs.as_ref()),
-            by: match v.by {
-                temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
-                temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
-            },
-            batch: v.batch,
-            combine_main: combine_record(v.combine_main),
-            combine_other: combine_record(v.combine_other),
-            merge_job: v.merge_job.clone(),
-            close_job: v.close_job.clone(),
-            landing_attempts: v.landing_attempts,
-            check_timeout_ms: v.check_timeout_ms,
-            gate_retries: v.gate_retries,
-            gate_timeout_ms: v.gate_timeout_ms,
-            tier_retries: v.tier_retries,
-            verification_bound_ms: v.verification_bound_ms,
-            wait: match v.wait {
-                temper_engine_domain_forge_change::Wait::Cleared => w::SettingsLandingWait::Cleared,
-                temper_engine_domain_forge_change::Wait::Landed => w::SettingsLandingWait::Landed,
-            },
->>>>>>> refs/hand8/10367
         },
         batch: v.batch,
         combine_main: combine_record(v.combine_main),

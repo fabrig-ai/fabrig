@@ -134,11 +134,7 @@ impl Sample {
         }
     }
 }
-<<<<<<< HEAD
-pub const N: usize = 451;
-=======
-pub const N: usize = 453;
->>>>>>> refs/hand8/9200
+pub const N: usize = 454;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]

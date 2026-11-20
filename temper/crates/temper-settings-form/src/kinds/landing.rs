@@ -4,11 +4,8 @@ use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
-<<<<<<< HEAD
 use temper_client_protocol_wire::v1::Record;
-=======
 mod repairs;
->>>>>>> refs/hand8/10367
 const MOST: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
 fn number(d: &Decoder<'_>, fields: &Fields, name: &[u8], default: u64) -> Result<u64, Error> {
     match optional(fields, name) {
@@ -96,11 +93,11 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
         Some(at) => Some(d.number(at)?),
         None => None,
     };
-<<<<<<< HEAD
     Ok({
         let value = w::ProjectLanding {
             by,
             wait,
+            repairs: repairs::read(d, &f)?,
             batch: u16::try_from(number(d, &f, b"batch", 1)?).or(Err(error(b"batch", b"u16 bound")))?,
             combine_main,
             combine_other,
@@ -118,32 +115,6 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
         };
         match value.encode(&d.kinds) {
             Ok(_) => value,
-=======
-    Ok(
-        match w::ProjectLanding::new(
-            &d.kinds,
-            w::ProjectLandingParts {
-                by,
-                wait,
-                repairs: repairs::read(d, &f)?,
-                batch: u16::try_from(number(d, &f, b"batch", 1)?).or(Err(error(b"batch", b"u16 bound")))?,
-                combine_main,
-                combine_other,
-                merge_job: text(d, &f, b"merge_job")?,
-                close_job: text(d, &f, b"close_job")?,
-                landing_attempts: u8::try_from(number(d, &f, b"landing_attempts", 3)?)
-                    .or(Err(error(b"landing_attempts", b"u8 bound")))?,
-                check_timeout_ms,
-                gate_retries: u8::try_from(number(d, &f, b"gate_retries", 2)?)
-                    .or(Err(error(b"gate_retries", b"u8 bound")))?,
-                gate_timeout_ms: number(d, &f, b"gate_timeout_ms", 3_600_000)?,
-                tier_retries: u8::try_from(number(d, &f, b"tier_retries", 2)?)
-                    .or(Err(error(b"tier_retries", b"u8 bound")))?,
-                verification_bound_ms: number(d, &f, b"verification_bound_ms", 7_200_000)?,
-            },
-        ) {
-            Ok(value) => value,
->>>>>>> refs/hand8/10367
             Err(why) => return Err(record_bound(why)),
         }
     })
@@ -357,7 +328,7 @@ pub(super) fn render_landing(v: &w::ProjectLanding, out: &mut Encoder) {
     if v.wait != w::SettingsLandingWait::Cleared {
         string(out, b"wait", b"landed");
     }
-    if let Some(repairs) = v.repairs() {
+    if let Some(repairs) = &v.repairs {
         out.key(b"repairs");
         repairs::render(repairs, out);
     }

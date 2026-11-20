@@ -237,8 +237,11 @@ prefix; jig's test application mounts it at `/jig`.
   its record; a batch's `Part`s written as they come, each framed, and
   its body ended at `Done` (6); the stream written as events, `StreamTaken` said as their
   bytes are written. The application's server mounts it at a prefix of
-<<<<<<< HEAD
-  its listener and hands it the calls under that prefix.
+  its listener and hands it the calls under that prefix, each call's
+  head with its connection's peer address (3, *The exchange's way and
+  source*), which the server keeps from the connection's accept (skein's
+  io, `Accepted { peer }`): jig's connection-owning `server` keeps it
+  for the application and routes each call with it.
 - **Its `Settings`** name that prefix, the public name (3), and the
   link page where the application gives one, `page: Option<Box<[u8]>>`,
   the same page its clients' `Mapping` is given, under 1's rule, which
@@ -250,13 +253,6 @@ prefix; jig's test application mounts it at `/jig`.
   `printed_link(address, path)` puts it on the listener's address,
   `http://HOST:PORT` before it; an application printing at a public
   origin puts the same path on that origin.
-=======
-  its listener and hands it the calls under that prefix, each call's
-  head with its connection's peer address (3, *The exchange's way and
-  source*), which the server keeps from the connection's accept (skein's
-  io, `Accepted { peer }`): jig's connection-owning `server` keeps it
-  for the application and routes each call with it.
->>>>>>> refs/hand8/9200
 - **The engine end's room** is its calls in flight, streams and batches among them
   (`README.md`, section 10), and it owns that bound alone. A batch is one call, held
   until its body has ended. It holds a call from its

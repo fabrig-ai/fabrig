@@ -29,18 +29,11 @@ Minutes of model-provider unreachability hold no task: the run waits as an
 infrastructure failure. Model-call failure holds name the call from
 structured fields alone (`draft/run-provider-outage.status.md`;
 `domain/worker/README.md`, 4.3).
-<<<<<<< HEAD
 Failed workspace preparation says where and why: worker, workspace,
 repository, stage, git command (check out distinct from clean), operation
 and prepare times; the worker logs it
 (`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
 A checkout's git is the worker's own, never the run's `.git` (`protocol/git.md`, 4.13).
-=======
-Failed workspace preparation names worker, workspace, repository, stage,
-git command (check out distinct from clean), operation and prepare times;
-the worker logs it (`draft/checkout-failure-words.status.md`;
-`domain/worker/checkouts.md`, 1).
->>>>>>> refs/hand8/9200
 A real-loop story failing on an unasked kill names target, killer, time,
 reason and service notes from the run's last seconds
 (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
@@ -198,7 +191,6 @@ Engine worlds check behaviour; process tier: two stories each on fake
 forge and owned Forgejo, run by choice (`testing/process-tier.md`);
 staging walks follow landing (`draft/merge-queue.status.md`).
 
-<<<<<<< HEAD
 Landing history H1, goal 2474: change/landing events outlive rows
 (`domain/landing-history.md`), one change/event by deciding/observing
 steps under `queue`/`turn`. The forge demand-loads families through the
@@ -228,37 +220,6 @@ re-asks once, jig-step fenced, preserving prefixes; release at preparing
 reconciles alike. Forming makes the task first; refused make forms
 nothing, its train waits a queue window; start ends a landing whose
 task was never made (`domain/landing-forming.md`).
-=======
-Landing history H1, goal 2474: change/landing steps outlive rows as
-events (`domain/landing-history.md`), written by deciding/observing steps
-under `queue`/`turn`, one change per event. Forge demand-loads families
-through root, omits them at restart, sweeps each change past
-`forge.history_days`/`forge.history_events`, including idle/deleted projects;
-`temper ctl landing history` and `change show` read them after rows go.
-H2, goal 2649: timing reads events alone (`domain/landing-times.md`), folding
-ready-to-landed/ended spans into disjoint states, held first, waiting last,
-partial when history starts after ready; landing rounds, probes and proof
-time. `temper ctl landing times` pages by change, cursor carrying running
-totals (`draft/landing-history.status.md`).
-
-Held landing recovery (`draft/held-landing-recovery.status.md`): release
-is once-only, fenced, decided on fresh reads, never the ended delegate it
-retires. A failed resolution's release checks its branch's current head
-or asks one fresh resolution pinned to it (`domain/forge/change/repairs.md`,
-*A release*). A change owns only its opened or stored-number pull request,
-never a closed one found by branches (`domain/forge/change/README.md`, 2).
-Ended changes' pull requests, branches and history are frozen
-(`domain/forge/keeping-up.md`, 3); job attempts name why they ended
-(`domain/landing-history.md`, 2.2).
-
-Prepare survives restart (`draft/prepare-restart.status.md`): each
-preparing step reads jig's context and job record, not its own marks, for
-prepare living, answered or absent. Forge start reads/wakes each landing,
-deciding nothing. Lost attempts retry in the same child once writer slots
-settle; proven absence asks once again, fenced by jig's step, keeping
-recovered prefixes. Release at preparing reconciles likewise
-(`domain/landing-preparing.md`).
->>>>>>> refs/hand8/9200
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
