@@ -408,17 +408,17 @@ fn foot(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, facts
         return;
     }
     let Status::Shown(status) = &facts.status else { return };
-    let branch = status.branch();
+    let branch = status.branch.as_ref();
     let branch = if branch.is_empty() { None } else { Some(branch) };
     let red = [branch.unwrap_or(b"")];
     let landing = super::changes::LandingFacts {
-        queued: u64::from(status.queued()),
-        last: match status.last_landed() {
+        queued: u64::from(status.queued),
+        last: match &status.last_landed {
             Some(at) => Some(skein_lib::Wall::from_nanos(*at)),
             None => None,
         },
         branch,
-        red: if status.red() { &red } else { &[] },
+        red: if status.red { &red } else { &[] },
     };
     b.open(Role::Paragraph);
     b.style(look::HOME_FACTS);
@@ -755,7 +755,7 @@ fn add_sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings,
     text(b, Role::Heading { level: 3 }, &legend, Some(look::WELCOME_LEGEND));
     for (start, title, detail) in [
         (Start::Empty, Word::WelcomeForgejoEmpty, Word::WelcomeForgejoEmptyDetail),
-        (Start::Copies, Word::WelcomeForgejoCopies, Word::WelcomeForgejoCopiesDetail),
+        (Start::Copies, Word::WelcomeForgejoCopies, Word::HomeAddCopiesDetail),
     ] {
         b.open(Role::Slot);
         b.style(look::WELCOME_OPTION);
@@ -834,7 +834,7 @@ fn add_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
             }
             b.close();
         }
-        Start::Nothing => {}
+        Start::Sample | Start::Nothing => {}
     }
     b.close();
 }

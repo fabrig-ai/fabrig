@@ -113,8 +113,8 @@ What waits is section 12.
   names, within 256 bytes; the log takes them from the row.
 - **Bounds:** at most `forge.landings_pending` landings, the range's
   oldest, and at most `forge.landing_members` goals each.
-- **Moved** by a person or the triager is the draft's section 7, not
-  this document's.
+- **Moved** by the finding's holder or a project owner with the act
+  `blame`, its strength then `moved` (`red-repairs.md`, section 3).
 
 ## 4. Its words
 
@@ -432,9 +432,8 @@ section 2), `temper ctl`'s in its tools' step harness
   `Fixes-finding: n` name its repair once the landing log keeps their
   trailers (`after-landing.md`, sections 8 and 10); until then its
   members' pull request bodies alone do.
-- **The rest of the draft:** a red's blame moved, sorted by the
-  triager and repaired by a repair goal
-  (`../draft/after-landing-repairs.md`, sections 7 and 8).
+- **Sorting and repairs** are `red-repairs.md`'s: the triager's sorts,
+  a red's blame moved and its repair goals.
 - **Reds owed on an ended milestone's row** counted as they move, once
   a mark of the parts can reach an ended group's row without its mark
   growing (section 10, *As fresh as the read*).

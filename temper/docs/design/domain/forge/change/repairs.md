@@ -50,21 +50,21 @@
   CI's or reviews', before its pull section, so the charter's fit, which
   cuts a brief from its end (`../../agent/room.md`, 2), cuts the pull's
   contents first and the reason never.
-  Repair instructions preserve the requested change and unrelated content
-  already landed on the base, including both independent appended lines
-  and existing blank lines. Lost content is restored from the review's
-  remarks; content is never removed just to make a check pass. Both
-  yield to the change's request as revised and the answers given on it,
-  where they say otherwise: the preservation words, after the repair's
-  reason, are ` Preserve the requested change and unrelated base
-  content, including both independent appended lines and existing blank
-  lines, and do not remove content to make a check pass, unless the
-  change's request as revised, or an answer given on it, says
-  otherwise.`, and the repair's words end with what the change is asked
-  now, after the preservation words, in the room they leave
-  (`questions.md`, 1, *What later work is told*). So a person's ruling
-  that drops a file the request named, or keeps lines it did not, is
-  the repair's to follow, not the original request's to restore.
+  Repair instructions preserve the requested change, as its current spec
+  and rulings state it, and unrelated content already landed on the
+  base, including both independent appended lines and existing blank
+  lines. Lost content is restored from the review's remarks; content is
+  never removed just to make a check pass. Both yield to the change's
+  current spec and rulings where they say otherwise: the preservation
+  words, after the repair's reason, are ` Preserve the requested change,
+  as its current spec and rulings state it, and unrelated base content,
+  including both independent appended lines and existing blank lines,
+  and do not remove content to make a check pass, unless its current
+  spec or a ruling says otherwise.`, and the repair's words end with the
+  change's current spec and rulings (`questions.md`, 1, *What every
+  delegate is told*). So a person's ruling that drops a file the
+  request named, or keeps lines it did not, is the repair's to follow,
+  not the original request's to restore.
 - **A person's request's repair** (`gates.md`, 1) keeps, with its reason, the head
   the person reviewed. Its reviews section reads the forge's reviews at
   that head, and their remarks on lines, as a gate's repair reads them at
@@ -93,6 +93,10 @@
   flake finding names it, or it passes when run again at this head) and
   nothing needs changing, finish with verdict 1, naming each test and how
   you saw it pass; a person then releases the change to run its gate once
+  more.`, or where it offers the no-test verdict (*A landing repair that
+  finds no failed test*), `No test: if no test failed in the run below
+  and nothing needs changing, finish with verdict 2, saying what its
+  jobs show; a person then releases the change to run its gate once
   more.`; then
   `Gate run: RUN at PREFIX, base BASE: LINK`, RUN the run's id as the
   forge's API gives it, the one `read_ci what=job` takes, PREFIX the commit the
@@ -123,6 +127,22 @@
   the gate's failed run from its receipt: for each failed job, a
   `temper/gate/NAME` line, failed, pinned for `read_ci what=job` at the commit the
   gate ran at, so that `read_ci what=job` reads its log as any job's.
+  Its delivery is judged against the base its landing used: where its
+  reason (`Landing` or `LandingAt`) resolves to a failed receipt that
+  keeps a base (`../../landing.md`, 6.2), its item names that base as its
+  pin (`../../worker/checkouts.md`, *A named pin*), so its check compares
+  its diff, its figures and its tests with what the landing judged, never
+  with the change's head or the source it was opened from (`opened.md`).
+  Where none resolves, or the receipt keeps no base, its item names none
+  and it is judged against the head it repairs, as every other repair is:
+  the change's own (CI's, a gate's, a review's or a check's, a person's
+  request for changes, a clean update's red) and a queue's ejection. Its
+  account names that base: its entry among the change's repairs
+  (`README.md`, 2, step 7) goes on from `landing gate G failed` with `,
+  judged against BASE`, and where it fails for good its hold's account
+  opens `its repair, task N, judged against BASE, failed for good: `,
+  BASE the commit in full hexadecimal. A repair judged against the head
+  it repairs keeps its words as they are.
 - **A green head ends a CI repair.** A CI repair's reason is CI failed at
   the head: a failed check, or a clean update whose CI then fails. When a
   step of the change reads CI passed at its branch's head (`../keeping-up.md`, 3):
@@ -201,7 +221,7 @@
   gate's, a review's or a check's repair, a person's request for changes,
   a landing's, a resolution and a queue's ejection that change nothing
   hold the change as before (1, *A repair of another reason that changes
-  nothing*), but for a landing repair's flake verdict (below).
+  nothing*), but for a landing repair's flake or no-test verdict (below).
 - **A landing repair that finds only flakes** (`../../landing-regate.md`,
   3) says so with a verdict, rather than a no-change taken as a failure:
   - **Offered** where the repair's reason is a landing's gate
@@ -236,6 +256,19 @@
     landing's failure, its repair counted against the allowance the
     release reset; a flake verdict holds every time, so only a person's
     release runs a gate once more.
+- **A landing repair that finds no failed test** (`../../landing-regate.md`,
+  1) says so with verdict 2, as a flake's (above) but for these:
+  - **Offered** where the repair's reason is a landing's gate and the
+    failed receipt it resolves to names no failed test when the repair
+    is asked: `Failed tests: not known`, or a report read naming none.
+    Its contract's one choice is code 2, `no_test`, its words carrying
+    the `No test:` line; never beside the flake's.
+  - **Its result** holds the change, its cause `NoTest`, its account
+    `its repair, task N, found no failed test: WORDS; release this
+    change to run its gate once more, or cancel it`, WORDS cut and
+    marked as a flake's.
+  - **Its release** asks no repair and regates once, as a flake's;
+    bounded as a flake's.
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
@@ -294,9 +327,9 @@
   fails for good only on what a fresh read would meet again.
   Its instructions keep
   both sides' intended content by the same preservation rule as repairs,
-  which yields as theirs does to the change's request as revised and the
-  answers given on it; the shared coding charter applies it to repairs
-  and resolutions too, with the same proviso.
+  which yields as theirs does to the change's current spec and rulings;
+  the shared coding charter applies it to repairs and resolutions too,
+  with the same proviso.
   **A deletion or a rename is intended content too**
   (`../../../draft/merge-deletions.md`, 2): a file deleted on the base
   stays deleted unless the requested change needs it; a file deleted on
@@ -314,14 +347,14 @@
   base (`../../../client/journey-writer.md`, 5). The full instructions are
   exactly:
 
-  > Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.
+  > Resolve the merge conflict. Preserve the requested change, as its current spec and rulings state it, and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless its current spec or a ruling says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.
 
   The specification reserves its pinned parameters' bytes before its words.
   Where the full instructions do not fit, a compact instruction keeps both
   sides, blank lines and each side's deletions and renames, with the full
   rule in the coding charter:
 
-  > Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.
+  > Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless its current spec or a ruling says otherwise. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.
 
   Where neither fits, the change holds instead of issuing an oversized
   delegate. Either form carries the deletion rule whole, with a merge
@@ -332,8 +365,9 @@
   left out leaves the deletion rule whole. The merge job's records name
   each left file's kind and, for a deletion, the side and the commit
   that deleted it (`../../../protocol/tooling.md`, 4.1).
-  What the change is asked now follows them both, in the room they leave
-  (`questions.md`, 1, *What later work is told*).
+  The change's current spec and rulings follow them both (`questions.md`,
+  1, *What every delegate is told*), their room taken before the merge
+  job's result, which takes what they leave.
   Its pull section carries each of the pull's files whole, both sides, where
   they fit the room the section has left. A file that doesn't is named
   instead, never carried in part, for the resolver to read in its checkout,
@@ -837,91 +871,4 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
 
 ## 1. Open questions
 
-- **A green head no wake reaches** (`repairs.md`, `../keeping-up.md`, 2): a held change reads on a wake,
-  and a poll wakes it only when what it read of the pull request moved. Under
-  a rule's required contexts, a check they do not name can keep the pull
-  request's CI as it was while theirs pass, so the hold waits for a hint or a
-  person's release, which makes no fresh repair. Default: so; it costs time,
-  not a repair.
-
-- **A retry before the read** (`repairs.md`): a run ending into a retry wakes no change,
-  so a backoff shorter than `poll_ms` can start another run at a green head,
-  left to finish as any run is. Whether jig tells a procedure of its delegate's
-  retry, so that none starts. Default: as it stands.
-
-- **A hold at gating at a green head** (`repairs.md`): past the bound or short of
-  authority there, a hold can be a gate's or CI's, and its state does not say
-  which. Saying so changes what a hold stores. Default: it waits for a person's
-  release, which decides afresh.
-
-- **A repair held for its brief** (`repairs.md`): the repair's task is held, naming
-  its reason, while the change stays `Repairing` and its panel shows no hold:
-  a person reads why on the task, and releases it there. Default: so; whether
-  the panel says it too stays open.
-
-- **A review's or a repair's brief under a drift hold** (`repairs.md`, *Another
-  writer's*): while its change is held for a moved head, each try of its brief
-  meets the same refusal and counts as capacity, taking a brief slot for its
-  reads every time, until a release takes the head or a cancel ends the task,
-  the loop a resolution no longer makes (a resolution's moved head, above).
-  Whether the change ends those too when it holds for a drift, as it ends a
-  resolution. Default: as it stands; the request of 2026-11-12 named a
-  resolution's brief alone.
-
-- **A forge out of reach or not connected** (`repairs.md`): `Unavailable` counts as
-  transient, so a long outage holds each repair preparing through it, naming
-  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
-  Default: so; the allowance is the user's.
-
-- **A failing check's repair brief:** a check gate that says no is
-  repaired as a review that says no is, and its repair's brief carries
-  the pull request's reviews section (`repairs.md`). A check's verdict is not a
-  review on the forge: whether the brief should carry the check's own
-  output instead is open.
-
-- **What failed on a queue's group** (`repairs.md`, `../queues.md`, 1): an ejection's repair
-  brief carries the forge's reason alone, the pull request's `dequeued`,
-  since skein's `Pull` names no commit of the group. The alternative
-  reads the group's CI and gives the repair its failing output.
-  Default: the reason alone.
-
-- **A clean update's other words** (`repairs.md` and `../README.md`, section 6): the result still says
-  `the base broke it`, and the client panel calls its repair a semantic
-  conflict, although the path proves only that CI failed after an update.
-  Aligning those words needs the client's owner too. Default: the task's
-  instructions and brief name the failed check; the result and panel keep
-  their words until that follow-up.
-
-- **A read left at its cutoff keeps running** (`repairs.md`, *A forge
-  section is sized by its cutoff*): skein's forge client has no way to
-  withdraw a read it admitted (skein's `forge/client.md`, 5), so a read a
-  section left, a page of files with each side of each file its own
-  request, holds one of the client's calls to its end, and a brief tried
-  again at once can find the client still reading for its last attempt.
-  Default: the read runs on and its answer is dropped; withdrawing an
-  admitted read is skein's client's to design (2026-11-14).
-
-- **A repair of another reason that changes nothing** (`repairs.md`, *A CI
-  repair that changes nothing checks its head again*): a gate's or a
-  review's verdict at the head stays valid there, so checking the same
-  head again would only ask the next repair, and a landing's, a
-  resolution's and an ejection's red is not CI's at the change's head.
-  Default: such a repair finding nothing to do holds the change, as a
-  failed one does, until a person decides (2026-11-14). A landing repair
-  that finds only flakes says so with its verdict instead, and its
-  release runs the gate once more (*A landing repair that finds only
-  flakes*; 2026-11-17).
-
-- **Every failed job at once** (`repairs.md`, *A CI repair that changes
-  nothing checks its head again*): one job runs again for each repair that
-  changed nothing, as one write is one job's; a head with several failed
-  jobs spends a repair on each left red. Default: one job, since a
-  deployment's CI fails in one gate job (2026-11-14).
-
-- **A landing repair that only merges its base** (*A landing's
-  repair*; `../../../../../../tools/pre-pr/design.md`, 2): its delivery
-  check's base is the pin, so a merge of main alone selects no tests and
-  passes, though the gate failed. Default: its words name the failed
-  tests, which its agent runs by name; carrying them into the check's
-  selection, as `temper/reds` carries reds (`../reds.md`, 5.2), is a
-  wire to its worker and waits (2026-11-15).
+See [Repairs, resolutions and releases: open questions](repairs-later.md).

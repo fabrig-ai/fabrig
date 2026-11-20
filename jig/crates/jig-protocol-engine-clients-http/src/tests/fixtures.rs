@@ -23,13 +23,18 @@ pub fn mount() -> Mount {
     prefixed(b"/jig")
 }
 pub fn fresh_mount() -> Mount {
-    Mount::new(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None }, &env().limits)
+    Mount::new(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), page: None, public: None }, &env().limits)
 }
 pub fn public_mount() -> Mount {
-    listening(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: Some(Box::from(PUBLIC)) })
+    listening(Settings {
+        max_age: 5,
+        prefix: Box::from(b"/jig".as_slice()),
+        page: None,
+        public: Some(Box::from(PUBLIC)),
+    })
 }
 pub fn prefixed(prefix: &[u8]) -> Mount {
-    listening(Settings { max_age: 5, prefix: Box::from(prefix), public: None })
+    listening(Settings { max_age: 5, prefix: Box::from(prefix), page: None, public: None })
 }
 fn listening(settings: Settings) -> Mount {
     let mut mount = Mount::new(settings, &env().limits);
@@ -104,7 +109,11 @@ pub fn call_named(
 ) -> Token {
     mount.down(
         &env(),
-        Event::Call { call: name, head: head(method, target, headers, http::Body::Length(len_u64(body.len()))) },
+        Event::Call {
+            peer: None,
+            call: name,
+            head: head(method, target, headers, http::Body::Length(len_u64(body.len()))),
+        },
     );
     pump(mount, out);
     if !body.is_empty() {
@@ -215,27 +224,24 @@ pub fn cookie_header() -> skein_http::Header {
 }
 pub fn signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
     use jig_client_protocol_wire as w;
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires },
-        )
-        .expect("signed in"),
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut bytes).expect("sign in");
+    let answer =
+        w::SignInAnswer::SignedIn(w::SignedIn { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("sign in");
     kit::Reply::Record(bytes.finish())
 }
 pub fn approval_signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
-    let answer = w::ApprovalSignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires },
-        )
-        .expect("signed in"),
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut bytes).expect("approval sign in");
+    let answer = w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+        token: Some(Secret::new(Box::new(*token))),
+        party: PARTY,
+        expires,
+    });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("approval sign in");
     kit::Reply::Record(bytes.finish())
 }
 pub fn sign_in_reply(path: &[u8], token: &[u8; 40], expires: u64) -> kit::Reply {

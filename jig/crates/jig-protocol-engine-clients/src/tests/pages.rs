@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::translate::pages;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
 
 fn activity(read: &reads::Page, limits: &w::Limits) -> Result<w::ReadValue, w::Problem> {
@@ -20,8 +21,7 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
     for bytes in [b"".as_slice(), b"job bytes", &[0, 255, 7]] {
         let mut exchange = fixtures::read_exchange();
         let limits = exchange.env.limits.wire;
-        let read =
-            w::Read::Activity(w::ReadActivity::new(&limits, w::ReadActivityParts { task: 7, before: None }).unwrap());
+        let read = w::Read::Activity(w::ReadActivity { task: 7, before: None });
         let (owner, reply, _) = exchange.read(&read);
         let word = t::Word {
             number: 19,
@@ -34,7 +34,7 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
         };
         let mut rows = List::with_capacity(3);
         for (position, line) in [
-            (3, t::Line::RunBegan { attempt: 13, why: t::Why::Made, resumed: false }),
+            (3, t::Line::RunBegan { attempt: 13, why: t::Why::Made, resumed: false, fresh: None }),
             (2, t::Line::Heard(word)),
             (
                 1,
@@ -56,27 +56,28 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
         let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else {
             panic!("served activity, not malformed")
         };
-        let w::ReadValue::Activity(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record())).unwrap()
+        let w::ReadValue::Activity(page) =
+            w::ReadValue::decode(&limits, &mut Reader::new(answer.record.as_ref())).unwrap()
         else {
             panic!("activity")
         };
-        let mut pieces = Reader::new(page.rows());
+        let mut pieces = Reader::new(page.rows.as_ref());
         let mut wire_rows = List::with_capacity(3);
         while let Some(piece) = skein_codec::piece::split(&mut pieces).unwrap() {
             wire_rows.push(w::DecodedActivityLine::decode(&limits, &mut Reader::new(&piece)).unwrap()).unwrap();
         }
         assert_eq!(wire_rows.len(), 3);
-        let w::Activity::Heard(heard) = wire_rows.get(1).unwrap().source().line() else { panic!("heard") };
-        let w::MessageKind::Result(result) = heard.value().kind() else { panic!("result") };
-        assert_eq!(result.value(), &w::WordResult::Job);
-        assert_eq!(heard.value().words(), b"");
+        let w::Activity::Heard(heard) = &wire_rows.get(1).unwrap().source.line else { panic!("heard") };
+        let w::MessageKind::Result(result) = &heard.value.kind else { panic!("result") };
+        assert_eq!((&result.value), &w::WordResult::Job);
+        assert_eq!(heard.value.words.as_ref(), b"");
         let client = jig_client_domain::Limits { rows: 3, ..*fixtures::client_limits().client() };
         let client = jig_client_protocol_link::Limits::new(client, 4).unwrap();
         let page = jig_client_protocol_link::translate::pages::activity_page(page, &client).unwrap();
         assert_eq!(page.rows.len(), 3);
         assert!(page.cut);
         for (row, (position, line)) in page.rows.iter().zip([
-            (3, c::Activity::RunBegan { attempt: 13, why: c::RunWhy::Made, resumed: false }),
+            (3, c::Activity::RunBegan { attempt: 13, why: c::RunWhy::Made, resumed: false, fresh: None }),
             (
                 2,
                 c::Activity::Heard(c::Word {
@@ -128,14 +129,16 @@ fn job_results_cross_word_lines_and_question_answers_without_bytes() {
             let source = t::ActivityLine { task: 7, position: 2, at: Wall::from_nanos(29), line };
             let answer = crate::translate::objects::question_answer::answer(&source, &limits).unwrap();
             assert_eq!(crate::translate::activity::line(&source, &limits).unwrap(), answer);
-            let mut out = Writer::new(usize::try_from(answer.measure()).unwrap());
-            answer.encode(&mut out).unwrap();
+            let mut out = Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
+            answer.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
             let decoded = w::ActivityLine::decode(&limits, &mut Reader::new(&out.finish())).unwrap();
             assert_eq!(decoded, answer);
-            let (kind, words) = match decoded.line() {
-                w::Activity::Words(row) => (row.kind(), row.words()),
-                w::Activity::Heard(row) => (row.value().kind(), row.value().words()),
-                w::Activity::Notified(row) => (row.word().kind(), row.word().words()),
+            let (kind, words) = match &decoded.line {
+                w::Activity::Words(row) => ((&row.kind), row.words.as_ref()),
+                w::Activity::Heard(row) => ((&row.value.kind), row.value.words.as_ref()),
+                w::Activity::Notified(row) => ((&row.word.kind), row.word.words.as_ref()),
                 other @ (w::Activity::RunBegan(_)
                 | w::Activity::RunEnded(_)
                 | w::Activity::Turn(_)
@@ -149,9 +152,9 @@ fn job_results_cross_word_lines_and_question_answers_without_bytes() {
                 | w::Activity::NowWritten(_)) => panic!("word carrier: {other:?}"),
             };
             let w::MessageKind::Result(result) = kind else { panic!("result") };
-            assert_eq!(result.value(), &w::WordResult::Job);
+            assert_eq!((&result.value), &w::WordResult::Job);
             assert_eq!(words, b"");
-            assert_eq!((decoded.task(), decoded.position(), decoded.at()), (7, 2, 29));
+            assert_eq!((decoded.task, decoded.position, decoded.at), (7, 2, 29));
         }
     }
 }
@@ -176,27 +179,20 @@ fn an_activity_page_carries_each_turn_s_bytes() {
         .unwrap() else {
             panic!("activity page")
         };
-        let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(page.rows())).unwrap().unwrap();
+        let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(page.rows.as_ref())).unwrap().unwrap();
         let line = w::DecodedActivityLine::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        let archive = line.decoded().as_ref().unwrap();
-        let w::TurnBytes::Carried(turn) = archive.turn() else { panic!("carried projection") };
-        assert_eq!(turn.bytes(), fixtures::private_transcript(withheld).as_ref(), "withheld {withheld}");
+        let archive = line.decoded.as_ref().unwrap();
+        let w::TurnBytes::Carried(turn) = &archive.turn else { panic!("carried projection") };
+        assert_eq!(turn.bytes.as_ref(), fixtures::private_transcript(withheld).as_ref(), "withheld {withheld}");
         assert_eq!(
-            (
-                archive.task(),
-                archive.name().attempt(),
-                archive.name().number(),
-                archive.cumulative(),
-                *archive.read(),
-                archive.at()
-            ),
+            (archive.task, archive.name.attempt, archive.name.number, archive.cumulative, archive.read, archive.at),
             (7, 31, 37, 19, Some(0), 23)
         );
     }
     for (label, limits, path) in [
-        ("turn bytes", w::Limits { turn_carried_bytes: 2, ..limits }, w::Path::TurnCarriedBytes),
-        ("page pieces", w::Limits { activity_page_rows: 0, ..limits }, w::Path::ActivityPageRows),
-        ("opaque cursor", w::Limits { cursor_value: 1, ..limits }, w::Path::CursorValue),
+        ("turn bytes", w::Limits { turn_carried_bytes: 2, ..limits }, w::paths::TURN_CARRIED_BYTES),
+        ("page pieces", w::Limits { activity_page_rows: 0, ..limits }, w::paths::ACTIVITY_PAGE_ROWS),
+        ("opaque cursor", w::Limits { cursor_value: 1, ..limits }, w::paths::CURSOR_VALUE),
     ] {
         assert_eq!(activity(&source, &limits), Err(w::Problem { path, reason: skein_codec::Reason::Bound }), "{label}");
     }
@@ -239,10 +235,10 @@ fn a_history_page_keeps_changes_attempts_holds_cut_and_cursors() {
         .unwrap() else {
             panic!("history")
         };
-        assert_eq!(page.cut(), cut);
-        assert_eq!(crate::translate::cursor::decode(page.before().as_ref().unwrap().value()), source.before);
-        assert_eq!(crate::translate::cursor::decode(page.after().as_ref().unwrap().value()), source.next);
-        let mut pieces = skein_lib::Reader::new(page.rows());
+        assert_eq!(page.cut, cut);
+        assert_eq!(crate::translate::cursor::decode(page.before.as_ref().unwrap().value.as_ref()), source.before);
+        assert_eq!(crate::translate::cursor::decode(page.after.as_ref().unwrap().value.as_ref()), source.next);
+        let mut pieces = skein_lib::Reader::new(page.rows.as_ref());
         let change = skein_codec::piece::split(&mut pieces).unwrap().unwrap();
         let w::HistoryRow::Change(_) = w::HistoryRow::decode(&limits, &mut skein_lib::Reader::new(&change)).unwrap()
         else {
@@ -254,21 +250,18 @@ fn a_history_page_keeps_changes_attempts_holds_cut_and_cursors() {
         else {
             panic!("attempt after change")
         };
-        assert_eq!((attempt.value().task(), attempt.value().attempt()), (7, 2));
-        assert_eq!(
-            (*attempt.value().claimed(), *attempt.value().started(), *attempt.value().ended()),
-            (Some(14), Some(15), Some(19))
-        );
-        assert_eq!(*attempt.value().end(), Some(w::RunEnd::Finished));
-        assert_eq!(*attempt.value().phases(), Some(3));
+        assert_eq!((attempt.value.task, attempt.value.attempt), (7, 2));
+        assert_eq!((attempt.value.claimed, attempt.value.started, attempt.value.ended), (Some(14), Some(15), Some(19)));
+        assert_eq!(attempt.value.end, Some(w::RunEnd::Finished));
+        assert_eq!(attempt.value.phases, Some(3));
         let hold = skein_codec::piece::split(&mut pieces).unwrap().unwrap();
         let w::HistoryRow::Hold(hold) = w::HistoryRow::decode(&limits, &mut skein_lib::Reader::new(&hold)).unwrap()
         else {
             panic!("hold after attempt")
         };
-        assert_eq!((hold.value().task(), hold.value().position(), hold.value().at()), (7, 31, 37));
-        assert_eq!(hold.value().before(), &w::PriorPhase::Waiting);
-        assert_eq!(hold.value().why(), &w::HoldCategory::Deadline);
+        assert_eq!((hold.value.task, hold.value.position, hold.value.at), (7, 31, 37));
+        assert_eq!((&hold.value.before), &w::PriorPhase::Waiting);
+        assert_eq!((&hold.value.why), &w::HoldCategory::Deadline);
         assert!(skein_codec::piece::split(&mut pieces).unwrap().is_none());
     }
 }
@@ -333,8 +326,10 @@ fn kept_lines_and_met_notices_cross_both_client_translations() {
         let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
             panic!("activity page");
         };
-        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut out).unwrap();
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let bytes = out.finish();
         let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
         let actual =
@@ -376,8 +371,10 @@ fn proposal_lines_keep_their_identity_and_making_through_the_client() {
         let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
             panic!("activity")
         };
-        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut out).unwrap();
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let bytes = out.finish();
         let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
         let actual =
@@ -412,14 +409,16 @@ fn a_line_at_the_largest_profile_bound_encodes() {
     ] {
         let line = t::ActivityLine { task: 7, position: 1, at: Wall::from_nanos(5), line };
         let record = crate::translate::activity::line(&line, &w::CEILINGS).unwrap();
-        let mut encoded = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut encoded).unwrap();
+        let mut encoded = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
         let encoded = encoded.finish();
         let decoded = w::ActivityLine::decode(&w::CEILINGS, &mut Reader::new(&encoded)).unwrap();
-        let decoded_words = match decoded.line() {
-            w::Activity::Words(record) => record.words(),
-            w::Activity::Heard(record) => record.value().words(),
-            w::Activity::Notified(record) => record.word().words(),
+        let decoded_words = match &decoded.line {
+            w::Activity::Words(record) => record.words.as_ref(),
+            w::Activity::Heard(record) => record.value.words.as_ref(),
+            w::Activity::Notified(record) => record.word.words.as_ref(),
             other @ (w::Activity::RunBegan(_)
             | w::Activity::RunEnded(_)
             | w::Activity::Turn(_)
@@ -474,8 +473,10 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
             panic!("activity page")
         };
-        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut out).unwrap();
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let record = w::ActivityPage::decode(&limits, &mut Reader::new(&out.finish())).unwrap();
         let actual = jig_client_protocol_link::translate::pages::activity_page(record, &client).unwrap();
         let c::DecodedActivityLine { source, decoded } = actual.rows.get(0).unwrap();
@@ -491,7 +492,10 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         at: Wall::EPOCH,
         line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 513]) },
     };
-    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityStoodWords);
+    assert_eq!(
+        crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path,
+        w::paths::ACTIVITY_STOOD_WORDS
+    );
     let line = t::ActivityLine {
         task: 7,
         position: 13,
@@ -500,11 +504,13 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
     };
     let record = crate::translate::activity::line(&line, &limits).unwrap();
     let narrower = w::Limits { activity_stood_words: t::STOOD_WORDS - 1, ..limits };
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     assert_eq!(
         w::ActivityLine::decode(&narrower, &mut Reader::new(&out.finish())).unwrap_err().path,
-        w::Path::ActivityStoodWords
+        w::paths::ACTIVITY_STOOD_WORDS
     );
 }
 
@@ -535,8 +541,10 @@ fn talk_lines_and_the_two_session_ends_cross_the_client_wire() {
         let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &w::CEILINGS).unwrap() else {
             panic!("activity page")
         };
-        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let record = w::ActivityPage::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).unwrap();
         let decoded =
             jig_client_protocol_link::translate::pages::activity_page(record, &fixtures::client_limits()).unwrap();
@@ -564,8 +572,10 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
     let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
         panic!("activity page")
     };
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
     let decoded = jig_client_protocol_link::translate::pages::activity_page(record, &client).unwrap();
     let actual = decoded.rows.get(0).unwrap();
@@ -583,13 +593,63 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
     );
     assert!(actual.decoded.is_none());
     let record = crate::translate::activity::line(&line, &limits).unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let narrower = w::Limits { activity_now_written_line: t::NOW_LINE - 1, ..limits };
     assert_eq!(
         w::ActivityLine::decode(&narrower, &mut Reader::new(&bytes.finish())).unwrap_err().path,
-        w::Path::ActivityNowWrittenLine
+        w::paths::ACTIVITY_NOW_WRITTEN_LINE
     );
     let line = t::ActivityLine { line: t::Line::NowWritten { attempt: 3, line: Box::from([b'n'; 513]) }, ..line };
-    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityNowWrittenLine);
+    assert_eq!(
+        crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path,
+        w::paths::ACTIVITY_NOW_WRITTEN_LINE
+    );
+}
+
+#[test]
+fn run_beginnings_carry_each_fresh_cause_to_the_decoded_client_page() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall};
+    for (fresh, expected) in [
+        (None, None),
+        (Some(t::Fresh::Moved), Some(c::RunFresh::Moved)),
+        (Some(t::Fresh::Closed), Some(c::RunFresh::Closed)),
+        (Some(t::Fresh::Cut), Some(c::RunFresh::Cut)),
+        (Some(t::Fresh::Limit), Some(c::RunFresh::Limit)),
+        (Some(t::Fresh::Session), Some(c::RunFresh::Session)),
+    ] {
+        let mut exchange = fixtures::read_exchange();
+        let limits = exchange.env.limits.wire;
+        let read = w::Read::Activity(w::ReadActivity { task: 7, before: None });
+        let (owner, reply, _) = exchange.read(&read);
+        let mut rows = List::with_capacity(1);
+        rows.push(reads::PageRow::Activity {
+            line: t::ActivityLine {
+                task: 7,
+                position: 1,
+                at: Wall::EPOCH,
+                line: t::Line::RunBegan { attempt: 3, why: t::Why::Ready, resumed: false, fresh },
+            },
+            turn: None,
+        })
+        .unwrap();
+        exchange.release_read(reply, reads::Answer::Page(Box::new(fixtures::page(rows))));
+        let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else { panic!("served activity") };
+        let w::ReadValue::Activity(page) =
+            w::ReadValue::decode(&limits, &mut Reader::new(answer.record.as_ref())).unwrap()
+        else {
+            panic!("activity page")
+        };
+        let client = jig_client_protocol_link::Limits::new(*fixtures::client_limits().client(), 4).unwrap();
+        let page = jig_client_protocol_link::translate::pages::activity_page(page, &client).unwrap();
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(
+            page.rows.as_slice().first().unwrap().source.line,
+            c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh: expected }
+        );
+    }
 }

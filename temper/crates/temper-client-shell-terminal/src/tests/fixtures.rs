@@ -1,5 +1,6 @@
 use jig_client::contract;
 use jig_client_protocol_link as link;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{RequestRecord, Token};
 use temper_client_domain as client;
 pub const NOW: skein_lib::Wall = skein_lib::Wall::EPOCH;
@@ -73,10 +74,12 @@ pub fn role_refusal() -> contract::Refusal {
 }
 pub fn core_refusal() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = *link_limits().wire();
-    let value = w::Refusal::Role(w::RefusalRole::new(&limits, w::RefusalRoleParts { held: None }).expect("role fits"));
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measure fits"));
-    value.encode(&mut writer).expect("measured room");
+    let value = w::Refusal::Role(w::RefusalRole { held: None });
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("measure fits"),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
     writer.finish()
 }
 
@@ -281,10 +284,8 @@ fn populate_page(
                     },
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
-                    let value =
-                        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: None })
-                            .unwrap();
+                if let w::Read::Setting(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
+                    let value = w::SettingAnswer { revision: None, value: None };
                     client::step(
                         root,
                         env,
@@ -311,76 +312,54 @@ fn populate_page(
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("fixture family watch");
-                if let w::Watch::Changes(subject) = watching.watch() {
+                if let w::Watch::Changes(subject) = &watching.watch {
                     let mut changes = skein_lib::List::with_capacity(1);
                     changes
-                        .push(
-                            w::ChangesQueued::new(
-                                &w::CEILINGS,
-                                w::ChangesQueuedParts {
-                                    goal: None,
-                                    chat: None,
-                                    milestone: None,
-                                    task: 9,
-                                    title: b"Store: policy record".as_slice().into(),
-                                    ready_since: 0,
-                                    checks_since: Some(0),
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        .push(w::ChangesQueued {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
+                            task: 9,
+                            title: b"Store: policy record".as_slice().into(),
+                            ready_since: 0,
+                            checks_since: Some(0),
+                        })
                         .unwrap();
                     let mut queues = skein_lib::List::with_capacity(1);
                     queues
-                        .push(
-                            w::ChangesQueue::new(
-                                &w::CEILINGS,
-                                w::ChangesQueueParts {
-                                    way: w::Way::Queue,
-                                    in_flight: None,
-                                    repository: b"owner/repo".as_slice().into(),
-                                    branch: b"main".as_slice().into(),
-                                    red: false,
-                                    changes,
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        .push(w::ChangesQueue {
+                            way: w::Way::Queue,
+                            in_flight: None,
+                            repository: b"owner/repo".as_slice().into(),
+                            branch: b"main".as_slice().into(),
+                            red: false,
+                            changes,
+                        })
                         .unwrap();
                     let mut landed = skein_lib::List::with_capacity(1);
                     landed
-                        .push(
-                            w::ChangesLanded::new(
-                                &w::CEILINGS,
-                                w::ChangesLandedParts {
-                                    goal: None,
-                                    chat: None,
-                                    milestone: None,
-                                    signed: skein_lib::List::with_capacity(8),
-                                    commit: [0xab; 32],
-                                    default_branch: true,
-                                    task: 10,
-                                    title: b"A landed change".as_slice().into(),
-                                    at: 0,
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        .push(w::ChangesLanded {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
+                            signed: skein_lib::List::with_capacity(8),
+                            commit: [0xab; 32],
+                            default_branch: true,
+                            task: 10,
+                            title: b"A landed change".as_slice().into(),
+                            at: 0,
+                        })
                         .unwrap();
-                    let panel = w::ChangesPanel::new(
-                        &w::CEILINGS,
-                        w::ChangesPanelParts {
-                            landed_default: skein_lib::List::with_capacity(0),
-                            landed_default_more: 0,
-                            project: subject.project(),
-                            landing: b"main".as_slice().into(),
-                            queues,
-                            more: 0,
-                            landed,
-                            landed_more: 0,
-                        },
-                    )
-                    .unwrap();
+                    let panel = w::ChangesPanel {
+                        landed_default: skein_lib::List::with_capacity(0),
+                        landed_default_more: 0,
+                        project: subject.project,
+                        landing: b"main".as_slice().into(),
+                        queues,
+                        more: 0,
+                        landed,
+                        landed_more: 0,
+                    };
                     client::step(
                         root,
                         env,
@@ -508,7 +487,7 @@ pub fn page_words() -> temper_client_view::words::Words {
         .get_or_init(|| {
             temper_client_view::words::Words::english(
                 temper_client_protocol_wire::FORGE,
-                32,
+                temper_client_protocol_wire::v1::CEILINGS.class_item_words,
                 temper_client_view::words::Shell::Terminal,
             )
             .expect("temper words fit")
@@ -937,21 +916,21 @@ pub fn native() -> crate::client::NativeClient {
 }
 pub fn service_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = *link_limits().wire();
-    let service = w::MadeService::new(&limits, w::MadeServiceParts { party: SERVICE, credential: credential() })
-        .expect("service fits");
-    let made =
-        w::OutcomeMade::new(&limits, w::OutcomeMadeParts { what: w::Made::Service(service) }).expect("made fits");
-    let done =
-        w::Final::Done(w::Done::new(&limits, w::DoneParts { outcome: w::Outcome::Made(made) }).expect("done fits"));
-    let mut bytes = skein_lib::Writer::new(usize::try_from(done.measure()).expect("record fits"));
-    done.encode(&mut bytes).expect("measured final");
-    let owned =
-        w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() })
-            .expect("owned fits");
+    let service = w::MadeService { party: SERVICE, credential: credential() };
+    let made = w::OutcomeMade { what: w::Made::Service(service) };
+    let done = w::Final::Done(w::Done { outcome: w::Outcome::Made(made) });
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(done.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("record fits"),
+    );
+    done.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured final");
+    let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
     let answer = w::KeyedAnswer::FinalAnswer(owned);
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer fits"));
-    answer.encode(&mut bytes).expect("measured answer");
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer fits"),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured answer");
     bytes.finish()
 }
 

@@ -443,6 +443,7 @@ pub(crate) fn named_action(
         }
         action @ (NamedAction::ProposeSettings { .. }
         | NamedAction::Message { .. }
+        | NamedAction::MarkRead { .. }
         | NamedAction::Introduce { .. }
         | NamedAction::Subscribe { .. }
         | NamedAction::Unsubscribe { .. }
@@ -478,6 +479,16 @@ pub(crate) fn named_action(
     }
     let token = to.into_token();
     let mut out = Queue::uncapped();
+    if malformed_recording(&action, env.limits.tasks.inbox_messages) {
+        call_decision(
+            core,
+            &mut out,
+            ReplyTo::new(token),
+            key,
+            CallPart::MessageRefused(tasks::Problem::new(Some(key.task), tasks::Refusal::Read)),
+        );
+        return out;
+    }
     match action {
         NamedAction::ReadTask { .. } => unreachable!("task reads use the unrecorded path"),
         NamedAction::PersonRead(_) => unreachable!("person reads use the unrecorded path"),
@@ -493,6 +504,15 @@ pub(crate) fn named_action(
                 key,
                 crate::settings::Proposed { against, items, reason },
             );
+        }
+        NamedAction::MarkRead { messages } => {
+            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
+            let token = core.fly_call(token, RoutedCall::MarkRead(key));
+            work.push(Work::Event(Event::Tasks(tasks::Event::RecordWords {
+                reply_to: ReplyTo::new(token),
+                task: key.task,
+                messages,
+            })));
         }
         NamedAction::Message { target, kind, words } => {
             if core.person_answers
@@ -725,7 +745,7 @@ pub(crate) fn named_action(
             let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder: true };
             return propose_batch(core, env, proposing, Box::new([*goal]), Some(priority));
         }
-        NamedAction::Note { mut entry, recalled } => {
+        NamedAction::Note { mut entry, recalled, records } => {
             if recalled.is_none() && entry.name != 0 {
                 call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::NoteRefused(notes::Refusal::Exists));
                 return out;
@@ -749,27 +769,61 @@ pub(crate) fn named_action(
             }
             entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
             assert!(core.pending_calls.insert(key, true) == Ok(None), "note call record room reserved");
-            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
+            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key, records });
             work.push(Work::Event(Event::Notes(notes::Event::Write { owner, entry, recalled })));
         }
-        NamedAction::NoteLines { mut entry, recalled, range } => {
+        NamedAction::NoteLines { mut entry, recalled, range, records } => {
             if entry.name == 0 {
                 call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::NoteRefused(notes::Refusal::Missing));
                 return out;
             }
             entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
             assert!(core.pending_calls.insert(key, true) == Ok(None), "note call record room reserved");
-            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
+            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key, records });
             work.push(Work::Event(Event::Notes(notes::Event::WriteLines { owner, entry, recalled, range })));
         }
         NamedAction::NoteDelete { .. } => unreachable!("party deletion routed after replay"),
         NamedAction::Recall { by, page } => {
+            let records = Box::new([]);
             assert!(core.pending_calls.insert(key, true) == Ok(None), "recall call record room reserved");
-            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
+            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key, records });
             work.push(Work::Event(Event::Notes(notes::Event::Recall { owner, by, page })));
         }
     }
     out
+}
+
+fn malformed_recording(action: &NamedAction, limit: u32) -> bool {
+    let messages = match action {
+        NamedAction::MarkRead { messages } => {
+            if messages.is_empty() {
+                return true;
+            }
+            messages
+        }
+        NamedAction::Note { records, .. } | NamedAction::NoteLines { records, .. } => records,
+        NamedAction::ReadTask { .. }
+        | NamedAction::PersonRead(_)
+        | NamedAction::Settings(_)
+        | NamedAction::ReadProposal { .. }
+        | NamedAction::ProposeSettings { .. }
+        | NamedAction::Message { .. }
+        | NamedAction::Introduce { .. }
+        | NamedAction::Subscribe { .. }
+        | NamedAction::Unsubscribe { .. }
+        | NamedAction::Control { .. }
+        | NamedAction::Release { .. }
+        | NamedAction::Amend { .. }
+        | NamedAction::DecideEscalation { .. }
+        | NamedAction::WithdrawProposal { .. }
+        | NamedAction::DecideProposal { .. }
+        | NamedAction::Propose { .. }
+        | NamedAction::ProposeBatch { .. }
+        | NamedAction::ProposeGoal { .. }
+        | NamedAction::NoteDelete { .. }
+        | NamedAction::Recall { .. } => return false,
+    };
+    messages.len() > skein_lib::usize_of(limit) || messages.contains(&0)
 }
 
 pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
@@ -779,6 +833,7 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
         NamedAction::Settings(_) | NamedAction::ReadProposal { .. } | NamedAction::ProposeSettings { .. } => {
             ToolKind::Settings
         }
+        NamedAction::MarkRead { .. } => ToolKind::MarkRead,
         NamedAction::Message { target, .. } => ToolKind::Message { target: *target },
         NamedAction::Introduce { left, .. } => ToolKind::Message { target: *left },
         NamedAction::Subscribe { .. } | NamedAction::Unsubscribe { .. } => ToolKind::Subscribe,

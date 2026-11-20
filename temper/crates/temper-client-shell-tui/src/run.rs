@@ -15,6 +15,7 @@ use temper_client_tui::{BoxLine, Note, Origin, Scheme};
 
 mod front;
 mod lending;
+mod loopback;
 
 const TAG: u64 = 1 << 61;
 fn handshake(error: skein_tls::client::Error) -> temper_client_tui::Handshake {
@@ -102,6 +103,7 @@ pub struct Run {
     lending: lending::Lending,
     close_after_lending: bool,
     io: io::Io,
+    loopback: loopback::Loopback,
     env: Env<io::Limits>,
     signals: Option<Token>,
     root: Fd,
@@ -168,16 +170,18 @@ impl Run {
         let mut terminal = Terminal::new(terminal_settings, settings.size).expect("checked terminal settings and size");
         terminal.adopt(input, output)?;
         let read = temper_client_shell_terminal::limits::terminal().read;
+        let returns = u32::try_from(limits::RETURNS).expect("return connection bound");
         let limits = io::Limits {
-            sockets: 12,
+            // The listener and a socket to reject, beside the bound returns and existing io.
+            sockets: 12 + returns + 2,
             names: 0,
             refusals: 1,
-            intake: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")),
-            receive: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")),
-            output: read,
+            intake: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")).max(limits::RETURN_HEAD),
+            receive: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")).max(limits::RETURN_HEAD),
+            output: read.max(limits::RETURN_HEAD),
             sends: 1,
-            accepts: 1,
-            backlog: 1,
+            accepts: returns,
+            backlog: returns,
             close_timeout: Duration::from_secs(5),
             retry: Duration::from_millis(1),
         };
@@ -195,7 +199,7 @@ impl Run {
         let operations = shell
             .operations()
             .checked_add(Terminal::operations(&terminal_settings).expect("checked terminal operations"))
-            .and_then(|n| n.checked_add(io::operations(&limits).expect("signal operations")))
+            .and_then(|n| n.checked_add(io::operations(&limits).expect("run io operations")))
             .and_then(|n| n.checked_add(3 + if notes.is_some() { 2 } else { 0 } + if front { 2 } else { 0 }))
             .expect("combined operations");
         let operations =
@@ -211,6 +215,7 @@ impl Run {
             lending: lending::Lending::new(input, output),
             close_after_lending: false,
             io,
+            loopback: loopback::Loopback::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             signals: Some(signals),
             root,
@@ -322,7 +327,12 @@ impl Run {
         }
     }
 
-    fn event(&mut self, event: &io::Event) {
+    fn event(&mut self, event: io::Event) {
+        if self.loopback.owns(&event) {
+            self.loopback.event(self.env.now, self.env.wall, event);
+            return;
+        }
+        let event = &event;
         if self.lending.event(event) {
             return;
         }
@@ -411,6 +421,7 @@ impl Run {
             return;
         }
         self.closing = true;
+        self.loopback.close(self.env.now, self.env.wall);
         self.local.closing = true;
         if let Some(root) = &mut self.spawn_root {
             root.closing = true;
@@ -438,6 +449,10 @@ impl Run {
     }
 
     fn report(&mut self, report: host::Report) {
+        self.carry(report, None);
+    }
+
+    fn carry(&mut self, report: host::Report, returning: Option<Token>) {
         let duties = if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
             recorder.report(&mut self.host, report)
         } else {
@@ -470,6 +485,18 @@ impl Run {
             } else {
                 self.report(host::Report::Opened { opened: false });
             }
+        }
+        if duties.listen
+            && !self.closing
+            && let Some(report) = self.loopback.listen(self.opener.is_some())
+        {
+            self.report(report);
+        }
+        if duties.unlisten {
+            self.loopback.unlisten(self.env.now, self.env.wall);
+        }
+        if let Some(owner) = returning {
+            self.loopback.answer(self.env.now, self.env.wall, owner, duties.answer);
         }
         if let Some(stop) = duties.stop
             && let Some(front) = &mut self.box_child
@@ -577,6 +604,15 @@ impl Run {
         self.report(host::Report::Start(start));
     }
 
+    fn loopback_reports(&mut self) -> bool {
+        let mut reported = false;
+        while let Some((owner, report)) = self.loopback.reports.pop() {
+            self.carry(report, owner);
+            reported = true;
+        }
+        reported
+    }
+
     fn reports(&mut self) {
         self.host.clocks(self.env.now, self.env.wall);
         if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
@@ -593,6 +629,7 @@ impl Run {
             reported = true;
         }
         if self.size.is_some() {
+            reported |= self.loopback_reports();
             if let Some(link) = self.local.result.take() {
                 self.report(host::Report::Local { link });
                 reported = true;
@@ -767,13 +804,14 @@ impl Host for Run {
             io::fire(&mut self.io, &self.env, &mut self.told, &mut self.raw);
         }
         while let Some(event) = self.told.pop() {
-            self.event(&event);
+            self.event(event);
         }
         self.shell.iterate(now, wall);
         self.terminal.iterate(now);
         if self.terminal.ended() {
             self.close();
         }
+        self.loopback.fire(now, wall);
         self.reports();
         if let Some(recording) = &mut self.recording {
             if self.closing && self.shell.is_empty() && !recording.closing {
@@ -798,6 +836,10 @@ impl Host for Run {
         self.io.reclaim();
         self.open();
         self.front_progress();
+        while self.io.takes() && self.raw.room() >= io::MAX_OUT_DOWN.submissions {
+            let Some(request) = self.loopback.requests.pop() else { break };
+            self.down(request);
+        }
         self.publish();
     }
 
@@ -820,6 +862,8 @@ impl Host for Run {
             || self.local.pending()
             || self.local.io.is_due(now)
             || self.notes.as_ref().is_some_and(|notes| notes.pending() || notes.io.is_due(now))
+            || !self.loopback.requests.is_empty()
+            || (!self.loopback.reports.is_empty() && self.size.is_some())
             || !self.complete.is_empty()
             || !self.raw.is_empty()
             || !self.submit.is_empty()
@@ -849,6 +893,7 @@ impl Host for Run {
     fn next_policy_deadline(&self) -> Option<Time> {
         [
             self.shell.next_policy_deadline(),
+            self.loopback.deadline(),
             if self.closing || self.size.is_none() { None } else { self.host.deadline() },
         ]
         .into_iter()
@@ -1458,6 +1503,20 @@ mod tests {
     }
 
     #[test]
+    fn the_tuis_closing_also_closes_its_listener() {
+        let mut run = Run::new(settings(), Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
+            .expect("synthetic descriptors");
+        assert!(run.loopback.listen(true).is_none());
+        let Some(io::Request::Listen { owner, .. }) = run.loopback.requests.pop() else { panic!("listen request") };
+        let listener = Token::new(10);
+        run.event(io::Event::Listening { owner, listener, addr: io::Addr::Ip(([127, 0, 0, 1], 43210).into()) });
+        run.close();
+        assert_eq!(run.loopback.requests.pop(), Some(io::Request::Abort { entity: listener }));
+        assert!(run.loopback.requests.is_empty());
+        assert!(run.loopback.reports.is_empty(), "no queued listener report after shutdown");
+    }
+
+    #[test]
     fn a_signal_drops_a_link_already_waiting_to_be_reported() {
         let mut settings = settings();
         settings.front = Some(Front {
@@ -1481,12 +1540,10 @@ mod tests {
             engine: io::Addr::Ip("[::1]:9400".parse().expect("handed engine")),
             address: temper_client_tui::Origin::Http("[::1]:9400".parse().expect("fixture socket")),
             link: Secret::new(
-                b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                    .as_slice()
-                    .into(),
+                b"http://[::1]:9400/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice().into(),
             ),
         });
-        run.event(&io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+        run.event(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
         run.reports();
         assert!(run.closing);
         assert!(!run.front_ready, "no point or connection while closing");

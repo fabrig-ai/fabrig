@@ -624,9 +624,8 @@ temper's:
 - **The printed link** (jig's `protocol/client/sign-in.md`): at
   start, `temper-box serve`, or `temper box` before it starts serve
   (`../protocol/setup/box.md`, 2), prints a sign-in link for the deployment's
-  first owner (`../protocol/binaries.md`), in the default
-  mapping's link route under temper's prefix,
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper-box open
+  first owner (`../protocol/binaries.md`), at the link's page (below),
+  `http://HOST:PORT/sign-in?secret=SECRET`. `temper-box open
   DIRECTORY LINK` checks that the link names the engine's address on
   loopback and that route or the link's page (below), and gives the secret to `jig-client` with the
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
@@ -635,23 +634,46 @@ temper's:
   running engine also keeps a local link of its own at rest, never the
   printed one, for a TUI on the same machine (`tui/README.md`, 2, *The engine's link,
   kept at rest*).
-- **The link's page, `/sign-in`** (the user's request of 2026-11-18):
+- **The link's page, `/sign-in`** (the user's request of 2026-11-18,
+  "a more terse URL, e.g. http://127.0.0.1:8367/sign-in?secret=xxx"):
   temper gives jig's mapping its link page, `/sign-in`, beside its
   prefix, `/jig` (jig's `protocol/client/default-http.md`, 1), so the
-  same link also reads `http://HOST:PORT/sign-in?secret=SECRET`, the
-  same secret, spent by the same `POST` to the link's route. Every
-  client of temper takes a link in either form: the browser opening it
-  (`web/README.md`, 2.4), the TUI's paste and the engine's link file
-  (`tui/pages/README.md`), `temper ADDRESS` refusing it as an argument
-  (`tui/README.md`, section 1), `temper-box open` (`line.md`, 1),
-  `temper ctl DIRECTORY sign-in` (`ctl/README.md`, 6.1) and the TUI
-  journeys' redaction (`tui/journeys.md`, section 5); each reads it with
-  jig's mapping made with that page, whose path temper names once, in
-  `temper-client-domain-forge`'s `sign_in` module. temper still prints
-  the route's form, the box's block and serve's line and the TUI's
-  link line among them, and makes an asked link in it (`ctl/README.md`,
-  6.1), so that a client of the build before reads every link temper
-  gives (5.8).
+  link reads `http://HOST:PORT/sign-in?secret=SECRET`, its secret spent
+  by the `POST` to the link's route, `/jig/v1/sign-in/link`, as before.
+  - **Printed and shown at the page:** every link temper makes is in
+    the page's form, by jig's ends given that page
+    (`default-http.md`, 4): the box's block and every fresh link
+    (`../protocol/setup/box.md`, 2), serve's line, and at a public
+    origin `https://NAME/sign-in?secret=SECRET`; the engine's local
+    link at rest (`tui/README.md`, 2); the link the box hands the TUI
+    in front of it, which its welcome and `/web`'s note show as given
+    (`tui/box.md`, *The welcome*); ctl's asked link (`ctl/README.md`,
+    6.1); and the TUI's link field's placeholder
+    (`tui/pages/sign-in.md`, 1). The help that shows the link shows it
+    so, and the operator's journal search finds it so.
+  - **The route's form still taken** ("let's keep backward compat"):
+    a link in the route's form,
+    `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, printed by a
+    build before, still signs in wherever a link is taken, and its
+    `GET` still answers the page (`web/README.md`, 2.2), until the user
+    says otherwise (5.8). Every client of temper takes either form: the
+    browser opening it (`web/README.md`, 2.4), the TUI's paste and the
+    engine's link file (`tui/pages/README.md`), `temper ADDRESS`
+    refusing it as an argument (`tui/README.md`, section 1),
+    `temper-box open` (`line.md`, 1), `temper ctl DIRECTORY sign-in`
+    (`ctl/README.md`, 6.1) and the TUI journeys' redaction
+    (`tui/journeys.md`, section 5); each reads it with jig's mapping
+    made with that page.
+  - **Named once:** the page's path is `LINK_PAGE` in
+    `temper-client-protocol-wire`, the lowest crate both the engine,
+    which prints the link, and the clients, which read it, name;
+    `temper-client-domain-forge`'s `sign_in` module re-exports it, and
+    every client names it from there.
+  - **No version moves:** the link is no versioned wire, and every
+    client of temper since dev.fabrig.ai's 0.0.2 takes both forms. A
+    client of a build before that one says the page's form is no link;
+    it is a client of another build, which an engine refuses and tells
+    to upgrade (`../draft/redeploys.md`, section 8).
 - **A sign-in held is kept** (jig's `domain/people/README.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -708,19 +730,35 @@ was answered with. A box enables it beside the printed link
 
 - **The root's half,** for a native client, in `temper-client-domain`,
   a module of its own, `asked`:
-  - *Asking:* `Event::AskApproval`, the host's, while the link is signed
-    out; at any other time, or while an ask is in flight, it changes
-    nothing. The root sends `jig-client`'s `AskApproval` and holds
-    `asked::State::Asking`.
+  - *Asking:* `Event::AskApproval { port }`, the host's, while the link
+    is signed out, `port` the ask's loopback return, `Option<u16>`: the
+    port the host's listener on `127.0.0.1` took, for the one click at a
+    name (`tui/pages/sign-in.md`, 3 and 4), or none, on loopback and for
+    a typed code. At any other time, or while an ask is in flight, it
+    changes nothing. The root sends `jig-client`'s `AskApproval { port }`
+    and holds `asked::State::Asking`.
   - *Asked:* on `jig-client`'s `Approval::Asked { secret, code, expires
-    }`, the root signs in at once, `SignIn { with: Approval { secret }
-    }`, and holds `Asked { code, expires }` alone, for its host to draw.
-    The secret goes to `jig-client`, which holds it while the take runs
-    (jig's `client/domain/client/README.md`, section 9), never into the
-    root's state, a print or a log. An unlinked client (jig's
+    }`, the root signs in at once, `SignIn { with: Approval { secret,
+    grant: None } }`, and holds `Asked { code, expires, port }`, `port`
+    its ask's, for its host to draw. The secret goes to `jig-client`,
+    which holds it while the take runs (jig's
+    `client/domain/client/README.md`, section 9), never into
+    `asked::State`, a print or a log. An ask that named a port keeps it
+    in the root too, in a field no reader is given, for the take with
+    the grant (*The grant*, below), until the link leaves signed out or
+    another ask replaces it. An unlinked client (jig's
     `client/domain/client/README.md`, 4.4) leaves the take to its host's link,
     which made the ask and holds the secret: the root holds the code
     and the expiry, and drops the secret it was told.
+  - *The grant:* `Event::Granted { grant }`, the host's, `grant` a
+    `skein_lib::Secret` of the 32 bytes its loopback listener read
+    (`tui/pages/sign-in.md`, 4). While the root holds `Asked` with a port
+    and its secret, and the link is signed out, it signs in again,
+    `SignIn { with: Approval { secret, grant: Some(grant) } }`, whose take
+    replaces the one before; `jig-client` sends it on as that section
+    has it, again without the grant after `not_granted`. At any other
+    time it changes nothing, and the grant is dropped. The root keeps no
+    grant: it is `jig-client`'s while the take runs.
   - *Not asked:* `NotAsked(Refused | NotReady | Busy | Lost)`, held as
     it came, for its host's line.
   - *The take's outcomes are the link's,* in `jig-client`'s `link()`:
@@ -744,19 +782,21 @@ was answered with. A box enables it beside the printed link
     flight is not signed out, so nothing is asked until the engine has
     answered it. On loopback the screen still takes the printed link,
     pasted, as `../draft/tui.md`, 4.1 has it; at a name it holds the
-    approval alone, by a typed code (`tui/pages/sign-in.md`, 3).
+    approval alone, by one click where it can open a browser, else by a
+    typed code (`tui/pages/sign-in.md`, 3).
   - *Asking:* until the engine answers, "Asking temper for a code…",
     dim, under the screen's first line.
   - *The tab's address* is the TUI's own, made from its own parts alone
     by `temper-client-tui`'s `approval_address(origin: &Origin, code:
-    ApprovalCode)`: the origin it was given or kept, printed
-    (`tui/README.md`, 1), then the approval page's printed path. On
-    loopback, `address::print_approve(Some(code))`,
+    Option<ApprovalCode>)`: the origin it was given or kept, printed
+    (`tui/README.md`, 1), then the approval page's printed path,
+    `address::print_approve(code)`. The host gives the code on loopback,
     `http://127.0.0.1:8367/terminal?code=WDJB-MJHT` (`web/README.md`,
-    2.3), the code an `ApprovalCode`, so of the code's alphabet by its
-    type; at a name, `address::print_approve(None)`, no code, so
-    `https://dev.fabrig.ai/terminal`, whose page asks for the code
-    typed (`tui/pages/sign-in.md`, 3). An answer
+    2.3), and for the one click at a name,
+    `https://dev.fabrig.ai/terminal?code=WDJB-MJHT`, the code an
+    `ApprovalCode`, so of the code's alphabet by its type; and none for
+    a typed code's ask at a name, `https://dev.fabrig.ai/terminal`, whose
+    page asks for the code typed (`tui/pages/sign-in.md`, 3). An answer
     whose code is off the alphabet is refused by jig's reader, so
     nothing is opened for it. It opens no address the engine sent.
   - *Opening the tab:* on each ask answered, once, the host's duty
@@ -818,7 +858,7 @@ was answered with. A box enables it beside the printed link
 
     | Outcome | Its line |
     |---|---|
-    | waiting | the screen as drawn |
+    | waiting, or a grant that isn't the approval's (`not_granted`) | the screen as drawn |
     | refused | "The browser refused this sign-in. Press Enter to ask again." |
     | expired | "The code expired before it was approved. Press Enter to ask again." |
     | used | "That code was already used. Press Enter to ask again." |
@@ -875,13 +915,13 @@ was answered with. A box enables it beside the printed link
   still signs in on a reload. Falling back to the transport is jig's
   client question (jig's `client/domain/client/README.md`, section 15).
   Default: no fallback; reload to use the cookie.
-- **The printed link in its page's form** (section 4; jig's
-  `protocol/client/default-http.md`, 7): `http://HOST:PORT/sign-in?secret=SECRET`
-  printed wherever temper prints or shows a link, the box's block, the
-  TUI's link line, `temper-box open` and ctl's `address` among them,
-  once the deployments run a build that takes both forms; the user's
-  request of 2026-11-18 asks it as a later landing. Default: the route's
-  form printed, both taken.
+- **The route's form retired** (section 4, *The route's form still
+  taken*; jig's `protocol/client/default-http.md`, 7): once every tool
+  and person has moved to the page's form, temper might stop taking a
+  link at the route and stop answering its `GET` with the page. The
+  user's request of 2026-11-18 keeps it "at first, then all tooling gets
+  migrated"; the user decides when. Default: both taken, the route's
+  page kept.
 
 - **The forge as people's sign-in provider:** temper's own routes on its
   clients' listener run the forge's OAuth flow, read who the person is,

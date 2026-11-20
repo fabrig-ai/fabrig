@@ -87,8 +87,13 @@ fn collect(
             Request::Answer { run, .. } => {
                 report.crossed.push(Crossing::Answer { run, idle: world.domain.checkout().idle() });
             }
-            Request::AgentStopped { .. } | Request::Unprepared { .. } | Request::Hello(_) | Request::Link(_) => {}
-            other @ (Request::ReadList { .. }
+            Request::Git { .. }
+            | Request::AgentStopped { .. }
+            | Request::Unprepared { .. }
+            | Request::Hello(_)
+            | Request::Link(_) => {}
+            other @ (Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }

@@ -28,6 +28,9 @@ use temper_playground::{machine::Machine, programs, programs::Process, story};
 const LOG_BYTES: u32 = 1_048_576;
 // Bound zero-time turns as well as world time when the host keeps asking at once.
 const TURNS_AT_ONE_INSTANT: u32 = 128;
+// Page loads are outside the host's exchange-id sequence, through the same cookie jar.
+const PAGE_EXCHANGE: u32 = u32::MAX;
+const PAGE_BYTES: u32 = 65_536;
 
 /// What enters the page's inbox: the bridge's raises and the page's own.
 pub enum Report {
@@ -42,6 +45,7 @@ pub struct Page {
     host: host::Host,
     memory: Memory<Process<Clients>, Machine, Report>,
     terminal: Option<Terminal>,
+    tab: Option<usize>,
     held: Held,
     tui_starts: u64,
     inbox: Rc<Inbox<Report>>,
@@ -49,8 +53,18 @@ pub struct Page {
     surface: skein_ui_web::page::Page<'static>,
     browser: Time,
     pending_input: bool,
-    seed: u64,
+    reload_seeds: skein_lib::Rng,
     ways: temper_client_view::sign_in::Ways,
+    mount: Mount,
+    signing_in: Option<u32>,
+    #[cfg(test)]
+    served: Box<[u8]>,
+}
+
+enum Mount {
+    Absent,
+    Loading(Option<Result<Box<[u8]>, Failed>>),
+    Ready,
 }
 
 /// A bounded driver operation could not finish (journey-walks.md, 3.2).
@@ -64,6 +78,7 @@ pub enum Failed {
     Closed,
     NotBrowsed,
     Asked(&'static str),
+    PageLoad { status: Option<u16> },
 }
 
 /// The person's terminal result.
@@ -78,14 +93,10 @@ impl Page {
     pub fn start(start: story::Start, name: &[u8]) -> Result<Page, Failed> {
         let seed = start.seed;
         let wall = start.wall;
+        let mount =
+            if start.deployment["world_settings"]["page"].is_string() { Mount::Loading(None) } else { Mount::Absent };
         let inbox = Inbox::new();
-        let mut world = story::world_with::<Clients, _>(start, skein_sim_world::Bare);
-        world.host(skein_sim_world::HostedProgram {
-            program: crate::box_peer::PROGRAM.into(),
-            make: crate::box_peer::BoxPeer::program,
-            instances: 1,
-            operations: 16,
-        });
+        let world = crate::world(start);
         let mut memory = Memory::new(
             skein_playground::slices::Slices::new(world, story::reach(), story::SLICE_STEPS, Time::ZERO),
             bridge::Start { story: name.into(), seed, start: wall },
@@ -104,7 +115,8 @@ impl Page {
                     Report::World(Heard::Printed(printed)) => {
                         if printed.process.as_ref() == b"temper serve"
                             && printed.stream == bridge::Stream::Output
-                            && skein_lib::bytes::find(&printed.line, b"/jig/v1/sign-in/link?secret=").is_some()
+                            && (skein_lib::bytes::find(&printed.line, b"/sign-in?secret=").is_some()
+                                || skein_lib::bytes::find(&printed.line, b"/jig/v1/sign-in/link?secret=").is_some())
                         {
                             link = Some(printed.line);
                         }
@@ -133,7 +145,11 @@ impl Page {
         let (_, path) = link.strip_prefix("http://").and_then(|link| link.split_once('/')).ok_or(Failed::NoLink)?;
         let path = format!("/{path}");
         let taken = sign_in::take(
-            &sign_in::Route { path: b"/jig/v1/sign-in/link", page: None, home: b"/welcome" },
+            &sign_in::Route {
+                path: b"/jig/v1/sign-in/link",
+                page: Some(temper_client_domain::sign_in::LINK_PAGE),
+                home: b"/welcome",
+            },
             path.as_bytes(),
         )
         .ok_or(Failed::NoLink)?;
@@ -151,14 +167,27 @@ impl Page {
             surface,
             browser,
             pending_input: false,
-            seed,
+            reload_seeds: skein_lib::Rng::new(seed),
             ways,
             terminal: None,
+            tab: None,
             held: Held::default(),
             tui_starts: 0,
+            mount,
+            signing_in: None,
+            #[cfg(test)]
+            served: Box::new([]),
         };
         page.give(host::Report::Start, false);
-        page.turn()?;
+        if matches!(page.mount, Mount::Absent) {
+            page.turn()?;
+        } else {
+            // Spend the printed link before fetching the mount with its session cookie.
+            let within = Duration::from_secs(60);
+            let end = page.now().saturating_add(within);
+            page.until(end, |page| Ok(page.signing_in.is_none().then_some(())))?;
+            page.load(&taken.address, within)?;
+        }
         Ok(page)
     }
 
@@ -358,14 +387,70 @@ impl Page {
     /// Restart the host, retaining the world's cookies and the page's small store.
     pub fn reload(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
         let (now, wall) = self.memory.clocks(self.browser);
-        self.host =
-            host::Host::new(temper_client_shell_web::limits::client(), self.seed, now, wall, 0, self.ways.clone());
+        // A browser load supplies fresh entropy, including for request keys.
+        self.host = host::Host::new(
+            temper_client_shell_web::limits::client(),
+            self.reload_seeds.next_u64(),
+            now,
+            wall,
+            0,
+            self.ways.clone(),
+        );
         self.surface = host::page(&self.host.bounds.tree, Primary::Control);
         self.memory.navigate(path);
         self.host.start(path, self.store.read_all(&self.memory), None);
         self.give(host::Report::Start, false);
-        self.turn()?;
+        if !matches!(self.mount, Mount::Absent) {
+            self.load(path, within)?;
+        }
         self.wait(&Find::named(Role::Main, b""), None, within).map(|_| ())
+    }
+
+    /// Fetch the engine's mount through the visitor, with its cookies, before drawing.
+    /// Only the forge metas enter the native host; its sign-in ways are unchanged.
+    fn load(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
+        self.mount = Mount::Loading(None);
+        self.memory.send(&fetch::Exchange {
+            id: PAGE_EXCHANGE,
+            path: path.into(),
+            method: "GET".into(),
+            headers: Vec::new(),
+            body: Box::new([]),
+            bound: PAGE_BYTES,
+            pieces: None,
+            cache: fetch::Cache::NoStore,
+            keep: &[],
+        });
+        let end = self.now().saturating_add(within);
+        let loaded = self.until(end, |page| match &mut page.mount {
+            Mount::Loading(answer) => answer.take().transpose(),
+            Mount::Absent | Mount::Ready => unreachable!("waiting for the page load"),
+        });
+        if matches!(loaded, Err(Failed::Bound | Failed::Turns)) {
+            self.memory.abandon(PAGE_EXCHANGE);
+        }
+        let document = loaded?;
+        let mut forges = temper_client_view::forge_sign_in::Forges::new();
+        let text = String::from_utf8_lossy(&document);
+        // The engine writes these attributes in this fixed form, escaping five characters.
+        for meta in text.split("<meta name=\"temper-forge-sign-in\" content=\"").skip(1) {
+            if let Some((content, _)) = meta.split_once('"') {
+                let content = content
+                    .replace("&quot;", "\"")
+                    .replace("&#39;", "'")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&amp;", "&");
+                forges.read(&content);
+            }
+        }
+        self.host.forge_sign_in(forges);
+        #[cfg(test)]
+        {
+            self.served = document;
+        }
+        self.mount = Mount::Ready;
+        self.turn()
     }
 
     /// Walk the script, moving browser time only to the world's, host's or person's next instant.
@@ -460,6 +545,30 @@ impl Page {
         let (now, wall) = self.memory.clocks(self.browser);
         self.host.clocks(now, wall);
         while let Some(report) = self.inbox.next() {
+            match &report {
+                Report::Fetch(fetch::Report::Answered { exchange, .. } | fetch::Report::Failed { exchange })
+                    if Some(*exchange) == self.signing_in =>
+                {
+                    self.signing_in = None;
+                }
+                _ => {}
+            }
+            let report = match report {
+                Report::Fetch(fetch::Report::Answered { exchange: PAGE_EXCHANGE, status, body, .. }) => {
+                    if let Mount::Loading(answer) = &mut self.mount {
+                        *answer =
+                            Some(if status == 200 { Ok(body) } else { Err(Failed::PageLoad { status: Some(status) }) });
+                    }
+                    continue;
+                }
+                Report::Fetch(fetch::Report::Failed { exchange: PAGE_EXCHANGE }) => {
+                    if let Mount::Loading(answer) = &mut self.mount {
+                        *answer = Some(Err(Failed::PageLoad { status: None }));
+                    }
+                    continue;
+                }
+                other => other,
+            };
             let read_on = matches!(
                 &report,
                 Report::Fetch(
@@ -492,7 +601,9 @@ impl Page {
                 self.give_tui(TuiReport::Due)?;
             }
         }
-        self.host.draw(&mut self.surface, &mut Vec::new());
+        if !matches!(self.mount, Mount::Loading(_)) {
+            self.host.draw(&mut self.surface, &mut Vec::new());
+        }
         Ok(())
     }
 
@@ -502,14 +613,55 @@ impl Page {
             Err(Failed::Stopped) => panic!("world stopped during the walk"),
             Err(Failed::World(words)) => panic!("world failed: {}", String::from_utf8_lossy(&words)),
             Err(why @ (Failed::Closed | Failed::NotBrowsed | Failed::Asked(_))) => panic!("terminal failed: {why:?}"),
-            Err(Failed::Bound | Failed::Turns | Failed::NoLink) => {
+            Err(Failed::Bound | Failed::Turns | Failed::NoLink | Failed::PageLoad { .. }) => {
                 unreachable!("turn only reports world or terminal failures")
             }
         }
     }
 
+    /// The separate tab's last answer; never part of the page's printed surface.
+    #[must_use]
+    pub fn tab(&self) -> Option<&skein_playground::tab::Shown> {
+        let Process::Other(Native::Tab(tab)) = &self.world().processes()[self.tab?] else {
+            unreachable!("tab process")
+        };
+        tab.shown()
+    }
+
+    fn carry_tab(&mut self, act: host::TabAct) {
+        if self.tab.is_none() {
+            match &act {
+                host::TabAct::Open { .. } => {
+                    let parameters = story::parameters(self.world());
+                    let config = temper_playground::documents::visitor(&parameters.deployment);
+                    self.tab = Some(self.memory.slices_mut().world_mut().spawn(|| {
+                        Process::Other(Native::Tab(Box::new(skein_playground::tab::Tab::new(
+                            &config.io,
+                            &config.http,
+                            config.http.head,
+                        ))))
+                    }));
+                }
+                host::TabAct::Point { .. } | host::TabAct::Close => return,
+            }
+        }
+        let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
+        let Process::Other(Native::Tab(tab)) = &mut processes[self.tab.expect("opened tab")] else {
+            unreachable!("tab process")
+        };
+        match act {
+            host::TabAct::Open { .. } | host::TabAct::Close => tab.close(),
+            host::TabAct::Point { to } => tab.point(&to),
+        }
+    }
+
     fn give(&mut self, report: host::Report, read_on: bool) {
         let duties = self.host.report(report);
+        // As in the shipped carrier, tab acts precede the sign-in transport.
+        // Opening a simulated tab is never refused, so no TabRefused is reported.
+        for act in duties.tab {
+            self.carry_tab(act);
+        }
         if let Some(look) = duties.keep_look {
             // The native page keeps the look in its small store, alongside the session.
             self.store.write(temper_client_shell_web::records::LOOK_KEY, &look, &mut self.memory).ok();
@@ -520,6 +672,11 @@ impl Page {
             self.memory.navigate(&to);
         }
         self.pending_input |= !requests.exchanges.is_empty() || requests.stream.is_some() || read_on;
+        for exchange in &requests.exchanges {
+            if exchange.path.as_ref() == b"/jig/v1/sign-in/link" {
+                self.signing_in = Some(exchange.id);
+            }
+        }
         let mut reports = Vec::new();
         transport::carry(requests, &mut self.store, &mut self.memory, &mut reports);
         if duties.writes != 0 || !reports.is_empty() {
@@ -539,3 +696,7 @@ impl Page {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "web/tests.rs"]
+mod tests;

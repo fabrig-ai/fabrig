@@ -46,6 +46,7 @@ Agents decide, then tell you
 - wording and names inside a spec
 - retrying or splitting a task
 - test-only changes
+- starting work on findings: a goal for them, the backlog or a hand-off under “a repair goal for a routine red after landing”
 Listed in Decided for you for 24 hours, to overturn.
 Asks you
 - implementation choices a spec leaves open

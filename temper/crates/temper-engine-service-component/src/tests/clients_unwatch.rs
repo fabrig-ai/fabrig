@@ -1,5 +1,6 @@
 use super::fixtures;
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{Env, List, Queue, Reader, Secret, Time, Token, Wall, Writer};
 
@@ -90,6 +91,8 @@ impl Stand {
     }
     fn exchange(&mut self, exchange: Token, message: kit::Message) {
         self.down(kit::Event::Transport(kit::FromTransport::Exchange {
+            via: jig_protocol_engine_clients::Via::Listener,
+            source: None,
             browser: false,
             exchange,
             credential: Some(self.credential.clone()),
@@ -118,26 +121,24 @@ impl Stand {
         else {
             panic!("hello record")
         };
-        *hello.stream()
+        hello.stream
     }
     fn watch(&mut self, stream: [u8; 16]) -> Token {
         self.watch_subject(stream, wire::Subject::Me)
     }
     fn watch_subject(&mut self, stream: [u8; 16], watched: wire::Subject) -> Token {
         let mut subject = Writer::new(1);
-        watched.encode(&mut subject).unwrap();
-        let subject = wire::Owned::new(
-            &self.env.limits.wire,
-            wire::OwnedParts {
-                owner: wire::Owner::Jig,
-                version: jig_client_protocol_wire::VERSION,
-                record: subject.finish(),
-            },
-        )
-        .unwrap();
-        let value = wire::Open::new(&self.env.limits.wire, wire::OpenParts { stream, watch: WATCH, subject }).unwrap();
-        let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
-        value.encode(&mut bytes).unwrap();
+        watched.write(&jig_client_protocol_wire::CEILINGS, &mut subject).unwrap();
+        let subject = wire::Owned {
+            owner: wire::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            record: subject.finish(),
+        };
+        let value = wire::Open { stream, watch: WATCH, subject };
+        let mut bytes = Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         self.exchange(OPEN, kit::Message::Watch(bytes.finish()));
         let Some(kit::Request::Core(event)) = self.out.pop() else { panic!("core watch") };
         let Ok(temper_engine_domain::PartyInput::Watch { watcher, subject, .. }) =
@@ -154,10 +155,11 @@ impl Stand {
         watcher
     }
     fn unwatch(&mut self, stream: [u8; 16]) {
-        let value =
-            wire::WatchClose::new(&self.env.limits.wire, wire::WatchCloseParts { stream, watch: WATCH }).unwrap();
-        let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
-        value.encode(&mut bytes).unwrap();
+        let value = wire::WatchClose { stream, watch: WATCH };
+        let mut bytes = Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         self.exchange(CLOSE, kit::Message::Unwatch(bytes.finish()));
     }
 }
@@ -258,21 +260,21 @@ fn the_accounts_watch_reaches_the_root_and_returns_whole_cut_facts() {
                 continue;
             };
             let wire::DeliveryValue::Accounts(value) =
-                wire::DeliveryValue::decode(&stand.env.limits.wire, &mut Reader::new(value.document().record()))
+                wire::DeliveryValue::decode(&stand.env.limits.wire, &mut Reader::new(value.document.record.as_ref()))
                     .unwrap()
             else {
                 panic!("accounts wire")
             };
-            assert!(!value.usable());
-            assert!(value.settled());
-            assert!(value.cut());
-            let mut pieces = Reader::new(value.accounts());
+            assert!(!value.usable);
+            assert!(value.settled);
+            assert!(value.cut);
+            let mut pieces = Reader::new(value.accounts.as_ref());
             let bytes = skein_codec::piece::split(&mut pieces).unwrap().expect("account piece");
             let line = wire::AccountLine::decode(&stand.env.limits.wire, &mut Reader::new(&bytes)).unwrap();
-            assert_eq!(line.number(), 7);
-            assert!(line.cut());
-            assert_eq!(line.provider(), &Some(3));
-            assert_ne!(line.sources().len(), 0);
+            assert_eq!(line.number, 7);
+            assert!(line.cut);
+            assert_eq!((&line.provider), &Some(3));
+            assert_ne!(line.sources.as_ref().len(), 0);
             delivered = true;
         }
     }

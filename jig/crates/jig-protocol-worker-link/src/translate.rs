@@ -8,11 +8,11 @@ use jig_domain_link::{
     CountKind, Form, Grant, Hello, JobKind, Login, LoginState, Operation, Phase, SignOutResult, SourceFailure,
     SourceName, valid_program_endpoints,
 };
-use jig_protocol_worker_wire::{self as wire, Part};
+use jig_protocol_worker_wire::{self as wire, Part, Record};
 use skein_channel::{Frame, frame_writer};
-use skein_lib::{List, Queue, Reader, Time, Token, Writer, bytes};
+use skein_lib::{List, Queue, Reader, Time, Token, bytes};
 
-pub(crate) fn hello(hello: Hello, limits: &wire::v17::Limits) -> Option<Frame> {
+pub(crate) fn hello(hello: Hello, limits: &wire::v19::Limits) -> Option<Frame> {
     let bounds = hello.bounds;
     if !valid_program_endpoints(&bounds.program_endpoints) {
         return None;
@@ -23,30 +23,22 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v17::Limits) -> Option<Frame> {
     }
     let mut endpoints = List::with_capacity(limits.bounds_endpoints);
     for model in bounds.endpoints {
-        let model = wire::EndpointBound::new(
-            limits,
-            wire::EndpointBoundParts { endpoint: model.endpoint, window: model.window, output: model.output },
-        )
-        .ok()?;
+        let model = wire::EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output };
         endpoints.push(model).ok()?;
     }
-    let bounds = wire::Bounds::new(
-        limits,
-        wire::BoundsParts {
-            program_endpoints,
-            endpoints,
-            turns: bounds.turns,
-            spend: bounds.spend,
-            time: bounds.time,
-            waiting: bounds.waiting,
-            checks: bounds.checks,
-            message_bytes: bounds.message_bytes,
-            inbox: bounds.inbox,
-            unacknowledged: bounds.unacknowledged,
-            reply_bytes: bounds.reply_bytes,
-        },
-    )
-    .ok()?;
+    let bounds = wire::Bounds {
+        program_endpoints,
+        endpoints,
+        turns: bounds.turns,
+        spend: bounds.spend,
+        time: bounds.time,
+        waiting: bounds.waiting,
+        checks: bounds.checks,
+        message_bytes: bounds.message_bytes,
+        inbox: bounds.inbox,
+        unacknowledged: bounds.unacknowledged,
+        reply_bytes: bounds.reply_bytes,
+    };
     let mut workstreams = List::with_capacity(limits.hello_workstreams);
     for stream in hello.workstreams {
         workstreams.push(stream).ok()?;
@@ -54,146 +46,102 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v17::Limits) -> Option<Frame> {
     let mut hosting = List::with_capacity(limits.hello_hosting);
     for run in hello.hosting {
         let phase = phase(run.phase);
-        let run =
-            wire::Hosting::new(limits, wire::HostingParts { task: run.run.raw(), attempt: run.attempt.raw(), phase })
-                .ok()?;
+        let run = wire::Hosting { task: run.run.raw(), attempt: run.attempt.raw(), phase };
         hosting.push(run).ok()?;
     }
     let mut jobs = List::with_capacity(limits.hello_jobs);
     for job in hello.jobs {
-        jobs.push(
-            wire::JobBound::new(
-                limits,
-                wire::JobBoundParts { kind: job.kind.0, spec: job.spec, result: job.result, deadline: job.deadline },
-            )
-            .ok()?,
-        )
-        .ok()?;
+        jobs.push(wire::JobBound { kind: job.kind.0, spec: job.spec, result: job.result, deadline: job.deadline })
+            .ok()?;
     }
-    let record = wire::Hello::new(
-        limits,
-        wire::HelloParts { slots: hello.slots, stop_bound: hello.stop_bound, bounds, workstreams, hosting, jobs },
-    )
-    .ok()?;
-    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut body).ok()?;
-    frame(0x0100, body.finish())
+    let record = wire::Hello { slots: hello.slots, stop_bound: hello.stop_bound, bounds, workstreams, hosting, jobs };
+    frame(0x0100, record.encode(limits).ok()?)
 }
 
-#[expect(clippy::too_many_lines, reason = "one encoding arm per upward host record, including the call's contract")]
-pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v17::Limits) -> Option<Frame> {
+pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v19::Limits) -> Option<Frame> {
     match up {
         host::LinkUp::Ask { run, attempt, number, bytes } => {
-            let record =
-                wire::Ask::new(limits, wire::AskParts { run: run.raw(), attempt: attempt.raw(), number, bytes })
-                    .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(wire::Kind::Ask.number(), body.finish())
+            let record = wire::Ask { run: run.raw(), attempt: attempt.raw(), number, bytes };
+            frame(wire::Kind::Ask.number(), record.encode(limits).ok()?)
         }
         host::LinkUp::Draining => {
-            let record = wire::Draining::new(limits, wire::DrainingParts {}).ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(wire::Kind::Draining.number(), body.finish())
+            let record = wire::Draining {};
+            frame(wire::Kind::Draining.number(), record.encode(limits).ok()?)
         }
+        host::LinkUp::Usage { run, attempt, account, window } => {
+            let resets = reset_nanos(window.window.resets);
+            let record = wire::Usage {
+                task: run.raw(),
+                attempt: attempt.raw(),
+                account,
+                label: window.label,
+                length: window.window.length,
+                used: window.window.used,
+                resets,
+                state: window.window.state,
+            };
+            frame(wire::Kind::Usage.number(), record.encode(limits).ok()?)
+        }
+        host::LinkUp::UsageRead { read, outcome } => usage_read_frame(read, outcome, limits),
         host::LinkUp::ListRead { read, outcome } => list_read_frame(read, outcome, limits),
         host::LinkUp::JobAnswer { run, attempt, answer } => job_answer_frame(run, attempt, answer, parts, limits),
 
         host::LinkUp::Piece { run, attempt, piece } => {
-            let value = wire::FactValue::Piece(piece_record(piece, limits)?);
+            let value = wire::FactValue::Piece(piece_record(piece));
             fact_frame(run, attempt, value, limits)
         }
         host::LinkUp::Logins { logins } => logins_frame(logins, limits),
         host::LinkUp::SignedOut { name, result } => signed_out_frame(name, result, limits),
-        host::LinkUp::Activity { run, attempt, activity: value } => {
-            fact_frame(run, attempt, activity(value, limits)?, limits)
-        }
+        host::LinkUp::Activity { run, attempt, activity: value } => fact_frame(run, attempt, activity(value), limits),
         host::LinkUp::Unauthorized { run, attempt, account, generation } => {
-            let record = wire::Unauthorized::new(
-                limits,
-                wire::UnauthorizedParts { task: run.raw(), attempt: attempt.raw(), account, generation },
-            )
-            .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(0x0105, body.finish())
+            let record = wire::Unauthorized { task: run.raw(), attempt: attempt.raw(), account, generation };
+            frame(0x0105, record.encode(limits).ok()?)
         }
         host::LinkUp::Limited { run, attempt, account, reset } => {
-            let record = wire::Limited::new(
-                limits,
-                wire::LimitedParts { task: run.raw(), attempt: attempt.raw(), account, reset },
-            )
-            .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(0x0106, body.finish())
+            let record = wire::Limited { task: run.raw(), attempt: attempt.raw(), account, reset };
+            frame(0x0106, record.encode(limits).ok()?)
         }
         host::LinkUp::AccountRefused { run, attempt, account, code, reason } => {
-            let record = wire::AccountRefused::new(
-                limits,
-                wire::AccountRefusedParts { task: run.raw(), attempt: attempt.raw(), account, code, reason },
-            )
-            .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(0x0107, body.finish())
+            let record = wire::AccountRefused { task: run.raw(), attempt: attempt.raw(), account, code, reason };
+            frame(0x0107, record.encode(limits).ok()?)
         }
         host::LinkUp::Turn { run, attempt, turn } => {
-            let record = wire::Turn::new(
-                limits,
-                wire::TurnParts {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    number: turn.turn,
-                    spent: turn.spent,
-                    read: name(turn.read),
-                    opens_window: turn.opens_window,
-                    refused: refused(turn.refused, limits)?,
-                    body: turn.body,
-                },
-            )
-            .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(0x0101, body.finish())
+            let record = wire::Turn {
+                task: run.raw(),
+                attempt: attempt.raw(),
+                number: turn.turn,
+                spent: turn.spent,
+                read: name(turn.read),
+                opens_window: turn.opens_window,
+                refused: refused(turn.refused, limits)?,
+                body: turn.body,
+            };
+            frame(0x0101, record.encode(limits).ok()?)
         }
         host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
-            let record = wire::Call::new(
-                limits,
-                wire::CallParts {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    name: call,
-                    tool,
-                    writes,
-                    input,
-                    deadline,
-                    contract,
-                },
-            )
-            .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(0x0102, body.finish())
+            let record = wire::Call {
+                task: run.raw(),
+                attempt: attempt.raw(),
+                name: call,
+                tool,
+                writes,
+                input,
+                deadline,
+                contract,
+            };
+            frame(0x0102, record.encode(limits).ok()?)
         }
         host::LinkUp::Answer { run, attempt, answer } => {
-            let record = wire::Answer::new(
-                limits,
-                wire::AnswerParts {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    turns: answer.turns,
-                    spent: answer.spent,
-                    read: name(answer.read),
-                    refused: refused(answer.refused, limits)?,
-                    ending: ending(answer.ending, parts, limits)?,
-                },
-            )
-            .ok()?;
-            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-            record.encode(&mut body).ok()?;
-            frame(0x0103, body.finish())
+            let record = wire::Answer {
+                task: run.raw(),
+                attempt: attempt.raw(),
+                turns: answer.turns,
+                spent: answer.spent,
+                read: name(answer.read),
+                refused: refused(answer.refused, limits)?,
+                ending: ending(answer.ending, parts)?,
+            };
+            frame(0x0103, record.encode(limits).ok()?)
         }
     }
 }
@@ -202,36 +150,22 @@ fn job_answer_frame(
     attempt: Token,
     answer: host::JobEnding,
     parts: &[Part],
-    limits: &wire::v17::Limits,
+    limits: &wire::v19::Limits,
 ) -> Option<Frame> {
-    let record = wire::JobAnswer::new(
-        limits,
-        wire::JobAnswerParts { task: run.raw(), attempt: attempt.raw(), ending: job_ending(answer, parts, limits)? },
-    )
-    .ok()?;
-    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut body).ok()?;
-    frame(wire::Kind::JobAnswer.number(), body.finish())
+    let record = wire::JobAnswer { task: run.raw(), attempt: attempt.raw(), ending: job_ending(answer, parts)? };
+    frame(wire::Kind::JobAnswer.number(), record.encode(limits).ok()?)
 }
-fn piece_record(piece: host::Piece, limits: &wire::v17::Limits) -> Option<wire::Piece> {
+fn piece_record(piece: host::Piece) -> wire::Piece {
     let kind = match piece.kind {
         host::LiveKind::Text => wire::LiveKind::Text,
         host::LiveKind::Reasoning => wire::LiveKind::Reasoning,
-        host::LiveKind::Input { call, tool } => {
-            wire::LiveKind::Input(wire::InputCall::new(limits, wire::InputCallParts { id: call, tool }).ok()?)
-        }
+        host::LiveKind::Input { call, tool } => wire::LiveKind::Input(wire::InputCall { id: call, tool }),
     };
-    wire::Piece::new(
-        limits,
-        wire::PieceParts { turn: piece.turn, retry: piece.retry, kind, offset: piece.offset, bytes: piece.bytes },
-    )
-    .ok()
+    wire::Piece { turn: piece.turn, retry: piece.retry, kind, offset: piece.offset, bytes: piece.bytes }
 }
-fn fact_frame(run: Token, attempt: Token, value: wire::FactValue, limits: &wire::v17::Limits) -> Option<Frame> {
-    let record = wire::Fact::new(limits, wire::FactParts { task: run.raw(), attempt: attempt.raw(), value }).ok()?;
-    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut body).ok()?;
-    frame(wire::Kind::Fact.number(), body.finish())
+fn fact_frame(run: Token, attempt: Token, value: wire::FactValue, limits: &wire::v19::Limits) -> Option<Frame> {
+    let record = wire::Fact { task: run.raw(), attempt: attempt.raw(), value };
+    frame(wire::Kind::Fact.number(), record.encode(limits).ok()?)
 }
 fn frame(kind: u16, body: Box<[u8]>) -> Option<Frame> {
     let mut frame = frame_writer(kind, u32::try_from(body.len()).ok()?).ok()?;
@@ -250,14 +184,10 @@ fn part(token: Option<Token>, parts: &[Part]) -> Result<Option<Box<[u8]>>, ()> {
 fn name(token: Option<Token>) -> Option<u64> {
     Some(token?.raw())
 }
-fn work(work: host::Work, parts: &[Part], limits: &wire::v17::Limits) -> Option<wire::Work> {
-    wire::Work::new(
-        limits,
-        wire::WorkParts { left: part(work.left, parts).ok()?, saved: part(work.saved, parts).ok()? },
-    )
-    .ok()
+fn work(work: host::Work, parts: &[Part]) -> Option<wire::Work> {
+    Some(wire::Work { left: part(work.left, parts).ok()?, saved: part(work.saved, parts).ok()? })
 }
-fn refused(items: Box<[host::Refused]>, limits: &wire::v17::Limits) -> Option<List<wire::Refused>> {
+fn refused(items: Box<[host::Refused]>, limits: &wire::v19::Limits) -> Option<List<wire::Refused>> {
     let mut list = List::with_capacity(limits.turn_refused);
     for item in items {
         let reason = match item.reason {
@@ -266,58 +196,53 @@ fn refused(items: Box<[host::Refused]>, limits: &wire::v17::Limits) -> Option<Li
             host::MessageRefusal::NameInUse => wire::MessageRefusal::NameInUse,
             host::MessageRefusal::Ending => wire::MessageRefusal::Ending,
         };
-        let item = wire::Refused::new(limits, wire::RefusedParts { name: item.name.raw(), reason }).ok()?;
+        let item = wire::Refused { name: item.name.raw(), reason };
         list.push(item).ok()?;
     }
     Some(list)
 }
-fn ending(ending: host::Ending, parts: &[Part], limits: &wire::v17::Limits) -> Option<wire::Ending> {
+#[expect(clippy::manual_map, reason = "step code keeps the optional model translation explicit")]
+fn ending(ending: host::Ending, parts: &[Part]) -> Option<wire::Ending> {
     Some(match ending {
         host::Ending::Refused(refusal) => {
             let value = match refusal {
                 host::Refusal::Untranslated(_) => return None,
                 host::Refusal::Busy => wire::Refusal::Busy,
-                host::Refusal::Version(value) => wire::Refusal::Version(
-                    wire::Mismatch::new(
-                        limits,
-                        wire::MismatchParts {
-                            wire: value.wire,
-                            version: value.version,
-                            lowest: value.lowest,
-                            highest: value.highest,
-                        },
-                    )
-                    .ok()?,
-                ),
+                host::Refusal::Version(value) => wire::Refusal::Version(wire::Mismatch {
+                    wire: value.wire,
+                    version: value.version,
+                    lowest: value.lowest,
+                    highest: value.highest,
+                }),
                 host::Refusal::Invalid(invalid) => {
-                    let value = invalid_value(invalid, limits)?;
-                    let value = wire::InvalidValue::new(limits, wire::InvalidValueParts { value }).ok()?;
+                    let value = invalid_value(invalid);
+                    let value = wire::InvalidValue { value };
                     wire::Refusal::Invalid(value)
                 }
             };
-            let value = wire::RefusalValue::new(limits, wire::RefusalValueParts { value }).ok()?;
+            let value = wire::RefusalValue { value };
             wire::Ending::Refused(value)
         }
         host::Ending::Ended { outcome, work: kept } => {
-            let work = work(kept, parts, limits)?;
-            wire::Ending::Ended(wire::Ended::new(limits, wire::EndedParts { outcome, work }).ok()?)
+            let work = work(kept, parts)?;
+            wire::Ending::Ended(wire::Ended { outcome, work })
         }
         host::Ending::Parked { work: kept } => {
-            let work = work(kept, parts, limits)?;
-            wire::Ending::Parked(wire::Parked::new(limits, wire::ParkedParts { work }).ok()?)
+            let work = work(kept, parts)?;
+            wire::Ending::Parked(wire::Parked { work })
         }
         host::Ending::Failed { failure: failed, detail, work: kept, model } => {
-            let work = work(kept, parts, limits)?;
-            let failure = failure(failed, parts, limits)?;
+            let work = work(kept, parts)?;
+            let failure = failure(failed, parts)?;
             let model = match model {
-                Some(model) => Some(model_failure(model, limits)?),
+                Some(model) => Some(model_failure(model)),
                 None => None,
             };
-            wire::Ending::Failed(wire::Failed::new(limits, wire::FailedParts { failure, detail, work, model }).ok()?)
+            wire::Ending::Failed(wire::Failed { failure, detail, work, model })
         }
     })
 }
-fn model_failure(value: host::ModelFailure, limits: &wire::v17::Limits) -> Option<wire::ModelFailure> {
+fn model_failure(value: host::ModelFailure) -> wire::ModelFailure {
     let kind = match value.kind {
         host::ModelFailureKind::Unavailable => wire::ModelFailureKind::Unavailable,
         host::ModelFailureKind::Overloaded => wire::ModelFailureKind::Overloaded,
@@ -338,14 +263,17 @@ fn model_failure(value: host::ModelFailure, limits: &wire::v17::Limits) -> Optio
         host::ModelEvidence::Unknown => wire::ModelEvidence::Unknown,
         host::ModelEvidence::Response => wire::ModelEvidence::Response,
     };
-    wire::ModelFailure::new(
-        limits,
-        wire::ModelFailureParts { endpoint: value.endpoint, model: value.model, kind, evidence, status: value.status },
-    )
-    .ok()
+    wire::ModelFailure {
+        endpoint: value.endpoint,
+        model: value.model,
+        kind,
+        evidence,
+        status: value.status,
+        refusal: value.refusal,
+    }
 }
 
-fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v17::Limits) -> Option<wire::JobEnding> {
+fn job_ending(ending: host::JobEnding, parts: &[Part]) -> Option<wire::JobEnding> {
     Some(match ending {
         host::JobEnding::Refused(refusal) => {
             let value = match refusal {
@@ -357,45 +285,33 @@ fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v17::Limit
                         host::JobInvalid::Spec => wire::JobInvalid::Spec,
                         host::JobInvalid::Deadline => wire::JobInvalid::Deadline,
                         host::JobInvalid::Grants => wire::JobInvalid::Grants,
-                        host::JobInvalid::Start { why } => wire::JobInvalid::Start(
-                            wire::JobInvalidStart::new(limits, wire::JobInvalidStartParts { why }).ok()?,
-                        ),
+                        host::JobInvalid::Start { why } => wire::JobInvalid::Start(wire::JobInvalidStart { why }),
                     };
-                    wire::JobRefusal::Invalid(
-                        wire::JobInvalidValue::new(limits, wire::JobInvalidValueParts { value }).ok()?,
-                    )
+                    wire::JobRefusal::Invalid(wire::JobInvalidValue { value })
                 }
             };
-            wire::JobEnding::Refused(wire::JobRefusalValue::new(limits, wire::JobRefusalValueParts { value }).ok()?)
+            wire::JobEnding::Refused(wire::JobRefusalValue { value })
         }
-        host::JobEnding::Finished { result, work: kept } => wire::JobEnding::Finished(
-            wire::JobFinished::new(limits, wire::JobFinishedParts { result, work: work(kept, parts, limits)? }).ok()?,
-        ),
-        host::JobEnding::Failed { failure, detail, work: kept } => wire::JobEnding::Failed(
-            wire::JobFailed::new(
-                limits,
-                wire::JobFailedParts {
-                    failure: job_failure(failure, parts, limits)?,
-                    detail,
-                    work: work(kept, parts, limits)?,
-                },
-            )
-            .ok()?,
-        ),
+        host::JobEnding::Finished { result, work: kept } => {
+            wire::JobEnding::Finished(wire::JobFinished { result, work: work(kept, parts)? })
+        }
+        host::JobEnding::Failed { failure, detail, work: kept } => wire::JobEnding::Failed(wire::JobFailed {
+            failure: job_failure(failure, parts)?,
+            detail,
+            work: work(kept, parts)?,
+        }),
     })
 }
-fn job_failure(value: host::JobFailure, parts: &[Part], limits: &wire::v17::Limits) -> Option<wire::JobFailure> {
+fn job_failure(value: host::JobFailure, parts: &[Part]) -> Option<wire::JobFailure> {
     Some(match value {
         host::JobFailure::Unprepared(value) => {
             let value = match value {
                 host::Preparation::Transient => wire::Preparation::Transient,
-                host::Preparation::Permanent { resource } => wire::Preparation::Permanent(
-                    wire::Resource::new(limits, wire::ResourceParts { resource: part(resource, parts).ok()? }).ok()?,
-                ),
+                host::Preparation::Permanent { resource } => {
+                    wire::Preparation::Permanent(wire::Resource { resource: part(resource, parts).ok()? })
+                }
             };
-            wire::JobFailure::Unprepared(
-                wire::PreparationValue::new(limits, wire::PreparationValueParts { value }).ok()?,
-            )
+            wire::JobFailure::Unprepared(wire::PreparationValue { value })
         }
         host::JobFailure::Failed => wire::JobFailure::Failed,
         host::JobFailure::Deadline => wire::JobFailure::Deadline,
@@ -409,57 +325,55 @@ fn job_failure(value: host::JobFailure, parts: &[Part], limits: &wire::v17::Limi
                 host::DeliveryOutcome::Refused => wire::DeliveryOutcome::Refused,
                 host::DeliveryOutcome::Failed => wire::DeliveryOutcome::Failed,
             };
-            wire::JobFailure::Undelivered(
-                wire::DeliveryOutcomeValue::new(limits, wire::DeliveryOutcomeValueParts { value }).ok()?,
-            )
+            wire::JobFailure::Undelivered(wire::DeliveryOutcomeValue { value })
         }
-        host::JobFailure::Cancelled(value) => wire::JobFailure::Cancelled(
-            wire::CancelReasonValue::new(limits, wire::CancelReasonValueParts { value: cancel_reason(value) }).ok()?,
-        ),
+        host::JobFailure::Cancelled(value) => {
+            wire::JobFailure::Cancelled(wire::CancelReasonValue { value: cancel_reason(value) })
+        }
     })
 }
-fn failure(failure: host::Failure, parts: &[Part], limits: &wire::v17::Limits) -> Option<wire::Failure> {
+fn failure(failure: host::Failure, parts: &[Part]) -> Option<wire::Failure> {
     Some(match failure {
         host::Failure::Unprepared(preparation) => {
             let value = match preparation {
                 host::Preparation::Transient => wire::Preparation::Transient,
                 host::Preparation::Permanent { resource } => {
                     let resource = part(resource, parts).ok()?;
-                    wire::Preparation::Permanent(wire::Resource::new(limits, wire::ResourceParts { resource }).ok()?)
+                    wire::Preparation::Permanent(wire::Resource { resource })
                 }
             };
-            wire::Failure::Unprepared(wire::PreparationValue::new(limits, wire::PreparationValueParts { value }).ok()?)
+            wire::Failure::Unprepared(wire::PreparationValue { value })
         }
         host::Failure::Run(failure) => {
-            let value = run_failure(failure, limits)?;
-            wire::Failure::Run(wire::RunFailureValue::new(limits, wire::RunFailureValueParts { value }).ok()?)
+            let value = run_failure(failure);
+            wire::Failure::Run(wire::RunFailureValue { value })
         }
         host::Failure::Agent(failure) => {
             let value = agent_failure(failure);
-            wire::Failure::Agent(wire::AgentFailureValue::new(limits, wire::AgentFailureValueParts { value }).ok()?)
+            wire::Failure::Agent(wire::AgentFailureValue { value })
         }
         host::Failure::Cancelled(reason) => {
             let value = cancel_reason(reason);
-            wire::Failure::Cancelled(wire::CancelReasonValue::new(limits, wire::CancelReasonValueParts { value }).ok()?)
+            wire::Failure::Cancelled(wire::CancelReasonValue { value })
         }
     })
 }
-fn activity(activity: host::AgentActivity, limits: &wire::v17::Limits) -> Option<wire::FactValue> {
-    Some(match activity {
+fn activity(activity: host::AgentActivity) -> wire::FactValue {
+    match activity {
         host::AgentActivity::Phase(value) => {
             let value = phase(value);
-            wire::FactValue::Phase(wire::PhaseValue::new(limits, wire::PhaseValueParts { value }).ok()?)
+            wire::FactValue::Phase(wire::PhaseValue { value })
         }
         host::AgentActivity::Long { operation: op, span } => {
             let operation = operation(op);
-            wire::FactValue::Long(wire::Long::new(limits, wire::LongParts { operation, span }).ok()?)
+            wire::FactValue::Long(wire::Long { operation, span })
         }
         host::AgentActivity::LongDone => wire::FactValue::LongDone,
         host::AgentActivity::Count { kind, elapsed, count } => {
             let kind = count_kind(kind);
-            wire::FactValue::Count(wire::Count::new(limits, wire::CountParts { kind, elapsed, value: count }).ok()?)
+            wire::FactValue::Count(wire::Count { kind, elapsed, value: count })
         }
-    })
+    }
 }
 fn phase(value: Phase) -> wire::Phase {
     match value {
@@ -471,50 +385,38 @@ fn phase(value: Phase) -> wire::Phase {
         Phase::Ending => wire::Phase::Ending,
     }
 }
-fn invalid_value(value: host::Invalid, limits: &wire::v17::Limits) -> Option<wire::Invalid> {
-    Some(match value {
-        host::Invalid::Start { why, cause } => wire::Invalid::Start(
-            wire::InvalidStart::new(
-                limits,
-                wire::InvalidStartParts {
-                    why,
-                    cause: match cause {
-                        host::StartCause::Other => wire::StartCause::Other,
-                        host::StartCause::Grants => wire::StartCause::Grants,
-                        host::StartCause::Transcript => wire::StartCause::Transcript,
-                    },
-                },
-            )
-            .ok()?,
-        ),
+fn invalid_value(value: host::Invalid) -> wire::Invalid {
+    match value {
+        host::Invalid::Start { why, cause } => wire::Invalid::Start(wire::InvalidStart {
+            why,
+            cause: match cause {
+                host::StartCause::Other => wire::StartCause::Other,
+                host::StartCause::Grants => wire::StartCause::Grants,
+                host::StartCause::Transcript => wire::StartCause::Transcript,
+            },
+        }),
         host::Invalid::Charter => wire::Invalid::Charter,
         host::Invalid::Transcript => wire::Invalid::Transcript,
         host::Invalid::Grants => wire::Invalid::Grants,
         host::Invalid::Messages => wire::Invalid::Messages,
-    })
+    }
 }
-fn run_failure(value: host::RunFailure, limits: &wire::v17::Limits) -> Option<wire::RunFailure> {
-    Some(match value {
-        host::RunFailure::Exceeded(value) => wire::RunFailure::Exceeded(
-            wire::Exceeded::new(
-                limits,
-                wire::ExceededParts {
-                    bound: match value.bound {
-                        host::Bound::Reasoning => wire::Bound::Reasoning,
-                        host::Bound::Metadata => wire::Bound::Metadata,
-                        host::Bound::Items => wire::Bound::Items,
-                        host::Bound::Answer => wire::Bound::Answer,
-                        host::Bound::Tools => wire::Bound::Tools,
-                        host::Bound::HistoryItems => wire::Bound::HistoryItems,
-                        host::Bound::History => wire::Bound::History,
-                        host::Bound::Window => wire::Bound::Window,
-                        host::Bound::Output => wire::Bound::Output,
-                    },
-                    value: value.value,
-                },
-            )
-            .ok()?,
-        ),
+fn run_failure(value: host::RunFailure) -> wire::RunFailure {
+    match value {
+        host::RunFailure::Exceeded(value) => wire::RunFailure::Exceeded(wire::Exceeded {
+            bound: match value.bound {
+                host::Bound::Reasoning => wire::Bound::Reasoning,
+                host::Bound::Metadata => wire::Bound::Metadata,
+                host::Bound::Items => wire::Bound::Items,
+                host::Bound::Answer => wire::Bound::Answer,
+                host::Bound::Tools => wire::Bound::Tools,
+                host::Bound::HistoryItems => wire::Bound::HistoryItems,
+                host::Bound::History => wire::Bound::History,
+                host::Bound::Window => wire::Bound::Window,
+                host::Bound::Output => wire::Bound::Output,
+            },
+            value: value.value,
+        }),
         host::RunFailure::Model => wire::RunFailure::Model,
         host::RunFailure::Transcript => wire::RunFailure::Transcript,
         host::RunFailure::Untooled => wire::RunFailure::Untooled,
@@ -522,13 +424,11 @@ fn run_failure(value: host::RunFailure, limits: &wire::v17::Limits) -> Option<wi
         host::RunFailure::Policy => wire::RunFailure::Policy,
         host::RunFailure::Cancelled => wire::RunFailure::Cancelled,
         host::RunFailure::Stale => wire::RunFailure::Stale,
-        host::RunFailure::Limited { account, reset } => wire::RunFailure::Limited(
-            wire::LimitedAccount::new(limits, wire::LimitedAccountParts { account, reset }).ok()?,
-        ),
-        host::RunFailure::Refused { account } => {
-            wire::RunFailure::Refused(wire::RefusedAccount::new(limits, wire::RefusedAccountParts { account }).ok()?)
+        host::RunFailure::Limited { account, reset } => {
+            wire::RunFailure::Limited(wire::LimitedAccount { account, reset })
         }
-    })
+        host::RunFailure::Refused { account } => wire::RunFailure::Refused(wire::RefusedAccount { account }),
+    }
 }
 fn agent_failure(value: host::AgentFailure) -> wire::AgentFailure {
     match value {
@@ -572,7 +472,7 @@ fn count_kind(value: CountKind) -> wire::CountKind {
 pub(crate) fn down(
     kind: u16,
     body: &[u8],
-    limits: &wire::v17::Limits,
+    limits: &wire::v19::Limits,
     now: Time,
     parts: &mut Queue<Part>,
     next: &mut u64,
@@ -587,9 +487,9 @@ pub(crate) fn down(
     }
     let down = match known? {
         wire::Kind::Asked => {
-            let record = wire::Asked::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Asked::decode(limits, &mut reader).ok()?;
             let answer = match record.answer {
-                wire::AskAnswer::Bytes(bytes) => host::AskAnswer::Bytes(bytes.into_parts().bytes),
+                wire::AskAnswer::Bytes(bytes) => host::AskAnswer::Bytes(bytes.bytes),
                 wire::AskAnswer::Refused => host::AskAnswer::Refused,
             };
             host::LinkDown::Asked {
@@ -599,9 +499,13 @@ pub(crate) fn down(
                 answer,
             }
         }
+        wire::Kind::ReadUsage => {
+            let record = wire::ReadUsage::decode(limits, &mut reader).ok()?;
+            host::LinkDown::ReadUsage { read: record.read, source: SourceName::new(&record.source)? }
+        }
         wire::Kind::ReadList => {
-            let record = wire::ReadList::decode(limits, &mut reader).ok()?.into_parts();
-            match record.grant.value() {
+            let record = wire::ReadList::decode(limits, &mut reader).ok()?;
+            match &record.grant.value {
                 wire::GrantValue::Credential(_) => {}
                 wire::GrantValue::Application(_) | wire::GrantValue::Program(_) => return None,
             }
@@ -612,10 +516,10 @@ pub(crate) fn down(
             }
         }
         wire::Kind::Sources => {
-            let record = wire::Sources::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Sources::decode(limits, &mut reader).ok()?;
             let mut names = List::with_capacity(record.sources.len());
             for source in record.sources.into_boxed() {
-                let name = SourceName::new(source.name())?;
+                let name = SourceName::new(source.name.as_ref())?;
                 names.push(name).ok()?;
             }
             if !host::sources::unique(names.as_slice()) {
@@ -623,12 +527,12 @@ pub(crate) fn down(
             }
             host::LinkDown::Sources { sources: names.into_boxed() }
         }
-        wire::Kind::Check => {
-            host::LinkDown::Check { name: SourceName::new(wire::Check::decode(limits, &mut reader).ok()?.name())? }
-        }
-        wire::Kind::SignOut => {
-            host::LinkDown::SignOut { name: SourceName::new(wire::SignOut::decode(limits, &mut reader).ok()?.name())? }
-        }
+        wire::Kind::Check => host::LinkDown::Check {
+            name: SourceName::new(wire::Check::decode(limits, &mut reader).ok()?.name.as_ref())?,
+        },
+        wire::Kind::SignOut => host::LinkDown::SignOut {
+            name: SourceName::new(wire::SignOut::decode(limits, &mut reader).ok()?.name.as_ref())?,
+        },
         wire::Kind::Job => {
             let record = wire::Job::decode(limits, &mut reader).ok()?;
             host::LinkDown::AssignJob { job: job_assignment(record, now, parts, next, out)? }
@@ -638,7 +542,7 @@ pub(crate) fn down(
             host::LinkDown::Assign { assignment: assignment(record, now, parts, next, out)? }
         }
         wire::Kind::Message => {
-            let record = wire::Inbound::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Inbound::decode(limits, &mut reader).ok()?;
             host::LinkDown::Message {
                 run: Token::new(record.task),
                 attempt: Token::new(record.attempt),
@@ -649,7 +553,7 @@ pub(crate) fn down(
             }
         }
         wire::Kind::TurnKept => {
-            let record = wire::TurnKept::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::TurnKept::decode(limits, &mut reader).ok()?;
             host::LinkDown::TurnKept {
                 run: Token::new(record.task),
                 attempt: Token::new(record.attempt),
@@ -657,26 +561,23 @@ pub(crate) fn down(
             }
         }
         wire::Kind::Acknowledge => {
-            let record = wire::Acknowledge::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Acknowledge::decode(limits, &mut reader).ok()?;
             host::LinkDown::Acknowledge { run: Token::new(record.task), attempt: Token::new(record.attempt) }
         }
         wire::Kind::Cancel => {
-            let record = wire::Cancel::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Cancel::decode(limits, &mut reader).ok()?;
             host::LinkDown::Cancel { run: Token::new(record.task), attempt: Token::new(record.attempt) }
         }
         wire::Kind::Grant => {
-            let record = wire::Granted::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Granted::decode(limits, &mut reader).ok()?;
             let grant = grant(record.grant, now, out)?;
             host::LinkDown::Grant { run: Token::new(record.task), attempt: Token::new(record.attempt), grant }
         }
         wire::Kind::Relayed => {
-            let record = wire::Relayed::decode(limits, &mut reader).ok()?.into_parts();
+            let record = wire::Relayed::decode(limits, &mut reader).ok()?;
             let answer = match record.answer {
                 wire::RelayAnswer::Busy => host::Relayed::Busy,
-                wire::RelayAnswer::Text(text) => {
-                    let text = text.into_parts();
-                    host::Relayed::Answer { error: text.error, text: text.text }
-                }
+                wire::RelayAnswer::Text(text) => host::Relayed::Answer { error: text.error, text: text.text },
             };
             host::LinkDown::Relayed {
                 run: Token::new(record.task),
@@ -687,6 +588,8 @@ pub(crate) fn down(
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
         wire::Kind::Draining
+        | wire::Kind::Usage
+        | wire::Kind::UsageRead
         | wire::Kind::ListRead
         | wire::Kind::JobAnswer
         | wire::Kind::Logins
@@ -710,8 +613,8 @@ pub(crate) fn down(
 /// A value's arm and scheme name the form in which it is lent.
 fn grant_form(value: &wire::GrantValue) -> Option<Form> {
     Some(match value {
-        wire::GrantValue::Program(value) => Form::Program(SourceName::new(value.name())?),
-        wire::GrantValue::Credential(value) => Form::Credential(match value.scheme() {
+        wire::GrantValue::Program(value) => Form::Program(SourceName::new(value.name.as_ref())?),
+        wire::GrantValue::Credential(value) => Form::Credential(match &value.scheme {
             wire::Scheme::Bearer => jig_domain_link::Scheme::Bearer,
             wire::Scheme::Key => jig_domain_link::Scheme::Key,
         }),
@@ -719,21 +622,19 @@ fn grant_form(value: &wire::GrantValue) -> Option<Form> {
     })
 }
 fn grant(grant: wire::Grant, now: Time, out: &mut Queue<Request>) -> Option<Grant> {
-    let grant = grant.into_parts();
     let form = grant_form(&grant.value)?;
     let value = match grant.value {
         wire::GrantValue::Program(_) => {
             return Some(Grant { form, account: grant.number, generation: grant.generation, valid: grant.valid });
         }
         wire::GrantValue::Credential(value) => {
-            let value = value.into_parts();
             let scheme = match value.scheme {
                 wire::Scheme::Bearer => Scheme::Bearer,
                 wire::Scheme::Key => Scheme::Key,
             };
             GrantValue::Credential { scheme, token: value.bytes }
         }
-        wire::GrantValue::Application(value) => GrantValue::Application { secret: value.into_parts().secret },
+        wire::GrantValue::Application(value) => GrantValue::Application { secret: value.secret },
     };
     let expires = now.saturating_add(grant.valid);
     out.push(Request::Value { account: grant.number, generation: grant.generation, expires, value });
@@ -759,13 +660,11 @@ fn job_assignment(
     next: &mut u64,
     out: &mut Queue<Request>,
 ) -> Option<host::JobAssignment> {
-    let record = record.into_parts();
     for granted in &record.grants {
-        grant_form(granted.value())?;
+        grant_form(&granted.value)?;
     }
     let workspace = match record.workspace {
         Some(workspace) => {
-            let workspace = workspace.into_parts();
             let items = Token::new(*next);
             *next = next.checked_add(1).expect("part tokens never wrap");
             parts.push(Part { token: items, bytes: workspace.items });
@@ -795,16 +694,14 @@ fn assignment(
     next: &mut u64,
     out: &mut Queue<Request>,
 ) -> Option<host::Assignment> {
-    let record = record.into_parts();
     // Decode every form before emitting values or parts. A second bounded pass
     // avoids staging credential copies or another output queue.
     for granted in &record.grants {
-        grant_form(granted.value())?;
+        grant_form(&granted.value)?;
     }
 
     let workspace = match record.workspace {
         Some(workspace) => {
-            let workspace = workspace.into_parts();
             let items = Token::new(*next);
             *next = next.checked_add(1).expect("part tokens never wrap");
             parts.push(Part { token: items, bytes: workspace.items });
@@ -814,7 +711,6 @@ fn assignment(
     };
     let mut messages = List::with_capacity(record.messages.len());
     for message in record.messages.into_boxed() {
-        let message = message.into_parts();
         messages
             .push(host::StartMessage {
                 name: Token::new(message.name),
@@ -826,14 +722,9 @@ fn assignment(
     }
     let mut answered = List::with_capacity(record.answered.len());
     for call in record.answered.into_boxed() {
-        let call = call.into_parts();
         let answer = match call.answer {
-            wire::SettledAnswer::Host(answer) => {
-                let answer = answer.into_parts();
-                host::SettledAnswer::Host { error: answer.error, body: answer.body }
-            }
+            wire::SettledAnswer::Host(answer) => host::SettledAnswer::Host { error: answer.error, body: answer.body },
             wire::SettledAnswer::Delivery(answer) => {
-                let answer = answer.into_parts();
                 let outcome = match answer.outcome {
                     wire::DeliveryOutcome::Delivered => host::DeliveryOutcome::Delivered,
                     wire::DeliveryOutcome::Nothing => host::DeliveryOutcome::Nothing,
@@ -859,11 +750,7 @@ fn assignment(
             attempt: Token::new(record.attempt),
             workspace,
             save: record.save,
-            live: host::LiveAsk {
-                text: record.live.text(),
-                reasoning: record.live.reasoning(),
-                input: record.live.input(),
-            },
+            live: host::LiveAsk { text: record.live.text, reasoning: record.live.reasoning, input: record.live.input },
             charter: record.charter,
             grants: grants.into_boxed(),
         },
@@ -873,18 +760,17 @@ fn assignment(
     })
 }
 
-fn login_state(state: LoginState, limits: &wire::v17::Limits) -> Option<wire::LoginState> {
-    Some(match state {
+fn login_state(state: LoginState) -> wire::LoginState {
+    match state {
         LoginState::Usable => wire::LoginState::Usable,
         LoginState::NotSignedIn => wire::LoginState::NotSignedIn,
-        LoginState::SignedInOtherwise(method) => wire::LoginState::SignedInOtherwise(
-            wire::LoginOtherwise::new(limits, wire::LoginOtherwiseParts { method: Box::from(method.as_bytes()) })
-                .ok()?,
-        ),
-        LoginState::Failed { reason, detail } => wire::LoginState::Failed(source_failed(reason, detail, limits)?),
-    })
+        LoginState::SignedInOtherwise(method) => {
+            wire::LoginState::SignedInOtherwise(wire::LoginOtherwise { method: Box::from(method.as_bytes()) })
+        }
+        LoginState::Failed { reason, detail } => wire::LoginState::Failed(source_failed(reason, detail)),
+    }
 }
-fn source_failed(reason: SourceFailure, detail: Box<[u8]>, limits: &wire::v17::Limits) -> Option<wire::SourceFailed> {
+fn source_failed(reason: SourceFailure, detail: Box<[u8]>) -> wire::SourceFailed {
     let reason = match reason {
         SourceFailure::Missing => wire::SourceFailure::Missing,
         SourceFailure::Deadline => wire::SourceFailure::Deadline,
@@ -894,48 +780,37 @@ fn source_failed(reason: SourceFailure, detail: Box<[u8]>, limits: &wire::v17::L
         SourceFailure::Unknown => wire::SourceFailure::Unknown,
         SourceFailure::Closed => wire::SourceFailure::Closed,
     };
-    wire::SourceFailed::new(limits, wire::SourceFailedParts { reason, detail }).ok()
+    wire::SourceFailed { reason, detail }
 }
 
-fn logins_frame(logins: Box<[Login]>, limits: &wire::v17::Limits) -> Option<Frame> {
+fn logins_frame(logins: Box<[Login]>, limits: &wire::v19::Limits) -> Option<Frame> {
     let mut rows = List::<wire::Login>::with_capacity(limits.logins_logins);
     for login in logins {
         for row in &rows {
-            if row.name() == login.name.as_bytes() {
+            if row.name.as_ref() == login.name.as_bytes() {
                 return None;
             }
         }
-        rows.push(
-            wire::Login::new(
-                limits,
-                wire::LoginParts {
-                    name: Box::from(login.name.as_bytes()),
-                    state: login_state(login.state, limits)?,
-                    email: login.email,
-                },
-            )
-            .ok()?,
-        )
+        rows.push(wire::Login {
+            name: Box::from(login.name.as_bytes()),
+            state: login_state(login.state),
+            email: login.email,
+        })
         .ok()?;
     }
-    let record = wire::Logins::new(limits, wire::LoginsParts { logins: rows }).ok()?;
-    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut body).ok()?;
-    frame(wire::Kind::Logins.number(), body.finish())
+    let record = wire::Logins { logins: rows };
+    frame(wire::Kind::Logins.number(), record.encode(limits).ok()?)
 }
-fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v17::Limits) -> Option<Frame> {
+fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v19::Limits) -> Option<Frame> {
     let result = match result {
         SignOutResult::SignedOut => wire::SignOutResult::SignedOut,
-        SignOutResult::Failed { reason, detail } => wire::SignOutResult::Failed(source_failed(reason, detail, limits)?),
+        SignOutResult::Failed { reason, detail } => wire::SignOutResult::Failed(source_failed(reason, detail)),
     };
-    let record =
-        wire::SignedOut::new(limits, wire::SignedOutParts { name: Box::from(name.as_bytes()), result }).ok()?;
-    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut body).ok()?;
-    frame(wire::Kind::SignedOut.number(), body.finish())
+    let record = wire::SignedOut { name: Box::from(name.as_bytes()), result };
+    frame(wire::Kind::SignedOut.number(), record.encode(limits).ok()?)
 }
 
-fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v17::Limits) -> Option<Frame> {
+fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v19::Limits) -> Option<Frame> {
     use jig_domain_link::{ListFailure, ListOutcome};
     let outcome = match outcome {
         ListOutcome::Listed(rows) => {
@@ -946,40 +821,30 @@ fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wi
                     efforts.push(effort).ok()?;
                 }
                 listed
-                    .push(
-                        wire::ListRow::new(
-                            limits,
-                            wire::ListRowParts {
-                                name: row.name,
-                                shown: row.shown,
-                                window: row.window,
-                                output: row.output,
-                                efforts,
-                            },
-                        )
-                        .ok()?,
-                    )
+                    .push(wire::ListRow {
+                        name: row.name,
+                        shown: row.shown,
+                        window: row.window,
+                        output: row.output,
+                        efforts,
+                    })
                     .ok()?;
             }
-            wire::ListOutcome::Listed(wire::ListedRows::new(limits, wire::ListedRowsParts { rows: listed }).ok()?)
+            wire::ListOutcome::Listed(wire::ListedRows { rows: listed })
         }
         ListOutcome::Failed(failure) => {
             let value = match failure {
-                ListFailure::Refused { status } => {
-                    wire::ListFailed::Refused(wire::ListRefused::new(limits, wire::ListRefusedParts { status }).ok()?)
-                }
+                ListFailure::Refused { status } => wire::ListFailed::Refused(wire::ListRefused { status }),
                 ListFailure::Unreachable => wire::ListFailed::Unreachable,
                 ListFailure::Unreadable => wire::ListFailed::Unreadable,
                 ListFailure::Deadline => wire::ListFailed::Deadline,
                 ListFailure::Agent => wire::ListFailed::Agent,
             };
-            wire::ListOutcome::Failed(wire::ListFailureValue::new(limits, wire::ListFailureValueParts { value }).ok()?)
+            wire::ListOutcome::Failed(wire::ListFailureValue { value })
         }
     };
-    let record = wire::ListRead::new(limits, wire::ListReadParts { read, outcome }).ok()?;
-    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut body).ok()?;
-    frame(wire::Kind::ListRead.number(), body.finish())
+    let record = wire::ListRead { read, outcome };
+    frame(wire::Kind::ListRead.number(), record.encode(limits).ok()?)
 }
 
 /// Byte bridges surround this component's current-value/domain translation (bridges.md, 5).
@@ -988,7 +853,7 @@ pub(crate) fn send(
     frame: Frame,
     version: u16,
     agreed: &[wire::Agreed],
-    limits: &wire::v17::Limits,
+    limits: &wire::v19::Limits,
 ) -> Result<Frame, wire::translation::Untranslated> {
     machine.send(frame, version, agreed, limits)
 }
@@ -998,7 +863,38 @@ pub(crate) fn receive(
     body: &[u8],
     version: u16,
     agreed: &[wire::Agreed],
-    limits: &wire::v17::Limits,
+    limits: &wire::v19::Limits,
 ) -> Result<Frame, wire::translation::Untranslated> {
     machine.receive(kind, body, version, agreed, limits)
+}
+
+fn usage_read_frame(read: u64, outcome: jig_domain_link::UsageOutcome, limits: &wire::v19::Limits) -> Option<Frame> {
+    let outcome = match outcome {
+        jig_domain_link::UsageOutcome::Read(windows) => {
+            let mut rows = List::with_capacity(limits.usage_windows_windows);
+            for row in windows {
+                let resets = reset_nanos(row.window.resets);
+                rows.push(wire::UsageWindow {
+                    label: row.label,
+                    length: row.window.length,
+                    used: row.window.used,
+                    resets,
+                    state: row.window.state,
+                })
+                .ok()?;
+            }
+            wire::UsageOutcome::Read(wire::UsageWindows { windows: rows })
+        }
+        jig_domain_link::UsageOutcome::NotSignedIn => wire::UsageOutcome::NotSignedIn,
+        jig_domain_link::UsageOutcome::Spent => wire::UsageOutcome::Spent,
+        jig_domain_link::UsageOutcome::Failed { reason, detail } => {
+            wire::UsageOutcome::Failed(source_failed(reason, detail))
+        }
+    };
+    let record = wire::UsageRead { read, outcome };
+    frame(wire::Kind::UsageRead.number(), record.encode(limits).ok()?)
+}
+
+fn reset_nanos(reset: Option<skein_lib::Wall>) -> Option<u64> {
+    Some(reset?.as_nanos())
 }

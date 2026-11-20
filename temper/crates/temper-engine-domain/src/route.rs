@@ -464,6 +464,7 @@ fn route_core_with_job(
                 parts::saved(domain, &record);
                 forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
+                forge_route::revision_saved(domain, env, decision, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
                 limit_settings::saved(domain, env, decision, &record);
@@ -610,6 +611,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 }
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
                 domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
+                let mut output = Queue::uncapped();
+                domain.forge.link_landings(&domain.core.tasks, &environment_forge(env), &mut output);
+                forge_route::outputs(domain, env, decision, &mut output);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
                     return;
@@ -627,10 +631,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     decision,
                     forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
                 );
+                kinds::restored_repairs(domain, env.limits.tasks.spec_bytes);
             }
             Work::Forge(forge::Event::StatusTask { project, party, task }) => {
                 let event = forge_route::status_route::admission(domain, project, party, task);
                 forge_event(domain, env, decision, event);
+            }
+            Work::LandingAdmission { row, names } => {
+                forge_route::landing_admission(domain, env, decision, row, &names);
             }
             Work::StatusAccount { procedure } => forge_route::status_route::check_account(domain, procedure),
             Work::Forge(event) => forge_event(domain, env, decision, event),
@@ -719,6 +727,7 @@ pub(crate) fn decide_call(
         | core::CallPart::Delegated(_)
         | core::CallPart::DelegationDenied { .. }
         | core::CallPart::DelegationRefused(_)
+        | core::CallPart::WordsRecorded { .. }
         | core::CallPart::NoteWritten { .. }
         | core::CallPart::NoteDeleted { .. }
         | core::CallPart::NoteRecalled { .. }
@@ -869,6 +878,20 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
     let mut out = Queue::uncapped();
+    // Task saves keep the projection current during a gather and at merge
+    // judgement. Refresh restored projections before reads start, and the
+    // subject at each change step (gates.md, 1, Valid at a spec revision).
+    if let forge::Event::ReadAfresh = &event {
+        for task in domain.forge.change_tasks() {
+            if let Some(row) = domain.core.tasks.task(task) {
+                domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);
+            }
+        }
+    } else if let forge::Event::StepChange { task, .. } = &event
+        && let Some(row) = domain.core.tasks.task(*task)
+    {
+        domain.forge.refresh_spec_revision(*task, row.revisions.spec, &mut out);
+    }
     if let forge::Event::PersonOf { .. } = &event {
         let party = domain.core.people.sole_owner();
         forge::step(&mut domain.forge, &environment_forge(env), forge::Event::Owner { party }, &mut out);

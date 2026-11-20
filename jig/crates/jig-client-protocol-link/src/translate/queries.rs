@@ -4,87 +4,73 @@ use crate::Limits;
 use jig_client_domain::contract as c;
 use skein_lib::Wall;
 
-pub(super) fn query(value: &c::TaskQuery, limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(super) fn query(value: &c::TaskQuery, _limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
     let requester = match value.requester {
         None => None,
-        Some(c::Requester::Task(value)) => {
-            Some(w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value })?))
+        Some(c::Requester::Task(value)) => Some(w::Requester::Task(w::RequesterTask { value })),
+        Some(c::Requester::Person(value)) => Some(w::Requester::Person(w::RequesterPerson { value })),
+        Some(c::Requester::Deployment { project }) => {
+            Some(w::Requester::Deployment(w::RequesterDeployment { project }))
         }
-        Some(c::Requester::Person(value)) => {
-            Some(w::Requester::Person(w::RequesterPerson::new(limits, w::RequesterPersonParts { value })?))
-        }
-        Some(c::Requester::Deployment { project }) => Some(w::Requester::Deployment(w::RequesterDeployment::new(
-            limits,
-            w::RequesterDeploymentParts { project },
-        )?)),
     };
-    w::TaskQuery::new(
-        limits,
-        w::TaskQueryParts {
-            parts: {
-                let mut parts = skein_lib::List::with_capacity(value.parts.len());
-                for ask in &value.parts {
-                    parts
-                        .push(w::PartAsk::new(
-                            limits,
-                            w::PartAskParts {
-                                owner: w::Family::new(limits, w::FamilyParts { number: ask.owner })?,
-                                kind: ask.kind,
-                                version: ask.version,
-                            },
-                        )?)
-                        .expect("same part count");
-                }
+    Ok(w::TaskQuery {
+        parts: {
+            let mut parts = skein_lib::List::with_capacity(value.parts.len());
+            for ask in &value.parts {
                 parts
-            },
-            project: value.project,
-            requester,
-            root: value.root,
-            parent: value.parent,
-            label: value.label,
-            phase: match value.phase {
-                None => None,
-                Some(v) => Some(match v {
-                    c::PhaseClass::Working => w::PhaseClass::Working,
-                    c::PhaseClass::Waiting => w::PhaseClass::Waiting,
-                    c::PhaseClass::Held => w::PhaseClass::Held,
-                    c::PhaseClass::Closing => w::PhaseClass::Closing,
-                    c::PhaseClass::Ended => w::PhaseClass::Ended,
-                }),
-            },
-            executor: match value.executor {
-                None => None,
-                Some(v) => Some(match v {
-                    c::ExecutorKind::Job => w::ExecutorKind::Job,
-                    c::ExecutorKind::Agent => w::ExecutorKind::Agent,
-                    c::ExecutorKind::Procedure => w::ExecutorKind::Procedure,
-                    c::ExecutorKind::Person => w::ExecutorKind::Person,
-                }),
-            },
-            tracked: value.tracked,
-            order: match value.order {
-                c::QueryOrder::Number => w::QueryOrder::Number,
-                c::QueryOrder::Changed => w::QueryOrder::Changed,
-                c::QueryOrder::Activity => w::QueryOrder::Activity,
-                c::QueryOrder::Priority => w::QueryOrder::Priority,
-                c::QueryOrder::Ended => w::QueryOrder::Ended,
-            },
+                    .push(w::PartAsk { owner: w::Family { number: ask.owner }, kind: ask.kind, version: ask.version })
+                    .expect("same part count");
+            }
+            parts
         },
-    )
+        project: value.project,
+        requester,
+        root: value.root,
+        parent: value.parent,
+        label: value.label,
+        phase: match value.phase {
+            None => None,
+            Some(v) => Some(match v {
+                c::PhaseClass::Working => w::PhaseClass::Working,
+                c::PhaseClass::Waiting => w::PhaseClass::Waiting,
+                c::PhaseClass::Held => w::PhaseClass::Held,
+                c::PhaseClass::Closing => w::PhaseClass::Closing,
+                c::PhaseClass::Ended => w::PhaseClass::Ended,
+            }),
+        },
+        executor: match value.executor {
+            None => None,
+            Some(v) => Some(match v {
+                c::ExecutorKind::Job => w::ExecutorKind::Job,
+                c::ExecutorKind::Agent => w::ExecutorKind::Agent,
+                c::ExecutorKind::Procedure => w::ExecutorKind::Procedure,
+                c::ExecutorKind::Person => w::ExecutorKind::Person,
+            }),
+        },
+        tracked: value.tracked,
+        order: match value.order {
+            c::QueryOrder::Number => w::QueryOrder::Number,
+            c::QueryOrder::Changed => w::QueryOrder::Changed,
+            c::QueryOrder::Activity => w::QueryOrder::Activity,
+            c::QueryOrder::Priority => w::QueryOrder::Priority,
+            c::QueryOrder::Ended => w::QueryOrder::Ended,
+        },
+    })
 }
 pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
     c::TaskFlags {
-        ended_by: match value.ended_by() {
+        ended_by: match &value.ended_by {
             w::EndedBy::Result => c::EndedBy::Result,
             w::EndedBy::Requester => c::EndedBy::Requester,
             w::EndedBy::Standing => c::EndedBy::Standing,
             w::EndedBy::Closer(closer) => {
-                c::EndedBy::Closer(c::Closer { connector: closer.connector(), code: closer.code() })
+                c::EndedBy::Closer(c::Closer { connector: closer.connector, code: closer.code })
             }
         },
-        conversation: value.conversation(),
-        listed: value.listed(),
-        retention: match value.retention() {
+        conversation: value.conversation,
+        listed: value.listed,
+        retention: match &value.retention {
             w::Retention::Kept => c::Retention::Kept,
             w::Retention::ForgottenOnceRead => c::Retention::ForgottenOnceRead,
         },
@@ -93,13 +79,13 @@ pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
 pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
     match value {
         w::WaitsOn::Party(v) => c::WaitsOn::Party {
-            whom: match v.whom() {
-                w::Whom::Person(v) => c::Whom::Person(v.value()),
-                w::Whom::Role(v) => c::Whom::Role { project: v.project(), role: v.role() },
+            whom: match &v.whom {
+                w::Whom::Person(v) => c::Whom::Person(v.value),
+                w::Whom::Role(v) => c::Whom::Role { project: v.project, role: v.role },
             },
-            entries: v.entries(),
-            task: v.task(),
-            kind: match v.kind() {
+            entries: v.entries,
+            task: v.task,
+            kind: match &v.kind {
                 w::WaitedFor::Question => c::WaitedFor::Question,
                 w::WaitedFor::Proposal => c::WaitedFor::Proposal,
                 w::WaitedFor::Escalation => c::WaitedFor::Escalation,
@@ -107,38 +93,38 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
             },
         },
         w::WaitsOn::Dependencies(value) => {
-            c::WaitsOn::Dependencies { pending: value.pending().clone(), count: value.count() }
+            c::WaitsOn::Dependencies { pending: value.pending.clone(), count: value.count }
         }
         w::WaitsOn::Delegates => c::WaitsOn::Delegates,
-        w::WaitsOn::Question(value) => c::WaitsOn::Question { number: value.number() },
+        w::WaitsOn::Question(value) => c::WaitsOn::Question { number: value.number },
         w::WaitsOn::News => c::WaitsOn::News,
         w::WaitsOn::Nothing => c::WaitsOn::Nothing,
     }
 }
 pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
     Ok(c::TaskLine {
-        parts: row_parts(value.parts())?,
-        chip: documents::chip_fields(value.chip(), limits)?,
-        project: value.project(),
-        requester: facts::requester(value.requester()),
-        tracked: *value.tracked(),
-        label: value.label(),
-        flags: flags(value.flags()),
-        changed: Wall::from_nanos(value.changed()),
-        last_activity: Wall::from_nanos(value.last_activity()),
-        ended_at: match *value.ended_at() {
+        parts: row_parts(&value.parts)?,
+        chip: documents::chip_fields(&value.chip, limits)?,
+        project: value.project,
+        requester: facts::requester(&value.requester),
+        tracked: value.tracked,
+        label: value.label,
+        flags: flags(&value.flags),
+        changed: Wall::from_nanos(value.changed),
+        last_activity: Wall::from_nanos(value.last_activity),
+        ended_at: match value.ended_at {
             None => None,
             Some(v) => Some(Wall::from_nanos(v)),
         },
-        budget: facts::budget(value.budget()),
-        waits_on: waits(value.waits_on()),
-        phases: documents::phase_counts_fields(value.phases()),
-        delegates_done: value.delegates_done(),
-        delegates_total: value.delegates_total(),
-        held_below: value.held_below(),
-        conversation: match value.conversation() {
+        budget: facts::budget(&value.budget),
+        waits_on: waits(&value.waits_on),
+        phases: documents::phase_counts_fields(&value.phases),
+        delegates_done: value.delegates_done,
+        delegates_total: value.delegates_total,
+        held_below: value.held_below,
+        conversation: match &value.conversation {
             None => None,
-            Some(v) => Some(c::ConversationRead { seen: v.seen(), unread: documents::count_fields(v.unread()) }),
+            Some(v) => Some(c::ConversationRead { seen: v.seen, unread: documents::count_fields(&v.unread) }),
         },
     })
 }
@@ -148,18 +134,18 @@ fn row_parts(value: &skein_lib::List<w::RowPart>) -> Result<skein_lib::List<c::R
     for part in value {
         let part = match part {
             w::RowPart::Value(value) => {
-                let w::Owner::Family(owner) = value.owner() else {
+                let w::Owner::Family(owner) = &value.owner else {
                     return Err(super::piece_problem(skein_codec::Reason::Tag));
                 };
                 c::RowPart::Value(jig_client_domain::Family {
-                    family: owner.number(),
-                    version: value.version(),
-                    bytes: skein_lib::bytes::copy_of(value.record()),
+                    family: owner.number,
+                    version: value.version,
+                    bytes: skein_lib::bytes::copy_of(&value.record),
                 })
             }
             w::RowPart::NotServed(why) => c::RowPart::NotServed(not_served(why)),
             w::RowPart::Unknown => c::RowPart::Unknown,
-            w::RowPart::Failed(why) => c::RowPart::Failed(match why.why() {
+            w::RowPart::Failed(why) => c::RowPart::Failed(match &why.why {
                 w::PartFailure::Busy => c::PartFailure::Busy,
                 w::PartFailure::TooLarge => c::PartFailure::TooLarge,
                 w::PartFailure::Unreadable => c::PartFailure::Unreadable,
@@ -196,15 +182,15 @@ pub(crate) fn check_rows(
 fn part_owner(value: &w::Owner) -> c::Owner {
     match value {
         w::Owner::Jig => c::Owner::Jig,
-        w::Owner::Family(owner) => c::Owner::Family(owner.number()),
+        w::Owner::Family(owner) => c::Owner::Family(owner.number),
     }
 }
 fn not_served(value: &w::NotServed) -> c::NotServed {
-    let mut served = skein_lib::List::with_capacity(value.served().len());
-    for range in value.served() {
+    let mut served = skein_lib::List::with_capacity(value.served.len());
+    for range in &value.served {
         served
-            .push(c::Served { owner: part_owner(range.owner()), first: range.first(), last: range.last() })
+            .push(c::Served { owner: part_owner(&range.owner), first: range.first, last: range.last })
             .expect("same ranges");
     }
-    c::NotServed { owner: part_owner(value.owner()), served }
+    c::NotServed { owner: part_owner(&value.owner), served }
 }

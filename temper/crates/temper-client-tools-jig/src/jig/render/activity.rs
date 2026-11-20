@@ -73,10 +73,20 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
             out.put(b" in your inbox");
         }
         c::Activity::Heard(word) | c::Activity::Notified { word, .. } => message_words(&word.kind, &word.words, out),
-        c::Activity::RunBegan { attempt, .. } => {
+        c::Activity::RunBegan { attempt, fresh, .. } => {
             out.put(b"run ");
             out.number(*attempt);
             out.put(b" began");
+            if let Some(cause) = fresh {
+                out.put(b" fresh: ");
+                out.put(match cause {
+                    c::RunFresh::Moved => b"its conversation ran on another endpoint",
+                    c::RunFresh::Closed => b"its conversation was closed",
+                    c::RunFresh::Cut => b"a turn was too large to load",
+                    c::RunFresh::Limit => b"its conversation passed the resume limit",
+                    c::RunFresh::Session => b"its session had ended",
+                });
+            }
         }
         c::Activity::RunEnded { attempt, end, .. } => run_ended(*attempt, *end, out),
         c::Activity::Turn { attempt, turn: number, .. } => {
@@ -221,5 +231,33 @@ pub(super) fn run(delivery: &c::Delivery, text: Option<&c::RunText>, out: &mut T
         out.put(b"provisional: ");
         out.words(text.text.bytes());
         out.put(b"\n");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Text, c, owner};
+    #[test]
+    fn run_beginnings_print_each_fresh_cause() {
+        for (fresh, expected) in [
+            (None, b"1 \xc2\xb7 run 3 began\n".as_slice()),
+            (Some(c::RunFresh::Moved), b"1 \xc2\xb7 run 3 began fresh: its conversation ran on another endpoint\n"),
+            (Some(c::RunFresh::Closed), b"1 \xc2\xb7 run 3 began fresh: its conversation was closed\n"),
+            (Some(c::RunFresh::Cut), b"1 \xc2\xb7 run 3 began fresh: a turn was too large to load\n"),
+            (Some(c::RunFresh::Limit), b"1 \xc2\xb7 run 3 began fresh: its conversation passed the resume limit\n"),
+            (Some(c::RunFresh::Session), b"1 \xc2\xb7 run 3 began fresh: its session had ended\n"),
+        ] {
+            let row = c::ActivityLine {
+                task: 7,
+                position: 1,
+                at: skein_lib::Wall::EPOCH,
+                line: c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh },
+            };
+            let mut measured = Text::measure();
+            owner(&row, &mut measured);
+            let mut out = Text::writing_exact(measured);
+            owner(&row, &mut out);
+            assert_eq!(out.finish().as_ref(), expected);
+        }
     }
 }

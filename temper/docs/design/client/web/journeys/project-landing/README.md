@@ -1,23 +1,30 @@
 # project-landing
 
-On a fresh `temper box --fake-backends`: the box's printed sign-in link
-opened, "Set up temper" pressed, then Forgejo's "Run on this machine"
-and its sheet's own "Run on this machine", with the offered empty
-`work/hello`. On Model, "Continue with ChatGPT" opens the fake issuer's
-sign-in in a new tab; the welcome stays and advances to Ready by itself. Ready offers "Hello"; "Create your
-project" creates it and adopts `work/hello`.
+A version-2 `walk` in one process, on the playground's composition,
+signed in at `/welcome` by its printed link. The forge is at
+`127.0.0.1:10002`, and the world's box's peer plays its set-up: no
+`temper box` (`../../../journey-walks.md`, 4.1, 4.4 and 6). The walk
+presses "Set up temper", then Forgejo's "Run on this machine" and its
+sheet's own "Run on this machine", leaving the sample `work/hello`
+chosen.
 
-Once Home says "work/hello is in Hello", reloading `/projects/1` starts
-the recording there. Alt+Shift+S saves the settled Home. The recording
-holds no act; its first replay proves the print against the live page.
+On Model, "Continue with ChatGPT" opens the world's sign-in tab,
+carried to the fake issuer and back to the engine's callback. The welcome
+stays open and advances to Ready by its accounts watch
+(`../../../journey-walks.md`, 4.5). "Create your project" creates Hello
+and adopts `work/hello`. Once Home says "work/hello is in Hello", the
+walk reloads `/projects/1`, waits for "Hello is ready." and marks it.
 
 - `01.html`: Home in Hello, with "Hello is ready.", the ChatGPT plan
-  and Forgejo line, and To begin's one step left, "Tell temper how you
-  work", after the repository's done step, "work/hello is in Hello" and
-  "temper can change its code now.". "Skip" and "Add Claude or another
-  plan" remain available. While To begin shows, the rail lists "Home" and
-  "Ask temper" alone, with "Deployment" at its foot and the night switch after it, and the phone's tab bar
-  "Home", "Ask" and "Deployment", as a fresh box offers Ask temper.
+  and Forgejo on this machine. To begin has one step left, "Tell temper
+  how you work", after the repository's done step, "work/hello is in
+  Hello" and "temper can change its code now.". "Skip" and "Add Claude
+  or another plan" remain available. The project menu's `work/hello ↗`
+  link opens the forge at `127.0.0.1:10002` through temper sign-in in a
+  new tab.
+  The rail offers "Home", "Ask temper" and "How work runs", with Away,
+  the live link, Deployment and Owner's menu at its foot, and the night
+  switch after it. The phone's tab bar offers "Home", "Ask" and
+  "Deployment".
 
-The walk is recorded by `again project-landing` from its `setup`, with
-no hand driver.
+There is one mark and no act after it; the page has no next page.

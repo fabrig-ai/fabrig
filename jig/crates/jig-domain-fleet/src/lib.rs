@@ -75,6 +75,7 @@ mod reads;
 mod tests;
 mod turn;
 mod untooled;
+mod usage;
 pub use untooled::Untooled;
 
 pub use boundary::{

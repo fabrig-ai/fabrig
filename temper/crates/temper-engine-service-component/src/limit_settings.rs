@@ -196,6 +196,7 @@ fn codec_lowering(
                 | Cause::Range(_)
                 | Cause::Walk(_)
                 | Cause::Decode(DecodeFailure::Key | DecodeFailure::Value | DecodeFailure::KeyValueDisagree)
+                | Cause::History { .. }
                 | Cause::RowPastPage { .. }
                 | Cause::Join { .. }
                 | Cause::Arithmetic(_) => return None,
@@ -206,6 +207,7 @@ fn codec_lowering(
                 | Cause::Range(_)
                 | Cause::Walk(_)
                 | Cause::Decode(_)
+                | Cause::History { .. }
                 | Cause::RowPastPage { .. }
                 | Cause::Arithmetic(_) => failure.row.clone(),
             };
@@ -305,6 +307,7 @@ fn core_fit(failure: &core::start::Failure) -> Option<(&'static [u8], u64, u64)>
         )),
         Failure::Settings { .. }
         | Failure::Numbers { .. }
+        | Failure::Taken { .. }
         | Failure::Application { .. }
         | Failure::ProjectPolicy { .. }
         | Failure::AccountsPastLimit { .. }

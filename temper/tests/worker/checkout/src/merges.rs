@@ -275,6 +275,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
             push: Some(b"topic".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
             delivered: None,
+            pin: None,
             landing: if matches!(case, Case::Contained | Case::Resumed | Case::Conflict) {
                 Some(b"main".as_slice().into())
             } else {
@@ -376,6 +377,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
 #[derive(Clone, Copy, Debug)]
 pub enum PinCase {
     Repair,
+    Named,
     Saved,
     Resolution,
     NewBranch,
@@ -396,6 +398,7 @@ pub fn replaced_pin(case: PinCase) {
         push: Some(b"topic".as_slice().into()),
         expected: None,
         delivered: None,
+        pin: None,
         landing: Some(b"main".as_slice().into()),
         save: Some(b"saved".as_slice().into()),
     };
@@ -421,6 +424,19 @@ pub fn replaced_pin(case: PinCase) {
     let mut expected = world.ours;
     match case {
         PinCase::Repair => {}
+        PinCase::Named => {
+            world.forge.create_branch(b"forge/temper", b"saved", world.ours).expect("saved branch");
+            let saved = world.forge.advance(b"forge/temper", b"saved", b"saved-only", b"unfinished\n");
+            world.forge.create_branch(b"forge/temper", b"pin", world.base).expect("pin branch");
+            let named = world.forge.advance(b"forge/temper", b"pin", b"pin-only", b"landing base\n");
+            assert_ne!(saved, world.ours, "start differs from push head");
+            assert_ne!(named, saved, "pin differs from start");
+            assert_ne!(named, world.ours, "pin differs from push head");
+            assert_ne!(named, world.base, "cached pin is different");
+            repository.start = Start::Saved { branch: b"saved".as_slice().into() };
+            repository.pin = Some(translate::commit(named));
+            expected = named;
+        }
         PinCase::Saved => {
             world.forge.create_branch(b"forge/temper", b"saved", world.ours).expect("saved branch");
             let saved = world.forge.advance(b"forge/temper", b"saved", b"saved-only", b"unfinished\n");
@@ -497,6 +513,7 @@ pub fn resolution_conflict(pushed: bool) {
             prefixes: Box::new([]),
             expected,
             delivered: None,
+            pin: None,
             landing: None,
         }]),
     };
@@ -649,6 +666,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
             push: Some(b"topic".as_slice().into()),
             expected: None,
             delivered: None,
+            pin: None,
             landing: Some(b"main".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -688,6 +706,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
             push: Some(b"topic".as_slice().into()),
             expected: None,
             delivered: None,
+            pin: None,
             landing: if retry { Some(b"main".as_slice().into()) } else { None },
         }]),
     };
@@ -765,6 +784,7 @@ fn heads_spec(heads: &[u64]) -> Spec {
             push: Some(b"early".as_slice().into()),
             expected: None,
             delivered: None,
+            pin: None,
             landing: None,
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -919,6 +939,7 @@ pub fn goal_later_run(case: Case) {
             push: Some(b"topic".as_slice().into()),
             expected: None,
             delivered: None,
+            pin: None,
             landing: Some(b"main".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -1026,6 +1047,7 @@ fn design_start() -> (World, Vec<u8>, u64) {
             push: Some(b"g".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
             delivered: None,
+            pin: None,
             landing: Some(b"g".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),

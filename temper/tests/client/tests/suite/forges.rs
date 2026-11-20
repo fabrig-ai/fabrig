@@ -459,6 +459,7 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
         row(&world, FORGE).first,
         Some(d::First {
             playground: false,
+            sample: false,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state: d::FirstState::Making,
@@ -506,10 +507,43 @@ fn a_fresh_deployment_keeps_a_github_row_only_when_connected_and_removes_it_when
     let id = node(&rendered, Role::Button, b"Connect GitHub");
     let action = temper_client_view::act(&mut rendered, id, Act::Press).expect("connect GitHub");
     accounts::event(&mut front, &mut root, client::Event::Act { action }.into());
+    assert_eq!(root.person().pages().address(), &Address::ConnectForge { forge: None });
+    assert_eq!(front.leaves, Vec::<Box<[u8]>>::new());
     accounts::event(&mut front, &mut root, Temper::went(Address::Forges));
+    node(&view(&root), Role::Status, b"Waiting for GitHub");
     let client::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge records") };
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].kind, client::forge::forges::Kind::GitHub);
+    let forge = rows[0].number;
+    assert_eq!(
+        front.tabs,
+        [
+            client::Tab::Open { opening: client::Opening::GitHub },
+            client::Tab::PointOnOrigin {
+                to: format!("http://127.0.0.1:8367/forges/{forge}/github/manifest?state=fixture")
+                    .into_bytes()
+                    .into_boxed_slice(),
+            },
+        ]
+    );
+    accounts::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: None }));
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
+        forge,
+        state: forge::Connection::Connected { id: 1, login: b"app[bot]".as_slice().into() },
+    })));
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::Installation {
+        forge,
+        installation: 1,
+        state: Some(forge::Installation {
+            account: Some((1, b"acme".as_slice().into())),
+            suspended: false,
+            stray: false,
+        }),
+    })));
+    front.engine.settle();
+    accounts::settle(&mut front, &mut root);
+    assert_eq!(root.person().pages().address(), &Address::Forges);
+    assert_eq!(root.person().pages().forges_opened(), Some(forge));
     for confirmed in [false, true] {
         let mut rendered = view(&root);
         let id = node(&rendered, Role::Button, b"Remove");

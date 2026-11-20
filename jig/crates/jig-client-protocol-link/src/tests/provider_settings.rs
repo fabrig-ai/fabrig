@@ -1,6 +1,7 @@
 use crate::translate::settings;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Duration;
 #[test]
 fn provider_identity_value_and_accounts_fault_cross_the_client_wire() {
@@ -54,8 +55,10 @@ fn provider_identity_value_and_accounts_fault_cross_the_client_wire() {
     };
     let value = c::SettingValue::Provider(Box::new(provider));
     let wire = settings::wire_setting_value(&value, limits.wire()).unwrap();
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(wire.measure()));
-    wire.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(
+        wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let wire = w::SettingValue::decode(limits.receiving(), &mut skein_lib::Reader::new(&writer.finish())).unwrap();
     assert_eq!(settings::restore_setting_value(&wire, &limits).unwrap(), value);
     let identity = c::Setting::Provider(c::SettingNumber { number: 4 });

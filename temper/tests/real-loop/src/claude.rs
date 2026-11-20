@@ -49,8 +49,9 @@ fn fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
 
 /// The hosted fake uses filesystem names; Spawn's cwd is relative to its root descriptor.
 pub(crate) fn launch(spawn: &Spawn) -> Spawn {
-    let root = std::fs::read_link(format!("/proc/self/fd/{}", spawn.root.raw())).expect("fake launch root");
-    let directory = root.join(std::ffi::OsStr::from_bytes(&spawn.dir));
+    let root = skein_shell::keeper::descriptor_path(spawn.root)
+        .unwrap_or_else(|error| panic!("fake launch root {:?}: {error:?}", spawn.root));
+    let directory = Path::new(std::ffi::OsStr::from_bytes(&root)).join(std::ffi::OsStr::from_bytes(&spawn.dir));
     Spawn {
         reach: None,
         program: spawn.program.clone(),

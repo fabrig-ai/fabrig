@@ -49,7 +49,6 @@ pub fn admission_1() -> [(p::LimitKind, w::AdmissionLimit); 23] {
     ]
 }
 pub fn admission_refusal(which: w::AdmissionLimit) -> w::Refusal {
-    let limits = wire();
-    let which = w::Limit::Admission(w::LimitAdmission::new(&limits, w::LimitAdmissionParts { which }).expect("limit"));
-    w::Refusal::Limit(w::RefusalLimit::new(&limits, w::RefusalLimitParts { which }).expect("refusal"))
+    let which = w::Limit::Admission(w::LimitAdmission { which });
+    w::Refusal::Limit(w::RefusalLimit { which })
 }

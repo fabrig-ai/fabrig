@@ -384,7 +384,7 @@ impl Page<'_> {
         for row in self.reds {
             b.open(Role::Paragraph);
             b.style(look::GOAL_LINE);
-            if row.cleared().is_none() {
+            if row.cleared.is_none() {
                 b.style(look::GOAL_LINE_NEEDS);
             }
             b.text(
@@ -393,8 +393,8 @@ impl Page<'_> {
                     Word::GoalRedLine,
                     &[
                         Hole::Number(u64::from(self.task.project)),
-                        Hole::Number(u64::from(row.number())),
-                        Hole::Name(crate::common::chat::row_title(row.title())),
+                        Hole::Number(u64::from(row.number)),
+                        Hole::Name(crate::common::chat::row_title(&row.title)),
                         Hole::Name(finding_stands(words, findings::stands(row))),
                     ],
                 ),

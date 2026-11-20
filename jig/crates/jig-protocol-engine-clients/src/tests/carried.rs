@@ -4,6 +4,7 @@
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, FromApplication, Request, SecretOwner, SecretsAnswer, SecretsRequest, ToApplication};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{ReplyTo, Secret, Token, Writer};
@@ -18,17 +19,15 @@ fn carrying(owner: w::Owner, value: &[u8]) -> Box<[u8]> {
     keyed_value(owner, version, request, value)
 }
 fn keyed_value(owner: w::Owner, version: u32, request: Box<[u8]>, value: &[u8]) -> Box<[u8]> {
-    let record = w::Keyed::new(
-        &f::wire(),
-        w::KeyedParts { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) },
-    )
-    .expect("carrying keyed");
-    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut out).expect("bounded keyed");
+    let record = w::Keyed { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) };
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded keyed");
     out.finish()
 }
 fn family() -> w::Owner {
-    w::Owner::Family(w::Family::new(&f::wire(), w::FamilyParts { number: 9 }).expect("family"))
+    w::Owner::Family(w::Family { number: 9 })
 }
 /// Sends a carrying family request; returns its connection and exchange
 /// once the store has been asked to keep its value.
@@ -105,7 +104,7 @@ fn a_value_the_core_leaves_unused_is_erased_once_its_number_is_named() {
     assert_eq!(erased(&mut exchange), SecretOwner::Carried(FIRST));
     exchange.reply(to, p::Reply::Outcome(p::Outcome::Refused(p::Refusal::KeyConflict)));
     let w::Final::Refused(refused) = exchange.final_answer(owner) else { panic!("refused") };
-    assert_eq!(refused.refusal(), &w::Refusal::KeyConflict);
+    assert_eq!((&refused.refusal), &w::Refusal::KeyConflict);
     down(&mut exchange, Event::Application(FromApplication::Unused { number: FIRST }));
     assert!(exchange.out.is_empty(), "erased once");
     assert!(exchange.component.pending.carried.is_empty());
@@ -156,38 +155,17 @@ fn a_value_on_an_ordinary_jig_ask_is_not_a_record() {
 fn every_carrying_request_names_its_values_kind() {
     // One application request and the three account requests that persist a value.
     const CARRYING_REQUESTS: u32 = 1 + 3;
-    let limits = f::wire();
     let value = b"carried request payload";
     let digest = skein_lib::sha256::digest(value);
     let changes = [
-        (
-            w::AccountChange::AddKey(
-                w::AccountChangeAddKey::new(&limits, w::AccountChangeAddKeyParts { provider: 3, join: None, digest })
-                    .expect("add key"),
-            ),
-            crate::CarriedKind::Key,
-        ),
-        (
-            w::AccountChange::ReplaceKey(
-                w::AccountChangeReplaceKey::new(&limits, w::AccountChangeReplaceKeyParts { source: 29, digest })
-                    .expect("replace key"),
-            ),
-            crate::CarriedKind::Key,
-        ),
-        (
-            w::AccountChange::MoveIn(
-                w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).expect("move in"),
-            ),
-            crate::CarriedKind::Moved,
-        ),
+        (w::AccountChange::AddKey(w::AccountChangeAddKey { provider: 3, join: None, digest }), crate::CarriedKind::Key),
+        (w::AccountChange::ReplaceKey(w::AccountChangeReplaceKey { source: 29, digest }), crate::CarriedKind::Key),
+        (w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest }), crate::CarriedKind::Moved),
     ];
     let mut rows = skein_lib::List::with_capacity(CARRYING_REQUESTS);
     rows.push((carrying(family(), value), crate::CarriedKind::Value)).expect("application row");
     for (change, kind) in changes {
-        let ask = w::Ask::AccountChange(
-            w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-                .expect("account change"),
-        );
+        let ask = w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change });
         rows.push((keyed_value(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&ask), value), kind))
             .expect("account row");
     }

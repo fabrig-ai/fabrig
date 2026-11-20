@@ -25,18 +25,104 @@ jobs:
   gate:
     runs-on: dogfood
     steps:
-      - run: '"$CI_GATE" "${{ inputs.temper_commit }}" "${{ inputs.temper_base }}"'
+      - name: Load gate reporter
         env:
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 -I - <<'PYTHON'
+          import os, pathlib, urllib.request
+          env = os.environ
+          url = f"{env['GITHUB_API_URL']}/repos/{env['GITHUB_REPOSITORY']}/raw/.forgejo/scripts/gate_log.py?ref={env['GITHUB_SHA']}"
+          request = urllib.request.Request(url, headers={"Authorization": "token " + env["CI_GATE_TOKEN"]})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              pathlib.Path("gate-reporter.py").write_bytes(response.read())
+          PYTHON
+      # A change with no code input by the head's own rule (tools/pre-pr/pre_pr.py's code_inputs) runs only the
+      # citations check; anything else, or any doubt, runs the gate.
+      - name: Gate
+        run: |
+          python3 -I -B gate-reporter.py bash -e -o pipefail <<'GATE'
+          decided=0
+          python3 -I - "$CANDIDATE" "$BASE" <<'PY' || decided=$?
+          # Decide whether HEAD, against BASE, touches code, by the head's own rule (tools/pre-pr/pre_pr.py's code_inputs).
+          # Exit 0: no code input and its citations hold, so the gate is skipped. Exit 2: no code input but broken citations.
+          # Exit 1: code, or any doubt: the gate runs.
+          import importlib.util, json, os, shutil, subprocess, sys, tempfile, urllib.request
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          head, base = sys.argv[1], sys.argv[2]
+          if not base:
+              sys.exit(1)
+          remote = os.environ.get('CI_GATE_REMOTE') or f"http://127.0.0.1:3000/{os.environ['GITHUB_REPOSITORY']}.git"
+          where = urlsplit(remote)
+          api = f"{where.scheme}://{where.netloc}/api/v1/repos{where.path.removesuffix('.git')}"
+          token = os.environ.get('CI_GATE_TOKEN', '')
+          env = dict(os.environ, GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='http.extraHeader',
+                     GIT_CONFIG_VALUE_0=f'Authorization: token {token}', GIT_TERMINAL_PROMPT='0')
+          work = Path(tempfile.mkdtemp())
+          try:
+              request = urllib.request.Request(f'{api}/compare/{base}...{head}',
+                                               headers={'Authorization': f'token {token}'} if token else {})
+              with urllib.request.urlopen(request, timeout=60) as answer:
+                  rows = json.load(answer).get('files') or []
+              files = sorted({name for row in rows for name in (row.get('filename'), row.get('previous_filename')) if name})
+              if not files:
+                  raise ValueError('no files listed')
+              for command in (['git', 'init', '-q'], ['git', 'fetch', '-q', '--depth=1', remote, head],
+                              ['git', '-c', 'advice.detachedHead=false', 'checkout', '-q', 'FETCH_HEAD']):
+                  subprocess.run(command, cwd=work, env=env, stdin=subprocess.DEVNULL, check=True, timeout=300)
+              spec = importlib.util.spec_from_file_location('pre_pr', work / 'tools/pre-pr/pre_pr.py')
+              pre_pr = importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(pre_pr)
+              code = pre_pr.code_inputs(files, pre_pr.metadata(work, env), work)
+          except Exception as error:
+              print(f'no-code: undecided ({type(error).__name__}): the gate runs')
+              shutil.rmtree(work, ignore_errors=True)
+              sys.exit(1)
+          if code:
+              print(f'no-code: {len(files)} files, {len(code)} code inputs, first {code[0]}: the gate runs')
+              shutil.rmtree(work, ignore_errors=True)
+              sys.exit(1)
+          print(f'no-code: {len(files)} files, none a code input: citations only', flush=True)
+          cited = subprocess.run(['python3', '-I', '-B', 'tools/citations/citations.py', '--all'], cwd=work, env=env,
+                                 stdin=subprocess.DEVNULL, timeout=600)
+          shutil.rmtree(work, ignore_errors=True)
+          sys.exit(0 if cited.returncode == 0 else 2)
+          PY
+          if [ "$decided" = 0 ] || [ "$decided" = 2 ]; then
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0"/>\n' > junit.xml
+            : > failed-tests.txt
+            [ "$decided" = 0 ]; exit $?
+          fi
+          exec "$CI_GATE" "$CANDIDATE" "$BASE"
+          GATE
+        env:
+          CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE: ${{ inputs.temper_commit }}
+          BASE: ${{ inputs.temper_base }}
           CI_GATE_PROBE: ${{ inputs.temper_probe }}
           CI_GATE_TESTS: ${{ inputs.temper_tests }}
-      - uses: actions/upload-artifact@v3
+      - name: Save JUnit report
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: junit
           path: junit.xml
-      - uses: actions/upload-artifact@v3
+      - name: Save failed test IDs
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: failed-tests
           path: failed-tests.txt
+      - name: Save gate diagnostics
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: gate-diagnostics
+          path: gate-diagnostics.log
+      - name: Gate result
+        if: always()
+        run: |
+          if [ -s gate-result.txt ]; then cat gate-result.txt
+          else echo 'Gate result unavailable. See the first failed step.'; fi

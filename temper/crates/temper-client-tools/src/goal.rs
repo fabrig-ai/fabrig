@@ -21,15 +21,7 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Watchable)> {
     let Readout::Jig(c::ReadResult::Value(value)) = reading.pages.get(&1)? else { return None };
     let (task, _) = render::read_task(value)?;
     let goal = number(&reading.called.call, 0)?;
-    Some((
-        2,
-        finding::filtered_subject(
-            task.project,
-            w::FindingsFilter::Goal(
-                w::FindingsGoal::new(&w::CEILINGS, w::FindingsGoalParts { goal }).expect("goal filter"),
-            ),
-        ),
-    ))
+    Some((2, finding::filtered_subject(task.project, w::FindingsFilter::Goal(w::FindingsGoal { goal }))))
 }
 pub(crate) fn print(
     reading: &Reading,
@@ -57,28 +49,28 @@ pub(crate) fn print(
         Some(Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. }) | None => None,
     };
     let Some(findings) = findings else { return render::failure(b"unexpected findings document", json, 1) };
-    if findings.project() != task.project {
+    if findings.project != task.project {
         return render::failure(b"unexpected findings project", json, 1);
     }
     let document = render::document::print(render::document::Document::TaskRead(reading, me), json, limits, parts);
     if document.status != 0 {
         return document;
     }
-    let rows = findings::uncleared_first(findings.rows().as_slice());
+    let rows = findings::uncleared_first(findings.rows.as_slice());
     let suffix = if json {
         let bounds =
             skein_json::writer::Limits { depth: 16, length: u32::try_from(limits.result_bytes).expect("result bound") };
         let mut measure = Encoder::measure(&bounds);
-        encode(findings.project(), &rows, &mut measure);
+        encode(findings.project, &rows, &mut measure);
         let Ok(size) = measure.measured() else { return render::failure(b"result limit", json, 1) };
         let mut out = Encoder::write(size, &bounds);
-        encode(findings.project(), &rows, &mut out);
+        encode(findings.project, &rows, &mut out);
         out.finish()
     } else {
         let mut measure = Text::measure();
-        text(findings.project(), &rows, findings.cut(), &mut measure);
+        text(findings.project, &rows, findings.cut, &mut measure);
         let mut out = Text::writing_exact(measure);
-        text(findings.project(), &rows, findings.cut(), &mut out);
+        text(findings.project, &rows, findings.cut, &mut out);
         out.finish()
     };
     let chunks: &[&[u8]] = if json {
@@ -87,7 +79,7 @@ pub(crate) fn print(
             &document.stdout,
             b",\"reds\":",
             &suffix,
-            if findings.cut() { b",\"cut\":true}" } else { b",\"cut\":false}" },
+            if findings.cut { b",\"cut\":true}" } else { b",\"cut\":false}" },
         ]
     } else {
         &[&document.stdout, &suffix]
@@ -108,9 +100,9 @@ fn text(project: u32, rows: &[w::FindingRow], cut: bool, out: &mut Text) {
         out.put(b"  ");
         out.number(u64::from(project));
         out.put(b"/");
-        out.number(u64::from(row.number()));
+        out.number(u64::from(row.number));
         out.put(b" ");
-        out.put(row.title());
+        out.put(&row.title);
         out.put(b" \xc2\xb7 ");
         match findings::stands(row) {
             Stands::Cleared { tier, run } => {

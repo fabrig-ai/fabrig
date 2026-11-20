@@ -14,6 +14,11 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
 }
 
 fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskRecord) {
+    let period = *domain
+        .core
+        .tasks
+        .funding(tasks::Funder::Period { project: 1, period: domain.core.period(1) })
+        .expect("the fixture's open period");
     let mut rows = skein_lib::List::with_capacity(env.limits.tasks.tasks);
     for view in domain.core.tasks.view_tasks() {
         let row = if view.number == changed.number {
@@ -31,6 +36,12 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
         Box::new([]),
         Box::new([]),
     );
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Ledger(period) },
+        &mut Queue::uncapped(),
+    );
     for row in rows.into_boxed() {
         tasks::step(
             &mut domain.core.tasks,
@@ -38,6 +49,9 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
             &mut Queue::uncapped(),
         );
+    }
+    for event in [tasks::Event::Check, tasks::Event::Restored] {
+        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
     }
 }
 
@@ -52,7 +66,7 @@ fn gating(domain: &mut Domain, env: &Env<Limits>, status: change::Status) {
         freshness: change::Freshness::Exact,
         eager: false,
     }]);
-    row.verdicts = Box::new([change::GateReport { number: 1, head: super::SHA1, status }]);
+    row.verdicts = Box::new([change::GateReport { revision: 0, number: 1, head: super::SHA1, status }]);
     restore(domain, env, row);
     wake(domain, env, 8);
 }
@@ -123,6 +137,10 @@ fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
         assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
         settle(&mut domain, &env, 8);
         // Leave no waiting unit while proving the old hold has been spent.
+        let ready_seven = domain.forge.change(7).unwrap().clone();
+        let mut checking = ready_seven.clone();
+        checking.change.state = change::State::Checking { head: super::SHA1 };
+        restore(&mut domain, &env, checking);
         wake(&mut domain, &env, 7);
         wake(&mut domain, &env, 8);
         super::judge_trains(&mut domain, &env);
@@ -138,6 +156,7 @@ fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
             row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([1]) };
         }
         restore(&mut domain, &env, row);
+        restore(&mut domain, &env, ready_seven);
         settle(&mut domain, &env, 7);
         super::judge_trains(&mut domain, &env);
         assert_eq!(domain.forge.change(7).unwrap().change.landing, None, "the new gating episode settles again");

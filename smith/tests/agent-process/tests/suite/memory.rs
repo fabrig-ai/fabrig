@@ -10,24 +10,18 @@ use smith_agent_process_world::{World, charter, limits};
 fn full_context() -> Box<[u8]> {
     let base = charter();
     smith_agent_process_world::wire::edit_charter(&base, |parts| {
-        assert!(parts.models.is_empty() && parts.conventions.is_none() && parts.tools.host().is_empty());
-        assert!(parts.contract.report().as_ref().expect("report").fields().is_empty());
+        assert!(parts.models.is_empty() && parts.conventions.is_none() && parts.tools.host.is_empty());
+        assert!(parts.contract.report.as_ref().expect("report").fields.is_empty());
         let count = limits().domain.run.brief_sections;
-        let fixed =
-            u64::from(count) * (size_of::<smith_domain_run::Section>() as u64 + 1) + parts.main.model().len() as u64;
+        let fixed = u64::from(count) * (size_of::<smith_domain_run::Section>() as u64 + 1)
+            + parts.main.model.as_ref().len() as u64;
         parts.instructions =
             vec![b'x'; usize::try_from(limits().domain.run.run_bytes - fixed).expect("payload")].into_boxed_slice();
         parts.brief = List::with_capacity(count);
         for _ in 0..count {
             parts
                 .brief
-                .push(
-                    smith_charter::Section::new(
-                        &smith_charter::CEILINGS,
-                        smith_charter::SectionParts { title: b"x".as_slice().into(), body: Box::new([]) },
-                    )
-                    .expect("section"),
-                )
+                .push(smith_charter::Section { title: b"x".as_slice().into(), body: Box::new([]) })
                 .expect("maximum sections");
         }
         assert_eq!(

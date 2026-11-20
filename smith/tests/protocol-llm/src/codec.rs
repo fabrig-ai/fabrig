@@ -53,7 +53,9 @@ pub struct Prepared {
 pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
     let Input { owner, prompt, endpoint_name, endpoint, credential, receiving } = input;
     if prompt.endpoint != endpoint_name {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid {
+            cause: smith_protocol_llm::Cause::Smith(smith_protocol_llm::Refusal::UnknownEndpoint),
+        });
     }
     let ceiling = prompt.max_tokens;
     let (mut translated, context) = smith_protocol_llm_fixtures::prepare_prompt(owner, prompt, receiving, limits)?;
@@ -77,7 +79,9 @@ pub fn prepare_for_contract(
 ) -> Result<Prepared, Error> {
     let Input { owner, prompt, endpoint_name, endpoint, credential, receiving } = input;
     if prompt.endpoint != endpoint_name {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid {
+            cause: smith_protocol_llm::Cause::Smith(smith_protocol_llm::Refusal::UnknownEndpoint),
+        });
     }
     let ceiling = prompt.max_tokens;
     let (mut translated, context) =

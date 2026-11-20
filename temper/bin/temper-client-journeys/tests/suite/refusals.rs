@@ -1,5 +1,6 @@
 //! Refusals expose positions and kinds alone (client/web/journeys.md, 3.7 and 6).
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{
     Time, Wall, Writer,
     base64::{self, Alphabet},
@@ -122,29 +123,24 @@ fn a_shape_prints_no_bytes() {
 }
 fn data(value: &[u8], from: u32) -> Vec<u8> {
     let through = from + u32::try_from(value.len()).expect("fixture length");
-    let turn =
-        w::ProvisionalTurnName::new(&w::CEILINGS, w::ProvisionalTurnNameParts { attempt: 1, number: 1, retry: 0 })
-            .expect("turn");
-    let value = w::RunText::new(
-        &w::CEILINGS,
-        w::RunTextParts {
-            attempt: 1,
-            began: None,
-            turn,
-            from,
-            through,
-            text: value.into(),
-            cut: false,
-            call: None,
-            writing: None,
-        },
-    )
-    .expect("run text");
-    let event = w::StreamEvent::Text(
-        w::StreamText::new(&w::CEILINGS, w::StreamTextParts { watch: 1, value }).expect("stream text"),
+    let turn = w::ProvisionalTurnName { attempt: 1, number: 1, retry: 0 };
+    let value = w::RunText {
+        attempt: 1,
+        began: None,
+        turn,
+        from,
+        through,
+        text: value.into(),
+        cut: false,
+        call: None,
+        writing: None,
+    };
+    let event = w::StreamEvent::Text(w::StreamText { watch: 1, value });
+    let mut writer = Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("event length"),
     );
-    let mut writer = Writer::new(usize::try_from(event.measure()).expect("event length"));
-    event.encode(&mut writer).expect("event encoding");
+    event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("event encoding");
     let record = writer.finish();
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(record.len()).expect("record length"))
         .expect("base64 length");
@@ -277,7 +273,7 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
         for (index, report) in [
             Report::Local {
                 link: Some(skein_lib::Secret::new(
-                    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
+                    format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into(),
                 )),
             },
             Report::Stage(temper_client_tui::BoxStage::Running),

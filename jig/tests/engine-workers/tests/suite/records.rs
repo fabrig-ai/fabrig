@@ -5,6 +5,7 @@ mod records {
         fixtures::{self, SECRET_A, WORKER_A},
     };
     use jig_protocol_engine_workers::Request;
+    use jig_protocol_worker_wire::Record as _;
     use skein_lib::Token;
     fn world() -> World {
         World::new(&fixtures::limits(), &fixtures::workers(), 1)
@@ -36,7 +37,7 @@ mod records {
             Request::Hello { .. } => Record::Hello,
             Request::Up { up, .. } => match up {
                 LinkUp::Ask { .. } => Record::Ask,
-                LinkUp::ListRead { .. } => Record::ListRead,
+                LinkUp::UsageRead { .. } | LinkUp::ListRead { .. } => Record::ListRead,
                 LinkUp::Draining => Record::Draining,
                 LinkUp::Logins { .. } => Record::Logins,
                 LinkUp::SignedOut { .. } => Record::SignedOut,
@@ -46,7 +47,7 @@ mod records {
                 LinkUp::Piece { .. } => Record::Piece,
                 LinkUp::Activity { .. } => Record::Activity,
                 LinkUp::Unauthorized { .. } => Record::Unauthorized,
-                LinkUp::Limited { .. } => Record::Limited,
+                LinkUp::Usage { .. } | LinkUp::Limited { .. } => Record::Limited,
                 LinkUp::AccountRefused { .. } => Record::AccountRefused,
             },
             Request::Lost { .. } => Record::Lost,
@@ -161,33 +162,20 @@ mod records {
     fn a_piece_fact_reaches_the_root_as_a_piece_with_every_field() {
         use jig_domain_host as host;
         use jig_protocol_worker_wire as wire;
-        let limits = wire::sizes::limits(&fixtures::SIZES).expect("codec");
         for (kind, expected) in [
             (wire::LiveKind::Text, host::LiveKind::Text),
             (wire::LiveKind::Reasoning, host::LiveKind::Reasoning),
             (
-                wire::LiveKind::Input(
-                    wire::InputCall::new(
-                        &limits,
-                        wire::InputCallParts { id: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) },
-                    )
-                    .expect("call"),
-                ),
+                wire::LiveKind::Input(wire::InputCall { id: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) }),
                 host::LiveKind::Input { call: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) },
             ),
         ] {
-            let piece = wire::Piece::new(
-                &limits,
-                wire::PieceParts { turn: 17, retry: 23, kind, offset: u64::MAX, bytes: Box::from([0xff, 0, 0x80]) },
-            )
-            .expect("piece");
-            let fact = wire::Fact::new(
-                &limits,
-                wire::FactParts { task: 83, attempt: 97, value: wire::FactValue::Piece(piece) },
-            )
-            .expect("fact");
-            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(fact.measure()));
-            fact.encode(&mut body).expect("body");
+            let piece = wire::Piece { turn: 17, retry: 23, kind, offset: u64::MAX, bytes: Box::from([0xff, 0, 0x80]) };
+            let fact = wire::Fact { task: 83, attempt: 97, value: wire::FactValue::Piece(piece) };
+            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
+                fact.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+            ));
+            fact.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("body");
             let mut peer = reporting();
             peer.play(fixtures::frame(wire::Kind::Fact.number(), &body.finish()));
             let mut world = world();

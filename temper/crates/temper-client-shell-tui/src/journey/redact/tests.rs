@@ -9,7 +9,7 @@ use skein_ui_screen_terminal::Key;
 use temper_client_tui::{BoxLine, Scheme};
 
 pub(in crate::journey) fn printed_link() -> Box<[u8]> {
-    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into()
+    format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into()
 }
 
 pub(in crate::journey) fn written(records: &[Line]) -> Box<[u8]> {
@@ -24,6 +24,11 @@ fn body(secret: &[u8]) -> Box<[u8]> {
     let mut bytes = u32::try_from(secret.len()).expect("fake secret length").to_be_bytes().to_vec();
     bytes.extend_from_slice(secret);
     bytes.into()
+}
+
+fn approval_body(secret: &[u8]) -> Box<[u8]> {
+    let record = w::ApprovalSignIn { secret: skein_lib::Secret::new(secret.into()), grant: None };
+    record.encode(&w::CEILINGS).expect("approval take")
 }
 
 fn send(message: Sent, credential: Option<Box<[u8]>>) -> Line {
@@ -76,7 +81,7 @@ fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
 #[test]
 fn web_browse_and_its_wrapped_note_are_redacted_and_prove() {
     let encoded = url_base64(&[0x53; 32]);
-    let url: Box<[u8]> = [b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=".as_slice(), &encoded].concat().into();
+    let url: Box<[u8]> = [b"http://127.0.0.1:8367/sign-in?secret=".as_slice(), &encoded].concat().into();
     let mut world = World::with_front(b"127.0.0.1:8367", true);
     let duties = world.report(Report::Local { link: Some(skein_lib::Secret::new(url.clone())) });
     let exchange = duties
@@ -186,7 +191,7 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
             "approval take",
             Kind::Approval,
             approval.as_slice(),
-            vec![send(Sent::SignInApproval(body(&approval)), None)],
+            vec![send(Sent::SignInApproval(approval_body(&approval)), None)],
             vec![],
         ),
         ("credential start", Kind::Credential, credential.as_ref(), vec![Line::Credential(credential.clone())], vec![]),
@@ -439,15 +444,16 @@ impl World {
     }
 }
 
-pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
-    let mut world = World::at_address(address);
+fn answer_ask(world: &mut World) {
     let exchange = world.exchange(false);
     let mut asked = vec![0];
     asked.extend_from_slice(&body(&[7; 32]));
     asked.extend_from_slice(b"WDJBMJHT");
     asked.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: asked.into() }));
-    world.report(Report::Opened { opened: false });
+}
+
+fn answer_take(world: &mut World) {
     let exchange = world.exchange(true);
     let mut answer = vec![0, 1];
     answer.extend_from_slice(&body(&credential()));
@@ -455,6 +461,13 @@ pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
     answer.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: answer.into() }));
     world.report(Report::Kept { written: true });
+}
+
+pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
+    let mut world = World::at_address(address);
+    answer_ask(&mut world);
+    world.report(Report::Opened { opened: false });
+    answer_take(&mut world);
     world.save()
 }
 
@@ -480,20 +493,78 @@ fn redacted_approval_proves_and_replays_to_its_end() {
     assert!(marks > 0, "replayed to end");
 }
 
+fn grant_target(grant: &[u8]) -> Box<[u8]> {
+    [b"/approved?grant=".as_slice(), &url_base64(grant)].concat().into()
+}
+
+#[test]
+fn redacted_one_click_proves_with_the_sent_and_unsent_grants_hidden() {
+    use crate::loopback::{Answer, Returned};
+
+    let mut facts = super::super::tests::fixture::facts();
+    facts.address = temper_client_tui::Origin::parse(b"https://dev.fabrig.ai").expect("named origin");
+    facts.size = Size { rows: 16, columns: 100 };
+    let mut world = World::with_facts(&facts);
+    world.report(Report::Listening { port: Some(43210) });
+    answer_ask(&mut world);
+    world.report(Report::Opened { opened: true });
+    let unsent = [0xfb; 32];
+    let sent = [0xff; 32];
+    let duties = world.report(Report::Returned(Returned { get: false, target: grant_target(&unsent), host: None }));
+    assert!(matches!(duties.answer, Some(Answer::NotFound)));
+    assert_eq!(duties.asked.len(), 0, "the rejected grant was never sent");
+    let duties = world.report(Report::Returned(Returned {
+        get: true,
+        target: grant_target(&sent),
+        host: Some(b"127.0.0.1:43210".as_slice().into()),
+    }));
+    assert!(matches!(duties.answer, Some(Answer::Redirect { .. })));
+    answer_take(&mut world);
+    let original = world.save();
+    prove(&original).expect("original duties and frames");
+
+    let redacted = redact(&original, &[]).expect("redact one click");
+    assert_eq!(redacted.originals.count(Kind::Approval), 3, "ask secret and both grants, counted once each");
+    for grant in [&sent, &unsent] {
+        for form in [Box::from(grant.as_slice()), grant_target(grant)] {
+            assert_eq!(scan_bytes(&form, &[], &redacted.originals), Some(crate::journey::What::Original));
+            assert!(find_from(&redacted.recording, &form, 0).is_none());
+        }
+    }
+    let records = lines(&redacted.recording).expect("redacted lines");
+    let targets: Vec<_> = records
+        .iter()
+        .filter_map(|line| if let Line::Returned(returned) = line { Some(returned.target.clone()) } else { None })
+        .collect();
+    assert_eq!(targets, [grant_target(&[b'x'; 32]), grant_target(&[b'x'; 32])]);
+    let take = |line: &Line| {
+        if let Line::Send { message: Sent::SignInApproval(bytes), .. } = line {
+            w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("take record").grant
+        } else {
+            None
+        }
+    };
+    assert_eq!(records.iter().filter_map(take).collect::<Vec<_>>(), [skein_lib::Secret::new(Box::new([b'x'; 32]))]);
+    let original_lines = lines(&original).expect("original lines");
+    let send_only = original_lines.iter().find(|line| take(line).is_some()).expect("send with grant");
+    let seen = originals(std::slice::from_ref(send_only), &[]);
+    assert_eq!(scan_bytes(&grant_target(&sent), &[], &seen), Some(crate::journey::What::Original));
+
+    let proved = prove(&redacted.recording).expect("redacted duties and frames");
+    assert_eq!(scan(&proved, &redacted.originals).expect("last scan"), None);
+}
+
 #[test]
 fn found_links_are_redacted_even_when_never_sent() {
-    let url = printed_link();
+    let url: Box<[u8]> =
+        format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into();
     let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
         .expect("temper mapping");
     let mut failures = Vec::new();
     for (name, source, sent) in [
         ("found never sent", Line::Found(Some(url.clone())), false),
         ("found sent", Line::Found(Some(url.clone())), true),
-        (
-            "page found never sent",
-            Line::Found(Some(format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into())),
-            false,
-        ),
+        ("page found never sent", Line::Found(Some(printed_link())), false),
         ("box-line never sent", Line::BoxLine([b"link ".as_slice(), &url].concat().into()), false),
     ] {
         let mut records = vec![source];

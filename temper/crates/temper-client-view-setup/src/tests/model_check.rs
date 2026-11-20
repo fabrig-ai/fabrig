@@ -16,6 +16,7 @@ use temper_client_domain::{
     self as d, Address, Step,
     pages::{accounts::Way, connect_model::Act},
 };
+use temper_client_protocol_wire::v1::Record;
 const WAY: Way = Way::Program { provider: 17 };
 fn claude(state: State) -> Trial {
     Trial {
@@ -311,20 +312,16 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read() == &v::Read::Deployment
+            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read == v::Read::Deployment
         {
             f::deliver_deployment(&mut root, *read, true, true);
         }
     }
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
-    let forges_doc = v::Forges::new(
-        &v::CEILINGS,
-        v::ForgesParts {
-            forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
-            linked: false,
-        },
-    )
-    .unwrap();
+    let forges_doc = v::Forges {
+        forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
+        linked: false,
+    };
     up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -353,16 +350,14 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     (root, trials, accounts)
 }
 pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(
-        &v::CEILINGS,
-        v::TrialRowParts { run_wait: None, account: 1, task: Some(91), took: None, step, state },
-    )
-    .unwrap()
+    v::TrialRow { run_wait: None, account: 1, task: Some(91), took: None, step, state }
 }
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
-    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
-    let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
-    doc.encode(&mut writer).unwrap();
+    let doc = v::Trials { rows: List::from_boxed(rows.into()) };
+    let mut writer = Writer::new(
+        usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
         jig_client::Up::FamilyDelivered {
@@ -372,7 +367,7 @@ pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> 
     )
 }
 pub(crate) fn failed(why: v::TrialWhy) -> v::TrialState {
-    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+    v::TrialState::Failed(v::TrialFailed { why })
 }
 pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&f::tree_limits());
@@ -426,16 +421,7 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
                 }
             }
         }
-        rows(
-            &mut root,
-            watch,
-            &[row(
-                v::TrialStep::Answers,
-                v::TrialState::Answered(
-                    v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 7 }).unwrap(),
-                ),
-            )],
-        );
+        rows(&mut root, watch, &[row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 7 }))]);
         for w in [f::words(), f::browser_words()] {
             let trial = model_check::trial(&root, &w).unwrap();
             assert_eq!(trial.detail.as_deref(), detail.map(str::as_bytes));
@@ -447,24 +433,23 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
 }
 
 fn wait_delivery(root: &mut d::Domain, watch: Token, wait: Option<jig_client_protocol_wire::TaskRunWait>) {
-    let mut parts = row(v::TrialStep::Starts, v::TrialState::Running).into_parts();
+    let mut parts = row(v::TrialStep::Starts, v::TrialState::Running);
     parts.run_wait = wait.map(|wait| {
-        let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
-        wait.encode(&mut writer).unwrap();
+        let mut writer = Writer::new(
+            usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         writer.finish()
     });
-    rows(root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);
+    rows(root, watch, &[parts]);
 }
 fn source(state: jig_client_protocol_wire::TaskSourceState) -> jig_client_protocol_wire::TaskWaitWhy {
     use jig_client_protocol_wire as j;
-    j::TaskWaitWhy::Source(j::TaskWaitSource::new(&j::CEILINGS, j::TaskWaitSourceParts { state }).unwrap())
+    j::TaskWaitWhy::Source(j::TaskWaitSource { state })
 }
 fn account_wait(why: jig_client_protocol_wire::TaskWaitWhy) -> jig_client_protocol_wire::TaskRunWait {
     use jig_client_protocol_wire as j;
-    j::TaskRunWait::Account(
-        j::TaskWaitAccount::new(&j::CEILINGS, j::TaskWaitAccountParts { account: Some(1), source: Some(1), why })
-            .unwrap(),
-    )
+    j::TaskRunWait::Account(j::TaskWaitAccount { account: Some(1), source: Some(1), why })
 }
 #[test]
 #[expect(
@@ -488,41 +473,20 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     }
     for (why, expected) in [
         (source(S::NeedsSignIn), "Needs sign-in"),
-        (
-            source(S::Limited(
-                j::TaskSourceStateUntil::new(&j::CEILINGS, j::TaskSourceStateUntilParts { until: None }).unwrap(),
-            )),
-            "Limited. Tasks on it wait.",
-        ),
+        (source(S::Limited(j::TaskSourceStateUntil { until: None })), "Limited. Tasks on it wait."),
         (source(S::Refused), "Refused"),
         (source(S::Misconfigured), "The provider refused temper's sign-in. Check the configuration's registration."),
         (
-            source(S::Unloaded(
-                j::TaskSourceStateUnloaded::new(
-                    &j::CEILINGS,
-                    j::TaskSourceStateUnloadedParts {
-                        at: j::TaskSourcePlace::File,
-                        why: j::TaskSourceUnread::Unreadable,
-                    },
-                )
-                .unwrap(),
-            )),
+            source(S::Unloaded(j::TaskSourceStateUnloaded {
+                at: j::TaskSourcePlace::File,
+                why: j::TaskSourceUnread::Unreadable,
+            })),
             "Cannot load File: Unreadable",
         ),
         (W::Host, "owner's login isn't signed in on a host that can run this."),
         (W::Empty, "No account can run this chat yet."),
-        (
-            W::Invalid(
-                j::TaskWaitInvalid::new(&j::CEILINGS, j::TaskWaitInvalidParts { why: j::AccountWhy::Uses }).unwrap(),
-            ),
-            "The requested account cannot serve this work",
-        ),
-        (
-            source(S::Later(
-                j::TaskSourceStateUntil::new(&j::CEILINGS, j::TaskSourceStateUntilParts { until: None }).unwrap(),
-            )),
-            "Try later",
-        ),
+        (W::Invalid(j::TaskWaitInvalid { why: j::AccountWhy::Uses }), "The requested account cannot serve this work"),
+        (source(S::Later(j::TaskSourceStateUntil { until: None })), "Try later"),
         (source(S::Cancelled), "Cancelled"),
         (source(S::Closing), "Closing"),
     ] {
@@ -537,57 +501,21 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     for wait in [
         R::Credential,
         R::Host,
-        R::Refused(
-            j::TaskRunWaitRefused::new(
-                &j::CEILINGS,
-                j::TaskRunWaitRefusedParts {
-                    value: j::TaskWaitRefused::Bounds(
-                        j::TaskWaitBounds::new(
-                            &j::CEILINGS,
-                            j::TaskWaitBoundsParts {
-                                kind: j::HostKind::Worker,
-                                why: Some(j::AgentShortfall::Turns(
-                                    j::AgentShortfallTurns::new(
-                                        &j::CEILINGS,
-                                        j::AgentShortfallTurnsParts { charter: 1 },
-                                    )
-                                    .unwrap(),
-                                )),
-                                figures: Some(
-                                    j::ShortfallFigures::new(
-                                        &j::CEILINGS,
-                                        j::ShortfallFiguresParts { required: 100_000, offered: 800 },
-                                    )
-                                    .unwrap(),
-                                ),
-                            },
-                        )
-                        .unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-        ),
-        R::Refused(
-            j::TaskRunWaitRefused::new(
-                &j::CEILINGS,
-                j::TaskRunWaitRefusedParts {
-                    value: j::TaskWaitRefused::Hello(
-                        j::TaskWaitHello::new(
-                            &j::CEILINGS,
-                            j::TaskWaitHelloParts {
-                                kind: j::HostKind::Worker,
-                                at: 1_791_828_240_000_000_000,
-                                why: j::HelloRefusal::JobKinds,
-                                figures: None,
-                            },
-                        )
-                        .unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-        ),
+        R::Refused(j::TaskRunWaitRefused {
+            value: j::TaskWaitRefused::Bounds(j::TaskWaitBounds {
+                kind: j::HostKind::Worker,
+                why: Some(j::AgentShortfall::Turns(j::AgentShortfallTurns { charter: 1 })),
+                figures: Some(j::ShortfallFigures { required: 100_000, offered: 800 }),
+            }),
+        }),
+        R::Refused(j::TaskRunWaitRefused {
+            value: j::TaskWaitRefused::Hello(j::TaskWaitHello {
+                kind: j::HostKind::Worker,
+                at: 1_791_828_240_000_000_000,
+                why: j::HelloRefusal::JobKinds,
+                figures: None,
+            }),
+        }),
     ] {
         wait_delivery(&mut root, watch, Some(wait.clone()));
         for w in [f::words(), f::browser_words()] {
@@ -598,8 +526,8 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
             task.llm = None;
             task.run_wait = jig_client_protocol_link::translate::run_wait(Some(&wait));
             let now = match &wait {
-                R::Refused(value) => match value.value() {
-                    j::TaskWaitRefused::Hello(value) => skein_lib::Wall::from_nanos(value.at()),
+                R::Refused(value) => match &value.value {
+                    j::TaskWaitRefused::Hello(value) => skein_lib::Wall::from_nanos(value.at),
                     j::TaskWaitRefused::Bounds(_) => f::NOW,
                 },
                 R::Account(_) | R::Credential | R::Host => f::NOW,
@@ -645,15 +573,11 @@ fn took_names_the_account_that_answered_and_the_newest_row_wins() {
     other.number = 2;
     doc.accounts = List::from_boxed(Box::new([doc.accounts.get(0).unwrap().clone(), other]));
     f::accounts::deliver(&mut root, accounts, doc);
-    let mut took = row(v::TrialStep::Answers, failed(v::TrialWhy::Waited)).into_parts();
+    let mut took = row(v::TrialStep::Answers, failed(v::TrialWhy::Waited));
     took.took = Some(2);
-    let mut older = row(v::TrialStep::Starts, v::TrialState::Running).into_parts();
+    let mut older = row(v::TrialStep::Starts, v::TrialState::Running);
     older.account = 2;
-    rows(
-        &mut root,
-        watch,
-        &[v::TrialRow::new(&v::CEILINGS, took).unwrap(), v::TrialRow::new(&v::CEILINGS, older).unwrap()],
-    );
+    rows(&mut root, watch, &[took, older]);
     for w in [f::words(), f::browser_words()] {
         let (tree, _) = from_root(&root, &w);
         assert!(model_check::of_account(&root, &w, 1).is_none());
@@ -678,9 +602,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
         unused.usable = false;
         account.sources = List::from_boxed(Box::new([unused, source]));
         f::accounts::deliver(&mut root, accounts, doc);
-        let why = v::TrialWhy::Ended(
-            v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: v::TrialClass::Permanent }).unwrap(),
-        );
+        let why = v::TrialWhy::Ended(v::TrialEnded { class: v::TrialClass::Permanent });
         rows(&mut root, watch, &[row(v::TrialStep::Answers, failed(why))]);
         for w in [f::words(), f::browser_words()] {
             for welcome in [false, true] {

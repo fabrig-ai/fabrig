@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::translate;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -44,8 +45,10 @@ fn deployment_census_reaches_the_client_at_all_its_bounds_and_when_absent() {
         let mut source = fixtures::deployment_document();
         source.census = census.clone();
         let wire = translate::deployment::document(&source, &w::CEILINGS).unwrap();
-        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
-        wire.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let bytes = bytes.finish();
         let limits = fixtures::client_limits();
         assert!(u64::try_from(bytes.len()).unwrap() <= limits.client().document_bytes);
@@ -119,8 +122,8 @@ fn me_overflow_reports_the_wire_bound_it_exceeds() {
     let frame = fixtures::frame_two_projects();
     let limits = fixtures::wire_limits();
     let rows = [
-        (w::Limits { me_projects: 1, ..limits }, w::Path::MeProjects),
-        (w::Limits { document_text_bytes: 1, ..limits }, w::Path::DocumentTextBytes),
+        (w::Limits { me_projects: 1, ..limits }, w::paths::ME_PROJECTS),
+        (w::Limits { document_text_bytes: 1, ..limits }, w::paths::DOCUMENT_TEXT_BYTES),
     ];
     for (limits, path) in rows {
         assert_eq!(
@@ -136,8 +139,8 @@ fn a_non_utf8_document_text_fails_translation() {
     for bytes in [&[0xc3_u8][..], &[255_u8, b'/'][..]] {
         let value = jig_domain_core_vocabulary::documents::Text { bytes: bytes.into(), cut: true };
         assert_eq!(
-            translate::owner::text(&value, &limits),
-            Err(w::Problem { path: w::Path::DocumentTextBytes, reason: skein_codec::Reason::Utf8 })
+            translate::owner::text(&value, &limits).unwrap().encode(&limits),
+            Err(w::Problem { path: w::paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Utf8 })
         );
     }
 }
@@ -171,15 +174,17 @@ fn an_inbox_entry_33_goals_deep_encodes_at_the_wire_ceiling() {
     }
     let expected = selection.clone();
     let record = translate::inbox::document(&source, &w::CEILINGS).unwrap();
-    let mut encoded = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut encoded).unwrap();
+    let mut encoded = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let bytes = encoded.finish();
     let record = w::Inbox::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    let mut selections = Reader::new(record.selection().as_ref().unwrap());
+    let mut selections = Reader::new(record.selection.as_ref().unwrap());
     let bytes = skein_codec::piece::split(&mut selections).unwrap().unwrap();
     let selection = w::InboxSelection::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert_eq!(selection.cursor(), &translate::inbox::cursor(expected.cursor, &w::CEILINGS).unwrap());
-    assert_eq!(selection.goals(), &expected.goals);
+    assert_eq!((&selection.cursor), &translate::inbox::cursor(expected.cursor, &w::CEILINGS).unwrap());
+    assert_eq!((&selection.goals), &expected.goals);
     assert!(selections.is_empty());
 }
 fn a_deployment_document_becomes_its_record() {
@@ -208,12 +213,12 @@ fn live_nested_pieces_past_the_wire_bounds_are_refused_naming_them() {
     let source = fixtures::deployment_document();
     let limits = fixtures::wire_limits();
     let rows = [
-        ("host runs", w::Limits { host_runs: 0, ..limits }, w::Path::HostRuns),
-        ("deployment hosts", w::Limits { deployment_hosts: 0, ..limits }, w::Path::DeploymentHosts),
-        ("deployment attempts", w::Limits { deployment_attempts: 0, ..limits }, w::Path::DeploymentAttempts),
-        ("account runs", w::Limits { account_runs: 0, ..limits }, w::Path::AccountRuns),
-        ("account waiting", w::Limits { account_waiting: 0, ..limits }, w::Path::AccountWaiting),
-        ("deployment accounts", w::Limits { deployment_accounts: 0, ..limits }, w::Path::DeploymentAccounts),
+        ("host runs", w::Limits { host_runs: 0, ..limits }, w::paths::HOST_RUNS),
+        ("deployment hosts", w::Limits { deployment_hosts: 0, ..limits }, w::paths::DEPLOYMENT_HOSTS),
+        ("deployment attempts", w::Limits { deployment_attempts: 0, ..limits }, w::paths::DEPLOYMENT_ATTEMPTS),
+        ("account runs", w::Limits { account_runs: 0, ..limits }, w::paths::ACCOUNT_RUNS),
+        ("account waiting", w::Limits { account_waiting: 0, ..limits }, w::paths::ACCOUNT_WAITING),
+        ("deployment accounts", w::Limits { deployment_accounts: 0, ..limits }, w::paths::DEPLOYMENT_ACCOUNTS),
     ];
     for (label, limits, path) in rows {
         assert_eq!(
@@ -265,18 +270,18 @@ fn a_me_document_carries_each_project_s_template() {
         project.templates = List::from_boxed(Box::new([template]));
     }
     let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
-    let mut reader = skein_lib::Reader::new(record.projects());
+    let mut reader = skein_lib::Reader::new(record.projects.as_ref());
     for source in &frame.projects {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
         let project = w::MeProject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(project.project(), source.project);
-        let mut templates = skein_lib::Reader::new(project.templates());
+        assert_eq!(project.project, source.project);
+        let mut templates = skein_lib::Reader::new(project.templates.as_ref());
         let bytes = skein_codec::piece::split(&mut templates).unwrap().unwrap();
         let template = w::Template::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(template.number(), TEMPLATE);
-        assert_eq!(template.label(), 5);
-        let w::TemplateBudget::Amount(budget) = template.budget() else { panic!("amount") };
-        assert_eq!(budget.value(), 42);
+        assert_eq!(template.number, TEMPLATE);
+        assert_eq!(template.label, 5);
+        let w::TemplateBudget::Amount(budget) = &template.budget else { panic!("amount") };
+        assert_eq!(budget.value, 42);
     }
     assert_eq!(skein_codec::piece::split(&mut reader), Ok(None));
 }
@@ -284,18 +289,18 @@ fn a_me_document_carries_each_project_s_template() {
 fn a_me_document_carries_each_project_s_creating_bounds() {
     let frame = frame_with_creating_bounds();
     let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
-    let mut reader = skein_lib::Reader::new(record.projects());
+    let mut reader = skein_lib::Reader::new(record.projects.as_ref());
     for source in &frame.projects {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
         let project = w::MeProject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(project.project(), source.project);
-        let creating = project.creating().as_ref().unwrap();
-        assert_eq!(creating.within().budget(), BUDGET);
-        assert_eq!(creating.within().pool_left(), POOL_LEFT);
-        let w::Beyond::Proposed(beyond) = creating.beyond() else { panic!("proposed") };
-        let w::Recipient::Role(to) = beyond.to() else { panic!("role") };
-        assert_eq!(to.project(), source.project);
-        assert_eq!(to.role(), TEMPLATE_HOLDER_ROLE);
+        assert_eq!(project.project, source.project);
+        let creating = project.creating.as_ref().unwrap();
+        assert_eq!(creating.within.budget, BUDGET);
+        assert_eq!(creating.within.pool_left, POOL_LEFT);
+        let w::Beyond::Proposed(beyond) = &creating.beyond else { panic!("proposed") };
+        let w::Recipient::Role(to) = &beyond.to else { panic!("role") };
+        assert_eq!(to.project, source.project);
+        assert_eq!(to.role, TEMPLATE_HOLDER_ROLE);
     }
     assert_eq!(skein_codec::piece::split(&mut reader), Ok(None));
 }
@@ -310,14 +315,9 @@ fn a_project_document_carries_its_policy_s_template_overrides() {
         priority: None,
     }]));
     let record = translate::objects::project(&fixtures::models(), &project, &w::CEILINGS).unwrap();
-    let entry = record.policy().templates().get(0).unwrap();
-    assert_eq!(entry.template(), TEMPLATE);
-    assert_eq!(
-        entry.budget(),
-        &Some(w::TemplateBudget::Amount(
-            w::TemplateAmount::new(&w::CEILINGS, w::TemplateAmountParts { value: 42 }).unwrap()
-        ))
-    );
+    let entry = record.policy.templates.get(0).unwrap();
+    assert_eq!(entry.template, TEMPLATE);
+    assert_eq!((&entry.budget), &Some(w::TemplateBudget::Amount(w::TemplateAmount { value: 42 })));
 }
 
 fn frame_with_creating_bounds() -> jig_domain_core_vocabulary::documents::Frame {
@@ -355,9 +355,9 @@ fn creating_and_compound_capacity_refusals_keep_the_operations_kind() {
     for (action, expected) in CREATION_CAPACITY {
         refusal.action = action;
         let row = translate::deployment::person_refusal(&refusal, &fixtures::wire_limits()).unwrap();
-        assert_eq!(row.action(), &expected);
-        assert_eq!(row.key().person(), refusal.key.person);
-        assert_eq!(row.key().key(), &refusal.key.key);
+        assert_eq!((&row.action), &expected);
+        assert_eq!(row.key.person, refusal.key.person);
+        assert_eq!((&row.key.key), &refusal.key.key);
     }
 }
 
@@ -394,8 +394,10 @@ fn added_dependencies_and_kept_waits_cross_both_client_translations() {
     pending.push(7).unwrap();
     task.waits_on = d::WaitsOn::Dependencies { pending, count: 1 };
     let record = translate::task::document(&task, &[], &limits).unwrap();
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let bytes = out.finish();
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let actual = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
@@ -429,6 +431,39 @@ fn a_circle_hold_keeps_its_order_and_cut_through_the_client() {
 }
 
 #[test]
+fn unread_words_cross_into_the_wire_document_empty_and_full() {
+    use jig_domain_core_vocabulary::documents::UnreadWords;
+    let limits = fixtures::wire_limits();
+    let mut source = fixtures::task_with_hold();
+    for count in [0, limits.task_unread] {
+        source.unread = List::with_capacity(count);
+        for message in 0..count {
+            source
+                .unread
+                .push(UnreadWords {
+                    message: u64::from(message),
+                    by: jig_domain_tasks::Party::Person(42),
+                    at: skein_lib::Wall::from_nanos(77),
+                    seen: message % 2 == 0,
+                    head: jig_domain_core_vocabulary::documents::Text { bytes: Box::new([b'x'; 256]), cut: true },
+                    bytes: 300,
+                })
+                .unwrap();
+        }
+        let record = translate::task::document(&source, &[], &limits).unwrap();
+        assert_eq!(record.unread.len(), count);
+        for (actual, expected) in record.unread.iter().zip(source.unread.iter()) {
+            assert_eq!(actual.message, expected.message);
+            assert_eq!(&actual.by, &w::Requester::Person(w::RequesterPerson { value: 42 }));
+            assert_eq!(actual.at, expected.at.as_nanos());
+            assert_eq!(actual.seen, expected.seen);
+            assert_eq!(actual.head.as_ref(), expected.head.bytes.as_ref());
+            assert_eq!(actual.bytes, expected.bytes);
+        }
+    }
+}
+
+#[test]
 fn task_settings_revisions_cross_into_the_wire_document() {
     use jig_domain_core_vocabulary::documents::TaskSettings;
     let limits = fixtures::wire_limits();
@@ -440,11 +475,11 @@ fn task_settings_revisions_cross_into_the_wire_document() {
     ] {
         source.settings = settings;
         let record = translate::task::document(&source, &[], &limits).expect("task document");
-        match (record.settings(), settings) {
+        match ((&record.settings), settings) {
             (Some(actual), Some(expected)) => {
-                assert_eq!(actual.task(), expected.task);
-                assert_eq!(*actual.run(), expected.run);
-                assert_eq!(actual.newest(), expected.newest);
+                assert_eq!(actual.task, expected.task);
+                assert_eq!(actual.run, expected.run);
+                assert_eq!(actual.newest, expected.newest);
             }
             (None, None) => (),
             (Some(_), None) | (None, Some(_)) => panic!("settings presence"),
@@ -468,14 +503,14 @@ fn an_owner_is_offered_remove_project_and_a_member_is_not() {
             }
         }
         let record = translate::objects::project(&[], &project, &limits).expect("project document");
-        let mut input = Reader::new(record.acts());
+        let mut input = Reader::new(record.acts.as_ref());
         let mut acts = List::with_capacity(2);
         while !input.is_empty() {
             let length = input.u32().expect("offer size");
             let bytes = input.bytes(length).expect("offer bytes");
             let offer = w::Offered::decode(&limits, &mut Reader::new(bytes)).expect("offer");
-            assert_eq!(offer.admission(), &w::Admission::Allowed);
-            acts.push(offer.act().clone()).expect("project offers");
+            assert_eq!((&offer.admission), &w::Admission::Allowed);
+            acts.push(offer.act.clone()).expect("project offers");
         }
         assert_eq!(acts.len(), if owner { 2 } else { 0 });
         assert_eq!(acts.as_slice().contains(&w::ActKind::RemoveProject), owner);
@@ -493,13 +528,13 @@ fn a_served_template_carries_its_resources() {
     template.resources = Box::new(resources);
     frame.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
     let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
-    let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.projects())).unwrap().unwrap();
+    let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.projects.as_ref())).unwrap().unwrap();
     let project = w::MeProject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(project.templates())).unwrap().unwrap();
+    let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(project.templates.as_ref())).unwrap().unwrap();
     let template = w::Template::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    assert_eq!(template.resources().len(), 2);
-    for (wire, expected) in template.resources().into_iter().zip(resources) {
-        assert_eq!((wire.connector(), wire.symbol()), (expected.connector, expected.symbol));
+    assert_eq!(template.resources.len(), 2);
+    for (wire, expected) in (&template.resources).into_iter().zip(resources) {
+        assert_eq!((wire.connector, wire.symbol), (expected.connector, expected.symbol));
     }
     let client = jig_client_protocol_link::translate::documents::frame(record, &fixtures::client_limits()).unwrap();
     let template = client.projects.get(0).unwrap().templates.get(0).unwrap();
@@ -524,11 +559,11 @@ fn me_names_no_public_identifier_until_the_names_are_held() {
         projects.push(project).expect("one project");
         frame.projects = projects;
         let record = translate::owner::frame(&frame, &[], &limits).expect("me");
-        let mut pieces = skein_lib::Reader::new(record.projects());
+        let mut pieces = skein_lib::Reader::new(record.projects.as_ref());
         let bytes = skein_codec::piece::split(&mut pieces).expect("project piece").expect("one project");
         let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("project");
-        assert_eq!(project.project(), u32::MAX);
-        assert_eq!(*project.public(), None);
+        assert_eq!(project.project, u32::MAX);
+        assert_eq!(project.public, None);
         assert!(pieces.is_empty());
     }
 }
@@ -548,8 +583,10 @@ fn the_task_document_carries_its_talk_session_and_offered_acts() {
         source.acts.push(acts::Offered { act, admission: acts::Admission::Allowed, effect: None }).unwrap();
     }
     let record = translate::task::document(&source, &[], &limits).unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
     let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
     assert_eq!(decoded.talk, Some(c::Talk { party: 41, opened: Wall::from_nanos(43), last: Wall::from_nanos(47) }));
@@ -568,8 +605,10 @@ fn an_own_question_wait_reaches_the_client_through_both_translations() {
     let mut source = fixtures::task_with_hold();
     source.waits_on = WaitsOn::Question { number: 7 };
     let record = translate::task::document(&source, &[], &limits).unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();

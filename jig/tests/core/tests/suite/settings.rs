@@ -1,5 +1,6 @@
 //! Settings travel through the real restart, store and commit barrier (domain/engine/settings.md, 7).
 
+use jig_client_protocol_wire::Record as _;
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
 use jig_core_world::peers;
@@ -41,6 +42,7 @@ fn the_document_bridge_starts_once_and_preserves_templates_policies_rules_and_mo
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -439,6 +441,7 @@ fn changed_charter_instructions_and_catalogue_effort_prepare_the_next_new_task()
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -725,6 +728,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -889,6 +893,7 @@ fn ready_host(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -1047,12 +1052,12 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     else {
         panic!("revision record")
     };
-    let mut pieces = skein_lib::Reader::new(document.items());
+    let mut pieces = skein_lib::Reader::new(document.items.as_ref());
     let length = pieces.u32().expect("item length");
     let bytes = pieces.bytes(length).expect("item bytes");
     let item = w::RevisionItem::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("revision item");
-    let w::RevisionEdit::TooLarge(size) = item.edit() else { panic!("item size") };
-    assert_eq!(size.bytes(), ENCODED_TEMPLATE_BYTES);
+    let w::RevisionEdit::TooLarge(size) = &item.edit else { panic!("item size") };
+    assert_eq!(size.bytes, ENCODED_TEMPLATE_BYTES);
 }
 
 fn held_goal(world: &mut World, signed: u64, request: u8) -> u64 {
@@ -1744,6 +1749,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
         worker: 0,
         channel: Token::new(0),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -1873,6 +1879,7 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -2108,6 +2115,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
         worker: 0,
         channel: Token::new(8),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_secs(3600),
@@ -2309,6 +2317,7 @@ fn a_hello_before_settings_restore_uses_the_stored_reserve_and_adopts_its_run() 
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::new([]),
             bounds,
             stop_bound: Duration::from_millis(1),
@@ -2346,6 +2355,7 @@ fn checks_hello(world: &mut World, channel: u64) {
         worker: 0,
         channel: Token::new(channel),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds,
             stop_bound: Duration::from_millis(1),

@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{End, EngineEnd};
 use skein_lib::{Time, Token, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn the_worker_dials_workers_and_its_hello_reaches_the_engine() {
@@ -63,13 +64,13 @@ fn the_box_fleet_admits_local_at_its_stored_places_not_its_built_slots() {
         turns(&mut stand);
         let bearer = box_sign_in(&mut stand);
         let deployment = box_deployment(&mut stand, &bearer);
-        assert_eq!(deployment.worker_settings().len(), 1);
-        let local = deployment.worker_settings().get(0).unwrap();
-        assert_eq!(local.number(), 1);
-        assert_eq!(local.name(), b"local");
-        assert_eq!(local.places(), places);
-        assert!(local.linked());
-        let mut reader = skein_lib::Reader::new(deployment.hosts());
+        assert_eq!(deployment.worker_settings.len(), 1);
+        let local = deployment.worker_settings.get(0).unwrap();
+        assert_eq!(local.number, 1);
+        assert_eq!(local.name.as_ref(), b"local");
+        assert_eq!(local.places, places);
+        assert!(local.linked);
+        let mut reader = skein_lib::Reader::new(deployment.hosts.as_ref());
         let mut admitted = None;
         while !reader.is_empty() {
             let bytes = skein_codec::piece::counted(&mut reader);
@@ -78,9 +79,9 @@ fn the_box_fleet_admits_local_at_its_stored_places_not_its_built_slots() {
                 &mut skein_lib::Reader::new(&bytes),
             )
             .unwrap();
-            if host.name().as_deref() == Some(b"local".as_slice()) {
-                assert!(host.connected());
-                admitted = Some(host.slots());
+            if host.name.as_deref() == Some(b"local".as_slice()) {
+                assert!(host.connected);
+                admitted = Some(host.slots);
             }
         }
         assert_eq!(admitted, Some(places));
@@ -92,22 +93,22 @@ fn box_deployment(stand: &mut fixtures::system::SystemStand, bearer: &[u8]) -> j
     use skein_lib::{Reader, Writer};
     let engine = stand.service.engine.as_mut().unwrap();
     let read = w::Read::Deployment;
-    let mut bytes = Writer::new(usize::try_from(read.measure()).unwrap());
-    read.encode(&mut bytes).unwrap();
-    let owned = w::Owned::new(
-        engine.client_wire(),
-        w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(owned.measure()).unwrap());
-    owned.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    read.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
+    let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
+    let mut bytes = Writer::new(
+        usize::try_from(owned.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    owned.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/read", &bytes.finish(), Some(bearer));
     peer.pump(engine, true);
     let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
     let answer =
         w::ReadAnswer::decode(engine.client_wire(), &mut Reader::new(peer.received().get(at..).unwrap())).unwrap();
     let w::ReadAnswer::Value(value) = answer else { panic!("deployment read: {answer:?}") };
-    let value = w::ReadValue::decode(engine.client_wire(), &mut Reader::new(value.record())).unwrap();
+    let value = w::ReadValue::decode(engine.client_wire(), &mut Reader::new(value.record.as_ref())).unwrap();
     let w::ReadValue::Deployment(deployment) = value else { panic!("deployment value") };
     deployment
 }
@@ -338,7 +339,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     );
 
     let w::Outcome::SetUpRefused(refused) = box_setup(&mut stand, &bearer, OTHER, 3) else { panic!("busy answer") };
-    assert_eq!(*refused.why(), w::SetUpRefusal::NotOffered);
+    assert_eq!(refused.why, w::SetUpRefusal::NotOffered);
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
     assert_eq!(
@@ -456,7 +457,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {
         panic!("deployment owner signed in")
     };
-    peer::bearer(answer.token().as_ref().expect("native credential").expose())
+    peer::bearer(answer.token.as_ref().expect("native credential").expose())
 }
 
 fn box_setup(
@@ -471,52 +472,29 @@ fn box_setup(
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = stand.service.engine.as_mut().unwrap();
     let limits = engine.client_wire();
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-    let family = j::FamilyRequest::new(
-        limits,
-        j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(family.measure()).unwrap());
-    family.encode(&mut bytes).unwrap();
-    let request = j::Keyed::new(
-        limits,
-        j::KeyedParts {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: None,
-        },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(request.measure()).unwrap());
-    request.encode(&mut bytes).unwrap();
+    let request = w::Requesting {
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                sample: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
+    let mut bytes = Writer::new(usize::try_from(family.measure(limits).expect("bounded fixture")).unwrap());
+    family.write(limits, &mut bytes).unwrap();
+    let request = j::Keyed {
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = Writer::new(usize::try_from(request.measure(limits).expect("bounded fixture")).unwrap());
+    request.write(limits, &mut bytes).unwrap();
     let mut client = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
@@ -526,19 +504,16 @@ fn box_setup(
     };
     assert!(reader.is_empty());
     assert_eq!(
-        answer.version(),
+        answer.version,
         wire::CLIENT_VERSION,
         "core terminal for setup: {:?}",
-        j::Final::decode(engine.client_wire(), &mut Reader::new(answer.record()))
+        j::Final::decode(engine.client_wire(), &mut Reader::new(answer.record.as_ref()))
     );
-    assert_eq!(
-        *answer.owner(),
-        j::Owner::Family(j::Family::new(engine.client_wire(), j::FamilyParts { number: wire::FORGE }).unwrap())
-    );
-    let mut reader = Reader::new(answer.record());
+    assert_eq!(answer.owner, j::Owner::Family(j::Family { number: wire::FORGE }));
+    let mut reader = Reader::new(answer.record.as_ref());
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
-    answer.into_parts().outcome
+    answer.outcome
 }
 
 #[test]

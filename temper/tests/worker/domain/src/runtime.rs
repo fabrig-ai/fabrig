@@ -274,7 +274,8 @@ impl World {
 
     fn take(&mut self, request: Request) -> Result<(), String> {
         match request {
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }
@@ -288,7 +289,10 @@ impl World {
                 assert!(hello.hosting.len() <= 1);
             }
             Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn)?,
-            Request::AgentStopped { .. } | Request::Unprepared { .. } | Request::Link(host::LinkUp::Draining) => {}
+            Request::Git { .. }
+            | Request::AgentStopped { .. }
+            | Request::Unprepared { .. }
+            | Request::Link(host::LinkUp::Draining) => {}
             Request::Link(up) => panic!("unscripted link record: {up:?}"),
             Request::Answer { run, attempt, answer, work, preparation } => {
                 assert_eq!((run, attempt, preparation), (RUN, ATTEMPT, None));
@@ -418,6 +422,7 @@ impl World {
         match op {
             Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Store { .. }
             | Op::Make { .. }
@@ -523,6 +528,7 @@ impl World {
                 expected: Some(HEAD),
                 landing: None,
                 delivered: None,
+                pin: None,
             },
         };
         let assignment = host::Assignment {

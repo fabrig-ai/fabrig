@@ -6,6 +6,7 @@ use crate::{
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const ACCOUNT: u32 = 17;
@@ -47,29 +48,22 @@ fn opened() -> (Domain, Token, Token) {
     (root, watch, frame)
 }
 fn row(account: u32, task: Option<u64>, state: w::TrialState) -> w::TrialRow {
-    w::TrialRow::new(
-        &w::CEILINGS,
-        w::TrialRowParts { run_wait: None, account, task, took: Some(OTHER), step: w::TrialStep::Answers, state },
-    )
-    .unwrap()
+    w::TrialRow { run_wait: None, account, task, took: Some(OTHER), step: w::TrialStep::Answers, state }
 }
 fn running(account: u32, task: u64) -> w::TrialRow {
     row(account, Some(task), w::TrialState::Running)
 }
 fn ended() -> w::TrialRow {
-    row(
-        ACCOUNT,
-        Some(TASK),
-        w::TrialState::Failed(
-            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited }).unwrap(),
-        ),
-    )
+    row(ACCOUNT, Some(TASK), w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }))
 }
 fn deliver(root: &mut Domain, watch: Token, rows: &[w::TrialRow]) -> Queue<Request> {
     let rows = List::from_boxed(rows.into());
-    let document = w::Trials::new(&w::CEILINGS, w::TrialsParts { rows }).unwrap();
-    let mut writer = Writer::new(usize::try_from(document.measure()).unwrap());
-    document.encode(&mut writer).unwrap();
+    let document = w::Trials { rows };
+    let mut writer = Writer::new(
+        usize::try_from(document.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .unwrap(),
+    );
+    document.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
         Up::FamilyDelivered {
@@ -88,22 +82,23 @@ fn sent(out: &mut Queue<Request>) -> Option<skein_lib::RequestKey> {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, key, .. } },
         } = request
-            && let w::Request::TryAccount(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            && let w::Request::TryAccount(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             assert!(found.is_none(), "one send");
             assert_eq!(scope, c::Scope::Own);
-            assert_eq!(value.account(), ACCOUNT);
-            assert!(value.again());
+            assert_eq!(value.account, ACCOUNT);
+            assert!(value.again);
             found = Some(key);
         }
     }
     found
 }
 fn answer(outcome: w::Outcome) -> Family {
-    let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap();
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let answer = w::Answer { outcome };
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    answer.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() }
 }
 fn link(root: &mut Domain, link: Link) -> Queue<Request> {
@@ -142,11 +137,10 @@ fn tries(out: Queue<Request>) -> List<(u32, bool)> {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, .. } },
         } = request
-            && let w::Request::TryAccount(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            && let w::Request::TryAccount(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             assert_eq!(*scope, c::Scope::Own);
-            found.push((value.account(), value.again())).unwrap();
+            found.push((value.account, value.again)).unwrap();
         }
     }
     found
@@ -245,7 +239,7 @@ fn the_rows_arrive_for_the_session() {
         panic!("family watch")
     };
     assert_eq!(scope, c::Scope::Own);
-    assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Trials);
+    assert_eq!(&wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch, &w::Watch::Trials);
     let mut out = Queue::uncapped();
     f::confirm(&mut root, frame, f::PARTY, &mut out);
     assert_eq!(opening(&out, trials::watch(&f::limits().forge).unwrap()), None);
@@ -339,13 +333,13 @@ fn malformed_or_inapplicable_row_waits_are_no_wait() {
     use jig_client_protocol_wire::TaskRunWait as J;
     let (mut root, watch, _) = opened();
     let valid = waiting(running(ACCOUNT, TASK), Some(J::Credential));
-    let mut trailing = valid.clone().into_parts();
+    let mut trailing = valid.clone();
     trailing.run_wait = Some(skein_lib::bytes::concat(&[&trailing.run_wait.take().unwrap(), &[0]]));
-    let mut malformed = valid.clone().into_parts();
+    let mut malformed = valid.clone();
     malformed.run_wait = Some(b"invalid".as_slice().into());
     for row in [
-        w::TrialRow::new(&w::CEILINGS, trailing).unwrap(),
-        w::TrialRow::new(&w::CEILINGS, malformed).unwrap(),
+        trailing,
+        malformed,
         waiting(row(ACCOUNT, None, w::TrialState::Running), Some(J::Credential)),
         waiting(ended(), Some(J::Credential)),
     ] {
@@ -378,16 +372,18 @@ fn a_timed_out_trial_keeps_its_last_wait_after_task_ends() {
 }
 
 fn waiting(row: w::TrialRow, wait: Option<jig_client_protocol_wire::TaskRunWait>) -> w::TrialRow {
-    let mut row = row.into_parts();
+    let mut row = row;
     row.run_wait = match wait {
         Some(wait) => {
-            let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
-            wait.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(
+                usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
+            wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             Some(writer.finish())
         }
         None => None,
     };
-    w::TrialRow::new(&w::CEILINGS, row).unwrap()
+    row
 }
 
 #[test]

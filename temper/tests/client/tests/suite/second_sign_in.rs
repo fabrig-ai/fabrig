@@ -88,9 +88,9 @@ fn a_second_providers_sign_in_reaches_accounts_after_the_welcomes() {
     assert_eq!(
         front.tabs,
         [
-            d::Tab::Open { provider: accounts::PROVIDER },
+            d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } },
             d::Tab::Point { to: ISSUER.into() },
-            d::Tab::Open { provider: SECOND_PROVIDER },
+            d::Tab::Open { opening: d::Opening::SignIn { provider: SECOND_PROVIDER } },
             d::Tab::Point { to: ISSUER.into() },
         ]
     );

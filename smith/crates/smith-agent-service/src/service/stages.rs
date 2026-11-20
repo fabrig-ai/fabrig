@@ -152,7 +152,8 @@ pub(super) const fn failure(service: &Stages) -> Option<Failure> {
 impl Stages {
     pub(super) fn parts(config: Config) -> Result<Parts, ConfigError> {
         let events = crate::event_producer(&config);
-        let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, stream_mode, program } = config;
+        let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, rg, stream_mode, program } =
+            config;
         let program::Parts { program, files, file_limits } = program::parts(program, &mut limits, &environment)?;
         if limits.routes > 1 << 28_u32 {
             return Err(ConfigError::Queue);
@@ -162,7 +163,7 @@ impl Stages {
             Ok(llm) => llm,
             Err(error) => return Err(ConfigError::Llm(error)),
         };
-        let machine = machine::Component::new(&limits.machine, environment);
+        let machine = machine::Component::new(&limits.machine, environment, rg);
         Ok(Parts {
             stages: Stages {
                 dumps: None,

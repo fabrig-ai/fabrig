@@ -1,13 +1,10 @@
 # README: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
-- **Not yet:** 4.1, *The tab's address*: `approval_address(origin, code)`,
-  `https://NAME/terminal` with no code at a name [in flight: change
-  8877].
 
 
 

@@ -15,6 +15,7 @@ use crate::{
 };
 use jig_client::{self as client, contract as c};
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn root() -> f::Harness {
@@ -27,56 +28,44 @@ fn root() -> f::Harness {
 fn request(root: &f::Harness, call: u32) -> w::Request {
     let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family request") };
     assert_eq!(*scope, c::Scope::Project(3));
-    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
 }
 fn held(task: u64) -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: task }).unwrap())
+    w::Holder::Task(w::HolderTask { number: task })
 }
 fn row() -> w::FindingRow {
-    w::FindingRow::new(
-        &w::CEILINGS,
-        w::FindingRowParts {
-            number: 12,
-            kind: w::FindingKind::Red,
-            severity: w::Severity::Medium,
-            area: Some(b"tests".as_slice().into()),
-            state: w::FindingState::New,
-            title: b"Flaky boot".as_slice().into(),
-            holder: held(40),
-            at: 77,
-            why: Some(b"words, not code".as_slice().into()),
-            hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 39 }).unwrap())),
-            goal: None,
-            reason: None,
-            cleared: None,
-        },
-    )
-    .unwrap()
+    w::FindingRow {
+        number: 12,
+        kind: w::FindingKind::Red,
+        severity: w::Severity::Medium,
+        area: Some(b"tests".as_slice().into()),
+        state: w::FindingState::New,
+        title: b"Flaky boot".as_slice().into(),
+        holder: held(40),
+        at: 77,
+        why: Some(b"words, not code".as_slice().into()),
+        hander: Some(w::Filer::Task(w::HolderTask { number: 39 })),
+        goal: None,
+        reason: None,
+        cleared: None,
+    }
 }
 fn document() -> w::Findings {
-    let owner = w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap());
-    let area = w::AreaRow::new(
-        &w::CEILINGS,
-        w::AreaRowParts {
-            name: b"tests".as_slice().into(),
-            words: b"Tests and their fixtures".as_slice().into(),
-            owner,
-            holder: Some(held(40)),
-        },
-    )
-    .unwrap();
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project: 3,
-            rows: List::from_boxed(Box::new([row()])),
-            areas: List::from_boxed(Box::new([area])),
-            triager: None,
-            holder: held(41),
-            cut: true,
-        },
-    )
-    .unwrap()
+    let owner = w::AreaOwner::Task(w::AreaTask { number: 40 });
+    let area = w::AreaRow {
+        name: b"tests".as_slice().into(),
+        words: b"Tests and their fixtures".as_slice().into(),
+        owner,
+        holder: Some(held(40)),
+    };
+    w::Findings {
+        project: 3,
+        rows: List::from_boxed(Box::new([row()])),
+        areas: List::from_boxed(Box::new([area])),
+        triager: None,
+        holder: held(41),
+        cut: true,
+    }
 }
 fn deliver(root: &mut f::Harness, state: Option<w::FindingState>, mine: bool) {
     let watch = root.watch_token(&finding::subject(3, state, mine));
@@ -92,21 +81,13 @@ fn deliver(root: &mut f::Harness, state: Option<w::FindingState>, mine: bool) {
     });
 }
 fn serve(root: &mut f::Harness, call: u32) {
-    let detail = w::FindingDetail::new(
-        &w::CEILINGS,
-        w::FindingDetailParts {
-            row: row(),
-            body: b"Boot twice".as_slice().into(),
-            filer: w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap()),
-            blame: None,
-        },
-    )
-    .unwrap();
-    let answer = w::FindingAnswer::new(
-        &w::CEILINGS,
-        w::FindingAnswerParts { result: w::FindingResult::Finding(Box::new(detail)) },
-    )
-    .unwrap();
+    let detail = w::FindingDetail {
+        row: row(),
+        body: b"Boot twice".as_slice().into(),
+        filer: w::Filer::Party(w::HolderParty { number: 8 }),
+        blame: None,
+    };
+    let answer = w::FindingAnswer { result: w::FindingResult::Finding(Box::new(detail)) };
     root.serve_readout(
         call,
         client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -133,8 +114,8 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
     let call = root.submit_prepared(call, false, None);
     let w::Request::FileFinding(file) = request(&root, call) else { panic!("FileFinding") };
     assert_eq!(
-        file.into_parts(),
-        w::FileFindingParts {
+        file,
+        w::FileFinding {
             project: 3,
             kind: w::FindingKind::Red,
             severity: w::Severity::Medium,
@@ -143,15 +124,15 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
             body: b"Boot twice\n".as_slice().into()
         }
     );
-    root.adoption_answer(call, w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap()));
+    root.adoption_answer(call, w::Outcome::Filed(w::Filed { number: 12 }));
     assert!(root.answer(call).is_none(), "the durable outcome has no holder; read it");
     serve(&mut root, call);
     assert_eq!(root.answer(call).unwrap().stdout.as_ref(), b"filed: 3/12, held by task 40\n");
     let hand = root.submit(&["finding", "hand", "3/12", "--area", "docs", "words, not code", "--key", "hand"]);
     let w::Request::HandFinding(handed) = request(&root, hand) else { panic!("HandFinding") };
     assert_eq!(
-        handed.into_parts(),
-        w::HandFindingParts {
+        handed,
+        w::HandFinding {
             project: 3,
             number: 12,
             area: b"docs".as_slice().into(),
@@ -164,22 +145,19 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
     for (argv, act, output) in [
         (
             &["finding", "route", "3/12", "--goal", "90", "--key", "route"][..],
-            w::Triage::Route(w::FindingRoute::new(&w::CEILINGS, w::FindingRouteParts { task: 90 }).unwrap()),
+            w::Triage::Route(w::FindingRoute { task: 90 }),
             "routed: 3/12\n",
         ),
         (&["finding", "backlog", "3/12", "--key", "backlog"][..], w::Triage::Backlog, "backlog: 3/12\n"),
         (
             &["finding", "drop", "shop/12", "duplicate", "--key", "drop"][..],
-            w::Triage::Drop(
-                w::FindingDrop::new(&w::CEILINGS, w::FindingDropParts { reason: b"duplicate".as_slice().into() })
-                    .unwrap(),
-            ),
+            w::Triage::Drop(w::FindingDrop { reason: b"duplicate".as_slice().into() }),
             "dropped: 3/12\n",
         ),
     ] {
         let call = root.submit(argv);
         let w::Request::TriageFinding(triage) = request(&root, call) else { panic!("TriageFinding") };
-        assert_eq!(triage.into_parts(), w::TriageFindingParts { project: 3, number: 12, act });
+        assert_eq!(triage, w::TriageFinding { project: 3, number: 12, act });
         root.adoption_answer(call, w::Outcome::Triaged);
         assert_eq!(root.answer(call).unwrap().stdout.as_ref(), output.as_bytes());
     }
@@ -206,32 +184,19 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
         };
         assert_eq!(*scope, c::Scope::Project(3));
         let reading = w::Reading::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).unwrap();
-        assert_eq!(
-            reading.read(),
-            &w::Read::Finding(
-                w::FindingRead::new(&w::CEILINGS, w::FindingReadParts { project: 3, number: 12 }).unwrap()
-            )
-        );
-        let detail = w::FindingDetail::new(
-            &w::CEILINGS,
-            w::FindingDetailParts {
-                row: {
-                    let mut parts = row().into_parts();
-                    parts.goal = Some(90);
-                    parts.reason = Some(b"duplicate".as_slice().into());
-                    w::FindingRow::new(&w::CEILINGS, parts).unwrap()
-                },
-                body: b"Boot twice".as_slice().into(),
-                filer: w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap()),
-                blame: None,
+        assert_eq!(&reading.read, &w::Read::Finding(w::FindingRead { project: 3, number: 12 }));
+        let detail = w::FindingDetail {
+            row: {
+                let mut parts = row();
+                parts.goal = Some(90);
+                parts.reason = Some(b"duplicate".as_slice().into());
+                parts
             },
-        )
-        .unwrap();
-        let answer = w::FindingAnswer::new(
-            &w::CEILINGS,
-            w::FindingAnswerParts { result: w::FindingResult::Finding(Box::new(detail)) },
-        )
-        .unwrap();
+            body: b"Boot twice".as_slice().into(),
+            filer: w::Filer::Party(w::HolderParty { number: 8 }),
+            blame: None,
+        };
+        let answer = w::FindingAnswer { result: w::FindingResult::Finding(Box::new(detail)) };
         root.serve_readout(
             show,
             client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -248,26 +213,23 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
     }
 }
 fn goal_document(rows: Vec<w::FindingRow>, cut: bool) -> w::Findings {
-    let mut parts = document().into_parts();
+    let mut parts = document();
     parts.project = 2;
     parts.rows = List::from_boxed(rows.into_boxed_slice());
     parts.cut = cut;
-    w::Findings::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 fn goal_filter() -> client::Watchable {
-    filtered(
-        2,
-        w::FindingsFilter::Goal(w::FindingsGoal::new(&w::CEILINGS, w::FindingsGoalParts { goal: 820 }).unwrap()),
-    )
+    filtered(2, w::FindingsFilter::Goal(w::FindingsGoal { goal: 820 }))
 }
 fn red(number: u32, state: w::FindingState, title: &[u8]) -> w::FindingRow {
-    let mut parts = row().into_parts();
+    let mut parts = row();
     parts.number = number;
     parts.state = state;
     parts.title = title.into();
     parts.goal = if parts.state == w::FindingState::Routed { Some(830) } else { None };
     parts.reason = if parts.state == w::FindingState::Dropped { Some(b"duplicate".as_slice().into()) } else { None };
-    w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 fn goal_task() -> c::Task {
     let mut task = f::goal(820, c::WaitsOn::Nothing);
@@ -276,18 +238,18 @@ fn goal_task() -> c::Task {
 }
 #[test]
 fn goal_show_reads_the_task_then_its_reds_uncleared_first_in_every_place() {
-    let mut cleared = red(9, w::FindingState::Routed, b"1 test fails in nightly since S7 landed").into_parts();
+    let mut cleared = red(9, w::FindingState::Routed, b"1 test fails in nightly since S7 landed");
     cleared.cleared = Some(clearing());
     let rows = vec![
-        w::FindingRow::new(&w::CEILINGS, cleared).unwrap(),
+        cleared,
         red(14, w::FindingState::Routed, b"3 tests fail in nightly since S7 landed"),
         red(13, w::FindingState::New, b"Waiting"),
         red(12, w::FindingState::Backlog, b"Backlogged"),
         red(11, w::FindingState::Dropped, b"Dropped"),
         {
-            let mut parts = red(10, w::FindingState::Routed, b"Repairing").into_parts();
+            let mut parts = red(10, w::FindingState::Routed, b"Repairing");
             parts.goal = None;
-            w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+            parts
         },
     ];
     for json in [false, true] {
@@ -402,16 +364,12 @@ fn goal_show_keeps_supplemental_task_words_and_refuses_a_missing_task() {
     assert!(root.watches.is_empty());
 }
 fn blamed_goal(goal: u64, milestone: Option<u64>, person: Option<u64>) -> w::BlamedGoal {
-    w::BlamedGoal::new(&w::CEILINGS, w::BlamedGoalParts { goal, milestone, person }).unwrap()
+    w::BlamedGoal { goal, milestone, person }
 }
 fn landing(goals: Vec<w::BlamedGoal>) -> w::BlamedLanding {
     let mut commit = [0; 32];
     commit[..6].copy_from_slice(&[0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f]);
-    w::BlamedLanding::new(
-        &w::CEILINGS,
-        w::BlamedLandingParts { commit, goals: List::from_boxed(goals.into_boxed_slice()) },
-    )
-    .unwrap()
+    w::BlamedLanding { commit, goals: List::from_boxed(goals.into_boxed_slice()) }
 }
 #[test]
 fn finding_show_prints_blame_landings_and_clearing_before_the_body() {
@@ -442,33 +400,20 @@ fn finding_show_prints_blame_landings_and_clearing_before_the_body() {
         for json in [false, true] {
             let mut root = root();
             let call = root.submit_prepared(f::call(&["finding", "show", "3/12"]), json, None);
-            let mut parts = row().into_parts();
+            let mut parts = row();
             parts.reason = Some(b"duplicate".as_slice().into());
             parts.cleared = Some(clearing());
-            let blame = blame.clone().map(|(strength, landings)| {
-                w::FindingBlame::new(
-                    &w::CEILINGS,
-                    w::FindingBlameParts { strength, landings: List::from_boxed(landings.into_boxed_slice()) },
-                )
-                .unwrap()
+            let blame = blame.clone().map(|(strength, landings)| w::FindingBlame {
+                strength,
+                landings: List::from_boxed(landings.into_boxed_slice()),
             });
-            let detail = w::FindingDetail::new(
-                &w::CEILINGS,
-                w::FindingDetailParts {
-                    row: w::FindingRow::new(&w::CEILINGS, parts).unwrap(),
-                    body: b"Boot twice".as_slice().into(),
-                    filer: w::Filer::Party(
-                        w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap(),
-                    ),
-                    blame: blame.clone(),
-                },
-            )
-            .unwrap();
-            let answer = w::FindingAnswer::new(
-                &w::CEILINGS,
-                w::FindingAnswerParts { result: w::FindingResult::Finding(Box::new(detail)) },
-            )
-            .unwrap();
+            let detail = w::FindingDetail {
+                row: parts,
+                body: b"Boot twice".as_slice().into(),
+                filer: w::Filer::Party(w::HolderParty { number: 8 }),
+                blame: blame.clone(),
+            };
+            let answer = w::FindingAnswer { result: w::FindingResult::Finding(Box::new(detail)) };
             root.serve_readout(
                 call,
                 client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -493,8 +438,8 @@ fn finding_show_prints_blame_landings_and_clearing_before_the_body() {
     }
 }
 fn filtered(project: u32, filter: w::FindingsFilter) -> client::Watchable {
-    let subject = w::FindingsSubject::new(&w::CEILINGS, w::FindingsSubjectParts { project, filter }).unwrap();
-    let watch = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Findings(subject) }).unwrap();
+    let subject = w::FindingsSubject { project, filter };
+    let watch = w::Watching { watch: w::Watch::Findings(subject) };
     client::Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
@@ -502,11 +447,7 @@ fn filtered(project: u32, filter: w::FindingsFilter) -> client::Watchable {
     }
 }
 fn clearing() -> w::FindingClearing {
-    w::FindingClearing::new(
-        &w::CEILINGS,
-        w::FindingClearingParts { tier: b"nightly".as_slice().into(), run: 412, at: 1_795_081_200_000_000_000 },
-    )
-    .unwrap()
+    w::FindingClearing { tier: b"nightly".as_slice().into(), run: 412, at: 1_795_081_200_000_000_000 }
 }
 fn deliver_document(root: &mut f::Harness, subject: &client::Watchable, document: &w::Findings) {
     let watch = root.watch_token(subject);
@@ -524,29 +465,19 @@ fn deliver_document(root: &mut f::Harness, subject: &client::Watchable, document
 #[test]
 fn finding_list_filters_blame_and_prints_clearing_and_row_fields() {
     for (flag, task, filter) in [
-        (
-            "--goal",
-            "820",
-            w::FindingsFilter::Goal(w::FindingsGoal::new(&w::CEILINGS, w::FindingsGoalParts { goal: 820 }).unwrap()),
-        ),
-        (
-            "--milestone",
-            "812",
-            w::FindingsFilter::Milestone(
-                w::FindingsMilestone::new(&w::CEILINGS, w::FindingsMilestoneParts { milestone: 812 }).unwrap(),
-            ),
-        ),
+        ("--goal", "820", w::FindingsFilter::Goal(w::FindingsGoal { goal: 820 })),
+        ("--milestone", "812", w::FindingsFilter::Milestone(w::FindingsMilestone { milestone: 812 })),
     ] {
         for json in [false, true] {
             let mut root = root();
             let call = root.submit_call(f::call(&["finding", "list", "--project", "shop", flag, task]), json);
-            let mut parts = document().into_parts();
-            let mut cleared = row().into_parts();
+            let mut parts = document();
+            let mut cleared = row();
             cleared.goal = Some(830);
             cleared.reason = Some(b"duplicate".as_slice().into());
             cleared.cleared = Some(clearing());
-            parts.rows = List::from_boxed(Box::new([w::FindingRow::new(&w::CEILINGS, cleared).unwrap(), row()]));
-            deliver_document(&mut root, &filtered(3, filter.clone()), &w::Findings::new(&w::CEILINGS, parts).unwrap());
+            parts.rows = List::from_boxed(Box::new([cleared, row()]));
+            deliver_document(&mut root, &filtered(3, filter.clone()), &parts);
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, 0);
             if json {
@@ -613,21 +544,10 @@ fn finding_refuses_other_forms_and_names_the_areas_on_refusal() {
     assert_eq!(root.answer(invalid).unwrap().status, 1);
     assert!(root.nothing_sent());
     let call = root.submit(&["finding", "hand", "3/12", "--area", "missing", "wrong area", "--key", "missing"]);
-    let why = w::FindingRefusal::NoArea(
-        w::FindingAreas::new(
-            &w::CEILINGS,
-            w::FindingAreasParts {
-                areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"docs".as_slice().into()])),
-            },
-        )
-        .unwrap(),
-    );
-    root.adoption_answer(
-        call,
-        w::Outcome::FindingRefused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: why }).unwrap(),
-        ),
-    );
+    let why = w::FindingRefusal::NoArea(w::FindingAreas {
+        areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"docs".as_slice().into()])),
+    });
+    root.adoption_answer(call, w::Outcome::FindingRefused(w::FindingRefused { reason: why }));
     let printed = root.answer(call).unwrap();
     assert_eq!(printed.status, 2);
     assert!(skein_lib::bytes::find(&printed.stderr, b"no area missing in project 3; its areas: tests, docs").is_some());

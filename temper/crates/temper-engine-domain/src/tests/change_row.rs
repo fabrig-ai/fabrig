@@ -23,6 +23,7 @@ pub(crate) fn change_row(pull: Option<u64>) -> temper_engine_domain_forge::Chang
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 7,
@@ -49,7 +50,10 @@ pub(crate) fn change_row(pull: Option<u64>) -> temper_engine_domain_forge::Chang
         effect: change::EffectResult::None,
         delegate: None,
         delegate_status: change::Status::Unknown,
+        spec_revision: 0,
+        gate_revision: 0,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,

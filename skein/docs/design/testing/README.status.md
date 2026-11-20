@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-18. Where skein's code lags or departs from [README.md](README.md).
+2026-11-20. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as is the row runner's

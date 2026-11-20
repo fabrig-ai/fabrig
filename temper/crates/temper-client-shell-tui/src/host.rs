@@ -36,9 +36,15 @@ enum Phase {
 }
 
 enum Opening {
-    Approval,
+    Approval { number: u64 },
     Link,
     Page { address: Box<[u8]> },
+}
+
+enum Listener {
+    None,
+    Opening { asked: Option<root::asked::State> },
+    Open { port: u16, asking: bool },
 }
 
 #[expect(
@@ -81,6 +87,10 @@ pub enum Report {
     Handshake {
         failed: Option<tui::Handshake>,
     },
+    Listening {
+        port: Option<u16>,
+    },
+    Returned(crate::loopback::Returned),
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
     Stage(tui::BoxStage),
@@ -105,6 +115,7 @@ pub struct Lend {
     pub line: Box<[u8]>,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "independent duties of the host seam")]
 #[derive(Default)]
 pub struct Duties {
     pub asked: Vec<jig_client::Request>,
@@ -113,6 +124,9 @@ pub struct Duties {
     pub address: Option<tui::Origin>,
     pub local: bool,
     pub open: Option<Box<[u8]>>,
+    pub listen: bool,
+    pub unlisten: bool,
+    pub answer: Option<crate::loopback::Answer>,
     pub close: bool,
     pub stop: Option<Stop>,
     pub lend: Option<Lend>,
@@ -158,6 +172,8 @@ pub struct Host {
     local_signing: bool,
     asked_opening: Option<u64>,
     browse: bool,
+    approval_number: u64,
+    listener: Listener,
     opens: Queue<Opening>,
     addressed: bool,
     closed: bool,
@@ -213,6 +229,8 @@ impl Host {
             local_signing: false,
             asked_opening: None,
             browse: false,
+            approval_number: 0,
+            listener: Listener::None,
             opens: Queue::uncapped(),
             addressed: false,
             closed: false,
@@ -233,11 +251,17 @@ impl Host {
             assert!(matches!(report, Report::Start(_)), "a report before the TUI's start");
         }
         if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. } | Report::Lent { .. }) {
-            return Duties::default();
+            return Duties {
+                answer: matches!(report, Report::Returned(_)).then_some(crate::loopback::Answer::NotFound),
+                unlisten: matches!(report, Report::Listening { port: Some(_) }),
+                ..Duties::default()
+            };
         }
         let mut duties = Duties::default();
         if self.refused() {
             match report {
+                Report::Returned(_) => duties.answer = Some(crate::loopback::Answer::NotFound),
+                Report::Listening { port } => duties.unlisten = port.is_some(),
                 Report::Key(Key::Control(b'c')) => self.close(&mut duties),
                 Report::Resize(size) => self.size = size,
                 Report::Start(_)
@@ -257,6 +281,8 @@ impl Host {
         }
         let project = self.root.pages().project();
         match report {
+            Report::Listening { port } => self.listening(port, &mut duties),
+            Report::Returned(returned) => duties.answer = Some(self.returned(&returned)),
             Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
             Report::Handshake { failed } => self.tell(Told::Handshake { failed }),
@@ -317,7 +343,12 @@ impl Host {
             Report::Kept { written } => self.tell(Told::Kept { written }),
             Report::Opened { opened } => match self.opens.pop() {
                 Some(Opening::Page { address }) => self.tell(Told::NotOpened { address: (!opened).then_some(address) }),
-                Some(Opening::Approval) | None => self.tell(Told::Opened { opened }),
+                Some(Opening::Approval { number }) => {
+                    if number == self.approval_number {
+                        self.tell(Told::Opened { opened });
+                    }
+                }
+                None => self.tell(Told::Opened { opened }),
                 Some(Opening::Link) => {
                     if !opened {
                         self.tell(Told::LinkNotOpened);
@@ -327,8 +358,10 @@ impl Host {
         }
         if self.refused() {
             self.out.clear();
+            let mut duties = Duties { answer: duties.answer, unlisten: duties.unlisten, ..Duties::default() };
+            self.unlisten(&mut duties);
             self.draw();
-            return Duties::default();
+            return duties;
         }
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
@@ -684,13 +717,21 @@ impl Host {
                 }
             }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
+            tui::Event::TypeCode => {
+                if tui::may_type_instead(self.state(), &self.root) {
+                    self.unlisten(duties);
+                    self.next_approval();
+                    self.step(Event::AskApproval { port: None });
+                    self.tell(Told::Opened { opened: false });
+                }
+            }
             tui::Event::SignIn if self.state().address().at_name() => {
                 if tui::may_ask_again(self.state(), &self.root) {
-                    self.ask();
+                    self.ask(duties);
                 }
             }
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
-                self.ask();
+                self.ask(duties);
             }
             tui::Event::SignIn => match jig_client_protocol_http::printed(&self.mapping, self.state().field()) {
                 Err(_) => self.tell(Told::Refused { refusal: Refusal::NotALink }),
@@ -1288,25 +1329,101 @@ impl Host {
         }
     }
 
-    fn ask(&mut self) {
-        self.step(Event::AskApproval);
+    fn next_approval(&mut self) {
+        self.approval_number = self.approval_number.checked_add(1).expect("approval number fits u64");
         self.asked_opening = Some(self.state().openings());
-        self.browse = true;
+        self.browse = false;
+    }
+
+    fn ask(&mut self, duties: &mut Duties) {
+        self.next_approval();
+        if self.state().address().at_name() {
+            self.listener = Listener::Opening { asked: self.root.asked() };
+            self.tell(Told::Listener { opening: true });
+            duties.listen = true;
+        } else {
+            self.browse = true;
+            self.step(Event::AskApproval { port: None });
+        }
+    }
+
+    fn listener_wanted(&self) -> bool {
+        if self.closed || self.refused() || self.need.is_some() || self.root.client().link().state != Link::SignedOut {
+            return false;
+        }
+        match self.listener {
+            Listener::None => false,
+            Listener::Opening { asked } => {
+                self.asked_opening == Some(self.state().openings()) && self.root.asked() == asked
+            }
+            Listener::Open { port, asking } => {
+                !tui::may_ask_again(self.state(), &self.root)
+                    && match self.root.asked() {
+                        // Once our ask was answered, Asking belongs to a replacement.
+                        Some(root::asked::State::Asking) => asking,
+                        Some(root::asked::State::Asked { port: asked, .. }) => asked == Some(port),
+                        None | Some(root::asked::State::NotAsked(_)) => false,
+                    }
+            }
+        }
+    }
+
+    fn unlisten(&mut self, duties: &mut Duties) {
+        if !matches!(self.listener, Listener::None) {
+            self.listener = Listener::None;
+            self.browse = false;
+            self.tell(Told::Listener { opening: false });
+            duties.unlisten = true;
+        }
+    }
+
+    fn listening(&mut self, port: Option<u16>, duties: &mut Duties) {
+        if matches!(self.listener, Listener::Opening { .. }) && self.listener_wanted() {
+            self.listener = port.map_or(Listener::None, |port| Listener::Open { port, asking: true });
+            self.tell(Told::Listener { opening: false });
+            self.browse = true;
+            self.step(Event::AskApproval { port });
+        } else {
+            self.unlisten(duties);
+            duties.unlisten |= port.is_some();
+        }
+    }
+
+    fn returned(&mut self, returned: &crate::loopback::Returned) -> crate::loopback::Answer {
+        if let Listener::Open { port, .. } = self.listener
+            && self.listener_wanted()
+            && let Some(root::asked::State::Asked { code, port: Some(asked), .. }) = self.root.asked()
+            && asked == port
+            && let Some(grant) = crate::loopback::grant(returned, port)
+        {
+            let to = tui::approval_address(self.state().address(), Some(code));
+            self.step(Event::Granted { grant });
+            return crate::loopback::Answer::Redirect { to };
+        }
+        crate::loopback::Answer::NotFound
     }
 
     fn approval(&mut self, duties: &mut Duties) {
+        if !self.listener_wanted() {
+            self.unlisten(duties);
+        } else if let Listener::Open { asking, .. } = &mut self.listener
+            && matches!(self.root.asked(), Some(root::asked::State::Asked { .. }))
+        {
+            *asking = false;
+        }
         if self.closed || self.refused() || self.need.is_some() {
             return;
         }
         if self.root.client().link().state == Link::SignedOut && self.asked_opening != Some(self.state().openings()) {
-            self.ask();
+            self.ask(duties);
             self.route(duties);
         }
         if self.browse {
             match self.root.asked() {
-                Some(root::asked::State::Asked { code, .. }) => {
+                Some(root::asked::State::Asked { code, port, .. }) => {
+                    let code = if self.state().address().at_name() && port.is_none() { None } else { Some(code) };
                     duties.open = Some(tui::approval_address(self.state().address(), code));
-                    self.opens.push(Opening::Approval);
+                    self.opens.push(Opening::Approval { number: self.approval_number });
                     self.tell(Told::Browse);
                     self.browse = false;
                 }
@@ -1333,7 +1450,7 @@ impl Host {
             | jig_client::Event::SignOut
             | jig_client::Event::Authorize { .. }
             | jig_client::Event::AskLink
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }
@@ -1480,6 +1597,7 @@ impl Host {
     }
 
     fn close(&mut self, duties: &mut Duties) {
+        self.unlisten(duties);
         self.closed = true;
         duties.close = true;
     }

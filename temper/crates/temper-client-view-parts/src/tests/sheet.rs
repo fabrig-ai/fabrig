@@ -11,23 +11,13 @@ fn root() -> Domain {
 }
 
 fn reached(id: u64, name: &[u8], private: bool) -> wire::Reached {
-    wire::Reached::new(
-        &wire::CEILINGS,
-        wire::ReachedParts {
-            id,
-            owner: wire::Account::new(&wire::CEILINGS, wire::AccountParts { id: 3, login: b"acme".as_slice().into() })
-                .unwrap(),
-            name: name.into(),
-            private,
-        },
-    )
-    .unwrap()
+    wire::Reached { id, owner: wire::Account { id: 3, login: b"acme".as_slice().into() }, name: name.into(), private }
 }
 
 fn tree(sheet: &sheet::Sheet) -> (Tree, Bindings) {
     let root = root();
     let mut b = Builder::new(&f::tree_limits());
-    let mut bindings = Bindings::new(200, 8, 1);
+    let mut bindings = Bindings::new(200, 8, 1, f::tree_limits().text_per_node);
     choices(&mut b, &root, sheet, &f::words(), &mut bindings);
     picker(&mut b, &root, sheet, b"Shop", &f::words(), &mut bindings);
     let mut form = forge::form(f::PROJECT);
@@ -108,10 +98,10 @@ fn checks_keep_names_marks_picks_and_hide_home_for_plural() {
         sheet
             .picks
             .push(sheet::Pick {
-                id: row.id(),
-                owner_id: row.owner().id(),
-                owner: row.owner().login().into(),
-                name: row.name().into(),
+                id: row.id,
+                owner_id: row.owner.id,
+                owner: row.owner.login.clone(),
+                name: row.name.clone(),
             })
             .unwrap();
     }

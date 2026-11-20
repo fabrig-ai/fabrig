@@ -60,7 +60,7 @@ fn finish_goal_landing(
     head: skein_forge::api::Commit,
     first: u64,
 ) -> Option<skein_forge::api::Commit> {
-    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let verdict = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     for entry in first..first + 12 {
         if let change::Decision::Finish { merge } = change_step(world, entry, change::Status::Passed, verdict.clone()) {
             return Some(merge);
@@ -78,7 +78,8 @@ fn goal_landing_updates_a_moved_base_with_a_fresh_ancestry_range() {
     world.push_file(b"main", b"base", b"moved");
     let base = translate::commit(world.branch(b"main"));
     assert!(world.comparison_fits(world.branch(b"main"), world.branch(b"temper/g")));
-    let gates = Box::new([change::GateReport { number: 9, head: old_head, status: change::Status::Passed }]);
+    let gates =
+        Box::new([change::GateReport { revision: 0, number: 9, head: old_head, status: change::Status::Passed }]);
     assert_eq!(
         change_step(&mut world, 1, change::Status::Passed, gates),
         change::Decision::Effect(change::Effect::Update { base, head: old_head })
@@ -131,7 +132,7 @@ fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
         }
         world.take_calls();
         world.script_ancestry(ancestry);
-        let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+        let gates = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
         let decision = change_step_merge_job(&mut world, 1, change::Status::Passed, gates);
         world.script_ancestry(None);
         assert!(world.take_calls().contains(&Op::Read(Read::Commits { before: head, after: base, page: 1 })), "{name}");
@@ -168,7 +169,7 @@ fn an_updating_first_keeps_its_turn_then_wakes_the_next_to_land() {
     let (mut world, head) = reviewed_change(true, change::Freshness::Clean);
     world.event(top::Event::Priority { task: 51, priority: 9 });
     world.push_file(b"main", b"base", b"base moved");
-    let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let gates = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     let (decision, update) = uncommitted_queue_step(&mut world, 51, 1, gates.clone());
     assert!(matches!(decision, change::Decision::Effect(change::Effect::Update { .. })));
     assert!(queue_change(&world, 51).change.owns_turn);
@@ -264,6 +265,7 @@ fn uncommitted_queue_step(
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -305,7 +307,7 @@ fn goal_landing_refuses_to_merge_without_complete_ancestry() {
         let head = translate::commit(world.branch(b"temper/g"));
         queue_goal_landing(&mut world, head);
         world.script_ancestry(Some(result.clone()));
-        let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+        let gates = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
         for entry in 1..3 {
             let decision = change_step(&mut world, entry, change::Status::Passed, gates.clone());
             assert!(matches!(decision, change::Decision::Wait { .. }), "ancestry {result:?}: {decision:?}");
@@ -702,7 +704,7 @@ fn a_review_asking_for_changes_repeats_at_the_repaired_head() {
             &mut world,
             2,
             change::Status::Passed,
-            Box::new([change::GateReport { number: 9, head, status: change::Status::Failed }])
+            Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Failed }])
         ),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(9)))
     );
@@ -713,7 +715,8 @@ fn a_review_asking_for_changes_repeats_at_the_repaired_head() {
         change_step(&mut world, 3, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head: new_head })
     );
-    let verdict = Box::new([change::GateReport { number: 9, head: new_head, status: change::Status::Passed }]);
+    let verdict =
+        Box::new([change::GateReport { revision: 0, number: 9, head: new_head, status: change::Status::Passed }]);
     let mut finished = false;
     for entry in 4..18 {
         if let change::Decision::Finish { .. } = change_step(&mut world, entry, change::Status::Passed, verdict.clone())
@@ -734,7 +737,7 @@ fn a_gate_added_while_queued_takes_the_change_out_until_approved() {
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head })
     );
     assert_eq!(world.writes(), 0);
-    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let verdict = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     let mut finished = false;
     for entry in 2..15 {
         if let change::Decision::Finish { .. } = change_step(&mut world, entry, change::Status::Passed, verdict.clone())
@@ -751,7 +754,7 @@ fn a_gate_added_while_queued_takes_the_change_out_until_approved() {
 fn a_clean_update_keeps_its_review_and_lands_the_new_head() {
     let (mut world, head) = reviewed_change(true, change::Freshness::Clean);
     world.push_file(b"main", b"other", b"base moved");
-    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let verdict = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert!(matches!(
         change_step(&mut world, 1, change::Status::Passed, verdict.clone()),
         change::Decision::Effect(change::Effect::Update { .. })
@@ -775,7 +778,7 @@ fn a_clean_update_keeps_its_review_and_lands_the_new_head() {
 fn an_exact_head_approval_is_asked_again_after_a_clean_update() {
     let (mut world, head) = reviewed_change(true, change::Freshness::Exact);
     world.push_file(b"main", b"other", b"base moved");
-    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let verdict = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert!(matches!(
         change_step(&mut world, 1, change::Status::Passed, verdict.clone()),
         change::Decision::Effect(change::Effect::Update { .. })
@@ -793,7 +796,7 @@ fn an_exact_head_approval_is_asked_again_after_a_clean_update() {
 fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
     let (mut world, head) = reviewed_change(true, change::Freshness::Clean);
     world.push(b"main", b"conflicting base");
-    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let verdict = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert!(matches!(
         change_step(&mut world, 1, change::Status::Passed, verdict),
         change::Decision::Effect(change::Effect::Update { .. })
@@ -811,7 +814,8 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         change_step(&mut world, 3, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head: resolved })
     );
-    let verdict = Box::new([change::GateReport { number: 9, head: resolved, status: change::Status::Passed }]);
+    let verdict =
+        Box::new([change::GateReport { revision: 0, number: 9, head: resolved, status: change::Status::Passed }]);
     let mut finished = false;
     for entry in 4..18 {
         if let change::Decision::Finish { .. } = change_step(&mut world, entry, change::Status::Passed, verdict.clone())
@@ -828,7 +832,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
 fn a_clean_update_with_broken_ci_is_repaired_as_a_semantic_conflict() {
     let (mut world, head) = reviewed_change(true, change::Freshness::Clean);
     world.push_file(b"main", b"other", b"base moved");
-    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let verdict = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert!(matches!(
         change_step(&mut world, 1, change::Status::Passed, verdict.clone()),
         change::Decision::Effect(change::Effect::Update { .. })
@@ -886,7 +890,7 @@ fn a_pull_closed_by_someone_else_is_held_then_reopened_on_release() {
 fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
     let (mut world, head) = reviewed_change(true, change::Freshness::Clean);
     world.status(b"main", skein_fake_forge_domain::api::Check::Failed);
-    let report = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let report = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert_eq!(change_step(&mut world, 1, change::Status::Passed, report.clone()), change::Decision::QueueRepair);
     assert_eq!(world.writes(), 0);
     world.take_seen();
@@ -897,6 +901,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -954,7 +959,8 @@ fn an_aged_low_priority_change_takes_its_turn_ahead_of_later_work() {
         eager: false,
     }]);
     world.event(top::Event::Change { row: high });
-    let review = Box::new([change::GateReport { number: 7, head: head52, status: change::Status::Passed }]);
+    let review =
+        Box::new([change::GateReport { revision: 0, number: 7, head: head52, status: change::Status::Passed }]);
     assert_eq!(
         change_step_task(&mut world, 52, 1, change::Status::Passed, review.clone(), false, false),
         change::Decision::Wait { until: None }
@@ -1021,6 +1027,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1144,7 +1151,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
         row.change.last_head = Some(head);
         row.change.state = change::State::Gating { head, asked: Box::new([9, 10]) };
         row.change.owns_turn = false;
-        let verdict = change::GateReport { number: 9, head, status: change::Status::Passed };
+        let verdict = change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed };
         if !repairs {
             row.change.gates = Box::new([
                 change::Gate {
@@ -1225,6 +1232,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
                 cancelled: false,
                 no_change: false,
                 flake: false,
+                no_test: false,
                 words: Box::new([]),
             });
         }
@@ -1232,7 +1240,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
         let gates: Box<[change::GateReport]> = if repairs {
             Box::new([])
         } else {
-            Box::new([verdict, change::GateReport { number: 10, head, status: change::Status::Passed }])
+            Box::new([verdict, change::GateReport { revision: 0, number: 10, head, status: change::Status::Passed }])
         };
         let mut landed = false;
         for entry in 3..20 {
@@ -1284,6 +1292,7 @@ fn failed_ci_repair_world() -> World {
         cancelled: false,
         no_change: false,
         flake: false,
+        no_test: false,
         words: b"repair failed permanently".as_slice().into(),
     });
     assert_eq!(
@@ -1322,6 +1331,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         cancelled: false,
         no_change: false,
         flake: false,
+        no_test: false,
         words: Box::new([]),
     });
     assert!(matches!(change_step(&mut world, 4, change::Status::Pending, Box::new([])), change::Decision::Wait { .. }));
@@ -1342,6 +1352,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         cancelled: false,
         no_change: false,
         flake: false,
+        no_test: false,
         words: b"repaired".as_slice().into(),
     });
     world.run_for(1);
@@ -1363,6 +1374,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1392,6 +1404,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1431,6 +1444,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             heard: change::Heard {
                 delegate_running: false,
                 flake: false,
+                no_test: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -1477,6 +1491,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
@@ -1533,6 +1548,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::FileVerdict { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
                 | top::Request::LoadHistory { .. }
@@ -2261,6 +2278,7 @@ fn a_change_rides_a_long_forge_outage_and_reads_ci_posted_without_a_delivery() {
             delegate: change::Status::Passed,
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             effect: change::EffectResult::None,
             released: false,
@@ -2689,6 +2707,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -2718,6 +2737,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -3151,7 +3171,7 @@ fn a_waiting_procedure_stepped_twice_on_unchanged_facts_keeps_its_decision_and_s
     front.priority = 0;
     front.change.state = change::State::Queued { head: front_head, ready_since: Wall::EPOCH };
     world.event(top::Event::Change { row: front });
-    let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let gates = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     let first = change_step(&mut world, 100, change::Status::Passed, gates.clone());
     let before = world.stored().get(&top::Key::ChangeHot(51)).expect("procedure state").clone();
     let second = change_step(&mut world, 101, change::Status::Passed, gates);
@@ -3383,6 +3403,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
         status: change::Status::Failed,
         no_change: false,
         flake: false,
+        no_test: false,
         failed: true,
         cancelled: false,
         words: REASON.into(),

@@ -70,6 +70,7 @@ fn full_spec(limits: &Limits, n: u32) -> Spec {
             git: None,
             expected: None,
             delivered: None,
+            pin: None,
             landing: Some(bytes(limits.name_bytes)),
             name: name(limits.name_bytes, place),
             remote: name(limits.name_bytes, place),

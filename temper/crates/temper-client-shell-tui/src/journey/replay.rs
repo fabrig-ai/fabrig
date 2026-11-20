@@ -139,6 +139,8 @@ impl Replay {
                 | Line::BoxLine(_)
                 | Line::BoxStage(_)
                 | Line::Lent { .. }
+                | Line::Listening(_)
+                | Line::Returned(_)
                 | Line::Handshake(_)
                 | Line::Found(_)
                 | Line::Opened { .. }
@@ -152,6 +154,9 @@ impl Replay {
                 | Line::Read
                 | Line::Keep(_)
                 | Line::Signed(_)
+                | Line::Listen
+                | Line::Unlisten
+                | Line::Answer(_)
                 | Line::Browse(_)
                 | Line::StopBox
                 | Line::StopBoxAgain
@@ -228,6 +233,8 @@ impl Replay {
             Line::Unsaved => Report::Heard(jig_client::Event::NotStored),
             Line::Kept { written } => Report::Kept { written: *written },
             Line::Handshake(failed) => Report::Handshake { failed: *failed },
+            Line::Listening(port) => Report::Listening { port: *port },
+            Line::Returned(returned) => Report::Returned(returned.clone()),
             Line::Found(bytes) => Report::Local { link: bytes.clone().map(Secret::new) },
             Line::BoxLine(bytes) => Report::Front(temper_client_tui::BoxLine::read(bytes).expect("validated box line")),
             Line::BoxStage(bytes) => {
@@ -261,6 +268,9 @@ impl Replay {
             | Line::Read
             | Line::Keep(_)
             | Line::Signed(_)
+            | Line::Listen
+            | Line::Unlisten
+            | Line::Answer(_)
             | Line::Browse(_)
             | Line::Quit
             | Line::StopBox
@@ -471,6 +481,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::BoxLine(_)
             | Line::BoxStage(_)
             | Line::Lent { .. }
+            | Line::Listening(_)
+            | Line::Returned(_)
             | Line::Handshake(_)
             | Line::Found(_)
             | Line::Opened { .. } => {
@@ -501,6 +513,9 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Read
             | Line::Keep(_)
             | Line::Signed(_)
+            | Line::Listen
+            | Line::Unlisten
+            | Line::Answer(_)
             | Line::Browse(_)
             | Line::StopBox
             | Line::StopBoxAgain

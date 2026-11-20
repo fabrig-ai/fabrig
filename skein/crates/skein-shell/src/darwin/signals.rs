@@ -23,6 +23,16 @@ use std::{
     reason = "process-wide signal pipe ownership is serialized across hosted loops (runtime/readiness.md, 5)"
 )]
 static PIPES: std::sync::Mutex<BTreeSet<Fd>> = std::sync::Mutex::new(BTreeSet::new());
+
+pub(super) fn warm_table() {
+    let mut pipes = PIPES.lock().expect("signal pipe table is not poisoned");
+    if pipes.is_empty() {
+        let sentinel = Fd::new(-1);
+        let _inserted = pipes.insert(sentinel);
+        let _removed = pipes.remove(&sentinel);
+    }
+}
+
 pub(super) fn remember_pipe(fd: Fd) {
     let _inserted = PIPES.lock().expect("signal pipe table is not poisoned").insert(fd);
 }

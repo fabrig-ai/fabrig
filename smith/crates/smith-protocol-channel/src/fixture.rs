@@ -1,5 +1,6 @@
 //! Opening limits for deterministic channel tests (smith/docs/design/protocol/channel.md, section 2).
 use crate::Limits;
+use smith_channel::Record;
 
 /// Small framing queues and empty run tables for opening and refusal tests.
 #[must_use]
@@ -26,7 +27,7 @@ pub fn small() -> Limits {
             skip: 8,
             output_bytes: u32::MAX,
             output_frames: 2,
-            kinds: 22,
+            kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
         },
     }
 }

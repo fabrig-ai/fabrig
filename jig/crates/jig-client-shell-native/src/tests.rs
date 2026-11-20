@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 mod client_store;
 mod tls;
 use super::*;
@@ -168,7 +169,9 @@ fn the_stream_s_bytes_reach_the_link_in_order() {
         }
     }
     assert_eq!(bytes, b"firstsecond");
-    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=37 HTTP/1.1\r\n"));
+    assert!(peer.wire.received.starts_with(
+        format!("GET /jig/v1/stream?version={} HTTP/1.1\r\n", jig_client_protocol_wire::VERSION).as_bytes()
+    ));
     peer.shell.down(Time::ZERO, client::Request::CloseStream, &mut peer.below);
     peer.drive();
     assert!(peer.wire.finished);
@@ -342,7 +345,7 @@ impl skein_shell::Host for Disk {
                 client::Event::Lost { .. } => self.closing = true,
                 other @ (client::Event::SignIn { .. }
                 | client::Event::AskLink
-                | client::Event::AskApproval
+                | client::Event::AskApproval { .. }
                 | client::Event::ReadApproval { .. }
                 | client::Event::DecideApproval { .. }
                 | client::Event::ApprovalAnswer { .. }
@@ -649,10 +652,12 @@ fn a_full_stream_refusal_without_a_line_ending_reaches_the_link() {
         client::Request::OpenStream { credential: None, replaces: None, version: jig_client_protocol_wire::VERSION },
         &mut peer.below,
     );
-    let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: w::StreamBound::Transport, size: 2 })
-        .expect("full record");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("fixed record"));
-    record.encode(&mut writer).expect("full bytes");
+    let record = w::StreamsFull { bound: w::StreamBound::Transport, size: 2 };
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("fixed record"),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("full bytes");
     let body = writer.finish();
     assert!(!body.contains(&b'\n'));
     let mut response = format!("HTTP/1.1 409 Conflict\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();

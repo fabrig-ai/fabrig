@@ -655,6 +655,7 @@ impl World {
                 git: None,
                 expected: None,
                 delivered: None,
+                pin: None,
                 landing: None,
                 name: name.clone().into(),
                 remote: remote.clone().into(),
@@ -688,6 +689,7 @@ impl World {
                     git: None,
                     expected: None,
                     delivered: None,
+                    pin: None,
                     landing: None,
                     name: first.clone(),
                     remote: first,
@@ -1163,6 +1165,7 @@ impl World {
             Op::Store { .. }
             | Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
@@ -1288,6 +1291,7 @@ impl World {
             | Op::Clone { .. }
             | Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1419,6 +1423,7 @@ impl World {
                     Kind::Clone => told.clones += 1,
                     Kind::Reds
                     | Kind::Reset
+                    | Kind::Pack
                     | Kind::Point
                     | Kind::Store
                     | Kind::Fetch

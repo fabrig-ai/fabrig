@@ -2,6 +2,7 @@
 use super::fixtures as f;
 use crate::{Address, Event, Request, WorkFilter};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Queue, Reader, Writer};
 
 fn project_reads(out: &mut Queue<Request>) -> u32 {
@@ -10,7 +11,7 @@ fn project_reads(out: &mut Queue<Request>) -> u32 {
         if let Request::Client { request: jig_client::Request::Exchange { message, .. } } = request {
             let members = match message {
                 jig_client::Message::Batch(bytes) => {
-                    w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().members
+                    w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().members
                 }
                 jig_client::Message::Read(bytes) => List::from_boxed(Box::new([w::Member::Read(
                     w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap(),
@@ -31,11 +32,11 @@ fn project_reads(out: &mut Queue<Request>) -> u32 {
             };
             for member in &members {
                 if let w::Member::Read(read) = member
-                    && read.owner() == &w::Owner::Jig
+                    && read.owner == w::Owner::Jig
                     && let w::Read::Project(project) =
-                        w::Read::decode(&w::CEILINGS, &mut Reader::new(read.record())).unwrap()
+                        w::Read::decode(&w::CEILINGS, &mut Reader::new(read.record.as_ref())).unwrap()
                 {
-                    assert_eq!(project.project(), f::PROJECT);
+                    assert_eq!(project.project, f::PROJECT);
                     count = count.checked_add(1).unwrap();
                 }
             }
@@ -69,23 +70,19 @@ fn the_rails_project_is_read_once_in_the_hellos_batch() {
     for (owner, version) in [
         (w::Owner::Jig, w::VERSION),
         (
-            w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE }).unwrap(),
-            ),
+            w::Owner::Family(w::Family { number: temper_client_protocol_wire::FORGE }),
             temper_client_protocol_wire::CLIENT_VERSION,
         ),
     ] {
-        served
-            .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version }).unwrap())
-            .unwrap();
+        served.push(w::Served { owner, first: version, last: version }).unwrap();
     }
     let hello = jig_client_test_records::opened(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .unwrap(),
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
     );
-    let mut writer = Writer::new(hello.measure().try_into().unwrap());
-    hello.encode(&mut writer).unwrap();
+    let mut writer =
+        Writer::new(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().unwrap());
+    hello.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     crate::step(
         &mut root,
         &env,

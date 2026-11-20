@@ -8,6 +8,7 @@ mod census;
 mod projects;
 mod projects_json;
 mod proposal;
+mod unread;
 mod workers;
 pub(super) use proposal::projects_text;
 pub(super) mod question;
@@ -338,6 +339,7 @@ fn task_with_specification(
     out.put(b"\nwaiting on: ");
     waiting(task, me, book, out);
     out.put(b"\n");
+    unread::text(task, me, out);
     task_details(task, me, book, vocabulary, out);
 }
 fn task_details(

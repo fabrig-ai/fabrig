@@ -3,6 +3,7 @@ use super::{Limits, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Watchable, contract as c};
 use skein_lib::{List, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 /// A finding named across the client's forge and pages.
@@ -21,8 +22,7 @@ pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
 #[must_use]
 pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let filter =
-        w::FindingsFilter::Triage(w::FindingsTriage::new(&bounds, w::FindingsTriageParts { state, mine }).ok()?);
+    let filter = w::FindingsFilter::Triage(w::FindingsTriage { state, mine });
     filtered_watching(project, filter, &bounds)
 }
 
@@ -30,17 +30,17 @@ pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits
 #[must_use]
 pub fn goal_watching(project: u32, goal: u64, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let filter = w::FindingsFilter::Goal(w::FindingsGoal::new(&bounds, w::FindingsGoalParts { goal }).ok()?);
+    let filter = w::FindingsFilter::Goal(w::FindingsGoal { goal });
     filtered_watching(project, filter, &bounds)
 }
 
 fn filtered_watching(project: u32, filter: w::FindingsFilter, bounds: &w::Limits) -> Option<Watchable> {
-    let subject = w::FindingsSubject::new(bounds, w::FindingsSubjectParts { project, filter }).ok()?;
-    let watching = w::Watching::new(bounds, w::WatchingParts { watch: w::Watch::Findings(subject) }).ok()?;
+    let subject = w::FindingsSubject { project, filter };
+    let watching = w::Watching { watch: w::Watch::Findings(subject) };
     Some(Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&watching) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(bounds).ok()? },
     })
 }
 
@@ -57,14 +57,14 @@ pub enum Stands {
 /// Clearing takes precedence over the triage state.
 #[must_use]
 pub fn stands(row: &w::FindingRow) -> Stands {
-    if let Some(cleared) = row.cleared() {
-        return Stands::Cleared { tier: bytes::copy_of(cleared.tier()), run: cleared.run() };
+    if let Some(cleared) = &row.cleared {
+        return Stands::Cleared { tier: bytes::copy_of(&cleared.tier), run: cleared.run };
     }
-    match row.state() {
+    match row.state {
         w::FindingState::New => Stands::Waiting,
-        w::FindingState::Routed => Stands::Repairing(*row.goal()),
+        w::FindingState::Routed => Stands::Repairing(row.goal),
         w::FindingState::Backlog => Stands::Backlog,
-        w::FindingState::Dropped => Stands::Dropped(match row.reason() {
+        w::FindingState::Dropped => Stands::Dropped(match &row.reason {
             Some(reason) => reason.clone(),
             None => Box::default(),
         }),
@@ -77,7 +77,7 @@ pub fn uncleared_first(rows: &[w::FindingRow]) -> Box<[w::FindingRow]> {
     let mut ordered = List::uncapped();
     for cleared in [false, true] {
         for row in rows {
-            if row.cleared().is_some() == cleared {
+            if row.cleared.is_some() == cleared {
                 ordered.push(row.clone()).expect("the findings subject's rows fit a list");
             }
         }
@@ -96,10 +96,10 @@ pub fn document(record: &Family, limits: &Limits) -> Option<w::Findings> {
 #[must_use]
 pub fn request(project: u32, request: w::Request, limits: Limits) -> Option<Ask> {
     let bounds = wire_limits(&limits)?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
+    let record = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Project(project),
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 
@@ -114,7 +114,7 @@ pub fn outcome(outcome: &jig_client::Outcome, limits: Limits) -> Option<w::Outco
     if !reader.is_empty() {
         return None;
     }
-    Some(answer.outcome().clone())
+    Some(answer.outcome.clone())
 }
 
 #[cfg(test)]

@@ -2,9 +2,10 @@
 //! provider kept as scripted neighbours (protocol/channel.md, section 10).
 
 use skein_channel::StreamMode;
-use skein_lib::{Duration, Env, Queue, Reader, ReplyTo, Time, Token, Wall, Writer};
+use skein_lib::{Duration, Env, Queue, Reader, ReplyTo, Time, Token, Wall};
 use smith_channel::CEILINGS;
 use smith_channel_world::{Observation, World, initial_grant};
+use smith_charter::Record;
 use smith_domain::{self as agent, Event as AgentEvent, Request as AgentRequest};
 use smith_host_domain::{self as host, Down, Up};
 
@@ -157,52 +158,29 @@ fn composed_charter() -> host::Charter {
     let smallest = &crate::values::charter("smallest");
     let source =
         smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(smallest)).expect("golden charter");
-    let mut parts = source.into_parts();
-    parts.budget = smith_charter::Budget::new(
-        &smith_charter::CEILINGS,
-        smith_charter::BudgetParts {
-            turns: 1,
-            spend: 1,
-            time: Duration::from_secs(60),
-            reserve: smith_charter::Reserve::new(
-                &smith_charter::CEILINGS,
-                smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
-            )
-            .expect("bounded reserve"),
-        },
-    )
-    .expect("workable budget");
-    parts.contract = smith_charter::Contract::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ContractParts {
-            report: Some(
-                smith_charter::TextRule::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::TextRuleParts { max: 128, fields: skein_lib::List::with_capacity(0) },
-                )
-                .expect("report rule"),
-            ),
-            verdicts: skein_lib::List::with_capacity(0),
-            change: None,
-            failure: None,
-        },
-    )
-    .expect("outcome contract");
-    let mut llm = parts.main.into_parts();
+    let mut parts = source;
+    parts.budget = smith_charter::Budget {
+        turns: 1,
+        spend: 1,
+        time: Duration::from_secs(60),
+        reserve: smith_charter::Reserve { turns: 0, time: Duration::ZERO },
+    };
+    parts.contract = smith_charter::Contract {
+        report: Some(smith_charter::TextRule { max: 128, fields: skein_lib::List::with_capacity(0) }),
+        verdicts: skein_lib::List::with_capacity(0),
+        change: None,
+        failure: None,
+    };
+    let mut llm = parts.main;
     llm.account = Some(0);
     llm.model = Box::from(*b"fake");
     llm.window = 8192;
     llm.output = 1024;
-    llm.prices = smith_charter::Prices::new(
-        &smith_charter::CEILINGS,
-        smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-    )
-    .expect("prices");
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("valid charter record");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small charter"));
-    record.encode(&mut writer).expect("measured charter");
-    smith_channel_world::typed_charter(&writer.finish())
+    llm.prices = smith_charter::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 };
+    parts.main = llm;
+    let record = parts;
+    let bytes = record.encode(&smith_charter::CEILINGS).expect("small charter");
+    smith_channel_world::typed_charter(&bytes)
 }
 
 #[test]
@@ -437,6 +415,48 @@ fn composed_start() -> Composed {
 }
 
 #[test]
+fn usage_reaches_the_host_domain_and_its_parent() {
+    for (length, used, resets, agent_state, host_state) in [
+        (
+            Some(Duration::from_secs(604_800)),
+            Some(8100),
+            Some(1_781_845_200),
+            agent::UsageState::Warned,
+            smith_host_domain::UsageState::Warned,
+        ),
+        (None, None, None, agent::UsageState::Open, smith_host_domain::UsageState::Open),
+        (
+            Some(Duration::from_secs(18_000)),
+            None,
+            Some(0),
+            agent::UsageState::Limited,
+            smith_host_domain::UsageState::Limited,
+        ),
+    ] {
+        let Composed { mut host_world, mut wire, mut domain, env, mut out } = composed_start();
+        let owner = admit_composed(&mut wire, &mut host_world, &mut out);
+        let window =
+            agent::UsageWindow { label: b"seven_day".as_slice().into(), length, used, resets, state: agent_state };
+        let expected = smith_host_domain::UsageWindow {
+            label: window.label.clone(),
+            length,
+            used,
+            resets: resets.map(|seconds| Wall::from_nanos(seconds * 1_000_000_000)),
+            state: host_state,
+        };
+        agent::step(&mut domain, &env, AgentEvent::Below(agent::Below::Usage { owner, window }), &mut out);
+        while let Some(request) = out.pop() {
+            send_account_notice(&mut wire, request);
+        }
+        wire.settle();
+        let decoded = decoded_notice(&wire);
+        assert_eq!(decoded, Up::Usage { account: 0, window: expected.clone() });
+        host_world.up(decoded);
+        assert_eq!(host_world.seen.account_notices, [Up::Usage { account: 0, window: expected }]);
+    }
+}
+
+#[test]
 fn account_notices_reach_the_host_domain_without_values() {
     for NoticeCase { failure, report, detail, expected } in notice_cases() {
         let Composed { mut host_world, mut wire, mut domain, env, mut out } = composed_start();
@@ -483,6 +503,8 @@ fn admit_composed(wire: &mut World, host_world: &mut smith_host_world::World, ou
 fn send_account_notice(wire: &mut World, request: AgentRequest) {
     if let AgentRequest::Unauthorized { grant } = request {
         wire.agent_reports_unauthorized(grant.account, grant.generation);
+    } else if let AgentRequest::Usage { account, window } = request {
+        wire.agent_reports_usage(account, window);
     } else if let AgentRequest::Limited { account, reset } = request {
         wire.agent_reports_limited(account, reset);
     } else if let AgentRequest::Refused { account, code, reason } = request {
@@ -498,6 +520,8 @@ fn decoded_notice(wire: &World) -> Up {
         .find_map(|notice| {
             if let Observation::HostUnauthorized { account, generation } = notice {
                 Some(Up::Unauthorized { account: *account, generation: *generation })
+            } else if let Observation::HostUsage { account, window } = notice {
+                Some(Up::Usage { account: *account, window: window.clone() })
             } else if let Observation::HostLimited { account, reset } = notice {
                 Some(Up::Limited { account: *account, reset: *reset })
             } else if let Observation::HostRefused { account, code, reason } = notice {

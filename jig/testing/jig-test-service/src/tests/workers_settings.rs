@@ -4,6 +4,7 @@ use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
 use jig_protocol_engine_workers as engine;
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_channel::{Lower, LowerEvent};
 use skein_lib::{Duration, Intake, List, Queue, ReplyTo, Secret, Time, Token, Wall, Writer, stream};
 
@@ -40,55 +41,45 @@ fn component(driven: &mut Driven) -> &mut engine::Component {
 fn lower(driven: &mut Driven, connection: Token, event: LowerEvent, out: &mut Queue<engine::Request>) {
     component(driven).down(Time::ZERO, engine::Event::Lower { connection, event }, out);
 }
-fn hello(codec: &wire::v17::Limits) -> skein_channel::Frame {
+fn hello(_codec: &wire::v19::Limits) -> skein_channel::Frame {
     let mut bounds = fixtures::agent().bounds;
     bounds.inbox = u32::MAX;
     bounds.unacknowledged = u32::MAX;
     bounds.checks = Duration::from_nanos(1);
     let mut endpoints = List::with_capacity(u32::try_from(bounds.endpoints.len()).unwrap());
     for row in bounds.endpoints {
-        endpoints
-            .push(
-                wire::EndpointBound::new(
-                    codec,
-                    wire::EndpointBoundParts { endpoint: row.endpoint, window: row.window, output: row.output },
-                )
-                .unwrap(),
-            )
-            .unwrap();
+        endpoints.push(wire::EndpointBound { endpoint: row.endpoint, window: row.window, output: row.output }).unwrap();
     }
-    let bounds = wire::Bounds::new(
-        codec,
-        wire::BoundsParts {
-            endpoints,
-            program_endpoints: List::from_boxed(bounds.program_endpoints),
-            turns: bounds.turns,
-            spend: bounds.spend,
-            time: bounds.time,
-            waiting: bounds.waiting,
-            checks: bounds.checks,
-            message_bytes: bounds.message_bytes,
-            inbox: bounds.inbox,
-            unacknowledged: bounds.unacknowledged,
-            reply_bytes: bounds.reply_bytes,
-        },
+    let bounds = wire::Bounds {
+        endpoints,
+        program_endpoints: List::from_boxed(bounds.program_endpoints),
+        turns: bounds.turns,
+        spend: bounds.spend,
+        time: bounds.time,
+        waiting: bounds.waiting,
+        checks: bounds.checks,
+        message_bytes: bounds.message_bytes,
+        inbox: bounds.inbox,
+        unacknowledged: bounds.unacknowledged,
+        reply_bytes: bounds.reply_bytes,
+    };
+    let hello = wire::Hello {
+        slots: 4,
+        stop_bound: Duration::ZERO,
+        bounds,
+        workstreams: List::with_capacity(0),
+        hosting: List::with_capacity(0),
+        jobs: List::with_capacity(0),
+    };
+    let mut body = Writer::new(
+        usize::try_from(hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits")).unwrap(),
+    );
+    hello.write(&jig_protocol_worker_wire::CEILINGS, &mut body).unwrap();
+    let mut frame = skein_channel::frame_writer(
+        wire::Kind::Hello.number(),
+        hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     )
     .unwrap();
-    let hello = wire::Hello::new(
-        codec,
-        wire::HelloParts {
-            slots: 4,
-            stop_bound: Duration::ZERO,
-            bounds,
-            workstreams: List::with_capacity(0),
-            hosting: List::with_capacity(0),
-            jobs: List::with_capacity(0),
-        },
-    )
-    .unwrap();
-    let mut body = Writer::new(usize::try_from(hello.measure()).unwrap());
-    hello.encode(&mut body).unwrap();
-    let mut frame = skein_channel::frame_writer(wire::Kind::Hello.number(), hello.measure()).unwrap();
     frame.put(&body.finish()).unwrap();
     frame.finish().unwrap()
 }
@@ -103,32 +94,21 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
     let mut wires = List::with_capacity(codec.credential_wires);
     for spoken in wire::spoken().into_boxed() {
         wires
-            .push(
-                wire::Wire::new(
-                    &codec,
-                    wire::WireParts {
-                        name: spoken.name.as_bytes().into(),
-                        lowest: spoken.lowest,
-                        layouts: spoken.layouts,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(wire::Wire { name: spoken.name.as_bytes().into(), lowest: spoken.lowest, layouts: spoken.layouts })
             .unwrap();
     }
-    let credential = wire::Credential::new(
-        &codec,
-        wire::CredentialParts {
-            opening: wire::Opening::Link,
-            name: NAME.into(),
-            secret: Secret::new(secret.into()),
-            wires,
-            output: limits.room,
-        },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(credential.measure()).unwrap());
-    credential.encode(&mut bytes).unwrap();
+    let credential = wire::Credential {
+        opening: wire::Opening::Link,
+        name: NAME.into(),
+        secret: Secret::new(secret.into()),
+        wires,
+        output: limits.room,
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(credential.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"))
+            .unwrap(),
+    );
+    credential.write(&jig_protocol_worker_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = skein_fake_channel::ScriptedPeer::new(
         engine::limits::schema(&limits).unwrap(),
         skein_channel::Role::Initiator,

@@ -109,10 +109,10 @@ struct Call {
 pub struct Peer {
     face: Face,
     transport: Transport,
-    listen_address: SocketAddr,
     fresh: bool,
     blob_listener: Option<Token>,
     blob_address: Option<SocketAddr>,
+    blob_listen_address: Option<SocketAddr>,
     forge: Rc<RefCell<Forge>>,
     service: protocol::Service,
     protocol: protocol::Limits,
@@ -178,6 +178,7 @@ impl Peer {
             skein_fake_forge_github::Service::new(config, &protocol, seed).map_err(|_| Error::Limits)?,
         );
         let mut peer = Self::host(address, limits, protocol::Limits::Github(protocol), service, forge)?;
+        peer.blob_listen_address = Some(blob);
         peer.face.requests.push(io::Request::Listen { owner: BLOB_LISTENER, addr: io::Addr::Ip(blob) });
         Ok(peer)
     }
@@ -199,10 +200,10 @@ impl Peer {
         Ok(Self {
             face: Face::new(address, limits)?,
             transport: Transport::Plaintext,
-            listen_address: address,
             fresh: true,
             blob_listener: None,
             blob_address: None,
+            blob_listen_address: None,
             forge,
             service,
             protocol,
@@ -227,7 +228,7 @@ impl Peer {
             return Err(Error::Limits);
         };
         transport::validate(&self.face.limits, Transport::Tls)?;
-        let origin = format!("https://{}", SocketAddr::new(self.listen_address.ip(), u16::MAX));
+        let origin = format!("https://{}", SocketAddr::new(self.face.listen_address.ip(), u16::MAX));
         if origin.len() > usize::try_from(protocol.documents.target_bytes).map_err(|_| Error::Limits)? {
             return Err(Error::Limits);
         }
@@ -330,6 +331,7 @@ impl Peer {
         Env { now, wall, limits: self.protocol }
     }
 
+    #[expect(clippy::too_many_lines, reason = "the exhaustive io event dispatch includes listener refusal context")]
     fn event(&mut self, event: io::Event, now: Time, wall: Wall) {
         let Some(event) = self.delivery_event(event) else { return };
         let Some(event) = self.github_delivery_event(event, now, wall) else { return };
@@ -415,8 +417,17 @@ impl Peer {
                 }
             }
             io::Event::Closed { owner } => self.connection_closed(owner, &env),
-            io::Event::Failed { owner, .. } => {
-                assert!(owner != LISTENER && owner != BLOB_LISTENER, "the loopback listeners bind");
+            io::Event::Failed { owner, error } => {
+                let address = if owner == BLOB_LISTENER {
+                    self.blob_listen_address.expect("blob listen requested")
+                } else {
+                    self.face.listen_address
+                };
+                assert!(
+                    owner != LISTENER && owner != BLOB_LISTENER,
+                    "{}",
+                    crate::face::listener_failure("the forge", address, error)
+                );
                 if let Some(connection) = self.connections.iter_mut().find(|connection| connection.owner == owner) {
                     connection.wire.close(&mut self.face.requests);
                 }

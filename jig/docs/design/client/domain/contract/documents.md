@@ -116,7 +116,17 @@
     (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who
     concluded it and when, `concluded: Option<Concluded>`, none while
     delegates may join (`../../../domain/tasks/gatherings.md`, section
-    3); the proposals waiting in its subtree; how
+    3); the proposals waiting in its subtree; its unread words,
+    `unread: List<UnreadWords>`, oldest first, at most
+    `tasks.inbox_messages`: each words message from a person, or from
+    its requester where that is a task, that no run has recorded, still
+    in its inbox (`seen: false`) or kept unrecorded past a run's read
+    (`seen: true`, `../../../domain/tasks/messages.md`, 2), as
+    `UnreadWords { message: u64, by: Requester, at: Wall, seen: bool,
+    head: Text, bytes: u32 }`, `head` its words cut at a character's
+    edge to `UNREAD_HEAD_BYTES`, 256, and `bytes` their whole length, so
+    that a party sees what waits to be recorded without the document
+    carrying every message whole (its activity holds them whole); how
     far its activity has committed; for an agent task, `Task.settings:
     Option<TaskSettings>`, `TaskSettings { task: u32, run: Option<u32>,
     newest: u32 }`: the settings revision it records, its live run's
@@ -308,6 +318,10 @@ gets the account's kinds alone. A fact is whole, at its
 own bounds: neither the document's text bound nor a line's `cut` touches it.
 The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.
+A window's value also carries its rate (`AccountWindow.rate`, `Option<u32>`),
+its share per hour in basis points, or none: the core's memory beside the fact
+(`../../../domain/accounts.md`, 3.7), never stored. It moved the client wire's
+version, unbridged; the wire's layouts ledger names which.
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes

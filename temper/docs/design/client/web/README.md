@@ -108,10 +108,13 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   - `host`: the client host: temper's client root and view, and the
     view's patch queue, reserved at start at the view's limit on
     patches and drained each turn (skein's `ui/web/README.md`, 4.2); the root's
-    `Leave`, a forge's or an authorization's departure, as skein's
+    `Leave`, an authorization's departure or a removed forge's start
+    over, as skein's
     transport's navigation away, in the turn that asked it (skein's
     `ui/web/README.md`, section 8); the root's `Tab`, a sign-in's tab
-    (`../pages/README.md`, `ConnectModel`, The sign-in's tab), as skein's
+    or GitHub's way's (`../pages/accounts.md`, 1, `ConnectModel`, *The
+    sign-in's tab*; `../forge/deployment.md`, *GitHub's way, in a new
+    tab*), as skein's
     platform's, the opening before the turn's transport, and a refusal
     given back as a report of that turn; jig's
     mapping under `/jig` and its stream; the root's requests to jig's
@@ -451,7 +454,8 @@ replay says the same clocks (`../view.md`, 6).
   again after it and a field of another name, and the address is
   replaced with the printed one: `/terminal?code=wdjb-mjht` with
   `/terminal?code=WDJB-MJHT`, `/terminal?code=AEIO` and
-  `/terminal?x=1` with `/terminal`. Its printing,
+  `/terminal?x=1` with `/terminal`; so is a code whose read answers a
+  `typed` ask, which only a typed code approves. Its printing,
   `address::print_approve(code: Option<ApprovalCode>)`, `/terminal`
   for none, is the shown form, upper case, and the only one: the TUI makes its tab's address from the engine's
   address and this path alone (`../README.md`, 4.1). The place is no
@@ -505,9 +509,10 @@ replay says the same clocks (`../view.md`, 6).
 
 ### 2.4 Signing in
 
-- **The printed link,**
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, or the same
-  link at its page, `http://HOST:PORT/sign-in?secret=SECRET`, opened in a
+- **The printed link,** at its page,
+  `http://HOST:PORT/sign-in?secret=SECRET`, or the same link at the
+  route, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, as a
+  build before printed it, opened in a
   browser on the engine's machine (`../README.md`, section 4): temper's
   server answers either's `GET` with the page, which spends nothing (2.2); jig's sign-in part,
   given the link's route and its page, takes
@@ -819,11 +824,8 @@ they are, and two small root files carry the rest.
   widths. Domain, view and shell tables and gallery prints establish no
   rendered browser result. The TUI's own flow and walk follow
   `../../draft/tui.execution.md`, M2.
-- **Terminal approval at a public name** (2.4): Google's browser sign-in,
-  the code typed rather than carried in the address, the request's origin
-  and age, and a person's list of sign-ins with each ended from there
-  (`../../draft/tui.md`, section 7). The loopback page signs in by the
-  printed link, or by Google's way where it is given.
+- **A person's list of sign-ins,** each ended from there
+  (`../../draft/tui.md`, section 7).
 
 - **The outside pages' comparison** (`README.md`, 2.4, `look.md`, `gallery.md`, 2; `../pages/README.md` and `../view.md`, 1
   ; `../forge/served.md`, 1; `../../protocol/sign-in.md`, 4.3): temper/ui

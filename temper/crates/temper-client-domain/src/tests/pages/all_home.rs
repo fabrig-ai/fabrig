@@ -22,18 +22,14 @@ fn name(project: u32) -> Box<[u8]> {
     bytes::concat(&[b"Project ", Decimal::of(u64::from(project)).as_bytes()])
 }
 fn shown(project: u32, landed: u64, seen: u64, previous: Option<u64>, last: Option<u64>) -> Project {
-    let mut document = crate::tests::fixtures::status::document(landed, seen, None).into_parts();
+    let mut document = crate::tests::fixtures::status::document(landed, seen, None);
     document.project = project;
     document.previous = previous;
     document.last_landed = last;
     project_status(document)
 }
-fn project_status(document: w::ProjectStatusParts) -> Project {
-    Project {
-        project: document.project,
-        name: name(document.project),
-        status: Status::Shown(Box::new(w::ProjectStatus::new(&w::CEILINGS, document).unwrap())),
-    }
+fn project_status(document: w::ProjectStatus) -> Project {
+    Project { project: document.project, name: name(document.project), status: Status::Shown(Box::new(document)) }
 }
 fn unknown() -> Project {
     Project { project: THIRD, name: name(THIRD), status: Status::Unknown }
@@ -116,13 +112,13 @@ fn intro_counts_only_shown_projects_since_their_looks() {
     }
 }
 fn with_brief(project: u32, landed: u64, seen: u64, previous: Option<u64>, at: u64) -> Project {
-    let mut document = crate::tests::fixtures::status::document(landed, seen, Some(landed)).into_parts();
+    let mut document = crate::tests::fixtures::status::document(landed, seen, Some(landed));
     document.project = project;
     document.previous = previous;
-    let mut brief = document.brief.unwrap().into_parts();
+    let mut brief = document.brief.unwrap();
     brief.at = at;
     brief.lede = b"Ready! More follows.".as_slice().into();
-    document.brief = Some(w::StatusBrief::new(&w::CEILINGS, brief).unwrap());
+    document.brief = Some(brief);
     project_status(document)
 }
 fn line(project: u32) -> BriefLine {
@@ -342,20 +338,9 @@ impl Across {
     }
     fn settle(&mut self) -> Queue<Request> {
         let dismissed = self.watch(forge::dismissed::watch(&self.limits.forge).unwrap());
-        self.family(
-            dismissed,
-            wire::dismissals(
-                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: List::with_capacity(0) }).unwrap(),
-            ),
-        );
+        self.family(dismissed, wire::dismissals(&w::Dismissals { dismissed: List::with_capacity(0) }));
         let forges = self.watch(forge::forges::watch(&self.limits.forge).unwrap());
-        self.family(
-            forges,
-            wire::forges(
-                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0), linked: false })
-                    .unwrap(),
-            ),
-        );
+        self.family(forges, wire::forges(&w::Forges { forges: List::with_capacity(0), linked: false }));
         let settings = self.watch(Watchable::Jig(c::Subject::Settings));
         self.up(Up::Watched {
             watch: settings,
@@ -368,29 +353,20 @@ impl Across {
         })
     }
     fn status(&mut self, project: u32, previous: u64) {
-        let mut document = crate::tests::fixtures::status::document(3, 1, Some(3)).into_parts();
+        let mut document = crate::tests::fixtures::status::document(3, 1, Some(3));
         document.project = project;
         document.previous = Some(previous);
-        self.family(
-            self.status_watch(project),
-            wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, document).unwrap()),
-        );
+        self.family(self.status_watch(project), wire::project_status(&document));
     }
     pub fn decisions(&mut self, project: u32, rows: &[w::Decision]) -> Queue<Request> {
         self.family(
             self.decided_watch(project),
-            wire::decisions(
-                &w::Decisions::new(
-                    &w::CEILINGS,
-                    w::DecisionsParts {
-                        project,
-                        rows: List::from_boxed(rows.into()),
-                        asked: List::with_capacity(0),
-                        cut: false,
-                    },
-                )
-                .unwrap(),
-            ),
+            wire::decisions(&w::Decisions {
+                project,
+                rows: List::from_boxed(rows.into()),
+                asked: List::with_capacity(0),
+                cut: false,
+            }),
         )
     }
     fn act(&mut self, act: Act) -> Queue<Request> {
@@ -430,10 +406,9 @@ fn looks(out: &Queue<Request>) -> Box<[u32]> {
                     down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && let w::Request::Looked(row) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            && let w::Request::Looked(row) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
-            values.push(row.project()).unwrap();
+            values.push(row.project).unwrap();
         }
     }
     values.into_boxed()
@@ -468,7 +443,7 @@ fn family_answer(outcome: w::Outcome) -> jig_client::Outcome {
     jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+        bytes: wire::answer(&w::Answer { outcome }),
     }))
 }
 fn last_key(fixture: &Across) -> Key {
@@ -600,9 +575,9 @@ fn decisions_keep_the_newest_seven_across_projects_and_read_them() {
         let mut rows = List::with_capacity(THREE);
         for offset in 0..THREE {
             let number = project + offset * THREE;
-            let mut row = crate::tests::decided::decision(number, u64::from(number)).into_parts();
+            let mut row = crate::tests::decided::decision(number, u64::from(number));
             row.overturned = number == NINE;
-            rows.push(w::Decision::new(&w::CEILINGS, row).unwrap()).unwrap();
+            rows.push(row).unwrap();
         }
         for read in task_reads(&fixture.decisions(project, rows.as_slice())) {
             reads.push(read).unwrap();
@@ -761,12 +736,10 @@ fn away_uses_the_newest_finished_spell_after_the_latest_look() {
         }
         let mut values = List::with_capacity(w::CEILINGS.aways_rows);
         for &(project, since, off, until) in rows {
-            values
-                .push(w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project, since, off, until, landed: 0 }).unwrap())
-                .unwrap();
+            values.push(w::AwayRow { project, since, off, until, landed: 0 }).unwrap();
         }
         let away = fixture.watch(forge::away::watch(&fixture.limits.forge).unwrap());
-        fixture.family(away, wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: values }).unwrap()));
+        fixture.family(away, wire::aways(&w::Aways { rows: values }));
         assert_eq!(
             all_home::facts(&fixture.root, Wall::from_nanos(100)).away,
             match expected {
@@ -820,13 +793,7 @@ fn all_home_counts_unfiltered_cards_and_every_approval() {
             crate::tests::approvals::row(crate::tests::approvals::CHANGE, SECOND, None),
             crate::tests::approvals::row(crate::tests::approvals::OTHER_CHANGE, THIRD, None),
         ];
-        fixture.family(
-            approvals,
-            wire::approvals(
-                &w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows: List::from_boxed(Box::new(rows)), more })
-                    .unwrap(),
-            ),
-        );
+        fixture.family(approvals, wire::approvals(&w::Approvals { rows: List::from_boxed(Box::new(rows)), more }));
         assert_eq!(
             all_home::facts(&fixture.root, Wall::EPOCH).needs,
             Needs::Count { count: THREE, cut: inbox_cut || more > 0, findings: Counted::default() },

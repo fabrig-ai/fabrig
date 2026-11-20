@@ -72,12 +72,12 @@ fn findings_watch(requests: &[Request], project: u32, goal: u64) -> Handle {
             subject: jig_client::Watchable::Family { scope, record, .. },
         }) = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
+            && let w::Watch::Findings(subject) = watching.watch
         {
             assert_eq!(*scope, c::Scope::Project(project));
-            assert_eq!(subject.project(), project);
-            let w::FindingsFilter::Goal(filter) = subject.filter() else { panic!("goal filter") };
-            assert_eq!(filter.goal(), goal);
+            assert_eq!(subject.project, project);
+            let w::FindingsFilter::Goal(filter) = subject.filter else { panic!("goal filter") };
+            assert_eq!(filter.goal, goal);
             return *handle;
         }
     }
@@ -112,20 +112,14 @@ fn deliver_findings(
     rows: &[w::FindingRow],
     cut: bool,
 ) {
-    let document = w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project,
-            rows: List::from_boxed(rows.into()),
-            areas: List::with_capacity(0),
-            triager: None,
-            holder: w::Holder::Party(
-                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: fixtures::PARTY }).unwrap(),
-            ),
-            cut,
-        },
-    )
-    .unwrap();
+    let document = w::Findings {
+        project,
+        rows: List::from_boxed(rows.into()),
+        areas: List::with_capacity(0),
+        triager: None,
+        holder: w::Holder::Party(w::HolderParty { number: fixtures::PARTY }),
+        cut,
+    };
     h.fixture.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
@@ -144,37 +138,25 @@ fn deliver_findings(
     h.event(Event::Told { told: Told::Changed { handle } });
 }
 fn red(number: u32, cleared: bool) -> w::FindingRow {
-    w::FindingRow::new(
-        &w::CEILINGS,
-        w::FindingRowParts {
-            number,
-            kind: w::FindingKind::Red,
-            severity: w::Severity::High,
-            area: None,
-            state: w::FindingState::New,
-            title: b"A red test".as_slice().into(),
-            holder: w::Holder::Party(
-                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: fixtures::PARTY }).unwrap(),
-            ),
-            at: u64::from(number),
-            why: None,
-            hander: None,
-            goal: None,
-            reason: None,
-            cleared: if cleared {
-                Some(
-                    w::FindingClearing::new(
-                        &w::CEILINGS,
-                        w::FindingClearingParts { tier: b"nightly".as_slice().into(), run: 412, at: 23 },
-                    )
-                    .unwrap(),
-                )
-            } else {
-                None
-            },
+    w::FindingRow {
+        number,
+        kind: w::FindingKind::Red,
+        severity: w::Severity::High,
+        area: None,
+        state: w::FindingState::New,
+        title: b"A red test".as_slice().into(),
+        holder: w::Holder::Party(w::HolderParty { number: fixtures::PARTY }),
+        at: u64::from(number),
+        why: None,
+        hander: None,
+        goal: None,
+        reason: None,
+        cleared: if cleared {
+            Some(w::FindingClearing { tier: b"nightly".as_slice().into(), run: 412, at: 23 })
+        } else {
+            None
         },
-    )
-    .unwrap()
+    }
 }
 #[test]
 fn an_ended_goal_watches_its_reds_too() {

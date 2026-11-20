@@ -3222,6 +3222,188 @@ fn a_source_that_never_started_has_a_logged_outcome_and_never_fails_the_group() 
     stop_fetch_box(&mut h);
 }
 
+fn unheld_owned_steps() -> temper_forge_setup::Steps {
+    use temper_forge_setup::{Kind, machine::BoxKind, setup_file};
+    let dirs = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    let setup_file::SetupFile::Owned(mut owned) =
+        setup_file::chosen(BoxKind::Owned, 8123, b"ada", false, &dirs).unwrap()
+    else {
+        panic!("owned setup")
+    };
+    owned.fetch.forgejo = false;
+    owned.fetch.runner = false;
+    owned.runner = None;
+    let mut steps = temper_forge_setup::kinds(Some(&owned), &[], Box::new([]), false, true, None);
+    // Only the executables are faked; the listener and readiness descriptions are production's.
+    steps.always[0] = long(b"serve", &[b"never"]);
+    let group = steps.asked.get_mut(0).unwrap();
+    for (_, step) in &mut group.steps {
+        let command = match step.kind() {
+            Kind::Once => b"exit".as_slice(),
+            Kind::Long => b"never".as_slice(),
+            Kind::Link | Kind::Source => panic!("only preparation and Forgejo"),
+        };
+        *step = step
+            .clone()
+            .with_command(step.name().into(), Box::new([command.into(), b"0".as_slice().into(), step.name().into()]));
+    }
+    group.remover = Some(once(b"remove", &[b"exit", b"0", b"remove"]));
+    steps
+}
+fn unheld_owned_harness(restored: bool) -> Harness {
+    use skein_fake_machine::Item;
+    let records = [
+        Item::directory(b"box"),
+        Item::directory(b"box/groups"),
+        Item::directory(b"box/started"),
+        Item::file(b"box/groups/1", b"owned\n"),
+        Item::file(b"box/started/1", b""),
+    ];
+    let items = super::fixtures::with_setup(
+        if restored { &records } else { &[] },
+        temper_forge_setup::machine::BoxKind::Owned,
+        1,
+        3000,
+    );
+    let mut h = Harness::grouped(unheld_owned_steps(), &items, true);
+    h.open_groups = false;
+    if !restored {
+        h.run_until_idle();
+        h.ask(b"start 1\n");
+    }
+    h
+}
+fn pending_group_listener(h: &mut Harness) -> (u16, core::net::SocketAddr) {
+    for _ in 0..1000_u32 {
+        h.turn();
+        if let Some(open) = h.service.take_group_listener() {
+            return open;
+        }
+    }
+    panic!("the group asks to check its setup port")
+}
+fn check_unheld_group(h: &mut Harness) -> (skein_io::kernel::Fd, skein_io::kernel::Fd) {
+    use super::fixtures::try_listener;
+    let address = ([127, 0, 0, 1], 3000).into();
+    assert_eq!(pending_group_listener(h), (1, address));
+    let before = h.launches.len();
+    let listener = try_listener(&mut h.sim, h.pid, address).unwrap();
+    h.endings.fds[0] = Some(listener);
+    h.service.group_listener_opened(1, Some(listener));
+    h.run_until_idle();
+    assert_eq!(h.launches.len(), before, "no group step starts before Closed");
+    let mut closed = false;
+    for complete in &h.endings.completions {
+        if complete.kind == (skein_io::kernel::Op::Close { fd: listener }) {
+            assert_eq!(complete.result, Ok(Done::Nothing));
+            closed = true;
+        }
+    }
+    assert!(closed, "the check listener is closed through io");
+    // Forgejo can now bind the port; no box-held listener remains at this address.
+    let ready = try_listener(&mut h.sim, h.pid, address).expect("the group's port is free");
+    h.endings.fds = [None; 5];
+    h.release_endings();
+    h.run_until_idle();
+    (ready, listener)
+}
+fn answer_unheld_forgejo(h: &mut Harness, listener: skein_io::kernel::Fd) {
+    use super::fixtures::call;
+    use skein_io::kernel::Op;
+    let Ok(Done::Accepted { fd, .. }) = call(&mut h.sim, h.pid, Op::Accept { fd: listener }).result else {
+        panic!("readiness connects to the setup file's port, not the template's")
+    };
+    assert_eq!(
+        call(&mut h.sim, h.pid, Op::Send { fd, bytes: b"HTTP/1.1 200 OK\r\n".as_slice().into(), from: 0 }).result,
+        Ok(Done::Count(17))
+    );
+    h.run_until_idle();
+    assert_eq!(call(&mut h.sim, h.pid, Op::Close { fd }).result, Ok(Done::Nothing));
+    assert_eq!(call(&mut h.sim, h.pid, Op::Close { fd: listener }).result, Ok(Done::Nothing));
+}
+#[test]
+fn a_group_taking_no_listener_checks_and_closes_before_starting_or_restoring() {
+    use skein_fake_machine::How;
+    for restored in [false, true] {
+        let mut h = unheld_owned_harness(restored);
+        let (ready, _) = check_unheld_group(&mut h);
+        assert_eq!(h.spawn_times(b"forgejo").len(), 1);
+        for launch in &h.launches {
+            if launch.name.as_ref() == b"forgejo" {
+                for entry in &launch.environment {
+                    assert!(!entry.starts_with(b"LISTEN_FDS="));
+                }
+                for pipe in &launch.pipes {
+                    assert_ne!(pipe.child, 3, "no descriptor 3 from the box");
+                }
+            }
+        }
+        answer_unheld_forgejo(&mut h, ready);
+        if restored {
+            h.ask(b"start 1\n");
+            h.run_until_idle();
+        }
+        assert!(h.reply_bytes().ends_with(b"started 1\n"));
+        let root = h.machine.reopen_root(0);
+        let group = h.machine.open(root, b"box/groups/1", How::Read).unwrap();
+        assert_eq!(h.machine.read(group, 0, 8).unwrap(), b"owned\n");
+        h.machine.close(group);
+        h.machine.close(root);
+        // Loaded without a listener still means loaded: another start checks nothing.
+        h.ask(b"start 1\n");
+        h.run_until_idle();
+        assert!(h.service.take_group_listener().is_none());
+        assert_eq!(h.spawn_times(b"forgejo").len(), 1);
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_front_settled(&h);
+    }
+}
+#[test]
+fn a_group_taking_no_listener_still_refuses_a_taken_port() {
+    let mut h = unheld_owned_harness(false);
+    assert_eq!(pending_group_listener(&mut h), (1, ([127, 0, 0, 1], 3000).into()));
+    h.service.group_listener_opened(1, None);
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"failed 1 listener 3000 taken\n");
+    assert_eq!(h.spawn_times(b"prepare").len(), 0);
+    assert_eq!(h.spawn_times(b"forgejo").len(), 0);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_front_settled(&h);
+}
+#[test]
+fn removing_a_group_taking_no_listener_closes_none_and_a_new_start_checks_again() {
+    let mut h = unheld_owned_harness(false);
+    let (ready, checked) = check_unheld_group(&mut h);
+    answer_unheld_forgejo(&mut h, ready);
+    let child = h.hosted.get(h.child_index(b"forgejo")).unwrap().pid;
+    h.replies.clear();
+    h.ask(b"remove 1\n");
+    h.run_until_idle();
+    h.sim.finish_service(child, Exit::Code(0));
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 1\n");
+    let mut closes = 0_u32;
+    for entry in h.sim.trace() {
+        if entry.pid == h.pid
+            && let Event::Submit { kind: Summary::Close { fd }, .. } = entry.event
+            && fd == checked
+        {
+            closes += 1;
+        }
+    }
+    assert_eq!(closes, 1, "only the port check closed the group's listener, not removal");
+    h.ask(b"start 1\n");
+    let (ready, _) = check_unheld_group(&mut h);
+    answer_unheld_forgejo(&mut h, ready);
+    assert!(h.reply_bytes().ends_with(b"started 1\n"));
+    assert_eq!(h.spawn_times(b"forgejo").len(), 2);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_front_settled(&h);
+}
+
 #[test]
 fn group_listeners_are_released_only_after_successful_removal() {
     use super::fixtures::{kind_steps, setup_items};

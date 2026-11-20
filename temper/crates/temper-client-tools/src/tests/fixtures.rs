@@ -504,9 +504,7 @@ pub(crate) fn waiting_on_me() -> c::WaitsOn {
     c::WaitsOn::Party { whom: c::Whom::Person(PARTY), entries: 1, task: OTHER_TASK, kind: c::WaitedFor::Question }
 }
 pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
-    use jig_client_protocol_wire as w;
-    let record =
-        w::Task::new(&w::CEILINGS, jig_client_test_records::task_record().into_parts()).expect("record fixture");
+    let record = jig_client_test_records::task_record();
     let limits = jig_client_protocol_link::Limits::new(
         crate::limits::client().client.domain,
         crate::limits::client().client.exchanges,

@@ -57,6 +57,7 @@ impl World {
             worker,
             channel,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 slots: 2,
                 stop_bound: Duration::from_secs(1),

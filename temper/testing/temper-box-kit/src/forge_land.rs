@@ -1041,7 +1041,7 @@ pub fn printed_command(args: &[String]) -> Vec<String> {
 /// A unique marker for this live sitting, carried into its README and notice.
 #[must_use]
 pub fn live_tag() -> String {
-    let minute = std::process::Command::new("/usr/bin/date")
+    let minute = std::process::Command::new("/bin/date")
         .args(["-u", "+%Y-%m-%dT%H:%MZ"])
         .env_clear()
         .output()

@@ -13,12 +13,15 @@
   the deployment's forges." Its acts are the FORGE
   requests (`../engine.md`), each sent as `../README.md`, 3.6
   says; a pasted key or token is a secret field (`../README.md`, 3.6). A connect's or
-  an install's link is where the page's own tab goes, once (`Request::Leave`,
-  from the answer), the request naming
-  the page's address as its `back` (`../engine.md`); GitHub's last step
-  sends the tab back there (`served.md`, 1), and the page shows a
-  whole address's link as an external link meanwhile (`../line.md`, 5); a
-  connect's path (`../engine.md`) leaves at once, and none is drawn. How a
+  an install's link is where a new tab goes, opened by the press and
+  pointed once from the answer (`Tab::Open`, `Tab::Point`), the request
+  naming no `back` (`../engine.md`); the page stays and waits, its note
+  holding the link, "Open it again ›" (in the browser a connect's is
+  the client's link to the manifest's path, pointing a tab as the press
+  did), a connect's
+  becoming the forge's Install once its App is made, and moves on
+  by itself on the `forges` watch (`deployment.md`, *GitHub's way, in a
+  new tab*); the terminal prints the link (`../line.md`, 5). How a
   connect ends is read on the page, never assumed from its answer. Its
   rows are the forges the store keeps, made by a set up or a connect
   (`../../protocol/forge/engine.md`, 1 and 2); "Remove" on a row, confirmed,

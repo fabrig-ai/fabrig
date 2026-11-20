@@ -42,7 +42,12 @@ impl View {
             sign_in,
             forge_sign_in: crate::forge_sign_in::Forges::new(),
             render: skein_ui::View::new(&limits.tree),
-            forge: forge::bindings::Bindings::new(limits.tree.bindings, domain.forge.checks, forge),
+            forge: forge::bindings::Bindings::new(
+                limits.tree.bindings,
+                domain.forge.checks,
+                forge,
+                limits.tree.text_per_node,
+            ),
             pages: crate::bindings::Bindings::new(limits.tree.bindings),
             accounts: crate::accounts::Bindings::new(
                 domain.client.domain.accounts,
@@ -476,8 +481,12 @@ pub fn act_event(view: &mut View, node: NodeId, act: Act) -> Option<temper_clien
 }
 /// The line a sign-in's tab holds until its address comes (client/pages/README.md).
 #[must_use]
-pub fn opening_tab(view: &View, root: &Domain, provider: u32) -> Box<[u8]> {
+pub fn opening_tab(view: &View, root: &Domain, opening: temper_client_domain::Opening) -> Box<[u8]> {
     let words = &view.forge_words;
+    let provider = match opening {
+        temper_client_domain::Opening::SignIn { provider } => provider,
+        temper_client_domain::Opening::GitHub => return words.say(crate::words::Word::GitHubTabOpening, &[]),
+    };
     let mut name = b"".as_slice();
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
         for offer in &me.providers {
@@ -513,6 +522,9 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Forge(temper_client_domain::forge::Act::Go {
             address: temper_client_domain::forge::Address::Adopt { project },
         }) => Some(temper_client_domain::address::print(&temper_client_domain::Address::Adopt { project })),
+        Action::Forge(temper_client_domain::forge::Act::OpenGitHub { to }) => {
+            Some(skein_lib::bytes::copy_of(temper_client_domain::forge::github::origin_path(&to)?))
+        }
         Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } | Action::LoginEnded { .. } => {
             None
         }
@@ -589,10 +601,22 @@ mod tab_tests {
             },
         );
         let view = f::view();
-        assert_eq!(opening_tab(&view, &root, 17).as_ref(), "Opening ChatGPT’s sign-in…".as_bytes());
-        assert_eq!(opening_tab(&view, &root, 31).as_ref(), "Opening Claude’s sign-in…".as_bytes());
-        assert_eq!(opening_tab(&view, &root, 99).as_ref(), "Opening ’s sign-in…".as_bytes());
+        assert_eq!(
+            opening_tab(&view, &root, temper_client_domain::Opening::SignIn { provider: 17 }).as_ref(),
+            "Opening ChatGPT’s sign-in…".as_bytes()
+        );
+        assert_eq!(
+            opening_tab(&view, &root, temper_client_domain::Opening::SignIn { provider: 31 }).as_ref(),
+            "Opening Claude’s sign-in…".as_bytes()
+        );
+        assert_eq!(
+            opening_tab(&view, &root, temper_client_domain::Opening::SignIn { provider: 99 }).as_ref(),
+            "Opening ’s sign-in…".as_bytes()
+        );
         let root = temper_client_domain::new(&f::limits(), f::SEED);
-        assert_eq!(opening_tab(&view, &root, 17).as_ref(), "Opening ’s sign-in…".as_bytes());
+        assert_eq!(
+            opening_tab(&view, &root, temper_client_domain::Opening::SignIn { provider: 17 }).as_ref(),
+            "Opening ’s sign-in…".as_bytes()
+        );
     }
 }

@@ -70,20 +70,10 @@ fn repeated_unknown_and_out_of_range_statements_fault_the_link_and_redial() {
             let mut wires = List::with_capacity(1);
             let name = if fault == "unknown" { b"unknown-wire".as_slice() } else { b"jig-worker-wire" };
             wires
-                .push(
-                    wire::AgreedWire::new(
-                        &fixtures::codec(),
-                        wire::AgreedWireParts {
-                            name: name.into(),
-                            version: if fault == "unknown" {
-                                3
-                            } else {
-                                wire::VERSION.checked_add(1).expect("above current")
-                            },
-                        },
-                    )
-                    .expect("wire"),
-                )
+                .push(wire::AgreedWire {
+                    name: name.into(),
+                    version: if fault == "unknown" { 3 } else { wire::VERSION.checked_add(1).expect("above current") },
+                })
                 .expect("wire slot");
             engine.play(fixtures::agreement_frame(wires));
         }

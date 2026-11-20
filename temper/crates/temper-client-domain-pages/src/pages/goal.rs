@@ -163,10 +163,10 @@ impl Goal {
                 if let Some(document) = client.document(*handle)
                     && let Some(Latest::Family(record)) = document.latest
                     && let Some(document) = forge::findings::document(record, &self.forge_limits)
-                    && document.project() == self.project
+                    && document.project == self.project
                 {
-                    self.reds = forge::findings::uncleared_first(document.rows().as_slice());
-                    self.reds_cut = document.cut();
+                    self.reds = forge::findings::uncleared_first(document.rows.as_slice());
+                    self.reds_cut = document.cut;
                 }
                 true
             }

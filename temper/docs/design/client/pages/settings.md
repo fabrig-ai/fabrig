@@ -37,8 +37,8 @@
     at `/deployment/members`; and "Limits", to `Limits`, at
     `/deployment/limits`. Models and Workers name the open project, as the
     rail does.
-  - *`Forges` and `Accounts`* keep their addresses and paths, so that a
-    connect's `back`, To begin's links and their tests hold, and so do
+  - *`Forges` and `Accounts`* keep their addresses and paths, so that
+    To begin's links and their tests hold, and so do
     `Models` and `Builders`. Whenever the
     page has a project, as the rail does (`../view.md`, 3), they draw inside Deployment's frame,
     with no level-1 heading of their own and no page bar; their rows follow
@@ -295,20 +295,23 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     where it runs none. Under it, with no tabs, the head Ask temper's page
     draws (`ask-temper.md`, 1, *the head*; the look request
     `ways-current`'s default, which the person chose for this page on
-    2026-11-16): the shown way's line at its left, a stock way's `line`,
-    the project words' `lede` or "PROJECT runs settings of its own."; at
-    its right the shown way's act, "Use this" or "Keep it" (*A way's
-    acts,* below), "Back" while a way the project doesn't run is shown,
-    and the "Stock ways" menu, the way the project runs ticked where it is
-    a stock one; then its path, the drawing Ask temper's page draws
+    2026-11-16; the look request `ways-shown`, 2026-11-19): the shown
+    way's line, a stock way's `line`, the project words' `lede` or
+    "PROJECT runs settings of its own.", the column to itself; its acts,
+    the shown way's act, "Use this" or "Keep it" (*A way's acts,* below),
+    and the drop-down naming the way shown, its button and menu as Ask
+    temper's (`ask-temper.md`, 1, *the head*), with no "Back", at the
+    right of the section's head row, after "the way: NAME", that row
+    leaving them room, so that switching ways moves nothing; on a phone
+    the head wraps as Ask temper's does, the line, then the acts; then its path, the drawing Ask temper's page draws
     (`chat/conversation.md`, 3), its stops pressed, laid out by the box's width, the legend
     under it as Ask temper's page has it, with no button beside it; while
     a stop is open, its card, as Ask temper's page draws a stop's card,
     its caret across; and a refusal under the legend. The page's own
     heading, lede and "Ask temper to change this" stay as they are, and
     Ask temper's last line is not drawn here. The terminal prints the
-    head's line, the path, the card, the legend, the act and "Back", then
-    "Stock ways:" and the three names, as Ask temper's page does. The
+    head's line, the path, the card, the legend and the act, then
+    "Stock ways:" and its names, as Ask temper's page does. The
     shown way and the open stop are the page's state, as on Ask temper's page. Until the read
     answers the section holds its title alone; once its watch has ended,
     "The ways can't be read now.", muted.
@@ -576,8 +579,9 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   runs, while To begin's "Tell temper how you work" is left (`home.md`, 1, *To
   begin*), so that its values become the project's own and that change
   marks the step done; once the step is done the current way has no act.
-  A project that runs no stock way has a fourth, *"Yours"*, current, its
-  path the read's `own`, with no act. Neither act shows where `may_change`
+  A project that runs no stock way has a fourth, current, its path the
+  read's `own`, with no act, which the head's drop-down names
+  "PROJECT's own" (`ask-temper.md`, 1, *the head*). Neither act shows where `may_change`
   is false. While one is out both are disabled; a `stale` refusal is sent
   once more against the revision it names; a refusal is said in jig's
   words with the forge's reason, as an approval too few people can give

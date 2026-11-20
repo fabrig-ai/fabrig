@@ -83,6 +83,83 @@ class ProtocolTests(unittest.TestCase):
                 self.assertIn('ok a' if scenario == 'pass' else 'failed a', logfile.read_text())
 
 
+class ProfileTargetTests(unittest.TestCase):
+    def test_cargo_targets_and_named_test_exceptions(self):
+        one = runpy.run_path(str(HERE / 'one_process.py'))
+        with tempfile.TemporaryDirectory(dir=HERE.parents[1]) as scratch, contextlib.chdir(scratch):
+            root = Path.cwd()
+            (root / 'Cargo.toml').write_text('[workspace]\nmembers=["app", "other"]\nresolver="2"\n')
+            for name in ('app', 'other'):
+                package = root / name
+                (package / 'tests').mkdir(parents=True)
+                (package / 'Cargo.toml').write_text(f'[package]\nname="{name}"\nversion="0.1.0"\nedition="2024"\n')
+                for target in ('live', 'suite'):
+                    (package / 'tests' / (target + '.rs')).write_text(
+                        '#[test] fn kept() {}\n#[test] fn slow() {}\nmod fuzzy { #[test] fn sample() {} }\n')
+            config = root / '.config/nextest.toml'
+            config.parent.mkdir()
+            config.write_text("""[profile.default]
+default-filter = "not test(/^fuzzy::/) & (not binary(=live) | (package(=other) & test(=kept)))"
+[profile.fuzzy]
+default-filter = "test(/^fuzzy::/) - binary(=live)"
+""")
+            subprocess.run(['cargo', 'generate-lockfile', '--offline'], check=True, capture_output=True)
+            command = ['cargo', 'nextest', 'run', '-p', 'app', '-p', 'other', '--no-tests=warn']
+            build_target = root / 'landing'
+            landing_env = dict(os.environ, CARGO_TARGET_DIR=str(build_target), CARGO_NET_OFFLINE='true',
+                               TIERS_PROFILE_TARGETS='1')
+            built = subprocess.run([HERE / 'build-profile-targets', '--workspace'], env=landing_env,
+                                   capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            self.assertIn('skip linking app::live', built.stdout)
+            dep_info = '\n'.join(path.read_text() for path in build_target.rglob('*.d'))
+            self.assertNotIn('app/tests/live.rs', dep_info)
+            self.assertIn('other/tests/live.rs', dep_info)
+            for profile in ('default', 'fuzzy'):
+                selections = []
+                for mode in ('broad', 'pruned', 'landing'):
+                    if mode == 'landing':
+                        target, env = build_target, landing_env
+                        args = ['cargo', 'nextest', 'run', '--workspace', '--no-tests=warn']
+                    else:
+                        target = root / mode
+                        env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_NET_OFFLINE='true',
+                                   TIERS_PRE_PR_TARGETS='1' if mode == 'pruned' else '0')
+                        args = command
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        plan, *_ = one['listed_plan'](args, env, profile, {}, config, None, root / 'layers.toml')
+                    selections.append({(binary['binary_id'], case['name'])
+                                       for binary in plan['binaries'] for case in binary['tests']})
+                    linked = any('app/tests/live.rs' in path.read_text() for path in target.rglob('*.d'))
+                    self.assertEqual(linked, mode == 'broad')
+                self.assertEqual(selections[0], selections[1])
+                self.assertEqual(selections[0], selections[2])
+                self.assertIn(('app::suite', 'kept' if profile == 'default' else 'fuzzy::sample'), selections[2])
+                self.assertEqual(('other::live', 'kept') in selections[2], profile == 'default')
+
+            config.write_text('[profile.default]\ndefault-filter="none()"\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                plan, _, no_tests, _ = one['listed_plan'](command, env, 'default', {}, config, None, root / 'layers.toml')
+            self.assertEqual((plan['binaries'], no_tests), ([], 'warn'))
+
+            # Splitting the two roots would disable a feature of a shared dependency for app.
+            (root / '.cargo').mkdir()
+            (root / '.cargo/config.toml').write_text('[resolver]\nfeature-unification="selected"\n')
+            (root / 'shared/src').mkdir(parents=True)
+            (root / 'shared/Cargo.toml').write_text('[package]\nname="shared"\nversion="0.1.0"\n[features]\nextra=[]\n')
+            (root / 'shared/src/lib.rs').touch()
+            for name in ('app', 'other'):
+                with (root / name / 'Cargo.toml').open('a') as manifest:
+                    features = ', features=["extra"]' if name == 'other' else ''
+                    manifest.write(f'[dependencies]\nshared={{path="../shared"{features}}}\n')
+            subprocess.run(['cargo', 'generate-lockfile', '--offline'], check=True, capture_output=True)
+            metadata = json.loads(subprocess.check_output(['cargo', 'metadata', '--no-deps', '--format-version', '1']))
+            args = ['-p', 'app', '-p', 'other']
+            filters = [one['filterset']('not (package(=app) & binary(=live))')]
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(one['profile_target_groups'](args, metadata, filters, ['cargo'], os.environ), [args])
+
+
 class ConfigurationTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-config-')

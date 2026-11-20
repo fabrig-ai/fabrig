@@ -3,6 +3,7 @@ use super::*;
 use jig_domain_core::{documents as d, reads};
 use skein_lib::{List, Reader};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use w::Record;
 
 fn query(milestone: u64) -> d::TaskQuery {
     let mut query = jig_test_profile::fixtures::own_tasks();
@@ -49,7 +50,7 @@ fn totals(world: &mut World, milestone: u64) -> forge_top::MilestoneTotals {
 
 fn counts(world: &mut World, milestone: u64, reds: u32) {
     assert_eq!(totals(world, milestone).reds, reds, "Milestone read");
-    assert_eq!(part(world, milestone).totals().reds(), reds, "milestone part");
+    assert_eq!(part(world, milestone).totals.reds, reds, "milestone part");
 }
 
 fn watch(world: &mut World, milestone: u64, goal: u64) {
@@ -184,11 +185,11 @@ fn a_complete_milestones_reds_follow_drops_and_clearing_in_reads_and_cached_part
     world.restart_same();
     world.until(Until::Ready);
     tiers::sign_in(&mut world);
-    assert_eq!(part(&mut world, milestone).totals().reds(), 1);
-    assert_eq!(part(&mut world, milestone).totals().reds(), 1);
+    assert_eq!(part(&mut world, milestone).totals.reds, 1);
+    assert_eq!(part(&mut world, milestone).totals.reds, 1);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"failures", b"", 1).unwrap();
     filtered::judged(&mut world, 3);
-    assert_eq!(part(&mut world, milestone).totals().reds(), 0, "cached ended totals are recounted");
+    assert_eq!(part(&mut world, milestone).totals.reds, 0, "cached ended totals are recounted");
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Milestone {
         row: forge_top::MilestoneRow {
             task: milestone,

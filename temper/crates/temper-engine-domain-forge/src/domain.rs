@@ -138,6 +138,7 @@ pub(crate) struct PendingStep {
     paths_whole: bool,
     woken: bool,
     retry_at: Option<skein_lib::Time>,
+    read: Option<(skein_forge::api::Repository, skein_forge::api::Read)>,
     progress: List<(change::Change, change::Change)>,
 }
 /// Comparison at its head and the first time the last judged reviews were kept.
@@ -787,6 +788,17 @@ impl Domain {
             Some(row) => row.room.is_some(),
             None => false,
         }
+    }
+
+    /// A making keeps its place while its task is held (domain/forge/room.md, 3).
+    #[must_use]
+    pub fn making_waits(&self, task: u64) -> bool {
+        for (_, pending) in &self.makings {
+            if pending.task == task && pending.outbox_wait.is_some() {
+                return true;
+            }
+        }
+        false
     }
 
     /// An ask holds room until this procedure can decide afresh.
@@ -1550,6 +1562,28 @@ impl Domain {
         tasks.into_boxed()
     }
 
+    /// Refresh jig's revision projection before reading verdicts. The forge never advances it
+    /// (temper/docs/design/domain/forge/change/gates.md, 1, Valid at a spec revision).
+    pub fn refresh_spec_revision(&mut self, task: u64, revision: u64, out: &mut Queue<Request>) {
+        let Some(row) = self.changes.get_mut(&task) else { return };
+        if row.frozen() || row.spec_revision == revision {
+            return;
+        }
+        row.spec_revision = revision;
+        let saved = row.clone();
+        let mut reviewing = false;
+        for gate in &row.change.gates {
+            reviewing |= gate.kind == change::GateKind::Agent;
+        }
+        if reviewing {
+            if let Some(landing) = row.change.landing {
+                emit(out, Request::WakeProcedure { task: landing });
+            }
+            emit(out, Request::WakeProcedure { task });
+        }
+        save_change(self, out, saved);
+    }
+
     /// Current durable change state used by the root's procedure route.
     #[must_use]
     pub fn change(&self, task: u64) -> Option<&ChangeRow> {
@@ -1774,6 +1808,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        Event::WayEnded { forge, why } => crate::connect::way_ended(d, forge, &why, out),
         Event::Owner { party } => crate::link::owner(d, party, out),
         Event::PersonOf { forge, answer } => crate::link::person_of(d, forge, answer, out),
         Event::BotLogin { forge, login } => crate::connect::bot_login(d, forge, login, out),
@@ -2172,8 +2207,21 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
-        Event::DelegateResult { task, child, ended_at, status, no_change, flake, failed, cancelled, words } => {
-            delegate_result(d, env, task, child, ended_at, status, no_change, flake, failed, cancelled, &words, out);
+        Event::DelegateResult {
+            task,
+            child,
+            ended_at,
+            status,
+            no_change,
+            flake,
+            no_test,
+            failed,
+            cancelled,
+            words,
+        } => {
+            delegate_result(
+                d, env, task, child, ended_at, status, no_change, flake, no_test, failed, cancelled, &words, out,
+            );
         }
         Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
@@ -3891,6 +3939,7 @@ fn delegated(
     kind: change::Delegate,
     out: &mut Queue<Request>,
 ) {
+    let base = delegate_base(d, task, kind);
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
@@ -3902,6 +3951,9 @@ fn delegated(
         change::Delegate::Repair(why) => {
             row.regate = None;
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
+            if let Some(base) = base {
+                row.result.judged(&base, env.limits.client.answer_bytes);
+            }
             row.repair_tasks = task_account(&row.repair_tasks, child);
         }
         change::Delegate::Resolve { .. } => row.resolution_tasks = task_account(&row.resolution_tasks, child),
@@ -3926,10 +3978,25 @@ fn delegated(
     row.effect_account = None;
     row.delegate_status = change::Status::Unknown;
     row.delegate_flake = false;
+    row.delegate_no_test = false;
     let mut saved = row.clone();
     crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved);
+}
+
+fn delegate_base(d: &Domain, task: u64, kind: change::Delegate) -> Option<skein_forge::api::Commit> {
+    match kind {
+        change::Delegate::Repair(why) => match d.landing_failure(task, why) {
+            Some(failure) => failure.base,
+            None => None,
+        },
+        change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Resolve { .. }
+        | change::Delegate::Merge { .. }
+        | change::Delegate::Gate { .. } => None,
+    }
 }
 
 fn merge_delegate(kind: change::Delegate) -> bool {
@@ -3964,6 +4031,7 @@ fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, ou
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
     row.delegate_flake = false;
+    row.delegate_no_test = false;
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
     let state = unasked(row, kind);
@@ -4111,11 +4179,19 @@ fn delegate_result(
     status: change::Status,
     no_change: bool,
     flake: bool,
+    no_test: bool,
     failed: bool,
     cancelled: bool,
     words: &[u8],
     out: &mut Queue<Request>,
 ) {
+    let base = match d.change(task) {
+        Some(row) => match row.delegate {
+            Some((_, kind)) => delegate_base(d, task, kind),
+            None => None,
+        },
+        None => None,
+    };
     let exempt = read_session::until(d, task).is_none() && d.read_sessions.contains_key(&task);
     if exempt {
         read_session::ended(d, env, task, ended_at.unwrap_or(env.wall));
@@ -4203,6 +4279,7 @@ fn delegate_result(
             | change::Delegate::Resolve { .. }
             | change::Delegate::Merge { .. } => false,
         };
+    row.delegate_no_test = no_test && crate::routing::repair_verdict(kind, crate::REPAIR_NO_TEST);
     match kind {
         change::Delegate::Gate { number, head } => {
             if let Err(cause) = record_review(row, env, number, head, (status, failed, cancelled), words) {
@@ -4234,10 +4311,12 @@ fn delegate_result(
     }
     if row.delegate_flake {
         row.producer_failure = Some(flake_delegate_words(child, words));
+    } else if row.delegate_no_test {
+        row.producer_failure = Some(no_test_delegate_words(child, words));
     } else if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     } else if (failed || (no_change && !ci_repair))
-        && let Some(account) = failed_delegate_words(row, kind, child, no_change, words)
+        && let Some(account) = failed_delegate_words(row, kind, child, no_change, words, base)
     {
         row.producer_failure = Some(account);
     }
@@ -4329,6 +4408,7 @@ fn failed_delegate_words(
     child: u64,
     no_change: bool,
     words: &[u8],
+    base: Option<skein_forge::api::Commit>,
 ) -> Option<Box<[u8]>> {
     let (name, recovery): (&[u8], &[u8]) = match kind {
         // A producer's whole result already occupies the hold account's bound.
@@ -4346,7 +4426,11 @@ fn failed_delegate_words(
     let number = skein_lib::Decimal::of(child);
     let ending: &[u8] = if no_change { b"ended without making the required change" } else { b"failed for good" };
     let reason: &[u8] = if words.is_empty() { b"gave no account" } else { words };
-    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), b", ", ending, b": ", reason];
+    let judged = match base {
+        Some(base) if !no_change => skein_lib::bytes::concat(&[b", judged against ", &crate::commit_text(&base)]),
+        Some(_) | None => Box::new([]),
+    };
+    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), &judged, b", ", ending, b": ", reason];
     let tail = [b"; resolve this failure, then release this change to ".as_slice(), recovery, b"; or cancel it"];
     let mut tail_bytes = 0_usize;
     for part in tail {
@@ -4370,14 +4454,18 @@ fn failed_delegate_words(
     Some(account.finish())
 }
 
-/// A flake verdict reserves the release instructions within the same account bound as failures.
+/// Empty repair verdicts reserve release instructions within the same account bound as failures.
 fn flake_delegate_words(child: u64, words: &[u8]) -> Box<[u8]> {
-    let prefix = skein_lib::bytes::concat(&[
-        b"its repair, task ",
-        skein_lib::Decimal::of(child).as_bytes(),
-        b", found only flakes: ",
-        words,
-    ]);
+    empty_repair_delegate_words(child, b", found only flakes: ", words)
+}
+
+fn no_test_delegate_words(child: u64, words: &[u8]) -> Box<[u8]> {
+    empty_repair_delegate_words(child, b", found no failed test: ", words)
+}
+
+fn empty_repair_delegate_words(child: u64, found: &[u8], words: &[u8]) -> Box<[u8]> {
+    let prefix =
+        skein_lib::bytes::concat(&[b"its repair, task ", skein_lib::Decimal::of(child).as_bytes(), found, words]);
     let tail = b"; release this change to run its gate once more, or cancel it";
     let bound = skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
     let prefix = crate::text::fit(&prefix, bound.checked_sub(tail.len()).expect("recovery fits hold"), b"...");
@@ -4508,14 +4596,20 @@ fn record_review(
     if cancelled || cancelling {
         return Ok(());
     }
-    let report = change::GateReport { number, head, status };
+    let report = change::GateReport { number, head, status, revision: row.gate_revision };
+    let mut stale = false;
+    for gate in &row.change.gates {
+        if gate.number == number {
+            stale = !report.at_revision(gate.kind, row.spec_revision);
+        }
+    }
     let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
     for old in &row.verdicts {
         if old.number != number {
             verdicts.push(*old).expect("bounded prior gate reports");
         }
     }
-    if !failed && verdicts.push(report).is_err() {
+    if (!failed || stale) && verdicts.push(report).is_err() {
         return Err(crate::RefusalCause::Limit {
             member: "forge.change_policy.gates",
             configured: u64::from(env.limits.change_policy.gates),
@@ -4523,7 +4617,7 @@ fn record_review(
         });
     }
     row.verdicts = verdicts.into_boxed();
-    if failed {
+    if failed && !stale {
         row.change = change::review_failed(&row.change, number, head, env.wall, &env.limits.change_policy);
     }
     let mut remarks = List::with_capacity(env.limits.change_policy.gates);
@@ -4583,10 +4677,32 @@ fn retry_gathers(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     for owner in due.into_boxed() {
-        if let Some(pending) = d.steps.remove(&owner) {
-            restart_step(d, env, pending, out);
+        if let Some(mut pending) = d.steps.remove(&owner) {
+            // Only invalidation starts the gather again; admission pressure keeps
+            // every answered fact (domain/forge/keeping-up.md, 1 and 3).
+            if pending.woken {
+                branch_due(d, pending.task);
+                restart_step(d, env, pending, out);
+            } else {
+                let (repository, read) = pending.read.take().expect("refused gather read");
+                pending.retry_at = None;
+                d.steps.insert(owner, pending).expect("capacity retry keeps its room");
+                gather_read(d, env, owner, repository, read, out);
+            }
         }
     }
+}
+
+fn gather_read(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    repository: skein_forge::api::Repository,
+    read: skein_forge::api::Read,
+    out: &mut Queue<Request>,
+) {
+    d.steps.get_mut(&owner).expect("pending gather").read = Some((repository, read.clone()));
+    child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
 
 fn restart_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
@@ -4774,18 +4890,14 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
         progress: List::uncapped(),
     };
     arm_gather(d, env, &pending);
     d.steps.insert(owner, pending).expect("step capacity checked");
     if read_branch {
         branch_sent(d, task, producer);
-        child(
-            d,
-            env,
-            skein_forge_client::Event::Read { owner, repository, read: skein_forge::api::Read::Branch { branch } },
-            out,
-        );
+        gather_read(d, env, owner, repository, skein_forge::api::Read::Branch { branch }, out);
     } else {
         step_read(d, env, owner, Err(skein_forge::api::Error::Missing), out);
     }
@@ -4900,12 +5012,14 @@ fn step_verified(
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
         progress: List::uncapped(),
     };
     let facts = change_facts(d, env, &row, &pending, merge);
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
     let prior = row.change.clone();
     row.change = stepped.change;
+    crate::landing::change_advanced(d, &mut row, &prior, stepped.decision, out);
     if landed_commit(&prior.state).is_none() && landed_commit(&row.change.state).is_some() {
         reds::landed(d, &env.limits, &row, out);
     }
@@ -4986,7 +5100,7 @@ fn step_read(
             pending.stage = StepStage::StallJobs;
             let repository = row.repository;
             d.steps.insert(owner, pending).expect("existing step");
-            child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+            gather_read(d, env, owner, repository, read, out);
         } else {
             finish_step(d, env, pending, out);
         }
@@ -5006,7 +5120,6 @@ fn step_read(
         return;
     }
     if pending.stage != StepStage::Paths && result == Err(skein_forge::api::Error::Busy) {
-        branch_due(d, pending.task);
         pending.retry_at = Some(env.now.saturating_add(Duration::from_secs(1)));
         d.steps.insert(owner, pending).expect("capacity retry keeps the gather");
         return;
@@ -5175,16 +5288,7 @@ fn step_read(
                 pending.stage = StepStage::BaseCi;
                 let Some(base_tip) = pending.base_tip else { unreachable!("base read") };
                 d.steps.insert(owner, pending).expect("replaces step");
-                child(
-                    d,
-                    env,
-                    skein_forge_client::Event::Read {
-                        owner,
-                        repository,
-                        read: skein_forge::api::Read::Checks { commit: base_tip },
-                    },
-                    out,
-                );
+                gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: base_tip }, out);
                 return;
             };
             let pull_ci = match &pending.pull {
@@ -5380,7 +5484,7 @@ fn step_read(
         },
     };
     d.steps.insert(owner, pending).expect("replaces step");
-    child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
+    gather_read(d, env, owner, repository, next, out);
 }
 
 fn execution_due(state: &change::State, pending: &PendingStep) -> bool {
@@ -5433,16 +5537,7 @@ fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Pend
                 let repository = row.repository;
                 pending.stage = StepStage::Paths;
                 d.steps.insert(owner, pending).expect("replaces step");
-                child(
-                    d,
-                    env,
-                    skein_forge_client::Event::Read {
-                        owner,
-                        repository,
-                        read: skein_forge::api::Read::Compare { before, after },
-                    },
-                    out,
-                );
+                gather_read(d, env, owner, repository, skein_forge::api::Read::Compare { before, after }, out);
                 return;
             }
         }
@@ -5847,6 +5942,7 @@ fn titled_change(
 fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change::Heard {
     change::Heard {
         flake: row.delegate_flake && row.delegate_head == pending.branch,
+        no_test: row.delegate_no_test && row.delegate_head == pending.branch,
         // Terminal evidence belongs to the current delegate, not to the read's start.
         delegate: if row.delegate_status == change::Status::Unknown {
             pending.heard.delegate
@@ -5988,23 +6084,18 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             let repository = row.repository;
             d.stall_words.remove(&row.task);
             d.steps.insert(owner, pending).expect("one step per change");
-            child(
-                d,
-                env,
-                skein_forge_client::Event::Read {
-                    owner,
-                    repository,
-                    read: skein_forge::api::Read::Checks { commit: head },
-                },
-                out,
-            );
+            gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: head }, out);
             return;
         }
         row.change = stepped.change;
+        if let change::Decision::Delegate(change::Delegate::Gate { .. }) = stepped.decision {
+            row.gate_revision = facts.revision;
+        }
         if row.change.last_head != effect_prior.last_head {
             row.regate = None;
-            if row.delegate_flake {
+            if row.delegate_flake || row.delegate_no_test {
                 row.delegate_flake = false;
+                row.delegate_no_test = false;
                 row.producer_failure = None;
             }
         }
@@ -6037,6 +6128,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 row.producer_failure = None;
                 row.delegate_status = change::Status::Unknown;
                 row.delegate_flake = false;
+                row.delegate_no_test = false;
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
@@ -6162,7 +6254,7 @@ fn drive_check(
             save_change(d, out, row);
             arm_gather(d, env, &pending);
             d.steps.insert(owner, pending).expect("one read per change");
-            child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+            gather_read(d, env, owner, repository, read, out);
         }
         Action::Done | Action::Wait | Action::Held => {
             let facts = change_facts(d, env, &row, &pending, pending.base_tip.unwrap_or([0; 32]));
@@ -6415,6 +6507,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        revision: row.spec_revision,
         taken: row.kept,
         fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
         rerun: match d.configured.get(&row.repository.forge) {
@@ -7183,7 +7276,7 @@ fn accept_released_branch(
 /// Removing the durable delegate reference retires its terminal from recovery
 /// (temper/docs/design/domain/forge/change/repairs.md, A release).
 fn retire_failed_delegate(row: &mut ChangeRow) {
-    if row.delegate_status != change::Status::Failed && !row.delegate_flake {
+    if row.delegate_status != change::Status::Failed && !row.delegate_flake && !row.delegate_no_test {
         return;
     }
     match row.delegate {
@@ -7197,6 +7290,7 @@ fn retire_failed_delegate(row: &mut ChangeRow) {
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
     row.delegate_flake = false;
+    row.delegate_no_test = false;
     row.producer_failure = None;
     row.merge_result = None;
 }
@@ -7211,7 +7305,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     read_session::restart(d, env, task, env.wall);
     branch_due(d, task);
     let regate = if let Some(row) = d.changes.get(&task)
-        && let change::State::Held { was, why: change::Hold::Flake } = &row.change.state
+        && let change::State::Held { was, why: change::Hold::Flake | change::Hold::NoTest } = &row.change.state
         && let change::State::Repairing { why, .. } = was.as_ref()
     {
         Some(d.landing_regate(task, *why))
@@ -9962,13 +10056,15 @@ pub(crate) fn erase_removed_repositories(
     !kept
 }
 
+// A making's write waits until after the settle; reading afresh ends on reads
+// alone (temper/docs/design/domain/forge/branches.md, 1).
 fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
     if d.restart_fresh == Some(true)
         && d.landing.pending.is_empty()
         && d.pending_ci.is_empty()
         && d.goal_file_reads.is_empty()
         && d.lost.is_empty()
-        && d.makings.is_empty()
+        && !goal_branch::reading_afresh(d)
     {
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });

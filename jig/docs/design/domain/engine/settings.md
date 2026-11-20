@@ -47,12 +47,25 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   model's number is 1 to 64, `NUMBERS`: 1 to 32, `STOCK_NUMBERS`, are
   the defaults', and 33 to 64 a deployment's own, both constants of
   `jig-domain-people`'s settings vocabulary. So a release's new default
-  never lands on a number a deployment holds.
+  never lands on a number a deployment's new item takes; one landing on
+  a kept item's (below) refuses its start.
   - *A deployment's own item* is a setting of those kinds that no
-    default has and that the settings offer. One below 33 is refused. So
+    default has and that the settings offer. One below 33 that an edit
+    offers anew is refused. So
     is any offered setting of those kinds past 64, a default's too, and a
     default past 32: a start refuses defaults that break the line as it
     refuses any default out of shape.
+  - *Kept where a store holds it:* a deployment's own item below 33 that
+    a stored change sets, made before the line was drawn, stays at its
+    number, and so does every reference to it: a template's executor, a
+    task's charter and revision, a goal's template. An edit may set it
+    again or remove it, and its being there refuses no other edit; a
+    start warns of each (7). Nothing moves it: moving it as the store is
+    read would rewrite every family that names it (tasks, revisions'
+    items, held charter versions, pending proposals, connectors' kinds
+    numbered by a charter or a template), where keeping it moves no
+    stored format. An owner moves one in one change: its value set at 33
+    to 64, its references pointed there, the old number removed.
   - *A change over a default* stays at the default's number, set,
     removed or reset as any change is, whatever its number.
   - *A removal or a reset* at a number no default has offers nothing,
@@ -62,8 +75,10 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   - *The kinds' counts stay counts:* `tasks.charters`, `templates` and
     the policies' limit cap how many a kind holds, never its numbers.
   - *Judged by the one check* below, as its fault *range*: at a set, at a
-    proposal's entrance and its decision (2 and 6), and at a start (7),
-    which names every setting out of its range. An application's own
+    proposal's entrance and its decision (2 and 6), each judging what its
+    items set and nothing they leave alone, and at a start (7), which
+    names every default out of its range and every change past 64, and
+    warns of the kept items. An application's own
     kinds numbered by a charter or a template bound their numbers in
     their connectors (5), as their owner designs.
 - **Checked whole, by one check.** The core checks settings as a start
@@ -550,8 +565,9 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     charter's default that differs under its overlay changes the
     current settings, the overlay laid over the new default
     (`overlays.md`, 4);
-  - *the numbers first* (1): every default and every stored change of a
-    charter, template, policy or model out of its range refuses the
+  - *the numbers first* (1): every default of a charter, template,
+    policy or model out of its range, and every stored change of one
+    past 64, refuses the
     start in one refusal naming them all, ascending by kind and number,
     each a default or a change, before the whole check, so that an
     owner moves them all at once (`upgrade --check` rehearses the start
@@ -560,6 +576,24 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     `Numbered { setting: Setting, changed: bool }`, `changed` false
     for a default, the list no longer than the defaults and changes the
     start holds;
+  - *then a release's default on a kept number* (1): a default the start
+    is given that the stored defaults lack, at the number of a stored
+    change that sets a value (a withdrawn model's too), refuses the start
+    in one refusal naming them all, ascending by kind and number, before
+    the whole check. Laid under that change, the release's item would be
+    masked by the deployment's own, unseen. The core's `start::Failure`
+    carries it as `Taken { settings: Box<[Setting]> }`; its words name
+    each and both ranges, and say to move each to 33 to 64 on the build
+    that runs, then start the new one; `upgrade --check` names it before
+    a redeploy;
+  - *kept items are warned of* (1): every stored change setting a value
+    at 1 to 32 that no default the start is given has is kept where it
+    is and checked whole as any setting is. The core names them,
+    ascending by kind and number, through `Core::settings_kept(&self) ->
+    Box<[Setting]>` (`check::kept(&Current)` in its vocabulary), and the
+    application warns of them in one line once the start has ended,
+    naming each and both ranges and saying that a release whose stock
+    brings one of their numbers refuses its start;
   - *the current settings are checked whole* (1): a start whose
     settings fail is refused, naming the setting, the change over it if
     any, and what fails, as a document failing its check always was;

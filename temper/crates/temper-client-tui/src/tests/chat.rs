@@ -246,35 +246,26 @@ fn root(input: &Input) -> Domain {
         task.waits_on =
             c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: TASK, kind: c::WaitedFor::Question };
     }
-    let mut run = jig_client_test_records::run_state_record().into_parts();
+    let mut run = jig_client_test_records::run_state_record();
     run.task = TASK;
     run.attempt = Some(ATTEMPT);
     run.committed_turn = 0;
     if let Some(bytes) = input.writing {
-        let mut writing = jig_client_test_records::run_text_record().into_parts();
+        let mut writing = jig_client_test_records::run_text_record();
         writing.attempt = ATTEMPT;
-        writing.turn = jig_client_protocol_wire::ProvisionalTurnName::new(
-            &jig_client_protocol_wire::CEILINGS,
-            jig_client_protocol_wire::ProvisionalTurnNameParts { attempt: ATTEMPT, number: 2, retry: 0 },
-        )
-        .unwrap();
+        writing.turn = jig_client_protocol_wire::ProvisionalTurnName { attempt: ATTEMPT, number: 2, retry: 0 };
         writing.from = 0;
         writing.through = u32::try_from(bytes.len()).unwrap();
         writing.text = bytes.into();
-        run.writing =
-            Some(jig_client_protocol_wire::RunText::new(&jig_client_protocol_wire::CEILINGS, writing).unwrap());
+        run.writing = Some(writing);
     }
     if input.current {
-        let mut call = jig_client_test_records::current_call_record().into_parts();
+        let mut call = jig_client_test_records::current_call_record();
         call.tool = b"see".as_slice().into();
         call.input = b"{\"address\":\"change 3\"}".as_slice().into();
-        run.call = Some(jig_client_protocol_wire::CurrentCall::new(&jig_client_protocol_wire::CEILINGS, call).unwrap());
+        run.call = Some(call);
     }
-    let run = jig_client_protocol_link::translate::live::run_state(
-        jig_client_protocol_wire::RunState::new(&jig_client_protocol_wire::CEILINGS, run).unwrap(),
-        &link(),
-    )
-    .unwrap();
+    let run = jig_client_protocol_link::translate::live::run_state(run, &link()).unwrap();
     let mut activity_answered = false;
     while let Some(request) = out.pop() {
         let up = match request {
@@ -308,33 +299,23 @@ fn root(input: &Input) -> Domain {
                     },
             } if input.talk => {
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
-                if let w::Watch::Findings(_) = watching.watch() {
-                    let holder =
-                        w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: TASK }).unwrap());
-                    let owner =
-                        w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: TASK }).unwrap());
-                    let areas = List::from_boxed(Box::new([w::AreaRow::new(
-                        &w::CEILINGS,
-                        w::AreaRowParts {
-                            name: b"vsr-rs".as_slice().into(),
-                            words: b"The port".as_slice().into(),
-                            owner: owner.clone(),
-                            holder: Some(holder.clone()),
-                        },
-                    )
-                    .unwrap()]));
-                    let value = w::Findings::new(
-                        &w::CEILINGS,
-                        w::FindingsParts {
-                            project: 1,
-                            rows: List::with_capacity(0),
-                            areas,
-                            triager: if input.weekly { None } else { Some(owner) },
-                            holder,
-                            cut: false,
-                        },
-                    )
-                    .unwrap();
+                if let w::Watch::Findings(_) = &watching.watch {
+                    let holder = w::Holder::Task(w::HolderTask { number: TASK });
+                    let owner = w::AreaOwner::Task(w::AreaTask { number: TASK });
+                    let areas = List::from_boxed(Box::new([w::AreaRow {
+                        name: b"vsr-rs".as_slice().into(),
+                        words: b"The port".as_slice().into(),
+                        owner: owner.clone(),
+                        holder: Some(holder.clone()),
+                    }]));
+                    let value = w::Findings {
+                        project: 1,
+                        rows: List::with_capacity(0),
+                        areas,
+                        triager: if input.weekly { None } else { Some(owner) },
+                        holder,
+                        cut: false,
+                    };
                     Some(jig_client::Up::FamilyDelivered {
                         watch,
                         record: jig_client::Family {
@@ -520,25 +501,16 @@ fn root(input: &Input) -> Domain {
                         down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                     },
             } if input.goal.is_some() => {
-                let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
-                    w::Watch::Forges => wire::forges(
-                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: f::goal_forges(true), linked: false })
-                            .unwrap(),
-                    ),
+                let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
+                    w::Watch::Forges => wire::forges(&w::Forges { forges: f::goal_forges(true), linked: false }),
                     w::Watch::Dismissed => {
                         let mut dismissed = List::with_capacity(wire::DISMISSED);
                         if input.goal == Some(true) {
                             dismissed
-                                .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom::new(
-                                        &w::CEILINGS,
-                                        w::GoalFromParts { project: 1, chat: TASK, goal: 25, at: 1 },
-                                    )
-                                    .unwrap(),
-                                ))
+                                .push(w::PersonFact::GoalFrom(w::GoalFrom { project: 1, chat: TASK, goal: 25, at: 1 }))
                                 .unwrap();
                         }
-                        wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap())
+                        wire::dismissals(&w::Dismissals { dismissed })
                     }
                     _ => continue,
                 };
@@ -572,17 +544,15 @@ fn root(input: &Input) -> Domain {
                     })
                 } else {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                    if let w::Read::View(view) = reading.read() {
-                        assert_eq!(view.address(), p::ADDRESS);
+                    if let w::Read::View(view) = &reading.read {
+                        assert_eq!(view.address.as_ref(), p::ADDRESS);
                         let result = match &input.shown {
                             None | Some(Shown::Asking) => None,
                             Some(Shown::Failed) => {
                                 Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
                             }
                             Some(Shown::Drawn(view)) => {
-                                let answer =
-                                    w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() })
-                                        .unwrap();
+                                let answer = w::ViewAnswer { view: *view.clone() };
                                 Some(jig_client::Readout::Family {
                                     family: wire::FORGE,
                                     record: Some(wire::view_answer(&answer)),
@@ -799,7 +769,10 @@ fn the_chat_draws_each_entry() {
             "two calls then text and time",
             Input {
                 rows: Box::new([
-                    line(1, c::Activity::RunBegan { attempt: ATTEMPT, why: c::RunWhy::Made, resumed: false }),
+                    line(
+                        1,
+                        c::Activity::RunBegan { attempt: ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
+                    ),
                     {
                         let mut t = turn(&[
                             call(1, b"settings", b"{}", false),

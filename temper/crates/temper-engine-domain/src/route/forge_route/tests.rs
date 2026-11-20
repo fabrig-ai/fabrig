@@ -4,9 +4,12 @@ use alloc::boxed::Box;
 mod call_room;
 mod due_ready;
 mod flake;
+mod landing_end;
 mod limit_holds;
 mod reds;
+mod refused;
 mod room;
+mod round_ends;
 mod settling;
 mod settling_due;
 mod taking;
@@ -1979,6 +1982,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                     status: forge_change::Status::Failed,
                     no_change: false,
                     flake: false,
+                    no_test: false,
                     failed: false,
                     cancelled: true,
                     words: reason.into(),
@@ -2229,8 +2233,13 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
 }
 
 fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
+    reserved_turn_landing_with_limits(&crate::tests::resume_fixture::limits())
+}
+fn reserved_turn_landing_with_limits(
+    limits: &super::Limits,
+) -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
     use super::{Work, forge, forge_change};
-    let (mut domain, env) = procedure_root();
+    let (mut domain, env) = procedure_root_with_limits(*limits);
     reserve_period(&mut domain, &env);
     let mut row = change_row(Some(7));
     row.repository = adopted(1).provider;
@@ -2260,10 +2269,19 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
     super::start_landing(&mut domain, &env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
-    let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
-    assert_eq!(row.landing.members[0].change, 7);
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    assert_eq!(row.landing.members[0].change, 7);
+    for name in names {
+        domain.work.push(Work::Forge(forge::Event::Hold {
+            entry: 0,
+            task: row.landing.task,
+            resource: name,
+            from: None,
+        }));
+    }
+    domain.forge_forming = None;
     (domain, env, row)
 }
 
@@ -2932,202 +2950,249 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     }
 }
 
-fn kept_answer(asker: u64, line: &[u8], answer: &[u8]) -> super::forge_change::Answered {
-    super::forge_change::Answered { asker, number: 3, line: line.into(), answer: answer.into() }
+fn word_parts(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut words = super::List::uncapped();
+    for part in parts {
+        super::append(&mut words, part);
+    }
+    words.into_boxed()
 }
 
-#[test]
-fn later_delegates_end_with_the_current_request_and_answers_within_the_spec_bound() {
+const LIVE_DELEGATE: u64 = 71;
+
+#[expect(clippy::too_many_lines, reason = "one live change/delegate snapshot offers all amendments at the same step")]
+fn live_delegate_amendment(
+    kind: Option<super::forge_change::Delegate>,
+    phase: super::tasks::Phase,
+    words_changed: bool,
+    reasons: &[&[u8]],
+) -> (super::Domain, skein_lib::Env<super::Limits>, u64) {
     use super::{forge, forge_change as change, tasks};
-    use change::{Delegate, Freshness, Gate, GateKind, Repair, State};
-    for judging in [false, true] {
-        let (mut domain, mut env, task) =
-            crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
-        env.limits.tasks.parameters = 5;
-        env.limits.tasks.spec_bytes = 4096;
-        let mut row = change_row(Some(7));
-        row.task = task;
-        row.change.task = task;
-        row.change.last_head = Some(SHA1);
-        row.questions.answered = Box::new([kept_answer(71, b"Question: drop the file?", b"drop it")]);
-        row.change.gates = Box::new([
-            Gate { number: 1, kind: GateKind::Agent, blocking: true, freshness: Freshness::Clean, eager: true },
-            Gate { number: 2, kind: GateKind::Check, blocking: true, freshness: Freshness::Clean, eager: true },
-            Gate { number: 3, kind: GateKind::Person, blocking: true, freshness: Freshness::Clean, eager: true },
-        ]);
-        row.change.state = if judging {
-            State::Judging {
-                head: SHA1,
-                ready_since: skein_lib::Wall::EPOCH,
-                target: change::Judgement {
-                    landing: 81,
-                    round: 1,
-                    pull: 9,
-                    branch: b"round".as_slice().into(),
-                    base: b"goal".as_slice().into(),
-                    prefix: SHA256,
-                },
-                asked: Box::new([]),
-            }
-        } else {
-            State::Gating { head: SHA1, asked: Box::new([]) }
-        };
-        row.merge_result = Some(b"merge result".as_slice().into());
-        let request = domain.core.tasks.task(task).unwrap();
-        let block = super::asked_now(&request.spec.words, request.revisions.spec, &row.questions.answered, 4096);
-        domain.forge.restore_begin(env.wall);
-        forge::step(
-            &mut domain.forge,
-            &super::super::environment_forge(&env),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut skein_lib::Queue::uncapped(),
+    use skein_lib::Queue;
+    let (mut domain, mut env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    env.limits.tasks.parameters = 5;
+    env.limits.tasks.spec_bytes = 4096;
+    env.limits.tasks.contract_choices = 2;
+    let mut row = change_row(Some(7));
+    row.task = task;
+    row.change.task = task;
+    row.change.last_head = Some(SHA1);
+    row.merge_result = Some(b"made merge result: left file".as_slice().into());
+    row.change.gates = Box::new([
+        change::Gate {
+            number: 1,
+            kind: change::GateKind::Agent,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        },
+        change::Gate {
+            number: 2,
+            kind: change::GateKind::Person,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        },
+        change::Gate {
+            number: 3,
+            kind: change::GateKind::Check,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        },
+    ]);
+    row.delegate = match kind {
+        Some(kind) => Some((LIVE_DELEGATE, kind)),
+        None => None,
+    };
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+    let delegate =
+        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)))
+            .unwrap();
+    let mut change = domain.core.tasks.task(task).unwrap().clone();
+    let mut child = change.clone();
+    child.number = LIVE_DELEGATE;
+    child.requester = tasks::Party::Task(task);
+    child.executor = delegate.executor;
+    child.spec = delegate.spec;
+    child.contract = delegate.contract;
+    child.phase = phase;
+    child.revisions.spec = 4;
+    change.phase = tasks::Phase::Active(tasks::Active::Idle);
+    if words_changed {
+        change.spec.words = b"Drop the originally requested file".as_slice().into();
+    } else {
+        change.dependencies = Box::new([72]);
+        change.waiting_on = Box::new([72]);
+    }
+    change.revisions.spec = skein_lib::len_u64(reasons.len());
+    let mut inbox = super::List::uncapped();
+    for (index, reason) in reasons.iter().enumerate() {
+        let revision = skein_lib::len_u64(index).checked_add(1).unwrap();
+        inbox
+            .push(tasks::Word {
+                number: revision,
+                from: change.requester,
+                kind: tasks::MessageKind::Amendment { revision },
+                words: (*reason).into(),
+                at: env.wall,
+                hits: 1,
+                eligible: true,
+            })
+            .unwrap();
+    }
+    change.inbox = inbox.into_boxed();
+    domain.core.tasks = tasks::Domain::new(
+        &env.limits.tasks,
+        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+        7,
+        0,
+        Box::new([]),
+        Box::new([]),
+    );
+    for record in [change, child] {
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
+            &mut Queue::uncapped(),
         );
-        for kind in [
-            Delegate::Gate { number: 1, head: SHA1 },
-            Delegate::Gate { number: 2, head: SHA1 },
-            Delegate::Gate { number: 3, head: SHA1 },
-            Delegate::Repair(Repair::Ci),
-            Delegate::Repair(Repair::Semantic),
-            Delegate::Repair(Repair::Gate(1)),
-            Delegate::Repair(Repair::Review { head: SHA1 }),
-            Delegate::Repair(Repair::Landing { gate: 1 }),
-            Delegate::Repair(Repair::LandingAt { gate: 1, candidate: SHA256, below: None }),
-            Delegate::Repair(Repair::LandingAt {
-                gate: 1,
-                candidate: SHA256,
-                below: Some(change::Below {
-                    by_test: false,
-                    top: false,
-                    green: SHA1,
-                    changes: [Some(change::Landed { change: 12, pull: 3 }), None, None, None],
-                }),
-            }),
-            Delegate::Resolve { base: SHA1 },
-        ] {
-            let delegate = super::change_delegate(&domain, &env, task, kind).unwrap();
-            assert!(delegate.spec.words.ends_with(&block), "{kind:?}, judging {judging}");
-            assert!(
-                delegate.spec.words.len()
-                    <= usize::try_from(super::parameter_word_room(
-                        &delegate.spec.parameters,
-                        env.limits.tasks.spec_bytes
-                    ))
-                    .unwrap()
-            );
-            match kind {
-                Delegate::Gate { .. } => {
-                    assert!(delegate.spec.words.starts_with(b"Review this change at the named head\n"));
-                }
-                Delegate::Repair(repair) => {
-                    let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
-                    let preservation = match repair {
-                        Repair::Landing { .. } | Repair::LandingAt { .. } => before
-                            .strip_suffix(b"\nGate run: the landing no longer keeps its failure")
-                            .expect("a landing repair names its missing failure before the current request"),
-                        Repair::Ci | Repair::Semantic | Repair::Gate(_) | Repair::Review { .. } => before,
-                    };
-                    assert!(preservation.ends_with(super::REPAIR_PRESERVATION));
-                }
-                Delegate::Resolve { .. } => {
-                    let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
-                    assert!(before.ends_with(b"merge result"));
-                }
-                Delegate::Produce | Delegate::Merge { .. } | Delegate::Close => unreachable!(),
-            }
-        }
     }
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::WakeProcedure { task },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(domain.core.tasks.restore_failure(), None);
+    assert!(domain.core.tasks.task(LIVE_DELEGATE).is_some());
+    assert!(domain.core.tasks.procedure_offered(task).unwrap() > 0);
+    (domain, env, task)
 }
 
-/// temper/docs/design/domain/forge/change/repairs.md: required words stay whole before an optional result.
-#[test]
-fn resolution_words_keep_deletions_with_or_without_a_merge_result() {
-    const PREFIX: &[u8] = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
-    const RESULT: &[u8] = b"{\"settled\":[],\"left\":[\"file\"]}";
-    let full = concat!(
-        "Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, ",
-        "including both independent appended lines and existing blank lines. A deletion or a rename on either side is ",
-        "an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a ",
-        "file deleted on the head or renamed on either side stays so, the other side's edits carried where they still ",
-        "apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a ",
-        "check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed ",
-        "on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes ",
-        "the resolved merge.",
-    )
-    .as_bytes();
-    let compact = concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base ",
-        "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
-        "kept or restored, and why.",
-    )
-    .as_bytes();
-    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
-    for opening in [full, compact] {
-        for remaining in [0, PREFIX.len() + 2, PREFIX.len() + 3, PREFIX.len() + 12, PREFIX.len() + RESULT.len()] {
-            let bound = u32::try_from(opening.len() + 40 + remaining).unwrap();
-            let without_result = super::resolution_words(None, &parameters, bound).unwrap();
-            assert_eq!(without_result.as_ref(), opening);
-            let with_result = super::resolution_words(Some(RESULT), &parameters, bound).unwrap();
-            assert!(with_result.starts_with(opening));
-            assert!(with_result.len() + 40 <= usize::try_from(bound).unwrap());
-            if remaining < PREFIX.len() + 3 {
-                assert_eq!(with_result.as_ref(), opening);
-            } else {
-                assert_eq!(&with_result[opening.len()..opening.len() + PREFIX.len()], PREFIX);
-                if remaining < PREFIX.len() + RESULT.len() {
-                    assert!(with_result.ends_with(b"..."));
-                } else {
-                    assert!(with_result.ends_with(RESULT));
-                }
-            }
-        }
-    }
+fn live_amendment_step(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    task: u64,
+) -> super::ProcedureStep {
+    super::relay::apply(domain, env, task, super::ProcedureStep::new(super::StepEnd::Wait))
 }
 
-/// temper/docs/design/domain/forge/change/repairs.md: a resolution carries the job's result within its words' room.
 #[test]
-#[expect(clippy::disallowed_methods, reason = "unit fixtures compare bounded resolution text")]
-fn a_resolution_after_a_merge_job_carries_its_result() {
-    const PREFIX: &[u8] = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
-    const RESULT: &[u8] = b"{\"settled\":[\"a\"],\"left\":[\"b\"]}";
-    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
-    let opening = super::resolution_words(None, &parameters, 4096).unwrap();
-    for expected in [
-        "requested change",
-        "unrelated content",
-        "independent appended lines",
-        "blank lines",
-        "a file deleted on the base stays deleted unless the requested change needs it",
-        "Read the commit that deleted a file before you restore anything",
-        "Do not remove content just to make a check pass",
+fn a_live_resolution_keeps_its_words_and_takes_one_amendment_with_the_last_reason() {
+    use super::{forge_change as change, tasks};
+    for phase in [
+        tasks::Phase::Waiting,
+        tasks::Phase::Active(tasks::Active::Running { attempt: 1 }),
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Idle), why: tasks::Hold::Stopped, source: None },
     ] {
-        assert!(core::str::from_utf8(&opening).unwrap().contains(expected));
+        let (mut domain, env, task) = live_delegate_amendment(
+            Some(change::Delegate::Resolve { base: SHA1 }),
+            phase,
+            true,
+            &[b"Keep both lines", b"Drop the file"],
+        );
+        let original = domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec.clone();
+        let decision = live_amendment_step(&mut domain, &env, task);
+        let [amendment] = decision.amendments.as_ref() else { panic!("one amendment: {:?}", decision.amendments) };
+        assert_eq!(amendment.task, LIVE_DELEGATE);
+        assert_eq!(amendment.revision, 4);
+        let mut expected = original.clone();
+        let change = domain.core.tasks.task(task).unwrap();
+        let questions = domain
+            .forge_delegating
+            .get(&(task, domain.core.tasks.procedure_due(task).unwrap().2))
+            .unwrap()
+            .relayed
+            .as_ref()
+            .unwrap()
+            .questions
+            .clone();
+        let block = super::change_context(task, 2, &change.spec.words, &questions, false, 4096).unwrap();
+        let kept = super::before_context(&original.words);
+        assert!(kept.starts_with(b"Resolve the merge conflict."));
+        assert!(kept.ends_with(b"made merge result: left file"));
+        expected.words = word_parts(&[kept, &block]);
+        assert_eq!(amendment.amendment.spec.as_ref(), Some(&expected));
+        assert_eq!(
+            amendment.amendment.reason,
+            super::delegate_amendment_words(task, 2, b"Drop the file", env.limits.tasks.message_bytes)
+        );
+        assert_eq!(domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec, original, "admission has not happened yet");
     }
-    let bound = u32::try_from(opening.len() + PREFIX.len() + RESULT.len() + 40).unwrap();
-    let full = super::resolution_words(Some(RESULT), &parameters, bound).unwrap();
-    assert!(full.starts_with(&opening));
-    assert_eq!(&full[opening.len()..opening.len() + PREFIX.len()], PREFIX);
-    assert!(full.ends_with(RESULT));
-    for remaining in [0, PREFIX.len() + 2, PREFIX.len() + 3, PREFIX.len() + 12] {
-        let cut_bound = u32::try_from(opening.len() + 40 + remaining).unwrap();
-        let cut = super::resolution_words(Some(RESULT), &parameters, cut_bound).unwrap();
-        assert!(cut.starts_with(&opening));
-        assert!(cut.len() + 40 <= usize::try_from(cut_bound).unwrap());
-        if remaining < PREFIX.len() + 3 {
-            assert_eq!(cut, opening);
-        } else {
-            assert!(cut.ends_with(b"..."));
-            assert_eq!(cut.len() + 40, usize::try_from(cut_bound).unwrap());
-            assert_eq!(&cut[opening.len() + PREFIX.len()..cut.len() - 3], &RESULT[..remaining - PREFIX.len() - 3]);
+}
+
+#[test]
+fn dependencies_alone_still_amend_a_live_repairs_context() {
+    use super::{forge_change as change, tasks};
+    let (mut domain, env, task) = live_delegate_amendment(
+        Some(change::Delegate::Repair(change::Repair::Ci)),
+        tasks::Phase::Waiting,
+        false,
+        &[b"Wait for dependency"],
+    );
+    let original = domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec.clone();
+    let decision = live_amendment_step(&mut domain, &env, task);
+    let [amendment] = decision.amendments.as_ref() else { panic!("one amendment: {:?}", decision.amendments) };
+    let spec = amendment.amendment.spec.as_ref().unwrap();
+    assert_eq!(super::before_context(&spec.words), super::before_context(&original.words));
+    assert_eq!(domain.core.tasks.task(task).unwrap().spec.words.as_ref(), b"live goal");
+    assert!(skein_lib::bytes::find(&spec.words, b"at spec revision 1.").is_some());
+    assert!(skein_lib::bytes::find(&spec.words, b"Amended to spec revision 1: Wait for dependency").is_some());
+    assert!(spec.words.ends_with(b"Its current spec, at revision 1:\nlive goal"));
+}
+
+#[test]
+fn an_amendment_leaves_gates_and_absent_delegates_alone() {
+    use super::{forge_change as change, tasks};
+    for kind in [
+        Some(change::Delegate::Gate { number: 1, head: SHA1 }),
+        Some(change::Delegate::Gate { number: 2, head: SHA1 }),
+        Some(change::Delegate::Gate { number: 3, head: SHA1 }),
+        None,
+    ] {
+        let (mut domain, env, task) =
+            live_delegate_amendment(kind, tasks::Phase::Active(tasks::Active::Idle), true, &[b"Drop the file"]);
+        assert!(live_amendment_step(&mut domain, &env, task).amendments.is_empty(), "{kind:?}");
+    }
+}
+
+#[test]
+fn a_live_delegates_context_without_fixed_line_room_is_left_unchanged() {
+    use super::{forge_change as change, tasks};
+    let (mut domain, mut env, task) = live_delegate_amendment(
+        Some(change::Delegate::Repair(change::Repair::Ci)),
+        tasks::Phase::Waiting,
+        true,
+        &[b"Drop the file"],
+    );
+    let original = domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec.clone();
+    let record = domain.core.tasks.task(task).unwrap();
+    let questions = change::Questions {
+        amended: Box::new([change::Amended { revision: 1, reason: b"Drop the file".as_slice().into() }]),
+        ..change::Questions::default()
+    };
+    let fixed = super::context_fixed(task, 1, &record.spec.words, &questions, false);
+    let mut pinned = 0_usize;
+    for parameter in &original.parameters {
+        if let tasks::Parameter::Bytes { value, .. } = parameter {
+            pinned = pinned.checked_add(value.len()).unwrap();
         }
     }
-    assert_eq!(
-        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
-        Some((super::forge_change::Status::Passed, false, false))
-    );
-    assert_eq!(
-        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
-        Some((super::forge_change::Status::Failed, true, false))
-    );
+    assert!(pinned > 0);
+    env.limits.tasks.spec_bytes =
+        u32::try_from(pinned + super::before_context(&original.words).len() + fixed - 1).unwrap();
+    assert!(live_amendment_step(&mut domain, &env, task).amendments.is_empty());
+    assert_eq!(domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec, original);
+    env.limits.tasks.spec_bytes += 1;
+    assert_eq!(live_amendment_step(&mut domain, &env, task).amendments.len(), 1, "the fixed lines fit exactly");
 }
 
 #[test]
@@ -3139,8 +3204,8 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
     const PERSON_GATE: u64 = 3;
     // Repository, base, branch, gate number and head are the gate's five parameters.
     const GATE_PARAMETERS: u32 = 5;
-    // Room for the fixture's review identity (8.3) and repair opening (8.4).
-    const SPEC_BYTES: u32 = 512;
+    // Room for review identity, repair opening and required change context.
+    const SPEC_BYTES: u32 = 4096;
     let (mut domain, mut env, task) =
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
     env.limits.tasks.parameters = GATE_PARAMETERS;
@@ -4843,7 +4908,12 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
 fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{forge, forge_change as c, tasks};
     use skein_lib::Queue;
-    let (mut domain, mut env) = procedure_root();
+    let mut limits = crate::tests::resume_fixture::limits();
+    // Two ready changes and their retained landing tasks need admission room.
+    limits.tasks.tasks = 16;
+    limits.tasks.project_tasks = 16;
+    limits.people.inbox_tasks = 32;
+    let (mut domain, mut env) = procedure_root_with_limits(limits);
     env.limits.tasks.batch = 2;
     env.limits.tasks.batch_bytes = 16_384;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
@@ -4973,6 +5043,32 @@ fn judge_trains(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>)
     crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
         .unwrap();
 }
+#[test]
+fn the_root_forms_a_train_from_a_restored_change_with_a_stale_landing_link() {
+    use super::{forge, landing};
+    use skein_lib::Queue;
+    for phase in [None, Some(landing::Phase::Landed), Some(landing::Phase::Cancelled)] {
+        let (mut domain, env) = train_root(false);
+        let mut row = domain.forge.change(7).unwrap().clone();
+        row.change.landing = Some(99);
+        let forge_env = super::super::environment_forge(&env);
+        let event = forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) };
+        forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+        if let Some(phase) = phase {
+            let (_, _, mut row) = reserved_turn_landing();
+            row.landing.task = 99;
+            row.landing.phase = phase;
+            let event = forge::Event::Restore { record: forge::Stored::Landing(row) };
+            forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+        }
+        domain.forge.fit_restored(&env.limits.forge).unwrap();
+        judge_trains(&mut domain, &env);
+        let formed = domain.forge.change(7).unwrap().change.landing.unwrap();
+        assert_ne!(formed, 99, "the stale member is taken again, before the later task");
+        assert_eq!(domain.forge.landing(formed).unwrap().landing.members[0].change, 7);
+    }
+}
+
 #[test]
 fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     use super::{Work, forge, tasks};
@@ -5287,6 +5383,37 @@ fn an_ended_prepares_record_needs_an_answer_kept_for_its_suffix() {
     assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Absent);
 }
 
+#[test]
+fn each_refusal_of_a_kept_prepare_reads_absent() {
+    use super::forge::{LandingRow, history::Job};
+    use temper_engine_domain_forge_landing::{Leave, Preparation};
+    type Case = (&'static str, fn(&mut LandingRow), Preparation);
+    let (mut domain, env, mut row) = unprepared_round();
+    let context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+    row.landing.round.failure = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into();
+    let cases: [Case; 6] = [
+        ("kept", |_| {}, Preparation::Idle),
+        ("an earlier round", |row| row.job.as_mut().unwrap().round = 0, Preparation::Absent),
+        ("a merge job", |row| row.job.as_mut().unwrap().step.job = Job::Merge, Preparation::Absent),
+        ("a member since left", |row| row.landing.members[1].left = Some(Leave::Cancelled), Preparation::Absent),
+        ("a member since landed", |row| row.landing.members[0].landed = Some(SHA1), Preparation::Absent),
+        (
+            "a report for no job member",
+            |row| {
+                row.landing.members[1].candidate = Some(SHA1);
+                row.job.as_mut().unwrap().members = Box::new([0]);
+                row.landing.round.failure = br#"{"combined":[{"member":2,"by":"merge"}]}"#.as_slice().into();
+            },
+            Preparation::Absent,
+        ),
+    ];
+    for (case, change, expected) in cases {
+        let mut row = row.clone();
+        change(&mut row);
+        assert_eq!(read_preparation(&mut domain, &env, &row, &context), expected, "{case}");
+    }
+}
+
 fn prepare_child(
     domain: &mut super::Domain,
     env: &skein_lib::Env<super::Limits>,
@@ -5459,4 +5586,83 @@ fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
         assert!(find(&words[..at], b"\nGate run:").is_some());
         assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
     }
+}
+
+/// questions.md, 1, What every delegate is told: the step's retained amendment is visible before admission.
+#[test]
+fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
+    use super::{forge, forge_change as change, tasks};
+    let (mut domain, mut env, task) = idle_change_procedure();
+    env.limits.tasks.parameters = 5;
+    env.limits.tasks.spec_bytes = 4096;
+    let record = domain.core.tasks.task(task).unwrap();
+    let mut spec = record.spec.clone();
+    spec.words = b"Drop it".as_slice().into();
+    let requester = tasks::Party::Person(1);
+    let mut out = skein_lib::Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Amend {
+            places: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+            by: requester,
+            operation: tasks::Amend {
+                task,
+                funder: None,
+                message: 1,
+                stop_run: false,
+                amendment: Box::new(tasks::Amendment {
+                    tracked: None,
+                    addressed: None,
+                    instructions: None,
+                    release: None,
+                    spec: Some(spec),
+                    wake: None,
+                    dependencies: None,
+                    authority: None,
+                    llm: None,
+                    reason: b"Drop the file".as_slice().into(),
+                }),
+            },
+        },
+        &mut out,
+    );
+    assert_eq!(domain.core.tasks.task(task).unwrap().revisions.spec, 1, "{out:?}");
+    let (connector, code, step) = domain.core.tasks.procedure_due(task).unwrap();
+    let mut row = change_row(Some(7));
+    row.task = task;
+    row.change.task = task;
+    row.change.last_head = Some(SHA1);
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    super::delegate_change_step(
+        &mut domain,
+        &env,
+        task,
+        step,
+        connector,
+        code,
+        change::Delegate::Repair(change::Repair::Ci),
+    );
+    let Some(super::Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. })) = domain.work.pop() else {
+        panic!("delegate step")
+    };
+    let delegate = decision.batch.first().expect("repair described");
+    let expected = b"\nRulings, newest first:\nAmended to spec revision 1: Drop the file\nIts current spec, at revision 1:\nDrop it";
+    assert!(delegate.spec.words.ends_with(expected));
+    assert!(
+        domain.forge.change(task).unwrap().questions.amended.is_empty(),
+        "nothing commits before the step is admitted"
+    );
+    let pending = domain.forge_delegating.get(&(task, step)).unwrap();
+    assert_eq!(
+        pending.relayed.as_ref().unwrap().questions.amended.as_ref(),
+        &[change::Amended { revision: 1, reason: b"Drop the file".as_slice().into() }]
+    );
 }

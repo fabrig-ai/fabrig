@@ -8,29 +8,42 @@ use temper_playground::{programs::Harness, service::Observe};
 
 const ATTACH: Token = Token::new(u64::MAX);
 
-/// The walk world's harness: the service, box peer and native terminal connection.
+/// The walk world's harness: the service, box peer, terminal connection and tab.
 pub enum Clients {}
 impl Harness for Clients {
     type Service = Attach;
     type Process = Native;
+    fn prepare(
+        disk: &mut skein_fake_machine::Machine,
+        document: &temper_playground::documents::Configuration,
+        seed: u64,
+    ) {
+        crate::facts::prepare(disk, document, seed);
+    }
+    fn files() -> temper_service::settings::Files {
+        crate::facts::files()
+    }
 }
 
 /// The walk's native processes, scheduled by the composition's one loop.
 pub enum Native {
     Box(Box<BoxPeer>),
     Terminal(Box<crate::tui::Connection>),
+    Tab(Box<skein_playground::tab::Tab>),
 }
 impl Native {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Box(host) => host.as_ref(),
             Self::Terminal(host) => host.as_ref(),
+            Self::Tab(host) => host.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Box(host) => host.as_mut(),
             Self::Terminal(host) => host.as_mut(),
+            Self::Tab(host) => host.as_mut(),
         }
     }
 }

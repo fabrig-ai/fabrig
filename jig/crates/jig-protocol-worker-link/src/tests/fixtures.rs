@@ -1,5 +1,6 @@
 use crate::{Credential, Limits};
 use jig_domain_link::{Bounds, EndpointBound, Hello, Hosting, Phase};
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
@@ -75,11 +76,12 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v17::Limits {
+pub fn codec() -> wire::v19::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {
     Hello {
+        reads_usage: true,
         jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_secs(1),
@@ -137,75 +139,52 @@ pub fn work_parts() -> Box<[Part]> {
     ])
 }
 pub fn credential_value(scheme: wire::Scheme) -> wire::GrantValue {
-    let parts = wire::CredentialValueParts { scheme, bytes: Secret::new(TOKEN_ONE.into()) };
-    wire::GrantValue::Credential(wire::CredentialValue::new(&codec(), parts).expect("credential"))
+    let parts = wire::CredentialValue { scheme, bytes: Secret::new(TOKEN_ONE.into()) };
+    wire::GrantValue::Credential(parts)
 }
 pub fn application_value() -> wire::GrantValue {
-    let parts = wire::ApplicationValueParts { secret: Secret::new(TOKEN_ONE.into()) };
-    wire::GrantValue::Application(wire::ApplicationValue::new(&codec(), parts).expect("application"))
+    let parts = wire::ApplicationValue { secret: Secret::new(TOKEN_ONE.into()) };
+    wire::GrantValue::Application(parts)
 }
 pub fn grant_record(value: wire::GrantValue) -> wire::Grant {
-    wire::Grant::new(&codec(), wire::GrantParts { number: 1, generation: 3, valid: Duration::from_secs(60), value })
-        .expect("grant")
+    wire::Grant { number: 1, generation: 3, valid: Duration::from_secs(60), value }
 }
 pub fn assignment_record(transcript: Box<[u8]>) -> wire::Assignment {
-    let limits = codec();
-    let workspace =
-        wire::Workspace::new(&limits, wire::WorkspaceParts { workstream: 3, items: b"items".as_slice().into() })
-            .expect("workspace");
+    let workspace = wire::Workspace { workstream: 3, items: b"items".as_slice().into() };
     let mut messages = List::with_capacity(1);
     messages
-        .push(
-            wire::Message::new(
-                &limits,
-                wire::MessageParts {
-                    name: 5,
-                    sender: b"sender".as_slice().into(),
-                    words: b"words".as_slice().into(),
-                    finish_requested: false,
-                },
-            )
-            .expect("message"),
-        )
+        .push(wire::Message {
+            name: 5,
+            sender: b"sender".as_slice().into(),
+            words: b"words".as_slice().into(),
+            finish_requested: false,
+        })
         .expect("room");
     let mut grants = List::with_capacity(2);
     grants.push(grant_record(credential_value(wire::Scheme::Bearer))).expect("room");
     grants.push(grant_record(application_value())).expect("room");
     let mut answered = List::with_capacity(1);
-    let answer =
-        wire::HostAnswer::new(&limits, wire::HostAnswerParts { error: false, body: b"answer".as_slice().into() })
-            .expect("answer");
+    let answer = wire::HostAnswer { error: false, body: b"answer".as_slice().into() };
     answered
-        .push(
-            wire::AnsweredCall::new(
-                &limits,
-                wire::AnsweredCallParts {
-                    name: b"call".as_slice().into(),
-                    tool: b"tool".as_slice().into(),
-                    answer: wire::SettledAnswer::Host(answer),
-                },
-            )
-            .expect("call"),
-        )
+        .push(wire::AnsweredCall {
+            name: b"call".as_slice().into(),
+            tool: b"tool".as_slice().into(),
+            answer: wire::SettledAnswer::Host(answer),
+        })
         .expect("room");
-    wire::Assignment::new(
-        &limits,
-        wire::AssignmentParts {
-            task: 7,
-            attempt: 2,
-            identity: [9; 16],
-            workspace: Some(workspace),
-            save: true,
-            live: wire::LiveAsk::new(&limits, wire::LiveAskParts { text: false, reasoning: false, input: false })
-                .expect("live ask"),
-            charter: b"charter".as_slice().into(),
-            transcript,
-            answered,
-            messages,
-            grants,
-        },
-    )
-    .expect("assignment")
+    wire::Assignment {
+        task: 7,
+        attempt: 2,
+        identity: [9; 16],
+        workspace: Some(workspace),
+        save: true,
+        live: wire::LiveAsk { text: false, reasoning: false, input: false },
+        charter: b"charter".as_slice().into(),
+        transcript,
+        answered,
+        messages,
+        grants,
+    }
 }
 pub fn window() -> Box<[u8]> {
     let mut writer = Writer::new(16);
@@ -219,19 +198,19 @@ fn writer(measured: u32) -> Writer {
 }
 
 pub fn assignment_bytes(record: &wire::Assignment) -> Box<[u8]> {
-    let mut bytes = writer(record.measure());
-    record.encode(&mut bytes).expect("measured assignment");
+    let mut bytes = writer(record.measure(&wire::CEILINGS).expect("record within limits"));
+    record.write(&wire::CEILINGS, &mut bytes).expect("measured assignment");
     bytes.finish()
 }
 
 pub fn granted_bytes(record: &wire::Granted) -> Box<[u8]> {
-    let mut bytes = writer(record.measure());
-    record.encode(&mut bytes).expect("measured granted");
+    let mut bytes = writer(record.measure(&wire::CEILINGS).expect("record within limits"));
+    record.write(&wire::CEILINGS, &mut bytes).expect("measured granted");
     bytes.finish()
 }
 
 pub fn inbound_bytes(record: &wire::Inbound) -> Box<[u8]> {
-    let mut bytes = writer(record.measure());
-    record.encode(&mut bytes).expect("measured inbound");
+    let mut bytes = writer(record.measure(&wire::CEILINGS).expect("record within limits"));
+    record.write(&wire::CEILINGS, &mut bytes).expect("measured inbound");
     bytes.finish()
 }

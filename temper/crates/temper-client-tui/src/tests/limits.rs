@@ -233,6 +233,7 @@ fn the_trees_fit_their_limits() {
     f::find(view.tree(), Role::Text, b"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
     let full = f::refused(f::full());
     let approval = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        port: None,
         code: super::approval::code(),
         expires: skein_lib::Wall::from_nanos(600_000_000_000),
     }));
@@ -265,6 +266,7 @@ fn the_trees_fit_their_limits() {
     // At a name, the whole place/address and the longest refused line fit without a field.
     for state in [
         temper_client_domain::asked::State::Asked {
+            port: None,
             code: super::approval::code(),
             expires: skein_lib::Wall::from_nanos(600_000_000_000),
         },
@@ -394,10 +396,10 @@ fn chat_views() -> crate::view::chat::Chat {
     let path = super::printed::path(&stops);
     let pieces = (0..temper_client_domain::Limits::chat_views())
         .map(|_| {
-            Piece::View(Printed::Drawn(Box::new(w::View::Proposal(
-                w::ProposalView::new(&w::CEILINGS, w::ProposalViewParts { before: path.clone(), after: path.clone() })
-                    .unwrap(),
-            ))))
+            Piece::View(Printed::Drawn(Box::new(w::View::Proposal(w::ProposalView {
+                before: path.clone(),
+                after: path.clone(),
+            }))))
         })
         .collect();
     Chat {

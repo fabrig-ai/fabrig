@@ -2,6 +2,7 @@
 use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
+use smith_channel::Record;
 use std::{
     cell::RefCell,
     collections::BTreeMap,
@@ -154,13 +155,9 @@ impl<H> Rooted<H> {
                     &mut skein_lib::Reader::new(&self.frame[8..8 + length]),
                 )
                 .expect("agent Start");
-                let path = if let Some(workspace) = start.workspace() {
-                    assert_eq!(workspace.directories().len(), 1, "one supplied workspace root");
-                    workspace.directories().as_slice()[0]
-                        .path()
-                        .strip_prefix(b"/worker/")
-                        .expect("worker workspace")
-                        .into()
+                let path = if let Some(workspace) = &start.workspace {
+                    assert_eq!(workspace.directories.len(), 1, "one supplied workspace root");
+                    workspace.directories.as_slice()[0].path.strip_prefix(b"/worker/").expect("worker workspace").into()
                 } else {
                     b".".as_slice().into()
                 };

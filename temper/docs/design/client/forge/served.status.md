@@ -1,7 +1,6 @@
 # served: status
 
-2026-11-15. Where the tree's code lags or departs from [served.md](served.md).
-
+2026-11-20. Where the tree's code lags or departs from [served.md](served.md).
 
 - **Not yet:**  the native-queue position remains `README.status.md`, 2.1.
   the panel's gate amendment remains `README.status.md`, 2.3.  the counted approval and person-task cards remain `README.status.md`, 4.

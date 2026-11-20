@@ -1,6 +1,7 @@
 //! A person's open-change act, with engine answers supplied by the client fixture.
 use super::fixtures::{self as f, OPEN_CHANGE as OPEN};
 use jig_client::{self as client, contract as c};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -9,29 +10,28 @@ fn open(extra: &[&str]) -> (f::Harness, u32) {
     let call = root.submit(f::extended(OPEN, extra).as_slice());
     (root, call)
 }
-fn sent(root: &f::Harness, call: u32) -> w::OpenChangeParts {
+fn sent(root: &f::Harness, call: u32) -> w::OpenChange {
     let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("forge request") };
     assert_eq!(*scope, c::Scope::Project(f::PROJECT));
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
     let bounds = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
-    let w::Request::OpenChange(request) = wire::decode_requesting(&record.bytes, &bounds).unwrap().into_parts().request
-    else {
+    let w::Request::OpenChange(request) = wire::decode_requesting(&record.bytes, &bounds).unwrap().request else {
         panic!("OpenChange")
     };
-    request.into_parts()
+    request
 }
 fn request_bytes(ask: &client::Ask) -> &[u8] {
     let client::Ask::Family { record, .. } = ask else { panic!("forge request") };
     &record.bytes
 }
 fn opened(task: u64) -> w::Outcome {
-    w::Outcome::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { task }).unwrap())
+    w::Outcome::Opened(w::Opened { task })
 }
 fn refused(reason: w::OpenRefusal) -> w::Outcome {
-    w::Outcome::OpenRefused(w::OpenRefused::new(&w::CEILINGS, w::OpenRefusedParts { reason }).unwrap())
+    w::Outcome::OpenRefused(w::OpenRefused { reason })
 }
 fn repository(owner: &[u8], name: &[u8]) -> w::DraftRepository {
-    w::DraftRepository::new(&w::CEILINGS, w::DraftRepositoryParts { owner: owner.into(), name: name.into() }).unwrap()
+    w::DraftRepository { owner: owner.into(), name: name.into() }
 }
 fn usage(words: &[&str], expected: &str) {
     let mut root = f::signed_in(f::PARTY);
@@ -128,7 +128,7 @@ fn keyed_requests_keep_defaults_and_all_supplied_controls_and_print_the_task() {
         (None, None, b"Fix the docs".as_slice(), None)
     );
     let w::OpenBudget::Amount(amount) = request.budget else { panic!("named budget") };
-    assert_eq!(amount.amount(), 500);
+    assert_eq!(amount.amount, 500);
     assert_eq!(root.sends.len(), 1);
     assert_eq!(root.sent_name(call), Some(f::named("open-change")));
     root.adoption_answer(call, opened(7));
@@ -181,9 +181,7 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
     repositories.push(repository(b"o", b"b")).unwrap();
     for (why, extra, expected) in [
         (
-            w::OpenRefusal::Several(
-                w::SeveralRepositories::new(&w::CEILINGS, w::SeveralRepositoriesParts { repositories }).unwrap(),
-            ),
+            w::OpenRefusal::Several(w::SeveralRepositories { repositories }),
             &[][..],
             "temper ctl: change open: project shop has several repositories, o/a, o/b: name one with --repository\n",
         ),
@@ -198,27 +196,21 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
             "temper ctl: change open: o/n is not a repository of project shop\n",
         ),
         (
-            w::OpenRefusal::UnderPrefix(
-                w::UnderPrefix::new(
-                    &w::CEILINGS,
-                    w::UnderPrefixParts {
-                        owner: b"o".as_slice().into(),
-                        name: b"n".as_slice().into(),
-                        prefix: b"temper/".as_slice().into(),
-                    },
-                )
-                .unwrap(),
-            ),
+            w::OpenRefusal::UnderPrefix(w::UnderPrefix {
+                owner: b"o".as_slice().into(),
+                name: b"n".as_slice().into(),
+                prefix: b"temper/".as_slice().into(),
+            }),
             &["--into", "temper/x"],
             "temper ctl: change open: temper/x is under o/n's prefix temper/: a change lands into one of its landing branches\n",
         ),
         (
-            w::OpenRefusal::NamePast(w::NamePast::new(&w::CEILINGS, w::NamePastParts { bound: 4 }).unwrap()),
+            w::OpenRefusal::NamePast(w::NamePast { bound: 4 }),
             &[],
             "temper ctl: change open: docs/x is past the forge's 4-byte name bound\n",
         ),
         (
-            w::OpenRefusal::NamePast(w::NamePast::new(&w::CEILINGS, w::NamePastParts { bound: 6 }).unwrap()),
+            w::OpenRefusal::NamePast(w::NamePast { bound: 6 }),
             &["--into", "release"],
             "temper ctl: change open: release is past the forge's 6-byte name bound\n",
         ),
@@ -243,39 +235,25 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
     );
 }
 fn core(why: jig_client_protocol_wire::Refusal) -> w::Outcome {
-    let mut bytes = skein_lib::Writer::new(usize::try_from(why.measure()).unwrap());
-    why.encode(&mut bytes).unwrap();
-    w::Outcome::CoreRefused(w::CoreRefused::new(&w::CEILINGS, w::CoreRefusedParts { refusal: bytes.finish() }).unwrap())
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(why.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    why.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
+    w::Outcome::CoreRefused(w::CoreRefused { refusal: bytes.finish() })
 }
 #[test]
 fn core_refusals_use_jigs_words_on_one_prefixed_line() {
     use jig_client_protocol_wire as j;
     for why in [
-        j::Refusal::Authority(
-            j::RefusalAuthority::new(
-                &j::CEILINGS,
-                j::RefusalAuthorityParts {
-                    lacking: j::Lacking::Budget(
-                        j::LackingBudget::new(&j::CEILINGS, j::LackingBudgetParts { needed: 500, left: 0 }).unwrap(),
-                    ),
-                    proposable: None,
-                },
-            )
-            .unwrap(),
-        ),
-        j::Refusal::Authority(
-            j::RefusalAuthority::new(
-                &j::CEILINGS,
-                j::RefusalAuthorityParts {
-                    lacking: j::Lacking::Tasks(
-                        j::LackingTasks::new(&j::CEILINGS, j::LackingTasksParts { needed: Some(1), left: 0 }).unwrap(),
-                    ),
-                    proposable: None,
-                },
-            )
-            .unwrap(),
-        ),
-        j::Refusal::Role(j::RefusalRole::new(&j::CEILINGS, j::RefusalRoleParts { held: None }).unwrap()),
+        j::Refusal::Authority(j::RefusalAuthority {
+            lacking: j::Lacking::Budget(j::LackingBudget { needed: 500, left: 0 }),
+            proposable: None,
+        }),
+        j::Refusal::Authority(j::RefusalAuthority {
+            lacking: j::Lacking::Tasks(j::LackingTasks { needed: Some(1), left: 0 }),
+            proposable: None,
+        }),
+        j::Refusal::Role(j::RefusalRole { held: None }),
     ] {
         let expected = if let j::Refusal::Role(_) = &why {
             b"temper ctl: change open: The held role does not permit this action\n".as_slice()

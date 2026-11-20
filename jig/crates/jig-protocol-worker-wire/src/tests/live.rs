@@ -1,24 +1,15 @@
 use super::fixtures::{SIZES_LARGE, SIZES_ONE_SLOT};
-use crate::{self as wire, sizes, v17};
+use crate::v19::Record;
+use crate::{self as wire, sizes, v19};
 use skein_lib::{Reader, Writer};
 
 use super::fixtures::repeated;
 
 fn full_piece(kind: wire::LiveKind, bytes: u32) -> wire::Piece {
-    wire::Piece::new(
-        &wire::CEILINGS,
-        wire::PieceParts { turn: u32::MAX, retry: u32::MAX, kind, offset: u64::MAX, bytes: repeated(0xff, bytes) },
-    )
-    .unwrap()
+    wire::Piece { turn: u32::MAX, retry: u32::MAX, kind, offset: u64::MAX, bytes: repeated(0xff, bytes) }
 }
 fn input() -> wire::LiveKind {
-    wire::LiveKind::Input(
-        wire::InputCall::new(
-            &wire::CEILINGS,
-            wire::InputCallParts { id: repeated(b'i', 256), tool: repeated(b't', 64) },
-        )
-        .unwrap(),
-    )
+    wire::LiveKind::Input(wire::InputCall { id: repeated(b'i', 256), tool: repeated(b't', 64) })
 }
 #[test]
 fn each_full_piece_and_fact_has_the_hand_measured_body() {
@@ -26,15 +17,15 @@ fn each_full_piece_and_fact_has_the_hand_measured_body() {
         let piece = full_piece(kind, 4096);
         // Turn4 + retry4 + kind1 + optional call (length4+id256+length4+tool64)
         // + offset8 + length4 + content4096.
-        assert_eq!(piece.measure(), 4 + 4 + 1 + call_bytes + 8 + 4 + 4096);
-        let fact = wire::Fact::new(
-            &wire::CEILINGS,
-            wire::FactParts { task: u64::MAX, attempt: u64::MAX, value: wire::FactValue::Piece(piece) },
-        )
-        .unwrap();
-        assert_eq!(fact.measure(), 16 + 1 + 21 + call_bytes + 4096);
-        let mut writer = Writer::new(usize::try_from(fact.measure()).unwrap());
-        fact.encode(&mut writer).unwrap();
+        assert_eq!(
+            piece.measure(&crate::CEILINGS).expect("record within limits"),
+            4 + 4 + 1 + call_bytes + 8 + 4 + 4096
+        );
+        let fact = wire::Fact { task: u64::MAX, attempt: u64::MAX, value: wire::FactValue::Piece(piece) };
+        assert_eq!(fact.measure(&crate::CEILINGS).expect("record within limits"), 16 + 1 + 21 + call_bytes + 4096);
+        let mut writer =
+            Writer::new(usize::try_from(fact.measure(&crate::CEILINGS).expect("record within limits")).unwrap());
+        fact.write(&crate::CEILINGS, &mut writer).unwrap();
         let bytes = writer.finish();
         assert_eq!(wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap(), fact);
     }
@@ -68,16 +59,18 @@ fn piece_content_at_its_ceiling_decodes_and_one_past_is_refused() {
         } else {
             assert_eq!(
                 result.unwrap_err(),
-                v17::Problem { path: v17::Path::PieceBytes, reason: skein_codec::Reason::Bound }
+                v19::Problem { path: v19::paths::PIECE_BYTES, reason: skein_codec::Reason::Bound }
             );
         }
     }
 }
 #[test]
 fn input_call_fields_at_their_ceilings_decode_and_one_past_is_refused() {
-    for (id, tool, problem) in
-        [(256_u32, 64_u32, None), (257, 64, Some(v17::Path::InputCallId)), (256, 65, Some(v17::Path::InputCallTool))]
-    {
+    for (id, tool, problem) in [
+        (256_u32, 64_u32, None),
+        (257, 64, Some(v19::paths::INPUT_CALL_ID)),
+        (256, 65, Some(v19::paths::INPUT_CALL_TOOL)),
+    ] {
         let mut writer = Writer::new(8 + usize::try_from(id + tool).unwrap());
         writer.put(&id.to_be_bytes()).unwrap();
         writer.put(&repeated(b'i', id)).unwrap();
@@ -88,19 +81,40 @@ fn input_call_fields_at_their_ceilings_decode_and_one_past_is_refused() {
         match problem {
             None => {
                 let call = result.unwrap();
-                assert_eq!(call.measure(), 328);
+                assert_eq!(call.measure(&crate::CEILINGS).expect("record within limits"), 328);
             }
-            Some(path) => assert_eq!(result.unwrap_err(), v17::Problem { path, reason: skein_codec::Reason::Bound }),
+            Some(path) => assert_eq!(result.unwrap_err(), v19::Problem { path, reason: skein_codec::Reason::Bound }),
         }
     }
 }
 #[test]
 fn the_smallest_new_records_have_fixed_widths() {
     let ask = wire::LiveAsk::decode(&wire::CEILINGS, &mut Reader::new(&[0; 3])).unwrap();
-    assert_eq!((ask.text(), ask.reasoning(), ask.input(), ask.measure()), (false, false, false, 3));
-    assert_eq!(wire::InputCall::decode(&wire::CEILINGS, &mut Reader::new(&[0; 8])).unwrap().measure(), 8);
-    assert_eq!(wire::Piece::decode(&wire::CEILINGS, &mut Reader::new(&[0; 21])).unwrap().measure(), 21);
+    assert_eq!(
+        (ask.text, ask.reasoning, ask.input, ask.measure(&crate::CEILINGS).expect("record within limits")),
+        (false, false, false, 3)
+    );
+    assert_eq!(
+        wire::InputCall::decode(&wire::CEILINGS, &mut Reader::new(&[0; 8]))
+            .unwrap()
+            .measure(&crate::CEILINGS)
+            .expect("record within limits"),
+        8
+    );
+    assert_eq!(
+        wire::Piece::decode(&wire::CEILINGS, &mut Reader::new(&[0; 21]))
+            .unwrap()
+            .measure(&crate::CEILINGS)
+            .expect("record within limits"),
+        21
+    );
     let mut fact = [0; 38];
     fact[16] = 4; // FactValue::Piece; the piece itself has the first kind, Text.
-    assert_eq!(wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(&fact)).unwrap().measure(), 38);
+    assert_eq!(
+        wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(&fact))
+            .unwrap()
+            .measure(&crate::CEILINGS)
+            .expect("record within limits"),
+        38
+    );
 }

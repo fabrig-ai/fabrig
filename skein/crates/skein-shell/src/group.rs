@@ -1,6 +1,13 @@
-//! Calls for the tree keeper (runtime/readiness.md, 5).
+//! Process observations and calls for the tree keeper (runtime/readiness.md, 5).
 
 use skein_io::kernel::{Error, Fd, Signal};
+
+/// The calling process's unreaped children, zombies included, in no order
+/// (runtime/readiness.md, 5). Reaps nothing and signals no one; a failed
+/// reading answers its error number, a possibly truncated one `ENOBUFS`.
+pub fn unreaped_children() -> Result<Box<[u32]>, i32> {
+    crate::system::group::unreaped_children()
+}
 
 /// The process ID of the child a kept child handle names: its process group's
 /// ID, as the binary leads a group of its own (runtime/readiness.md, 5).

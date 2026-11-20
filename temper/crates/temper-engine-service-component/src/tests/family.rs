@@ -12,7 +12,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
+        record: wire::reading(&w::Reading { read: w::Read::Playground }),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }
@@ -21,7 +21,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
 fn playground_read(row: Option<&forge::Playground>, demo: Option<&crate::settings::Demo>) -> Option<Box<[u8]>> {
     let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, .. } = &mut input {
-        *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap());
+        *record = wire::reading(&w::Reading { read: w::Read::Playground });
     }
     let Err(answer) = family::to_root(
         &jig_protocol_config::Directories::working(),
@@ -56,11 +56,11 @@ fn the_playground_read_answers_from_the_row_and_the_settings() {
         let row = forge::Playground { forge: 9, project, account: Some(7), state };
         let record = playground_read(Some(&row), Some(demo)).unwrap();
         let answer = wire::decode_playground_answer(&record, &w::CEILINGS).unwrap();
-        assert_eq!((answer.forge(), *answer.project(), answer.provider()), (9, project, demo.provider));
-        assert_eq!(answer.state(), &expected);
-        assert_eq!(answer.owner(), b"playground");
-        assert_eq!(answer.name(), b"widget");
-        assert_eq!(answer.cues().as_slice(), demo.cues.as_ref());
+        assert_eq!((answer.forge, answer.project, answer.provider), (9, project, demo.provider));
+        assert_eq!(&answer.state, &expected);
+        assert_eq!(answer.owner.as_ref(), b"playground");
+        assert_eq!(answer.name.as_ref(), b"widget");
+        assert_eq!(answer.cues.as_slice(), demo.cues.as_ref());
     }
 }
 
@@ -87,9 +87,7 @@ fn the_deployment_read_stays_answered_before_any_party() {
             let mut input = read_input(people::ApplicationScope::Deployment);
             if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
                 *sign_in = 0;
-                *record = wire::reading(
-                    &w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap(),
-                );
+                *record = wire::reading(&w::Reading { read: w::Read::Deployment });
             }
             let Err(answer) = family::to_root(
                 &jig_protocol_config::Directories::working(),
@@ -108,8 +106,8 @@ fn the_deployment_read_stays_answered_before_any_party() {
             assert_eq!((reply, family), (REPLY, wire::FORGE));
             let answer = wire::decode_deployment_answer(&record.expect("every deployment answers"), &w::CEILINGS)
                 .expect("deployment record");
-            assert_eq!((answer.welcome(), answer.owned()), (deployment.welcome, deployment.owned));
-            assert_eq!(*answer.push(), deployment.push);
+            assert_eq!((answer.welcome, answer.owned), (deployment.welcome, deployment.owned));
+            assert_eq!(answer.push, deployment.push);
         }
     }
 }
@@ -120,7 +118,7 @@ fn deployment_welcome(service: &mut crate::Service) -> bool {
     let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
         *sign_in = 0;
-        *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap());
+        *record = wire::reading(&w::Reading { read: w::Read::Deployment });
     }
     let Err(answer) = family::to_root(
         &jig_protocol_config::Directories::working(),
@@ -136,7 +134,7 @@ fn deployment_welcome(service: &mut crate::Service) -> bool {
     let kit::Event::Application(kit::FromApplication::Read { record: Some(record), .. }) = *answer else {
         panic!("deployment answer")
     };
-    wire::decode_deployment_answer(&record, &w::CEILINGS).unwrap().welcome()
+    wire::decode_deployment_answer(&record, &w::CEILINGS).unwrap().welcome
 }
 
 #[test]

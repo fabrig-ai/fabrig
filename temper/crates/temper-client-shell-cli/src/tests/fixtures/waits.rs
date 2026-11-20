@@ -17,12 +17,8 @@ impl Frame {
     pub fn exchange(&mut self, number: u64) {
         let exchange = skein_lib::Token::new((1 << 63) | number);
         assert!(self.probe.replace(exchange).is_none(), "one probe exchange at a time");
-        let read = w::Read::Task(w::ReadTask::new(&w::CEILINGS, w::ReadTaskParts { task: 41 }).expect("read task"));
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(read) },
-        )
-        .expect("read document");
+        let read = w::Read::Task(w::ReadTask { task: 41 });
+        let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(read) };
         self.host.transport.as_mut().expect("live memory transport").down(
             self.now,
             jig_client::Request::Exchange {
@@ -46,7 +42,7 @@ impl Frame {
                 jig_client::Event::Lost { exchange: lost } if lost == exchange => panic!("probe exchange lost"),
                 event @ (jig_client::Event::Start { .. }
                 | jig_client::Event::AskLink
-                | jig_client::Event::AskApproval
+                | jig_client::Event::AskApproval { .. }
                 | jig_client::Event::ReadApproval { .. }
                 | jig_client::Event::DecideApproval { .. }
                 | jig_client::Event::ApprovalAnswer { .. }
@@ -106,13 +102,10 @@ impl Frame {
         }
     }
     pub fn engine_stopping(&mut self) {
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded::new(
-                &w::CEILINGS,
-                w::WatchEndedParts { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::Stopping },
-            )
-            .expect("ended"),
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded {
+            watch: self.wait_task.expect("wait watch"),
+            why: w::WatchEnd::Stopping,
+        });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
         self.stopping = Some(());
         self.run();
@@ -124,32 +117,22 @@ impl Frame {
         self.run();
     }
     pub fn refuse_wait(&mut self) {
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded::new(
-                &w::CEILINGS,
-                w::WatchEndedParts { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::NotAllowed },
-            )
-            .expect("ended"),
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded {
+            watch: self.wait_task.expect("wait watch"),
+            why: w::WatchEnd::NotAllowed,
+        });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
         self.run();
     }
     pub(super) fn deliver_task(&mut self, changed: bool) {
-        let mut parts = jig_client_test_records::task_record().into_parts();
+        let mut parts = jig_client_test_records::task_record();
         if changed {
             parts.project += 1;
         }
-        let task = w::Task::new(&w::CEILINGS, parts).expect("task");
+        let task = parts;
         let value = w::DeliveryValue::Task(Box::new(task));
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) },
-        )
-        .expect("task delivery");
-        let event = w::StreamEvent::Delivery(
-            w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: self.wait_task.expect("wait watch"), document })
-                .expect("delivery"),
-        );
+        let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) };
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("wait watch"), document });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
     }
     pub fn no_directory(&self) -> bool {

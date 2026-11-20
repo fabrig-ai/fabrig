@@ -49,6 +49,8 @@ fn wait_in_trace(submissions: &mut Queue<kernel::Submit>) -> bool {
 pub struct Launch {
     pub seed: u64,
     pub tls: bool,
+    /// The real world's commands inherit the test process's PATH; simulations keep it absent.
+    pub commands_path: Option<String>,
     pub trust_der: Option<PathBuf>,
     pub change: bool,
     /// Include the real-loop tool and mandatory-check story.
@@ -129,15 +131,15 @@ fn issuer_with_token(transport: skein_fake_peers::Transport, port: u16, access_t
         plans: 4,
     };
     let response_bytes = skein_fake_peers::oauth::least_response(&limits).expect("issuer response floor fits u32");
-    let host = smith_agent_process_world::fake::loopback();
+    let address = smith_agent_process_world::fake::address(port);
     let redirect = smith_agent_process_world::fake::redirect_port();
     let mut issuer = Issuer::new(
-        (host, port).into(),
+        address,
         transport,
         smith_agent_process_world::fake::limits(),
         fake_oauth::Config {
-            authorization_url: format!("{scheme}://{host}:{port}/authorize").into_bytes().into(),
-            token_endpoint: format!("{scheme}://{host}:{port}/token").into_bytes().into(),
+            authorization_url: format!("{scheme}://{address}/authorize").into_bytes().into(),
+            token_endpoint: format!("{scheme}://{address}/token").into_bytes().into(),
             client_id: b"client".as_slice().into(),
             client_secret: None,
             terms: None,
@@ -155,6 +157,9 @@ fn issuer_with_token(transport: skein_fake_peers::Transport, port: u16, access_t
         },
     )
     .expect("issuer fixture");
+    if let Some((fd, address)) = smith_agent_process_world::fake::take_listener(port) {
+        issuer.adopt_listener(fd, address).expect("issuer adopts held listener");
+    }
     issuer
         .queue(fake_oauth::Plan {
             status: 200,

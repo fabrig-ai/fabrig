@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::worker_settings;
 use fixtures::worker_peers::*;
-use temper_protocol_worker_wire::v1::Record;
+use smith_channel::Record;
 
 #[test]
 fn the_link_s_credential_names_temper_s_wire() {
@@ -609,13 +609,10 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
         let encoded = encode_grants(*start, values, &agent).unwrap();
         let body = &encoded.bytes()[encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap()..];
         let decoded = smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(body)).unwrap();
-        let value = decoded.grants().get(0).unwrap();
-        assert_eq!(
-            (value.account(), value.generation(), value.valid()),
-            (grant.account, grant.generation, grant.valid)
-        );
-        let smith_channel::GrantValue::Program(value) = value.value() else { panic!("only a program name") };
-        assert_eq!(value.name(), bytes.as_ref());
+        let value = decoded.grants.get(0).unwrap();
+        assert_eq!((value.account, value.generation, value.valid), (grant.account, grant.generation, grant.valid));
+        let smith_channel::GrantValue::Program(value) = &value.value else { panic!("only a program name") };
+        assert_eq!(value.name.as_ref(), bytes.as_ref());
         let mut mismatched = decoded_chat_start(&agent);
         mismatched.grants = Box::new([grant]);
         let wrong = smith_host_protocol::Values {
@@ -818,11 +815,11 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
         let offset = encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap();
         let decoded =
             smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(&encoded.bytes()[offset..])).unwrap();
-        let smith_channel::GrantValue::Credential(value) = decoded.grants().get(0).unwrap().value() else {
+        let smith_channel::GrantValue::Credential(value) = &decoded.grants.get(0).unwrap().value else {
             panic!("credential")
         };
-        assert_eq!(value.scheme(), &smith_channel::Scheme::Key);
-        assert_eq!(value.bytes().expose().len(), usize::try_from(size).unwrap());
+        assert_eq!((&value.scheme), &smith_channel::Scheme::Key);
+        assert_eq!(value.bytes.expose().len(), usize::try_from(size).unwrap());
     }
 }
 
@@ -1158,5 +1155,74 @@ fn restart_notes_keep_the_longer_of_the_word_and_the_configured_grace() {
         stand.worker.link(fixtures::NOW, link::Request::Restarting { wait });
         assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::Restarting { keep: wait.max(grace) }));
         assert!(stand.worker.notes().is_empty(), "once per word");
+    }
+}
+
+#[test]
+fn usage_commands_reach_the_adapter_and_return_through_the_hub() {
+    use jig_domain_link::{SourceFailure, SourceName, UsageOutcome};
+    for parent_missing in [false, true] {
+        let mut worker = fixtures::started_worker().worker;
+        if parent_missing {
+            worker
+                .configure_program_sources(
+                    crate::program_sources::Resources::new(
+                        smith_protocol_program::Programs {
+                            claude: b"/private/program".as_slice().into(),
+                            directory: b"/private/programs".as_slice().into(),
+                        },
+                        Box::new([]),
+                        crate::settings::PROGRAM_PATH_BYTES,
+                        1000,
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let mut peer = LinkPeer::new();
+        peer.open(&mut worker);
+        worker.link(
+            fixtures::NOW,
+            link::Request::Down { down: hub::LinkDown::Sources { sources: Box::new([]) }, parts: Box::new([]) },
+        );
+        worker.link(
+            fixtures::NOW,
+            link::Request::Down {
+                down: hub::LinkDown::ReadUsage { read: 73, source: SourceName::new(b"alice").unwrap() },
+                parts: Box::new([]),
+            },
+        );
+        let mut answer = None;
+        for _ in 0_u32..100 {
+            if let Some(jig_protocol_engine_workers::Request::Up {
+                up: hub::LinkUp::UsageRead { read, outcome }, ..
+            }) = peer.turn(&mut worker)
+            {
+                answer = Some((read, outcome));
+                break;
+            }
+        }
+        assert_eq!(
+            answer,
+            Some((
+                73,
+                UsageOutcome::Failed {
+                    reason: SourceFailure::Unconfigured,
+                    detail: Box::from(if parent_missing {
+                        b"programs parent directory is unavailable".as_slice()
+                    } else {
+                        b"no program configured".as_slice()
+                    })
+                }
+            ))
+        );
+        assert_eq!(worker.root.host().hosted(), 0);
+        for request in &*worker.io() {
+            if let io::Request::Spawn { .. } | io::Request::SpawnAlone { .. } = request {
+                panic!("an unconfigured usage read starts no program: {request:?}");
+            }
+        }
     }
 }

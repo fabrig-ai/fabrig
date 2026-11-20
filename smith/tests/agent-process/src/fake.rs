@@ -1,28 +1,118 @@
 //! Scenario configuration and observations of Skein's independent LLM peer.
-//! It keeps no transport state or service state; the peer owns both byte
+//! It reserves real macOS listeners until adoption; the peer owns byte
 //! routing and its script. Contract: smith/docs/design/testing.md, sections 4 and 5.
 use skein_fake_llm_domain::{self as domain, api};
 use skein_fake_llm_protocol::{documents, provider};
 use skein_fake_peers::{Limits, Transport, llm};
 use skein_lib::Duration;
 
+use skein_io::kernel::Fd;
+use std::{
+    collections::BTreeMap,
+    net::{SocketAddr, SocketAddrV4},
+    sync::Mutex,
+};
+
 static REAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static MACOS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static LISTENERS: Mutex<BTreeMap<u16, HeldListener>> = Mutex::new(BTreeMap::new());
+
+struct HeldListener {
+    fd: Fd,
+    address: SocketAddr,
+    adopted: bool,
+}
+
+impl Drop for HeldListener {
+    fn drop(&mut self) {
+        if !self.adopted {
+            skein_shell::close_startup_fd(self.fd);
+        }
+    }
+}
 
 /// A scratch scope restores its peers' previous loopback mode when it ends.
 pub struct RealLoopback {
     previous: bool,
+    previous_macos: bool,
+    previous_listeners: BTreeMap<u16, HeldListener>,
 }
 
 impl Drop for RealLoopback {
     fn drop(&mut self) {
         REAL.store(self.previous, std::sync::atomic::Ordering::Relaxed);
+        MACOS.store(self.previous_macos, std::sync::atomic::Ordering::Relaxed);
+        *LISTENERS.lock().expect("fixture listeners") = std::mem::take(&mut self.previous_listeners);
     }
 }
 
-/// Select process-specific peer addresses until the scratch scope ends.
+/// Select real-host peer addresses until the scratch scope ends.
 #[must_use]
 pub fn real_loopback() -> RealLoopback {
-    RealLoopback { previous: REAL.swap(true, std::sync::atomic::Ordering::Relaxed) }
+    real_loopback_on(cfg!(target_os = "macos"))
+}
+
+/// Select a real host's address policy, including macOS's held path on Linux.
+#[must_use]
+pub fn real_loopback_on(macos: bool) -> RealLoopback {
+    RealLoopback {
+        previous: REAL.swap(true, std::sync::atomic::Ordering::Relaxed),
+        previous_macos: MACOS.swap(macos, std::sync::atomic::Ordering::Relaxed),
+        previous_listeners: std::mem::take(&mut *LISTENERS.lock().expect("fixture listeners")),
+    }
+}
+
+/// Pure bind choice: macOS real peers request a held kernel port; others keep theirs.
+#[must_use]
+pub fn listen_on(real: bool, macos: bool, process_id: u32, port: u16) -> SocketAddrV4 {
+    let host = if real && !macos { loopback_for(process_id) } else { std::net::Ipv4Addr::LOCALHOST };
+    SocketAddrV4::new(host, if real && macos { 0 } else { port })
+}
+
+fn selected(port: u16) -> SocketAddrV4 {
+    listen_on(
+        REAL.load(std::sync::atomic::Ordering::Relaxed),
+        MACOS.load(std::sync::atomic::Ordering::Relaxed),
+        std::process::id(),
+        port,
+    )
+}
+
+/// The address shared by settings and the peer, reserved until adoption.
+#[must_use]
+pub fn address(port: u16) -> SocketAddr {
+    let selected = selected(port);
+    if selected.port() != 0 {
+        return selected.into();
+    }
+    LISTENERS
+        .lock()
+        .expect("fixture listeners")
+        .entry(port)
+        .or_insert_with(|| {
+            let (fd, address) = skein_shell::open_listener(selected.into(), limits().io.backlog)
+                .expect("held fake listener on localhost");
+            HeldListener { fd, address, adopted: false }
+        })
+        .address
+}
+
+/// Startup descriptors to declare before constructing a hosted real peer.
+#[must_use]
+pub fn listener_fds(port: u16) -> Vec<Fd> {
+    let _address = address(port);
+    LISTENERS.lock().expect("fixture listeners").get(&port).map_or_else(Vec::new, |held| vec![held.fd])
+}
+
+/// Transfer the held listener to its peer once, before its first io pass.
+#[must_use]
+pub fn take_listener(port: u16) -> Option<(Fd, SocketAddr)> {
+    let _address = address(port);
+    LISTENERS.lock().expect("fixture listeners").get_mut(&port).map(|held| {
+        assert!(!held.adopted, "one fake per reserved port in a scratch scope");
+        held.adopted = true;
+        (held.fd, held.address)
+    })
 }
 
 /// A Linux process id maps to one distinct address within 127/8.
@@ -33,14 +123,10 @@ pub fn loopback_for(process_id: u32) -> std::net::Ipv4Addr {
     address
 }
 
-/// Real peers use this process's address; simulated peers keep localhost.
+/// Real Linux peers use this process's address; macOS and simulation use localhost.
 #[must_use]
 pub fn loopback() -> std::net::Ipv4Addr {
-    if REAL.load(std::sync::atomic::Ordering::Relaxed) {
-        loopback_for(std::process::id())
-    } else {
-        std::net::Ipv4Addr::LOCALHOST
-    }
+    *selected(443).ip()
 }
 
 /// Real sign-in takes one free localhost port per process; simulation keeps 2345.
@@ -216,8 +302,9 @@ impl Options {
         protocol.documents.openai.tokens = 4096;
         protocol.documents.openai.output_items = 256;
         protocol.documents.anthropic.output_items = 256;
-        llm::Peer::new(
-            (loopback(), if transport == Transport::Tls { 34_443 } else { 443 }).into(),
+        let port = if transport == Transport::Tls { 34_443 } else { 443 };
+        let mut peer = llm::Peer::new(
+            address(port),
             transport,
             limits(),
             provider::Config {
@@ -241,7 +328,11 @@ impl Options {
             domain::Domain::try_scripted(&config, 17, scripts).expect("bounded scenario scripts"),
             config,
         )
-        .expect("configured independent peer")
+        .expect("configured independent peer");
+        if let Some((fd, address)) = take_listener(port) {
+            peer.adopt_listener(fd, address).expect("provider adopts held listener");
+        }
+        peer
     }
 }
 

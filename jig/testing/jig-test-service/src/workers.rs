@@ -32,21 +32,10 @@ impl Workers {
         }?;
         let mut limits_by_name = List::with_capacity(wire::CEILINGS.figures_limits);
         for (name, value) in &config::overrides::list(&config.limits) {
-            limits_by_name
-                .push(
-                    wire::Limit::new(&wire::CEILINGS, wire::LimitParts { name: name.as_bytes().into(), value: *value })
-                        .expect("named jig limit"),
-                )
-                .expect("uncapped limits");
+            limits_by_name.push(wire::Limit { name: name.as_bytes().into(), value: *value }).expect("uncapped limits");
         }
-        let agents = wire::Agents::new(
-            &wire::CEILINGS,
-            wire::AgentsParts { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
-        )
-        .expect("no agents");
-        let figures =
-            wire::Figures::new(&wire::CEILINGS, wire::FiguresParts { places: 0, limits: limits_by_name, agents })
-                .expect("jig limits fit figures");
+        let agents = wire::Agents { profile: List::with_capacity(0), endpoints: List::with_capacity(0) };
+        let figures = wire::Figures { places: 0, limits: limits_by_name, agents };
         host.down(Time::ZERO, kit::Event::Figures { figures });
         let mut endpoints = List::with_capacity(u32::try_from(config.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &config.llm.endpoints {
@@ -153,6 +142,9 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::Answer
                         | jig_protocol_worker_wire::Kind::Fact
                         | jig_protocol_worker_wire::Kind::Unauthorized
+                        | jig_protocol_worker_wire::Kind::Usage
+                        | jig_protocol_worker_wire::Kind::UsageRead
+                        | jig_protocol_worker_wire::Kind::ReadUsage
                         | jig_protocol_worker_wire::Kind::Limited
                         | jig_protocol_worker_wire::Kind::AccountRefused
                         | jig_protocol_worker_wire::Kind::Message

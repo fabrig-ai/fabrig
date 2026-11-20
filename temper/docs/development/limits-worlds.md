@@ -318,6 +318,29 @@ user plus system, build and cargo overhead excluded. Two preceding
 welcome-playground` runs warmed the binary and printed byte-identical
 scratch trees. An independently idle host was not established.
 
+2026-11-19, based on `e82aba53cb532fbdc3b5d83d36add6d8a930dd33`:
+`welcome-set-up`'s twenty-line version-2 walk prints seven pages,
+from the welcome through the owned Forgejo's set-up on the world's
+box's peer to `work/hello` made. On Linux x86_64, `nproc` = 8, CPU
+model AMD EPYC-Genoa Processor, three warm runs of the built,
+unoptimized `target/debug/temper-client-walk print --out DIR
+welcome-set-up` (each DIR fresh, using Cargo's configured target
+directory) took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.739301 | 0.129276 | 0.868577 |
+| 2 | 0.740045 | 0.043532 | 0.783577 |
+| 3 | 0.734798 | 0.047663 | 0.782461 |
+
+**Median: 0.783577 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run;
+user plus system, build and cargo overhead excluded. Preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+--out DIR welcome-set-up` runs warmed the binary and printed
+byte-identical scratch trees. An independently idle host was not
+established.
+
 The walker and program tests added by change 9774, each run alone by
 exact name with `cargo nextest run`, default (focused) profile:
 nextest's per-test elapsed seconds below, not CPU or build time. The
@@ -343,3 +366,168 @@ by the enclosing shell's 120 s deadline, not by nextest or a test
 budget; its replacement ran alone with a 600 s shell deadline. These
 figures use only the completed individual runs. No project budget,
 nextest setting or test reference was changed.
+
+### The TUI's first walk
+
+2026-11-19, change 10239: `sign-in-approved`'s six-line version-2
+walk prints its approval frame and no-project launchpad in one process,
+on the playground's service. On Linux x86_64, `nproc` = 8,
+CPU model AMD EPYC-Genoa Processor, three warm runs of the
+built, unoptimized `target/debug/temper-client-walk print --out DIR
+sign-in-approved` (Cargo's configured target directory, each DIR fresh)
+took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.511237 | 0.091863 | 0.603100 |
+| 2 | 0.548186 | 0.140048 | 0.688234 |
+| 3 | 0.514345 | 0.107653 | 0.621998 |
+
+**Median: 0.621998 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run,
+user plus system, build and cargo overhead excluded. The preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+--out DIR sign-in-approved` warmed the binary. An independently idle
+host was not established. Both printed frames and their HTML were
+checked against the journey's README; no page or recording is changed
+by this change.
+
+Each new test ran alone by exact name with `cargo nextest run`,
+`TEMPER_INTERNAL_BUNDLE=none`, default (focused) profile. These are
+nextest's per-test elapsed seconds, not CPU or build time:
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::tui_links_use_the_marked_event_and_only_see_lines_before_the_first_key` | 0.035 |
+| `temper-client-walk-tool` / suite | `tui_walks_print_frames_and_assets_under_the_tui_root` | 0.805 |
+| same | `tui_prints_twice_have_identical_bytes` | 1.052 |
+| same | `tui_keys_link_the_marked_frame_to_the_next_page` | 0.616 |
+| same | `a_tui_stop_names_its_line_and_leaves_other_journeys_printable` | 1.351 |
+| same | `tui_pages_remove_stale_frames_and_recording_then_write_nothing_when_fresh` | 2.239 |
+| same | `all_prints_visit_both_roots_in_order_and_names_prefer_the_browser` | 1.912 |
+| same | `tui_ancestors_marks_are_skipped_and_stop_restarts_the_terminal` | 0.634 |
+
+All eight passed. The named dependency-boundary test,
+`fabrig-boundary` / `journey_walk` /
+`the_walk_binarys_normal_closure_has_no_browser_or_journeys_tool`,
+also passed alone (0.125 s). No budget, timeout, nextest setting or
+reference was added or raised.
+
+### The TUI's design session
+
+2026-11-20, change 10883, based on
+`0d86632282802e0919d31ec10c02f0e3247fdcf8`: `design-session`'s version-2
+walk, `after project-landing`, prints ten frames and their HTML in one
+process. It approves the TUI, opens Hello's design session, cycles the
+pane, answers the drafter and starts its goal. On Linux x86_64,
+`nproc` = 8, CPU model AMD EPYC-Genoa Processor, three warm prints of the
+unoptimized debug binary into fresh scratch directories took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 6.75 | 6.28 | 0.27 | 6.55 |
+| 2 | 6.78 | 6.25 | 0.32 | 6.57 |
+| 3 | 7.31 | 6.52 | 0.35 | 6.87 |
+
+**Median: 6.78 wall s, 6.57 CPU s.** `/usr/bin/time` measured the built
+binary alone, launched through `cargo run -p temper-client-walk` with
+`target.x86_64-unknown-linux-gnu.runner` set to that timer, and
+`TEMPER_INTERNAL_BUNDLE=none`; build and Cargo overhead are excluded.
+Earlier diagnostic prints warmed the binary. An independently idle host
+was not established. All three scratch trees had identical bytes. The
+frames and key links were checked against the journey's README; scratch
+was removed, and no page or recording is committed.
+
+The new focused test, `temper-client-walk-tool` / `suite` /
+`a_tui_drafts_pane_cycles_and_key_links_print_repeatably`, passed alone
+in **6.939 s**, nextest's per-test elapsed time, not CPU or build time.
+It uses its own playground ancestor, TUI walk and model scripts, prints
+half, all, folded and half again twice, and checks identical bytes,
+document visibility, choices below the box and Ctrl-P's page links.
+Disabling the walker's key-link retention made that test fail on the
+missing Ctrl-P link; restoring it passed. No budget, timeout, nextest
+setting or reference was added or raised.
+
+### The TUI's launchpad chat
+
+2026-11-20, change 10881: `launchpad-chat`'s version-2 walk runs
+`after project-landing`, approves the TUI, then prints four pages from
+Hello's launchpad through its commands and typed question to the Ask
+temper chat and its scripted answer. Before the first mark it waits for
+"Nothing needs you." and `/draft`, so the launchpad has its status and
+project commands. On Linux x86_64, `nproc` = 8, CPU model AMD
+EPYC-Genoa Processor, three warm runs of the built, unoptimized
+`target/debug/temper-client-walk print --out DIR launchpad-chat`
+(Cargo's configured target directory, each DIR fresh) took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 6.786375 | 6.591297 | 0.191979 | 6.783276 |
+| 2 | 6.722648 | 6.538222 | 0.171953 | 6.710175 |
+| 3 | 6.725978 | 6.555155 | 0.168081 | 6.723236 |
+
+**Medians: 6.725978 wall s, 6.723236 CPU s.** Wall time is Python's
+`time.perf_counter` difference around each direct binary run; CPU is
+the difference of `resource.getrusage(RUSAGE_CHILDREN)`, user plus
+system. Build and Cargo overhead are excluded. An independently idle
+host was not established. Two preceding `TEMPER_INTERNAL_BUNDLE=none
+cargo run -p temper-client-walk -- print --out DIR launchpad-chat`
+runs printed identical scratch trees. Each measured run matched those
+bytes too. All scratch directories were outside the checkout and
+removed; no journey page or recording is changed.
+
+The new focused test ran alone by exact name with `cargo nextest run`,
+`TEMPER_INTERNAL_BUNDLE=none`, default profile. This is nextest's
+per-test elapsed time, not CPU or build time:
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::moved_journeys_read_and_join_their_scripts_without_a_world` | 0.190 |
+
+It passed, reading all six moved journeys: `chat-draft`,
+`project-landing`, `welcome-playground`, `welcome-set-up`,
+`sign-in-approved` and `launchpad-chat`. It discovers moved journeys
+under both roots and joins each chain's scripts through the walker's
+shared helper without starting a world. No budget, timeout, nextest
+setting or reference was added or raised.
+
+### The launchpad's delegated question
+
+2026-11-20, change 10882: `launchpad-drawn`'s version-2 walk,
+`after project-landing`, prints five TUI pages in one process: the
+request typed, the chat's reply and delegated question, the launchpad's
+need, the choice prompt and the answered launchpad. Hello uses the
+world's owned `work/hello` and ChatGPT plan. On Linux x86_64, `nproc` = 8,
+CPU model AMD EPYC-Genoa Processor, three warm prints of the built,
+unoptimized `temper-client-walk print --out DIR launchpad-drawn`, each
+DIR fresh and outside the checkout, took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 7.927598 | 7.418535 | 0.437025 | 7.855560 |
+| 2 | 7.755123 | 7.128628 | 0.472711 | 7.601339 |
+| 3 | 7.582927 | 7.073282 | 0.426530 | 7.499812 |
+
+**Median: 7.755123 wall s, 7.601339 CPU s.** Each print ran through
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk`, with a
+command-local Cargo target runner measuring the binary alone: Python's
+`time.monotonic()` around its child and
+`resource.getrusage(RUSAGE_CHILDREN)` for user plus system CPU. Build
+and Cargo overhead are excluded. A preceding print warmed the binary;
+all four final scratch trees, including assets, were byte-identical.
+An independently idle host was not established. Each frame and its key
+link was checked against the README; all scratch trees were removed.
+
+The focused test `temper-client-walk-tool` / `suite` /
+`a_delegated_question_walks_its_choices_and_prints_repeatably`, run alone
+by exact name with `cargo nextest run`, `TEMPER_INTERNAL_BUNDLE=none`,
+default profile, passed in **8.419 s**, nextest's elapsed time, not CPU
+or build time (reported slow at 6 s). Its own web ancestor enters the
+playground with "Try the playground"; its TUI chat T1 delegates goal T2,
+whose question targets 1. It prints twice, checks identical bytes,
+`n` and Enter links, both choices with the first active, and no need
+after answering. Disabling TUI mark keys made it fail on the missing
+`n` link; restoring them passed. An initial attempt reached the need
+before its chat's read had answered and stopped waiting for Next;
+waiting for `/chats 1` and the named question resolved it. No budget,
+timeout, nextest setting or reference was added or raised.

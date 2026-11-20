@@ -271,6 +271,8 @@ fn restart_preserves_desired_program_absence() {
         .filter_map(|request| match request {
             Request::Save { record } => Some(record),
             Request::Programs { .. }
+            | Request::CancelUsage { .. }
+            | Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CheckProgram { .. }
             | Request::SignOutProgram { .. }
@@ -595,11 +597,13 @@ fn a_usable_program_source_is_granted_by_its_name() {
 }
 #[test]
 fn a_program_grant_never_lapses() {
+    const QUIET: skein_lib::Duration = skein_lib::Duration::from_secs(30 * 60);
     let mut world = fresh();
     let (source, _) = declare(&mut world, HOLDER, PROVIDER, None, b"personal");
     let source = source.expect("declared source");
     assert_eq!(world.domain.source_grant(source, skein_lib::Time::from_nanos(u64::MAX)), Some(named_grant(source, 2)));
-    assert_eq!(world.domain.next_deadline(), None);
+    // The grant never lapses; the account's next alarm reads idle usage (accounts.md, 3.7).
+    assert_eq!(world.domain.next_deadline(), Some(skein_lib::Time::ZERO.saturating_add(QUIET)));
 }
 #[test]
 fn a_new_login_raises_the_program_grant_s_generation() {
@@ -779,4 +783,149 @@ fn a_retired_name_declaration_refuses_another_holder() {
             answer: jig_domain_accounts::Answer::ProgramDeclared { source: 3, name: b"claude-7".as_slice().into() },
         })
     );
+}
+
+// The first declaration reserves account 0 and source 1; the next reserves 2 and 3.
+const USAGE_ACCOUNT: u32 = 0;
+const USAGE_SOURCE: u32 = 1;
+const USAGE_NEXT: u32 = 2;
+const RETIRED_USAGE_ACCOUNT: u32 = 2;
+const RETIRED_USAGE_SOURCE: u32 = 3;
+const UNKNOWN_USAGE_SOURCE: u32 = 99;
+const USAGE_LENGTH: skein_lib::Duration = skein_lib::Duration::from_secs(18_000); // Five hours.
+const UPDATED_USAGE_LENGTH: skein_lib::Duration = skein_lib::Duration::from_secs(21_600); // Six hours.
+fn usage_world() -> World {
+    let mut world = fresh();
+    declare(&mut world, HOLDER, PROVIDER, None, b"personal").0.expect("live program source");
+    world
+}
+
+fn usage(label: &[u8]) -> jig_domain_link::UsageWindow {
+    jig_domain_link::UsageWindow {
+        label: label.into(),
+        window: jig_domain_accounts::FactWindow {
+            length: Some(USAGE_LENGTH),
+            used: Some(2800),
+            resets: Some(skein_lib::Wall::from_nanos(99)),
+            state: jig_domain_accounts::WINDOW_OPEN,
+        },
+    }
+}
+#[test]
+fn usage_reports_preserve_absent_fields_and_equal_reports_keep_seen() {
+    use jig_domain_accounts::{AccountFact, FactValue, KIND_USAGE, ORIGIN_PROGRAM, WINDOW_WARNED};
+    use skein_lib::Wall;
+    let mut world = usage_world();
+    let first = usage(b"five_hour");
+    world.wall = Wall::from_nanos(1);
+    let expected = AccountFact {
+        kind: KIND_USAGE,
+        label: first.label.clone(),
+        value: FactValue::Window(first.window),
+        seen: world.wall,
+        source: Some(USAGE_SOURCE),
+        origin: ORIGIN_PROGRAM,
+    };
+    assert_eq!(
+        world.step(Event::Usage { source: USAGE_SOURCE, window: first.clone() }),
+        vec![Request::Save { record: Stored::Facts { account: USAGE_ACCOUNT, facts: Box::new([expected.clone()]) } }]
+    );
+    world.wall = Wall::from_nanos(2);
+    assert_eq!(world.step(Event::Usage { source: USAGE_SOURCE, window: first.clone() }), Vec::<Request>::new());
+    assert_eq!(world.domain.account_facts(USAGE_ACCOUNT), [expected]);
+    // Each omitted field keeps its value, independently of the other supplied fields.
+    let updated = jig_domain_accounts::FactWindow {
+        length: Some(UPDATED_USAGE_LENGTH),
+        used: Some(3000),
+        resets: Some(Wall::from_nanos(100)),
+        state: WINDOW_WARNED,
+    };
+    for (reported, expected) in [
+        (
+            jig_domain_accounts::FactWindow { used: None, ..updated },
+            jig_domain_accounts::FactWindow { used: Some(2800), ..updated },
+        ),
+        (
+            jig_domain_accounts::FactWindow { length: None, ..updated },
+            jig_domain_accounts::FactWindow { length: Some(USAGE_LENGTH), ..updated },
+        ),
+        (
+            jig_domain_accounts::FactWindow { resets: None, ..updated },
+            jig_domain_accounts::FactWindow { resets: first.window.resets, ..updated },
+        ),
+    ] {
+        let report = jig_domain_link::UsageWindow { label: first.label.clone(), window: reported };
+        let mut separate = usage_world();
+        separate.step(Event::Usage { source: USAGE_SOURCE, window: first.clone() });
+        separate.wall = Wall::from_nanos(3);
+        let changed = AccountFact {
+            kind: KIND_USAGE,
+            label: first.label.clone(),
+            value: FactValue::Window(expected),
+            seen: separate.wall,
+            source: Some(USAGE_SOURCE),
+            origin: ORIGIN_PROGRAM,
+        };
+        assert_eq!(
+            separate.step(Event::Usage { source: USAGE_SOURCE, window: report.clone() }),
+            vec![Request::Save {
+                record: Stored::Facts { account: USAGE_ACCOUNT, facts: Box::new([changed.clone()]) }
+            }]
+        );
+        separate.wall = Wall::from_nanos(4);
+        assert_eq!(separate.step(Event::Usage { source: USAGE_SOURCE, window: report }), Vec::<Request>::new());
+        assert_eq!(separate.domain.account_facts(USAGE_ACCOUNT), [changed]);
+    }
+    world.step(Event::Usage { source: USAGE_SOURCE, window: usage(b"seven_day") });
+    assert_eq!(
+        world.domain.account_facts(USAGE_ACCOUNT).iter().map(|fact| fact.label.as_ref()).collect::<Vec<_>>(),
+        vec![b"five_hour".as_slice(), b"seven_day"]
+    );
+}
+#[test]
+fn usage_reports_ignore_retired_and_unknown_sources_and_keep_full_facts() {
+    use jig_domain_accounts::{AccountFact, FACTS, FactValue, KIND_USAGE, ORIGIN_PROGRAM};
+    let mut world = usage_world();
+    declare(&mut world, HOLDER, PROVIDER, None, b"retired").0.expect("source");
+    world.step(Event::Change {
+        request: skein_lib::Token::new(93),
+        holder: HOLDER,
+        change: jig_domain_accounts::Change::Remove { account: RETIRED_USAGE_ACCOUNT },
+    });
+    for source in [RETIRED_USAGE_SOURCE, UNKNOWN_USAGE_SOURCE] {
+        assert_eq!(world.step(Event::Usage { source, window: usage(b"five_hour") }), Vec::<Request>::new());
+    }
+    assert_eq!(world.domain.account_facts(RETIRED_USAGE_ACCOUNT), &[]);
+    let full: Box<[_]> = (0..FACTS)
+        .map(|number| AccountFact {
+            kind: KIND_USAGE,
+            label: format!("window_{number}").into_bytes().into(),
+            value: FactValue::Window(usage(b"unused").window),
+            seen: world.wall,
+            source: Some(USAGE_SOURCE),
+            origin: ORIGIN_PROGRAM,
+        })
+        .collect();
+    let mut world = World::with_start(
+        LIMITS,
+        configured(),
+        &[
+            held(USAGE_ACCOUNT, b""),
+            issued(USAGE_SOURCE, b"personal"),
+            program(USAGE_ACCOUNT, USAGE_SOURCE, 0, b"personal"),
+            Stored::Next { number: USAGE_NEXT },
+            Stored::Facts { account: USAGE_ACCOUNT, facts: full.clone() },
+        ],
+    );
+    world.step(Event::Want);
+    assert_eq!(world.step(Event::Usage { source: USAGE_SOURCE, window: usage(b"five_hour") }), Vec::<Request>::new());
+    assert_eq!(world.domain.account_facts(USAGE_ACCOUNT), full.as_ref());
+    let mut changed = usage(b"window_0");
+    changed.window.used = Some(3000);
+    assert_eq!(
+        world.step(Event::Usage { source: USAGE_SOURCE, window: changed }).len(),
+        1,
+        "a full record still replaces a held label"
+    );
+    assert_eq!(world.domain.account_facts(USAGE_ACCOUNT).len(), usize::try_from(FACTS).expect("bound fits"));
 }

@@ -144,6 +144,8 @@ pub enum ModelKind {
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
     pub(crate) said: Map<u32, Box<[crate::AccountFact]>>,
+    pub(crate) rates: Map<u32, List<crate::rates::Window>>,
+    pub(crate) rates_changed: Option<u32>,
     pub(crate) sources: Map<u32, Source>,
     pub(crate) issued: Map<u32, crate::programs::Issued>,
     pub(crate) programs: Map<u32, crate::programs::Pending>,
@@ -156,6 +158,9 @@ pub struct Domain {
     pub(crate) providers: Providers,
     pub(crate) list_reads: Map<u32, crate::lists::Reading>,
     pub(crate) list_alarms: Deadlines<u32>,
+    pub(crate) usage_reads: Map<u32, crate::usage::Reading>,
+    pub(crate) usage_alarms: Deadlines<u32>,
+    pub(crate) wall: Wall,
     pub(crate) next_read: u64,
     credentials: Map<u32, Granted>,
     credential_alarms: Deadlines<u32>,
@@ -241,6 +246,8 @@ impl Domain {
         Domain {
             accounts: Map::with_capacity(limits.accounts),
             said: Map::with_capacity(limits.accounts),
+            rates: Map::with_capacity(limits.accounts),
+            rates_changed: None,
             sources: Map::with_capacity(sources),
             issued: Map::with_capacity(limits.program_names),
             programs: Map::with_capacity(limits.program_names),
@@ -250,6 +257,9 @@ impl Domain {
             providers,
             list_reads: Map::with_capacity(limits.accounts),
             list_alarms: Deadlines::with_capacity(limits.accounts),
+            usage_reads: Map::with_capacity(limits.accounts),
+            usage_alarms: Deadlines::with_capacity(limits.accounts),
+            wall: Wall::EPOCH,
             next_read: 0,
             credentials: Map::with_capacity(limits.credentials),
             credential_alarms: Deadlines::with_capacity(limits.credentials),
@@ -277,6 +287,33 @@ impl Domain {
             Some(facts) => facts,
             None => &[],
         }
+    }
+    #[expect(clippy::manual_find, reason = "step code finds a window without closures")]
+    fn window_memory(&self, account: u32, label: &[u8]) -> Option<&crate::rates::Window> {
+        for window in self.rates.get(&account)? {
+            if window.label.as_ref() == label {
+                return Some(window);
+            }
+        }
+        None
+    }
+    /// The rate beside a usage fact, in basis points per hour (accounts.md, 3.7).
+    #[must_use]
+    pub fn window_rate(&self, account: u32, label: &[u8]) -> Option<u32> {
+        self.window_memory(account, label)?.rate
+    }
+    /// Readings of a usage fact, oldest first; never restored from the store.
+    #[must_use]
+    pub fn window_readings(&self, account: u32, label: &[u8]) -> &[crate::WindowReading] {
+        match self.window_memory(account, label) {
+            Some(window) => window.readings.as_slice(),
+            None => &[],
+        }
+    }
+    /// The account whose window rate changed in the latest step, independently of its facts.
+    #[must_use]
+    pub const fn window_rates_changed(&self) -> Option<u32> {
+        self.rates_changed
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
         let mut next = 0;
@@ -456,9 +493,15 @@ impl Domain {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut next = None;
-        for at in [self.alarms.next(), self.credential_alarms.next(), self.move_alarms.next(), self.list_alarms.next()]
-            .into_iter()
-            .flatten()
+        for at in [
+            self.alarms.next(),
+            self.credential_alarms.next(),
+            self.move_alarms.next(),
+            self.list_alarms.next(),
+            self.usage_alarms.next(),
+        ]
+        .into_iter()
+        .flatten()
         {
             next = Some(match next {
                 Some(old) => at.min(old),
@@ -554,10 +597,29 @@ impl Domain {
 #[expect(clippy::too_many_lines, reason = "the accounts boundary dispatches each event in one exhaustive match")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.now = env.now;
+    domain.rates_changed = None;
+    domain.wall = env.wall;
     match event {
         Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
+        Event::Usage { source, window } => {
+            let Some(entry) = domain.sources.get(&source) else { return };
+            if !domain.issued.contains_key(&source) {
+                return;
+            }
+            let account = entry.account;
+            if crate::facts::report_window(domain, account, source, crate::ORIGIN_PROGRAM, &window, env.wall) {
+                let facts = domain.account_facts(account).into();
+                out.push(Request::Save { record: Stored::Facts { account, facts } });
+            }
+            crate::usage::settled(domain, account, out);
+        }
+        Event::UsageRead { read, outcome } => {
+            if domain.wanted() {
+                crate::usage::answered(domain, read, outcome, out);
+            }
+        }
         Event::ProgramSaid { name, email } => {
             let Some(source) = crate::programs::source_named(domain, &name) else { return };
             let account = domain.sources.get(&source).expect("live program source").account;
@@ -689,6 +751,7 @@ fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     domain.phase = Phase::Wanted;
     crate::lists::start(domain, env, out);
+    crate::usage::start(domain, out);
     none_accounts(domain, env, out);
     domain.counted(out);
     for (number, source) in &domain.sources {
@@ -893,6 +956,8 @@ fn close(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     domain.list_reads = Map::with_capacity(env.limits.accounts);
     domain.list_alarms = Deadlines::with_capacity(env.limits.accounts);
+    domain.usage_reads = Map::with_capacity(env.limits.accounts);
+    domain.usage_alarms = Deadlines::with_capacity(env.limits.accounts);
     crate::signing::close(domain, out);
     crate::keys::close(domain, out);
     crate::signing::close_moves(domain, out);
@@ -1062,6 +1127,7 @@ fn failed(entry: &mut Source, env: &Env<Limits>, failure: Failure) {
 /// One expired source, after component inputs so a grant arriving now wins.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.now = env.now;
+    domain.wall = env.wall;
     if let Some(number) = domain.credential_alarms.expire(env.now) {
         domain.credentials.remove(&number).expect("credential alarm names a grant");
         return;
@@ -1072,6 +1138,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     if let Some(account) = domain.list_alarms.expire(env.now) {
         crate::lists::due(domain, account, out);
+        return;
+    }
+    if let Some(account) = domain.usage_alarms.expire(env.now) {
+        crate::usage::settled(domain, account, out);
         return;
     }
     let Some(source) = domain.alarms.expire(env.now) else { return };
@@ -1150,6 +1220,7 @@ pub(crate) fn changed(
     program_grant(domain, source, out);
     let view = settle(domain, env, source);
     crate::lists::settled(domain, view.account, out);
+    crate::usage::settled(domain, view.account, out);
     if domain.facts.try_push(view).is_err() {
         domain.lost = domain.lost.saturating_add(1);
     }

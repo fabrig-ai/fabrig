@@ -1016,7 +1016,7 @@ fn more_of_its_tasks_past_a_page() {
 const RED_PROJECT: u32 = 2;
 const RED_TITLE: &[u8] = b"3 tests fail in nightly since S7 landed";
 
-fn red_root(rows: &[w::FindingRowParts], cut: bool) -> Domain {
+fn red_root(rows: &[w::FindingRow], cut: bool) -> Domain {
     let mut side = Side::empty();
     side.reds = Some(reds(RED_PROJECT, rows, cut));
     let mut task = document();
@@ -1042,21 +1042,15 @@ fn red_lines(tree: &Tree) -> Box<[(Box<[u8]>, bool)]> {
 fn reds_after_landing_say_where_each_stands() {
     let rows = [
         red(14, RED_TITLE, w::FindingState::New),
-        w::FindingRowParts { goal: Some(830), ..red(13, RED_TITLE, w::FindingState::Routed) },
+        w::FindingRow { goal: Some(830), ..red(13, RED_TITLE, w::FindingState::Routed) },
         red(12, RED_TITLE, w::FindingState::Routed),
         red(11, RED_TITLE, w::FindingState::Backlog),
-        w::FindingRowParts {
+        w::FindingRow {
             reason: Some(b"No repair planned".as_slice().into()),
             ..red(10, RED_TITLE, w::FindingState::Dropped)
         },
-        w::FindingRowParts {
-            cleared: Some(
-                w::FindingClearing::new(
-                    &w::CEILINGS,
-                    w::FindingClearingParts { tier: b"nightly".as_slice().into(), run: 412, at: 23 },
-                )
-                .unwrap(),
-            ),
+        w::FindingRow {
+            cleared: Some(w::FindingClearing { tier: b"nightly".as_slice().into(), run: 412, at: 23 }),
             ..red(9, b"1 test fails in nightly since S7 landed", w::FindingState::Routed)
         },
     ];
@@ -1105,10 +1099,7 @@ fn red_lines_keep_wire_bounded_titles_and_drop_reasons() {
     let root = red_root(
         &[
             red(14, title.as_bytes(), w::FindingState::New),
-            w::FindingRowParts {
-                reason: Some(reason.as_bytes().into()),
-                ..red(13, RED_TITLE, w::FindingState::Dropped)
-            },
+            w::FindingRow { reason: Some(reason.as_bytes().into()), ..red(13, RED_TITLE, w::FindingState::Dropped) },
         ],
         false,
     );

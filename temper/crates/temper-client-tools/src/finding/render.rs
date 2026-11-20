@@ -8,15 +8,15 @@ fn holder(value: &w::Holder, out: &mut Text) {
     match value {
         w::Holder::Task(task) => {
             out.put(b"task ");
-            out.number(task.number());
+            out.number(task.number);
         }
         w::Holder::Party(party) => {
             out.put(b"party ");
-            out.number(party.number());
+            out.number(party.number);
         }
         w::Holder::Role(role) => {
             out.put(b"role ");
-            out.number(u64::from(role.number()));
+            out.number(u64::from(role.number));
         }
     }
 }
@@ -24,19 +24,19 @@ fn owner(value: &w::AreaOwner, out: &mut Text) {
     match value {
         w::AreaOwner::Task(task) => {
             out.put(b"task ");
-            out.number(task.number());
+            out.number(task.number);
         }
         w::AreaOwner::Party(party) => {
             out.put(b"party ");
-            out.number(party.number());
+            out.number(party.number);
         }
         w::AreaOwner::Role(role) => {
             out.put(b"role ");
-            out.number(u64::from(role.number()));
+            out.number(u64::from(role.number));
         }
         w::AreaOwner::Charter(charter) => {
             out.put(b"charter ");
-            out.number(u64::from(charter.number()));
+            out.number(u64::from(charter.number));
         }
     }
 }
@@ -70,115 +70,114 @@ fn severity(value: &w::Severity) -> &'static [u8] {
     }
 }
 fn row_text(project: u32, row: &w::FindingRow, out: &mut Text) {
-    reference(project, row.number(), out);
-    for word in [state(row.state()), kind(row.kind()), severity(row.severity()), row.area().as_deref().unwrap_or(b"-")]
-    {
+    reference(project, row.number, out);
+    for word in [state(&row.state), kind(&row.kind), severity(&row.severity), row.area.as_deref().unwrap_or(b"-")] {
         out.put(b" \xc2\xb7 ");
         out.put(word);
     }
     out.put(b" \xc2\xb7 ");
-    holder(row.holder(), out);
+    holder(&row.holder, out);
     out.put(b" \xc2\xb7 ");
-    out.put(row.title());
-    if let Some(cleared) = row.cleared() {
+    out.put(&row.title);
+    if let Some(cleared) = &row.cleared {
         out.put(b" \xc2\xb7 cleared by ");
         clearing_text(cleared, out);
     }
     out.put(b"\n");
 }
 fn clearing_text(cleared: &w::FindingClearing, out: &mut Text) {
-    out.put(cleared.tier());
+    out.put(&cleared.tier);
     out.put(b" run ");
-    out.number(cleared.run());
+    out.number(cleared.run);
 }
 fn clearing_json(cleared: Option<&w::FindingClearing>, out: &mut Encoder) {
     match cleared {
         Some(cleared) => {
             out.object_start();
             out.key(b"tier");
-            out.string(cleared.tier());
+            out.string(&cleared.tier);
             out.key(b"run");
-            out.unsigned(cleared.run());
+            out.unsigned(cleared.run);
             out.key(b"at");
-            out.unsigned(cleared.at());
+            out.unsigned(cleared.at);
             out.object_end();
         }
         None => out.null(),
     }
 }
 fn list_text(findings: &w::Findings, out: &mut Text) {
-    for area in findings.areas() {
-        out.put(area.name());
+    for area in &findings.areas {
+        out.put(&area.name);
         out.put(b" owner ");
-        owner(area.owner(), out);
+        owner(&area.owner, out);
         out.put(b", held by ");
-        match area.holder() {
+        match &area.holder {
             Some(value) => holder(value, out),
             None => out.put(b"-"),
         }
         out.put(b": ");
-        out.put(area.words());
+        out.put(&area.words);
         out.put(b"\n");
     }
     out.put(b"triager owner ");
-    match findings.triager() {
+    match &findings.triager {
         Some(value) => owner(value, out),
         None => out.put(b"role 0"),
     }
     out.put(b", held by ");
-    holder(findings.holder(), out);
+    holder(&findings.holder, out);
     out.put(b"\n");
-    for row in findings.rows() {
-        row_text(findings.project(), row, out);
+    for row in &findings.rows {
+        row_text(findings.project, row, out);
     }
-    if findings.cut() {
+    if findings.cut {
         out.put(b"[cut]\n");
     }
 }
 fn show_text(project: u32, detail: &w::FindingDetail, out: &mut Text) {
-    row_text(project, detail.row(), out);
+    row_text(project, &detail.row, out);
     out.put(b"filer: ");
-    match detail.filer() {
+    match &detail.filer {
         w::Filer::Task(task) => {
             out.put(b"task ");
-            out.number(task.number());
+            out.number(task.number);
         }
         w::Filer::Party(party) => {
             out.put(b"party ");
-            out.number(party.number());
+            out.number(party.number);
         }
     }
     out.put(b"\nfiled: ");
-    out.number(detail.row().at());
+    out.number(detail.row.at);
     out.put(b"\n");
-    if let Some(why) = detail.row().why() {
+    if let Some(why) = &detail.row.why {
         out.put(b"handed on: ");
         out.put(why);
         out.put(b"\n");
     }
-    if let Some(goal) = detail.row().goal() {
+    if let Some(goal) = &detail.row.goal {
         out.put(b"goal: task ");
         out.number(*goal);
         out.put(b"\n");
     }
-    if let Some(reason) = detail.row().reason() {
+    if let Some(reason) = &detail.row.reason {
         out.put(b"dropped: ");
         out.put(reason);
         out.put(b"\n");
     }
-    if let Some(blame) = detail.blame() {
+    if let Some(blame) = &detail.blame {
         blame_text(blame, out);
     }
-    if let Some(cleared) = detail.row().cleared() {
+    if let Some(cleared) = &detail.row.cleared {
         out.put(b"cleared: ");
         clearing_text(cleared, out);
         out.put(b" at ");
-        jig::render::document::clock::minute(skein_lib::Wall::from_nanos(cleared.at()), out);
+        jig::render::document::clock::minute(skein_lib::Wall::from_nanos(cleared.at), out);
         out.put(b"\n");
     }
     out.put(b"\n");
-    out.put(detail.body());
-    if !detail.body().ends_with(b"\n") {
+    out.put(&detail.body);
+    if !detail.body.ends_with(b"\n") {
         out.put(b"\n");
     }
 }
@@ -191,28 +190,28 @@ fn strength(value: &w::BlameStrength) -> &'static [u8] {
 }
 fn blame_text(blame: &w::FindingBlame, out: &mut Text) {
     out.put(b"blame: ");
-    out.put(strength(blame.strength()));
+    out.put(strength(&blame.strength));
     out.put(b"\n");
-    for landing in blame.landings() {
+    for landing in &blame.landings {
         out.put(b"  landing ");
-        for byte in landing.commit().iter().take(6) {
+        for byte in landing.commit.iter().take(6) {
             out.put(&[skein_lib::bytes::hex_digit(byte >> 4_u8), skein_lib::bytes::hex_digit(byte & 15)]);
         }
         out.put(b": ");
-        if landing.goals().is_empty() {
+        if landing.goals.is_empty() {
             out.put(b"no goal");
         }
-        for (index, goal) in landing.goals().iter().enumerate() {
+        for (index, goal) in landing.goals.iter().enumerate() {
             if index != 0 {
                 out.put(b"; ");
             }
             out.put(b"goal ");
-            out.number(goal.goal());
-            if let Some(milestone) = goal.milestone() {
+            out.number(goal.goal);
+            if let Some(milestone) = &goal.milestone {
                 out.put(b" in milestone ");
                 out.number(*milestone);
             }
-            if let Some(person) = goal.person() {
+            if let Some(person) = &goal.person {
                 out.put(b", person ");
                 out.number(*person);
             }
@@ -227,20 +226,21 @@ fn blame_json(blame: Option<&w::FindingBlame>, out: &mut Encoder) {
     };
     out.object_start();
     out.key(b"strength");
-    out.string(strength(blame.strength()));
+    out.string(strength(&blame.strength));
     out.key(b"landings");
     out.array_start();
-    for landing in blame.landings() {
+    for landing in &blame.landings {
         out.object_start();
         out.key(b"commit");
-        jig::render::document::hex(landing.commit(), out);
+        jig::render::document::hex(&landing.commit, out);
         out.key(b"goals");
         out.array_start();
-        for goal in landing.goals() {
+        for goal in &landing.goals {
             out.object_start();
             out.key(b"goal");
-            out.unsigned(goal.goal());
-            for (key, value) in [(b"milestone".as_slice(), goal.milestone()), (b"person", goal.person())] {
+            out.unsigned(goal.goal);
+            for (key, value) in [(b"milestone".as_slice(), goal.milestone.as_ref()), (b"person", goal.person.as_ref())]
+            {
                 out.key(key);
                 match value {
                     Some(value) => out.unsigned(*value),
@@ -353,7 +353,7 @@ fn refusal_text(pending: &Pending, why: &w::FindingRefusal, out: &mut Text) {
             out.put(b" in project ");
             out.number(u64::from(pending.project));
             out.put(b"; its areas: ");
-            for (index, area) in areas.areas().iter().enumerate() {
+            for (index, area) in areas.areas.iter().enumerate() {
                 if index != 0 {
                     out.put(b", ");
                 }
@@ -364,11 +364,11 @@ fn refusal_text(pending: &Pending, why: &w::FindingRefusal, out: &mut Text) {
             out.put(b"finding ");
             reference(pending.project, pending.number, out);
             out.put(b" is not yours: its owner is ");
-            holder(value.holder(), out);
+            holder(&value.holder, out);
         }
         w::FindingRefusal::Full(value) => {
             out.put(b"the project's findings are full: ");
-            out.number(u64::from(value.count()));
+            out.number(u64::from(value.count));
             out.put(b" new");
         }
         w::FindingRefusal::NoFinding => out.put(b"no finding"),
@@ -376,7 +376,7 @@ fn refusal_text(pending: &Pending, why: &w::FindingRefusal, out: &mut Text) {
         w::FindingRefusal::Ended => out.put(b"finding already routed or dropped"),
         w::FindingRefusal::Words(value) => {
             out.put(b"finding words past their bounds: ");
-            out.put(value.field());
+            out.put(&value.field);
         }
     }
 }
@@ -385,15 +385,15 @@ fn held_json(value: &w::Holder, out: &mut Encoder) {
     match value {
         w::Holder::Task(value) => {
             out.key(b"task");
-            out.unsigned(value.number());
+            out.unsigned(value.number);
         }
         w::Holder::Party(value) => {
             out.key(b"party");
-            out.unsigned(value.number());
+            out.unsigned(value.number);
         }
         w::Holder::Role(value) => {
             out.key(b"role");
-            out.unsigned(u64::from(value.number()));
+            out.unsigned(u64::from(value.number));
         }
     }
     out.object_end();
@@ -403,19 +403,19 @@ fn owner_json(value: &w::AreaOwner, out: &mut Encoder) {
     match value {
         w::AreaOwner::Task(value) => {
             out.key(b"task");
-            out.unsigned(value.number());
+            out.unsigned(value.number);
         }
         w::AreaOwner::Party(value) => {
             out.key(b"party");
-            out.unsigned(value.number());
+            out.unsigned(value.number);
         }
         w::AreaOwner::Role(value) => {
             out.key(b"role");
-            out.unsigned(u64::from(value.number()));
+            out.unsigned(u64::from(value.number));
         }
         w::AreaOwner::Charter(value) => {
             out.key(b"charter");
-            out.unsigned(u64::from(value.number()));
+            out.unsigned(u64::from(value.number));
         }
     }
     out.object_end();
@@ -424,33 +424,33 @@ pub(crate) fn row_fields(project: u32, row: &w::FindingRow, out: &mut Encoder) {
     out.key(b"project");
     out.unsigned(u64::from(project));
     out.key(b"number");
-    out.unsigned(u64::from(row.number()));
+    out.unsigned(u64::from(row.number));
     for (key, value) in [
-        (b"state".as_slice(), state(row.state())),
-        (b"kind", kind(row.kind())),
-        (b"severity", severity(row.severity())),
-        (b"title", row.title()),
+        (b"state".as_slice(), state(&row.state)),
+        (b"kind", kind(&row.kind)),
+        (b"severity", severity(&row.severity)),
+        (b"title", &row.title),
     ] {
         out.key(key);
         out.string(value);
     }
     out.key(b"area");
-    optional(row.area().as_deref(), out);
+    optional(row.area.as_deref(), out);
     out.key(b"holder");
-    held_json(row.holder(), out);
+    held_json(&row.holder, out);
     out.key(b"at");
-    out.unsigned(row.at());
+    out.unsigned(row.at);
     out.key(b"why");
-    optional(row.why().as_deref(), out);
+    optional(row.why.as_deref(), out);
     out.key(b"goal");
-    match row.goal() {
+    match &row.goal {
         Some(goal) => out.unsigned(*goal),
         None => out.null(),
     }
     out.key(b"reason");
-    optional(row.reason().as_deref(), out);
+    optional(row.reason.as_deref(), out);
     out.key(b"cleared");
-    clearing_json(row.cleared().as_ref(), out);
+    clearing_json(row.cleared.as_ref(), out);
 }
 fn optional(value: Option<&[u8]>, out: &mut Encoder) {
     match value {
@@ -461,19 +461,19 @@ fn optional(value: Option<&[u8]>, out: &mut Encoder) {
 fn list_json(findings: &w::Findings, out: &mut Encoder) {
     out.object_start();
     out.key(b"project");
-    out.unsigned(u64::from(findings.project()));
+    out.unsigned(u64::from(findings.project));
     out.key(b"areas");
     out.array_start();
-    for area in findings.areas() {
+    for area in &findings.areas {
         out.object_start();
         out.key(b"name");
-        out.string(area.name());
+        out.string(&area.name);
         out.key(b"words");
-        out.string(area.words());
+        out.string(&area.words);
         out.key(b"owner");
-        owner_json(area.owner(), out);
+        owner_json(&area.owner, out);
         out.key(b"holder");
-        match area.holder() {
+        match &area.holder {
             Some(value) => held_json(value, out),
             None => out.null(),
         }
@@ -481,41 +481,41 @@ fn list_json(findings: &w::Findings, out: &mut Encoder) {
     }
     out.array_end();
     out.key(b"triager");
-    match findings.triager() {
+    match &findings.triager {
         Some(value) => owner_json(value, out),
         None => out.null(),
     }
     out.key(b"holder");
-    held_json(findings.holder(), out);
+    held_json(&findings.holder, out);
     out.key(b"rows");
     out.array_start();
-    for row in findings.rows() {
+    for row in &findings.rows {
         out.object_start();
-        row_fields(findings.project(), row, out);
+        row_fields(findings.project, row, out);
         out.object_end();
     }
     out.array_end();
     out.key(b"cut");
-    out.boolean(findings.cut());
+    out.boolean(findings.cut);
     out.object_end();
 }
 fn show_json(project: u32, detail: &w::FindingDetail, out: &mut Encoder) {
     out.object_start();
-    row_fields(project, detail.row(), out);
+    row_fields(project, &detail.row, out);
     out.key(b"blame");
-    blame_json(detail.blame().as_ref(), out);
+    blame_json(detail.blame.as_ref(), out);
     out.key(b"body");
-    out.string(detail.body());
+    out.string(&detail.body);
     out.key(b"filer");
     out.object_start();
-    match detail.filer() {
+    match &detail.filer {
         w::Filer::Task(task) => {
             out.key(b"task");
-            out.unsigned(task.number());
+            out.unsigned(task.number);
         }
         w::Filer::Party(party) => {
             out.key(b"party");
-            out.unsigned(party.number());
+            out.unsigned(party.number);
         }
     }
     out.object_end();

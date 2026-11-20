@@ -6,20 +6,17 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub(super) fn forges(world: World) -> Box<[u8]> {
     let World::FirstRun { step } = world else { unreachable!("GitHub sample") };
-    let mut parts = w::ForgeRowParts {
+    let mut parts = w::ForgeRow {
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
         number: 2,
         kind: w::Kind::Github,
         mode: w::Mode::Connected,
-        connection: w::Connection::Connected(
-            w::Connected::new(
-                &w::CEILINGS,
-                w::ConnectedParts { id: 248_113_907, login: b"temper-7f3k2q[bot]".as_slice().into() },
-            )
-            .expect("sample connected"),
-        ),
+        connection: w::Connection::Connected(w::Connected {
+            id: 248_113_907,
+            login: b"temper-7f3k2q[bot]".as_slice().into(),
+        }),
         offer: w::Offer::NotOffered,
         owned: None,
         admin: false,
@@ -35,38 +32,23 @@ pub(super) fn forges(world: World) -> Box<[u8]> {
     if step >= 21 {
         parts
             .installations
-            .push(
-                w::Installation::new(
-                    &w::CEILINGS,
-                    w::InstallationParts {
-                        id: 61_022_417,
-                        account: Some(
-                            w::Account::new(&w::CEILINGS, w::AccountParts { id: 10, login: b"sam".as_slice().into() })
-                                .expect("sample account"),
-                        ),
-                        suspended: false,
-                        stray: false,
-                    },
-                )
-                .expect("sample installation"),
-            )
+            .push(w::Installation {
+                id: 61_022_417,
+                account: Some(w::Account { id: 10, login: b"sam".as_slice().into() }),
+                suspended: false,
+                stray: false,
+            })
             .expect("installation room");
     }
     if step == 22 {
         parts
             .repositories
-            .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts { owner: b"sam".as_slice().into(), name: b"widget".as_slice().into(), project: 1 },
-                )
-                .expect("sample adoption"),
-            )
+            .push(w::Adoption { owner: b"sam".as_slice().into(), name: b"widget".as_slice().into(), project: 1 })
             .expect("adoption room");
     }
     let mut forges = List::with_capacity(1);
-    forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("sample row")).expect("row room");
-    wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).expect("sample forges"))
+    forges.push(parts).expect("row room");
+    wire::forges(&w::Forges { forges, linked: false })
 }
 pub(super) fn answer_page(root: &mut Domain, attempt: Token, out: &mut Queue<Request>) {
     let mut rows = List::with_capacity(4);
@@ -76,25 +58,13 @@ pub(super) fn answer_page(root: &mut Domain, attempt: Token, out: &mut Queue<Req
         (3, b"dotfiles".as_slice(), false),
         (4, b"site".as_slice(), false),
     ] {
-        rows.push(
-            w::Reached::new(
-                &w::CEILINGS,
-                w::ReachedParts {
-                    id,
-                    owner: w::Account::new(&w::CEILINGS, w::AccountParts { id: 10, login: b"sam".as_slice().into() })
-                        .expect("sample owner"),
-                    name: name.into(),
-                    private,
-                },
-            )
-            .expect("sample repository"),
-        )
+        rows.push(w::Reached {
+            id,
+            owner: w::Account { id: 10, login: b"sam".as_slice().into() },
+            name: name.into(),
+            private,
+        })
         .expect("repository room");
     }
-    sample_forge_answer(
-        root,
-        attempt,
-        w::Outcome::Page(w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).expect("sample page")),
-        out,
-    );
+    sample_forge_answer(root, attempt, w::Outcome::Page(w::Page { rows, more: false }), out);
 }

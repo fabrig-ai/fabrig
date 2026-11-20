@@ -5,6 +5,7 @@ use crate::{
     opening::Verdict,
 };
 use alloc::boxed::Box;
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{self as wire, Reason};
 use skein_channel::{Closed, Event as ChannelEvent, Request as ChannelRequest};
 use skein_lib::{Decimal, Duration, List, Map, Queue, Reader, Time, Token, bytes};
@@ -41,7 +42,7 @@ pub struct Component {
     workers_ready: bool,
     names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v17::Limits,
+    pub(crate) codec: wire::v19::Limits,
     pub(crate) connections: Map<Token, Connection>,
     pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
@@ -202,7 +203,7 @@ impl Component {
             event @ Event::Down { .. } => self.deliver(now, event, out),
             Event::TurnBusy { channel, run, attempt, turn } => {
                 if let Some(connection) = self.target(channel) {
-                    let record = crate::translate::turn_busy(run, attempt, turn, &self.codec);
+                    let record = crate::translate::turn_busy(run, attempt, turn);
                     self.send(now, connection, Some(record), Reply::Drop, out);
                 } else {
                     self.dropped_down = self.dropped_down.saturating_add(1);
@@ -233,8 +234,7 @@ impl Component {
             let held =
                 self.schema.version(version).expect("agreed version").kind(wire::Kind::Restarting.number()).is_some();
             let sent = if held {
-                let record = wire::Restarting::new(&self.codec, wire::RestartingParts { wait_ms: wait.as_millis() })
-                    .expect("fixed restart word fits");
+                let record = wire::Restarting { wait_ms: wait.as_millis() };
                 self.send(now, connection, Some(crate::translate::Down::Restarting(record)), Reply::Drop, out);
                 Some(wait)
             } else {
@@ -262,13 +262,27 @@ impl Component {
     fn deliver(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Down { channel, down, parts, values } = event {
             if let Some(connection) = self.target(channel) {
+                if let jig_domain_host::LinkDown::ReadUsage { .. } = &down {
+                    let state = self.connections.get(&connection).expect("target channel exists");
+                    if self
+                        .schema
+                        .version(state.version)
+                        .expect("agreed version")
+                        .kind(wire::Kind::ReadUsage.number())
+                        .is_none()
+                    {
+                        self.dropped_down = self.dropped_down.saturating_add(1);
+                        return;
+                    }
+                }
                 let reply = match &down {
                     jig_domain_host::LinkDown::Assign { assignment } => {
                         Reply::Assignment { run: assignment.assignment.run, attempt: assignment.assignment.attempt }
                     }
                     jig_domain_host::LinkDown::AssignJob { job } => Reply::Job { run: job.run, attempt: job.attempt },
                     jig_domain_host::LinkDown::ReadList { read, .. } => Reply::ReadList { read: *read },
-                    jig_domain_host::LinkDown::Sources { .. }
+                    jig_domain_host::LinkDown::ReadUsage { .. }
+                    | jig_domain_host::LinkDown::Sources { .. }
                     | jig_domain_host::LinkDown::Check { .. }
                     | jig_domain_host::LinkDown::SignOut { .. }
                     | jig_domain_host::LinkDown::Message { .. }
@@ -282,14 +296,8 @@ impl Component {
                 let record = match crate::translate::down(down, &parts, values, &self.codec) {
                     Ok(record) => Some(record),
                     Err(reason) => {
-                        let what: &[u8] = match reply {
-                            Reply::Assignment { .. } => b"assignment",
-                            Reply::Job { .. } => b"job",
-                            Reply::ReadList { .. } | Reply::Drop => b"record",
-                        };
-                        let words = reason.words(what);
-                        self.refused_record(channel, reply, &words, out);
-                        None
+                        self.encoding_refused(channel, reply, reason, out);
+                        return;
                     }
                 };
                 self.send(now, connection, record, reply, out);
@@ -297,6 +305,16 @@ impl Component {
                 self.dropped_down = self.dropped_down.saturating_add(1);
             }
         }
+    }
+    fn encoding_refused(&mut self, channel: Token, reply: Reply, reason: crate::Unencoded, out: &mut Queue<Request>) {
+        let what: &[u8] = match reply {
+            Reply::Assignment { .. } => b"assignment",
+            Reply::Job { .. } => b"job",
+            Reply::ReadList { .. } | Reply::Drop => b"record",
+        };
+        let words = reason.words(what);
+        self.refused_record(channel, reply, &words, out);
+        self.dropped_down = self.dropped_down.saturating_add(1);
     }
     fn completed(&mut self, out: &mut Queue<Request>) {
         if (self.life == Life::Closing || self.life == Life::Aborting) && self.connections.is_empty() {
@@ -396,7 +414,14 @@ impl Component {
         // (jig/docs/design/protocol/channel/README.md, 8 and 10).
         let (record, past) = match record {
             crate::translate::Down::Assign(record) => {
-                let (record, fitted) = jig_protocol_worker_wire::fit::fit(record, &self.codec, self.limits.room);
+                let (record, fitted) = match jig_protocol_worker_wire::fit::fit(record, &self.codec, self.limits.room) {
+                    Ok(fitted) => fitted,
+                    Err(why) => {
+                        let channel = self.connections.get(&connection).expect("heard channel exists").channel;
+                        self.encoding_refused(channel, reply, crate::translate::problem(why), out);
+                        return;
+                    }
+                };
                 let past = match fitted {
                     jig_protocol_worker_wire::fit::Fitted::Whole
                     | jig_protocol_worker_wire::fit::Fitted::Cut { .. } => None,
@@ -406,6 +431,7 @@ impl Component {
             }
             crate::translate::Down::Restarting(_)
             | crate::translate::Down::Asked(_)
+            | crate::translate::Down::ReadUsage(_)
             | crate::translate::Down::ReadList(_)
             | crate::translate::Down::Sources(_)
             | crate::translate::Down::Check(_)
@@ -422,8 +448,16 @@ impl Component {
         let kind = record.kind();
         let mut state = self.connections.remove(&connection).expect("heard channel exists");
         let frame = if past.is_none() {
+            let frame = match record.frame(&self.codec) {
+                Ok(frame) => frame,
+                Err(reason) => {
+                    self.encoding_refused(state.channel, reply, reason, out);
+                    self.keep(connection, state);
+                    return;
+                }
+            };
             let version = state.version;
-            match crate::translate::send(&mut self.translation, record.frame(), version, &state.wires, &self.codec) {
+            match crate::translate::send(&mut self.translation, frame, version, &state.wires, &self.codec) {
                 Ok(frame) => Some(frame),
                 Err(error) => {
                     self.untranslated(&state, kind, reply, error, out);
@@ -468,7 +502,7 @@ impl Component {
     }
     fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
         let Some(figures) = &self.figures else { return true };
-        let mut parts = figures.clone().into_parts();
+        let mut parts = figures.clone();
         let mut admitted = None;
         for worker in &self.workers {
             if worker.number.checked_sub(1) == state.worker {
@@ -481,11 +515,11 @@ impl Component {
             return false;
         };
         parts.places = worker.places;
-        let figures = wire::Figures::new(&wire::CEILINGS, parts).expect("only places changed");
-        let mut body = skein_lib::Writer::new(skein_lib::usize_of(figures.measure()));
-        figures.encode(&mut body).expect("measured figures");
-        let mut frame =
-            skein_channel::frame_writer(wire::Kind::Figures.number(), figures.measure()).expect("bounded figures");
+        let figures = parts;
+        let length = figures.measure(&wire::CEILINGS).expect("composed figures fit limits");
+        let mut body = skein_lib::Writer::new(skein_lib::usize_of(length));
+        figures.write(&wire::CEILINGS, &mut body).expect("measured figures");
+        let mut frame = skein_channel::frame_writer(wire::Kind::Figures.number(), length).expect("bounded figures");
         frame.put(&body.finish()).expect("measured figures");
         let frame = frame.finish().expect("measured figures");
         if frame.wire_len() > self.limits.room {
@@ -646,7 +680,6 @@ impl Component {
                     }
                 };
                 if let Ok(credential) = wire::Credential::decode(&self.codec, &mut Reader::new(&credential)) {
-                    let credential = credential.into_parts();
                     state.opening = credential.opening;
                     state.stated = credential.wires;
                 }
@@ -672,22 +705,18 @@ impl Component {
                     {
                         let mut wires = List::with_capacity(self.codec.agreed_wires);
                         for agreed in &state.wires {
-                            let record = wire::AgreedWire::new(
-                                &self.codec,
-                                wire::AgreedWireParts {
-                                    name: bytes::copy_of(agreed.name.as_bytes()),
-                                    version: agreed.version,
-                                },
-                            )
-                            .expect("agreed wire fits credential limits");
+                            let record = wire::AgreedWire {
+                                name: bytes::copy_of(agreed.name.as_bytes()),
+                                version: agreed.version,
+                            };
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v17::Agreed::new(&self.codec, wire::v17::AgreedParts { wires })
-                            .expect("agreed wires fit credential limits");
-                        let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-                        record.encode(&mut body).expect("measured statement");
-                        let mut frame = skein_channel::frame_writer(wire::Kind::Wires.number(), record.measure())
-                            .expect("bounded statement");
+                        let record = wire::v19::Agreed { wires };
+                        let length = record.measure(&self.codec).expect("agreed statement fits limits");
+                        let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
+                        record.write(&self.codec, &mut body).expect("measured statement");
+                        let mut frame =
+                            skein_channel::frame_writer(wire::Kind::Wires.number(), length).expect("bounded statement");
                         frame.put(&body.finish()).expect("measured statement");
                         let frame = frame.finish().expect("measured statement");
                         let frame =
@@ -782,10 +811,16 @@ impl Component {
                         self.refuse(now, connection, state, 3, Box::new([]), out);
                         return;
                     };
-                    let Some(hello) = crate::translate::hello(record) else {
+                    let Some(mut hello) = crate::translate::hello(record) else {
                         self.refuse(now, connection, state, 3, Box::new([]), out);
                         return;
                     };
+                    hello.reads_usage = self
+                        .schema
+                        .version(state.version)
+                        .expect("agreed version")
+                        .kind(wire::Kind::ReadUsage.number())
+                        .is_some();
                     state.phase = Phase::Open;
                     state.heard = true;
                     state.deadline = None;
@@ -1075,11 +1110,10 @@ impl Component {
         let mut lowest = state.version;
         let mut highest = state.version;
         for stated in &state.stated {
-            if stated.name() == error.wire.as_ref() {
-                lowest = stated.lowest();
-                highest = lowest.saturating_add(
-                    u16::try_from(stated.layouts().len().saturating_sub(1)).expect("bounded wire range"),
-                );
+            if stated.name.as_ref() == error.wire.as_ref() {
+                lowest = stated.lowest;
+                highest = lowest
+                    .saturating_add(u16::try_from(stated.layouts.len().saturating_sub(1)).expect("bounded wire range"));
             }
         }
         let mismatch = host::Mismatch { wire: error.wire, version: error.version, lowest, highest };

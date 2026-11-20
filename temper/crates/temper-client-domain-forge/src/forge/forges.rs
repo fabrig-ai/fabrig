@@ -3,6 +3,7 @@ use super::making::Making;
 use super::{family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Family, Watchable, contract as c};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 /// The longest setup reason rendered with one replacement per invalid byte.
 pub const FAILURE_BYTES: u32 = wire::SET_UP_WHY_BYTES.checked_mul(3).expect("reason text fits");
@@ -98,6 +99,7 @@ pub enum AdminStop {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct First {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub state: FirstState,
@@ -188,24 +190,32 @@ pub enum SetUpAnswer {
 #[must_use]
 pub fn watch(limits: &super::Limits) -> Option<Watchable> {
     let limits = wire_limits(limits)?;
-    let watching = w::Watching::new(&limits, w::WatchingParts { watch: w::Watch::Forges }).ok()?;
+    let watching = w::Watching { watch: w::Watch::Forges };
     Some(Watchable::Family {
         scope: c::Scope::Deployment,
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&watching) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(&limits).ok()? },
     })
 }
 #[must_use]
 pub fn ask(forge: u16, org: Box<[u8]>, repository: Box<[u8]>, playground: bool, limits: &super::Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
-    let forge = w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?);
-    ask_target(forge, empty(org, repository, playground, &bounds)?, &bounds)
+    let forge = w::Making::Kept(w::Kept { forge });
+    ask_target(forge, empty(org, repository, playground, false, &bounds)?, &bounds)
 }
-fn empty(org: Box<[u8]>, repository: Box<[u8]>, playground: bool, bounds: &w::Limits) -> Option<SetUpFirst> {
-    Some(SetUpFirst::Empty(w::FirstEmpty::new(bounds, w::FirstEmptyParts { org, repository, playground }).ok()?))
+fn empty(
+    org: Box<[u8]>,
+    repository: Box<[u8]>,
+    playground: bool,
+    sample: bool,
+    bounds: &w::Limits,
+) -> Option<SetUpFirst> {
+    let first = w::FirstEmpty { org, repository, playground, sample };
+    first.measure(bounds).ok()?;
+    Some(SetUpFirst::Empty(first))
 }
 fn ask_target(forge: w::Making, first: SetUpFirst, bounds: &w::Limits) -> Option<Ask> {
-    let value = w::SetUp::new(bounds, w::SetUpParts { forge, first }).ok()?;
+    let value = w::SetUp { forge, first };
     request(w::Request::SetUp(value), bounds)
 }
 #[must_use]
@@ -239,11 +249,12 @@ pub enum State {
     Rows(Box<[Row]>),
     Ended,
 }
-/// What Forgejo on this machine starts with, chosen in the welcome's sheet
-/// (client/pages/README.md): only an empty repository is made yet.
+/// What a repository sheet starts with (client/pages/welcome.md, 1; client/pages/home.md, 1).
+/// The welcome offers the sample, copies or nothing; Home offers empty or copies.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Start {
     Empty,
+    Sample,
     Copies,
     Nothing,
 }
@@ -272,7 +283,6 @@ pub struct Draft {
     pub start: Start,
     pub copies: Box<[u8]>,
     pub copies_written: u64,
-    pub blank: bool,
     pub copies_refused: Option<super::making::CopiesRefused>,
 }
 impl Draft {
@@ -283,10 +293,9 @@ impl Draft {
             fields: [Box::from(b"work".as_slice()), Box::from(b"hello".as_slice())],
             written: [0; 2],
             checked: false,
-            start: Start::Empty,
+            start: Start::Sample,
             copies: Box::from(b"".as_slice()),
             copies_written: 0,
-            blank: false,
             copies_refused: None,
         }
     }
@@ -313,7 +322,6 @@ pub(crate) fn write(side: &mut super::Side, limits: super::Limits, field: SetupF
     let written = draft.written.get_mut(index).expect("two setup fields");
     *written = written.checked_add(1).expect("written count fits");
     draft.checked = false;
-    draft.blank = false;
     if let Some(last) = &mut side.set_up {
         last.answer = None;
     }
@@ -367,7 +375,7 @@ pub enum Act {
     SetUpOwned,
     Start(Start),
     RunOwned,
-    GitHub { back: Box<[u8]> },
+    GitHub,
     Managed { place: Managed },
     Connected { place: Managed },
     PlaceWrite { field: super::admin::PlaceField, text: Box<[u8]> },
@@ -380,7 +388,7 @@ pub enum Act {
     ConfirmRemove,
     CancelRemove,
     StartOver { forge: u16, end: StartOverEnd },
-    GoOn { forge: u16, back: Box<[u8]> },
+    GoOn { forge: u16 },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Managed {
@@ -402,7 +410,6 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
     }
     let Some(bounds) = wire_limits(&limits) else { return };
     let draft = &mut side.setup_form;
-    draft.blank = false;
     draft.copies_refused = None;
     let first = match draft.start {
         Start::Empty => {
@@ -410,11 +417,18 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
             let repository = draft.text(SetupField::Repository).trim_ascii();
             if org.is_empty() || repository.is_empty() {
                 draft.checked = true;
-                draft.blank = true;
                 side.changed();
                 return;
             }
-            let Some(first) = empty(Box::from(org), Box::from(repository), false, &bounds) else { return };
+            let Some(first) = empty(Box::from(org), Box::from(repository), false, false, &bounds) else { return };
+            first
+        }
+        Start::Sample => {
+            let Some(first) =
+                empty(Box::from(b"work".as_slice()), Box::from(b"hello".as_slice()), false, true, &bounds)
+            else {
+                return;
+            };
             first
         }
         Start::Copies => {
@@ -426,7 +440,13 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
                     return;
                 }
             };
-            let Ok(copies) = w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses }) else {
+            let Ok(copies) = ({
+                let value = w::CopyAddresses { addresses };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
                 return;
             };
             SetUpFirst::Copies(copies)
@@ -447,13 +467,12 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
         }
         Act::Start(start) => {
             side.setup_form.start = start;
-            side.setup_form.blank = false;
             side.setup_form.copies_refused = None;
             side.changed();
         }
         Act::RunOwned => run_owned(side, limits, out),
 
-        Act::GitHub { back } => {
+        Act::GitHub => {
             if !can_make(side)
                 || side.party.is_none()
                 || side.playground_running()
@@ -467,7 +486,7 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
                 return;
             }
             new_record(side, Kind::GitHub, Mode::Connected);
-            super::github::manifest(side, limits, 0, back, out);
+            super::github::manifest(side, limits, 0, out);
         }
         Act::Managed { place } => super::admin::send_new(side, limits, place, out),
         Act::Connected { place } => super::tokens::send_new(side, limits, place, out),
@@ -489,14 +508,14 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
             side.changed();
         }
         Act::StartOver { forge, end } => start_over(side, limits, forge, end, out),
-        Act::GoOn { forge, back } => {
+        Act::GoOn { forge } => {
             let Some(row) = super::connect::row(forge, &side.forges, super::connect::playground(side)) else { return };
             if row.kind != Kind::GitHub {
                 return;
             }
             match row.app {
-                Some(AppWay::Manifest) => super::github::manifest(side, limits, forge, back, out),
-                Some(AppWay::Pasted) => super::github::send(side, limits, forge, Some(back), out),
+                Some(AppWay::Manifest) => super::github::manifest(side, limits, forge, out),
+                Some(AppWay::Pasted) => super::github::send(side, limits, forge, true, out),
                 None => {}
             }
         }
@@ -575,7 +594,7 @@ pub(crate) fn bind_new(side: &mut super::Side, out: &mut skein_lib::Queue<super:
     }
 }
 #[must_use]
-pub(crate) fn making(side: &super::Side, forge: u16, bounds: &w::Limits, place: Option<Managed>) -> Option<w::Making> {
+pub(crate) fn making(side: &super::Side, forge: u16, _bounds: &w::Limits, place: Option<Managed>) -> Option<w::Making> {
     if forge == 0
         && let Some(new) = &side.setup_form.making
     {
@@ -584,16 +603,13 @@ pub(crate) fn making(side: &super::Side, forge: u16, bounds: &w::Limits, place: 
             (Kind::Forgejo, Mode::Owned) => w::ForgeAsk::Owned,
             (Kind::Forgejo, Mode::Connected) => {
                 let Managed { host, port, tls, git, web } = place?;
-                w::ForgeAsk::Connected(
-                    w::ManagedForge::new(bounds, w::ManagedForgeParts { host, port, tls, git, web, git_program: None })
-                        .ok()?,
-                )
+                w::ForgeAsk::Connected(w::ManagedForge { host, port, tls, git, web, git_program: None })
             }
             (Kind::Forgejo, Mode::Managed | Mode::Fake) => return None,
         };
-        return Some(w::Making::New(w::NewForge::new(bounds, w::NewForgeParts { forge: ask }).ok()?));
+        return Some(w::Making::New(w::NewForge { forge: ask }));
     }
-    Some(w::Making::Kept(w::Kept::new(bounds, w::KeptParts { forge }).ok()?))
+    Some(w::Making::Kept(w::Kept { forge }))
 }
 /// Collect the confirmation's facts without sending a request.
 pub fn remove(side: &mut super::Side, forge: u16) {
@@ -657,7 +673,15 @@ pub fn confirm_remove(side: &mut super::Side, limits: super::Limits, out: &mut s
         return;
     }
     let Some(bounds) = wire_limits(&limits) else { return };
-    let Ok(value) = w::RemoveForge::new(&bounds, w::RemoveForgeParts { forge: removal.forge }) else { return };
+    let Ok(value) = ({
+        let value = w::RemoveForge { forge: removal.forge };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }) else {
+        return;
+    };
     let Some(ask) = request(w::Request::RemoveForge(value), &bounds) else { return };
     side.serial = side.serial.checked_add(1).expect("request serial fits");
     let token = skein_lib::Token::new(side.serial);
@@ -667,10 +691,10 @@ pub fn confirm_remove(side: &mut super::Side, limits: super::Limits, out: &mut s
 }
 #[must_use]
 pub(crate) fn request(request: w::Request, bounds: &w::Limits) -> Option<Ask> {
-    let requesting = w::Requesting::new(bounds, w::RequestingParts { request }).ok()?;
+    let requesting = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&requesting) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: requesting.encode(bounds).ok()? },
     })
 }
 fn removed(outcome: &jig_client::Outcome, limits: super::Limits) -> bool {
@@ -681,7 +705,7 @@ fn removed(outcome: &jig_client::Outcome, limits: super::Limits) -> bool {
     let Some(bounds) = wire_limits(&limits) else { return false };
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let Ok(answer) = w::Answer::decode(&bounds, &mut reader) else { return false };
-    reader.is_empty() && *answer.outcome() == w::Outcome::Removed
+    reader.is_empty() && answer.outcome == w::Outcome::Removed
 }
 fn removal_told(
     side: &mut super::Side,
@@ -790,7 +814,9 @@ pub(crate) fn set_up(
                 return;
             }
             let Some(bounds) = wire_limits(&limits) else { return };
-            let Some(first) = empty(draft.fields[0].clone(), draft.fields[1].clone(), false, &bounds) else { return };
+            let Some(first) = empty(draft.fields[0].clone(), draft.fields[1].clone(), false, false, &bounds) else {
+                return;
+            };
             SetupValues { first }
         }
     };
@@ -811,7 +837,9 @@ pub(crate) fn set_up_at_once(
         return;
     }
     let Some(bounds) = wire_limits(&limits) else { return };
-    let Some(first) = empty(Box::from(AT_ONCE_ORG), Box::from(AT_ONCE_REPOSITORY), false, &bounds) else { return };
+    let Some(first) = empty(Box::from(AT_ONCE_ORG), Box::from(AT_ONCE_REPOSITORY), false, false, &bounds) else {
+        return;
+    };
     send_setup(side, limits, forge, SetupValues { first }, out);
 }
 fn can_set_up(side: &super::Side) -> bool {
@@ -869,14 +897,14 @@ fn retry_fields(side: &super::Side, forge: u16, limits: super::Limits) -> Option
         let first = match &row.starts_with {
             StartsWith::Repository => {
                 let first = row.first.as_ref()?;
-                empty(first.org.clone(), first.repository.clone(), first.playground, &bounds)?
+                empty(first.org.clone(), first.repository.clone(), first.playground, first.sample, &bounds)?
             }
             StartsWith::Copies { addresses } => {
                 let mut list = skein_lib::List::with_capacity(wire::FIRST_COPIES);
                 for address in addresses {
                     list.push(address.clone()).ok()?;
                 }
-                SetUpFirst::Copies(w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses: list }).ok()?)
+                SetUpFirst::Copies(w::CopyAddresses { addresses: list })
             }
             StartsWith::Nothing => SetUpFirst::Nothing,
         };
@@ -966,6 +994,11 @@ pub fn told(
         new.accepted = true;
     }
     bind_new(side, out);
+    if let Told::Changed { handle: changed } = value
+        && *changed == handle()
+    {
+        super::github::watched(side, out);
+    }
     super::admin::stopped(side);
     super::tokens::stopped(side);
     super::replace::stopped(side);

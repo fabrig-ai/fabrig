@@ -233,6 +233,7 @@ fn opening_row() -> ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -259,7 +260,10 @@ fn opening_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        spec_revision: 0,
+        gate_revision: 0,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
@@ -366,6 +370,7 @@ fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
         delegate_running: false,
         flake: false,
+        no_test: false,
         delegate_live: false,
         review_request: None,
         start_conflict: None,

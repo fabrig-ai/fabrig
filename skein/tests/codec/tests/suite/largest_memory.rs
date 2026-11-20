@@ -4,16 +4,16 @@
 #![cfg(test)]
 
 use super::codec_memory::family;
-use skein_codec_tests::every_v3_lean::Record;
+use skein_codec_tests::every_v3::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
 macro_rules! every {
-    ($module:path, $form:ident) => {
+    ($module:path) => {
     family!(
         CAP,
         skein_codec_tests::EVERY_SCHEMA,
-        $module, $form,
+        $module,
         limits [
             texts_raw,
             texts_key,
@@ -181,7 +181,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         skein_codec_tests::SAMPLE_SCHEMA,
-        skein_codec_tests::v1, lean,
+        skein_codec_tests::v1,
         limits [
             field_name,
             field_value,
@@ -193,6 +193,5 @@ fn largest_roots_stay_within_decoded_bounds() {
             Marker,
         ]
     );
-    every!(skein_codec_tests::every_v3, sealed);
-    every!(skein_codec_tests::every_v3_lean, lean);
+    every!(skein_codec_tests::every_v3);
 }

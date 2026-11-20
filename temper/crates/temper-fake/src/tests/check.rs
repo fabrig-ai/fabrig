@@ -202,6 +202,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: change::Way::Queue,
             landing: None,
             task,
@@ -228,7 +229,10 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         effect: change::EffectResult::Made,
         delegate: None,
         delegate_status: change::Status::Passed,
+        spec_revision: 0,
+        gate_revision: 0,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,

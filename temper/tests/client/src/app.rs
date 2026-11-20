@@ -299,7 +299,8 @@ impl App for Temper {
                 | domain::Event::Copied { .. }
                 | domain::Event::Launchpad
                 | domain::Event::Lends { .. }
-                | domain::Event::AskApproval
+                | domain::Event::AskApproval { .. }
+                | domain::Event::Granted { .. }
                 | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } | Action::LoginEnded { .. } }
                 | domain::Event::Start { .. }
                 | domain::Event::Client { .. }
@@ -370,7 +371,7 @@ impl App for Temper {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 if record.family == wire::FORGE
                     && let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    && matches!(request.request(), w::Request::Reachable(_))
+                    && matches!(&request.request, w::Request::Reachable(_))
                 {
                     return None;
                 }
@@ -475,7 +476,8 @@ impl App for Temper {
             | domain::Event::SignInKept { .. }
             | domain::Event::Launchpad
             | domain::Event::Lends { .. }
-            | domain::Event::AskApproval
+            | domain::Event::AskApproval { .. }
+            | domain::Event::Granted { .. }
             | domain::Event::TabRefused
             | domain::Event::Client { .. } => vec![],
         }

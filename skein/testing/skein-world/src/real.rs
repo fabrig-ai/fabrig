@@ -35,6 +35,19 @@ use crate::referee::{Control, Referee};
 use crate::{HostedProgram, Inherited, StartupAppends, StartupRoots};
 use std::os::unix::ffi::OsStrExt;
 
+/// A story's Linux bound, doubled on the slower macOS host
+/// (skein/docs/design/testing/README.md, 5). No budget or product deadline scales.
+#[must_use]
+pub const fn host_bound(linux: Duration) -> Duration {
+    host_bound_on(linux, cfg!(target_os = "macos"))
+}
+
+/// The pure host-bound reading, including saturation at the duration's maximum.
+#[must_use]
+pub const fn host_bound_on(linux: Duration, macos: bool) -> Duration {
+    if macos { linux.saturating_mul(2) } else { linux }
+}
+
 // Hosted identities occupy the high word; kernel PIDs fit in a u32.
 const HOSTED_SENDER_BASE: u64 = 1_u64 << 32;
 
@@ -140,6 +153,12 @@ impl<P, R> DerefMut for CheckedWorld<P, R> {
 }
 
 impl<P: Host, R: Referee<P>> CheckedWorld<P, R> {
+    /// Forces the backend while retaining checked ownership on release.
+    #[must_use]
+    pub fn on(self, backend: Backend) -> Self {
+        Self(self.0.on(backend))
+    }
+
     /// Runs on one kernel and retains final ownership checking in the outcome.
     #[must_use]
     pub fn run(self, clock: &Clock, patience: Duration) -> CheckedOutcome<P> {
@@ -269,6 +288,11 @@ impl<P: Host, R: Referee<P>> World<P, R> {
     /// Constructs a referee with a handle for injecting signals into this world.
     #[must_use]
     pub fn new_controlled<F: FnOnce(Controls) -> R>(make_referee: F) -> Self {
+        // The shared kernel's size is known only after roots are admitted.
+        // Make its process-wide storage before even their constructors run.
+        Kernel::warm();
+        crate::end_to_end::warm_runtime();
+        crate::tree::warm_runtime();
         let controls = Controls::new();
         let referee = make_referee(controls.clone());
         Self {
@@ -537,25 +561,48 @@ impl Controls {
 
     fn runnable_wait_at(&self, end: Option<Sched>) -> Option<Duration> {
         let elapsed = sched_elapsed(self.sched_start.get(), end)?;
-        Some(Duration::from_nanos(elapsed.waited))
+        elapsed.waited.map(Duration::from_nanos)
     }
 }
 
-fn deadline_diagnostic(patience: Duration, iterations: u32, elapsed: Option<Sched>) -> String {
-    let nanos = |value: Option<u64>| match value {
-        Some(nanos) => format!("{nanos} ns"),
-        None => String::from("UNAVAILABLE (ns)"),
-    };
-    format!(
-        "the real loop settles within {} ms; iterations (including failing iteration): {iterations}; thread CPU elapsed (schedstat): {}; thread runnable wait elapsed (schedstat): {}",
-        patience.as_nanos().div_euclid(1_000_000),
-        nanos(elapsed.map(|sched| sched.cpu)),
-        nanos(elapsed.map(|sched| sched.waited)),
-    )
+#[derive(Clone, Copy)]
+enum CpuSource {
+    Schedstat,
+    ThreadClock,
 }
 
-fn sched_figures((cpu, waited): (Duration, Duration)) -> Sched {
-    Sched { cpu: cpu.as_nanos(), waited: waited.as_nanos() }
+impl CpuSource {
+    const fn host() -> Self {
+        if cfg!(target_os = "linux") { Self::Schedstat } else { Self::ThreadClock }
+    }
+}
+
+fn deadline_diagnostic(
+    patience: Duration,
+    iterations: u32,
+    source: CpuSource,
+    cpu: Option<Duration>,
+    waited: Option<Duration>,
+) -> String {
+    let nanos = |value: Option<Duration>| match value {
+        Some(value) => format!("{} ns", value.as_nanos()),
+        None => String::from("UNAVAILABLE (ns)"),
+    };
+    let accounting = match source {
+        CpuSource::Schedstat => format!(
+            "thread CPU elapsed (schedstat): {}; thread runnable wait elapsed (schedstat): {}",
+            nanos(cpu),
+            nanos(waited),
+        ),
+        CpuSource::ThreadClock => format!(
+            "thread CPU elapsed (thread clock): {}; thread runnable wait elapsed: UNAVAILABLE on macOS",
+            nanos(cpu),
+        ),
+    };
+    format!(
+        "the real loop settles within {} ms; iterations (including failing iteration): {iterations}; {accounting}",
+        patience.as_nanos().div_euclid(1_000_000),
+    )
 }
 
 fn referee_diagnostic(elapsed: Duration, why: &str, figures: Option<&Figures>) -> String {
@@ -579,8 +626,13 @@ fn deadline_status(deadline: Option<Time>, now: Time) -> String {
 
 impl<P: Host, R: Referee<P>> Running<P, R> {
     fn deadline_diagnostic(&self, figures: &Figures, iterations: u32, now: Time, last_word: Option<Time>) -> String {
-        let elapsed = figures.thread_cpu.zip(figures.thread_waited).map(sched_figures);
-        let mut text = deadline_diagnostic(figures.patience, iterations, elapsed);
+        let mut text = deadline_diagnostic(
+            figures.patience,
+            iterations,
+            CpuSource::host(),
+            figures.thread_cpu,
+            figures.thread_waited,
+        );
         writeln!(&mut text, "\n{figures}").expect("String formatting");
         writeln!(&mut text, "\nnow: {} ns", now.as_nanos()).expect("String formatting");
         let word = match last_word {
@@ -1386,12 +1438,24 @@ mod tests {
     use skein_lib::{Duration, Queue, Time, Token, Wall};
 
     #[test]
+    fn host_bounds_double_only_on_macos_and_saturate() {
+        const LINUX: Duration = super::host_bound_on(Duration::from_secs(20), false);
+        const MACOS: Duration = super::host_bound_on(Duration::from_secs(20), true);
+        const MAX: Duration = super::host_bound_on(Duration::from_nanos(u64::MAX), true);
+        assert_eq!(LINUX, Duration::from_secs(20));
+        assert_eq!(MACOS, Duration::from_secs(40));
+        assert_eq!(MAX, Duration::from_nanos(u64::MAX));
+        assert_eq!(super::host_bound(LINUX), if cfg!(target_os = "macos") { MACOS } else { LINUX });
+    }
+
+    #[test]
     fn referee_runnable_wait_uses_the_worlds_scheduler_origin() {
         let controls = crate::Controls::new();
-        let start = Sched { cpu: 100, waited: 200 };
+        let start = Sched { cpu: 100, waited: Some(200) };
         controls.sched_start.set(Some(start));
         let copy = controls.clone();
-        for (end, waited) in [(Sched { cpu: 110, waited: 250 }, 50), (Sched { cpu: 120, waited: 300 }, 100)] {
+        for (end, waited) in [(Sched { cpu: 110, waited: Some(250) }, 50), (Sched { cpu: 120, waited: Some(300) }, 100)]
+        {
             assert_eq!(copy.runnable_wait_at(Some(end)), Some(Duration::from_nanos(waited)));
         }
         assert_eq!(controls.sched_start.get(), Some(start), "reading never advances the world's origin");
@@ -1399,8 +1463,8 @@ mod tests {
 
     #[test]
     fn referee_runnable_wait_without_usable_accounting_is_unknown() {
-        let first = Sched { cpu: 1, waited: 1 };
-        let second = Sched { cpu: 2, waited: 2 };
+        let first = Sched { cpu: 1, waited: Some(1) };
+        let second = Sched { cpu: 2, waited: Some(2) };
         for (start, end) in [(None, Some(second)), (Some(first), None), (None, None), (Some(second), Some(first))] {
             let controls = crate::Controls::new();
             controls.sched_start.set(start);
@@ -1410,12 +1474,37 @@ mod tests {
 
     #[test]
     fn deadline_header_names_cpu_and_runnable_wait_even_without_accounting() {
-        let header = deadline_diagnostic(Duration::from_millis(1), 2, Some(Sched { cpu: 3, waited: 4 }));
+        let header = deadline_diagnostic(
+            Duration::from_millis(1),
+            2,
+            super::CpuSource::Schedstat,
+            Some(Duration::from_nanos(3)),
+            Some(Duration::from_nanos(4)),
+        );
         assert!(
             header.ends_with("thread CPU elapsed (schedstat): 3 ns; thread runnable wait elapsed (schedstat): 4 ns")
         );
-        let header = deadline_diagnostic(Duration::from_millis(1), 2, None);
+        let header = deadline_diagnostic(Duration::from_millis(1), 2, super::CpuSource::Schedstat, None, None);
         assert!(header.ends_with("thread CPU elapsed (schedstat): UNAVAILABLE (ns); thread runnable wait elapsed (schedstat): UNAVAILABLE (ns)"));
+    }
+
+    #[test]
+    fn thread_clock_header_keeps_cpu_without_claiming_runnable_wait() {
+        let header = deadline_diagnostic(
+            Duration::from_millis(1),
+            2,
+            super::CpuSource::ThreadClock,
+            Some(Duration::from_nanos(3)),
+            None,
+        );
+        assert_eq!(
+            header,
+            "the real loop settles within 1 ms; iterations (including failing iteration): 2; thread CPU elapsed (thread clock): 3 ns; thread runnable wait elapsed: UNAVAILABLE on macOS"
+        );
+        let unavailable = deadline_diagnostic(Duration::from_millis(1), 2, super::CpuSource::ThreadClock, None, None);
+        assert!(unavailable.ends_with(
+            "thread CPU elapsed (thread clock): UNAVAILABLE (ns); thread runnable wait elapsed: UNAVAILABLE on macOS"
+        ));
     }
 
     #[test]

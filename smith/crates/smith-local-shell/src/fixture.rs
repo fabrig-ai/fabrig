@@ -4,6 +4,22 @@
 use crate::settings::{self, Layer, Source};
 use std::path::PathBuf;
 
+/// Commands find the test process's rg beside the system shell and git.
+pub(crate) fn commands_path() -> String {
+    use std::os::unix::ffi::OsStrExt;
+    let path = std::env::var_os("PATH");
+    let rg = smith_agent_shell::config::find_rg(path.as_ref().map(|path| path.as_bytes()))
+        .expect("check fixtures require rg on the test process's PATH");
+    std::env::join_paths([
+        rg.parent().expect("rg directory"),
+        std::path::Path::new("/usr/bin"),
+        std::path::Path::new("/bin"),
+    ])
+    .expect("fixture PATH")
+    .into_string()
+    .expect("fixture PATH is UTF-8")
+}
+
 pub(crate) fn trust() -> PathBuf {
     skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der")
 }

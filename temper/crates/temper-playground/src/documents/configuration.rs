@@ -7,6 +7,9 @@ use temper_service::limits;
 #[serde(transparent)]
 pub struct Configuration {
     pub document: Value,
+    /// The composition's forge address, carried in-process with its start.
+    #[serde(skip)]
+    pub forge: core::net::SocketAddr,
     #[serde(skip)]
     pub jig: jig_protocol_config::Limits,
     #[serde(skip)]
@@ -24,8 +27,15 @@ impl Configuration {
         let stock = limits::stock();
         let (jig, limits) = limits::base(stock.live_goals, stock.tool_payload, temper_service_core::derived::STOCK)
             .expect("stock limits");
-        let mut world =
-            Self { document, jig, limits, workspaces_given: false, operations_given: false, jig_given: Vec::new() };
+        let mut world = Self {
+            document,
+            forge: super::FORGE,
+            jig,
+            limits,
+            workspaces_given: false,
+            operations_given: false,
+            jig_given: Vec::new(),
+        };
         world.derive_places();
         world
     }
@@ -80,7 +90,8 @@ impl Configuration {
                 }
             }
         }
-        let mut world = Self { document, jig, limits: own, workspaces_given, operations_given, jig_given };
+        let mut world =
+            Self { document, forge: super::FORGE, jig, limits: own, workspaces_given, operations_given, jig_given };
         world.resolve_jig();
         world.derive_places();
         world
@@ -235,7 +246,7 @@ pub fn story_a(document: Value) -> Configuration {
     world.jig_over("tasks.parameters", 5_u64);
     world.jig_over("tasks.contract_choices", 2_u64);
     world.jig_over("tasks.result_bytes", 128_u64);
-    world.jig_over("tasks.spec_bytes", 187_u64);
+    world.jig_over("tasks.spec_bytes", 2048_u64);
     world.jig_over("tasks.tasks", 4_u64);
     world.jig_over("tasks.tree_tasks", 6_u64);
     world.jig_over("views.runs", 1_u64);

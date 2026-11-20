@@ -561,7 +561,10 @@ fn routed_requests_reach_the_root_before_returning() {
     root.tab = Some(jig_client::Key { asker: PAGES, number: 42 });
     crate::route::Routed { root: &mut root, out: &mut out }.request(&env, Request::OpenTab { provider: 9 });
     assert_eq!(root.tab, root.pages().sign_in_key());
-    assert_eq!(out.pop(), Some(crate::Request::Tab { tab: crate::Tab::Open { provider: 9 } }));
+    assert_eq!(
+        out.pop(),
+        Some(crate::Request::Tab { tab: crate::Tab::Open { opening: crate::Opening::SignIn { provider: 9 } } })
+    );
     assert!(out.is_empty());
 }
 

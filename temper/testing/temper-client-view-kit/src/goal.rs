@@ -54,17 +54,15 @@ pub fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: 
 
 /// A red's row, with the status-specific fields left to its story.
 #[must_use]
-pub fn red(number: u32, title: &[u8], state: w::FindingState) -> w::FindingRowParts {
-    w::FindingRowParts {
+pub fn red(number: u32, title: &[u8], state: w::FindingState) -> w::FindingRow {
+    w::FindingRow {
         number,
         kind: w::FindingKind::Red,
         severity: w::Severity::High,
         area: None,
         state,
         title: title.into(),
-        holder: w::Holder::Party(
-            w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: fixtures::chat::PARTY }).unwrap(),
-        ),
+        holder: w::Holder::Party(w::HolderParty { number: fixtures::chat::PARTY }),
         at: u64::from(number),
         why: None,
         hander: None,
@@ -75,25 +73,19 @@ pub fn red(number: u32, title: &[u8], state: w::FindingState) -> w::FindingRowPa
 }
 
 #[must_use]
-pub fn reds(project: u32, rows: &[w::FindingRowParts], cut: bool) -> w::Findings {
+pub fn reds(project: u32, rows: &[w::FindingRow], cut: bool) -> w::Findings {
     let mut findings = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for parts in rows {
-        findings.push(w::FindingRow::new(&w::CEILINGS, parts.clone()).unwrap()).unwrap();
+        findings.push(parts.clone()).unwrap();
     }
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project,
-            rows: findings,
-            areas: List::with_capacity(0),
-            triager: None,
-            holder: w::Holder::Party(
-                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: fixtures::chat::PARTY }).unwrap(),
-            ),
-            cut,
-        },
-    )
-    .unwrap()
+    w::Findings {
+        project,
+        rows: findings,
+        areas: List::with_capacity(0),
+        triager: None,
+        holder: w::Holder::Party(w::HolderParty { number: fixtures::chat::PARTY }),
+        cut,
+    }
 }
 
 pub struct Side {
@@ -246,7 +238,7 @@ pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note
             Request::Unlinked {
                 request: UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
             } => match wire::decode_watching(&record.bytes, &w::CEILINGS) {
-                Some(watching) if matches!(watching.watch(), w::Watch::Findings(subject) if matches!(subject.filter(), w::FindingsFilter::Goal(_))) => {
+                Some(watching) if matches!(&watching.watch, w::Watch::Findings(subject) if matches!(subject.filter, w::FindingsFilter::Goal(_))) => {
                     side.reds.as_ref().map(|document| Up::FamilyDelivered {
                         watch,
                         record: jig_client::Family {

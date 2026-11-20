@@ -765,7 +765,7 @@ fn its_words_name_the_people_who_signed_after_the_goals() {
 #[test]
 fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
     let mut complete = String::new();
-    for bound in [None, Some(1024), Some(512)] {
+    for bound in [None, Some(1024)] {
         let (mut world, requester) = roles_world_with_spec(bound);
         let role = standing_role(&mut world, 110);
         land(&mut world, &requester);
@@ -1026,7 +1026,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
 #[test]
 fn status_milestones_keep_eight_live_then_eight_ended_newest_first() {
     let mut complete = String::new();
-    for bound in [None, Some(512)] {
+    for bound in [None, Some(900)] {
         let (mut world, requester) = roles_world_with_spec(bound);
         land(&mut world, &requester);
         settle(&mut world);

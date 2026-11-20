@@ -7,16 +7,16 @@ const ROLE: u64 = 7;
 const MINUTE: u64 = 60_000_000_000;
 fn role_chip() -> w::Chip {
     let chip = chat_chip(ROLE, b"Porter");
-    let mut reader = Reader::new(chip.rows());
+    let mut reader = Reader::new(chip.rows.as_ref());
     let mut rows = Vec::new();
     while let Some(bytes) = skein_codec::piece::split(&mut reader).unwrap() {
         let mut fact = w::Fact::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         if let w::Fact::ChipDetails(row) = fact {
-            let mut row = row.into_parts();
-            let mut fields = row.value.into_parts();
+            let mut row = row;
+            let mut fields = row.value;
             fields.live_delegates = 0;
-            row.value = w::ChipDetailsFields::new(&w::CEILINGS, fields).unwrap();
-            fact = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(&w::CEILINGS, row).unwrap()));
+            row.value = fields;
+            fact = w::Fact::ChipDetails(row);
         }
         rows.push(fact);
     }
@@ -31,14 +31,14 @@ fn roles_fixture() -> (Host, Duties) {
     for _ in 0..host.env.limits.client.domain.watches {
         for open in all_openings(&duties) {
             {
-                if open.subject().owner() != &w::Owner::Jig {
+                if open.subject.owner != w::Owner::Jig {
                     continue;
                 }
                 if let w::Subject::Tasks(tasks) =
-                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap()
-                    && tasks.query().label() == &Some(3)
+                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap()
+                    && tasks.query.label == Some(3)
                 {
-                    watched = Some(open.watch());
+                    watched = Some(open.watch);
                 }
             }
         }
@@ -50,26 +50,25 @@ fn roles_fixture() -> (Host, Duties) {
         let more = host.report(Report::Due);
         duties.asked.extend(admit(&mut host, more).asked);
     }
-    let mut line = records::task_line_record().into_parts();
+    let mut line = records::task_line_record();
     line.project = 3;
     line.label = 3;
     line.tracked = None;
     line.chip = role_chip();
     line.waits_on = w::WaitsOn::News;
-    let line = w::TaskLine::new(&w::CEILINGS, line).unwrap();
-    let mut writer = Writer::new(usize::try_from(line.measure()).unwrap());
-    line.encode(&mut writer).unwrap();
-    let tasks =
-        w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
-            .unwrap();
+    let line = line;
+    let mut writer = Writer::new(
+        usize::try_from(line.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    line.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
+    let tasks = w::Tasks { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false };
     let arrived = delivery(&mut host, watched.expect("roles watch"), &w::DeliveryValue::Tasks(tasks));
     duties.asked.extend(admit(&mut host, arrived).asked);
     (host, duties)
 }
 fn activity(position: u64, line: w::Activity) -> w::DecodedActivityLine {
-    let source =
-        w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: ROLE, position, at: 0, line }).unwrap();
-    w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None }).unwrap()
+    let source = w::ActivityLine { task: ROLE, position, at: 0, line };
+    w::DecodedActivityLine { source, decoded: None }
 }
 pub(super) fn talk_host(open: bool, cost: bool) -> Host {
     talk_fixture(open, cost, false, false)
@@ -82,7 +81,6 @@ fn talk_fixture(open: bool, cost: bool, choices: bool, proposed: bool) -> Host {
     talk_setup(open, cost, choices, proposed).0
 }
 #[expect(clippy::fn_params_excessive_bools, reason = "fixture flags independently supply talk facts")]
-#[expect(clippy::too_many_lines, reason = "talk fixture constructs the page's full typed document")]
 fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, Duties) {
     let (mut host, mut history) = roles_fixture();
     typed(&mut host, b"/talk");
@@ -93,12 +91,9 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     let duties = host.report(Report::Key(Key::Enter));
     let mut duties = admit_watches(&mut host, duties);
     assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
-    let task_watch = watch(
-        &duties,
-        &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: ROLE }).unwrap()),
-    );
+    let task_watch = watch(&duties, &w::Subject::Task(w::SubjectTask { task: ROLE }));
     let read = read_exchange(&duties, "activity");
-    let mut task = records::task_record().into_parts();
+    let mut task = records::task_record();
     task.project = 3;
     task.chip = role_chip();
     task.activity = if choices {
@@ -112,42 +107,29 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     task.delegates = Box::default();
     task.waits_on = w::WaitsOn::News;
     let party = host.root.pages().me(host.root.client()).unwrap().party.number;
-    task.talk = open.then(|| w::Talk::new(&w::CEILINGS, w::TalkParts { party, opened: 0, last: 0 }).unwrap());
+    task.talk = open.then_some(w::Talk { party, opened: 0, last: 0 });
     let offers: Vec<_> = [w::ActKind::Talk, w::ActKind::Leave]
         .into_iter()
         .map(|act| {
-            let offer =
-                w::Offered::new(&w::CEILINGS, w::OfferedParts { act, admission: w::Admission::Allowed, effect: None })
-                    .unwrap();
-            let mut writer = Writer::new(usize::try_from(offer.measure()).unwrap());
-            offer.encode(&mut writer).unwrap();
+            let offer = w::Offered { act, admission: w::Admission::Allowed, effect: None };
+            let mut writer = Writer::new(
+                usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
+            offer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             writer.finish()
         })
         .collect();
     task.acts = pieces(&offers);
     if proposed {
-        let key = records::pending_proposal_record().key().clone();
+        let key = records::pending_proposal_record().key.clone();
         task.proposals = List::from_boxed(Box::new([key]));
     }
-    let arrived =
-        delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    let arrived = delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(task)));
     duties.asked.extend(admit_watches(&mut host, arrived).asked);
     let mut rows = if cost {
         vec![
-            activity(
-                1,
-                w::Activity::TalkOpened(w::TalkOpened::new(&w::CEILINGS, w::TalkOpenedParts { party }).unwrap()),
-            ),
-            activity(
-                2,
-                w::Activity::RunEnded(
-                    w::ActivityRunEnded::new(
-                        &w::CEILINGS,
-                        w::ActivityRunEndedParts { attempt: 44, end: w::RunEnd::Parked, spent: 42 },
-                    )
-                    .unwrap(),
-                ),
-            ),
+            activity(1, w::Activity::TalkOpened(w::TalkOpened { party })),
+            activity(2, w::Activity::RunEnded(w::ActivityRunEnded { attempt: 44, end: w::RunEnd::Parked, spent: 42 })),
         ]
     } else {
         Vec::new()
@@ -169,34 +151,26 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     }
     if proposed {
         let query = read_exchange(&duties, "proposal");
-        let mut proposal = records::pending_proposal_record().into_parts();
+        let mut proposal = records::pending_proposal_record();
         proposal.project = 3;
-        proposal.action = w::ProposalAction::Settings(Box::new(
-            w::ProposalActionSettings::new(
-                &w::CEILINGS,
-                w::ProposalActionSettingsParts { against: 0, items: List::with_capacity(0), review: None, made: None },
-            )
-            .unwrap(),
-        ));
-        let offer = w::Offered::new(
-            &w::CEILINGS,
-            w::OfferedParts { act: w::ActKind::Accept, admission: w::Admission::Allowed, effect: None },
-        )
-        .unwrap();
-        let mut writer = Writer::new(usize::try_from(offer.measure()).unwrap());
-        offer.encode(&mut writer).unwrap();
-        proposal.acts = pieces(&[writer.finish()]);
-        duties.asked.extend(
-            read_reply(&mut host, query, &w::ReadValue::Proposal(w::Proposal::new(&w::CEILINGS, proposal).unwrap()))
-                .asked,
+        proposal.action = w::ProposalAction::Settings(Box::new(w::ProposalActionSettings {
+            against: 0,
+            items: List::with_capacity(0),
+            review: None,
+            made: None,
+        }));
+        let offer = w::Offered { act: w::ActKind::Accept, admission: w::Admission::Allowed, effect: None };
+        let mut writer = Writer::new(
+            usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
+        offer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
+        proposal.acts = pieces(&[writer.finish()]);
+        duties.asked.extend(read_reply(&mut host, query, &w::ReadValue::Proposal(proposal)).asked);
     }
-    let mut page = records::activity_rows(&rows).into_parts();
+    let mut page = records::activity_rows(&rows);
     page.after = None;
     page.cut = false;
-    duties.asked.extend(
-        read_reply(&mut host, read, &w::ReadValue::Activity(w::ActivityPage::new(&w::CEILINGS, page).unwrap())).asked,
-    );
+    duties.asked.extend(read_reply(&mut host, read, &w::ReadValue::Activity(page)).asked);
     duties.asked.retain(
         |request| matches!(request, Request::Exchange { exchange, message: Message::Read(_), .. } if *exchange != read.exchange),
     );
@@ -298,7 +272,7 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
     );
     typed(&mut host, b"1");
     let duties = give(&mut host, Event::Send);
-    assert!(sent_ask(&duties).iter().any(|(_, ask)| matches!(ask, w::Ask::Talk(talk) if talk.project() == 3 && talk.task() == ROLE && talk.words() == b"Yes, add it")));
+    assert!(sent_ask(&duties).iter().any(|(_, ask)| matches!(ask, w::Ask::Talk(talk) if talk.project == 3 && talk.task == ROLE && talk.words.as_ref() == b"Yes, add it")));
     assert_eq!(host.words(), []);
     let mut host = talk_fixture(true, true, false, true);
     assert!(text(&mut host).contains("1. Accept it"));
@@ -313,10 +287,8 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
     let (exchange, ask) =
         asks.iter().find(|(_, ask)| matches!(ask, w::Ask::Decide(_))).expect("Accept then Confirm sends Decide");
     let w::Ask::Decide(decide) = ask else { unreachable!() };
-    assert!(matches!(decide.on(), w::DecideOn::Proposal(proposal) if proposal.running() == &Some(w::Running::Moves)));
-    let final_answer = w::Final::Refused(
-        w::Refused::new(&w::CEILINGS, w::RefusedParts { refusal: w::Refusal::NotOffered, at: None }).unwrap(),
-    );
+    assert!(matches!( &decide.on, w::DecideOn::Proposal(proposal) if proposal.running == Some(w::Running::Moves)));
+    let final_answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
     reply(&mut host, *exchange, final_bytes(&final_answer));
     let card = host.root.pages().chat().unwrap().cards.get(0).unwrap();
     let expected = shared::outcome_refusal(card.outcome.as_ref().unwrap(), host.view.words().view()).unwrap();
@@ -334,55 +306,40 @@ fn telling_on_a_roles_talk_files_in_its_area() {
     let watched = all_openings(&duties)
         .into_iter()
         .find_map(|open| {
-            if open.subject().owner() == &w::Owner::Jig {
+            if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
-            let reading = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
-            matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch())
+            let envelope =
+                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let reading = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
+            matches!(&reading.watch, f::Watch::Findings(subject) if subject.project == 3).then_some(open.watch)
         })
         .expect("the talk's project reads findings");
-    let task = f::Holder::Task(f::HolderTask::new(&f::CEILINGS, f::HolderTaskParts { number: ROLE }).unwrap());
-    let document = f::Findings::new(
-        &f::CEILINGS,
-        f::FindingsParts {
-            project: 3,
-            rows: List::with_capacity(0),
-            areas: List::from_boxed(Box::new([f::AreaRow::new(
-                &f::CEILINGS,
-                f::AreaRowParts {
-                    name: b"ports".as_slice().into(),
-                    words: b"Porting".as_slice().into(),
-                    owner: f::AreaOwner::Task(
-                        f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap(),
-                    ),
-                    holder: Some(task.clone()),
-                },
-            )
-            .unwrap()])),
-            triager: None,
-            holder: task,
-            cut: false,
-        },
-    )
-    .unwrap();
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
-            version: wire::CLIENT_VERSION,
-            record: wire::findings(&document),
-        },
-    )
-    .unwrap();
-    let event = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watched, document }).unwrap(),
-    );
+    let task = f::Holder::Task(f::HolderTask { number: ROLE });
+    let document = f::Findings {
+        project: 3,
+        rows: List::with_capacity(0),
+        areas: List::from_boxed(Box::new([f::AreaRow {
+            name: b"ports".as_slice().into(),
+            words: b"Porting".as_slice().into(),
+            owner: f::AreaOwner::Task(f::AreaTask { number: ROLE }),
+            holder: Some(task.clone()),
+        }])),
+        triager: None,
+        holder: task,
+        cut: false,
+    };
+    let document = w::Owned {
+        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        record: wire::findings(&document),
+    };
+    let event = w::StreamEvent::Delivery(w::Delivery { watch: watched, document });
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));
     admit(&mut host, duties);
     let (_, file) = super::tell::send(&mut host, b"/tell The port is stuck").expect("one filing");
-    assert_eq!(file.area().as_deref(), Some(b"ports".as_slice()));
-    assert_eq!(file.body(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
+    assert_eq!(file.area.as_deref(), Some(b"ports".as_slice()));
+    assert_eq!(file.body.as_ref(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
 }

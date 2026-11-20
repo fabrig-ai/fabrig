@@ -86,14 +86,11 @@ pub fn child_charter(direct: bool) -> Box<[u8]> {
         // Main, four children and finish fit the run's turn budget.
         crate::wire::budget(parts, 24, 80);
         if direct {
-            let mut child = parts.models.as_slice()[0].clone().into_parts();
+            let mut child = parts.models.as_slice()[0].clone();
             child.endpoint = b"direct".as_slice().into();
             child.account = Some(1);
             parts.models = List::with_capacity(1);
-            parts
-                .models
-                .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("direct child"))
-                .expect("child");
+            parts.models.push(child).expect("child");
         }
     })
 }
@@ -108,18 +105,12 @@ pub(super) fn grant(frame: skein_channel::Frame, case: Case) -> skein_channel::F
             grants.push(grant.clone()).expect("main grant");
         }
         grants
-            .push(
-                smith_channel::Grant::new(
-                    &smith_channel::CEILINGS,
-                    smith_channel::GrantParts {
-                        account: 1,
-                        generation: 1,
-                        valid: Duration::from_secs(7200),
-                        value: crate::key(b"token"),
-                    },
-                )
-                .expect("child credential"),
-            )
+            .push(smith_channel::Grant {
+                account: 1,
+                generation: 1,
+                valid: Duration::from_secs(7200),
+                value: crate::key(b"token"),
+            })
             .expect("child grant");
         start.grants = grants;
     })

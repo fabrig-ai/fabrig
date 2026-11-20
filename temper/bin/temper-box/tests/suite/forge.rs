@@ -178,10 +178,10 @@ fn the_run_replaces_itself_holding_the_lock_as_standard_input() {
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "forgejo").spawn().expect("run starts");
     let marker = programs.marker("forgejo", &mut run, support::WITHIN);
-    let stdin = fs::read_link(format!("/proc/{}/fd/0", run.id())).expect("stdin");
+    let stdin_is_lock = support::owned::stdin_is(run.id(), &programs.lock("forgejo"));
     run.kill().and_then(|()| run.wait()).expect("stopped");
     assert_eq!(marker.pid, run.id());
-    assert_eq!(stdin, programs.lock("forgejo"));
+    assert!(stdin_is_lock);
     assert_eq!(
         marker.arguments,
         [

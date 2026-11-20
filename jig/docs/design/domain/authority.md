@@ -298,7 +298,11 @@ deployment's rules       the most any project may have; requirements on effects
   spend, and waits while there is none. A deployment-started task that
   runs an agent (a queue's repair, whose producer is one) is funded as
   before, and cannot be made while nothing of the period is
-  unreserved.
+  unreserved. A make the tasks child refuses for any such task is told
+  to every connector as `Ask::RepairRefused`, naming the task the
+  refusal names where it names one (`repair`), the make's own number
+  (`number`) and the refusal (`why`), so a connector knows which of its
+  makes failed and why.
 - **Effective authority.** What a task may do when it decides is its own
   authority within the deployment's rules, the project's policy and what
   adoption found the application may do, as all three stand then:
@@ -384,6 +388,41 @@ work, paid as theirs, where a connector's repair is the project's
   `Ask::RepairRefused`.
 - **The rest** is a repair's: the procedure's steps, its delegates
   funded from it, its deadline and holdings, a restart restoring it.
+
+### 6.3 A task's goal made by its application
+
+An application may make, for a live agent task, a goal that task
+would make with a batch, from a decision of the application's own
+rather than the task's run: temper's triager's repair goal, made by an
+act of its tool that also writes the application's rows (temper's
+`domain/red-repairs.md`, 4.3). It is the task's delegate, as if the
+task had made it.
+
+- **Who makes it:** the application, with a number allocated as a
+  connector's repair's is (`Core::repair_seed`, else
+  `Core::procedure_seed`), then `RepairSeed::goal(self, task: u64,
+  context: &tasks::DelegationContext, goal: SeededGoal) ->
+  Result<tasks::Event, tasks::Refusal>`, the `tasks::Event::Make` it
+  returns sent in the same decision as the application's own writes.
+  `SeededGoal { charter: u32, spec: tasks::Spec, contract:
+  tasks::Contract, authority: tasks::Authority, llm:
+  Option<tasks::LlmChoice>, budget: u64, tracked: Option<u32>, label:
+  u32, flags: tasks::Flags, holdings: Box<[tasks::Holding]> }`.
+- **Its shape:** an agent of `charter`, its creator and requester the
+  task (`Party::Task`), funded by it (`Funder::Task`), its deadline
+  `Named`, its wake the default; `flags` may name a closer
+  (`tasks/lifecycle.md`, section 11), and `holdings` are the
+  application's, translated as a creation's are.
+- **Its money and room:** its spend `budget`, refused `Funding` where
+  the task's numbers leave less (budget less spent, spent below and
+  reserved), never cut to fit; refused `Tree` where the task has no
+  task left to make, and `Depth` where its delegation has no level left.
+  `authority` is the application's narrowing of the task's own, one
+  level shallower; the tasks child checks it within the task's, the
+  closer's procedure among its delegation's kinds, and `llm` as any
+  making's (`tasks/README.md`, section 4).
+- **The rest** is a delegate's: its questions and result reach the
+  task, its reservation is the task's, a restart restores it.
 
 ## 7. Budgets and spend
 

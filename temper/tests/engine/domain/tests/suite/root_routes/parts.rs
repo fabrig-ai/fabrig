@@ -2,6 +2,7 @@
 use super::*;
 use jig_domain_core::{documents as d, reads};
 use skein_lib::{List, Reader};
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn fixture() -> (Driver, engine::Assignment) {
@@ -58,7 +59,7 @@ fn goal(line: &d::TaskLine) -> w::GoalPart {
     w::GoalPart::decode(&w::CEILINGS, &mut Reader::new(bytes(line))).expect("part fixture")
 }
 fn document(line: &d::TaskLine) -> Option<Box<[u8]>> {
-    w::ChatPart::decode(&w::CEILINGS, &mut Reader::new(bytes(line))).expect("part fixture").document().clone()
+    w::ChatPart::decode(&w::CEILINGS, &mut Reader::new(bytes(line))).expect("part fixture").document.clone()
 }
 pub(super) fn note(driver: &mut Driver, run: &engine::Assignment, call: u64, name: u64, description: &[u8]) -> u64 {
     let recalled = if name == 0 { None } else { Some(stored_note(driver, name).revision) };
@@ -76,6 +77,7 @@ pub(super) fn note(driver: &mut Driver, run: &engine::Assignment, call: u64, nam
                 author: notes::Author::Task { task: 0, attempt: 0 },
             },
             recalled,
+            records: Box::new([]),
         },
     );
     let Some(engine::CallAnswer::NoteWritten { name, .. }) = driver.answered(call) else {
@@ -122,22 +124,22 @@ fn watched(driver: &Driver) -> &d::TaskLine {
 fn goal_parts_choose_the_newest_report_and_invalidate_the_kept_entry() {
     let (mut driver, run) = fixture();
     let page = read(&mut driver, query(wire::GOAL_PART));
-    assert!(goal(page.live.get(0).expect("part fixture")).report().is_none());
+    assert!(goal(page.live.get(0).expect("part fixture")).report.is_none());
     note(&mut driver, &run, 710, 0, b"report: Landing slices");
     driver.env.wall = Wall::from_nanos(driver.env.wall.as_nanos() + 1);
     let name = note(&mut driver, &run, 711, 0, b"report: Two of three landed");
     let changed = stored_note(&driver, name).changed;
     watch(&mut driver, wire::GOAL_PART);
     let part = goal(watched(&driver));
-    assert_eq!(part.report().as_ref().expect("part fixture").headline(), b"Two of three landed");
-    assert_eq!(part.report().as_ref().expect("part fixture").at(), changed.as_nanos());
-    assert_eq!(*part.milestone(), None);
+    assert_eq!(part.report.as_ref().expect("part fixture").headline.as_ref(), b"Two of three landed");
+    assert_eq!(part.report.as_ref().expect("part fixture").at, changed.as_nanos());
+    assert_eq!(part.milestone, None);
     let loads = driver.loads.len();
     read(&mut driver, query(wire::GOAL_PART));
     assert_eq!(driver.loads.len(), loads, "kept notes avoid all loads");
     delivered(&mut driver);
     note(&mut driver, &run, 712, 0, b"report: All landed");
-    assert_eq!(goal(watched(&driver)).report().as_ref().expect("part fixture").headline(), b"All landed");
+    assert_eq!(goal(watched(&driver)).report.as_ref().expect("part fixture").headline.as_ref(), b"All landed");
     assert!(driver.loads.len() > loads, "a saved scope note invalidates the entry");
 }
 #[test]
@@ -177,15 +179,15 @@ fn milestone_encoding_keeps_a_sixteen_goal_prefix_within_its_bytes() {
     let encoded =
         temper_engine_service_vocabulary::family::parts::milestone(None, &totals, &goals).expect("part fixture");
     let part = w::MilestonePart::decode(&w::CEILINGS, &mut Reader::new(&encoded)).expect("part fixture");
-    assert_eq!((part.goals().len(), part.more()), (16, 1));
+    assert_eq!((part.goals.len(), part.more), (16, 1));
     line.chip.title.bytes = vec![b'x'; 8000].into_boxed_slice();
     let goals = vec![(line, None); 17];
     let encoded =
         temper_engine_service_vocabulary::family::parts::milestone(None, &totals, &goals).expect("part fixture");
     let part = w::MilestonePart::decode(&w::CEILINGS, &mut Reader::new(&encoded)).expect("part fixture");
     assert!(encoded.len() <= usize::try_from(wire::MILESTONE_PART_BYTES).expect("part fixture"));
-    assert!(!part.goals().is_empty() && part.goals().len() < 16);
-    assert_eq!(part.goals().len() + part.more(), 17);
+    assert!(!part.goals.is_empty() && part.goals.len() < 16);
+    assert_eq!(part.goals.len() + part.more, 17);
 }
 
 #[test]

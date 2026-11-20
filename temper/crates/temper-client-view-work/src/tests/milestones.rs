@@ -33,21 +33,7 @@ fn done(task: u64, title: &[u8]) -> c::TaskLine {
     line
 }
 fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
-    w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts {
-            task: 99,
-            done,
-            failed,
-            live,
-            closed: 0,
-            ended: None,
-            last_landing: None,
-            spent: 0,
-            reds: 0,
-        },
-    )
-    .unwrap()
+    w::MilestoneTotals { task: 99, done, failed, live, closed: 0, ended: None, last_landing: None, spent: 0, reds: 0 }
 }
 fn report() -> Report {
     Report {
@@ -230,14 +216,9 @@ fn a_milestone_row_links_its_top_strip_and_headline_in_both_shells() {
         goals.push((goal, None));
     }
     let mut listed = line(99, b"Store shape");
-    let mut owed = totals(7, 0, 1).into_parts();
+    let mut owed = totals(7, 0, 1);
     owed.reds = 2;
-    listed.parts = List::from_boxed(Box::new([f::milestones::part(
-        None,
-        w::MilestoneTotals::new(&w::CEILINGS, owed).unwrap(),
-        &goals,
-        0,
-    )]));
+    listed.parts = List::from_boxed(Box::new([f::milestones::part(None, owed, &goals, 0)]));
     let limits = f::domain_limits();
     let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
     let milestone = pure::Milestone::from_line(&listed, &link);

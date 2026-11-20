@@ -69,6 +69,7 @@ fn git_ids_and_counts_share_the_forge_codec() {
 }
 fn spawn(command: &Command) -> k::Spawn {
     let kind = match command {
+        Command::CountObjects { .. } | Command::Repack { .. } => Some(temper_worker_domain_checkout::git::Kind::Pack),
         Command::MergeBases { .. } | Command::BringsList { .. } => {
             Some(temper_worker_domain_checkout::git::Kind::Brings)
         }

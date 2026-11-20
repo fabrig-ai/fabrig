@@ -22,7 +22,7 @@ pub fn state(line: &c::TaskLine, goals: &[c::TaskLine], totals: Option<&w::Miles
         return match &line.chip.details.details.ending {
             Some(c::ChipEnding::Cancelled { .. }) => State::Closed,
             Some(c::ChipEnding::Done(_) | c::ChipEnding::Failed(_)) | None => match totals {
-                Some(totals) if totals.failed() == 0 => State::Complete,
+                Some(totals) if totals.failed == 0 => State::Complete,
                 Some(_) => State::Ended,
                 None => State::Done,
             },
@@ -68,13 +68,13 @@ pub struct Count {
 #[must_use]
 pub fn count(goals: &[c::TaskLine], totals: Option<&w::MilestoneTotals>) -> Count {
     if let Some(totals) = totals {
-        let done = u64::from(totals.done());
+        let done = u64::from(totals.done);
         return Count {
             done,
             total: done
-                .checked_add(u64::from(totals.failed()))
+                .checked_add(u64::from(totals.failed))
                 .expect("two u32 counts fit u64")
-                .checked_add(u64::from(totals.live()))
+                .checked_add(u64::from(totals.live))
                 .expect("three u32 counts fit u64"),
         };
     }
@@ -156,7 +156,7 @@ pub fn headline(
     Headline {
         case: headline_case(line, goals, totals, needs),
         reds: match totals {
-            Some(totals) => totals.reds(),
+            Some(totals) => totals.reds,
             None => 0,
         },
     }
@@ -172,7 +172,7 @@ fn headline_case(
         State::Closed => return HeadlineCase::Closed(count),
         State::Complete => return HeadlineCase::Complete(count),
         State::Ended => {
-            let failed = totals.expect("ended has totals").failed();
+            let failed = totals.expect("ended has totals").failed;
             let mut first = None;
             for goal in goals {
                 if mark(goal, &[]) == Some(Mark::Failed)

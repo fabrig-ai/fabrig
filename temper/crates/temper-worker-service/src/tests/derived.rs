@@ -6,6 +6,7 @@ use crate::{
     worker_settings,
 };
 use jig_protocol_config as config;
+use jig_protocol_worker_wire::Record;
 use temper_service_core::derived::{self, STOCK};
 
 fn root(payload: u32, turn: u32) -> temper_worker_domain::Limits {
@@ -149,7 +150,7 @@ fn output_carrier() {
     let mut worker = fixtures::worker_settings();
     worker.jig.limits = Some(config::stock());
     let mut sources = STOCK;
-    let zero = wire::v17::Limits {
+    let zero = wire::v19::Limits {
         turn_body: 0,
         turn_refused: worker.jig.limits.as_ref().expect("worker limits").core.tasks.run_inbox,
         ..wire::CEILINGS

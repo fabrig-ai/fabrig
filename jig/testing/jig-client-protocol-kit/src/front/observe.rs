@@ -3,6 +3,7 @@ use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
 use jig_client_kit::harness::{Receipt, Sent};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_test_domain::{Event, Request};
 use skein_lib::{Reader, RequestEnvelope, Token};
 
@@ -29,7 +30,7 @@ pub(super) fn callback(event: &jig_client::Event) -> Option<Callback> {
         | jig_client::Event::StartUnlinked { .. }
         | jig_client::Event::SignIn { .. }
         | jig_client::Event::AskLink
-        | jig_client::Event::AskApproval
+        | jig_client::Event::AskApproval { .. }
         | jig_client::Event::ReadApproval { .. }
         | jig_client::Event::DecideApproval { .. }
         | jig_client::Event::ApprovalAnswer { .. }
@@ -63,24 +64,22 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
     let ClientRequest::Exchange { exchange, message: Message::Request(bytes), .. } = request else { return None };
     let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed bytes");
     let mut sent =
-        Sent { application: false, attempt: *exchange, key: *keyed.key(), card: None, revision: None, words: None };
-    match keyed.owner() {
+        Sent { application: false, attempt: *exchange, key: keyed.key, card: None, revision: None, words: None };
+    match &keyed.owner {
         w::Owner::Jig => {
-            let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).expect("jig ask bytes");
+            let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref())).expect("jig ask bytes");
             let decided = match ask {
                 w::Ask::Seen(_) => return None,
                 w::Ask::Compound(value) => {
-                    let mut reader = Reader::new(value.operations());
+                    let mut reader = Reader::new(value.operations.as_ref());
                     let length = reader.u32().expect("piece length");
                     let bytes = reader.bytes(length).expect("first operation");
                     match w::Operation::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("operation") {
                         w::Operation::Message(v) => {
-                            sent.words = Some((v.task(), v.words().to_vec()));
+                            sent.words = Some((v.task, v.words.as_ref().to_vec()));
                             None
                         }
-                        w::Operation::Amend(v) => {
-                            v.revision().as_ref().map(|r| (c::ObjectKey::Task(v.task()), 1, r.value()))
-                        }
+                        w::Operation::Amend(v) => v.revision.as_ref().map(|r| (c::ObjectKey::Task(v.task), 1, r.value)),
                         w::Operation::Cancel(_)
                         | w::Operation::Release(_)
                         | w::Operation::Stop(_)
@@ -88,37 +87,31 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                     }
                 }
                 w::Ask::Talk(value) | w::Ask::Message(value) => {
-                    sent.words = Some((value.task(), value.words().to_vec()));
+                    sent.words = Some((value.task, value.words.as_ref().to_vec()));
                     None
                 }
-                w::Ask::Answer(value) => match value.on() {
+                w::Ask::Answer(value) => match &value.on {
                     w::AnswerOn::Question(v) => {
-                        sent.words = Some((v.task(), v.words().to_vec()));
+                        sent.words = Some((v.task, v.words.as_ref().to_vec()));
                         None
                     }
-                    w::AnswerOn::Person(v) => Some((c::ObjectKey::PersonTask(v.task()), 3, v.revision().value())),
+                    w::AnswerOn::Person(v) => Some((c::ObjectKey::PersonTask(v.task), 3, v.revision.value)),
                 },
-                w::Ask::Release(value) => Some((c::ObjectKey::Task(value.task()), 2, value.revision().value())),
-                w::Ask::Decide(value) => match value.on() {
+                w::Ask::Release(value) => Some((c::ObjectKey::Task(value.task), 2, value.revision.value)),
+                w::Ask::Decide(value) => match &value.on {
                     w::DecideOn::Proposal(_) => None,
-                    w::DecideOn::Escalation(v) => Some((c::ObjectKey::Escalation(v.task()), 2, v.revision().value())),
+                    w::DecideOn::Escalation(v) => Some((c::ObjectKey::Escalation(v.task), 2, v.revision.value)),
                 },
-                w::Ask::Amend(value) => {
-                    value.revision().as_ref().map(|v| (c::ObjectKey::Task(value.task()), 1, v.value()))
+                w::Ask::Amend(value) => value.revision.as_ref().map(|v| (c::ObjectKey::Task(value.task), 1, v.value)),
+                w::Ask::EditNote(value) => {
+                    Some((c::ObjectKey::Note { project: value.project, note: value.note }, 4, value.revision.value))
                 }
-                w::Ask::EditNote(value) => Some((
-                    c::ObjectKey::Note { project: value.project(), note: value.note() },
-                    4,
-                    value.revision().value(),
-                )),
-                w::Ask::DeleteNote(value) => Some((
-                    c::ObjectKey::Note { project: value.project(), note: value.note() },
-                    4,
-                    value.revision().value(),
-                )),
-                w::Ask::Propose(value) => match value.action() {
+                w::Ask::DeleteNote(value) => {
+                    Some((c::ObjectKey::Note { project: value.project, note: value.note }, 4, value.revision.value))
+                }
+                w::Ask::Propose(value) => match &value.action {
                     w::ProposeAction::Settings(_) | w::ProposeAction::Batch(_) => None,
-                    w::ProposeAction::Amendment(v) => Some((c::ObjectKey::Task(v.task()), 1, v.revision().value())),
+                    w::ProposeAction::Amendment(v) => Some((c::ObjectKey::Task(v.task), 1, v.revision.value)),
                 },
                 w::Ask::Leave(_)
                 | w::Ask::Lift(_)
@@ -156,9 +149,9 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
         w::Owner::Family(_) => {
             use jig_client_test_protocol_wire::v2::{self as family, Record};
             sent.application = true;
-            let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
+            let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref()))
                 .expect("family request envelope");
-            let request = family::Request::decode(&family::CEILINGS, &mut Reader::new(envelope.record()))
+            let request = family::Request::decode(&family::CEILINGS, &mut Reader::new(envelope.record.as_ref()))
                 .expect("family request");
             let subject = jig_client_test_domain::family::Subject {
                 scope: jig_client_test_domain::family::Scope::Project(request.project),
@@ -209,33 +202,22 @@ pub fn receipts(fact: &Received) -> Vec<Receipt> {
 mod tests {
     use super::*;
     use crate::fixtures::{PROJECT, WIRE_TASK};
-    use skein_lib::{Overflow, Writer};
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
 
-    fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
-        encode(value, &mut writer).expect("measured wire fixture");
-        writer.finish()
+    fn encoded<T: w::Record<Limits = w::Limits>>(value: &T) -> Box<[u8]> {
+        value.encode(&w::CEILINGS).expect("bounded wire fixture")
     }
 
     fn request(owner: w::Owner, version: u32, bytes: Box<[u8]>) -> ClientRequest {
-        let keyed = w::Keyed::new(
-            &w::CEILINGS,
-            w::KeyedParts { key: REQUEST_KEY, owner, version, request: bytes, value: None },
-        )
-        .expect("bounded keyed fixture");
-        ClientRequest::Exchange {
-            exchange: ATTEMPT,
-            credential: None,
-            message: Message::Request(encoded(&keyed, w::Keyed::measure, w::Keyed::encode)),
-        }
+        let keyed = w::Keyed { key: REQUEST_KEY, owner, version, request: bytes, value: None };
+        ClientRequest::Exchange { exchange: ATTEMPT, credential: None, message: Message::Request(encoded(&keyed)) }
     }
 
     fn jig_request(ask: &c::Ask) -> ClientRequest {
         let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("bounded jig fixture");
-        request(w::Owner::Jig, jig_client_protocol_wire::VERSION, encoded(&ask, w::Ask::measure, w::Ask::encode))
+        request(w::Owner::Jig, jig_client_protocol_wire::VERSION, encoded(&ask))
     }
 
     #[test]
@@ -297,26 +279,10 @@ mod tests {
             revision: c::Revision { value: 5 },
             value: 0,
         });
-        let envelope = w::FamilyRequest::new(
-            &w::CEILINGS,
-            w::FamilyRequestParts {
-                scope: w::Scope::Project(
-                    w::ScopeProject::new(&w::CEILINGS, w::ScopeProjectParts { value: PROJECT })
-                        .expect("bounded project fixture"),
-                ),
-                record: record.bytes,
-            },
-        )
-        .expect("bounded family fixture");
-        let owner = w::Owner::Family(
-            w::Family::new(&w::CEILINGS, w::FamilyParts { number: record.family }).expect("bounded family fixture"),
-        );
-        let sent = client_sent(&request(
-            owner,
-            record.version,
-            encoded(&envelope, w::FamilyRequest::measure, w::FamilyRequest::encode),
-        ))
-        .expect("family request observed");
+        let envelope =
+            w::FamilyRequest { scope: w::Scope::Project(w::ScopeProject { value: PROJECT }), record: record.bytes };
+        let owner = w::Owner::Family(w::Family { number: record.family });
+        let sent = client_sent(&request(owner, record.version, encoded(&envelope))).expect("family request observed");
         let card = jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(
             &jig_client_test_domain::family::Subject {
                 scope: jig_client_test_domain::family::Scope::Project(PROJECT),

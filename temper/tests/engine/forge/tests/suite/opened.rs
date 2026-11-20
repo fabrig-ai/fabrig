@@ -1,8 +1,11 @@
 //! Opened changes follow the queue and drift rules (forge/change/opened.md, 5).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api::{Op, Read};
+use skein_lib::Duration;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_landing as landing;
+use temper_engine_forge_world::landings::{self, LANDING, PROJECT};
 use temper_engine_forge_world::{REPO, World, changes, translate};
 
 const SOURCE: &[u8] = b"docs/x";
@@ -42,7 +45,7 @@ fn an_opened_queue_change_checks_gates_updates_checks_again_and_merges() {
         step(&mut world, 4, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head })
     );
-    let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let gates = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert_eq!(step(&mut world, 5, gates.clone()), change::Decision::Ready);
     world.push_file(b"main", b"other", b"moved base");
     let base = translate::commit(world.branch(b"main"));
@@ -78,6 +81,89 @@ fn an_opened_queue_change_checks_gates_updates_checks_again_and_merges() {
             .iter()
             .any(|call| matches!(call, Op::Write(skein_forge::api::Write::Merge { head, .. }) if *head == updated))
     );
+}
+
+#[test]
+fn an_opened_changes_landing_repair_pins_the_rounds_newer_base_not_its_source() {
+    let world = World::public_turn(
+        31,
+        raw::Workflow {
+            requirements: Box::new([]),
+            file: b"gate.yml".as_slice().into(),
+            jobs: Box::new([b"test".as_slice().into()]),
+            fails: Box::new([]),
+            flaky: Box::new([]),
+            report: None,
+            select: None,
+            latency_min: Duration::from_secs(2),
+            latency_max: Duration::from_secs(2),
+            silent: 0,
+            passes: 1000,
+            cue: Some(raw::Cue::File { path: b"file".as_slice().into(), green: b"fixed".as_slice().into() }),
+        },
+    );
+    let mut world = taken(world);
+    assert!(world.project_landing(
+        PROJECT,
+        change::Way::Turn,
+        Box::new([top::RepositoryGates {
+            repository: REPO,
+            gates: Box::new([landing::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: None,
+            }]),
+            tiers: Box::new([]),
+        }])
+    ));
+    let source = world.change(51).kept.expect("taken source");
+    world.push_file(b"main", b"base", b"main moved after taking");
+    let base = translate::commit(world.branch(b"main"));
+    assert_eq!(step(&mut world, 3, Box::new([])), change::Decision::Ready);
+    let row = landings::landing_row(world.change(51));
+    landings::register(&mut world, row);
+    let mut failure = None;
+    for entry in 100..180 {
+        if let landing::Decision::Leave { why: landing::Leave::Failed { gate, .. }, .. } =
+            landings::step_landing(&mut world, LANDING, entry)
+        {
+            failure = Some(gate);
+            break;
+        }
+    }
+    let gate = failure.expect("the candidate's gate fails");
+    let candidate = world.landing(LANDING).landing.members[0].candidate.expect("candidate");
+    let why = change::Repair::LandingAt { gate, candidate, below: None };
+    assert_eq!(step(&mut world, 300, Box::new([])), change::Decision::Delegate(change::Delegate::Repair(why)));
+    world.event(top::Event::Delegated { task: 51, child: 71, kind: change::Delegate::Repair(why) });
+    let receipt = world
+        .stored()
+        .iter()
+        .find_map(|(_, row)| match row {
+            top::Stored::Receipt { receipt, .. } if !receipt.passed && receipt.candidate == candidate => Some(receipt),
+            _ => None,
+        })
+        .expect("failed receipt");
+    assert_eq!(receipt.base, Some(base));
+    assert_ne!(base, source);
+    assert_ne!(Some(base), world.change(51).change.last_head);
+    assert_eq!(world.change(51).kept, Some(source));
+    let item = world
+        .workspace_item(top::items::Seed {
+            project: PROJECT,
+            modify: false,
+            task: 71,
+            parent: Some(51),
+            repository: REPO,
+            run_branch: Box::new([]),
+            saved_branch: None,
+        })
+        .expect("repair workspace");
+    assert_eq!(item.landing, None);
+    assert_eq!(item.pin, Some(base));
 }
 
 #[test]

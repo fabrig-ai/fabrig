@@ -445,13 +445,15 @@ pub(crate) fn close(fd: i32) {
     let _closed: i32 = unsafe { libc::close(fd) };
 }
 
-/// Nanoseconds on clock `id`, or `None` before its origin.
+/// Nanoseconds on clock `id`, or `None` on error or before its origin.
 pub(crate) fn clock_nanos(id: libc::clockid_t) -> Option<u64> {
     let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     // SAFETY: `time` is a live, exclusive borrow of a `timespec`, which the
     // kernel writes during the call only.
     let read = unsafe { libc::clock_gettime(id, ptr::from_mut(&mut time)) };
-    assert!(read == 0, "the shell's clocks exist and the timespec is valid");
+    if read != 0 {
+        return None;
+    }
     let secs = u64::try_from(time.tv_sec).ok()?;
     let nanos = u64::try_from(time.tv_nsec).ok()?;
     secs.checked_mul(NANOS_PER_SEC)?.checked_add(nanos)

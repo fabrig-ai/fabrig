@@ -1,6 +1,5 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
-const ASKED_OPENING: &str = "\n\nWhat this change is asked now: its request as revised and the answers given on it. Where they differ from its title, its original request or the preservation rule, they come first.";
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -496,6 +495,7 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     let ci = b" The CI section gives its run, base and failed jobs.";
     let failure = repair_failure(red, Some(green));
     let lines = concat(&[
+        super::REPAIR_NO_TEST_LINE,
         b"\nGate run: 4211 at ",
         &commit_text(&red),
         b", base ",
@@ -560,11 +560,12 @@ fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
     let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
     let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
     let report = b"\nFailed tests: not known (the gate names no report)";
-    let full = skein_lib::bytes::concat(&[&required, &gate, report, &job, &lint]);
+    let full = skein_lib::bytes::concat(&[&required, super::REPAIR_NO_TEST_LINE, &gate, report, &job, &lint]);
     assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), full);
     for (kept, omitted) in [(b"".as_slice(), 2), (job.as_ref(), 1)] {
         let expected = skein_lib::bytes::concat(&[
             &required,
+            super::REPAIR_NO_TEST_LINE,
             &gate,
             report,
             kept,
@@ -766,7 +767,7 @@ fn a_resolution_preserves_both_sides_within_a_small_spec() {
     ];
     let words = super::resolution_words(Some(b"merge job result"), &parameters, 352).unwrap();
     assert_eq!(words.as_ref(), concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base ",
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless its current spec or a ruling says otherwise. Restore a file the base ",
         "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
         "kept or restored, and why.",
     )
@@ -777,7 +778,7 @@ fn a_resolution_preserves_both_sides_within_a_small_spec() {
             bytes += value.len();
         }
     }
-    assert_eq!(bytes, 352, "resolution and pinned parameters need {bytes} spec bytes");
+    assert_eq!(bytes, 345, "resolution and pinned parameters need {bytes} spec bytes");
     assert!(
         super::resolution_words(Some(b"merge job result"), &parameters, u32::try_from(bytes - 1).unwrap()).is_none()
     );
@@ -834,89 +835,170 @@ fn landing_words_name_the_pull_and_use_the_forges_address_when_it_fits() {
     }
 }
 
-/// questions.md, 1, What later work is told: exact lines, optional label and newest first.
-#[test]
-#[expect(clippy::disallowed_macros, reason = "unit fixtures spell the block's exact design lines")]
-fn asked_now_carries_the_design_lines_and_newest_answers_first() {
-    let request = b"Add a file holding the line a.";
-    let first = kept_answer(7, b"Question: keep both lines?", b"keep both lines");
-    let expected = format!(
-        "{ASKED_OPENING}\nAnswers given on it, newest first:\nTask 7 asked: Question: keep both lines?\nAnswer: keep both lines\nIts request, at spec revision 2:\nAdd a file holding the line a."
-    );
-    assert_eq!(super::asked_now(request, 2, core::slice::from_ref(&first), 4096).as_ref(), expected.as_bytes());
-    let expected = format!("{ASKED_OPENING}\nIts request, at spec revision 0:\nAdd a file holding the line a.");
-    assert_eq!(super::asked_now(request, 0, &[], 4096).as_ref(), expected.as_bytes());
-    let second = kept_answer(9, b"Question: blank lines?", b"keep blank lines");
-    let expected = format!(
-        "{ASKED_OPENING}\nAnswers given on it, newest first:\nTask 9 asked: Question: blank lines?\nAnswer: keep blank lines\nTask 7 asked: Question: keep both lines?\nAnswer: keep both lines\nIts request, at spec revision 2:\nAdd a file holding the line a."
-    );
-    assert_eq!(super::asked_now(request, 2, &[first, second], 4096).as_ref(), expected.as_bytes());
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    reason = "fixtures spell the design's exact context lines"
+)]
+fn context_opening(task: u64, revision: u64) -> String {
+    format!(
+        "\n\nThis change's current spec and rulings: task {task} at spec revision {revision}. They come first: its original request, its pull request's title and body, and CI's and reviews' remarks are supporting evidence, and where they differ from these, follow these. To preserve the requested change is to preserve it as its current spec and rulings state it."
+    )
 }
 
-/// questions.md, 1: the specified split and cut, with UTF-8 straddling each cut.
+/// questions.md, 1, What every delegate is told: exact lines, revision order and latest taken first.
 #[test]
-#[expect(clippy::disallowed_macros, reason = "unit fixtures independently spell the split UTF-8 texts")]
-fn asked_now_shares_room_and_cuts_each_text_on_a_utf8_boundary() {
-    let label = "\nAnswers given on it, newest first:";
-    let request_label = "\nIts request, at spec revision 2:\n";
-    let fixed = ASKED_OPENING.len() + label.len() + request_label.len();
-    let question = b"Question: keep both lines?";
-    let request = "€".repeat(100);
-    let answer = "€".repeat(100);
-    let kept = [kept_answer(7, question, answer.as_bytes())];
-    // The first 50 answer bytes are its question and Answer label. One euro
-    // straddles the cut after the marker is reserved in the 54-byte share.
-    let room = fixed + 108;
-    let answer_text = format!("\nTask 7 asked: Question: keep both lines?\nAnswer: {answer}");
-    let cut = |text: &str, bound: usize| {
-        let mut end = bound - "…".len();
-        while !text.is_char_boundary(end) {
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    reason = "fixtures independently spell the exact context"
+)]
+fn change_context_carries_the_design_lines_and_newest_rulings_first() {
+    use super::forge_change::{Amended, Questions};
+    for answers in [false, true] {
+        for amendments in [false, true] {
+            let mut questions = Questions::default();
+            let mut rulings = String::new();
+            if answers || amendments {
+                rulings.push_str("\nRulings, newest first:");
+            }
+            if amendments {
+                questions.amended = Box::new([Amended { revision: 2, reason: b"Drop the file".as_slice().into() }]);
+                rulings.push_str("\nAmended to spec revision 2: Drop the file");
+            }
+            if answers {
+                questions.answered = Box::new([kept_answer(8, b"Question: keep lines?", b"Keep both lines")]);
+                rulings.push_str("\nTask 8 asked, at spec revision 1: Question: keep lines?\nAnswer: Keep both lines");
+            }
+            for producer in [false, true] {
+                let spec = if producer {
+                    "\nIts current spec is your spec's words above."
+                } else {
+                    "\nIts current spec, at revision 2:\nDrop it."
+                };
+                let expected = format!("{}{rulings}{spec}", context_opening(7, 2));
+                assert_eq!(
+                    super::change_context(7, 2, b"Drop it.", &questions, producer, 4096).unwrap().as_ref(),
+                    expected.as_bytes()
+                );
+            }
+        }
+    }
+    let questions = Questions {
+        answered: Box::new([kept_answer(8, b"first?", b"first"), kept_answer(9, b"latest?", b"latest")]),
+        amended: Box::new([
+            Amended { revision: 1, reason: b"older".as_slice().into() },
+            Amended { revision: 1, reason: b"newer".as_slice().into() },
+        ]),
+        ..Questions::default()
+    };
+    let expected = format!(
+        "{}\nRulings, newest first:\nTask 9 asked, at spec revision 1: latest?\nAnswer: latest\nTask 8 asked, at spec revision 1: first?\nAnswer: first\nAmended to spec revision 1: newer\nAmended to spec revision 1: older\nIts current spec, at revision 2:\nDrop it.",
+        context_opening(7, 2)
+    );
+    assert_eq!(
+        super::change_context(7, 2, b"Drop it.", &questions, false, 4096).unwrap().as_ref(),
+        expected.as_bytes()
+    );
+}
+
+/// questions.md, 1: fixed lines and markers reserve room before the specified split.
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "fixtures spell UTF-8 cuts and their marker lines"
+)]
+fn change_context_shares_room_and_marks_utf8_cuts_and_omissions() {
+    use super::forge_change::Questions;
+    let euros = "€".repeat(100);
+    let questions = Questions {
+        answered: Box::new([kept_answer(8, b"older?", b"older"), kept_answer(9, b"?", euros.as_bytes())]),
+        ..Questions::default()
+    };
+    let label = "\nRulings, newest first:";
+    let spec_label = "\nIts current spec, at revision 2:\n";
+    let spec_marker = "…\n[Its spec is cut here; read_task on task 7 reads it whole.]";
+    let fixed = context_opening(7, 2).len()
+        + label.len()
+        + spec_label.len()
+        + spec_marker.len()
+        + "…\n[2 older rulings left out]".len();
+    let ruling = format!("\nTask 9 asked, at spec revision 1: ?\nAnswer: {euros}");
+    let prefix = |words: &str, bound: usize| {
+        let mut end = bound;
+        while !words.is_char_boundary(end) {
             end -= 1;
         }
-        format!("{}…", &text[..end])
+        words[..end].to_owned()
     };
-    let expected = format!("{ASKED_OPENING}{label}{}{request_label}{}", cut(&answer_text, 54), cut(&request, 54));
-    let block = super::asked_now(request.as_bytes(), 2, &kept, room);
-    assert_eq!(block.as_ref(), expected.as_bytes());
-    assert!(block.len() <= room);
-    // A six-byte request leaves 102 bytes for the answers, not merely half.
-    let expected = format!("{ASKED_OPENING}{label}{}{request_label}short!", cut(&answer_text, 102));
-    let block = super::asked_now(b"short!", 2, &kept, room);
-    assert_eq!(block.as_ref(), expected.as_bytes());
-    assert!(block.len() <= room);
-    // Answers needing less than half leave the remainder for the request.
-    let kept = [kept_answer(7, b"?", b"yes")];
-    let answer_text = "\nTask 7 asked: ?\nAnswer: yes";
-    let expected =
-        format!("{ASKED_OPENING}{label}{answer_text}{request_label}{}", cut(&request, 108 - answer_text.len()));
-    assert_eq!(super::asked_now(request.as_bytes(), 2, &kept, room).as_ref(), expected.as_bytes());
+    // Both shares are 60 bytes. Cuts preserve UTF-8 and the newest ruling.
+    let expected = format!(
+        "{}{label}{}…\n[1 older rulings left out]{spec_label}{}{spec_marker}",
+        context_opening(7, 2),
+        prefix(&ruling, 60),
+        prefix(&euros, 60)
+    );
+    assert_eq!(
+        super::change_context(7, 2, euros.as_bytes(), &questions, false, fixed + 120).unwrap().as_ref(),
+        expected.as_bytes()
+    );
+    // The six-byte spec lends its unused half to the rulings.
+    let expected = format!(
+        "{}{label}{}…\n[1 older rulings left out]{spec_label}short!",
+        context_opening(7, 2),
+        prefix(&ruling, 114)
+    );
+    assert_eq!(
+        super::change_context(7, 2, b"short!", &questions, false, fixed + 120).unwrap().as_ref(),
+        expected.as_bytes()
+    );
+    let questions = Questions { answered: Box::new([kept_answer(9, b"?", b"yes")]), ..Questions::default() };
+    let ruling = "\nTask 9 asked, at spec revision 1: ?\nAnswer: yes";
+    let expected = format!(
+        "{}{label}{ruling}{spec_label}{}{spec_marker}",
+        context_opening(7, 2),
+        prefix(&euros, 120 - ruling.len())
+    );
+    assert_eq!(
+        super::change_context(7, 2, euros.as_bytes(), &questions, false, fixed + 120).unwrap().as_ref(),
+        expected.as_bytes()
+    );
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "unit fixtures validate every bounded block as UTF-8")]
-fn asked_now_keeps_its_fixed_lines_whole_or_gives_nothing() {
-    let cases: [Box<[super::forge_change::Answered]>; 2] = [Box::new([]), Box::new([kept_answer(7, b"?", b"yes")])];
-    for answered in cases {
-        let fixed = super::asked_now(b"", 2, &answered, 4096).len()
-            - if answered.is_empty() { 0 } else { b"\nTask 7 asked: ?\nAnswer: yes".len() };
-        assert!(super::asked_now(b"request", 2, &answered, fixed - 1).is_empty());
-        let block = super::asked_now(b"request", 2, &answered, fixed);
-        assert_eq!(block.len(), fixed);
-        assert!(block.ends_with(b"Its request, at spec revision 2:\n"));
-        for room in 0..fixed + 110 {
-            let block = super::asked_now("€€€€".as_bytes(), 2, &answered, room);
-            assert!(block.len() <= room);
-            core::str::from_utf8(&block).expect("the bounded block is UTF-8");
+#[expect(clippy::disallowed_methods, reason = "fixtures validate every bounded context as UTF-8")]
+fn change_context_keeps_its_fixed_lines_whole_or_refuses() {
+    use super::forge_change::{Amended, Questions};
+    for questions in [
+        Questions::default(),
+        Questions {
+            answered: Box::new([kept_answer(7, b"?", b"yes")]),
+            amended: Box::new([Amended { revision: 2, reason: b"Drop it".as_slice().into() }]),
+            ..Questions::default()
+        },
+    ] {
+        for producer in [false, true] {
+            let fixed = super::context_fixed(7, 2, "€€€€".as_bytes(), &questions, producer);
+            assert!(super::change_context(7, 2, "€€€€".as_bytes(), &questions, producer, fixed - 1).is_none());
+            for room in fixed..fixed + 200 {
+                let block = super::change_context(7, 2, "€€€€".as_bytes(), &questions, producer, room).unwrap();
+                assert!(block.len() <= room);
+                let text = core::str::from_utf8(&block).expect("UTF-8 context");
+                assert!(text.starts_with(&context_opening(7, 2)));
+                if !producer && room == fixed {
+                    assert!(text.ends_with("…\n[Its spec is cut here; read_task on task 7 reads it whole.]"));
+                }
+            }
         }
     }
 }
 
-/// repairs.md, A repair and A resolution: preservation yields to the ruling.
 #[test]
 fn preservation_words_yield_to_the_current_request_and_answers() {
-    assert_eq!(super::REPAIR_PRESERVATION, b" Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.");
-    assert_eq!(super::resolution_words(None, &[], 4096).unwrap().as_ref(), b"Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.");
-    let compact = b"Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.";
+    assert_eq!(super::REPAIR_PRESERVATION, b" Preserve the requested change, as its current spec and rulings state it, and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless its current spec or a ruling says otherwise.");
+    assert_eq!(super::resolution_words(None, &[], 4096).unwrap().as_ref(), b"Resolve the merge conflict. Preserve the requested change, as its current spec and rulings state it, and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless its current spec or a ruling says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.");
+    let compact = b"Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless its current spec or a ruling says otherwise. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.";
     assert_eq!(super::resolution_words(None, &[], u32::try_from(compact.len()).unwrap()).unwrap().as_ref(), compact);
     assert!(super::resolution_words(None, &[], u32::try_from(compact.len() - 1).unwrap()).is_none());
 }
@@ -942,6 +1024,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 7,
@@ -968,7 +1051,10 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         effect: change::EffectResult::None,
         delegate: None,
         delegate_status: change::Status::Unknown,
+        spec_revision: 0,
+        gate_revision: 0,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
@@ -1084,10 +1170,328 @@ fn repair_failure(prefix: [u8; 32], base: Option<[u8; 32]>) -> super::forge::Lan
 }
 
 fn kept_answer(asker: u64, line: &[u8], answer: &[u8]) -> super::forge_change::Answered {
-    super::forge_change::Answered { asker, number: 3, line: line.into(), answer: answer.into() }
+    super::forge_change::Answered { revision: 1, asker, number: 3, line: line.into(), answer: answer.into() }
 }
 
 fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
     assert!(words.starts_with(opening));
     assert!(words.ends_with(super::REPAIR_PRESERVATION));
+}
+
+fn word_parameters(
+    row: &super::forge::ChangeRow,
+    kind: super::forge_change::Delegate,
+) -> Box<[super::tasks::Parameter]> {
+    use super::{
+        forge_change::{Delegate, State},
+        tasks::Parameter,
+    };
+    let (base, branch) = if let Delegate::Gate { .. } = kind
+        && let State::Judging { target, .. } = &row.change.state
+    {
+        (&target.base, &target.branch)
+    } else {
+        (&row.base, &row.branch)
+    };
+    let mut parameters = super::List::with_capacity(3);
+    parameters.push(Parameter::Bytes { name: 2, value: base.clone() }).unwrap();
+    parameters.push(Parameter::Bytes { name: 3, value: branch.clone() }).unwrap();
+    match kind {
+        Delegate::Gate { head, .. } => {
+            parameters.push(Parameter::Bytes { name: 8, value: commit_text(&head) }).unwrap();
+        }
+        Delegate::Resolve { base } => parameters.push(Parameter::Bytes { name: 6, value: commit_text(&base) }).unwrap(),
+        Delegate::Produce | Delegate::Repair(_) | Delegate::Merge { .. } | Delegate::Close => {}
+    }
+    parameters.into_boxed()
+}
+
+/// repairs.md, A repair and A resolution: preservation yields to the ruling.
+#[test]
+fn every_delegate_ends_with_the_current_spec_and_rulings_within_the_spec_bound() {
+    use super::forge_change as change;
+    use change::{Delegate, Freshness, Gate, GateKind, Repair, State};
+    for ruling_kinds in 0_u8..4 {
+        for judging in [false, true] {
+            let mut row = change_row(Some(7));
+            let bound = 4096;
+            let request = (2, b"Drop the file".as_slice());
+            row.change.last_head = Some(SHA1);
+            if ruling_kinds & 1 != 0 {
+                row.questions.answered = Box::new([kept_answer(71, b"Question: drop the file?", b"drop it")]);
+            }
+            if ruling_kinds & 2 != 0 {
+                row.questions.amended =
+                    Box::new([change::Amended { revision: 2, reason: b"Drop the file".as_slice().into() }]);
+            }
+            row.change.gates = Box::new([
+                Gate { number: 1, kind: GateKind::Agent, blocking: true, freshness: Freshness::Clean, eager: true },
+                Gate { number: 2, kind: GateKind::Check, blocking: true, freshness: Freshness::Clean, eager: true },
+                Gate { number: 3, kind: GateKind::Person, blocking: true, freshness: Freshness::Clean, eager: true },
+            ]);
+            row.change.state = if judging {
+                State::Judging {
+                    head: SHA1,
+                    ready_since: skein_lib::Wall::EPOCH,
+                    target: change::Judgement {
+                        landing: 81,
+                        round: 1,
+                        pull: 9,
+                        branch: b"round".as_slice().into(),
+                        base: b"goal".as_slice().into(),
+                        prefix: SHA256,
+                    },
+                    asked: Box::new([]),
+                }
+            } else {
+                State::Gating { head: SHA1, asked: Box::new([]) }
+            };
+            row.merge_result = Some(b"merge result".as_slice().into());
+            let block = super::change_context(row.task, request.0, request.1, &row.questions, false, 4096).unwrap();
+            let producer_block =
+                super::change_context(row.task, request.0, request.1, &row.questions, true, 4096).unwrap();
+            for kind in [
+                Delegate::Produce,
+                Delegate::Gate { number: 1, head: SHA1 },
+                Delegate::Gate { number: 2, head: SHA1 },
+                Delegate::Gate { number: 3, head: SHA1 },
+                Delegate::Repair(Repair::Ci),
+                Delegate::Repair(Repair::Semantic),
+                Delegate::Repair(Repair::Gate(1)),
+                Delegate::Repair(Repair::Review { head: SHA1 }),
+                Delegate::Repair(Repair::Landing { gate: 1 }),
+                Delegate::Repair(Repair::LandingAt { gate: 1, candidate: SHA256, below: None }),
+                Delegate::Repair(Repair::LandingAt {
+                    gate: 1,
+                    candidate: SHA256,
+                    below: Some(change::Below {
+                        by_test: false,
+                        top: false,
+                        green: SHA1,
+                        changes: [Some(change::Landed { change: 12, pull: 3 }), None, None, None],
+                    }),
+                }),
+                Delegate::Resolve { base: SHA1 },
+            ] {
+                let parameters = word_parameters(&row, kind);
+                let words =
+                    super::delegate_words(&row, kind, request, &row.questions, None, &parameters, bound).unwrap();
+                let block = if kind == Delegate::Produce { &producer_block } else { &block };
+                assert!(words.ends_with(block), "{kind:?}, judging {judging}");
+                assert!(words.len() <= usize::try_from(super::parameter_word_room(&parameters, bound)).unwrap());
+                match kind {
+                    Delegate::Gate { .. } => {
+                        assert!(words.starts_with(b"Review this change at the named head\n"));
+                    }
+                    Delegate::Repair(repair) => {
+                        let before = &words[..words.len() - block.len()];
+                        let preservation = match repair {
+                            Repair::Landing { .. } | Repair::LandingAt { .. } => before
+                                .strip_suffix(b"\nGate run: the landing no longer keeps its failure")
+                                .expect("a landing repair names its missing failure before the current request"),
+                            Repair::Ci | Repair::Semantic | Repair::Gate(_) | Repair::Review { .. } => before,
+                        };
+                        assert!(preservation.ends_with(super::REPAIR_PRESERVATION));
+                    }
+                    Delegate::Resolve { .. } => {
+                        let before = &words[..words.len() - block.len()];
+                        assert!(before.ends_with(b"merge result"));
+                    }
+                    Delegate::Produce => {}
+                    Delegate::Merge { .. } | Delegate::Close => unreachable!(),
+                }
+            }
+        }
+    }
+}
+
+/// questions.md, 1, What every delegate is told: context takes room before optional evidence.
+#[test]
+#[expect(clippy::disallowed_methods, reason = "fixtures make long UTF-8 rulings and evidence")]
+fn delegate_context_precedes_optional_evidence_and_producer_extras_under_tight_bounds() {
+    use super::forge_change as change;
+    let mut row = change_row(Some(7));
+    let request = (1, b"Keep both lines".as_slice());
+    row.change.last_head = Some(SHA1);
+    row.change.gates = Box::new([change::Gate {
+        number: 1,
+        kind: change::GateKind::Agent,
+        blocking: true,
+        freshness: change::Freshness::Clean,
+        eager: true,
+    }]);
+    row.questions.answered = Box::new([kept_answer(71, b"Question: keep both?", "€".repeat(1000).as_bytes())]);
+    row.merge_result = Some("optional merge result ".repeat(100).into_bytes().into());
+    row.change.early = change::Early::Started(Box::new([
+        super::forge_change::StartedFrom { task: 12, head: SHA1 },
+        super::forge_change::StartedFrom { task: 13, head: SHA256 },
+    ]));
+    for kind in [
+        change::Delegate::Gate { number: 1, head: SHA1 },
+        change::Delegate::Repair(change::Repair::Ci),
+        change::Delegate::Repair(change::Repair::LandingAt {
+            gate: 1,
+            candidate: SHA256,
+            below: Some(change::Below {
+                green: SHA1,
+                by_test: false,
+                top: false,
+                changes: [Some(change::Landed { change: 12, pull: 3 }); 4],
+            }),
+        }),
+        change::Delegate::Resolve { base: SHA1 },
+    ] {
+        let parameters = word_parameters(&row, kind);
+        let render = |bound| super::delegate_words(&row, kind, request, &row.questions, None, &parameters, bound);
+        assert!(render(200).is_none(), "{kind:?} cannot drop the context");
+        let bound = 1600;
+        let words = render(bound).unwrap();
+        let room = usize::try_from(super::parameter_word_room(&parameters, bound)).unwrap();
+        assert!(words.len() <= room);
+        let required = match kind {
+            change::Delegate::Gate { number, head } => {
+                super::review_words(&row, number, &head, &parameters, 4096).unwrap()
+            }
+            change::Delegate::Repair(why) => {
+                super::repair_words(&row, super::without_changes_below(why), None, &parameters, 4096).unwrap()
+            }
+            change::Delegate::Resolve { .. } => {
+                let fixed = super::context_fixed(row.task, request.0, request.1, &row.questions, false);
+                super::resolution_words(None, &parameters, bound - u32::try_from(fixed).unwrap()).unwrap()
+            }
+            change::Delegate::Produce | change::Delegate::Merge { .. } | change::Delegate::Close => unreachable!(),
+        };
+        let context =
+            super::change_context(row.task, request.0, request.1, &row.questions, false, room - required.len())
+                .unwrap();
+        assert!(words.ends_with(&context), "optional evidence cannot steal context room: {kind:?}");
+        assert!(core::str::from_utf8(&words).unwrap().contains('…'));
+    }
+    // The producer's own words stay whole, even when they leave no context room.
+    let parameters = word_parameters(&row, change::Delegate::Produce);
+    let render = |bound| {
+        super::delegate_words(&row, change::Delegate::Produce, request, &row.questions, None, &parameters, bound)
+            .unwrap()
+    };
+    let bound = u32::try_from(row.base.len() + row.branch.len() + request.1.len()).unwrap();
+    assert_eq!(render(bound).as_ref(), request.1);
+    let fixed = super::context_fixed(row.task, request.0, request.1, &row.questions, true);
+    let words = render(bound + u32::try_from(fixed + 100).unwrap());
+    let context = super::change_context(row.task, request.0, request.1, &row.questions, true, fixed + 100).unwrap();
+    assert!(words.ends_with(&context));
+    assert!(words.starts_with(request.1));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "fixture independently spells exact UTF-8 bounded reason")]
+fn a_delegate_amendment_reason_is_exact_and_cuts_at_a_utf8_boundary() {
+    let prefix = "Task 41, your change, was amended to spec revision 3. Your spec's context now holds its current spec and rulings; work to them from here on. Its reason: ";
+    let reason = "Drop the file €€€";
+    assert_eq!(
+        super::delegate_amendment_words(41, 3, reason.as_bytes(), 512).as_ref(),
+        format!("{prefix}{reason}").as_bytes()
+    );
+    let bound = u32::try_from(prefix.len() + "Drop the file €".len() + 1 + "…".len()).unwrap();
+    assert_eq!(
+        super::delegate_amendment_words(41, 3, reason.as_bytes(), bound).as_ref(),
+        format!("{prefix}Drop the file €…").as_bytes()
+    );
+}
+
+/// temper/docs/design/domain/forge/change/repairs.md: required words stay whole before an optional result.
+#[test]
+fn resolution_words_keep_deletions_with_or_without_a_merge_result() {
+    const PREFIX: &[u8] = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+    const RESULT: &[u8] = b"{\"settled\":[],\"left\":[\"file\"]}";
+    let full = concat!(
+        "Resolve the merge conflict. Preserve the requested change, as its current spec and rulings state it, and unrelated content already landed on the base, ",
+        "including both independent appended lines and existing blank lines. A deletion or a rename on either side is ",
+        "an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a ",
+        "file deleted on the head or renamed on either side stays so, the other side's edits carried where they still ",
+        "apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a ",
+        "check pass, unless its current spec or a ruling says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed ",
+        "on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes ",
+        "the resolved merge.",
+    )
+    .as_bytes();
+    let compact = concat!(
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless its current spec or a ruling says otherwise. Restore a file the base ",
+        "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
+        "kept or restored, and why.",
+    )
+    .as_bytes();
+    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
+    for opening in [full, compact] {
+        for remaining in [0, PREFIX.len() + 2, PREFIX.len() + 3, PREFIX.len() + 12, PREFIX.len() + RESULT.len()] {
+            let bound = u32::try_from(opening.len() + 40 + remaining).unwrap();
+            let without_result = super::resolution_words(None, &parameters, bound).unwrap();
+            assert_eq!(without_result.as_ref(), opening);
+            let with_result = super::resolution_words(Some(RESULT), &parameters, bound).unwrap();
+            assert!(with_result.starts_with(opening));
+            assert!(with_result.len() + 40 <= usize::try_from(bound).unwrap());
+            if remaining < PREFIX.len() + 3 {
+                assert_eq!(with_result.as_ref(), opening);
+            } else {
+                assert_eq!(&with_result[opening.len()..opening.len() + PREFIX.len()], PREFIX);
+                if remaining < PREFIX.len() + RESULT.len() {
+                    assert!(with_result.ends_with(b"..."));
+                } else {
+                    assert!(with_result.ends_with(RESULT));
+                }
+            }
+        }
+    }
+}
+
+/// temper/docs/design/domain/forge/change/repairs.md: a resolution carries the job's result within its words' room.
+#[test]
+#[expect(clippy::disallowed_methods, reason = "unit fixtures compare bounded resolution text")]
+fn a_resolution_after_a_merge_job_carries_its_result() {
+    const PREFIX: &[u8] = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+    const RESULT: &[u8] = b"{\"settled\":[\"a\"],\"left\":[\"b\"]}";
+    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
+    let opening = super::resolution_words(None, &parameters, 4096).unwrap();
+    for expected in [
+        "requested change",
+        "unrelated content",
+        "independent appended lines",
+        "blank lines",
+        "a file deleted on the base stays deleted unless the requested change needs it",
+        "Read the commit that deleted a file before you restore anything",
+        "Do not remove content just to make a check pass",
+    ] {
+        assert!(core::str::from_utf8(&opening).unwrap().contains(expected));
+    }
+    let bound = u32::try_from(opening.len() + PREFIX.len() + RESULT.len() + 40).unwrap();
+    let full = super::resolution_words(Some(RESULT), &parameters, bound).unwrap();
+    assert!(full.starts_with(&opening));
+    assert_eq!(&full[opening.len()..opening.len() + PREFIX.len()], PREFIX);
+    assert!(full.ends_with(RESULT));
+    for remaining in [0, PREFIX.len() + 2, PREFIX.len() + 3, PREFIX.len() + 12] {
+        let cut_bound = u32::try_from(opening.len() + 40 + remaining).unwrap();
+        let cut = super::resolution_words(Some(RESULT), &parameters, cut_bound).unwrap();
+        assert!(cut.starts_with(&opening));
+        assert!(cut.len() + 40 <= usize::try_from(cut_bound).unwrap());
+        if remaining < PREFIX.len() + 3 {
+            assert_eq!(cut, opening);
+        } else {
+            assert!(cut.ends_with(b"..."));
+            assert_eq!(cut.len() + 40, usize::try_from(cut_bound).unwrap());
+            assert_eq!(&cut[opening.len() + PREFIX.len()..cut.len() - 3], &RESULT[..remaining - PREFIX.len() - 3]);
+        }
+    }
+    assert_eq!(
+        crate::routing::change_delegate_status(
+            &super::tasks::MessageKind::Result(super::tasks::ResultKind::Job),
+            super::forge_change::Delegate::Close
+        ),
+        Some((super::forge_change::Status::Passed, false, false))
+    );
+    assert_eq!(
+        crate::routing::change_delegate_status(
+            &super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed),
+            super::forge_change::Delegate::Close
+        ),
+        Some((super::forge_change::Status::Failed, true, false))
+    );
 }

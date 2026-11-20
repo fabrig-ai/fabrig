@@ -4,7 +4,7 @@ use jig_domain_people as p;
 use skein_lib::List;
 pub(super) fn encode(
     rows: &[p::AccountHostFailure],
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<List<w::AccountHostFailure>, w::Problem> {
     let Ok(count) = u32::try_from(rows.len()) else { return Err(count_problem_value()) };
     if count > 128 {
@@ -17,7 +17,7 @@ pub(super) fn encode(
             p::AccountHostWhy::Lost => w::AccountHostWhy::Lost,
             p::AccountHostWhy::Failed => w::AccountHostWhy::Failed,
         };
-        let row = w::AccountHostFailure::new(limits, w::AccountHostFailureParts { name: row.name.clone(), why })?;
+        let row = w::AccountHostFailure { name: row.name.clone(), why };
         if out.push(row).is_err() {
             return Err(count_problem_value());
         }
@@ -25,5 +25,5 @@ pub(super) fn encode(
     Ok(out)
 }
 fn count_problem_value() -> w::Problem {
-    w::Problem { path: w::Path::OutcomeAccountSignedOutFailedHosts, reason: skein_codec::Reason::Bound }
+    w::Problem { path: w::paths::OUTCOME_ACCOUNT_SIGNED_OUT_FAILED_HOSTS, reason: skein_codec::Reason::Bound }
 }

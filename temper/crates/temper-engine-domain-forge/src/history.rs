@@ -6,6 +6,7 @@ pub use temper_engine_domain_forge_vocabulary::history::*;
 
 impl Domain {
     /// Save an event and its indexes in the caller's decision. No event is retained.
+    #[expect(clippy::too_many_lines, reason = "one atomic event and its history indexes and landing timestamp")]
     pub fn write_event(&mut self, wall: Wall, change: u64, step: Step, out: &mut Queue<Request>) -> Option<u64> {
         let mut row = self.changes.get(&change)?.clone();
         if row.frozen() && !after_end(&row, &step) {
@@ -80,6 +81,11 @@ impl Domain {
             }),
         );
         if let Some(landing) = landing {
+            if let Some(row) = self.landing.rows.get_mut(&landing.task) {
+                row.last_event = Some(wall);
+                let row = row.clone();
+                crate::landing::save(self, row, out);
+            }
             save(out, Stored::HistoryLanding(LandingIndex { project, landing: landing.task, number, change }));
         }
         if let Some(previous) = row.history {

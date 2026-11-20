@@ -330,14 +330,28 @@ fn the_configured_environment_is_seen_by_commands_and_checks_and_none_by_searche
         deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
     });
     assert!(matches!(searched, ToDomain::Done { done: tools::Done::Found { .. }, .. }));
+    let listed = world.request(FromDomain::Op {
+        owner: Token::new(54),
+        op: tools::Op::List {
+            at: place(world.root(), b""),
+            depth: tools::Depth::Whole,
+            glob: None,
+            max: 8,
+            max_bytes: 256,
+        },
+        deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
+    });
+    assert!(matches!(listed, ToDomain::Done { done: tools::Done::Listed { .. }, .. }));
     let observed = world.spawns();
-    assert_eq!(observed.len(), 4);
+    assert_eq!(observed.len(), 5);
     let expected: &[Box<[u8]>] = &[Box::from(b"BUILD_FLAG=whole=value".as_slice()), Box::from(b"EMPTY=".as_slice())];
     for spawn in &observed[..3] {
         assert_eq!(spawn.environment.as_ref(), expected);
     }
-    assert_eq!(observed[3].program.as_ref(), b"/usr/bin/rg");
-    assert!(observed[3].environment.is_empty());
+    for spawn in &observed[3..] {
+        assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
+        assert!(spawn.environment.is_empty());
+    }
 }
 
 #[test]

@@ -6,6 +6,7 @@ use crate::settings::{
 use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
 use alloc::boxed::Box;
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
 const BOUNDS: Bounds = Bounds {
@@ -857,7 +858,11 @@ fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
         .expect("bounded paths");
     gates.repositories[0].gates[0].ignored = paths.into_boxed();
     assert_eq!(gates_bytes(&gates), Some(CARRIER));
-    assert_eq!(gates_record(&gates).measure(), CARRIER, "judge counts the codec's bytes");
+    assert_eq!(
+        gates_record(&gates).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        CARRIER,
+        "judge counts the codec's bytes"
+    );
     assert_eq!(
         judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates.clone())) }, &bounds),
         Ok(())
@@ -928,4 +933,37 @@ fn limits_have_one_deployment_value_and_judge_shape_not_names_or_figures() {
         values.push(limit_override(format!("limit.{n:03}").as_bytes(), &[b'r'; 120])).unwrap();
     }
     assert_eq!(judge(&limits_item(values.into_boxed()), &BOUNDS), Ok(()));
+}
+
+#[test]
+fn repair_settings_need_landed_and_bounded_counts_and_deadline() {
+    use crate::settings::{ProjectLanding, RepairGoalSettings, RepairSettings};
+    use temper_engine_domain_forge_change::Wait;
+    for (wait, goals, attempts, deadline_ms, expected) in [
+        (Wait::Cleared, 2, 2, 86_400_000, Some(b"repairs: needs wait landed".as_slice())),
+        (Wait::Landed, 0, 2, 86_400_000, Some(b"repairs.repair_goals: must be 1 to 16")),
+        (Wait::Landed, 17, 2, 86_400_000, Some(b"repairs.repair_goals: must be 1 to 16")),
+        (Wait::Landed, 2, 0, 86_400_000, Some(b"repairs.repair_attempts: must be 1 to 8")),
+        (Wait::Landed, 2, 9, 86_400_000, Some(b"repairs.repair_attempts: must be 1 to 8")),
+        (Wait::Landed, 2, 2, 3_599_999, Some(b"repairs.repair_deadline_ms: must be 3600000 to 604800000")),
+        (Wait::Landed, 2, 2, 604_800_001, Some(b"repairs.repair_deadline_ms: must be 3600000 to 604800000")),
+        (Wait::Landed, 1, 1, 3_600_000, None),
+        (Wait::Landed, 16, 8, 604_800_000, None),
+    ] {
+        let value = ProjectLanding {
+            wait,
+            repairs: Some(RepairSettings {
+                goals,
+                attempts,
+                deadline_ms,
+                goal: RepairGoalSettings { charter: 5, llm: None, priority: 0, budget: 2_000_000 },
+            }),
+            ..ProjectLanding::default()
+        };
+        let judged = judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS);
+        match expected {
+            Some(why) => assert_eq!(judged.unwrap_err().words().as_ref(), why),
+            None => assert_eq!(judged, Ok(())),
+        }
+    }
 }

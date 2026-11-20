@@ -1,6 +1,7 @@
 //! A task's LLM choice on the wire reaches the core by configuration's indices, and a refused
 //! model comes back by its name (client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3; domain/tasks/README.md, 3).
 use super::{amendment_setup, final_answer, keyed, member_setup, owner_authority, route_real_core, w};
+use jig_client_protocol_wire::Record as _;
 use jig_core_kit::fixtures::live_row;
 use jig_domain_tasks as tasks;
 use jig_engine_clients_world::fixtures;
@@ -8,113 +9,77 @@ use skein_lib::{List, Writer};
 
 /// A choice by name: a main model and effort, then each sub-agent's model and effort.
 fn choice(main: (&[u8], Option<&[u8]>), subagents: &[(&[u8], Option<&[u8]>)]) -> w::LlmChoice {
-    let limits = fixtures::limits().wire;
-    let named = |(model, effort): (&[u8], Option<&[u8]>)| {
-        w::ModelEffort::new(&limits, w::ModelEffortParts { model: model.into(), effort: effort.map(Box::from) })
-            .expect("model and effort")
-    };
+    let named =
+        |(model, effort): (&[u8], Option<&[u8]>)| w::ModelEffort { model: model.into(), effort: effort.map(Box::from) };
     let mut items = List::with_capacity(u32::try_from(subagents.len()).expect("few sub-agents"));
     for item in subagents {
         items.push(named(*item)).expect("same capacity");
     }
-    w::LlmChoice::new(&limits, w::LlmChoiceParts { later: None, account: None, main: named(main), subagents: items })
-        .expect("choice")
+    w::LlmChoice { later: None, account: None, main: named(main), subagents: items }
 }
 fn with_later(first: w::LlmChoice, later: w::LlmChoice) -> w::LlmChoice {
-    let limits = fixtures::limits().wire;
-    let mut first = first.into_parts();
-    let later = later.into_parts();
-    first.later = Some(
-        w::LlmLater::new(&limits, w::LlmLaterParts { main: later.main, subagents: later.subagents }).expect("later"),
-    );
-    w::LlmChoice::new(&limits, first).expect("choice with later")
+    let mut first = first;
+    first.later = Some(w::LlmLater { main: later.main, subagents: later.subagents });
+    first
 }
 /// A Create of one agent task in the member's project, run by the configured charter.
 fn create(llm: w::LlmChoice) -> w::Ask {
-    let limits = fixtures::limits().wire;
-    let task = w::NewTask::new(
-        &limits,
-        w::NewTaskParts {
-            symbols: List::with_capacity(0),
-            deadline: w::NewDeadline::Named,
-            executor: w::Executor::Agent(
-                w::ExecutorAgent::new(&limits, w::ExecutorAgentParts { charter: 1 }).expect("agent"),
-            ),
-            spec: w::Specification::new(
-                &limits,
-                w::SpecificationParts {
-                    asks: false,
-                    words: b"chosen".as_slice().into(),
-                    parameters: List::with_capacity(0),
-                    inputs: List::with_capacity(0),
-                },
-            )
-            .expect("spec"),
-            contract: w::NewContract::Report(
-                w::ContractReport::new(&limits, w::ContractReportParts { words: 16 }).expect("report"),
-            ),
-            authority: owner_authority(20),
-            budget: w::NewBudget::Named,
-            wake: None,
-            dependencies: List::with_capacity(0),
-            named: Box::new([]),
-            tracked: None,
-            label: 0,
-            flags: w::TaskFlags::new(
-                &limits,
-                w::TaskFlagsParts {
-                    ended_by: w::EndedBy::Result,
-                    conversation: false,
-                    listed: false,
-                    retention: w::Retention::Kept,
-                },
-            )
-            .expect("flags"),
-            llm: Some(llm),
+    let task = w::NewTask {
+        symbols: List::with_capacity(0),
+        deadline: w::NewDeadline::Named,
+        executor: w::Executor::Agent(w::ExecutorAgent { charter: 1 }),
+        spec: w::Specification {
+            asks: false,
+            words: b"chosen".as_slice().into(),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
         },
-    )
-    .expect("task");
-    let size = skein_lib::length::usize_of(task.measure());
+        contract: w::NewContract::Report(w::ContractReport { words: 16 }),
+        authority: owner_authority(20),
+        budget: w::NewBudget::Named,
+        wake: None,
+        dependencies: List::with_capacity(0),
+        named: Box::new([]),
+        tracked: None,
+        label: 0,
+        flags: w::TaskFlags {
+            ended_by: w::EndedBy::Result,
+            conversation: false,
+            listed: false,
+            retention: w::Retention::Kept,
+        },
+        llm: Some(llm),
+    };
+    let size = skein_lib::length::usize_of(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"));
     let mut out = Writer::new(size.checked_add(4).expect("piece size"));
     out.put(&u32::try_from(size).expect("task size").to_be_bytes()).expect("piece length");
-    task.encode(&mut out).expect("task bytes");
-    w::Ask::Create(w::Create::new(&limits, w::CreateParts { project: 1, tasks: out.finish() }).expect("create"))
+    task.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("task bytes");
+    w::Ask::Create(w::Create { project: 1, tasks: out.finish() })
 }
 /// An Amend of task 2 that changes only its LLM choice.
 fn amend(revision: u64, llm: w::LlmChoice) -> w::Ask {
-    let limits = fixtures::limits().wire;
-    let change = w::Amendment::new(
-        &limits,
-        w::AmendmentParts {
-            addressed: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: None,
-            instructions: None,
-            tracked: None,
-            llm: Some(llm),
-        },
-    )
-    .expect("change");
-    w::Ask::Amend(Box::new(
-        w::Amend::new(
-            &limits,
-            w::AmendParts {
-                project: 1,
-                task: 2,
-                revision: Some(w::Revision::new(&limits, w::RevisionParts { value: revision }).expect("revision")),
-                change,
-                reason: b"think harder".as_slice().into(),
-            },
-        )
-        .expect("amend"),
-    ))
+    let change = w::Amendment {
+        addressed: None,
+        spec: None,
+        wake: None,
+        dependencies: None,
+        authority: None,
+        instructions: None,
+        tracked: None,
+        llm: Some(llm),
+    };
+    w::Ask::Amend(Box::new(w::Amend {
+        project: 1,
+        task: 2,
+        revision: Some(w::Revision { value: revision }),
+        change,
+        reason: b"think harder".as_slice().into(),
+    }))
 }
 fn refused_llm(answer: &w::Final) -> (&[u8], w::LlmWhy) {
     let w::Final::Refused(refused) = answer else { panic!("refused: {answer:?}") };
-    let w::Refusal::Llm(row) = refused.refusal() else { panic!("an LLM refusal: {:?}", refused.refusal()) };
-    (row.model(), row.why().clone())
+    let w::Refusal::Llm(row) = &refused.refusal else { panic!("an LLM refusal: {:?}", refused.refusal) };
+    (row.model.as_ref(), row.why.clone())
 }
 const SCRIPTED: u8 = 0;
 const LOW: u8 = 0;
@@ -133,9 +98,9 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
     let socket = peer.post(b"/jig/v1/request", keyed([62; 16], &create(first.clone())), Some(&bearer));
     assert_eq!(route_real_core(&mut peer, &mut world), [[62; 16]], "core reply: {:?}", world.people_answers.last());
     let w::Final::Done(done) = final_answer(&peer, socket) else { panic!("done") };
-    let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
-    let w::DocumentOutcome::Created(created) = owner.value() else { panic!("created: {:?}", owner.value()) };
-    assert_eq!(live_row(&world, created.first()).llm, Some(expected.clone()));
+    let w::Outcome::Document(owner) = &done.outcome else { panic!("owner outcome") };
+    let w::DocumentOutcome::Created(created) = &owner.value else { panic!("created: {:?}", owner.value) };
+    assert_eq!(live_row(&world, created.first).llm, Some(expected.clone()));
 
     // Both translations meet at the core boundary; the core owns retaining a party's choice.
     let models = super::real_core_settings().models;

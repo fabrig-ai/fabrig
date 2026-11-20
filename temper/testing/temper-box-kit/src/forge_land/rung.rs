@@ -6,6 +6,7 @@
 //! Credentials go to ctl and curl by path alone. No bot credential or store is read
 //! by the driver.
 use super::super::configuration::turn_bounds;
+use super::super::held_login::LOCK_FD_9;
 use super::super::patience::Patience;
 use serde_json::{Value, json};
 use skein_lib::{Duration, Time};
@@ -368,11 +369,13 @@ impl Driver {
 
     fn ctl(&mut self, args: &[&str], input: Option<&str>) -> Result<Value, String> {
         let mut command = if args.starts_with(&["account", "import"]) {
-            let mut locked = Command::new("flock");
+            let mut locked = Command::new("/bin/sh");
+            let import = format!(
+                "exec 9>\"$1\" || exit 1\n{LOCK_FD_9} || exit 1\ntest ! -e \"$2\" || exit 1\nshift 2\nexec \"$@\""
+            );
             locked
-                .arg("-x")
+                .args(["-c", &import, "rung-import"])
                 .arg(self.store.join("login.lock"))
-                .args(["sh", "-c", "test ! -e \"$1\" || exit 1; shift; exec \"$@\"", "rung-import"])
                 .arg(self.store.join("returning"))
                 .arg(&self.binary);
             locked

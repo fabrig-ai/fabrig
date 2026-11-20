@@ -64,18 +64,39 @@ use temper_worker_domain_tooling as tooling;
 #[expect(clippy::large_enum_variant, reason = "an assignment crosses whole, as jig's reference root takes it")]
 pub enum Event {
     /// Encoded application ask, fenced by its cookie.
-    RedsAsk { owner: Token, check: u64, bytes: Box<[u8]> },
+    RedsAsk {
+        owner: Token,
+        check: u64,
+        bytes: Box<[u8]>,
+    },
     /// A whole answer decoded below the root.
-    RedsAnswer { owner: Token, check: u64, answer: Option<wire::Answer> },
+    RedsAnswer {
+        owner: Token,
+        check: u64,
+        answer: Option<wire::Answer>,
+    },
     /// Terminal of one source command, correlated by its request owner.
-    SourceAnswered { owner: Token, answer: host::sources::Answer },
+    SourceAnswered {
+        owner: Token,
+        answer: host::sources::Answer,
+    },
     /// One endpoint list read settled below the worker root.
-    ListRead { read: u64, outcome: jig_domain_link::ListOutcome },
+    UsageRead {
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
+    },
+    ListRead {
+        read: u64,
+        outcome: jig_domain_link::ListOutcome,
+    },
     /// From the engine: an assignment, jig's record, with temper's workspace
     /// items with their per-repository saved-work branches (jig's `protocol/channel/README.md`,
     /// 5.2). The record's workspace, if it has one, names the workstream the
     /// checkout is keyed by; the root names the items to the hub itself.
-    Assign { assignment: host::Assignment, items: Result<wire::Workspace, wire::ItemsRefusal> },
+    Assign {
+        assignment: host::Assignment,
+        items: Result<wire::Workspace, wire::ItemsRefusal>,
+    },
     /// A job with the service's decoded workspace items and command spec
     /// (temper/docs/design/domain/worker/jobs.md).
     AssignJob {
@@ -84,7 +105,10 @@ pub enum Event {
         spec: Result<wire::JobSpec, wire::Undecodable>,
     },
     /// A terminal of the job capability's file or process operations.
-    Job { owner: Token, event: tooling::Event },
+    Job {
+        owner: Token,
+        event: tooling::Event,
+    },
     /// From the engine: any other record of jig's link. An assignment here
     /// has no workspace items.
     Link(host::LinkDown),
@@ -95,15 +119,26 @@ pub enum Event {
     /// The channel stayed down past the grace: every run is cancelled.
     GracePassed,
     /// The engine answered a turn busy, and its backoff passed: send it again.
-    Resend { run: Token, attempt: Token, turn: u32 },
+    Resend {
+        run: Token,
+        attempt: Token,
+        turn: u32,
+    },
     /// Terminal for `CancelRelay`.
-    RelayCancelled { run: Token, attempt: Token, call: Box<[u8]> },
+    RelayCancelled {
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+    },
     /// A terminal of one of smith's process requests.
     Process(Box<agent::process::Event>),
     /// A piece of a run's live content from its agent's channel, named by
     /// the agent's token: progress for its watchdog, and the hub's to send
     /// up (jig's `domain/hosts/hub.md`, 5).
-    Live { agent: Token, piece: host::Piece },
+    Live {
+        agent: Token,
+        piece: host::Piece,
+    },
     /// Terminal for `Decode`: smith's start, typed, or what did not decode.
     Decoded {
         agent: Token,
@@ -112,34 +147,96 @@ pub enum Event {
         endpoints: Box<[Box<[u8]>]>,
     },
     /// Terminal for `Encode`.
-    Encoded { owner: Token, encoded: Encoded },
+    Encoded {
+        owner: Token,
+        encoded: Encoded,
+    },
     /// Terminal for `Fact`: the fact as jig's activity, if it decoded.
-    Activity { owner: Token, activity: Option<host::AgentActivity> },
+    Activity {
+        owner: Token,
+        activity: Option<host::AgentActivity>,
+    },
     /// Terminal for `Io`.
-    Done { owner: Token, done: git::Done },
+    Done {
+        owner: Token,
+        done: git::Done,
+    },
     /// From the shell: admit no more, optionally drain current turns, then stop.
-    Shutdown { drain: bool },
+    Shutdown {
+        drain: bool,
+    },
+}
+
+/// The checkout operations with operator lines (domain/worker/README.md, 4.3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Git {
+    Fetch { want: git::Want, into: git::Into },
+    CheckOut { commit: git::Commit },
 }
 
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Each fetch and check out as the checkout asks it (domain/worker/README.md, 4.3).
+    Git {
+        run: Token,
+        attempt: Token,
+        job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
+        repository: Box<[u8]>,
+        what: Git,
+    },
     /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
-    AgentStopped { run: Token, attempt: Token, failure: host::AgentFailure },
+    AgentStopped {
+        run: Token,
+        attempt: Token,
+        failure: host::AgentFailure,
+    },
     /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
-    Unprepared { run: Token, attempt: Token, failure: host::Preparation, detail: Box<[u8]> },
+    Unprepared {
+        run: Token,
+        attempt: Token,
+        failure: host::Preparation,
+        detail: Box<[u8]>,
+    },
     /// A results file was absent or malformed; content-free diagnostic.
-    ResultsIgnored { owner: Token, tag: u64, reason: Box<[u8]> },
+    ResultsIgnored {
+        owner: Token,
+        tag: u64,
+        reason: Box<[u8]>,
+    },
     /// Encode temper's application ask before asking the hub.
-    RedsAsk { owner: Token, check: u64, ask: wire::Ask },
+    RedsAsk {
+        owner: Token,
+        check: u64,
+        ask: wire::Ask,
+    },
     /// Decode the hub's answer before its asker uses it.
-    RedsAnswer { owner: Token, check: u64, bytes: Box<[u8]> },
+    RedsAnswer {
+        owner: Token,
+        check: u64,
+        bytes: Box<[u8]>,
+    },
     /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts/README.md, 5.1).
-    ReadList { read: u64, endpoint: u32, grant: jig_domain_link::Grant },
+    ReadUsage {
+        read: u64,
+        source: SourceName,
+    },
+    ReadList {
+        read: u64,
+        endpoint: u32,
+        grant: jig_domain_link::Grant,
+    },
     /// Cancel a list read and settle its child before the source queue is reused.
-    CancelRead { read: u64 },
+    CancelRead {
+        read: u64,
+    },
     /// Run one bounded program sign-in/sign-out command below the root (jig's domain/hosts/README.md, 5.1).
-    Source { owner: Token, name: SourceName, operation: host::sources::Operation, deadline: Time },
+    Source {
+        owner: Token,
+        name: SourceName,
+        operation: host::sources::Operation,
+        deadline: Time,
+    },
     /// The source-command component violated its contract; stop this worker.
     SourceFault,
     /// What the worker says first on every channel to the engine.
@@ -169,7 +266,11 @@ pub enum Request {
     },
     /// Cancel the local delivery and wait of a relay. Its call still ends
     /// exactly once with `Relayed` or `RelayCancelled`; remote effects remain.
-    CancelRelay { run: Token, attempt: Token, call: Box<[u8]> },
+    CancelRelay {
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+    },
     /// Nothing is left: the shell stops.
     Stop,
     /// The stop bound passed: abort every owned IO entity and exit.
@@ -177,18 +278,37 @@ pub enum Request {
     /// One of smith's process requests.
     Process(Box<agent::process::Request>),
     /// Decode the hub's start into smith's, for the hosted run `run`.
-    Decode { agent: Token, run: Token, start: Box<host::Start> },
+    Decode {
+        agent: Token,
+        run: Token,
+        start: Box<host::Start>,
+    },
     /// Encode one of smith's payloads for the hub.
-    Encode { owner: Token, value: Encodable },
+    Encode {
+        owner: Token,
+        value: Encodable,
+    },
     /// Decode one of smith's channel facts into jig's activity.
-    Fact { owner: Token, body: Box<[u8]> },
+    Fact {
+        owner: Token,
+        body: Box<[u8]>,
+    },
     /// Ask io for the git or file operation `op`, giving up at `deadline`.
-    Io { owner: Token, op: git::Op, deadline: Time },
+    Io {
+        owner: Token,
+        op: git::Op,
+        deadline: Time,
+    },
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:
     /// `Done` with `Cancelled`, or whichever outcome won the race.
-    CancelIo { owner: Token },
+    CancelIo {
+        owner: Token,
+    },
     /// A job capability operation: `Write`, `Spawn`, `Kill` or `Read` only.
-    Job { owner: Token, op: tooling::Request },
+    Job {
+        owner: Token,
+        op: tooling::Request,
+    },
 }
 
 /// One of smith's payloads, handed out to be encoded.

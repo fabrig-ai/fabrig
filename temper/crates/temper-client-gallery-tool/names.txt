@@ -26,10 +26,13 @@ approve-approved
 approve-asking
 approve-busy
 approve-expired
+approve-handing
 approve-refused
+approve-returned
 approve-signed-in
 approve-signed-out
 approve-signed-out-google
+approve-typed
 approve-typing
 approve-unknown
 approve-unread
@@ -53,6 +56,7 @@ ask-refused
 ask-sending
 ask-typing
 ask-ways-approve
+ask-ways-approve-menu
 ask-ways-card
 ask-ways-card-person
 ask-ways-draft

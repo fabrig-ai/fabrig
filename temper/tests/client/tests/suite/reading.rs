@@ -365,7 +365,7 @@ fn ended_page(agent: bool) -> (ChatWorld, ClientId, u64) {
     limits.people.sign_in_lifetime = QUIET.saturating_mul(2);
     let front = Joint::with_engine(
         seed,
-        &fixtures::reading_limits(),
+        &fixtures::unread_reading_limits(),
         Store::with_limits(&limits),
         [walking::config(seed), walking::config(seed)],
         &limits,
@@ -382,7 +382,7 @@ fn ended_page(agent: bool) -> (ChatWorld, ClientId, u64) {
             &long_words(number, RETAINED_BYTES),
         );
     }
-    let client = fixtures::reading_client(&mut world, task);
+    let client = fixtures::unread_reading_client(&mut world, task);
     if agent {
         world.go(client, temper_client_domain::Address::Task { task });
     }
@@ -427,6 +427,11 @@ fn send_after_end(world: &mut ChatWorld, client: ClientId, task: u64) {
 #[test]
 fn a_line_past_what_the_client_takes_ends_its_read_and_says_so() {
     let (mut world, client, task) = ended_page(false);
+    assert_eq!(
+        world.front().engine.task(task).unwrap().inbox.len(),
+        TURNS,
+        "reading history leaves the words in the task inbox"
+    );
     let now = world.now();
     person(&mut world, client, vec![latest()]);
     assert!(world.now() < now.saturating_add(IMMEDIATE), "Latest reads within three seconds");

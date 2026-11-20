@@ -48,6 +48,7 @@ pub fn workspace(op: &Op) -> Option<Token> {
         Op::Clone { at, .. }
         | Op::Reds { at, .. }
         | Op::Reset { at, .. }
+        | Op::Pack { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -75,6 +76,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Push { identity, .. } => Some(*identity),
         Op::Reds { .. }
         | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
@@ -95,6 +97,7 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
         Op::Reds { .. }
         | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
@@ -222,6 +225,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Err(fault) => failed(fault),
             }
         }
+        Op::Pack { .. } => Done::Succeeded,
         Op::Point { at, into, commit } => {
             assert_cloned(disk, &at);
             let reference = match into {

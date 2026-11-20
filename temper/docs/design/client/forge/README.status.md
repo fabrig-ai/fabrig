@@ -1,9 +1,7 @@
 # forge: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2.5: under `wait: landed` a change's result still comes
-  at cleared, with no line saying it ended at landing [in flight: change 8593].
 
 
 

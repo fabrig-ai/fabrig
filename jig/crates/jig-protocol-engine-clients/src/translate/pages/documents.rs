@@ -12,7 +12,7 @@ pub(super) fn activity(
     private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
 
     let mut rows = List::with_capacity(page.rows.len());
     for row in &page.rows {
@@ -29,19 +29,17 @@ pub(super) fn activity(
         };
         rows.push(activity::page_turn(task, line, turn.as_ref(), private, limits)?).expect("selected rows fit");
     }
-    Ok(w::ReadValue::Activity(w::ActivityPage::new(
-        limits,
-        w::ActivityPageParts {
-            cut: page.cut,
-            rows: rows::activity_pieces(
-                &rows,
-                limits.activity_page_rows.min(w::CEILINGS.activity_page_rows),
-                w::Path::ActivityPageRows,
-            )?,
-            before: after,
-            after: before,
-        },
-    )?))
+    Ok(w::ReadValue::Activity(w::ActivityPage {
+        cut: page.cut,
+        rows: rows::activity_pieces(
+            &rows,
+            limits.activity_page_rows.min(w::CEILINGS.activity_page_rows),
+            w::paths::ACTIVITY_PAGE_ROWS,
+            limits,
+        )?,
+        before: after,
+        after: before,
+    }))
 }
 
 pub(super) fn history(
@@ -53,26 +51,20 @@ pub(super) fn history(
     after: Option<w::Cursor>,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
 
     let mut rows = List::with_capacity(page.rows.len());
     for row in &page.rows {
         rows.push(match row {
             reads::PageRow::Attempt(value) if subtree || value.task == task => {
-                w::HistoryRow::Attempt(w::HistoryRowAttempt::new(
-                    limits,
-                    w::HistoryRowAttemptParts { value: objects::ended::attempt(value, limits)? },
-                )?)
+                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value, limits)? })
             }
             reads::PageRow::History(value) if subtree || value.task == task => {
-                w::HistoryRow::Change(Box::new(w::HistoryRowChange::new(
-                    limits,
-                    w::HistoryRowChangeParts { value: history::line(models, value, limits)? },
-                )?))
+                w::HistoryRow::Change(Box::new(w::HistoryRowChange { value: history::line(models, value, limits)? }))
             }
-            reads::PageRow::Hold(value) if subtree || value.task == task => w::HistoryRow::Hold(
-                w::HistoryRowHold::new(limits, w::HistoryRowHoldParts { value: objects::ended::hold(value, limits)? })?,
-            ),
+            reads::PageRow::Hold(value) if subtree || value.task == task => {
+                w::HistoryRow::Hold(w::HistoryRowHold { value: objects::ended::hold(value, limits)? })
+            }
             reads::PageRow::EndedDelegate(_)
             | reads::PageRow::History(_)
             | reads::PageRow::Attempt(_)
@@ -85,19 +77,17 @@ pub(super) fn history(
         })
         .expect("selected rows fit");
     }
-    Ok(w::ReadValue::History(w::HistoryPage::new(
-        limits,
-        w::HistoryPageParts {
-            cut: page.cut,
-            rows: rows::history_pieces(
-                &rows,
-                limits.history_page_rows.min(w::CEILINGS.history_page_rows),
-                w::Path::HistoryPageRows,
-            )?,
-            before,
-            after,
-        },
-    )?))
+    Ok(w::ReadValue::History(w::HistoryPage {
+        cut: page.cut,
+        rows: rows::history_pieces(
+            &rows,
+            limits.history_page_rows.min(w::CEILINGS.history_page_rows),
+            w::paths::HISTORY_PAGE_ROWS,
+            limits,
+        )?,
+        before,
+        after,
+    }))
 }
 
 pub(super) fn inbox(
@@ -106,7 +96,7 @@ pub(super) fn inbox(
     after: Option<w::Cursor>,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
 
     let mut rows = List::with_capacity(page.rows.len());
     for row in &page.rows {
@@ -123,25 +113,23 @@ pub(super) fn inbox(
         };
         rows.push(inbox::entry(value, limits)?).expect("selected rows fit");
     }
-    Ok(w::ReadValue::Inbox(w::InboxPage::new(
-        limits,
-        w::InboxPageParts {
-            cut: page.cut,
-            rows: rows::inbox_pieces(
-                &rows,
-                limits.inbox_page_rows.min(w::CEILINGS.inbox_page_rows),
-                w::Path::InboxPageRows,
-            )?,
-            before,
-            after,
-            selection: inbox::selection(
-                page.inbox_selection.as_ref(),
-                limits,
-                limits.inbox_page_selection_some,
-                w::Path::InboxPageSelection,
-            )?,
-        },
-    )?))
+    Ok(w::ReadValue::Inbox(w::InboxPage {
+        cut: page.cut,
+        rows: rows::inbox_pieces(
+            &rows,
+            limits.inbox_page_rows.min(w::CEILINGS.inbox_page_rows),
+            w::paths::INBOX_PAGE_ROWS,
+            limits,
+        )?,
+        before,
+        after,
+        selection: inbox::selection(
+            page.inbox_selection.as_ref(),
+            limits,
+            limits.inbox_page_selection_some,
+            w::paths::INBOX_PAGE_SELECTION,
+        )?,
+    }))
 }
 
 pub(super) fn ended(
@@ -150,7 +138,7 @@ pub(super) fn ended(
     after: Option<w::Cursor>,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
 
     let mut rows = List::with_capacity(page.rows.len());
     for row in &page.rows {
@@ -165,32 +153,27 @@ pub(super) fn ended(
             | reads::PageRow::Note(_)
             | reads::PageRow::Spend(_) => return Err(invalid),
         };
-        rows.push(w::EndedDelegate::new(
-            limits,
-            w::EndedDelegateParts {
-                chip: chips::chip(&value.chip, limits)?,
-                ended: chips::ending(&value.ended, limits)?,
-                at: match value.at {
-                    Some(value) => Some(value.as_nanos()),
-                    None => None,
-                },
+        rows.push(w::EndedDelegate {
+            chip: chips::chip(&value.chip, limits)?,
+            ended: chips::ending(&value.ended, limits)?,
+            at: match value.at {
+                Some(value) => Some(value.as_nanos()),
+                None => None,
             },
-        )?)
+        })
         .expect("selected rows fit");
     }
-    Ok(w::ReadValue::EndedPage(w::EndedPage::new(
-        limits,
-        w::EndedPageParts {
-            cut: page.cut,
-            rows: rows::ended_pieces(
-                &rows,
-                limits.ended_page_rows.min(w::CEILINGS.ended_page_rows),
-                w::Path::EndedPageRows,
-            )?,
-            before,
-            after,
-        },
-    )?))
+    Ok(w::ReadValue::EndedPage(w::EndedPage {
+        cut: page.cut,
+        rows: rows::ended_pieces(
+            &rows,
+            limits.ended_page_rows.min(w::CEILINGS.ended_page_rows),
+            w::paths::ENDED_PAGE_ROWS,
+            limits,
+        )?,
+        before,
+        after,
+    }))
 }
 
 pub(super) fn spend(
@@ -200,10 +183,10 @@ pub(super) fn spend(
     after: Option<w::Cursor>,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
 
     if page.rows.capacity() > limits.spend_page_rows.min(w::CEILINGS.spend_page_rows) {
-        return Err(w::Problem { path: w::Path::SpendPageRows, reason: skein_codec::Reason::Bound });
+        return Err(w::Problem { path: w::paths::SPEND_PAGE_ROWS, reason: skein_codec::Reason::Bound });
     }
     let mut rows = List::with_capacity(page.rows.capacity());
     for row in &page.rows {
@@ -229,7 +212,7 @@ pub(super) fn spend(
         }
         rows.push(rows::funding(value, limits)?).expect("selected rows fit");
     }
-    Ok(w::ReadValue::Spend(w::SpendPage::new(limits, w::SpendPageParts { cut: page.cut, rows, before, after })?))
+    Ok(w::ReadValue::Spend(w::SpendPage { cut: page.cut, rows, before, after }))
 }
 
 pub(super) fn notes(
@@ -239,7 +222,7 @@ pub(super) fn notes(
     after: Option<w::Cursor>,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
 
     let mut rows = List::with_capacity(page.rows.len());
     for row in &page.rows {
@@ -256,17 +239,15 @@ pub(super) fn notes(
         };
         rows.push(rows::note(models, value, limits)?).expect("selected rows fit");
     }
-    Ok(w::ReadValue::Notes(w::NotePage::new(
-        limits,
-        w::NotePageParts {
-            cut: page.cut,
-            rows: rows::note_pieces(
-                &rows,
-                limits.note_page_rows.min(w::CEILINGS.note_page_rows),
-                w::Path::NotePageRows,
-            )?,
-            before,
-            after,
-        },
-    )?))
+    Ok(w::ReadValue::Notes(w::NotePage {
+        cut: page.cut,
+        rows: rows::note_pieces(
+            &rows,
+            limits.note_page_rows.min(w::CEILINGS.note_page_rows),
+            w::paths::NOTE_PAGE_ROWS,
+            limits,
+        )?,
+        before,
+        after,
+    }))
 }

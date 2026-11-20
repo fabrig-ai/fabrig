@@ -1,5 +1,5 @@
-//! The shared listing face's buffer boundary, startup identity, and the
-//! blocking flags on a regular file after Open.
+//! The shared listing face's buffer boundary, startup identity, unreaped
+//! children (runtime/readiness.md, 5), and blocking flags after Open.
 
 use std::fs;
 
@@ -52,8 +52,50 @@ fn the_host_clock_passes_deadlines_through() {
 }
 
 #[test]
+fn startup_host_name_is_the_kernels_bytes_without_terminators() {
+    let hostname = crate::host_name().expect("kernel host name");
+    assert!(!hostname.contains(&0), "the NUL terminator is not part of the name");
+    assert!(!hostname.contains(&b'\n'), "the name has no line feed");
+    #[cfg(target_os = "linux")]
+    {
+        let proc = fs::read("/proc/sys/kernel/hostname").expect("Linux host name");
+        assert_eq!(hostname.as_ref(), proc.strip_suffix(b"\n").expect("proc's final line feed"));
+    }
+}
+
+#[test]
 fn startup_process_id_is_this_process() {
     assert_eq!(crate::process_id(), std::process::id());
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "a test child isolates the unreaped-child observation from io")]
+#[expect(unsafe_code, reason = "waitid with WNOWAIT observes this test child's exit without reaping it")]
+fn a_child_is_listed_until_its_wait_and_not_after() {
+    let mut child = std::process::Command::new("/bin/sh")
+        .args(["-c", "exit 0"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("spawn the test child");
+    let pid = child.id();
+    assert!(crate::unreaped_children().expect("child observation").contains(&pid), "the child is not yet reaped");
+
+    // SAFETY: zero initializes every field of the C siginfo output storage.
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    loop {
+        // SAFETY: pid names this test's unreaped child and info is writable
+        // siginfo storage. WNOWAIT retains the zombie for the observation.
+        let result = unsafe { libc::waitid(libc::P_PID, pid, &raw mut info, libc::WEXITED | libc::WNOWAIT) };
+        if result == 0 {
+            break;
+        }
+        assert_eq!(crate::system::last_errno(), libc::EINTR, "observing the child's exit can only be interrupted");
+    }
+    assert!(crate::unreaped_children().expect("zombie observation").contains(&pid), "the zombie awaits its wait");
+    assert!(child.wait().expect("reap the test child").success(), "the child exited successfully");
+    assert!(!crate::unreaped_children().expect("after wait observation").contains(&pid), "the child was reaped");
 }
 
 #[test]

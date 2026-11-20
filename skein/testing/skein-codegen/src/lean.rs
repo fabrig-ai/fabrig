@@ -171,7 +171,7 @@ fn types(declaration: &Declaration, out: &mut String) {
     line(out, "}\n");
 }
 
-fn implementation(context: &Context<'_>, declaration: &Declaration, node: usize, out: &mut String) {
+fn implementation(context: &Context<'_>, declaration: &Declaration, node: usize, root: bool, out: &mut String) {
     let name = declaration_name(declaration);
     let tail = constant(&format!(
         "{name}{}",
@@ -186,6 +186,14 @@ fn implementation(context: &Context<'_>, declaration: &Declaration, node: usize,
             "// Record: {name}.\nimpl Record for {name} {{\n    type Limits = Limits;\n    const TAIL: Path = paths::{tail};\n\n    fn encoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.encoded)\n    }}\n\n    fn decoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.decoded)\n    }}\n"
         ),
     );
+    if root {
+        // Compile the outer entry with its family, not with an unoptimized caller.
+        // Release uses Record's default entry.
+        line(
+            out,
+            "    #[cfg(debug_assertions)]\n    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n        let value = Self::read(limits, reader)?;\n        if !reader.is_empty() {\n            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));\n        }\n        Ok(value)\n    }\n",
+        );
+    }
     match declaration {
         Declaration::Record(record) => record_impl(context, record, out),
         Declaration::Enum(enumeration) => enum_impl(enumeration, out),
@@ -440,10 +448,17 @@ pub(crate) fn generate(schema: &Schema) -> Output {
     line(&mut out, &format!("pub const VERSION: u16 = {};\n", literal(schema.version)));
     limits(&context, &mut out);
     paths(schema, &mut out);
-    let roots = table(&context, &mut out);
-    for (declaration, node) in schema.declarations.iter().zip(roots) {
+    let nodes = table(&context, &mut out);
+    let roots = crate::roots(schema);
+    for (declaration, node) in schema.declarations.iter().zip(nodes) {
         types(declaration, &mut out);
-        implementation(&context, declaration, node, &mut out);
+        implementation(
+            &context,
+            declaration,
+            node,
+            roots.iter().any(|root| root == declaration_name(declaration)),
+            &mut out,
+        );
     }
     Output { records: out }
 }

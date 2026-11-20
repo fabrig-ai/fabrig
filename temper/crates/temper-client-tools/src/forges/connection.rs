@@ -15,6 +15,7 @@ use jig_client::{Event, Key, Outcome, Told};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::owner::Owner;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -45,60 +46,30 @@ fn request(
 ) -> Option<Ask> {
     let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let making = match new {
-        Some(forge) => w::Making::New(w::NewForge::new(&bounds, w::NewForgeParts { forge }).ok()?),
-        None => w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?),
+        Some(forge) => w::Making::New(w::NewForge { forge }),
+        None => w::Making::Kept(w::Kept { forge }),
     };
     let request = if let Some(installation) = installation {
-        w::Request::Accept(w::Accept::new(&bounds, w::AcceptParts { forge, installation }).ok()?)
+        w::Request::Accept(w::Accept { forge, installation })
     } else if tokens {
-        w::Request::Connect(
-            w::Connect::new(
-                &bounds,
-                w::ConnectParts {
-                    forge: making,
-                    how: w::How::ForgejoTokens(w::ForgejoTokens::new(&bounds, w::ForgejoTokensParts {}).ok()?),
-                },
-            )
-            .ok()?,
-        )
+        w::Request::Connect(w::Connect { forge: making, how: w::How::ForgejoTokens(w::ForgejoTokens {}) })
     } else if let Some(admin) = admin {
-        w::Request::Connect(
-            w::Connect::new(&bounds, w::ConnectParts { forge: making, how: w::How::ForgejoAdmin(admin) }).ok()?,
-        )
+        w::Request::Connect(w::Connect { forge: making, how: w::How::ForgejoAdmin(admin) })
     } else if manifest {
-        w::Request::Connect(
-            w::Connect::new(
-                &bounds,
-                w::ConnectParts {
-                    forge: making,
-                    how: w::How::GithubManifest(
-                        w::GitHubManifest::new(&bounds, w::GitHubManifestParts { back: None }).ok()?,
-                    ),
-                },
-            )
-            .ok()?,
-        )
+        w::Request::Connect(w::Connect { forge: making, how: w::How::GithubManifest(w::GitHubManifest { back: None }) })
     } else {
         match app {
-            Some((id, read_only)) => w::Request::Connect(
-                w::Connect::new(
-                    &bounds,
-                    w::ConnectParts {
-                        forge: making,
-                        how: w::How::GithubApp(
-                            w::GitHubApp::new(&bounds, w::GitHubAppParts { id, read_only: Some(read_only) }).ok()?,
-                        ),
-                    },
-                )
-                .ok()?,
-            ),
-            None => w::Request::Install(w::Install::new(&bounds, w::InstallParts { forge, back: None }).ok()?),
+            Some((id, read_only)) => w::Request::Connect(w::Connect {
+                forge: making,
+                how: w::How::GithubApp(w::GitHubApp { id, read_only: Some(read_only) }),
+            }),
+            None => w::Request::Install(w::Install { forge, back: None }),
         }
     };
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
+    let record = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 fn pasted_app(call: &jig::call::Call) -> Option<(u64, bool)> {
@@ -145,17 +116,28 @@ fn admin_how(call: &jig::call::Call, limits: &Limits) -> Result<w::ForgejoAdmin,
                 }
             }
             Some(
-                w::FirstAsk::new(
-                    &bounds,
-                    w::FirstAskParts { org: org.into(), repository: repository.into(), label: label.into() },
-                )
+                {
+                    let value = w::FirstAsk { org: org.into(), repository: repository.into(), label: label.into() };
+                    match value.encode(&bounds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }
                 .ok()
                 .ok_or(invalid)?,
             )
         }
         _ => return Err(invalid),
     };
-    w::ForgejoAdmin::new(&bounds, w::ForgejoAdminParts { first }).ok().ok_or(invalid)
+    {
+        let value = w::ForgejoAdmin { first };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .ok()
+    .ok_or(invalid)
 }
 const MANAGED_FAILURE: &[u8] = b"invalid --api, --tls, --git, --web or --git-program";
 
@@ -198,8 +180,8 @@ pub(super) fn send(
         None
     };
     let first = if first {
-        let first = admin_how.as_ref().expect("admin request").first().as_ref().expect("first repository");
-        let project = super::selected_project(value(&called.call, 4), first.repository(), client);
+        let first = admin_how.as_ref().expect("admin request").first.as_ref().expect("first repository");
+        let project = super::selected_project(value(&called.call, 4), &first.repository, client);
         if let Project::Name(name) = &project
             && (name.is_empty()
                 || name.len() > usize::try_from(env.limits.domain.forge.field_bytes).expect("field bound fits"))
@@ -211,8 +193,8 @@ pub(super) fn send(
         Some(super::Intent {
             playground: false,
             forge,
-            org: first.org().into(),
-            repository: first.repository().into(),
+            org: first.org.clone(),
+            repository: first.repository.clone(),
             project,
         })
     } else {
@@ -320,8 +302,7 @@ fn replace(state: &mut Forges, env: &Env<Limits>, mut called: Called, out: &mut 
         return;
     };
     let forge = u16::try_from(number(&called.call, 0).expect("forge argument")).expect("checked forge");
-    let bounds = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
-    let request = w::Request::Replace(w::Replace::new(&bounds, w::ReplaceParts { forge }).expect("checked forge"));
+    let request = w::Request::Replace(w::Replace { forge });
     let Some(request) = super::lifecycle::ask(request, &env.limits) else {
         let printed = render::failure(b"forge request encoding failed", called.json, 1);
         finish(called, printed, out);
@@ -353,12 +334,12 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 return false;
             };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
-            let (forge, install, installation, manifest) = match request.into_parts().request {
+            let (forge, install, installation, manifest) = match request.request {
                 w::Request::Replace(_) => return false,
-                w::Request::Accept(value) => (value.forge(), true, Some(value.installation()), false),
-                w::Request::Install(value) => (value.forge(), true, None, false),
-                w::Request::Connect(value) => match value.how() {
-                    w::How::GithubManifest(_) => (super::making_number(value.forge()), false, None, true),
+                w::Request::Accept(value) => (value.forge, true, Some(value.installation), false),
+                w::Request::Install(value) => (value.forge, true, None, false),
+                w::Request::Connect(value) => match &value.how {
+                    w::How::GithubManifest(_) => (super::making_number(&value.forge), false, None, true),
                     w::How::GithubApp(_) | w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_) => return false,
                 },
                 w::Request::DismissMaking(_)
@@ -462,12 +443,12 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
     if !reader.is_empty() {
         return None;
     }
-    match value.into_parts().outcome {
-        w::Outcome::Accepted(value) => Some(Answer::Accepted(value.installation())),
-        w::Outcome::ForgeRefused(value) => Some(Answer::ForgeRefused(value.into_parts().reason)),
+    match value.outcome {
+        w::Outcome::Accepted(value) => Some(Answer::Accepted(value.installation)),
+        w::Outcome::ForgeRefused(value) => Some(Answer::ForgeRefused(value.reason)),
         w::Outcome::Connecting => Some(Answer::Connecting),
-        w::Outcome::Link(value) => Some(Answer::Link(value.into_parts().address)),
-        w::Outcome::ConnectRefused(value) => Some(Answer::Refused(value.into_parts().why)),
+        w::Outcome::Link(value) => Some(Answer::Link(value.address)),
+        w::Outcome::ConnectRefused(value) => Some(Answer::Refused(value.why)),
         w::Outcome::Unknown => Some(Answer::Unknown),
         w::Outcome::Page(_)
         | w::Outcome::MakeKept
@@ -540,9 +521,9 @@ fn text(pending: &Pending, answer: &Answer, kept: bool, limits: &Limits, out: &m
             if let Ask::Family { record, .. } = &pending.request
                 && let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)
                 && let Some(request) = wire::decode_requesting(&record.bytes, &bounds)
-                && let w::Request::Connect(connect) = request.request()
-                && let w::How::GithubApp(app) = connect.how()
-                && !app.read_only().unwrap_or(false)
+                && let w::Request::Connect(connect) = &request.request
+                && let w::How::GithubApp(app) = &connect.how
+                && !app.read_only.unwrap_or(false)
             {
                 out.put(
                     b"temper points the App's webhook at https://SLUG.invalid/; connect with --read-only to leave it\n",
@@ -819,11 +800,11 @@ fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
     let tls = text_option(call, tls_at).ok()?;
     let web = text_option(call, web_at).ok()?;
     let git_program = text_option(call, program_at).ok()?;
-    w::ManagedForge::new(
-        &bounds,
-        w::ManagedForgeParts { host: host.into(), port, tls, git: git.clone(), web, git_program },
-    )
-    .ok()
+    {
+        let value = w::ManagedForge { host: host.into(), port, tls, git: git.clone(), web, git_program };
+        value.measure(&bounds).ok()?;
+        Some(value)
+    }
 }
 
 fn text_option(call: &jig::call::Call, index: usize) -> Result<Option<Box<[u8]>>, ()> {

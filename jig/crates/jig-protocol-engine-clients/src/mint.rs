@@ -82,11 +82,7 @@ impl Component {
                 }
                 self.spend_link(spent, env, out);
                 if held == Some(sign_in) {
-                    let value = w::SignedIn::new(
-                        &env.limits.wire,
-                        w::SignedInParts { token: None, party: person, expires: expires.as_nanos() },
-                    )
-                    .expect("token-less sign-in admitted");
+                    let value = w::SignedIn { token: None, party: person, expires: expires.as_nanos() };
                     self.respond(exchange, routes::signed_in(value));
                     return;
                 }
@@ -95,11 +91,7 @@ impl Component {
                 let answer = if self.pending.mints.contains_key(&exchange) {
                     sign_in::Answer::Minted { credential: token, expires }
                 } else {
-                    let value = w::SignedIn::new(
-                        &env.limits.wire,
-                        w::SignedInParts { token: Some(token), party: person, expires: expires.as_nanos() },
-                    )
-                    .expect("40-byte token admitted");
+                    let value = w::SignedIn { token: Some(token), party: person, expires: expires.as_nanos() };
                     if approval { sign_in::Answer::Approval(value) } else { sign_in::Answer::SignedIn(value) }
                 };
                 self.pending

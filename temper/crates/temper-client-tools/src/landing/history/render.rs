@@ -33,18 +33,18 @@ pub(super) fn page(query: &w::HistoryRead, page: &w::HistoryPage, json: bool, li
 }
 fn page_text(query: &w::HistoryRead, page: &w::HistoryPage, out: &mut Text) {
     out.put(b"project ");
-    out.number(u64::from(query.project()));
+    out.number(u64::from(query.project));
     out.put(b": events through ");
-    out.number(page.upper());
-    if let Some(at) = page.whole_since() {
+    out.number(page.upper);
+    if let Some(at) = &page.whole_since {
         out.put(b", whole since ");
         clock(*at, out);
     }
     out.put(b"\n");
-    for event in page.events() {
+    for event in &page.events {
         event_line(event, out);
     }
-    match page.after() {
+    match &page.after {
         Some(after) => {
             command(query, Some(after), out);
             out.put(b"\n");
@@ -56,19 +56,19 @@ fn page_json(page: &w::HistoryPage, out: &mut Encoder) {
     out.object_start();
     out.key(b"events");
     out.array_start();
-    for event in page.events() {
+    for event in &page.events {
         event_json(event, out);
     }
     out.array_end();
     out.key(b"after");
-    match page.after() {
+    match &page.after {
         Some(bytes) => out.string(&hex(bytes)),
         None => out.null(),
     }
     out.key(b"upper");
-    out.unsigned(page.upper());
+    out.unsigned(page.upper);
     out.key(b"whole_since");
-    optional_number(*page.whole_since(), out);
+    optional_number(page.whole_since, out);
     out.object_end();
 }
 fn clock(at: u64, out: &mut Text) {
@@ -85,19 +85,19 @@ fn hex(bytes: &[u8]) -> Box<[u8]> {
 }
 fn command(query: &w::HistoryRead, after: Option<&[u8; 17]>, out: &mut Text) {
     out.put(b"temper ctl DIR landing history --project ");
-    out.number(u64::from(query.project()));
-    match query.of() {
+    out.number(u64::from(query.project));
+    match &query.of {
         w::HistoryOf::Project => {}
         w::HistoryOf::Change(task) => {
             out.put(b" --change ");
-            out.number(task.task());
+            out.number(task.task);
         }
         w::HistoryOf::Landing(task) => {
             out.put(b" --landing ");
-            out.number(task.task());
+            out.number(task.task);
         }
     }
-    for (key, at) in [(b" --since ".as_slice(), query.since()), (b" --until ", query.until())] {
+    for (key, at) in [(b" --since ".as_slice(), &query.since), (b" --until ", &query.until)] {
         if let Some(at) = at {
             out.put(key);
             render::document::clock::minute(Wall::from_nanos(*at), out);
@@ -117,9 +117,9 @@ pub(super) fn gone(query: &w::HistoryRead, gone: &w::HistoryGone, json: bool) ->
 }
 fn gone_text(query: &w::HistoryRead, gone: &w::HistoryGone, out: &mut Text) {
     out.put(b"history from event ");
-    out.number(gone.from());
+    out.number(gone.from);
     out.put(b" is gone; ");
-    match gone.first() {
+    match &gone.first {
         Some(first) => {
             out.put(b"the first event that remains after it is ");
             out.number(*first);
@@ -131,68 +131,68 @@ fn gone_text(query: &w::HistoryRead, gone: &w::HistoryGone, out: &mut Text) {
 }
 /// Print one event's complete line and newline. Commit prefixes have twelve digits.
 pub fn event_line(event: &w::HistoryEvent, out: &mut Text) {
-    out.number(event.number());
+    out.number(event.number);
     out.put(b" ");
-    clock(event.at(), out);
+    clock(event.at, out);
     out.put(b" ");
-    out.put(kind(event.what()));
+    out.put(kind(&event.what));
     out.put(b" change ");
-    out.number(event.change());
-    if let Some(landing) = event.landing() {
+    out.number(event.change);
+    if let Some(landing) = &event.landing {
         out.put(b" landing ");
-        out.number(landing.task());
+        out.number(landing.task);
         out.put(b" round ");
-        out.number(u64::from(landing.round()));
+        out.number(u64::from(landing.round));
         out.put(b" unit ");
-        out.number(u64::from(landing.unit()));
+        out.number(u64::from(landing.unit));
     }
-    for (key, hash) in [(b" head ".as_slice(), event.head()), (b" base ", event.base())] {
+    for (key, hash) in [(b" head ".as_slice(), &event.head), (b" base ", &event.base)] {
         if let Some(hash) = hash {
             out.put(key);
             short(hash, out);
         }
     }
-    fields(event.what(), &mut Fields::Text(out));
+    fields(&event.what, &mut Fields::Text(out));
     out.put(b"\n");
 }
 /// JSON for one event: every row field, with the kind and its fields in `what`.
 pub fn event_json(event: &w::HistoryEvent, out: &mut Encoder) {
     out.object_start();
     for (key, n) in [
-        (b"project".as_slice(), u64::from(event.project())),
-        (b"number", event.number()),
-        (b"at", event.at()),
-        (b"change", event.change()),
-        (b"operation", event.operation()),
-        (b"attempt", u64::from(event.attempt())),
+        (b"project".as_slice(), u64::from(event.project)),
+        (b"number", event.number),
+        (b"at", event.at),
+        (b"change", event.change),
+        (b"operation", event.operation),
+        (b"attempt", u64::from(event.attempt)),
     ] {
         out.key(key);
         out.unsigned(n);
     }
     out.key(b"source_at");
-    optional_number(*event.source_at(), out);
+    optional_number(event.source_at, out);
     out.key(b"repository");
     out.object_start();
     out.key(b"forge");
-    out.unsigned(u64::from(event.repository().forge()));
+    out.unsigned(u64::from(event.repository.forge));
     out.key(b"repository");
-    out.unsigned(u64::from(event.repository().repository()));
+    out.unsigned(u64::from(event.repository.repository));
     out.object_end();
     out.key(b"landing");
-    match event.landing() {
+    match &event.landing {
         Some(landing) => {
             out.object_start();
             out.key(b"task");
-            out.unsigned(landing.task());
+            out.unsigned(landing.task);
             out.key(b"round");
-            out.unsigned(u64::from(landing.round()));
+            out.unsigned(u64::from(landing.round));
             out.key(b"unit");
-            out.unsigned(u64::from(landing.unit()));
+            out.unsigned(u64::from(landing.unit));
             out.object_end();
         }
         None => out.null(),
     }
-    for (key, hash) in [(b"head".as_slice(), event.head()), (b"base", event.base())] {
+    for (key, hash) in [(b"head".as_slice(), &event.head), (b"base", &event.base)] {
         out.key(key);
         match hash {
             Some(hash) => out.string(&hex(hash)),
@@ -202,8 +202,8 @@ pub fn event_json(event: &w::HistoryEvent, out: &mut Encoder) {
     out.key(b"what");
     out.object_start();
     out.key(b"kind");
-    out.string(kind(event.what()));
-    fields(event.what(), &mut Fields::Json(out));
+    out.string(kind(&event.what));
+    fields(&event.what, &mut Fields::Json(out));
     out.object_end();
     out.object_end();
 }
@@ -531,40 +531,40 @@ fn fields(what: &w::HistoryWhat, out: &mut Fields<'_>) {
         | w::HistoryWhat::Probe
         | w::HistoryWhat::Landed => {}
         w::HistoryWhat::Unready(value) => {
-            out.word(b"why", unready(value.why()));
+            out.word(b"why", unready(&value.why));
         }
         w::HistoryWhat::Joined(value) => {
-            out.word(b"line", line(value.line()));
+            out.word(b"line", line(&value.line));
             out.optional(
                 b"place",
-                match value.place() {
+                match &value.place {
                     Some(n) => Some(u64::from(*n)),
                     None => None,
                 },
             );
-            out.priority(*value.priority());
+            out.priority(value.priority);
         }
         w::HistoryWhat::Departed(value) => {
-            out.word(b"line", line(value.line()));
-            departure(value.cause(), out);
+            out.word(b"line", line(&value.line));
+            departure(&value.cause, out);
         }
         w::HistoryWhat::Update(value) => {
-            out.word(b"style", update_style(value.style()));
-            out.optional_hash(b"forge_base", value.forge_base().as_ref());
+            out.word(b"style", update_style(&value.style));
+            out.optional_hash(b"forge_base", value.forge_base.as_ref());
         }
         w::HistoryWhat::Updated(value) => {
-            out.word(b"outcome", update_outcome(value.outcome()));
-            out.optional_hash(b"forge_base", value.forge_base().as_ref());
+            out.word(b"outcome", update_outcome(&value.outcome));
+            out.optional_hash(b"forge_base", value.forge_base.as_ref());
         }
         w::HistoryWhat::Job(value) => {
-            out.word(b"job", job(value.job()));
-            out.number(b"task", value.task());
+            out.word(b"job", job(&value.job));
+            out.number(b"task", value.task);
         }
         w::HistoryWhat::JobEnded(value) => {
-            out.word(b"job", job(value.job()));
-            out.word(b"outcome", job_outcome(value.outcome()));
-            match value.outcome() {
-                w::HistoryJobOutcome::Failed(value) => out.word(b"class", job_failure(value.class())),
+            out.word(b"job", job(&value.job));
+            out.word(b"outcome", job_outcome(&value.outcome));
+            match &value.outcome {
+                w::HistoryJobOutcome::Failed(value) => out.word(b"class", job_failure(&value.class)),
                 w::HistoryJobOutcome::Done
                 | w::HistoryJobOutcome::Conflict
                 | w::HistoryJobOutcome::Lost
@@ -573,93 +573,93 @@ fn fields(what: &w::HistoryWhat, out: &mut Fields<'_>) {
             }
         }
         w::HistoryWhat::Conflict(value) => {
-            out.word(b"with", with(value.with()));
-            out.number(b"files", u64::from(value.files()));
+            out.word(b"with", with(&value.with));
+            out.number(b"files", u64::from(value.files));
         }
         w::HistoryWhat::Asked(value) => {
-            out.word(b"ask", ask(value.ask()));
-            out.number(b"task", value.task());
+            out.word(b"ask", ask(&value.ask));
+            out.number(b"task", value.task);
             out.optional(
                 b"gate",
-                match value.gate() {
+                match &value.gate {
                     Some(n) => Some(u64::from(*n)),
                     None => None,
                 },
             );
         }
         w::HistoryWhat::Answered(value) => {
-            out.word(b"ask", ask(value.ask()));
-            out.word(b"outcome", delegate_outcome(value.outcome()));
+            out.word(b"ask", ask(&value.ask));
+            out.word(b"outcome", delegate_outcome(&value.outcome));
         }
         w::HistoryWhat::Delivered(value) => {
-            out.boolean(b"checked", value.checked());
+            out.boolean(b"checked", value.checked);
         }
         w::HistoryWhat::Paused(value) => {
-            out.word(b"why", pause(value.why()));
+            out.word(b"why", pause(&value.why));
         }
         w::HistoryWhat::Formed(value) => {
             out.key(b"members");
             out.array_start();
-            for member in value.members() {
+            for member in &value.members {
                 out.object_start();
-                out.number(b"change", member.change());
-                out.number(b"unit", u64::from(member.unit()));
-                out.hash(b"head", member.head());
+                out.number(b"change", member.change);
+                out.number(b"unit", u64::from(member.unit));
+                out.hash(b"head", &member.head);
                 out.object_end();
             }
             out.array_end();
-            out.number(b"place", u64::from(value.place()));
+            out.number(b"place", u64::from(value.place));
         }
         w::HistoryWhat::RoundEnded(value) => {
-            out.word(b"cause", round_cause(value.cause()));
+            out.word(b"cause", round_cause(&value.cause));
         }
         w::HistoryWhat::Gate(value) => {
-            out.number(b"gate", u64::from(value.gate()));
-            out.hash(b"key", value.key());
+            out.number(b"gate", u64::from(value.gate));
+            out.hash(b"key", &value.key);
         }
         w::HistoryWhat::GateEnded(value) => {
-            out.number(b"gate", u64::from(value.gate()));
-            out.hash(b"key", value.key());
-            out.word(b"verdict", gate_verdict(value.verdict()));
+            out.number(b"gate", u64::from(value.gate));
+            out.hash(b"key", &value.key);
+            out.word(b"verdict", gate_verdict(&value.verdict));
         }
         w::HistoryWhat::Proved(value) => {
             out.key(b"proofs");
             out.array_start();
-            for proof in value.proofs() {
+            for proof in &value.proofs {
                 out.object_start();
-                out.number(b"gate", u64::from(proof.gate()));
-                out.optional(b"run", *proof.run());
+                out.number(b"gate", u64::from(proof.gate));
+                out.optional(b"run", proof.run);
                 out.object_end();
             }
             out.array_end();
         }
         w::HistoryWhat::Searched(value) => {
-            out.optional_hash(b"green", value.green().as_ref());
-            out.hash(b"red", value.red());
-            out.number(b"blamed", u64::from(value.blamed()));
+            out.optional_hash(b"green", value.green.as_ref());
+            out.hash(b"red", &value.red);
+            out.number(b"blamed", u64::from(value.blamed));
         }
         w::HistoryWhat::ProbeEnded(value) => {
-            out.boolean(b"green", value.green());
+            out.boolean(b"green", value.green);
         }
         w::HistoryWhat::Turn(value) => {
-            out.number(b"members", u64::from(value.members()));
+            out.number(b"members", u64::from(value.members));
         }
         w::HistoryWhat::Recorded(value) => {
-            out.word(b"state", recorded_state(value.state()));
+            out.word(b"state", recorded_state(&value.state));
         }
         w::HistoryWhat::Ended(value) => {
-            out.word(b"ending", ending(value.ending()));
+            out.word(b"ending", ending(&value.ending));
         }
         w::HistoryWhat::LandingEnded(value) => {
-            out.word(b"outcome", landing_outcome(value.outcome()));
+            out.word(b"outcome", landing_outcome(&value.outcome));
         }
         w::HistoryWhat::Held(value) | w::HistoryWhat::Released(value) => {
-            out.word(b"on", on(value.on()));
-            out.word(b"reason", value.reason());
-            by(value.by().as_ref(), out);
+            out.word(b"on", on(&value.on));
+            out.word(b"reason", &value.reason);
+            by(value.by.as_ref(), out);
         }
         w::HistoryWhat::After(value) => {
-            out.word(b"verdict", after_verdict(value.verdict()));
+            out.word(b"verdict", after_verdict(&value.verdict));
         }
     }
 }
@@ -669,8 +669,8 @@ fn by(value: Option<&w::HistoryBy>, out: &mut Fields<'_>) {
             out.key(b"by");
             out.object_start();
             match value {
-                w::HistoryBy::Party(n) => out.number(b"party", n.number()),
-                w::HistoryBy::Task(n) => out.number(b"task", n.number()),
+                w::HistoryBy::Party(n) => out.number(b"party", n.number),
+                w::HistoryBy::Task(n) => out.number(b"task", n.number),
             }
             out.object_end();
         }
@@ -694,7 +694,7 @@ fn departure(value: &w::HistoryDeparture, out: &mut Fields<'_>) {
             out.word(b"kind", b"landing");
             out.key(b"cause");
             out.object_start();
-            leave(value.cause(), out);
+            leave(&value.cause, out);
             out.object_end();
         }
     }
@@ -708,31 +708,31 @@ fn leave(value: &w::HistoryLeave, out: &mut Fields<'_>) {
         w::HistoryLeave::Held => out.word(b"kind", b"held"),
         w::HistoryLeave::HeadMoved(v) => {
             out.word(b"kind", b"head_moved");
-            out.hash(b"head", v.commit());
+            out.hash(b"head", &v.commit);
         }
         w::HistoryLeave::Refused(v) => {
             out.word(b"kind", b"refused");
-            out.number(b"gate", v.gate());
+            out.number(b"gate", v.gate);
         }
         w::HistoryLeave::Failed(v) => {
             out.word(b"kind", b"failed");
-            out.number(b"gate", u64::from(v.gate()));
-            out.number(b"run", v.run());
+            out.number(b"gate", u64::from(v.gate));
+            out.number(b"run", v.run);
         }
         w::HistoryLeave::Unit(v) => {
             out.word(b"kind", b"unit");
-            out.number(b"change", v.change());
+            out.number(b"change", v.change);
         }
         w::HistoryLeave::Dependency(v) => {
             out.word(b"kind", b"dependency");
-            out.number(b"change", v.change());
+            out.number(b"change", v.change);
         }
         w::HistoryLeave::Blamed(v) => {
             out.word(b"kind", b"blamed");
-            out.number(b"gate", u64::from(v.gate()));
-            out.number(b"run", v.run());
-            out.hash(b"red", v.red());
-            out.hash(b"green", v.green());
+            out.number(b"gate", u64::from(v.gate));
+            out.number(b"run", v.run);
+            out.hash(b"red", &v.red);
+            out.hash(b"green", &v.green);
         }
     }
 }

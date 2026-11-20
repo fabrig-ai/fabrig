@@ -49,6 +49,12 @@ pub enum Word {
     ApprovalNameType,
     ApprovalNameRefused,
     AskAgain,
+    ApprovalClickTab,
+    ApprovalClickCode,
+    ApprovalClickOpen,
+    ApprovalClickNoTab,
+    ApprovalClickOr,
+    TypeCode,
     Separator,
     Between,
     On,
@@ -236,7 +242,7 @@ pub enum Word {
     ThisBuild,
     StartBuild,
 }
-pub(crate) const ALL: [Word; 225] = [
+pub(crate) const ALL: [Word; 231] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -276,6 +282,12 @@ pub(crate) const ALL: [Word; 225] = [
     Word::ApprovalNameType,
     Word::ApprovalNameRefused,
     Word::AskAgain,
+    Word::ApprovalClickTab,
+    Word::ApprovalClickCode,
+    Word::ApprovalClickOpen,
+    Word::ApprovalClickNoTab,
+    Word::ApprovalClickOr,
+    Word::TypeCode,
     Word::Separator,
     Word::Between,
     Word::On,
@@ -464,8 +476,8 @@ pub(crate) const ALL: [Word; 225] = [
     Word::StartBuild,
 ];
 
-// HTTPS, a 253-byte name and port, then /terminal.
-pub(crate) const APPROVAL_ADDRESS: u32 = 276;
+// HTTPS, a 253-byte name and port, then /terminal?code=CODE.
+pub(crate) const APPROVAL_ADDRESS: u32 = 291;
 
 #[derive(Clone, Copy)]
 enum Slot {
@@ -748,6 +760,12 @@ impl Word {
             Self::ApprovalNameType => 220,
             Self::ApprovalNameRefused => 221,
             Self::AskAgain => 222,
+            Self::ApprovalClickTab => 228,
+            Self::ApprovalClickCode => 229,
+            Self::ApprovalClickOpen => 230,
+            Self::ApprovalClickNoTab => 231,
+            Self::ApprovalClickOr => 232,
+            Self::TypeCode => 233,
             Self::TlsUntrusted => 223,
             Self::TlsExpired => 224,
             Self::TlsNotYetValid => 225,
@@ -939,7 +957,7 @@ impl Word {
             Self::SignIn => (&[b"Sign in this terminal to ", b""], &[Slot::Address]),
             Self::Paste => (&[b"Paste the link temper printed, then Enter."], &[]),
             Self::Link => (&[b"Link"], &[]),
-            Self::LinkShape => (&[b"http://", b"/jig/v1/sign-in/link?secret=\xe2\x80\xa6"], &[Slot::Address]),
+            Self::LinkShape => (&[b"http://", b"/sign-in?secret=\xe2\x80\xa6"], &[Slot::Address]),
             Self::NotALink => (&[b"That is not a sign-in link: paste the whole link temper printed."], &[]),
             Self::OtherAddress => (
                 &[b"That link is for ", b". To sign in there, run temper http://", b"."],
@@ -959,6 +977,12 @@ impl Word {
             Self::ApprovalNameType => (&[b"in a browser signed in to temper, type ", b", then press Approve."], &[Slot::Code]),
             Self::ApprovalNameRefused => (&[b"", b" doesn't sign terminals in from the browser."], &[Slot::Address]),
             Self::AskAgain => (&[b"Ask again"], &[]),
+            Self::ApprovalClickTab => (&[b"A tab opened in your browser: press Approve there."], &[]),
+            Self::ApprovalClickCode => (&[b"The code there is ", b"."], &[Slot::Code]),
+            Self::ApprovalClickOpen => (&[b"in a browser on this computer, then press Approve."], &[]),
+            Self::ApprovalClickNoTab => (&[b"No tab? Press Enter for a code to type instead."], &[]),
+            Self::ApprovalClickOr => (&[b"Or press Enter for a code to type instead."], &[]),
+            Self::TypeCode => (&[b"Type a code instead"], &[]),
             Self::ApprovalTab => (&[b"A tab opened in your browser. Check it shows"], &[]),
             Self::ApprovalCode => (&[b"", b", then press Approve."], &[Slot::Code]),
             Self::ApprovalNoTab => (&[b"No tab? Open ", b""], &[Slot::ApprovalAddress]),

@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::CLIENT_SCHEMA,
-        jig_client_protocol_wire::v37, sealed,
+        jig_client_protocol_wire::v40,
         limits [
             keyed_request,
             keyed_value_some,
@@ -22,7 +22,9 @@ fn largest_roots_stay_within_decoded_bounds() {
             signed_in_token_some,
             approval_asked_secret,
             link_asked_secret,
+            approval_loopback_grant,
             approval_sign_in_secret,
+            approval_sign_in_grant_some,
             document_text_bytes,
             chip_phase_waiting_dependencies,
             retry_notice_owner_failed_reason_some,
@@ -193,6 +195,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             task_context_spend,
             task_context_writer_slots,
             subscriptions_entries,
+            unread_words_head,
             task_lineage_chips,
             task_inputs,
             task_lineage,
@@ -203,6 +206,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             task_acts,
             task_delegates,
             task_dependency_facts,
+            task_unread,
             tasks_rows,
             ended_rows_rows,
             task_page_live,
@@ -474,14 +478,14 @@ fn largest_roots_stay_within_decoded_bounds() {
             EntranceRefusal,
             Ask,
             ReadValue => (1_281_503_763, 1_281_583_916),
-            DeliveryValue => (376_523_797, 376_531_400),
+            DeliveryValue => (376_560_921, 376_571_368),
             ReviewItem => (2_508_771_921, 2_508_892_028),
         ]
     );
     family!(
         CAP,
         jig_client_protocol_wire::PUBLIC_SCHEMA,
-        jig_client_protocol_wire::public_v1, sealed,
+        jig_client_protocol_wire::public_v1,
         limits [
             public_line_title,
             public_project_name,
@@ -509,7 +513,7 @@ fn test_client_largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_test_protocol_wire::SCHEMA,
-        jig_client_test_protocol_wire::v2, lean,
+        jig_client_test_protocol_wire::v2,
         limits [
             segment_bytes,
             resource_path_segments,

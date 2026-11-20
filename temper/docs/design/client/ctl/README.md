@@ -405,8 +405,9 @@ temper ctl help [GROUP [VERB]]
   holds, for a fresh one-time sign-in link for the party DIRECTORY is
   signed in as (jig's `protocol/client/sign-in.md`, the asked link), and
   writes it to FILE: one line, the printed link's URL on DIRECTORY's
-  `address`, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, made
-  by jig's mapping (jig's `protocol/client/default-http.md`, 1), so that
+  `address`, at the link's page, `http://HOST:PORT/sign-in?secret=SECRET`,
+  made by jig's mapping given temper's page (jig's
+  `protocol/client/default-http.md`, 1 and 4; `../README.md`, section 4), so that
   a browser on the machine opens it as it opens the printed link, and
   `sign-in` reads it into another DIRECTORY. FILE is written as `party
   make --out` writes a service's credential (section 7): `0o600`,

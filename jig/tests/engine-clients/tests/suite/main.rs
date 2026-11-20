@@ -19,8 +19,10 @@ mod public_http;
 
 mod fuzzy {
     mod cursor;
+    mod source;
 }
 
+mod accounts;
 mod codec_memory {
     include!("../../../../../skein/testing/codec-memory.rs");
 }

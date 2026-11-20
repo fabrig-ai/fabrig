@@ -1,5 +1,6 @@
 //! Refusals travel inside whole task documents; wrappers add no framing.
 use crate as w;
+use crate::Record as _;
 use skein_lib::{Reader, Writer};
 
 #[test]
@@ -8,22 +9,26 @@ fn refused_task_documents_reject_truncated_or_unknown_nested_tags() {
     // Outer refusal, hello arm, worker kind, receipt time, reserved-channel cause.
     let wait_bytes = [3, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 1, 0];
     let wait = w::TaskRunWait::decode(&limits, &mut Reader::new(&wait_bytes)).expect("hello wait");
-    assert_eq!(wait.measure(), 13, "one-field records have no separate header");
-    let mut parts = super::fixtures::task(&limits).into_parts();
+    assert_eq!(
+        wait.measure(&crate::CEILINGS).expect("bounded fixture"),
+        13,
+        "one-field records have no separate header"
+    );
+    let mut parts = super::fixtures::task(&limits);
     parts.run_wait = Some(wait);
     parts.lineage = skein_lib::List::with_capacity(1);
     parts.lineage.push(77).expect("one ancestor");
-    let record = w::Task::new(&limits, parts).expect("whole task");
-    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut out).expect("measured writer");
+    let record = parts;
+    let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&crate::CEILINGS).expect("bounded fixture")));
+    record.write(&crate::CEILINGS, &mut out).expect("measured writer");
     let bytes = out.finish();
     let mut reader = Reader::new(&bytes);
     assert_eq!(w::Task::decode(&limits, &mut reader), Ok(record));
     assert_eq!(reader.remaining(), 0);
-    // The task's dependency facts, an empty list's four-byte count, follow its wait.
-    let offset = bytes.len() - wait_bytes.len() - 4;
+    // Empty dependency facts and unread lists each carry a four-byte count after the wait.
+    let offset = bytes.len() - wait_bytes.len() - 8;
     assert_eq!(&bytes[offset..offset + wait_bytes.len()], wait_bytes);
-    assert_eq!(&bytes[offset + wait_bytes.len()..], [0; 4]);
+    assert_eq!(&bytes[offset + wait_bytes.len()..], [0; 8]);
     for end in offset..bytes.len() {
         assert_eq!(
             w::Task::decode(&limits, &mut Reader::new(&bytes[..end])).expect_err("truncated refusal").reason,

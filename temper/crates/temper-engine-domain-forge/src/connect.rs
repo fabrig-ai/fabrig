@@ -273,6 +273,7 @@ fn make(
                     }
                     Some(crate::FirstIntent::Empty(crate::EmptyIntent {
                         playground: false,
+                        sample: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
                         label: first.label.clone(),
@@ -524,6 +525,7 @@ fn admin(
                     forge,
                     crate::First {
                         playground: false,
+                        sample: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
                         state: crate::FirstState::Making,
@@ -543,6 +545,7 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
         record.first = match d.first.get(&forge) {
             Some(first) => Some(crate::FirstIntent::Empty(crate::EmptyIntent {
                 playground: first.playground,
+                sample: first.sample,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
                 label: first.label.clone(),
@@ -664,6 +667,14 @@ pub(crate) fn ended(
             out.push(Request::MarkedForges);
         }
     }
+}
+
+/// The routing's latest held way ends like a stopped run (client/forge/served.md, 1).
+pub(crate) fn way_ended(d: &mut Domain, forge: u16, why: &[u8], out: &mut Queue<Request>) {
+    if d.connect.running.contains_key(&forge) || !d.configured.contains_key(&forge) || d.forge_ended(forge) {
+        return;
+    }
+    stopped_end(d, forge, why, None, out);
 }
 
 /// Volatile per-forge diagnostics, bounded in bytes without splitting UTF-8 (client/forge/deployment.md).

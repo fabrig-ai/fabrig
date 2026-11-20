@@ -5,7 +5,7 @@
 
 pub mod settled;
 
-pub use smith_agent_process_world::fake::{loopback, redirect_port};
+pub use smith_agent_process_world::fake::{address, listener_fds, loopback, redirect_port};
 
 use skein_fake_checkout::git::Tree;
 use skein_lib::Duration;
@@ -78,9 +78,15 @@ pub struct Scratch {
 impl Scratch {
     #[must_use]
     pub fn new() -> Self {
-        for (tool, path) in [("git", "/usr/bin/git"), ("rg", "/usr/bin/rg"), ("sh", "/bin/sh")] {
+        for (tool, path) in [("git", "/usr/bin/git"), ("sh", "/bin/sh")] {
             assert!(Path::new(path).is_file(), "real world requires {tool} at {path}");
         }
+        use std::os::unix::ffi::OsStrExt;
+        let path = std::env::var_os("PATH");
+        assert!(
+            smith_agent_document::config::find_rg(path.as_ref().map(|path| path.as_bytes())).is_some(),
+            "real world requires rg on the test process's PATH"
+        );
         let loopback = smith_agent_process_world::fake::real_loopback();
         let files = Files::new();
         let repo = files.path().join("repo");
@@ -155,6 +161,7 @@ impl World {
 
     fn configured(mut scenario: Scenario, scratch: &Scratch) -> Self {
         scenario.launch.tls = true;
+        scenario.launch.commands_path = Some(std::env::var("PATH").expect("real world requires a UTF-8 PATH"));
         scenario.launch.trust_der = Some(scratch.path().join("root.der"));
         scenario.launch.root_path = scratch.path().to_path_buf();
         Self {
@@ -206,10 +213,11 @@ impl World {
         world.spawn_with_fds(vec![root], || {
             Proc::Terminal(Box::new(Terminal::configured(root, self.scenario.commands.clone(), launch.arguments())))
         });
-        world.spawn(|| Proc::Peer(Box::new(self.scenario.provider())));
+        world.spawn_with_fds(listener_fds(34_443), || Proc::Peer(Box::new(self.scenario.provider())));
         if launch.authenticated {
-            world
-                .spawn(|| Proc::Issuer(Box::new(process::IssuerProcess::configured(skein_fake_peers::Transport::Tls))));
+            world.spawn_with_fds(listener_fds(34_444), || {
+                Proc::Issuer(Box::new(process::IssuerProcess::configured(skein_fake_peers::Transport::Tls)))
+            });
             world.spawn(|| Proc::Browser(Box::default()));
         }
         self.outcome = Some(world.run(&Clock::new(), Duration::from_secs(10)));
@@ -248,6 +256,66 @@ impl World {
 
 #[cfg(test)]
 mod tests {
+    #[global_allocator]
+    static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
+
+    #[test]
+    fn real_host_binding_keeps_linux_and_simulation_fixed() {
+        use smith_agent_process_world::fake::listen_on;
+        assert_eq!(listen_on(true, false, 513, 34_444), "127.1.2.1:34444".parse().expect("Linux address"));
+        assert_eq!(listen_on(true, true, 513, 34_444), "127.0.0.1:0".parse().expect("held bind"));
+        for macos in [false, true] {
+            assert_eq!(listen_on(false, macos, 513, 34_444), "127.0.0.1:34444".parse().expect("simulated address"));
+        }
+    }
+
+    #[test]
+    fn macos_real_peers_serve_on_their_distinct_held_listeners() {
+        use super::*;
+        use smith_agent_process_world::fake;
+        use smith_local_process_world::world::Authentication;
+
+        let scratch = Scratch::new();
+        let _held = fake::real_loopback_on(true);
+        let provider = address(34_443);
+        let issuer = address(34_444);
+        assert_eq!(provider.ip(), std::net::Ipv4Addr::LOCALHOST);
+        assert_eq!(issuer.ip(), std::net::Ipv4Addr::LOCALHOST);
+        assert_ne!(provider.port(), 0);
+        assert_ne!(issuer.port(), 0);
+        assert_ne!(provider.port(), issuer.port(), "two held listeners cannot share a port");
+        for (port, expected) in [(34_443, provider), (34_444, issuer)] {
+            let fds = listener_fds(port);
+            assert_eq!(skein_shell::listener_at(*fds.first().expect("held descriptor")), Ok(expected));
+        }
+        let scenario =
+            Simulated::authenticated(12, &scratch.files, Placement::InProcess, Authentication::SignIn).scenario;
+        let mut world = World::configured(scenario, &scratch);
+        world.settle();
+        let outcome = world.outcome.as_ref().expect("drained real world");
+        let peer = outcome
+            .procs
+            .iter()
+            .find_map(|proc| match proc {
+                Proc::Peer(peer) => Some(peer),
+                _ => None,
+            })
+            .expect("LLM peer");
+        let oauth = outcome
+            .procs
+            .iter()
+            .find_map(|proc| match proc {
+                Proc::Issuer(peer) => Some(peer.peer()),
+                _ => None,
+            })
+            .expect("OAuth peer");
+        assert_eq!(peer.address(), Some(provider), "LLM announces the held address");
+        assert_eq!(oauth.address(), Some(issuer), "OAuth announces the held address");
+        assert!(fake::replied(peer), "LLM answered its client");
+        assert_eq!(smith_local_process_world::oauth::posts(oauth), 1, "issuer answered its client");
+        assert!(outcome.procs.iter().all(Host::is_empty), "clients and peers drained");
+    }
+
     #[test]
     fn two_processes_never_share_a_loopback_address() {
         let first = smith_agent_process_world::fake::loopback_for(1);

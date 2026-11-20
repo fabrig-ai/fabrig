@@ -2,7 +2,8 @@ use crate::{Domain, Encodable, Event, Limits, Request};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_link::Bounds;
-use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer};
+use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall};
+use smith_charter::Record;
 use smith_host_domain as smith;
 
 pub const RUN: Token = Token::new(41);
@@ -71,53 +72,29 @@ pub fn limits() -> Limits {
 pub fn charter_bytes() -> Box<[u8]> {
     let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter_fixture()))
         .expect("golden charter");
-    let mut parts = source.into_parts();
+    let mut parts = source;
     parts.mode = smith_charter::Mode::Finite;
-    parts.budget = smith_charter::Budget::new(
-        &smith_charter::CEILINGS,
-        smith_charter::BudgetParts {
-            turns: 1,
-            spend: 2,
-            time: Duration::from_secs(60),
-            reserve: smith_charter::Reserve::new(
-                &smith_charter::CEILINGS,
-                smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
-            )
-            .expect("reserve"),
-        },
-    )
-    .expect("budget");
-    parts.contract = smith_charter::Contract::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ContractParts {
-            report: Some(
-                smith_charter::TextRule::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::TextRuleParts { max: 128, fields: List::with_capacity(0) },
-                )
-                .expect("report"),
-            ),
-            verdicts: List::with_capacity(0),
-            change: None,
-            failure: None,
-        },
-    )
-    .expect("contract");
-    let mut llm = parts.main.into_parts();
+    parts.budget = smith_charter::Budget {
+        turns: 1,
+        spend: 2,
+        time: Duration::from_secs(60),
+        reserve: smith_charter::Reserve { turns: 0, time: Duration::ZERO },
+    };
+    parts.contract = smith_charter::Contract {
+        report: Some(smith_charter::TextRule { max: 128, fields: List::with_capacity(0) }),
+        verdicts: List::with_capacity(0),
+        change: None,
+        failure: None,
+    };
+    let mut llm = parts.main;
     llm.account = Some(0);
     llm.model = Box::from(&b"fake"[..]);
     llm.window = 1_048_576;
     llm.output = 512;
-    llm.prices = smith_charter::Prices::new(
-        &smith_charter::CEILINGS,
-        smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-    )
-    .expect("prices");
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured charter");
-    writer.finish()
+    llm.prices = smith_charter::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 };
+    parts.main = llm;
+    let record = parts;
+    record.encode(&smith_charter::CEILINGS).expect("bounded charter")
 }
 
 pub fn charter_value() -> smith::Charter {

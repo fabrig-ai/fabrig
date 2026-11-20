@@ -157,6 +157,7 @@ fn an_ended_record_is_out_of_every_list_and_refuses_calls() {
                 forge: Making::Kept(1),
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                 },

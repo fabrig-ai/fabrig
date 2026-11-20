@@ -1,9 +1,11 @@
 use super::*;
 
+mod amended_review;
 mod empty_repair;
 mod execution;
 mod fence;
 mod flake;
+mod no_test;
 mod released_resolution;
 
 /// Landing mode is selected at readiness, including work restored across a configuration change
@@ -774,6 +776,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             heard: change::Heard {
                 delegate_running: false,
                 flake: false,
+                no_test: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -1535,6 +1538,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             status: change::Status::Failed,
             no_change: false,
             flake: false,
+            no_test: false,
             failed: false,
             cancelled: false,
             words: words.as_bytes().into(),
@@ -1659,6 +1663,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
                 status,
                 no_change,
                 flake: false,
+                no_test: false,
                 failed,
                 cancelled,
                 words: b"Adds changes/2.md".as_slice().into(),
@@ -1706,6 +1711,7 @@ fn verdict_terminal(d: &mut Domain, child: u64, words: &[u8]) -> Box<[Request]> 
             status: temper_engine_domain_forge_change::Status::Passed,
             no_change: false,
             flake: true,
+            no_test: false,
             failed: false,
             cancelled: false,
             words: words.into(),
@@ -1723,6 +1729,7 @@ fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
             status: temper_engine_domain_forge_change::Status::Passed,
             no_change,
             flake: false,
+            no_test: false,
             failed: false,
             cancelled: false,
             words: b"Nothing applies".as_slice().into(),
@@ -1743,6 +1750,7 @@ fn waiting_step(live: bool, released: bool) -> Event {
             delegate: change::Status::Pending,
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: live,
             effect: change::EffectResult::None,
             released,
@@ -3108,6 +3116,146 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
     }
 }
 
+// Leave the pull read refused after the branch and base have answered.
+fn pull_refused_for_capacity() -> Domain {
+    use crate::domain::read_session::client_refusals;
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Ready { head: fixtures::HEAD, ready_since: env().wall },
+        change::Delegate::Produce,
+    );
+    let row = d.changes.get_mut(&fixtures::CHANGE).expect("ready change");
+    row.change.way = change::Way::Turn;
+    row.change.ready_since = Some(env().wall);
+    row.pull = Some(1);
+    row.delegate = None;
+    row.title = b"Small fix".as_slice().into();
+    outputs(&mut d, fixtures::change_step());
+    let (branch, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    fixtures::answer(&mut d, branch, Ok(Answer::Commit(fixtures::HEAD)));
+    let (base, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
+    for owner in 1_u64..u64::from(CLIENT.pending) {
+        outputs(
+            &mut d,
+            Event::Client(skein_forge_client::Event::Read {
+                owner: Token::new(8000_u64.saturating_add(owner)),
+                repository: REPO,
+                read: Read::Settings,
+            }),
+        );
+    }
+    assert_eq!(client_refusals(&mut d), 0);
+    fixtures::answer(&mut d, base, Ok(Answer::Commit(fixtures::BASE)));
+    assert_eq!(client_refusals(&mut d), 1, "the later pull read was refused");
+    for _ in 1..CLIENT.pending {
+        let (filler, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Settings));
+        fixtures::answer(&mut d, filler, Ok(Answer::Settings(adopted().settings)));
+    }
+    d
+}
+
+#[test]
+fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut d = pull_refused_for_capacity();
+    let mut clock = env();
+    assert!(fixtures::advance(&mut d, &mut clock, Duration::from_millis(999)).is_empty());
+    fixtures::advance(&mut d, &mut clock, Duration::from_millis(1));
+    let (pull, op) = fixtures::next_at(&mut d, &clock);
+    assert_eq!(op, Op::Read(Read::Pull { number: 1, ci: true }), "retry the refused pull, not the branch");
+    let mut decisions = skein_lib::List::uncapped();
+    let answered = fixtures::answer_at(&mut d, &clock, pull, Ok(Answer::Pull(fixtures::open_pull())));
+    for request in &answered {
+        if let Request::ChangeDecision { decision, .. } = request {
+            decisions.push(*decision).expect("uncapped decisions");
+        }
+    }
+    for _ in 0_u32..8 {
+        if d.steps.is_empty() {
+            break;
+        }
+        let (call, op) = fixtures::next_at(&mut d, &clock);
+        let answer = match op {
+            Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(_) | Op::Write(_) => panic!("the gather keeps its first reads: {op:?}"),
+        };
+        for request in &fixtures::answer_at(&mut d, &clock, call, Ok(answer)) {
+            if let Request::ChangeDecision { decision, .. } = request {
+                decisions.push(*decision).expect("uncapped decisions");
+            }
+        }
+    }
+    assert!(d.steps.is_empty(), "one gather ends");
+    assert_eq!(decisions.as_slice(), [change::Decision::Wait { until: None }], "one decision from one branch read");
+    assert!(matches!(d.change(fixtures::CHANGE).expect("ready change").change.state, change::State::Ready { .. }));
+}
+
+#[test]
+fn invalidation_during_a_capacity_retry_restarts_from_the_branch() {
+    use skein_forge::api::{Hint, Op, Read};
+    let mut d = pull_refused_for_capacity();
+    outputs(
+        &mut d,
+        Event::Hint {
+            hint: Hint {
+                repository: REPO,
+                change: skein_forge::api::Change::Branch(b"temper/51".as_slice().into()),
+                key: None,
+            },
+        },
+    );
+    // The root offers the activation caused by that hint while the gather waits.
+    fixtures::step_change(&mut d);
+    let mut clock = env();
+    fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+    let (_, op) = fixtures::next_at(&mut d, &clock);
+    assert_eq!(
+        op,
+        Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }),
+        "invalidation discards the gather"
+    );
+}
+
+#[test]
+fn capacity_retries_spend_the_gathers_original_stall_deadline() {
+    use crate::domain::read_session::client_refusals;
+    use temper_engine_domain_forge_change as change;
+    let mut d = pull_refused_for_capacity();
+    for owner in 0_u64..u64::from(CLIENT.pending) {
+        outputs(
+            &mut d,
+            Event::Client(skein_forge_client::Event::Read {
+                owner: Token::new(9000_u64.saturating_add(owner)),
+                repository: REPO,
+                read: skein_forge::api::Read::Settings,
+            }),
+        );
+    }
+    let until = d.next_wall_deadline().expect("gather stall");
+    let mut clock = env();
+    for _ in 0_u32..3 {
+        fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+        assert_eq!(client_refusals(&mut d), 1);
+        assert_eq!(d.next_wall_deadline(), Some(until), "a refusal is not progress");
+    }
+    let stalled = fixtures::advance(&mut d, &mut clock, LIMITS.change_policy.stall);
+    assert!(
+        matches!(
+            d.change(fixtures::CHANGE).expect("stalled change").change.state,
+            change::State::Held { why: change::Hold::Stalled, .. }
+        ),
+        "the original deadline bounds retries: {stalled:?}"
+    );
+    assert!(d.steps.is_empty());
+}
+
 #[test]
 fn a_repair_claiming_during_a_change_read_keeps_its_own_delivery() {
     use skein_forge::api::{Answer, Op, Read};
@@ -3335,6 +3483,7 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
                     status: c::Status::Failed,
                     no_change: false,
                     flake: false,
+                    no_test: false,
                     failed: true,
                     cancelled: false,
                     words: reason.into(),

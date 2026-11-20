@@ -241,7 +241,7 @@ fn group_card_keeps_its_findings_context_choices_and_scope() {
             assert!(!rows.iter().any(|n| n.role == Role::Link || n.binding.is_some()));
             let rows_text = text(rows);
             let mut last = 0;
-            for title in bugs.iter().map(|row| core::str::from_utf8(row.title()).unwrap()) {
+            for title in bugs.iter().map(|row| core::str::from_utf8(&row.title).unwrap()) {
                 let at = rows_text.find(title).unwrap();
                 assert!(at >= last);
                 last = at;
@@ -619,47 +619,34 @@ fn finding_root_with(count: u32, kind: temper_client_protocol_wire::v1::FindingK
                 jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
         } = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
+            && let w::Watch::Findings(subject) = &watching.watch
         {
-            let holder =
-                w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
+            let holder = w::Holder::Party(w::HolderParty { number: 1 });
             let rows = (1..=count)
-                .map(|number| {
-                    w::FindingRow::new(
-                        &w::CEILINGS,
-                        w::FindingRowParts {
-                            number,
-                            at: 0,
-                            kind: kind.clone(),
-                            severity: w::Severity::High,
-                            area: if split_area && number == 2 { Some(b"store".as_slice().into()) } else { None },
-                            state: w::FindingState::New,
-                            title: b"T".as_slice().into(),
-                            holder: holder.clone(),
-                            why: Some(b"Your area owns the view".as_slice().into()),
-                            hander: Some(w::Filer::Task(
-                                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap(),
-                            )),
-                            goal: None,
-                            reason: None,
-                            cleared: None,
-                        },
-                    )
-                    .unwrap()
+                .map(|number| w::FindingRow {
+                    number,
+                    at: 0,
+                    kind: kind.clone(),
+                    severity: w::Severity::High,
+                    area: if split_area && number == 2 { Some(b"store".as_slice().into()) } else { None },
+                    state: w::FindingState::New,
+                    title: b"T".as_slice().into(),
+                    holder: holder.clone(),
+                    why: Some(b"Your area owns the view".as_slice().into()),
+                    hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+                    goal: None,
+                    reason: None,
+                    cleared: None,
                 })
                 .collect::<Vec<_>>();
-            let document = w::Findings::new(
-                &w::CEILINGS,
-                w::FindingsParts {
-                    project: subject.project(),
-                    rows: List::from_boxed(rows.into_boxed_slice()),
-                    areas: List::with_capacity(0),
-                    triager: None,
-                    holder,
-                    cut: false,
-                },
-            )
-            .unwrap();
+            let document = w::Findings {
+                project: subject.project,
+                rows: List::from_boxed(rows.into_boxed_slice()),
+                areas: List::with_capacity(0),
+                triager: None,
+                holder,
+                cut: false,
+            };
             f::root_event(
                 &mut root,
                 d::Event::Client {
@@ -926,8 +913,8 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
         } = request
             && let Some(watching) =
                 temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-            && let temper_client_protocol_wire::v1::Watch::Decided(subject) = watching.watch()
-            && subject.project() == f::SECOND_PROJECT
+            && let temper_client_protocol_wire::v1::Watch::Decided(subject) = &watching.watch
+            && subject.project == f::SECOND_PROJECT
         {
             f::needs::deliver_asked_for(&mut cross, *watch, f::SECOND_PROJECT, Some(reach));
         }

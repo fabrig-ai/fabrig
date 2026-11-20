@@ -149,12 +149,14 @@ pub struct HeldEndings {
     pub completions: Queue<Complete>,
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "Independent faults held at the simulated shell boundary")]
 pub struct Harness {
     pub sim: Sim,
     pub pid: Pid,
     pub service: Service,
     pub launches: List<Launch>,
     pub group_opens: List<(u16, core::net::SocketAddr, u32)>,
+    pub open_groups: bool,
     pub machine: FakeMachine,
     pub signals: Fd,
     pub stderr: Fd,
@@ -324,6 +326,7 @@ impl Harness {
             pid,
             service,
             launches: List::uncapped(),
+            open_groups: true,
             group_opens: List::with_capacity(128),
             machine,
             signals,
@@ -559,7 +562,9 @@ impl Harness {
         let would_wait = self.service.completions().is_empty() && !due && !self.service.work_pending(self.sim.now());
         self.service.iterate(self.sim.now(), self.wall);
         self.service.drain();
-        while let Some((forge, address)) = self.service.take_group_listener() {
+        while self.open_groups
+            && let Some((forge, address)) = self.service.take_group_listener()
+        {
             self.group_opens.push((forge, address, self.launches.len())).unwrap();
             let descriptor = try_listener(&mut self.sim, self.pid, address);
             self.service.group_listener_opened(forge, descriptor);
@@ -864,7 +869,7 @@ fn open_step_listeners(sim: &mut Sim, pid: Pid, step: &Step, held: &mut List<(Fd
         held.push((fd, *address)).unwrap();
     }
 }
-fn try_listener(sim: &mut Sim, pid: Pid, address: core::net::SocketAddr) -> Option<Fd> {
+pub fn try_listener(sim: &mut Sim, pid: Pid, address: core::net::SocketAddr) -> Option<Fd> {
     let fd = socket(sim, pid);
     if call(sim, pid, Op::Bind { fd, addr: address }).result != Ok(Done::Bound(address)) {
         assert_eq!(call(sim, pid, Op::Close { fd }).result, Ok(Done::Nothing));

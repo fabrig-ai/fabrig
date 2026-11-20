@@ -16,6 +16,8 @@ mod retried;
 /// No test here proves these bounds; the answer and natural exit each expects come first.
 const HANG_GUARD: Duration = Duration::from_secs(30);
 
+// Its peer reads the hangup's disposition from /proc/self/status.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() {
     let scratch = root("terminal-before-exit");
@@ -168,7 +170,7 @@ fn a_terminal_person_closes_after_main_acceptance_and_drains_the_final_file_reco
     let recording = directory.join("recording.jsonl");
     std::fs::write(&recording, common::events::bytes(&common::events::balanced())).expect("event recording");
     let command = Command { program:"/bin/sh".into(),arguments:vec!["-c".into(),
-        "IFS= read -r prompt; head -n -1 \"$1\" >> \"$2\"; if IFS= read -r extra; then exit 9; fi; tail -n 1 \"$1\" >> \"$2\"".into(),
+        "IFS= read -r prompt; sed '$d' \"$1\" >> \"$2\"; if IFS= read -r extra; then exit 9; fi; tail -n 1 \"$1\" >> \"$2\"".into(),
         "replay".into(),recording.into_os_string(),trace.clone().into_os_string()],
         environment:vec![("PATH".into(),"/usr/bin:/bin".into())],directory:directory.clone() };
     let result = execute(
@@ -194,8 +196,12 @@ fn an_incomplete_file_record_faults_after_observed_tree_settlement_and_retains_i
     std::fs::create_dir(&directory).expect("fixture directory");
     let trace = directory.join("trace.jsonl");
     std::fs::write(&trace, b"{\"type\":").expect("partial fixture");
-    let command =
-        Command { program: "/bin/true".into(), arguments: vec![], environment: vec![], directory: directory.clone() };
+    let command = Command {
+        program: "/bin/sh".into(),
+        arguments: vec!["-c".into(), "exit 0".into()],
+        environment: vec![],
+        directory: directory.clone(),
+    };
     let result = execute(
         &Clock::new(),
         command,
@@ -378,8 +384,10 @@ fn an_exec_arm_reads_its_prompt_to_eof_without_a_trace_file() {
     assert!(result.error.is_none() && result.tree.live_pids.is_empty());
 }
 
+// It reads source history; macOS's checkout holds the tested commit alone.
+#[cfg(target_os = "linux")]
 #[test]
-fn the_current_source_arm_selects_the_exec_face() {
+fn the_current_source_arm_selects_the_chat_face() {
     let project = Path::new(env!("CARGO_MANIFEST_DIR"));
     let repository = project.parent().expect("repository");
     let output = std::process::Command::new("git")

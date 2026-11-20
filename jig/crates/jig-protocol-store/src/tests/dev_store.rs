@@ -1,0 +1,365 @@
+//! Dev's build's layouts and task logs through a writing open (protocol/store/layouts.md, 8).
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    reason = "ordinary Rust disk step fixtures inspect complete registry and read answers"
+)]
+use super::{
+    fixtures::{self, ALICE, disk::Disk},
+    history_logs::append_operations,
+};
+use crate::{Event, Get, OwnerSets, Request, Restore, Row, Store, codec, keys, logs};
+use jig_domain_core_vocabulary::{self as core, Record, RestoreRange};
+use jig_domain_tasks as tasks;
+use skein_codec::{
+    Record as _,
+    layout::{Plan, Workspace},
+    schema,
+    value::Value,
+};
+use skein_lib::{Buffer, Queue, Reader, Token};
+
+// Verbatim from 13efa774615022299aea9ed57b2577df517494ad, under
+// jig/crates/jig-protocol-store/schema/ and smith/crates/smith-transcript/schema/.
+const TEXTS: [(&str, &str); 10] = [
+    ("jig-store-component", include_str!("fixtures/dev-component-v3.schema")),
+    ("jig-store-openings", include_str!("fixtures/dev-openings-v1.schema")),
+    ("jig-store-registry", include_str!("fixtures/dev-registry-v1.schema")),
+    ("jig-store-core", include_str!("fixtures/dev-core-v6.schema")),
+    ("jig-store-tasks", include_str!("fixtures/dev-tasks-v13.schema")),
+    ("jig-store-people", include_str!("fixtures/dev-people-v17.schema")),
+    ("jig-store-notes", include_str!("fixtures/dev-notes-v1.schema")),
+    ("jig-store-accounts", include_str!("fixtures/dev-accounts-v2.schema")),
+    ("jig-store-settings", include_str!("fixtures/dev-settings-v3.schema")),
+    ("jig-store-secrets", include_str!("fixtures/dev-secrets-v1.schema")),
+];
+const SMITH: &str = include_str!("fixtures/dev-smith-transcript-v7.schema");
+const TASKS: [u64; 2] = [7, 4097];
+const PAGE: u32 = 65_536;
+const OWNER: Token = Token::new(71);
+const CURRENT: OwnerSets = OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] };
+
+fn old_sets() -> OwnerSets {
+    let families = crate::STORE_FAMILIES.map(|family| crate::KeptFamily {
+        current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
+        ..family
+    });
+    let smith = crate::KeptFamily { current: SMITH, ..crate::SMITH_SET.families[0] };
+    OwnerSets {
+        sets: Box::leak(Box::new([
+            crate::SKEIN_SET,
+            crate::OwnerSet { families: Box::leak(Box::new([smith])), ..crate::SMITH_SET },
+            crate::OwnerSet { families: Box::leak(Box::new(families)), ..crate::JIG_STORE_SET },
+        ])),
+    }
+}
+fn store(disk: &Disk, sets: OwnerSets) -> Store {
+    let mut limits = fixtures::store_limits();
+    limits.core.tasks.message_bytes = PAGE;
+    limits.store.page.bytes = PAGE;
+    limits.store.record = PAGE;
+    limits.store.ops = 128;
+    limits.store.budget = 2_097_152;
+    let mut store = disk.store_with_limits(&limits);
+    store.owner_sets(sets);
+    store
+}
+fn opened(events: &[Event], pending: bool) -> u64 {
+    let [Event::Opened { last, pending: found, .. }, Event::Census { .. }] = events else {
+        panic!("open at the binary's sets: {events:?}")
+    };
+    assert_eq!(*found, pending);
+    *last
+}
+fn key(row: &Record) -> Box<[u8]> {
+    keys::encode(&row.key(), fixtures::KEY_LIMIT).unwrap()
+}
+fn generic(text: &str, root: &str, bytes: &[u8]) {
+    let schema = schema::parse(text.as_bytes()).unwrap();
+    let mut value = Value::with_room(8192);
+    value.decode(&schema, schema.root(root.as_bytes(), None).unwrap().decl, bytes.into()).unwrap();
+}
+/// Write a binary-encoded value at dev's layout by dropping only what dev's
+/// texts do not hold.
+fn at_dev(family: &crate::KeptFamily, ty: &crate::ValueType, value: &[u8]) -> Box<[u8]> {
+    let parse = |text: &str| schema::parse(text.as_bytes()).unwrap();
+    let dev = |name: &str| TEXTS.iter().find(|(held, _)| *held == name).unwrap().1;
+    let binary = parse(family.current);
+    let old = parse(dev(family.name));
+    let held = crate::STORE_FAMILIES.iter().filter(|held| family.current.contains(&format!("holds {} ", held.name)));
+    let binary_held: Vec<_> = held.clone().map(|held| parse(held.current)).collect();
+    let old_held: Vec<_> = held.map(|held| parse(dev(held.name))).collect();
+    let variant = ty.variant.map(str::as_bytes);
+    let plan = Plan::derive_dropping(
+        &binary,
+        binary.root(ty.root.as_bytes(), variant).unwrap(),
+        &binary_held.iter().collect::<Vec<_>>(),
+        &old,
+        old.root(ty.root.as_bytes(), variant).unwrap(),
+        &old_held.iter().collect::<Vec<_>>(),
+    )
+    .expect("the binary's value drops to dev's layout");
+    let mut work = Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = Buffer::with_capacity(1_048_576);
+    plan.convert(value, &mut out, &mut work).unwrap();
+    out.as_slice().into()
+}
+fn encoded(store: &Store, row: &Record) -> logs::record::Row {
+    let key = key(row);
+    let family = crate::STORE_FAMILIES
+        .iter()
+        .find(|family| {
+            family
+                .types
+                .iter()
+                .any(|ty| ty.keys.iter().any(|range| key.as_ref() >= range.from && key.as_ref() < range.to))
+        })
+        .unwrap();
+    let text = TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1;
+    let ty = family
+        .types
+        .iter()
+        .find(|ty| ty.keys.iter().any(|range| key.as_ref() >= range.from && key.as_ref() < range.to))
+        .unwrap();
+    let value = at_dev(family, ty, &codec::encode(row, &store.codec_limits, &store.names).unwrap());
+    // These values use only dev's variants, and the binary's added fields at
+    // their defaults. Check the bytes against the kept schema.
+    generic(text, ty.root, &value);
+    assert_eq!(crate::registry::head(&value), Some(schema::parse(text.as_bytes()).unwrap().version()));
+    (key, Some(value))
+}
+fn refused(task: u64, why: tasks::Refusal) -> Record {
+    let Record::Core(core::CoreRecord::Call(mut call)) = fixtures::call(task, 1) else { panic!("call fixture") };
+    call.part = core::CallPart::DelegationRefused(tasks::Problem::new(Some(task), why));
+    Record::Core(core::CoreRecord::Call(call))
+}
+fn records(task: u64) -> Vec<Record> {
+    vec![fixtures::ended_task(task), fixtures::terminal(task, 1), fixtures::history(task, 1)]
+}
+fn activity(store: &Store, task: u64) -> Record {
+    let Record::Tasks(tasks::Stored::Activity(mut row)) = fixtures::activity_line(task, 1) else { panic!("activity") };
+    let tasks::Line::Words { words, .. } = &mut row.line else { panic!("words") };
+    *words = Box::new([]);
+    let empty = Record::Tasks(tasks::Stored::Activity(row.clone()));
+    let body = logs::record::encode(&[encoded(store, &empty)]).unwrap();
+    let size = usize::try_from(PAGE).unwrap().checked_sub(body.len()).unwrap().checked_sub(32).unwrap();
+    let tasks::Line::Words { words, .. } = &mut row.line else { panic!("words") };
+    let mut rng = skein_lib::Rng::new(task);
+    *words = (0..size).map(|_| u8::try_from(rng.below(256)).unwrap()).collect();
+    let row = Record::Tasks(tasks::Stored::Activity(row));
+    let body = logs::record::encode(&[encoded(store, &row)]).unwrap();
+    assert_eq!(body.len(), usize::try_from(PAGE - 32).unwrap());
+    let frame = store.stores.store.frame(&body).unwrap();
+    assert!(
+        frame.len() > u64::from(PAGE - 64) && frame.len() <= u64::from(PAGE),
+        "the encoded frame too is near the fetch page"
+    );
+    row
+}
+fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
+    let number = store.stores.store.last().checked_add(1).unwrap();
+    let (key, value) = encoded(store, &fixtures::header_record(number));
+    ops.push(skein_kv::Op::Put { key, value: value.unwrap() });
+    let env = crate::memory_env(store.limits.store);
+    let mut above = Queue::uncapped();
+    let mut below = fixtures::below();
+    skein_kv::down(
+        &mut store.stores.store,
+        &env,
+        skein_kv::Request::Commit { owner: OWNER, ops: ops.into_boxed_slice() },
+        &mut above,
+        &mut below.store,
+    );
+    disk.drive(&mut below, |io, below| {
+        let crate::Io::Store(arrived) = io else { panic!("raw public-map commit") };
+        skein_kv::up(&mut store.stores.store, &env, arrived.event, &mut above, &mut below.store);
+    });
+    let Some(skein_kv::Event::Committed { number: found, .. }) = above.pop() else { panic!("raw commit: {above:?}") };
+    assert_eq!(found, number);
+    assert!(above.is_empty());
+    store.phase = crate::Phase::Ready { next: number.checked_add(1).unwrap(), format_due: false };
+}
+fn registry(store: &mut Store) {
+    for (family, text) in TEXTS {
+        let family = crate::STORE_FAMILIES.iter().find(|held| held.name == family).unwrap();
+        for ty in family.types {
+            let id = schema::parse(text.as_bytes()).unwrap().version();
+            let key = keys::encode_own(
+                &keys::Own::Layout { family: family.name.into(), number: ty.number, id },
+                fixtures::KEY_LIMIT,
+            )
+            .unwrap();
+            let bytes = fixtures::get_kv(store, &key).unwrap();
+            let row =
+                crate::registry_v1::Layout::decode(&crate::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+            assert_eq!(row.root.as_ref(), ty.root.as_bytes());
+            assert_eq!(row.variant.as_deref(), ty.variant.map(str::as_bytes));
+            let key = keys::encode_own(&keys::Own::Text(row.text), fixtures::KEY_LIMIT).unwrap();
+            let bytes = fixtures::get_kv(store, &key).unwrap();
+            let held =
+                crate::registry_v1::Text::decode(&crate::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+            assert_eq!(held.text.as_ref(), text.as_bytes());
+            for digest in &row.held {
+                let key = keys::encode_own(&keys::Own::Text(*digest), fixtures::KEY_LIMIT).unwrap();
+                let bytes = fixtures::get_kv(store, &key).unwrap();
+                let held =
+                    crate::registry_v1::Text::decode(&crate::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+                assert!(
+                    TEXTS.iter().any(|(_, text)| held.text.as_ref() == text.as_bytes())
+                        || held.text.as_ref() == SMITH.as_bytes()
+                );
+            }
+        }
+    }
+}
+fn restore(disk: &mut Disk, store: &mut Store, range: Restore) -> Vec<Record> {
+    let mut found = Vec::new();
+    let mut after = None;
+    for _ in 0_u32..128 {
+        let events = disk.request(
+            store,
+            Request::Restore { owner: OWNER, range: range.clone(), after, rows: 4, bytes: u64::from(PAGE) },
+        );
+        let [Event::Page { items, next, .. }] = events.as_ref() else { panic!("restore page: {events:?}") };
+        for item in items {
+            let crate::restore::Item::Row(Row::Jig(row)) = item else { panic!("joined jig row: {item:?}") };
+            found.push(row.clone());
+        }
+        after = next.clone();
+        if after.is_none() {
+            return found;
+        }
+    }
+    panic!("bounded restore walk")
+}
+fn read_back(disk: &mut Disk, store: &mut Store, calls: &[Record], activities: &[Record]) {
+    let live = restore(disk, store, Restore::Jig(Box::new(RestoreRange::LIVE)));
+    for call in calls {
+        assert!(live.contains(call), "refused delegation restored at the binary layout");
+    }
+    let census = restore(
+        disk,
+        store,
+        Restore::Jig(Box::new([RestoreRange::Census(core::Census {
+            questions: Box::new([]),
+            results: Box::new([core::ReadResults { party: ALICE, after: 0 }]),
+        })])),
+    );
+    let mut expected = Vec::new();
+    for task in TASKS {
+        expected.push(Record::People(jig_domain_people::Stored::EndedRead { task, party: ALICE, through: 1 }));
+        expected.push(fixtures::ended_task(task));
+    }
+    expected.extend(TASKS.map(fixtures::ended_task));
+    assert_eq!(census, expected, "both ended-read and result joins fetch ended owners from their logs");
+    for (task, activity) in TASKS.into_iter().zip(activities) {
+        let events = disk
+            .request(store, Request::Get { owner: OWNER, key: Get::Jig(core::Key::Tasks(tasks::Key::Ended(task))) });
+        let [Event::Got { row: Some(Row::Jig(row)), .. }] = events.as_ref() else { panic!("ended get: {events:?}") };
+        assert_eq!(*row, fixtures::ended_task(task));
+        let mut range = fixtures::read(ALICE, core::reads::Scope::TaskOwnRows { task });
+        range.rows = 4;
+        // The fetch's encoded page and the caller's owned, decoded rows have
+        // separate bounds; leave the caller room for the typed row's overhead.
+        range.bytes = u64::from(PAGE).checked_mul(2).unwrap();
+        let mut found = Vec::new();
+        for _ in 0_u32..32 {
+            let events = disk.request(store, Request::Read { owner: OWNER, range: range.clone() });
+            let [Event::Read { result: core::reads::Loaded::Page { rows, next }, .. }] = events.as_ref() else {
+                panic!("own rows: {events:?}")
+            };
+            found.extend(rows.iter().map(|row| row.value.clone()));
+            range.after = next.clone();
+            if range.after.is_none() {
+                break;
+            }
+        }
+        assert!(
+            range.after.is_none(),
+            "own rows cursor {:?}, keys {:?}",
+            range.after,
+            found.iter().map(Record::key).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            found,
+            [
+                fixtures::terminal(task, 1),
+                fixtures::history(task, 1),
+                activity.clone(),
+                Record::People(jig_domain_people::Stored::EndedRead { task, party: ALICE, through: 1 })
+            ]
+        );
+    }
+}
+#[test]
+fn dev_layouts_with_refusals_and_sharded_history_open_and_restore_twice() {
+    let mut disk = Disk::new(&[]);
+    let mut old = store(&disk, old_sets());
+    opened(&disk.open(&mut old), false);
+    // Use the registry's first-commit writer with the kept texts, rather than
+    // duplicating its layout-row and held-text construction in the fixture.
+    let committed = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
+    let [Event::Committed { number: 1, .. }] = committed.as_ref() else { panic!("old registry: {committed:?}") };
+    registry(&mut old);
+    let calls = [refused(TASKS[0], tasks::Refusal::ResourceUnavailable), refused(TASKS[1], tasks::Refusal::Busy)];
+    let mut activities = Vec::new();
+    for (task, call) in TASKS.into_iter().zip(&calls) {
+        let Record::Core(core::CoreRecord::Call(call_row)) = call else { panic!("refused call") };
+        let core::CallPart::DelegationRefused(problem) = &call_row.part else { panic!("refusal") };
+        let bytes = codec::tasks::carried::problem(problem, &old.codec_limits.tasks).unwrap();
+        generic(TEXTS.iter().find(|(name, _)| *name == "jig-store-tasks").unwrap().1, "TaskProblem", &bytes);
+        let mut rows: Vec<_> = records(task).iter().map(|row| encoded(&old, row)).collect();
+        rows.sort_by(|left, right| left.0.cmp(&right.0));
+        let mut ops = append_operations(&mut old, task, rows.into_boxed_slice(), true).into_vec();
+        for row in [
+            call.clone(),
+            fixtures::result_index(ALICE, task, task),
+            Record::People(jig_domain_people::Stored::EndedRead { task, party: ALICE, through: 1 }),
+        ] {
+            let (key, value) = encoded(&old, &row);
+            ops.push(skein_kv::Op::Put { key, value: value.unwrap() });
+        }
+        raw(&mut disk, &mut old, ops);
+        let activity = activity(&old, task);
+        let row = encoded(&old, &activity);
+        let ops = append_operations(&mut old, task, Box::new([row]), true).into_vec();
+        raw(&mut disk, &mut old, ops);
+        activities.push(activity);
+    }
+    let source: Vec<_> = disk.contents().into_iter().filter(|(path, ..)| path.starts_with(b"generations/1/")).collect();
+    let mut disk = Disk::new(&disk.items());
+    let mut current = store(&disk, CURRENT);
+    let last = opened(&disk.open(&mut current), true);
+    assert!(last > old.stores.store.last(), "open registers changed binary layouts and seals a new generation");
+    read_back(&mut disk, &mut current, &calls, &activities);
+    for task in TASKS {
+        let path = skein_kv::log_path(logs::history(task).unwrap());
+        let source = [b"generations/1/store/".as_slice(), path.as_ref()].concat();
+        let target = [b"generations/2/store/".as_slice(), path.as_ref()].concat();
+        assert_eq!(disk.bytes(&source), disk.bytes(&target));
+        assert_eq!(disk.links(&source), 2, "a new generation links every shard's history file");
+    }
+    let after: Vec<_> = disk.contents().into_iter().filter(|(path, ..)| path.starts_with(b"generations/1/")).collect();
+    for entry in &source {
+        assert!(after.contains(entry), "source file unchanged: {:?}", entry.0);
+    }
+    // KV recovery creates an empty segment at open, before the registry plans
+    // decide whether to write in a new generation. No source data changes.
+    for (path, kind, _, bytes) in &after {
+        if !source.iter().any(|(before, ..)| before == path) {
+            assert_eq!(*kind, skein_io::kernel::Kind::File);
+            assert!(path.starts_with(b"generations/1/store/log-"));
+            assert!(bytes.is_empty());
+        }
+    }
+    let switched = disk.request(&mut current, Request::Switch { owner: OWNER });
+    let [Event::Switched { .. }] = switched.as_ref() else { panic!("switch: {switched:?}") };
+    assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
+    let mut disk = Disk::new(&disk.items());
+    let mut again = store(&disk, CURRENT);
+    assert_eq!(opened(&disk.open(&mut again), false), last);
+    assert!(!disk.tree().iter().any(|(path, ..)| path.starts_with(b"generations/3")));
+    read_back(&mut disk, &mut again, &calls, &activities);
+}

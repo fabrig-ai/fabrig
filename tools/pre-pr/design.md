@@ -59,7 +59,12 @@ boundary (smith's run.md, 8.1).
   the same set, run through `tools/tiers/one-process default` and
   `tools/tiers/one-process fuzzy`: each test binary's selected tests in one
   process, one at a time, binaries in parallel, nextest only selecting and
-  building (section 4). A starved run is a warning.
+  building (section 4). Before linking, the delivery omits an integration
+  target when neither profile can select any of its cases. A filter on a case
+  name keeps the target whenever the name could match. Cargo must resolve
+  the same build units and dependency features for every retained target;
+  otherwise the delivery keeps the ordinary package build. A starved run
+  is a warning.
 - **The budgets, where the builder keeps main's ledgers.** With
   `TIERS_LEDGER` naming a directory that holds main's ledger for a suite,
   which `ledger()` reads, that suite's run takes it and the gate's
@@ -140,12 +145,25 @@ boundary (smith's run.md, 8.1).
 - **A repair's pin is the head it repairs.** A repair, a resolution and a
   merge job name no landing branch, and the worker pins the head their
   delivery replaces instead (`temper/docs/design/domain/worker/checkouts.md`
-  ): the base is that head, so a repair of a goal's landing into main
+  ): the base is that head, so a CI repair of a goal's landing into main
   checks what its own edits changed, not the goal's packages. A resolution's
   base is its branch's head before the merge, so its check selects what the
   merge and its edits change on the branch against both parents: a path
   as the merged tip holds it was checked there (section 3, *Changed
   paths*).
+- **A landing's repair is pinned at that landing's base.** A repair asked
+  by a landing's gate names a pin, the base that landing's round used
+  (`temper/docs/design/domain/worker/checkouts.md`, *A named pin*), and is
+  judged as the landing judged its change: the base is that commit once
+  the repair has merged it, whichever parent of the merge it is. The
+  whole diff against that base holds what the change and the repair bring
+  onto it, never what the base gained since the change's source. Selection
+  then sets aside merged tips' entries (section 3, *Changed paths*): an
+  unchanged path from the change's head is excluded when that head is a
+  merged tip. Check 7 starts from the whole diff and sets aside figures
+  itself (section 4). A repair that leaves the pin unmerged is judged from
+  where its branch meets it, with the same selection rule. Every other
+  repair keeps the head it repairs.
 - **An unchecked save is stepped past.** Where the base is temper's
   unchecked save, a commit whose subject is `Unchecked: work in progress,
   saved before a question` (`temper/docs/design/domain/agent/README.md`,

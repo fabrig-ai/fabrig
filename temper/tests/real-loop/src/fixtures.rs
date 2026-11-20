@@ -9,6 +9,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
+use temper_client_protocol_wire::v1::Record;
 pub use temper_playground::documents::turn_bounds;
 /// A second key the fake LLM peer accepts, for the accounts' stories.
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
@@ -178,7 +179,7 @@ pub(crate) fn local_places(directory: &Path) -> u32 {
         &mut skein_lib::Reader::new(&bytes),
     )
     .expect("fixture local copy")
-    .places()
+    .places
 }
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
@@ -453,6 +454,9 @@ pub(crate) fn extend_settings(key: &'static str, workers: &serde_json::Value) ->
 // Move its bounded FILE table into that Caller; no global file state is retained.
 pub(crate) type SettingsFiles = skein_lib::Map<&'static str, Box<[u8]>>;
 thread_local! { static PENDING_SETTINGS: std::cell::RefCell<Option<SettingsFiles>> = const { std::cell::RefCell::new(None) }; }
+pub(crate) fn warm_runtime() {
+    PENDING_SETTINGS.with(|_| {});
+}
 pub(crate) fn take_settings() -> SettingsFiles {
     PENDING_SETTINGS.with(|slot| slot.borrow_mut().take().unwrap_or_else(|| skein_lib::Map::with_capacity(0)))
 }
@@ -516,20 +520,19 @@ pub(crate) fn finish_configuration(
         flags["requester"] = true.into();
     }
     if let Some(places) = flags["local_places"].as_u64() {
-        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
-        let local = WorkerSetting::new(
-            &CEILINGS,
-            WorkerSettingParts {
-                number: 1,
-                name: b"local".as_slice().into(),
-                places: u32::try_from(places).expect("fixture places"),
-                digest: None,
-                withdrawn: false,
-            },
-        )
-        .expect("fixture local setting");
-        let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded local value"));
-        local.encode(&mut writer).expect("fixture local bytes");
+        use jig_client_protocol_wire::WorkerSetting;
+        let local = WorkerSetting {
+            number: 1,
+            name: b"local".as_slice().into(),
+            places: u32::try_from(places).expect("fixture places"),
+            digest: None,
+            withdrawn: false,
+        };
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("bounded local value"),
+        );
+        local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("fixture local bytes");
         private(&directory.join("local.setting"), &writer.finish())?;
     }
     private(&directory.join("world-settings.json"), &serde_json::to_vec(&flags)?)?;
@@ -635,7 +638,10 @@ pub fn given_and_projects(
             kind: 21,
             scope: 0,
             number: 1,
-            value: SizedValue { size: agents.measure(), value: Value::AgentFigures(agents) },
+            value: SizedValue {
+                size: agents.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                value: Value::AgentFigures(agents),
+            },
         });
         *forge = values.into_boxed_slice();
     }

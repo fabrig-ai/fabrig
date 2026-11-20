@@ -21,7 +21,7 @@ fn the_named_sign_in_screen_says_each_line_without_a_field() {
     use jig_client::NotAsked;
     use skein_lib::Wall;
     use temper_client_domain::asked::State;
-    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) };
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000), port: None };
     let tab = [
         "A tab opened in your browser: type WDJB-MJHT there, then press Approve.",
         "No tab? Open",
@@ -95,7 +95,7 @@ fn named_approval_outcomes_keep_loopbacks_lines_and_offer_a_focused_button() {
     use jig_client::{NotAsked, NotSignedIn, Taking};
     use skein_lib::Wall;
     use temper_client_domain::asked::State;
-    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) };
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000), port: None };
     let rows = [
         (State::NotAsked(NotAsked::Refused), None, true),
         (State::NotAsked(NotAsked::Busy), None, true),
@@ -163,6 +163,7 @@ fn a_long_named_sign_in_clips_only_its_place_and_address() {
     use super::approval::{asked, code};
     let origin = f::long_name_origin();
     let root = asked(Some(temper_client_domain::asked::State::Asked {
+        port: None,
         code: code(),
         expires: skein_lib::Wall::from_nanos(600_000_000_000),
     }));
@@ -177,7 +178,7 @@ fn a_long_named_sign_in_clips_only_its_place_and_address() {
             Role::Heading { level: 2 },
             &skein_lib::bytes::concat(&[b"Sign in this terminal to ", &crate::place(&origin, false)]),
         );
-        f::find(view.tree(), Role::Paragraph, &crate::approval_address(&origin, code()));
+        f::find(view.tree(), Role::Paragraph, &crate::approval_address(&origin, None));
         let size = skein_ui_screen::Size { columns: 80, rows: 24 };
         let mut frame = skein_ui_screen::Frame::new(size);
         skein_ui_screen::render(
@@ -272,7 +273,7 @@ fn the_sign_in_screen_says_each_line() {
         assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
         assert!(field.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
         assert_eq!(field.focus, Some(if *local == Local::Ended { 2 } else { 1 }));
-        assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…".as_bytes()));
+        assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/sign-in?secret=…".as_bytes()));
         let (left, right) = f::bottom_halves(view.tree());
         assert_eq!(f::text(view.tree(), left).as_ref(), "● Signed out".as_bytes());
         assert_eq!(left.styles.as_slice(), &[look::DOWN]);
@@ -317,7 +318,7 @@ fn the_approval_screen_says_each_line() {
     use skein_lib::{Secret, Wall};
     use temper_client_domain::asked::State;
     type Row<'a> = (State, Option<NotSignedIn>, Option<Browser>, bool, bool, &'a [&'a str]);
-    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) };
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000), port: None };
     let opened = [
         "A tab opened in your browser. Check it shows",
         "WDJB-MJHT, then press Approve.",
@@ -421,7 +422,7 @@ fn the_approval_screen_says_each_line() {
             let id = exchange(f::client(
                 &mut root,
                 jig_client::Event::SignIn {
-                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])) },
+                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])), grant: None },
                 },
             ));
             f::client(&mut root, jig_client::Event::Lost { exchange: id });
@@ -499,4 +500,86 @@ fn the_approval_screen_says_each_line() {
     assert_eq!(f::count(view.tree(), Role::Paragraph), 8, "a local paste refusal leaves the approval drawn");
     f::find(view.tree(), Role::Paragraph, opened[0].as_bytes());
     f::find(view.tree(), Role::Paragraph, b"That is not a sign-in link: paste the whole link temper printed.");
+}
+
+#[test]
+fn the_one_click_has_its_own_lines_and_focused_type_code_button() {
+    type Row<'a> = (Option<State>, Option<Browser>, bool, &'a [&'a str]);
+    use super::approval::{asked, code};
+    use crate::Browser;
+    use skein_lib::Wall;
+    use temper_client_domain::asked::State;
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000), port: Some(43210) };
+    let tab = [
+        "A tab opened in your browser: press Approve there.",
+        "The code there is WDJB-MJHT.",
+        "The code expires in 10 min.",
+        "No tab? Press Enter for a code to type instead.",
+    ];
+    let no_tab = [
+        "Open",
+        "https://dev.fabrig.ai/terminal?code=WDJB-MJHT",
+        "in a browser on this computer, then press Approve.",
+        "The code expires in 10 min.",
+        "Or press Enter for a code to type instead.",
+    ];
+    let asking = ["Asking temper for a code…"];
+    let rows: &[Row<'_>] = &[
+        (Some(waiting), None, false, &tab),
+        (Some(waiting), Some(Browser::Opening), false, &tab),
+        (Some(waiting), Some(Browser::Opened), false, &tab),
+        (Some(waiting), Some(Browser::None), false, &no_tab),
+        (None, None, true, &asking),
+        (Some(State::Asking), None, true, &asking),
+        (Some(waiting), Some(Browser::Opened), true, &asking),
+    ];
+    for (state, browser, opening, expected) in rows {
+        let root = asked(*state);
+        let mut tui = Tui::new(&f::name_origin());
+        if let Some(browser) = browser {
+            tui.step(Told::Browse);
+            match browser {
+                Browser::Opening => {}
+                Browser::Opened => tui.step(Told::Opened { opened: true }),
+                Browser::None => tui.step(Told::Opened { opened: false }),
+            }
+        }
+        tui.step(Told::Listener { opening: *opening });
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        let lines = paragraphs(view.tree());
+        assert_eq!(usize::try_from(lines.len()).unwrap(), expected.len().checked_add(1).unwrap());
+        for (line, wanted) in lines.iter().zip(expected.iter().copied().chain(["Ctrl+C to quit"])) {
+            assert_eq!(line.as_ref(), wanted.as_bytes());
+        }
+        let heading = f::find(view.tree(), Role::Heading { level: 2 }, b"Sign in this terminal to dev.fabrig.ai");
+        assert!(heading.binding.is_none());
+        assert_eq!(f::count(view.tree(), Role::TextField), 0);
+        assert_eq!(f::count(view.tree(), Role::Button), usize::from(!opening));
+        if *opening {
+            assert_eq!(view.tick(), None);
+            assert_eq!(f::find(view.tree(), Role::Paragraph, asking[0].as_bytes()).styles.as_slice(), &[look::WAITING]);
+            for node in view.tree().nodes() {
+                assert!(node.binding.is_none() && node.focus.is_none());
+            }
+        } else {
+            let button = f::find(view.tree(), Role::Button, b"Type a code instead");
+            let last = f::find(view.tree(), Role::Paragraph, expected.last().unwrap().as_bytes());
+            assert!(f::index(view.tree(), button.id) > f::index(view.tree(), last.id));
+            assert!(button.focus.is_some());
+            assert_eq!(crate::event(&view, button.id, skein_ui::Act::Press), Some(crate::Event::TypeCode));
+            assert_eq!(crate::event(&view, button.id, skein_ui::Act::Submit), None);
+            let size = skein_ui_screen::Size { columns: 80, rows: 24 };
+            let mut focus = skein_ui_screen::Focus::default();
+            skein_ui_screen::render(
+                view.tree(),
+                &crate::theme(crate::Scheme::Dark, None),
+                size,
+                &mut focus,
+                &mut skein_ui_screen::Frame::new(size),
+            );
+            assert_eq!(focus.node, Some(button.id));
+            assert_eq!(view.tick(), Some(Wall::from_nanos(1)));
+        }
+    }
 }

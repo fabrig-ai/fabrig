@@ -244,7 +244,8 @@ fn a_prepare_conflict_names_its_member_and_tells_branch_from_member() {
             landings::step_landing_heard(&mut world, LANDING, 200, news),
             landing::Decision::Leave { member: 1, why }
         );
-        assert_eq!(world.landing(LANDING).asks[1].is_some(), with == "branch");
+        assert_eq!(world.change(52).change.landing, None);
+        assert_eq!(world.change(52).change.landing_ask.is_some(), with == "branch");
         landings::drive_landing(&mut world, LANDING);
         let row = world.landing(LANDING);
         assert!(row.landing.members[0].landed.is_some() && row.landing.members[2].landed.is_some());
@@ -377,7 +378,7 @@ fn reviewed_members() -> World {
             freshness: change::Freshness::Exact,
             eager: true,
         }]);
-        row.verdicts = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+        row.verdicts = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
         world.event(top::Event::Change { row });
     }
     Trains::default().judge(&mut world);
@@ -438,6 +439,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
             cancelled: false,
             no_change: false,
             flake: false,
+            no_test: false,
             words: b"prefix reviewed".as_slice().into(),
         });
         changes::change_step_task(&mut world, task, 2000 + member, change::Status::Passed, Box::new([]), false, false);
@@ -776,7 +778,8 @@ fn a_path_in_the_lower_member_governs_the_turn_for_every_members_evidence() {
                 freshness: change::Freshness::Clean,
                 eager: true,
             }]);
-            row.verdicts = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+            row.verdicts =
+                Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
         }
         world.event(top::Event::Change { row });
     }
@@ -1034,7 +1037,7 @@ fn a_prepare_finishing_after_a_partial_read_takes_the_reported_suffix_once() {
     world.prepare_subset(LANDING, false, &[0]);
     assert_eq!(
         landings::step_landing_heard(&mut world, LANDING, 200, heard(landing::Preparation::Running, b"")),
-        landing::Decision::Wait { until: None }
+        landing::Decision::Wait { until: None, on: landing::Awaited::Prepare }
     );
     assert!(world.landing(LANDING).landing.members[0].candidate.is_some());
     world.prepare_landing(LANDING, false);

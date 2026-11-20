@@ -259,7 +259,17 @@ impl Host {
         self.view.tree()
     }
     fn event(&mut self, event: Event) {
+        let had_approval_code = match self.root.approval() {
+            Some(page) => page.code().is_some(),
+            None => false,
+        };
         root::step(&mut self.root, &self.env, event, &mut self.out);
+        if had_approval_code
+            && let Some(page) = self.root.approval()
+            && page.code().is_none()
+        {
+            self.show = Some((root::address::print_approve(None), true));
+        }
     }
     fn client(&mut self, event: jig_client::Event) {
         self.event(Event::Client { event });
@@ -344,10 +354,14 @@ impl Host {
                 Request::Screen { on } => self.screen = Some(on),
                 Request::KeepLook { look } => self.keep_look = Some(records::encode_look(look)),
                 Request::Tab { tab: request } => tab.push(match request {
-                    root::Tab::Open { provider } => {
-                        TabAct::Open { words: view::opening_tab(&self.view, &self.root, provider) }
+                    root::Tab::Open { opening } => {
+                        TabAct::Open { words: view::opening_tab(&self.view, &self.root, opening) }
                     }
                     root::Tab::Point { to } => TabAct::Point { to },
+                    root::Tab::PointOnOrigin { to } => match root::forge::github::origin_path(&to) {
+                        Some(path) => TabAct::Point { to: path.into() },
+                        None => TabAct::Close,
+                    },
                     root::Tab::Close => TabAct::Close,
                 }),
                 Request::KeepSignIn { source, address, refused } => {
@@ -503,7 +517,11 @@ mod tab_tests {
     fn tab_requests_keep_their_order_and_do_not_depart() {
         let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let to = b"https://issuer.example/sign-in".as_slice();
-        for tab in [root::Tab::Open { provider: 17 }, root::Tab::Point { to: to.into() }, root::Tab::Close] {
+        for tab in [
+            root::Tab::Open { opening: root::Opening::SignIn { provider: 17 } },
+            root::Tab::Point { to: to.into() },
+            root::Tab::Close,
+        ] {
             host.out.push(Request::Tab { tab });
         }
         let duties = host.report(Report::Start);

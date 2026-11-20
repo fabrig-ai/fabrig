@@ -4,6 +4,7 @@
 #![expect(clippy::disallowed_macros, reason = "page test cases own differently sized document lists")]
 use super::{PROJECT, TASK, answer, board, reader, records, view};
 use crate::public::{PublicView, build_public};
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{Duration, List, Queue, Wall, Writer};
 use skein_ui::{Node, Role};
@@ -64,29 +65,28 @@ fn card(line: j::PublicLine, seconds: u64) -> PublicView {
     render(Public::Task { project: PROJECT, task: TASK }, &[(Doc::JigCard, records::card_line(line))], seconds)
 }
 fn line(goal: bool, phase: j::PublicPhase, ended: Option<u64>) -> j::PublicLine {
-    let mut parts = records::line(goal).into_parts();
+    let mut parts = records::line(goal);
     parts.phase = phase;
     parts.changed = 60;
     parts.ended = ended;
     parts.spent = if goal { Some(126) } else { None };
     // Priority is deliberately present and must never reach the row.
     parts.priority = Some(99);
-    j::PublicLine::new(&j::CEILINGS, parts).expect("line")
+    parts
 }
 fn empty_board() -> Box<[u8]> {
-    let board = j::PublicBoard::new(
-        &j::CEILINGS,
-        j::PublicBoardParts {
-            project: PROJECT,
-            name: b"A public project".as_slice().into(),
-            live: List::with_capacity(0),
-            live_folded: 0,
-            ended: List::with_capacity(0),
-        },
-    )
-    .expect("empty board");
-    let mut writer = Writer::new(usize::try_from(board.measure()).expect("board size"));
-    board.encode(&mut writer).expect("board");
+    let board = j::PublicBoard {
+        project: PROJECT,
+        name: b"A public project".as_slice().into(),
+        live: List::with_capacity(0),
+        live_folded: 0,
+        ended: List::with_capacity(0),
+    };
+    let mut writer = Writer::new(
+        usize::try_from(board.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("board size"),
+    );
+    board.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("board");
     writer.finish()
 }
 #[test]
@@ -303,10 +303,10 @@ fn a_lines_words_never_touch() {
 fn public_row_titles_cut_locally_and_keep_only_the_engines_needed_cut_word() {
     for (title, cut) in super::fixtures::row_titles() {
         for engine_cut in [false, true] {
-            let mut parts = records::line(false).into_parts();
+            let mut parts = records::line(false);
             parts.title = title.into();
             parts.title_cut = engine_cut;
-            let line = j::PublicLine::new(&j::CEILINGS, parts).unwrap();
+            let line = parts;
             let page = card(line, 0);
             let expected = String::from_utf8(
                 skein_lib::bytes::concat(&[

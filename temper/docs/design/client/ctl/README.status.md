@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-18. Remaining gaps between temper's code and [README.md](README.md).
+2026-11-19. Remaining gaps between temper's code and [README.md](README.md).
 
 
 - **Not yet:** 5: the spent-pool refusal's figures in ctl's amount, and its `reserved:` line [in flight: change 7671].

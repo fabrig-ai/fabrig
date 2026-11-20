@@ -8,28 +8,24 @@ fn request(duties: &Duties) -> Option<(skein_lib::Token, f::FileFinding)> {
     for request in &duties.asked {
         let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request else { continue };
         let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-        if keyed.owner() == &w::Owner::Jig {
+        if keyed.owner == w::Owner::Jig {
             continue;
         }
-        let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).unwrap();
-        let reading = wire::decode_requesting(envelope.record(), &f::CEILINGS).unwrap();
-        if let f::Request::FileFinding(file) = reading.request() {
+        let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref())).unwrap();
+        let reading = wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).unwrap();
+        if let f::Request::FileFinding(file) = &reading.request {
             return Some((*exchange, file.clone()));
         }
     }
     None
 }
 fn answer(host: &mut Host, exchange: skein_lib::Token, outcome: f::Outcome) {
-    let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).unwrap();
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
-            version: wire::CLIENT_VERSION,
-            record: wire::answer(&answer),
-        },
-    )
-    .unwrap();
+    let answer = f::Answer { outcome };
+    let document = w::Owned {
+        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        record: wire::answer(&answer),
+    };
     reply(host, exchange, keyed_bytes(document));
 }
 pub(super) fn send(host: &mut Host, words: &[u8]) -> Option<(skein_lib::Token, f::FileFinding)> {
@@ -77,17 +73,13 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
             host.words()
         );
         let (exchange, file) = sent.unwrap();
-        assert_eq!(file.project(), 3);
-        assert_eq!(file.title(), WORDS);
-        assert_eq!(file.body(), b"The export button is grey\n\nPage: /projects/3");
-        assert_eq!(file.area(), &None);
+        assert_eq!(file.project, 3);
+        assert_eq!(file.title.as_ref(), WORDS);
+        assert_eq!(file.body.as_ref(), b"The export button is grey\n\nPage: /projects/3");
+        assert_eq!(&file.area, &None);
         assert_eq!(host.words(), []);
         assert_eq!(host.root.pages().tell().unwrap().words.as_ref(), WORDS);
-        answer(
-            &mut host,
-            exchange,
-            f::Outcome::Filed(f::Filed::new(&f::CEILINGS, f::FiledParts { number: 12 }).unwrap()),
-        );
+        answer(&mut host, exchange, f::Outcome::Filed(f::Filed { number: 12 }));
         assert_eq!(host.state().place(), None);
         assert_eq!(host.state().tell_serial(), 1);
         assert_eq!(host.state().notice(), Some(&Notice::Filed { number: 12, project: b"Project".as_slice().into() }));
@@ -121,13 +113,7 @@ fn tell_restores_refused_lost_and_long_words_until_send_or_screen() {
             "refused" => {
                 let refusal = f::FindingRefusal::NoFinding;
                 let expected = temper_client_view::shared::finding_refusal(host.view.words().view(), &refusal);
-                answer(
-                    &mut host,
-                    sent.unwrap().0,
-                    f::Outcome::FindingRefused(
-                        f::FindingRefused::new(&f::CEILINGS, f::FindingRefusedParts { reason: refusal }).unwrap(),
-                    ),
-                );
+                answer(&mut host, sent.unwrap().0, f::Outcome::FindingRefused(f::FindingRefused { reason: refusal }));
                 expected
             }
             "lost" => {

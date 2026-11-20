@@ -62,7 +62,7 @@ fn starts_run_the_kept_providers_and_their_endpoints_reach_worker_figures() {
     let kept = run(&mut log);
     assert_eq!(config::llm::provider_values(&kept.engine.jig.llm).as_ref(), values);
     let figures = crate::figures::Composer::new(&kept.engine.jig, &kept.engine.limits).compose(&crate::stock::agents());
-    assert!(figures.agents().endpoints().iter().any(|endpoint| endpoint.name() == b"local" && endpoint.number() == 5));
+    assert!(figures.agents.endpoints.iter().any(|endpoint| endpoint.name.as_ref() == b"local" && endpoint.number == 5));
     values.last_mut().unwrap().endpoints[0].address = config::EndpointAddress::Socket(([127, 0, 0, 1], 8081).into());
     temper_service_shell::providers::write(&path, &values).unwrap();
     assert_eq!(config::llm::provider_values(&run(&mut log).engine.jig.llm).as_ref(), values);

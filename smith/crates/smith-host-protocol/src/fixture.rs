@@ -1,5 +1,6 @@
 //! Small channel bounds for deterministic worlds (protocol/channel.md, section 2).
 use crate::Limits;
+use smith_channel::Record;
 
 /// Codec ceilings with a small transport queue and eight outstanding calls.
 #[must_use]
@@ -11,7 +12,7 @@ pub fn small() -> Limits {
         endpoints: 1,
         calls: 8,
         start_bytes: u32::try_from(
-            smith_channel::v11::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
+            smith_channel::v12::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
         )
         .expect("Start frame range"),
         channel: skein_channel::Limits {
@@ -20,7 +21,7 @@ pub fn small() -> Limits {
             skip: 8,
             output_bytes: u32::MAX,
             output_frames: 2,
-            kinds: 22,
+            kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
         },
     }
 }

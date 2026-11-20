@@ -1,8 +1,9 @@
 //! Owner routing and shell exchanges (protocol/client/README.md, 2 and 3).
 use alloc::boxed::Box;
+use core::net::IpAddr;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable, contract};
 pub use jig_client_domain::{StreamBound, StreamsFull};
-pub use jig_client_protocol_wire::ApprovalCode;
+pub use jig_client_protocol_wire::{ApprovalCode, ApprovalKind};
 use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token, Wall};
 /// A record the shell read with its 16-byte request key.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,7 +22,9 @@ pub enum Event {
     },
     SignOut,
     AskLink,
-    AskApproval,
+    AskApproval {
+        port: Option<u16>,
+    },
     ReadApproval {
         code: ApprovalCode,
     },
@@ -192,7 +195,7 @@ pub enum With {
     Transport,
     Link { secret: Secret, held: Option<Secret> },
     Held(Secret),
-    Approval { secret: Secret },
+    Approval { secret: Secret, grant: Option<Secret> },
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Signing {
@@ -272,6 +275,7 @@ pub enum AuthorizeWhy {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Taking {
     Waiting,
+    NotGranted,
     Refused,
     Expired,
     Used,
@@ -301,9 +305,9 @@ pub enum NotAsked {
     Busy,
     Lost,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApprovalState {
-    Waiting { asked: Wall },
+    Waiting { asked: Wall, kind: ApprovalKind, source: Option<IpAddr>, reader: Option<IpAddr> },
     Approved,
     Taken,
     Refused,
@@ -315,9 +319,14 @@ pub enum ApprovalState {
     Busy,
     Lost,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Loopback {
+    pub port: u16,
+    pub grant: Secret,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Decided {
-    Approved,
+    Approved { loopback: Option<Loopback> },
     Refused,
     Used,
     Expired,
@@ -359,7 +368,7 @@ impl core::fmt::Debug for Event {
             Self::SignIn { with } => f.debug_struct("SignIn").field("with", with).finish(),
             Self::SignOut => f.write_str("SignOut"),
             Self::AskLink => f.write_str("AskLink"),
-            Self::AskApproval => f.write_str("AskApproval"),
+            Self::AskApproval { port } => f.debug_struct("AskApproval").field("port", port).finish(),
             Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
             Self::DecideApproval { code, approve } => {
                 f.debug_struct("DecideApproval").field("code", code).field("approve", approve).finish()

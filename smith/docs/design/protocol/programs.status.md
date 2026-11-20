@@ -1,6 +1,6 @@
 # programs: status
 
-2026-11-18. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-19. Where smith's code lags or departs from [programs.md](programs.md).
 
 
 Sections 2 and 5.1 have no known gap in Linux's program-child launch:

@@ -2,6 +2,7 @@
 //! stream (protocol/channel.md, sections 2 and 10). The composed story routes
 //! a real host Start and agent answer through both domains and both halves.
 
+use smith_charter::Record;
 use std::collections::VecDeque;
 
 pub mod fixture;
@@ -92,6 +93,8 @@ pub enum Observation {
     HostFact { kind: smith_channel::FactKind, elapsed: skein_lib::Duration, count: u64 },
     /// The host received a credential rejection notice.
     HostUnauthorized { account: u32, generation: u64 },
+    /// The host received one allowance window.
+    HostUsage { account: u32, window: smith_host_domain::UsageWindow },
     /// The host received an account exhaustion notice.
     HostLimited { account: u32, reset: Option<skein_lib::Duration> },
     /// The host received an account refusal without any credential.
@@ -269,18 +272,16 @@ impl Peer {
                                 &mut skein_lib::Reader::new(&bytes[8..]),
                             )
                             .expect("host Start frame");
-                            let mut parts = start.into_parts();
+                            let mut parts = start;
                             parts.charter = charter;
                             parts.transcript =
                                 smith_protocol_translate::transcript_piece(&transcript.unwrap_or_default())
                                     .expect("fixture piece");
-                            let start = smith_channel::Start::new(&smith_channel::CEILINGS, parts)
-                                .expect("wire fixture bounds");
-                            let mut writer =
-                                skein_lib::Writer::new(usize::try_from(start.measure()).expect("measured body"));
-                            start.encode(&mut writer).expect("wire fixture");
-                            let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("Start frame");
-                            frame.put(&writer.finish()).expect("frame body");
+                            let start = parts;
+                            let bytes = start.encode(&smith_channel::CEILINGS).expect("wire fixture");
+                            let length = u32::try_from(bytes.len()).expect("bounded body");
+                            let mut frame = skein_channel::frame_writer(0x0100, length).expect("Start frame");
+                            frame.put(&bytes).expect("frame body");
                             frame.finish().expect("frame").bytes().into()
                         }
                         None => bytes,
@@ -375,13 +376,16 @@ impl Peer {
                         smith_channel::Fact::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&body))
                             .expect("validated fact");
                     output.push(Observation::HostFact {
-                        kind: fact.kind().clone(),
-                        elapsed: fact.elapsed(),
-                        count: fact.count(),
+                        kind: fact.kind.clone(),
+                        elapsed: fact.elapsed,
+                        count: fact.count,
                     });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Unauthorized { account, generation } } => {
                     output.push(Observation::HostUnauthorized { account, generation });
+                }
+                host::Received::Message { message: smith_host_domain::Up::Usage { account, window } } => {
+                    output.push(Observation::HostUsage { account, window });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Limited { account, reset } } => {
                     output.push(Observation::HostLimited { account, reset });
@@ -400,24 +404,24 @@ impl Peer {
                     unreachable!("answer retains its audit record")
                 }
                 host::Received::Answer { answer, record } => {
-                    assert_eq!((answer.turns, answer.spent), (record.turns(), record.spent()));
+                    assert_eq!((answer.turns, answer.spent), (record.turns, record.spent));
                     output.push(Observation::HostAnswer { turns: answer.turns, spent: answer.spent });
-                    if let smith_channel::RunResult::Refused(refused) = record.result()
-                        && let smith_channel::StartRefusal::Invalid(invalid) = refused.reason()
+                    if let smith_channel::RunResult::Refused(refused) = (&record.result)
+                        && let smith_channel::StartRefusal::Invalid(invalid) = (&refused.reason)
                     {
                         output.push(Observation::InvalidStart {
-                            why: invalid.value().clone(),
+                            why: invalid.value.clone(),
                             turns: answer.turns,
                             spent: answer.spent,
                         });
                     }
-                    if let smith_channel::RunResult::Parked = record.result() {
+                    if let smith_channel::RunResult::Parked = &record.result {
                         output.push(Observation::HostParked { turns: answer.turns, spent: answer.spent });
                     }
-                    if let smith_channel::RunResult::Failed(failed) = record.result()
-                        && let smith_channel::RunFailure::Transcript(reason) = failed.reason()
+                    if let smith_channel::RunResult::Failed(failed) = (&record.result)
+                        && let smith_channel::RunFailure::Transcript(reason) = (&failed.reason)
                     {
-                        output.push(Observation::TranscriptFailed(reason.value().clone()));
+                        output.push(Observation::TranscriptFailed(reason.value.clone()));
                     }
                     assert!(self.host_answer.replace(answer).is_none(), "one typed host last word");
                 }
@@ -516,7 +520,7 @@ fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
         skip: 4096,
         output_bytes: largest.checked_add(8).expect("frame fits"),
         output_frames: 4,
-        kinds: 22,
+        kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
     }
 }
 
@@ -1099,6 +1103,15 @@ impl World {
         }
     }
 
+    /// Forward one allowance observation from the scripted agent domain.
+    pub fn agent_reports_usage(&mut self, account: u32, window: smith_domain::UsageWindow) {
+        if let Half::Agent(agent) = &mut self.agent.half {
+            agent
+                .send_usage(account, window, Token::new(39), &mut self.agent.agent_events, &mut self.agent.below)
+                .expect("bounded usage notice");
+        }
+    }
+
     /// Forward one account cooldown from the scripted agent domain.
     pub fn agent_reports_limited(&mut self, account: u32, reset: Option<skein_lib::Duration>) {
         if let Half::Agent(agent) = &mut self.agent.half {
@@ -1305,62 +1318,40 @@ pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
 }
 
 fn smallest_charter() -> Box<[u8]> {
-    use skein_lib::{Duration, List, Writer};
-    use smith_charter::{self as c, CEILINGS};
+    use skein_lib::{Duration, List};
+    use smith_charter as c;
 
-    let families =
-        c::Families::new(&CEILINGS, c::FamiliesParts { inspect: false, modify: false, shell: false, agents: false })
-            .expect("no families");
-    let tools = c::Tools::new(
-        &CEILINGS,
-        c::ToolsParts { families, wait: false, deliver: None, save: false, host: List::with_capacity(0), contract: 0 },
-    )
-    .expect("no tools");
-    let contract = c::Contract::new(
-        &CEILINGS,
-        c::ContractParts { report: None, verdicts: List::with_capacity(0), change: None, failure: None },
-    )
-    .expect("empty contract");
-    let reserve = c::Reserve::new(&CEILINGS, c::ReserveParts { turns: 0, time: Duration::ZERO }).expect("no reserve");
-    let budget = c::Budget::new(&CEILINGS, c::BudgetParts { turns: 0, spend: 0, time: Duration::ZERO, reserve })
-        .expect("zero budget");
-    let prices =
-        c::Prices::new(&CEILINGS, c::PricesParts { input: 0, cached: 0, cache_write: None, output: 0, unit: 0 })
-            .expect("zero prices");
-    let main = c::Llm::new(
-        &CEILINGS,
-        c::LlmParts {
-            endpoint: Box::default(),
-            account: None,
-            model: Box::default(),
-            effort: None,
-            window: 0,
-            output: 0,
-            prices,
-        },
-    )
-    .expect("empty model");
-    let charter = c::Charter::new(
-        &CEILINGS,
-        c::CharterParts {
-            instructions: Box::default(),
-            brief: List::with_capacity(0),
-            tools,
-            contract,
-            conventions: None,
-            budget,
-            main,
-            models: List::with_capacity(0),
-            waiting: Duration::ZERO,
-            resume: false,
-            mode: c::Mode::Finite,
-            check_timeout: None,
-        },
-    )
-    .expect("smallest charter");
-    let mut writer = Writer::new(usize::try_from(charter.measure()).expect("charter length"));
-    charter.encode(&mut writer).expect("measured charter");
-    writer.finish()
+    let families = c::Families { inspect: false, modify: false, shell: false, agents: false };
+    let tools =
+        c::Tools { families, wait: false, deliver: None, save: false, host: List::with_capacity(0), contract: 0 };
+    let contract = c::Contract { report: None, verdicts: List::with_capacity(0), change: None, failure: None };
+    let reserve = c::Reserve { turns: 0, time: Duration::ZERO };
+    let budget = c::Budget { turns: 0, spend: 0, time: Duration::ZERO, reserve };
+    let prices = c::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 0 };
+    let main = c::Llm {
+        endpoint: Box::default(),
+        account: None,
+        model: Box::default(),
+        effort: None,
+        window: 0,
+        output: 0,
+        prices,
+    };
+    let charter = c::Charter {
+        instructions: Box::default(),
+        brief: List::with_capacity(0),
+        tools,
+        contract,
+        conventions: None,
+        budget,
+        main,
+        models: List::with_capacity(0),
+        waiting: Duration::ZERO,
+        resume: false,
+        mode: c::Mode::Finite,
+        check_timeout: None,
+    };
+    charter.encode(&c::CEILINGS).expect("bounded charter")
 }
 
 #[cfg(test)]
@@ -1423,8 +1414,7 @@ mod read_tests {
     fn a_second_cancel_is_refused_without_a_second_terminal() {
         let mut world = World::started();
         for _ in 0..2 {
-            let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
-                .expect("bounded peer record");
+            let record = smith_channel::Cancel {};
             inject_agent(&mut world, smith_channel::Body::Cancel(record));
         }
         assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
@@ -1438,9 +1428,7 @@ mod read_tests {
         world.settle();
         world.agent_parks();
         world.settle();
-        let record =
-            smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number: 1 })
-                .expect("bounded peer record");
+        let record = smith_channel::Acknowledge { number: 1 };
         inject_agent(&mut world, smith_channel::Body::Acknowledge(record));
         assert_eq!(
             world.observations().iter().filter(|event| **event == Observation::AgentAcknowledged { turn: 1 }).count(),
@@ -1452,8 +1440,7 @@ mod read_tests {
     fn a_cancel_before_start_is_refused_without_reaching_the_service() {
         let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
         world.settle();
-        let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
-            .expect("bounded peer record");
+        let record = smith_channel::Cancel {};
         inject_agent(&mut world, smith_channel::Body::Cancel(record));
         assert!(!world.observations().contains(&Observation::AgentCancel));
         assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
@@ -1472,8 +1459,7 @@ mod read_tests {
             world.host_cancels();
             world.settle();
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
-            let record =
-                smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
+            let record = smith_channel::Drain {};
             inject_agent(&mut world, smith_channel::Body::Drain(record));
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
             assert!(world.observations().iter().any(|event| matches!(event, Observation::AgentEnded(_))));
@@ -1484,8 +1470,7 @@ mod read_tests {
     fn a_second_wire_drain_is_a_rule_fault() {
         let mut world = World::started();
         for _ in 0..2 {
-            let record =
-                smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
+            let record = smith_channel::Drain {};
             inject_agent(&mut world, smith_channel::Body::Drain(record));
         }
         assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);

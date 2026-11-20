@@ -5,6 +5,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private fixture root");
     let dirs = super::configuration::directories(root);
@@ -35,21 +36,19 @@ fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     (dirs, document)
 }
 fn agents(turns: u64) -> w::AgentFigures {
-    let mut parts = temper_service::stock::agents().into_parts();
+    let mut parts = temper_service::stock::agents();
     for row in parts.profile.iter_mut() {
-        if row.name() == b"policy.max_turns" {
-            *row = w::AgentFigure::new(
-                &w::CEILINGS,
-                w::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: turns },
-            )
-            .expect("figure");
+        if row.name.as_ref() == b"policy.max_turns" {
+            *row = w::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: turns };
         }
     }
-    w::AgentFigures::new(&w::CEILINGS, parts).expect("agents")
+    parts
 }
 fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured value");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(
+        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+    ));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured value");
     writer.finish()
 }
 fn stock_defaults(bytes: &[u8], dirs: &crate::Directories) -> temper_service::stock::Given {
@@ -177,7 +176,7 @@ fn corrupt_copy_is_logged_and_atomic_replacement_decodes_whole() {
 }
 #[test]
 fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+    use jig_client_protocol_wire::WorkerSetting;
     let scratch = skein_scratch::Scratch::new("local-copy");
     let (dirs, document) = document(scratch.path());
     let bytes = serde_json::to_vec(&document).expect("JSON");
@@ -185,13 +184,13 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
     let path = scratch.path().join("local.setting");
     let program = scratch.path().join("fixture-agent");
     fs::write(&program, b"box startup program fixture\n").expect("fixture program");
-    let local = WorkerSetting::new(
-        &CEILINGS,
-        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false },
-    )
-    .expect("local value");
-    let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded codec"));
-    local.encode(&mut writer).expect("local bytes");
+    let local =
+        WorkerSetting { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("bounded codec"),
+    );
+    local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("local bytes");
     let value = writer.finish();
     for (contents, places, warning) in [
         (None, 4, ""),
@@ -211,13 +210,13 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
             &temper_service_shell::jig_directories(&dirs),
             &given,
             &temper_service::stock::agents(),
-            initial.as_ref().map_or(4, WorkerSetting::places),
+            initial.as_ref().map_or(4, |value| value.places),
             &[],
         )
         .expect("box start")
         .expect("worker");
         assert_eq!(part.worker.jig.slots, places);
-        assert_eq!(part.figures.as_ref().expect("figures").places(), places);
+        assert_eq!(part.figures.as_ref().expect("figures").places, places);
         assert_eq!(part.limits.checkout.workspaces, places);
         assert_eq!(part.limits.git_component.operations, places);
         let expected = temper_service::startup::operations_with_worker(

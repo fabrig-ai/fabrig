@@ -6,8 +6,10 @@ use skein_lib::{Reader, Rng, Writer, length::len_u64};
 macro_rules! check {
     ($record:ident, $bytes:expr) => {
         if let Ok(record) = $record::decode(&CEILINGS, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
+            let mut writer = Writer::new(skein_lib::length::usize_of(
+                record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+            ));
+            record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
             assert_eq!(writer.finish().as_ref(), $bytes, stringify!($record));
         }
     };
@@ -48,6 +50,9 @@ fn records_1(bytes: &[u8]) {
     check!(LinkAsked, bytes);
     check!(LinkAskAnswer, bytes);
     check!(ApprovalRead, bytes);
+    check!(ApprovalKind, bytes);
+    check!(ApprovalLoopback, bytes);
+    check!(ApprovalApproved, bytes);
     check!(ApprovalWaiting, bytes);
     check!(ApprovalState, bytes);
     check!(ApprovalDecide, bytes);

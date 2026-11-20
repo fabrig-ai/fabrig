@@ -3,8 +3,10 @@ use fixtures::{Harness, limits};
 use skein_lib::{Secret, Writer};
 
 fn encoded(answer: &w::LinkAskAnswer) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }
 fn asked() -> AskedLink {
@@ -27,16 +29,7 @@ fn exchange(h: &mut Harness) -> Token {
 fn each_link_ask_answer_is_decoded_once_with_the_held_credential() {
     for held in [false, true] {
         for (answer, expected) in [
-            (
-                w::LinkAskAnswer::Asked(
-                    w::LinkAsked::new(
-                        &w::CEILINGS,
-                        w::LinkAskedParts { secret: Secret::new(Box::new([7; 32])), expires: 300 },
-                    )
-                    .unwrap(),
-                ),
-                asked(),
-            ),
+            (w::LinkAskAnswer::Asked(w::LinkAsked { secret: Secret::new(Box::new([7; 32])), expires: 300 }), asked()),
             (w::LinkAskAnswer::Refused, AskedLink::NotAsked(NotAsked::Refused)),
             (w::LinkAskAnswer::SignedOut, AskedLink::SignedOut),
             (w::LinkAskAnswer::NotReady, AskedLink::NotAsked(NotAsked::NotReady)),
@@ -78,13 +71,10 @@ fn each_link_ask_answer_is_decoded_once_with_the_held_credential() {
         for body in [
             Some(Box::from([255])),
             None,
-            Some(encoded(&w::LinkAskAnswer::Asked(
-                w::LinkAsked::new(
-                    &w::CEILINGS,
-                    w::LinkAskedParts { secret: Secret::new(Box::new([7; 31])), expires: 300 },
-                )
-                .unwrap(),
-            ))),
+            Some(encoded(&w::LinkAskAnswer::Asked(w::LinkAsked {
+                secret: Secret::new(Box::new([7; 31])),
+                expires: 300,
+            }))),
         ] {
             let mut h = Harness::new(&limits());
             h.link.credential = if held { Some(Secret::new(Box::new([9; 40]))) } else { None };

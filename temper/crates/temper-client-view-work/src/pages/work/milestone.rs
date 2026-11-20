@@ -165,7 +165,7 @@ fn from_line(
         && line.budget.numbers.budget > 0
     {
         parts
-            .push(words.say(Word::MsSpent, &[Hole::Number(totals.spent()), Hole::Number(line.budget.numbers.budget)]))
+            .push(words.say(Word::MsSpent, &[Hole::Number(totals.spent), Hole::Number(line.budget.numbers.budget)]))
             .expect("count and spend");
     }
     linked_from(

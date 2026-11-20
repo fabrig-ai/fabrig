@@ -2,14 +2,12 @@ use super::*;
 use crate::fixtures::{PROJECT, WIRE_TASK};
 use jig_client::contract as c;
 use jig_client_kit::harness::Receipt;
-use skein_lib::{List, Overflow, Writer};
+use skein_lib::List;
 const ATTEMPT: Token = Token::new(7);
 const FIRST_MESSAGE: u64 = 19;
 const KEY: [u8; 16] = [3; 16];
-fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut out = Writer::new(skein_lib::length::usize_of(measure(value)));
-    encode(value, &mut out).expect("bounded wire fixture");
-    out.finish()
+fn encoded<T: w::Record<Limits = w::Limits>>(value: &T) -> Box<[u8]> {
+    value.encode(&w::CEILINGS).expect("bounded wire fixture")
 }
 fn request() -> Request {
     let mut operations = List::with_capacity(2);
@@ -23,46 +21,26 @@ fn request() -> Request {
     operations.push(c::Operation::Stop { project: PROJECT, task: WIRE_TASK }).expect("bounded wire fixture");
     let ask = translate::asks::ask(&c::Ask::Compound { project: PROJECT, operations }, &w::CEILINGS)
         .expect("bounded wire fixture");
-    let keyed = w::Keyed::new(
-        &w::CEILINGS,
-        w::KeyedParts {
-            key: KEY,
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: encoded(&ask, w::Ask::measure, w::Ask::encode),
-            value: None,
-        },
-    )
-    .expect("bounded wire fixture");
-    Request::Exchange {
-        exchange: ATTEMPT,
-        credential: None,
-        message: Message::Request(encoded(&keyed, w::Keyed::measure, w::Keyed::encode)),
-    }
+    let keyed = w::Keyed {
+        key: KEY,
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: encoded(&ask),
+        value: None,
+    };
+    Request::Exchange { exchange: ATTEMPT, credential: None, message: Message::Request(encoded(&keyed)) }
 }
 fn reply() -> Event {
-    let value = w::DocumentOutcome::Compound(
-        w::OutcomeCompound::new(
-            &w::CEILINGS,
-            w::OutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
-        )
-        .expect("bounded wire fixture"),
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value }).expect("bounded wire fixture"),
-    );
-    let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("bounded wire fixture"));
-    let value = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: encoded(&answer, w::Final::measure, w::Final::encode),
-        },
-    )
-    .expect("bounded wire fixture");
+    let value = w::DocumentOutcome::Compound(w::OutcomeCompound {
+        project: PROJECT,
+        operations: 2,
+        first_message: FIRST_MESSAGE,
+    });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value });
+    let answer = w::Final::Done(w::Done { outcome });
+    let value = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded(&answer) };
     let answer = w::KeyedAnswer::FinalAnswer(value);
-    Event::Reply { exchange: ATTEMPT, message: encoded(&answer, w::KeyedAnswer::measure, w::KeyedAnswer::encode) }
+    Event::Reply { exchange: ATTEMPT, message: encoded(&answer) }
 }
 #[test]
 fn a_compound_word_receipt_joins_its_observed_target_and_answered_message() {

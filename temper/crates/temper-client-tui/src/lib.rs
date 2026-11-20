@@ -18,7 +18,7 @@ mod state;
 pub mod theme;
 mod view;
 pub mod words;
-pub use approval::{approval_address, may_ask_again};
+pub use approval::{approval_address, may_ask_again, may_type_instead};
 pub use box_line::BoxLine;
 pub use box_stage::{BoxEnd, BoxStage};
 pub use choices::{ReplyChoice, ReplyChoices, reply_choices};

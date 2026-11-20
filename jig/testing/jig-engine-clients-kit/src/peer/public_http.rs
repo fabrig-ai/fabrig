@@ -69,9 +69,9 @@ impl Peer {
     fn public_http_route(&mut self, routed: Routed) {
         match routed {
             Routed::Io(request) => self.io(request),
-            Routed::Call { call, head } => {
+            Routed::Call { call, head, peer } => {
                 if self.mount.room_for(&head) > 0 {
-                    self.mount_event(mapping::Event::Call { call, head });
+                    self.mount_event(mapping::Event::Call { call, head, peer });
                 } else {
                     self.refused.insert(call, ()).expect("bounded server refusals");
                     self.server.answer(call, server::Request::Discard, &mut self.server_out);

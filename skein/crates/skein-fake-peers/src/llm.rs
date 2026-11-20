@@ -311,8 +311,13 @@ impl Peer {
                     self.observe(Observation::Closed { connection: owner }, 0);
                 }
             }
-            io::Event::Failed { owner, .. } => {
-                assert_ne!(owner, LISTENER, "the fake listener must bind");
+            io::Event::Failed { owner, error } => {
+                assert_ne!(
+                    owner,
+                    LISTENER,
+                    "{}",
+                    crate::face::listener_failure("the fake", self.face.listen_address, error)
+                );
                 if let Some(connection) = self.connections.iter_mut().find(|connection| connection.owner == owner) {
                     connection.wire.close(&mut self.face.requests);
                 }

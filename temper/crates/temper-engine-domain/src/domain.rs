@@ -134,8 +134,12 @@ pub struct Domain {
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
-    /// Steps begun before readiness hold their train through coalesced wakes (domain/landing.md, 9).
-    pub(crate) forge_settling: skein_lib::Set<u64>,
+    /// One forming drains its make before admission (domain/landing-forming.md, 2).
+    pub(crate) forge_forming: Option<(u64, Option<jig_domain_tasks::Refusal>)>,
+    /// Refusal time, last reason and whether expiry was judged (domain/landing-forming.md, 3).
+    #[expect(clippy::type_complexity, reason = "a train maps directly to its unstored refusal time and reason")]
+    pub(crate) forge_refused:
+        Map<(skein_forge::api::Repository, Box<[u8]>), (Wall, Option<jig_domain_tasks::Refusal>, bool)>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,
@@ -335,6 +339,11 @@ impl Domain {
     #[must_use]
     pub fn forge_connection(&self, forge: u16) -> forge::Connection {
         self.forge.connection(forge)
+    }
+    /// The kept forge's public addresses and setup choice, whatever its state.
+    #[must_use]
+    pub fn forge_record(&self, forge: u16) -> Option<&forge::ForgeRecord> {
+        self.forge.record(forge)
     }
     /// The current deployment document, including volatile setup progress.
     #[must_use]
@@ -657,7 +666,8 @@ impl Domain {
                 limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
-            forge_settling: skein_lib::Set::with_capacity(limits.forge.changes),
+            forge_forming: None,
+            forge_refused: Map::with_capacity(limits.forge.changes),
             closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
@@ -721,6 +731,12 @@ impl Domain {
     #[must_use]
     pub fn backlog(&self) -> u64 {
         backlog(self)
+    }
+
+    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings.md, 7).
+    #[must_use]
+    pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
+        self.core.settings_kept()
     }
 
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).

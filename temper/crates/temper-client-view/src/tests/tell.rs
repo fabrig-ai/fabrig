@@ -58,34 +58,22 @@ fn findings() -> w::Findings {
     let mut areas = List::with_capacity(2);
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52)] {
         areas
-            .push(
-                w::AreaRow::new(
-                    &w::CEILINGS,
-                    w::AreaRowParts {
-                        name: name.into(),
-                        words: name.into(),
-                        owner: w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap()),
-                        holder: Some(w::Holder::Task(
-                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap(),
-                        )),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::AreaRow {
+                name: name.into(),
+                words: name.into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number }),
+                holder: Some(w::Holder::Task(w::HolderTask { number })),
+            })
             .unwrap();
     }
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project: 1,
-            areas,
-            rows: List::with_capacity(0),
-            cut: false,
-            triager: Some(w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).unwrap())),
-            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap()),
-        },
-    )
-    .unwrap()
+    w::Findings {
+        project: 1,
+        areas,
+        rows: List::with_capacity(0),
+        cut: false,
+        triager: Some(w::AreaOwner::Task(w::AreaTask { number: 52 })),
+        holder: w::Holder::Task(w::HolderTask { number: 52 }),
+    }
 }
 
 fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
@@ -137,46 +125,36 @@ fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
                 )
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
-                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch().clone()) {
+                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch.clone()) {
                     Some(w::Watch::Findings(_)) => family(root, watch, wire::findings(&findings())),
                     Some(w::Watch::Decided(_)) => {
-                        let row = w::Decision::new(
-                            &w::CEILINGS,
-                            w::DecisionParts {
-                                number: 1,
-                                task: 99,
-                                at: 0,
-                                question: b"Which tests?".as_slice().into(),
-                                took: b"The focused suite".as_slice().into(),
-                                why: b"It covers the rule.".as_slice().into(),
-                                overturned: false,
-                                reach: temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
-                                    kind: temper_protocol_reaches::Kind::Tests,
-                                    class: temper_protocol_reaches::Class::Decide,
-                                    reason: temper_protocol_reaches::Reason::Kind,
-                                    under: 0,
-                                    sets: 0,
-                                    matched: 0,
-                                    away: false,
-                                }),
-                            },
-                        )
-                        .unwrap();
+                        let row = w::Decision {
+                            number: 1,
+                            task: 99,
+                            at: 0,
+                            question: b"Which tests?".as_slice().into(),
+                            took: b"The focused suite".as_slice().into(),
+                            why: b"It covers the rule.".as_slice().into(),
+                            overturned: false,
+                            reach: temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
+                                kind: temper_protocol_reaches::Kind::Tests,
+                                class: temper_protocol_reaches::Class::Decide,
+                                reason: temper_protocol_reaches::Reason::Kind,
+                                under: 0,
+                                sets: 0,
+                                matched: 0,
+                                away: false,
+                            }),
+                        };
                         family(
                             root,
                             watch,
-                            wire::decisions(
-                                &w::Decisions::new(
-                                    &w::CEILINGS,
-                                    w::DecisionsParts {
-                                        project: 1,
-                                        rows: List::from_boxed(Box::new([row])),
-                                        asked: List::with_capacity(0),
-                                        cut: false,
-                                    },
-                                )
-                                .unwrap(),
-                            ),
+                            wire::decisions(&w::Decisions {
+                                project: 1,
+                                rows: List::from_boxed(Box::new([row])),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            }),
                         )
                     }
                     _ => Queue::uncapped(),
@@ -390,7 +368,7 @@ fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
                 },
         } = request
             && let w::Request::FileFinding(file) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request()
+                &wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             sends.push((*attempt, file.clone()));
         }
@@ -411,7 +389,7 @@ fn answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                        bytes: wire::answer(&w::Answer { outcome }),
                     })),
                 },
             },
@@ -427,7 +405,7 @@ fn tell_filing_is_once_refusal_keeps_words_and_filed_clears_with_a_toast() {
     let file = named(&view, Role::Button, "File it");
     let action = crate::act(&mut view, file, UiAct::Press).unwrap();
     let (attempt, filing) = sent(&event(&mut root, Event::Act { action: action.clone() }));
-    assert_eq!(filing.body(), b"The flake is back\n\nPage: /projects/1/talk/52 (Prover)");
+    assert_eq!(filing.body.as_ref(), b"The flake is back\n\nPage: /projects/1/talk/52 (Prover)");
     let again = event(&mut root, Event::Act { action });
     let mut sends = 0_usize;
     for request in &again {
@@ -439,15 +417,8 @@ fn tell_filing_is_once_refusal_keeps_words_and_filed_clears_with_a_toast() {
     f::build(&mut view, &root);
     let file = named(&view, Role::Button, "File it");
     assert!(view.tree().nodes().iter().find(|n| n.id == file).unwrap().states.as_slice().contains(&State::Disabled));
-    let reason =
-        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).unwrap());
-    answer(
-        &mut root,
-        attempt,
-        w::Outcome::FindingRefused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: reason.clone() }).unwrap(),
-        ),
-    );
+    let reason = w::FindingRefusal::Full(w::FindingsFull { count: 128 });
+    answer(&mut root, attempt, w::Outcome::FindingRefused(w::FindingRefused { reason: reason.clone() }));
     f::build(&mut view, &root);
     assert_eq!(root.pages().tell_words(), b"The flake is back");
     let refusal = crate::shared::finding_refusal(&f::browser_words(), &reason);
@@ -459,7 +430,7 @@ fn tell_filing_is_once_refusal_keeps_words_and_filed_clears_with_a_toast() {
     let file = named(&view, Role::Button, "File it");
     let action = crate::act(&mut view, file, UiAct::Press).unwrap();
     let (attempt, _) = sent(&event(&mut root, Event::Act { action }));
-    let filed = w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap());
+    let filed = w::Outcome::Filed(w::Filed { number: 12 });
     answer(&mut root, attempt, filed.clone());
     f::build(&mut view, &root);
     assert_eq!(root.pages().tell_words(), b"");

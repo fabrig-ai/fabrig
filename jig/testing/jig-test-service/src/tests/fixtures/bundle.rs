@@ -133,7 +133,7 @@ fn pump(
                         pages.event(server, call, event, out);
                     }
                 }
-                Routed::Call { call, head } => {
+                Routed::Call { call, head, .. } => {
                     let Some(pages) = pages.as_mut() else { panic!("server forwarded its own route") };
                     pages.call(server, call, &head, pages.route(&head), out);
                 }

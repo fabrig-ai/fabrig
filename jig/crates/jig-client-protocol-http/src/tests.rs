@@ -119,6 +119,11 @@ fn an_asked_link_url_has_the_printed_links_bytes_and_round_trips() {
         url.as_ref(),
         b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
     );
+    let with_page = Mapping::with_page(b"/jig", b"/sign-in").unwrap();
+    assert_eq!(
+        link_url(&with_page, b"127.0.0.1:8080", &secret).as_ref(),
+        b"http://127.0.0.1:8080/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
     for (prefix, host, bytes) in
         [(b"/jig".as_slice(), b"127.0.0.1:8080".as_slice(), [7; 32]), (b"/other", b"[::1]:8081", [255; 32])]
     {
@@ -126,9 +131,10 @@ fn an_asked_link_url_has_the_printed_links_bytes_and_round_trips() {
         let mapping = Mapping::new(prefix).unwrap();
         let with_page = Mapping::with_page(prefix, b"/sign-in").unwrap();
         let url = link_url(&mapping, host, &secret);
-        assert_eq!(link_url(&with_page, host, &secret), url);
-        for mapping in [&mapping, &with_page] {
-            let parsed = printed(mapping, &url).unwrap();
+        let page_url = link_url(&with_page, host, &secret);
+        assert_ne!(page_url, url);
+        for (reader, url) in [(&mapping, &url), (&with_page, &url), (&with_page, &page_url)] {
+            let parsed = printed(reader, url).unwrap();
             assert_eq!(parsed.host.as_ref(), host);
             assert_eq!(parsed.secret, secret);
         }

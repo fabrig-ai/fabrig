@@ -3,6 +3,7 @@ use super::Received;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_link::translate;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Secret, Token};
 use std::collections::BTreeMap;
 
@@ -48,22 +49,25 @@ impl Wire {
         if let Message::Batch(bytes) = message {
             let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch bytes");
             let mut members = BTreeMap::new();
-            for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+            for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
                 let mut writer = skein_lib::Writer::new(
-                    usize::try_from(member.measure().checked_sub(1).expect("member has a tag")).expect("member bytes"),
+                    usize::try_from(
+                        member.measure(&w::CEILINGS).expect("decoded member").checked_sub(1).expect("member has a tag"),
+                    )
+                    .expect("member bytes"),
                 );
                 // The member's discriminant belongs to the batch, not its own exchange's record.
                 let message = match member {
                     w::Member::Read(record) => {
-                        record.encode(&mut writer).expect("read room");
+                        record.write(&w::CEILINGS, &mut writer).expect("read room");
                         Message::Read(writer.finish())
                     }
                     w::Member::Open(record) => {
-                        record.encode(&mut writer).expect("open room");
+                        record.write(&w::CEILINGS, &mut writer).expect("open room");
                         Message::Watch(writer.finish())
                     }
                     w::Member::Close(record) => {
-                        record.encode(&mut writer).expect("close room");
+                        record.write(&w::CEILINGS, &mut writer).expect("close room");
                         Message::Unwatch(writer.finish())
                     }
                 };
@@ -78,14 +82,13 @@ impl Wire {
             Message::Request(bytes) => Kind::Request(compound::message(bytes)),
             Message::Read(bytes) => {
                 let record = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("owned read");
-                let subject = match record.owner() {
+                let subject = match &record.owner {
                     w::Owner::Jig => None,
                     w::Owner::Family(owner) => family(jig_client::Family {
-                        family: owner.number(),
-                        version: record.version(),
-                        bytes: w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(record.record()))
+                        family: owner.number,
+                        version: record.version,
+                        bytes: w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(record.record.as_ref()))
                             .expect("family read envelope")
-                            .into_parts()
                             .record,
                     })
                     .map(|record| jig_client_kit::test::family_subject(&record, true)),
@@ -96,18 +99,17 @@ impl Wire {
             Message::SignOut => Kind::SignOut,
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("open bytes");
-                if let w::Owner::Family(owner) = open.subject().owner()
+                if let w::Owner::Family(owner) = (&open.subject.owner)
                     && let Some(record) = family(jig_client::Family {
-                        family: owner.number(),
-                        version: open.subject().version(),
-                        bytes: w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
+                        family: owner.number,
+                        version: open.subject.version,
+                        bytes: w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref()))
                             .expect("family subject envelope")
-                            .into_parts()
                             .record,
                     })
                 {
                     let subject = jig_client_kit::test::family_subject(&record, false);
-                    self.watches.insert(open.watch(), subject);
+                    self.watches.insert(open.watch, subject);
                 }
                 Kind::Other
             }
@@ -123,7 +125,7 @@ impl Wire {
         self.exchanges.insert(*exchange, kind);
         if let Message::Request(bytes) = message {
             let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed request bytes");
-            vec![Received::Sent { attempt: *exchange, key: *keyed.key() }]
+            vec![Received::Sent { attempt: *exchange, key: keyed.key }]
         } else {
             vec![]
         }
@@ -146,13 +148,13 @@ impl Wire {
         if let Event::Streamed { message: Streamed::Record(bytes) } = event {
             if let w::StreamEvent::Delivery(value) =
                 w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("stream bytes")
-                && matches!(value.document().owner(), w::Owner::Family(_))
-                && let Some(subject) = self.watches.get(&value.watch())
-                && let Some(document) = crate::family::document(*subject, value.document().record())
+                && matches!(&value.document.owner, w::Owner::Family(_))
+                && let Some(subject) = self.watches.get(&value.watch)
+                && let Some(document) = crate::family::document(*subject, value.document.record.as_ref())
             {
                 return jig_client_kit::observe::received(&jig_client_test_domain::Event::First(
                     jig_client_test_domain::first::Event::Watch {
-                        watch: Token::new(value.watch()),
+                        watch: Token::new(value.watch),
                         event: jig_client_test_domain::first::WatchEvent::Delivered(document),
                     },
                 ));
@@ -163,8 +165,7 @@ impl Wire {
         let (exchange, message, kind) = match event {
             Event::Reply { exchange, message } => (exchange, message, self.exchanges.get(exchange)),
             Event::Part { exchange, message } => {
-                part =
-                    w::BatchReply::decode(&w::CEILINGS, &mut Reader::new(message)).expect("batch reply").into_parts();
+                part = w::BatchReply::decode(&w::CEILINGS, &mut Reader::new(message)).expect("batch reply");
                 let Some(message) = &part.reply else { return vec![] };
                 (exchange, message, self.batches.get(exchange).and_then(|b| b.get(&part.member)))
             }
@@ -173,7 +174,7 @@ impl Wire {
         match kind {
             Some(Kind::Request(words)) => {
                 match w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("answer bytes") {
-                    w::KeyedAnswer::FinalAnswer(value) if matches!(value.owner(), w::Owner::Family(_)) => {
+                    w::KeyedAnswer::FinalAnswer(value) if matches!(&value.owner, w::Owner::Family(_)) => {
                         vec![Receipt::Answer {
                             attempt: *exchange,
                             final_answer: true,
@@ -182,7 +183,7 @@ impl Wire {
                             words: None,
                         }]
                     }
-                    w::KeyedAnswer::FinalAnswer(value) => compound::receipt(*exchange, *words, value.record()),
+                    w::KeyedAnswer::FinalAnswer(value) => compound::receipt(*exchange, *words, value.record.as_ref()),
                     w::KeyedAnswer::NotServed(_) | w::KeyedAnswer::SignedOut => vec![Receipt::Parked],
                     w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::AnswersFull(_) => {
                         vec![Receipt::Answer {
@@ -201,7 +202,7 @@ impl Wire {
                 else {
                     return Vec::new();
                 };
-                let value = crate::family::read_result(*subject, value.record());
+                let value = crate::family::read_result(*subject, value.record.as_ref());
                 jig_client_kit::observe::received(&jig_client_test_domain::Event::First(
                     jig_client_test_domain::first::Event::Read { read: *exchange, result: value },
                 ))
@@ -213,12 +214,10 @@ impl Wire {
         self.received_with(event, crate::fixtures::link_limits())
     }
     /// Decode the same public bytes under the application's declared receiving profile.
-    #[expect(clippy::too_many_lines, reason = "batch parts and standalone replies share the native wire observer")]
     pub fn received_with(&mut self, event: &Event, limits: jig_client_protocol_link::Limits) -> Vec<Received> {
         let reply;
         let event = if let Event::Part { exchange, message } = event {
-            let part =
-                w::BatchReply::decode(&w::CEILINGS, &mut Reader::new(message)).expect("batch reply").into_parts();
+            let part = w::BatchReply::decode(&w::CEILINGS, &mut Reader::new(message)).expect("batch reply");
             let Some(kind) = self.batches.get_mut(exchange).and_then(|b| b.remove(&part.member)) else { return vec![] };
             let Some(message) = part.reply else { return vec![] };
             self.exchanges.insert(*exchange, kind);
@@ -237,14 +236,14 @@ impl Wire {
                 Some(Kind::Read(_)) => {
                     let answer = w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("read bytes");
                     match answer {
-                        w::ReadAnswer::Value(value) if matches!(value.owner(), w::Owner::Jig) => {
-                            translate::reads::value(value.record(), &limits).map_or_else(
+                        w::ReadAnswer::Value(value) if matches!(&value.owner, w::Owner::Jig) => {
+                            translate::reads::value(value.record.as_ref(), &limits).map_or_else(
                                 |_| vec![],
                                 |value| vec![Received::Read(jig_client::contract::ReadResult::Value(value))],
                             )
                         }
                         w::ReadAnswer::None(value) => vec![Received::Read(jig_client::contract::ReadResult::None(
-                            translate::reads::none(value.value()),
+                            translate::reads::none(&value.value),
                         ))],
                         w::ReadAnswer::NotServed(_) | w::ReadAnswer::Value(_) => vec![],
                     }
@@ -252,8 +251,8 @@ impl Wire {
                 Some(Kind::SignIn) => {
                     match w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("sign-in bytes") {
                         w::SignInAnswer::SignedIn(value) => {
-                            self.credential.clone_from(value.token());
-                            vec![Received::SignedIn { person: value.party() }]
+                            self.credential.clone_from(&value.token);
+                            vec![Received::SignedIn { person: value.party }]
                         }
                         w::SignInAnswer::LinkUsed
                         | w::SignInAnswer::LinkExpired
@@ -276,11 +275,11 @@ impl Wire {
             },
             Event::Streamed { message: Streamed::Record(bytes) } => {
                 match w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("stream bytes") {
-                    w::StreamEvent::Delivery(value) if matches!(value.document().owner(), w::Owner::Jig) => {
-                        translate::watches::delivery(value.document().record(), &limits)
+                    w::StreamEvent::Delivery(value) if matches!(&value.document.owner, w::Owner::Jig) => {
+                        translate::watches::delivery(value.document.record.as_ref(), &limits)
                             .map_or_else(|_| vec![], |value| vec![Received::Delivery(value)])
                     }
-                    w::StreamEvent::Opened(value) => translate::watches::delivery(value.me().record(), &limits)
+                    w::StreamEvent::Opened(value) => translate::watches::delivery(value.me.record.as_ref(), &limits)
                         .map_or_else(|_| vec![], |value| vec![Received::Delivery(value)]),
                     w::StreamEvent::Hello(_)
                     | w::StreamEvent::Delivery(_)
@@ -298,7 +297,7 @@ impl Wire {
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
             | Event::AskLink
-            | Event::AskApproval
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }

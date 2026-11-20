@@ -35,6 +35,7 @@ fn bounds_window(window: u32) -> Bounds {
 }
 fn hello(bounds: Bounds) -> Hello {
     Hello {
+        reads_usage: true,
         jobs: Box::default(),
         stop_bound: Duration::from_nanos(1),
         slots: 2,

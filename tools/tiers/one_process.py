@@ -6,6 +6,8 @@ The files crossing the summary boundary follow
 """
 import contextlib
 import fnmatch
+import functools
+import hashlib
 import io
 import json
 import math
@@ -63,13 +65,12 @@ def filterset(expression):
             return True
         return False
 
-    def atom():
+    def atom(negated=False):
         nonlocal position
         if take('not') or take('!'):
-            child = atom()
-            return lambda test: not child(test)
+            return atom(not negated)
         if take('('):
-            child = union()
+            child = union(negated)
             if not take(')'):
                 raise ValueError('missing closing parenthesis')
             return child
@@ -85,7 +86,7 @@ def filterset(expression):
         if name in ('all', 'none'):
             if not take(')'):
                 raise ValueError('unexpected matcher')
-            return lambda test: name == 'all'
+            return lambda test: (name == 'all') != negated
         start = position
         # A regex may contain parentheses and escaped slashes.
         if expression[position:position + 1] == '/':
@@ -115,30 +116,36 @@ def filterset(expression):
             operator = '~' if name == 'test' else '=' if name == 'kind' else '#'
             pattern = matcher
         if operator == '/':
-            return lambda test: pattern.search(test[name]) is not None
-        if operator == '=':
-            return lambda test: test[name] == pattern
-        if operator == '~':
-            return lambda test: pattern in test[name]
-        return lambda test: fnmatch.fnmatchcase(test[name], pattern)
+            match = pattern.search
+        elif operator == '=':
+            match = lambda value: value == pattern
+        elif operator == '~':
+            match = lambda value: pattern in value
+        else:
+            match = lambda value: fnmatch.fnmatchcase(value, pattern)
+        # Before linking, a case name is unknown: either polarity could match.
+        return lambda test: name not in test or bool(match(test[name])) != negated
 
-    def intersection():
-        child = atom()
+    def intersection(negated):
+        child = atom(negated)
         while True:
             if take('and') or take('&'):
-                left, right = child, atom()
-                child = lambda test, left=left, right=right: left(test) and right(test)
+                right = atom(negated)
             elif take('-'):
-                left, right = child, atom()
-                child = lambda test, left=left, right=right: left(test) and not right(test)
+                right = atom(not negated)
             else:
                 return child
+            child = combine(child, right, either=negated)
 
-    def union():
-        child = intersection()
+    def combine(left, right, either):
+        if either:
+            return lambda test: left(test) or right(test)
+        return lambda test: left(test) and right(test)
+
+    def union(negated=False):
+        child = intersection(negated)
         while take('or') or take('|') or take('+'):
-            left, right = child, intersection()
-            child = lambda test, left=left, right=right: left(test) or right(test)
+            child = combine(child, intersection(negated), either=not negated)
         return child
 
     try:
@@ -393,6 +400,99 @@ def target_flags(binary_id):
     if slash and kind in ('bin', 'example', 'bench'):
         return ['--' + kind, name]
     return ['--test', target]
+
+
+def cargo_test_roots(cargo, selection, env):
+    """Fingerprint each build root with the features and dependencies Cargo resolved for it."""
+    raw = subprocess.check_output([*cargo, 'test', '--no-run', '--offline', '--locked',
+                                   '-Z', 'unstable-options', '--unit-graph', *selection],
+                                  env=env, stdin=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    graph = json.loads(raw)
+    if graph['version'] != 1:
+        raise ValueError('unknown Cargo unit graph version')
+
+    @functools.cache
+    def fingerprint(index):
+        unit = graph['units'][index]
+        dependencies = [dict(edge, index=fingerprint(edge['index'])) for edge in unit['dependencies']]
+        data = json.dumps(dict(unit, dependencies=dependencies), sort_keys=True).encode()
+        return hashlib.sha256(data).hexdigest()
+
+    roots = set()
+    for index in graph['roots']:
+        unit = graph['units'][index]
+        if unit['mode'] != 'doctest':  # nextest lists executable tests only
+            roots.add((unit['pkg_id'], unit['mode'], tuple(unit['target']['kind']),
+                       unit['target']['name'], fingerprint(index)))
+    return roots
+
+
+def profile_target_groups(selection, metadata, filters, cargo, env):
+    """Skip integration targets that neither delivery profile can select."""
+    members = {package['name']: package for package in metadata['packages']}
+    if selection == ['--workspace']:
+        ids = set(metadata['workspace_members'])
+        names = sorted(name for name, package in members.items() if package['id'] in ids)
+    elif selection and len(selection) % 2 == 0 and all(flag == '-p' for flag in selection[::2]):
+        names = selection[1::2]
+    else:
+        return [selection]
+    broad, narrowed, omitted = [], [], {}
+    for name in names:
+        package = members[name]
+        keep, skip = [], {}
+        for target in package['targets']:
+            binary = target_binary_id(package, target)
+            if binary is None:
+                continue
+            fields = dict(package=name, binary=target['name'], binary_id=binary, kind='test')
+            if target['kind'] == ['test'] and not any(matches(fields) for matches in filters):
+                skip[package['id'], 'test', ('test',), target['name']] = binary
+            else:
+                keep.extend(target_flags(binary))
+        # Explicit Cargo selectors can require a feature that a broad build would skip.
+        if not skip or any(t.get('required-features') for t in package['targets']):
+            broad.extend(['-p', name])
+        else:
+            omitted.update(skip)
+            if keep:
+                narrowed.append(['-p', name, *keep])
+    if not omitted:
+        return [selection]
+
+    groups = ([broad] if broad else []) + narrowed
+    # Package groups can unify different dependency features. Only use the narrower
+    # listings when all retained build roots have the original compilation graph.
+    try:
+        expected = {root for root in cargo_test_roots(cargo, selection, env) if root[:4] not in omitted}
+        actual = set()
+        for group in groups:
+            actual.update(cargo_test_roots(cargo, group, env))
+        if actual != expected:
+            print('profile targets: keeping full listing (Cargo build roots differ)', flush=True)
+            return [selection]
+    except (OSError, subprocess.CalledProcessError, KeyError, ValueError):
+        print('profile targets: keeping full listing (Cargo build roots unavailable)', flush=True)
+        return [selection]
+    print('profile targets: skip linking ' + ', '.join(sorted(omitted.values())), flush=True)
+    return groups
+
+
+def profile_targets(selection, metadata, config, cargo, env):
+    """Plan a build or listing from the union of the focused and fuzzy filters."""
+    try:
+        profiles = tomllib.loads(Path(config).read_text()).get('profile', {})
+        focused = profiles.get('default', {}).get('default-filter', 'all()')
+        fuzzy = profiles.get('fuzzy', {}).get('default-filter', focused)
+        return profile_target_groups(selection, metadata, (filterset(focused), filterset(fuzzy)), cargo, env)
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        print(f'profile targets: keeping full listing ({error})', flush=True)
+        return [selection]
+
+
+def read_metadata(cargo, env):
+    return json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
+                                              env=env, stdin=subprocess.DEVNULL, text=True))
 
 
 def workspace_binaries(metadata, listing, table):
@@ -847,6 +947,14 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         print(text, end='', flush=True)
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
+    env = env.copy()
+    pre_pr_targets = env.pop('TIERS_PRE_PR_TARGETS', '') == '1'
+    profile_build = env.pop('TIERS_PROFILE_TARGETS', '') == '1'
+    if ((pre_pr_targets or profile_build) and profile in ('default', 'fuzzy')
+            and picks is None and not caller_filter and selections is None):
+        metadata = read_metadata(cargo, env)
+        selections = profile_targets(selection, metadata, config, [*prefix, cargo], env)
+
     # Listing and build belong to the caller's prefix; metadata builds nothing.
     listings = []
     for selected in [selection] if selections is None else selections:
@@ -866,10 +974,10 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
             stop(listed, time.monotonic() + WALL_GRACE_S)
             raise
         listings.append(json_listing(listing_output.decode('utf-8', 'backslashreplace')))
-    listing = merge_listings(listings)
     if metadata is None:
-        metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
-                                                    env=env, stdin=subprocess.DEVNULL, text=True))
+        metadata = read_metadata(cargo, env)
+    listing = merge_listings(listings) if listings else {
+        'rust-build-meta': {'target-directory': metadata['target_directory']}, 'rust-suites': {}}
     if picks is not None:
         wanted = {(binary, name) for binary, name, _ in picks}
         listing['rust-suites'] = {

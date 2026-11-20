@@ -8,6 +8,9 @@ impl CallPart {
     pub fn excess(&self, limits: &Limits, authority: &jig_domain_authority::Limits) -> Option<(u64, u64)> {
         match self {
             Self::Delegated(rows) => excess(rows.len(), limits.tasks.batch),
+            Self::WordsRecorded { recorded, unknown } | Self::NoteWritten { recorded, unknown, .. } => {
+                excess(recorded.len().saturating_add(unknown.len()), limits.tasks.inbox_messages)
+            }
             Self::EffectDenied { findings, .. }
             | Self::ToolDenied { findings, .. }
             | Self::DelegationDenied { findings, .. } => excess(

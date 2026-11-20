@@ -4,7 +4,7 @@
 
  Welcome. Set temper up in your browser: open this link on this machine.
 
- http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+ http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
  It signs you in as this temper's owner, once, within 2 hours.
 

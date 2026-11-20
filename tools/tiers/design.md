@@ -1372,6 +1372,14 @@ and nothing reads it as a result.
 
 ### 11.9 By hand
 
+From the workspace root, `tools/tiers/build-profile-targets` takes `--workspace`
+or repeated `-p PACKAGE` and builds the test binaries for the union of the
+focused and fuzzy profiles. It omits an integration binary only when neither
+profile can select a case in it and Cargo gives every retained build root the
+same dependencies and features. Otherwise it keeps the original selection.
+With `TIERS_PROFILE_TARGETS=1`, the two profiles use the same rule when listing
+their tests. Explicit case filters keep their own selection.
+
 `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`,
 from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
 --no-fail-fast` and `NEXTEST_ARGS`, with `--workspace` unless they name a

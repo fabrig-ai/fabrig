@@ -1,5 +1,6 @@
 //! The root composes milestone totals, without reservations (domain/milestones.md, 7).
 use super::*;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_forge as forge;
 
 fn assigned_task(driver: &Driver, task: u64) -> engine::Assignment {
@@ -185,18 +186,18 @@ fn part(driver: &mut Driver) -> temper_client_protocol_wire::v1::MilestonePart {
     w::MilestonePart::decode(&w::CEILINGS, &mut Reader::new(super::parts::bytes(row))).expect("milestone part fixture")
 }
 fn goal_numbers(part: &temper_client_protocol_wire::v1::MilestonePart) -> Vec<u64> {
-    part.goals()
+    part.goals
         .iter()
         .map(|goal| {
             let line = jig_client_protocol_wire::TaskLine::decode(
                 &jig_client_protocol_wire::CEILINGS,
-                &mut skein_lib::Reader::new(goal.line()),
+                &mut skein_lib::Reader::new(&goal.line),
             )
             .expect("milestone part fixture");
             let preset = temper_client_tools::limits::client().client;
             let limits =
                 jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("milestone part fixture");
-            jig_client_protocol_link::translate::documents::chip(line.chip().clone(), &limits)
+            jig_client_protocol_link::translate::documents::chip(line.chip.clone(), &limits)
                 .expect("milestone part fixture")
                 .task
         })
@@ -213,15 +214,15 @@ fn milestone_parts_join_live_and_ended_goals_and_keep_their_totals() {
     driver.env.wall = Wall::from_nanos(driver.env.wall.as_nanos() + 1);
     finish(&mut driver, 3, 3, tasks::TaskResult::Failure { reason: b"failed".as_slice().into() });
     let before = part(&mut driver);
-    assert_eq!(*before.whole(), None);
+    assert_eq!(before.whole, None);
     assert_eq!(goal_numbers(&before), vec![4, 3, 2]);
     assert_eq!(
-        before.goals().get(2).expect("milestone part fixture").headline().as_deref(),
+        before.goals.get(2).expect("milestone part fixture").headline.as_deref(),
         Some(b"Goal landed".as_slice())
     );
-    assert_eq!(before.more(), 0);
+    assert_eq!(before.more, 0);
     let totals = read(&mut driver, 1, 1).expect("milestone part fixture");
-    assert_eq!(before.totals(), &forge::parts::totals(&totals, &w::CEILINGS).expect("milestone part fixture"));
+    assert_eq!(&before.totals, &forge::parts::totals(&totals, &w::CEILINGS).expect("milestone part fixture"));
     let loads = driver.loads.len();
     assert_eq!(part(&mut driver), before);
     assert_eq!(driver.loads.len(), loads);
@@ -234,14 +235,14 @@ fn milestone_parts_join_live_and_ended_goals_and_keep_their_totals() {
         &mut skein_lib::Reader::new(super::parts::bytes(goals.live.get(0).expect("milestone part fixture"))),
     )
     .expect("milestone part fixture");
-    assert_eq!(*goal.milestone(), Some(1));
+    assert_eq!(goal.milestone, Some(1));
     ask(&mut driver, 82, people::Ask::Conclude { project: 1, task: 1 });
     let concluded = driver.task(1).expect("milestone part fixture").concluded.expect("milestone part fixture").at;
     finish(&mut driver, 4, 1, tasks::TaskResult::Report { words: b"last".as_slice().into() });
     let ended = part(&mut driver);
-    assert_eq!(*ended.whole(), Some(concluded.as_nanos()));
+    assert_eq!(ended.whole, Some(concluded.as_nanos()));
     assert_eq!(
-        ended.totals(),
+        &ended.totals,
         &forge::parts::totals(&read(&mut driver, 1, 1).expect("milestone part fixture"), &w::CEILINGS)
             .expect("milestone part fixture")
     );

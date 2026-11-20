@@ -94,7 +94,10 @@
   org and the name (byte strings, bounded as `Adopt`'s owner and name), made
   unadopted, and `playground`, a bool, the repository made as the
   playground's copy, `playground/widget` with its files, the org and name then
-  `playground` and `widget`; `copies`, `CopyAddresses`, at most
+  `playground` and `widget`, and `sample`, a bool, appended, the
+  repository made as the sample with its files, the org and name then
+  `work` and `hello`, as the welcome's sheet sends it; neither set, the
+  starter workflow alone (`../../protocol/setup/owned.md`, 7); `copies`, `CopyAddresses`, at most
   `FIRST_COPIES` (16) addresses, each at most 512 bytes in the form the
   client's check gives (`../../draft/repository-copies.md`, 5.4), which make no
   repository at set up; or `nothing`. Its outcome, `Answer`'s: *setting up*, the box asked
@@ -236,9 +239,17 @@
   refused*; or *unknown*.
 - **`TriageFinding`:** of the project it names, from the same: `project`,
   u32; `number`, u32; `act`, a `Triage`: `route`, the goal's task (u64);
-  `backlog`, no fields; or `drop`, its reason, 1 to 400 bytes
-  (`../../domain/findings.md`, section 6). Its outcome: *triaged*,
-  `triaged`, no fields, once committed; *finding refused*; or *unknown*.
+  `backlog`, no fields; `drop`, its reason, 1 to 400 bytes
+  (`../../domain/findings.md`, section 6); `repair`, `more`, the
+  findings after `number`, at most 15 u32s, and `words`, 1 to 4,096
+  bytes (`../../domain/red-repairs.md`, section 4); or `blame`,
+  `landing`, option, a commit of 20 or 32 bytes, none for no landing,
+  and `why`, 1 to 200 bytes (`../../domain/red-repairs.md`, section
+  3). Its outcome: *triaged*, `triaged`, with `goal`, option u64, the
+  goal a `repair` made, none for the other acts, once committed;
+  *finding refused*; or *unknown*. `repair`, `blame` and `goal` came
+  with the wire's next layout, unbridged (`../../protocol/wires.md`,
+  section 9).
 - **`TierActRequest`,** `tier_act`, appended after `TriageFinding`: of
   the project it names, from a project owner or the deployment's owner,
   as `FollowActRequest` (`../../domain/after-landing.md`, section 3, *A
@@ -278,8 +289,10 @@
   16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
   `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a
   route's task not a live goal of the project; `ended`, the finding
-  already `routed` or `dropped`; or `words`, a field past its bounds or
-  not UTF-8, naming it.
+  already `routed` or `dropped`; or `words`, at most 1,024 bytes: a
+  field past its bounds or not UTF-8, naming it, or a `repair`'s or
+  `blame`'s refusal in its words (`../../domain/red-repairs.md`, 4.2
+  and section 3).
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -510,7 +523,8 @@
   unmarked, or other. The diagnostic `ended` stays separate; the client
   selects its stop's words from this typed fact, never its text;
   its first repository, `first`: none, or the set up's org, name,
-  whether it is the playground's copy (`playground`, appended), runner
+  whether it is the playground's copy (`playground`, appended) or the
+  sample (`sample`, appended after it), runner
   label (at most 64 bytes) and its state, `FirstState`, with no project:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
@@ -526,8 +540,11 @@
   `Adopt`'s), whether it is suspended and whether it is a stray, never
   accepted through temper's link (booleans); its last connect's end,
   `ended`: none, or `ConnectStopped`, why the run of a `Connect` or an
-  `Install` stopped, text of at most 256 bytes, in the setup host's
-  words (`deployment.md`); on GitHub, its App's way, `app`: none,
+  `Install` stopped, or, on GitHub, how the way in its new tab ended
+  without an installation accepted (`served.md`, 1, *Each way's end
+  reaches the forge's row*), text of at most 256 bytes, in the setup
+  host's or the routing's words (`deployment.md`), its shape unchanged;
+  on GitHub, its App's way, `app`: none,
   `Manifest` or `Pasted`, how the App its records hold was connected
   since the engine started, the forge domain's memory alone, so none
   after a restart and while no App is connected (`deployment.md`,

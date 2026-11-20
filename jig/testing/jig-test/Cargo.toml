@@ -11,6 +11,7 @@ publish.workspace = true
 jig-protocol-config-fixtures.workspace = true
 skein-fail-stop.workspace = true
 jig-test-service.workspace = true
+jig-protocol-store.workspace = true
 jig-protocol-config.workspace = true
 jig-domain-link.workspace = true
 jig-domain-core.workspace = true
@@ -65,7 +66,6 @@ skein-fake-peers.workspace = true
 skein-fake-llm-domain.workspace = true
 skein-fake-llm-protocol.workspace = true
 skein-llm.workspace = true
-jig-protocol-store.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 

@@ -137,12 +137,15 @@ does for the client:
   core leaves unused, its request refused, replayed, joined to another
   or cut by a stop, is named in one output of the core's, which temper's
   root forwards to jig's clients' component to erase.
-- **`back`,** on a GitHub connect and an install, is the page's address
+- **`back`,** on a GitHub connect and an install, is a page's address
   the setup route sends the browser back to once GitHub is done
   (`forge/served.md`, 1). The service checks it at decode, before the root:
   one leading `/`, not `//`, no `\`, no scheme, of visible ASCII, at most
-  512 bytes; one that is not is answered undecodable. None, from the
-  terminal, leaves the route's own page.
+  512 bytes; one that is not is answered undecodable. None leaves the
+  route's own page, and none is what every client of temper's sends
+  since its way goes in a new tab (the look request `github-new-tab`;
+  `forge/deployment.md`, *GitHub's way, in a new tab*): the field stays
+  for the wire's sake, and the routes still honour one a request names.
 - **Who may:** a person whose role on project 0 is `Owner`; in
   standalone, the deployment's owner, for every request above. jig admits each by key and
   refuses at admission as for any request, in jig's words; the root

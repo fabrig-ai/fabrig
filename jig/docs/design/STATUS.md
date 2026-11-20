@@ -19,8 +19,11 @@ ended, its report counting their endings; a party's batch may name an
 ended dependency, one done adding no wait (`domain/tasks/gatherings.status.md`). Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
-sign-in; bearers cannot read or decide approvals. The approval-expiry reservation remains `protocol/client/sign-in.status.md` (Departs, the whole document).
-Approval between hosts and listing sign-ins remain deferred
+sign-in; bearers cannot read or decide approvals. Asked by a public
+name, an approval keeps its kind and source, at most two waiting per
+source, and one with a loopback return is taken only with the grant
+its decision answered. The approval-expiry reservation remains `protocol/client/sign-in.status.md` (Departs, the whole document).
+Listing sign-ins remains deferred
 (`protocol/client/README.md`, section 12). Both profiles hold returning
 redirects of 16,384 bytes and a browser's request head of 24,593;
 configuration refuses a driver that holds less than its parts. An
@@ -65,9 +68,13 @@ settings, a charter's overlay kept over its default
 its connector neither reports nor names as dropped keeps its state at the
 next start (`domain/engine/README.md`, `domain/connectors.md`). A charter's, template's, policy's
 and model's number is 1 to 64, the defaults' 1 to 32 and a deployment's
-own 33 to 64: the one check refuses the rest as *range*, at a set, a
-proposal's entrance and decision, and a start, which names every one at
-once; an added model takes the highest free number from 64 down to 33
+own 33 to 64: the one check refuses the rest as *range*, at a set and a
+proposal's entrance and decision, judging what their items set, and at
+a start, which names every default out of range and every change past
+64 at once; a deployment's own item a store already holds below 33 is
+kept where it is, with its references, and warned of at each start, and
+a release's new default on its number refuses that start, naming it;
+an added model takes the highest free number from 64 down to 33
 (`domain/engine/settings.md`, 1, 7 and 11). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks/proposals.md`;

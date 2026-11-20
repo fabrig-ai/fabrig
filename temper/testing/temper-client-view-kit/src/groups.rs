@@ -23,25 +23,21 @@ fn event(root: &mut d::Domain, event: Event, out: &mut Queue<d::Request>) {
 
 #[must_use]
 pub fn row(number: u32, title: &str, severity: w::Severity, kind: w::FindingKind, hours_old: u64) -> w::FindingRow {
-    w::FindingRow::new(
-        &w::CEILINGS,
-        w::FindingRowParts {
-            number,
-            at: NOW.as_nanos() - hours_old * 3_600_000_000_000,
-            kind,
-            severity,
-            area: None,
-            state: w::FindingState::New,
-            title: title.as_bytes().into(),
-            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap()),
-            why: None,
-            hander: None,
-            goal: None,
-            reason: None,
-            cleared: None,
-        },
-    )
-    .unwrap()
+    w::FindingRow {
+        number,
+        at: NOW.as_nanos() - hours_old * 3_600_000_000_000,
+        kind,
+        severity,
+        area: None,
+        state: w::FindingState::New,
+        title: title.as_bytes().into(),
+        holder: w::Holder::Task(w::HolderTask { number: 55 }),
+        why: None,
+        hander: None,
+        goal: None,
+        reason: None,
+        cleared: None,
+    }
 }
 
 #[must_use]
@@ -223,47 +219,33 @@ fn at_with(
                     },
             } => {
                 let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS) else { continue };
-                let bytes = match watching.watch() {
+                let bytes = match &watching.watch {
                     w::Watch::Findings(subject) => {
-                        let holder = w::Holder::Party(
-                            w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap(),
-                        );
-                        wire::findings(
-                            &w::Findings::new(
-                                &w::CEILINGS,
-                                w::FindingsParts {
-                                    project: subject.project(),
-                                    rows: List::from_boxed(if subject.project() != PROJECT {
-                                        Box::default()
-                                    } else if match subject.filter() {
-                                        w::FindingsFilter::Triage(filter) => filter.mine(),
-                                        w::FindingsFilter::Goal(_) | w::FindingsFilter::Milestone(_) => false,
-                                    } {
-                                        mine.into()
-                                    } else {
-                                        rows.into()
-                                    }),
-                                    areas: List::with_capacity(0),
-                                    triager: None,
-                                    holder,
-                                    cut: false,
-                                },
-                            )
-                            .unwrap(),
-                        )
+                        let holder = w::Holder::Party(w::HolderParty { number: 1 });
+                        wire::findings(&w::Findings {
+                            project: subject.project,
+                            rows: List::from_boxed(if subject.project != PROJECT {
+                                Box::default()
+                            } else if match &subject.filter {
+                                w::FindingsFilter::Triage(filter) => filter.mine,
+                                w::FindingsFilter::Goal(_) | w::FindingsFilter::Milestone(_) => false,
+                            } {
+                                mine.into()
+                            } else {
+                                rows.into()
+                            }),
+                            areas: List::with_capacity(0),
+                            triager: None,
+                            holder,
+                            cut: false,
+                        })
                     }
-                    w::Watch::Decided(subject) => wire::decisions(
-                        &w::Decisions::new(
-                            &w::CEILINGS,
-                            w::DecisionsParts {
-                                project: subject.project(),
-                                rows: List::with_capacity(0),
-                                asked: List::with_capacity(0),
-                                cut: false,
-                            },
-                        )
-                        .unwrap(),
-                    ),
+                    w::Watch::Decided(subject) => wire::decisions(&w::Decisions {
+                        project: subject.project,
+                        rows: List::with_capacity(0),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    }),
                     _ => continue,
                 };
                 event(

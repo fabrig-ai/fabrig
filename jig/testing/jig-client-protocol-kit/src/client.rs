@@ -1,4 +1,5 @@
 //! The application-held client against the real engine over native HTTP bytes.
+use jig_client_protocol_wire::Record as _;
 mod accounts;
 mod facts;
 mod operations;
@@ -42,8 +43,8 @@ impl Referee {
     }
     fn stored(&mut self, record: &client::Record) {
         let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(&record.bytes)).expect("client's kept record");
-        let entry = w::TableEntry::decode(&w::CEILINGS, &mut Reader::new(kept.record())).expect("table record");
-        self.stored.insert(*entry.key(), entry.scope());
+        let entry = w::TableEntry::decode(&w::CEILINGS, &mut Reader::new(kept.record.as_ref())).expect("table record");
+        self.stored.insert(entry.key, entry.scope);
     }
     /// # Errors
     /// Refuses an exchange whose record is not stored or whose party is unconfirmed.
@@ -204,10 +205,10 @@ impl Front {
                     let keyed =
                         w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("client's keyed request");
                     let party = self.client.link().party;
-                    if let Some(value) = keyed.value() {
-                        self.referee.carrying(*keyed.key(), value.expose(), party).expect("a carried value sent once");
+                    if let Some(value) = &keyed.value {
+                        self.referee.carrying(keyed.key, value.expose(), party).expect("a carried value sent once");
                     } else {
-                        self.referee.keyed(*keyed.key(), party).expect("kept and confirmed exchange");
+                        self.referee.keyed(keyed.key, party).expect("kept and confirmed exchange");
                     }
                 }
                 self.connections.down(

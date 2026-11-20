@@ -75,7 +75,8 @@ fn jobs_mixed_with_runs_keep_their_order() {
                         host::LinkUp::Turn { .. } => 0,
                         host::LinkUp::JobAnswer { .. } => 1,
                         host::LinkUp::Answer { .. } => 2,
-                        host::LinkUp::ListRead { .. }
+                        host::LinkUp::UsageRead { .. }
+                        | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
@@ -83,6 +84,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
                         | host::LinkUp::Activity { .. }
                         | host::LinkUp::Call { .. }
                         | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::AccountRefused { .. } => panic!("load record"),

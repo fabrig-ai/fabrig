@@ -169,7 +169,10 @@ fn unusual_received_tool_id_stays_literal_and_is_rejected_for_replay() {
     assert!(matches!(&answer.content[0], Block::ToolCall { id, .. } if id.as_ref() == b"tool|literal"));
     let mut followup = anthropic_call(2);
     followup.prompt.messages = Box::new([Message { role: Role::Assistant, content: answer.content.clone() }]);
-    assert!(matches!(client::Client::prepare(followup, &limits()), Err(Error::Invalid)));
+    assert!(matches!(
+        client::Client::prepare(followup, &limits()),
+        Err(Error::Invalid { cause: skein_llm::Invalid::Identifier })
+    ));
 }
 
 #[test]
@@ -218,7 +221,10 @@ fn signed_and_redacted_thinking_replay_preserves_bytes_and_order() {
     assert!(wire.find("hidden-opaque").unwrap() < wire.find("Answer").unwrap());
     let mut other_provider = call(3);
     other_provider.prompt.messages = Box::new([Message { role: Role::Assistant, content: answer.content.clone() }]);
-    assert!(matches!(client::Client::prepare(other_provider, &limits()), Err(Error::Unsupported)));
+    assert!(matches!(
+        client::Client::prepare(other_provider, &limits()),
+        Err(Error::Unsupported { cause: skein_llm::Unsupported::ReplayProvider })
+    ));
 }
 
 #[test]

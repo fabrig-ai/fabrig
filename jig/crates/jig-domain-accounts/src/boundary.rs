@@ -42,6 +42,15 @@ pub enum Event {
         failure: crate::ReadFailure,
         at: Wall,
     },
+    /// A run's program reports a usage window through its live source (accounts.md, 3.7).
+    UsageRead {
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
+    },
+    Usage {
+        source: u32,
+        window: jig_domain_link::UsageWindow,
+    },
     /// A usable host login reports through its live program source (accounts.md, 3.7).
     ProgramSaid {
         name: Box<[u8]>,
@@ -388,6 +397,13 @@ pub enum End {
 /// changes, and the counter whenever it moves.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    CancelUsage {
+        read: u64,
+    },
+    ReadUsage {
+        read: u64,
+        source: crate::SourceName,
+    },
     ReadList {
         account: u32,
         read: u64,

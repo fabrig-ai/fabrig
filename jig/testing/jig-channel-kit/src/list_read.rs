@@ -11,6 +11,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_fake_machine::Item;
 use skein_lib::{Duration, Reader, Secret, Time};
 use skein_world::{HostedProgram, Inherited, StartupRoot};
@@ -222,7 +223,7 @@ impl Judge {
                             let answer = wire::ListRead::decode(&wire::CEILINGS, &mut Reader::new(bytes))
                                 .map_err(|why| format!("engine receives whole list read: {why:?}"))?;
                             {
-                                let (observed_value, wanted) = (&(answer.read()), &(READ));
+                                let (observed_value, wanted) = (&(answer.read), &(READ));
                                 if observed_value != wanted {
                                     return Err(format!(
                                         "read number returns through the channel; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"

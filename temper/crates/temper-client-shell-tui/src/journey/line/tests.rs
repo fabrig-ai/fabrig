@@ -1,4 +1,5 @@
 use super::{Line, Sent, Streamed, Unreadable, lines};
+use crate::loopback::{Answer, Returned};
 use jig_client::Message;
 use skein_lib::{Time, Token, Wall};
 use skein_ui_screen::{Rgb, Size};
@@ -63,6 +64,52 @@ fn login_records_keep_the_number_exit_and_name_but_no_line() {
         b"unlend 1\n",
     ] {
         assert!(lines(text).is_err(), "{text:?}");
+    }
+}
+
+#[test]
+fn loopback_records_round_trip_their_words_and_fields() {
+    let rows: Vec<(Line, &[u8])> = vec![
+        (Line::Listening(Some(43210)), b"listening 43210\n"),
+        (Line::Listening(None), b"listening none\n"),
+        (
+            Line::Returned(Returned {
+                get: true,
+                target: bytes(b"/approved?grant=sample"),
+                host: Some(bytes(b"127.0.0.1:43210")),
+            }),
+            b"returned get \"/approved?grant=sample\" \"127.0.0.1:43210\"\n",
+        ),
+        (
+            Line::Returned(Returned { get: false, target: bytes(b"/\xFF"), host: None }),
+            b"returned other \"/\\xFF\" none\n",
+        ),
+        (Line::Listen, b"listen\n"),
+        (Line::Unlisten, b"unlisten\n"),
+        (
+            Line::Answer(Answer::Redirect { to: bytes(b"https://engine.example/terminal?code=ABCD-EFGH") }),
+            b"answer redirect \"https://engine.example/terminal?code=ABCD-EFGH\"\n",
+        ),
+        (Line::Answer(Answer::NotFound), b"answer not-found\n"),
+    ];
+    for (record, text) in rows {
+        let mut encoded = Vec::new();
+        record.write(&mut encoded);
+        assert_eq!(encoded, text);
+        assert!(lines(&encoded).expect("readable loopback line") == vec![record]);
+    }
+    for bad in [
+        b"listening 65536\n".as_slice(),
+        b"listening -\n",
+        b"returned post \"/\" none\n",
+        b"returned get \"/\"\n",
+        b"listen 1\n",
+        b"unlisten 1\n",
+        b"answer 404\n",
+        b"answer redirect\n",
+        b"answer not-found \"/\"\n",
+    ] {
+        assert!(lines(bad).is_err(), "{bad:?}");
     }
 }
 

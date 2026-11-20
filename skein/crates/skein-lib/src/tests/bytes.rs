@@ -10,6 +10,32 @@ use crate::bytes::{
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "parse fixture addresses and compare their bytes with core's Display"
+)]
+fn ip_text_matches_core_display_at_the_address_forms() {
+    for text in [
+        "0.0.0.0",
+        "203.0.113.7",
+        "255.255.255.255",
+        "::",
+        "::1",
+        "2001:db8::1",
+        "1:0:0:2:0:0:0:3",
+        "1:0:0:2:0:0:3:4",
+        "::ffff:192.0.2.1",
+        "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+        "1:2:3:4:5:6:0:0",
+        "1:2:3:4:5:6:0:8",
+    ] {
+        let ip: core::net::IpAddr = text.parse().unwrap();
+        assert_eq!(crate::bytes::ip_text(ip).as_ref(), format!("{ip}").as_bytes(), "{text}");
+    }
+}
+
+#[test]
 fn concat_copies_parts_in_order_into_an_exact_length_box() {
     let bytes: Box<[u8]> = concat(&[b"ab", b"", b"c"]);
     assert_eq!(&*bytes, b"abc");

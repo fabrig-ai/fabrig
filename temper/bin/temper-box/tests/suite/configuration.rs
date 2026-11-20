@@ -1,5 +1,6 @@
 use crate::support;
 use temper_box_shell::directories::jig_directories;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 #[path = "creating.rs"]
 mod creating;
 #[path = "configuration/turn_landing.rs"]

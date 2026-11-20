@@ -22,6 +22,7 @@ use skein_lib::base64::{self, Alphabet};
 
 pub use crate::system::{
     directory_access, effective_user, make_root, open_append, open_root, prepare_output, process_id,
+    resolve_system_links,
 };
 
 /// How startup adopts a standard output descriptor (runtime/io/files.md, section 1).

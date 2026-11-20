@@ -212,6 +212,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 | `file` | a party with a role in the project; an agent task of the project, by its tool | a new finding, `new`, its owner by section 4, who hears it (section 5) |
 | `hand` | the finding's holder, or a party of it; a project owner | its area set, its why kept, its new owner told |
 | `route`, `backlog`, `drop` | the same | `findings.md`, section 6 |
+| `repair`, `blame` | the same, on red findings filed under `wait: landed` | `red-repairs.md`, sections 3 and 4 |
 | `list`, `show`, `areas` | anyone of the project | the project's findings, one whole, the areas with their owners and holders |
 
 - **A party of a holder:** the party itself; a party holding the role;

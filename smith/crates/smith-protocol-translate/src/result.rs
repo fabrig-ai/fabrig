@@ -2,8 +2,9 @@
 //! smith/docs/design/protocol/channel.md, section 5). No state or policy is kept here.
 use crate::Error;
 use alloc::boxed::Box;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader};
 use smith_charter as wire;
+use smith_charter::Record;
 use smith_domain::run;
 
 /// Decode the accepted outcome body after the host channel has bounded it.
@@ -12,38 +13,42 @@ pub fn decode_declared(bytes: &[u8], limits: &smith_charter::v5::Limits) -> Resu
     let Ok(record) = smith_charter::RunResult::decode(limits, &mut reader) else {
         return Err(Error::InvalidResult);
     };
-    let fields = decode_fields(record.fields())?;
-    let declared = match record.form() {
+    let fields = decode_fields(&record.fields)?;
+    let declared = match &record.form {
         smith_charter::Form::Change => {
-            if record.label().is_some() || !record.text().is_empty() || !record.items().is_empty() {
+            if record.label.is_some() || !record.text.as_ref().is_empty() || !record.items.is_empty() {
                 return Err(Error::InvalidResult);
             }
             run::outcome::Declared::Change(run::outcome::Change { fields })
         }
         smith_charter::Form::Report => {
-            if record.label().is_some() || !record.items().is_empty() {
+            if record.label.is_some() || !record.items.is_empty() {
                 return Err(Error::InvalidResult);
             }
-            run::outcome::Declared::Report(run::outcome::Report { text: Box::from(record.text()), fields })
+            run::outcome::Declared::Report(run::outcome::Report { text: Box::from(record.text.as_ref()), fields })
         }
         smith_charter::Form::Failure => {
-            if record.label().is_some() || !record.items().is_empty() {
+            if record.label.is_some() || !record.items.is_empty() {
                 return Err(Error::InvalidResult);
             }
-            run::outcome::Declared::Failure(run::outcome::DeclaredFailure { reason: Box::from(record.text()), fields })
+            run::outcome::Declared::Failure(run::outcome::DeclaredFailure {
+                reason: Box::from(record.text.as_ref()),
+                fields,
+            })
         }
         smith_charter::Form::Verdict => {
-            let Some(label) = record.label() else { return Err(Error::InvalidResult) };
-            let mut items = List::with_capacity(record.items().len());
-            for item in record.items() {
-                let value = run::outcome::Item { kind: Box::from(item.kind()), fields: decode_fields(item.fields())? };
+            let Some(label) = &record.label else { return Err(Error::InvalidResult) };
+            let mut items = List::with_capacity(record.items.len());
+            for item in &record.items {
+                let value =
+                    run::outcome::Item { kind: Box::from(item.kind.as_ref()), fields: decode_fields(&item.fields)? };
                 if items.push(value).is_err() {
                     return Err(Error::InvalidResult);
                 }
             }
             run::outcome::Declared::Verdict(run::outcome::Verdict {
                 name: label.clone(),
-                text: Box::from(record.text()),
+                text: Box::from(record.text.as_ref()),
                 fields,
                 items: items.into_boxed(),
             })
@@ -55,7 +60,7 @@ pub fn decode_declared(bytes: &[u8], limits: &smith_charter::v5::Limits) -> Resu
 fn decode_fields(source: &List<smith_charter::Field>) -> Result<Box<[run::outcome::Field]>, Error> {
     let mut fields = List::with_capacity(source.len());
     for field in source {
-        let item = run::outcome::Field { name: Box::from(field.name()), value: Box::from(field.text()) };
+        let item = run::outcome::Field { name: field.name.clone(), value: field.text.clone() };
         if fields.push(item).is_err() {
             return Err(Error::InvalidResult);
         }
@@ -72,12 +77,8 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v5::Limits)
         run::outcome::Declared::Verdict(verdict) => {
             for item in &verdict.items {
                 let mut item_fields = List::with_capacity(limits.item_fields);
-                copy_fields(&item.fields, &mut item_fields, limits)?;
-                let item =
-                    match wire::Item::new(limits, wire::ItemParts { kind: item.kind.clone(), fields: item_fields }) {
-                        Ok(value) => value,
-                        Err(problem) => return Err(Error::CharterBody(problem)),
-                    };
+                copy_fields(&item.fields, &mut item_fields)?;
+                let item = wire::Item { kind: item.kind.clone(), fields: item_fields };
                 if items.push(item).is_err() {
                     return Err(Error::Capacity);
                 }
@@ -89,36 +90,17 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v5::Limits)
             (wire::Form::Failure, None, &failure.reason[..], &failure.fields[..])
         }
     };
-    copy_fields(values, &mut fields, limits)?;
-    let record = match wire::RunResult::new(
-        limits,
-        wire::RunResultParts { form, label, text: Box::from(text), fields, items },
-    ) {
-        Ok(value) => value,
-        Err(problem) => return Err(Error::CharterBody(problem)),
-    };
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::Capacity);
-    };
-    let mut writer = Writer::new(length);
-    match record.encode(&mut writer) {
-        Ok(value) => value,
-        Err(problem) => return Err(Error::Write(problem)),
+    copy_fields(values, &mut fields)?;
+    let record = wire::RunResult { form, label, text: Box::from(text), fields, items };
+    match record.encode(limits) {
+        Ok(bytes) => Ok(bytes),
+        Err(problem) => Err(Error::CharterBody(problem)),
     }
-    Ok(writer.finish())
 }
 
-fn copy_fields(
-    values: &[run::outcome::Field],
-    target: &mut List<wire::Field>,
-    limits: &wire::v5::Limits,
-) -> Result<(), Error> {
+fn copy_fields(values: &[run::outcome::Field], target: &mut List<wire::Field>) -> Result<(), Error> {
     for field in values {
-        let value =
-            match wire::Field::new(limits, wire::FieldParts { name: field.name.clone(), text: field.value.clone() }) {
-                Ok(value) => value,
-                Err(problem) => return Err(Error::CharterBody(problem)),
-            };
+        let value = wire::Field { name: field.name.clone(), text: field.value.clone() };
         if target.push(value).is_err() {
             return Err(Error::Capacity);
         }

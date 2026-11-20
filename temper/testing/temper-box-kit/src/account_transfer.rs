@@ -31,7 +31,7 @@ pub struct Running {
 }
 impl Running {
     pub fn terminate(&self) {
-        let status = Command::new("/usr/bin/kill")
+        let status = Command::new("/bin/kill")
             .args(["-TERM", &self.child.as_ref().expect("ctl").id().to_string()])
             .env_clear()
             .status()

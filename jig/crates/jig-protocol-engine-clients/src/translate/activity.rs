@@ -9,69 +9,49 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
         t::Line::Words { .. } | t::Line::Heard(_) | t::Line::Notified { .. } => {
             return question_answer::answer(value, limits);
         }
-        t::Line::RunBegan { attempt, why: value, resumed } => w::Activity::RunBegan(w::ActivityRunBegan::new(
-            limits,
-            w::ActivityRunBeganParts { attempt: *attempt, why: why(*value, limits)?, resumed: *resumed },
-        )?),
-        t::Line::RunEnded { attempt, end: value, spent } => w::Activity::RunEnded(w::ActivityRunEnded::new(
-            limits,
-            w::ActivityRunEndedParts { attempt: *attempt, end: end(*value, limits)?, spent: *spent },
-        )?),
-        t::Line::Turn { reply, attempt, turn, read } => w::Activity::Turn(w::ActivityTurn::new(
-            limits,
-            w::ActivityTurnParts { reply: *reply, attempt: *attempt, turn: *turn, read: *read },
-        )?),
-        t::Line::Decided { revision, proposal } => w::Activity::Decided(w::ActivityDecided::new(
-            limits,
-            w::ActivityDecidedParts {
-                revision: *revision,
-                proposal: match proposal {
-                    Some(value) => Some(w::ActivityDecidedProposal::new(
-                        limits,
-                        w::ActivityDecidedProposalParts { number: value.number, made: value.made },
-                    )?),
-                    None => None,
-                },
+        t::Line::RunBegan { attempt, why: value, resumed, fresh: cause } => {
+            w::Activity::RunBegan(w::ActivityRunBegan {
+                attempt: *attempt,
+                why: why(*value, limits)?,
+                resumed: *resumed,
+                fresh: fresh(*cause),
+            })
+        }
+        t::Line::RunEnded { attempt, end: value, spent } => {
+            w::Activity::RunEnded(w::ActivityRunEnded { attempt: *attempt, end: end(*value, limits)?, spent: *spent })
+        }
+        t::Line::Turn { reply, attempt, turn, read } => {
+            w::Activity::Turn(w::ActivityTurn { reply: *reply, attempt: *attempt, turn: *turn, read: *read })
+        }
+        t::Line::Decided { revision, proposal } => w::Activity::Decided(w::ActivityDecided {
+            revision: *revision,
+            proposal: match proposal {
+                Some(value) => Some(w::ActivityDecidedProposal { number: value.number, made: value.made }),
+                None => None,
             },
-        )?),
-        t::Line::NowWritten { attempt, line } => w::Activity::NowWritten(w::ActivityNowWritten::new(
-            limits,
-            w::ActivityNowWrittenParts { attempt: *attempt, line: line.clone() },
-        )?),
-        t::Line::Stood { attempt, words } => w::Activity::Stood(w::ActivityStood::new(
-            limits,
-            w::ActivityStoodParts { attempt: *attempt, words: words.clone() },
-        )?),
-        t::Line::TalkOpened { party } => {
-            w::Activity::TalkOpened(w::TalkOpened::new(limits, w::TalkOpenedParts { party: *party })?)
+        }),
+        t::Line::NowWritten { attempt, line } => {
+            w::Activity::NowWritten(w::ActivityNowWritten { attempt: *attempt, line: line.clone() })
         }
-        t::Line::TalkEnded { party, lapsed } => {
-            w::Activity::TalkEnded(w::TalkEnded::new(limits, w::TalkEndedParts { party: *party, lapsed: *lapsed })?)
+        t::Line::Stood { attempt, words } => {
+            w::Activity::Stood(w::ActivityStood { attempt: *attempt, words: words.clone() })
         }
-        t::Line::SessionEnded { attempt, end } => w::Activity::SessionEnded(w::ActivitySessionEnded::new(
-            limits,
-            w::ActivitySessionEndedParts { attempt: *attempt, end: session_end(*end) },
-        )?),
+        t::Line::TalkOpened { party } => w::Activity::TalkOpened(w::TalkOpened { party: *party }),
+        t::Line::TalkEnded { party, lapsed } => w::Activity::TalkEnded(w::TalkEnded { party: *party, lapsed: *lapsed }),
+        t::Line::SessionEnded { attempt, end } => {
+            w::Activity::SessionEnded(w::ActivitySessionEnded { attempt: *attempt, end: session_end(*end) })
+        }
         t::Line::Kept { attempt, pending, question } => {
             let mut rows =
                 skein_lib::List::with_capacity(u32::try_from(pending.len()).expect("bounded pending dependencies"));
             for number in pending {
                 rows.push(*number).expect("same pending dependencies");
             }
-            w::Activity::Kept(w::ActivityKept::new(
-                limits,
-                w::ActivityKeptParts { attempt: *attempt, pending: rows, question: *question },
-            )?)
+            w::Activity::Kept(w::ActivityKept { attempt: *attempt, pending: rows, question: *question })
         }
-        t::Line::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone::new(
-            limits,
-            w::ActivityMilestoneParts { position: *position },
-        )?),
+        t::Line::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone { position: *position }),
     };
-    w::ActivityLine::new(
-        limits,
-        w::ActivityLineParts { task: value.task, position: value.position, at: value.at.as_nanos(), line },
-    )
+    Ok(w::ActivityLine { task: value.task, position: value.position, at: value.at.as_nanos(), line })
 }
 fn session_end(value: t::SessionEnd) -> w::SessionEnd {
     match value {
@@ -90,26 +70,22 @@ fn why(value: t::Why, limits: &w::Limits) -> Result<w::RunWhy, w::Problem> {
     Ok(match value {
         t::Why::Made => w::RunWhy::Made,
         t::Why::Ready => w::RunWhy::Ready,
-        t::Why::Message { message } => {
-            w::RunWhy::Message(w::RunWhyMessage::new(limits, w::RunWhyMessageParts { message })?)
-        }
+        t::Why::Message { message } => w::RunWhy::Message(w::RunWhyMessage { message }),
         t::Why::Released => w::RunWhy::Released,
-        t::Why::Retry { tries } => {
-            w::RunWhy::Retry(w::RunWhyRetry::new(limits, w::RunWhyRetryParts { tries: chips::tries(tries, limits)? })?)
-        }
+        t::Why::Retry { tries } => w::RunWhy::Retry(w::RunWhyRetry { tries: chips::tries(tries, limits)? }),
         t::Why::Narrowed => w::RunWhy::Narrowed,
         t::Why::Changed => w::RunWhy::Changed,
     })
 }
-pub(super) fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
+pub(super) fn end(value: t::EndKind, _limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
     Ok(match value {
         t::EndKind::Parked => w::RunEnd::Parked,
         t::EndKind::Finished => w::RunEnd::Finished,
         t::EndKind::Cancelled => w::RunEnd::Cancelled,
-        t::EndKind::Failed { class, invalid_result } => w::RunEnd::Failed(w::RunEndFailed::new(
-            limits,
-            w::RunEndFailedParts { class: chips::class(class)?, invalid_reason: invalid_reason(class, invalid_result) },
-        )?),
+        t::EndKind::Failed { class, invalid_result } => w::RunEnd::Failed(w::RunEndFailed {
+            class: chips::class(class)?,
+            invalid_reason: invalid_reason(class, invalid_result),
+        }),
         t::EndKind::Refused => w::RunEnd::Refused,
     })
 }
@@ -140,7 +116,7 @@ pub fn page_turn(
     private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::DecodedActivityLine, w::Problem> {
-    let invalid = w::Problem { path: w::Path::DecodedActivityLineDecoded, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::DECODED_ACTIVITY_LINE_DECODED, reason: skein_codec::Reason::Tag };
     if value.task != task {
         return Err(invalid);
     }
@@ -159,20 +135,14 @@ pub fn page_turn(
                     };
                     Some(archive(record, projection, limits)?)
                 }
-                reads::PageTurn::TooLarge { spent, read, at, bytes } => Some(w::ArchivedTurn::new(
-                    limits,
-                    w::ArchivedTurnParts {
-                        task,
-                        name: w::TurnName::new(limits, w::TurnNameParts { attempt: *attempt, number: *turn })?,
-                        cumulative: *spent,
-                        read: *read,
-                        at: at.as_nanos(),
-                        turn: w::TurnBytes::TooLarge(w::TurnTooLarge::new(
-                            limits,
-                            w::TurnTooLargeParts { bytes: *bytes },
-                        )?),
-                    },
-                )?),
+                reads::PageTurn::TooLarge { spent, read, at, bytes } => Some(w::ArchivedTurn {
+                    task,
+                    name: w::TurnName { attempt: *attempt, number: *turn },
+                    cumulative: *spent,
+                    read: *read,
+                    at: at.as_nanos(),
+                    turn: w::TurnBytes::TooLarge(w::TurnTooLarge { bytes: *bytes }),
+                }),
                 reads::PageTurn::Unread => None,
             }
         }
@@ -195,7 +165,7 @@ pub fn page_turn(
             None
         }
     };
-    w::DecodedActivityLine::new(limits, w::DecodedActivityLineParts { source: line(value, limits)?, decoded })
+    Ok(w::DecodedActivityLine { source: line(value, limits)?, decoded })
 }
 
 /// The same immutable archive serves a page and a single-turn read.
@@ -204,7 +174,7 @@ pub fn archive(
     private: Option<&crate::Private>,
     limits: &w::Limits,
 ) -> Result<w::ArchivedTurn, w::Problem> {
-    let path = w::Path::TurnCarriedBytes;
+    let path = w::paths::TURN_CARRIED_BYTES;
     if record.transcript.len()
         > skein_lib::length::usize_of(limits.turn_carried_bytes.min(w::CEILINGS.turn_carried_bytes))
     {
@@ -231,15 +201,25 @@ pub fn archive(
             }
         }
     };
-    w::ArchivedTurn::new(
-        limits,
-        w::ArchivedTurnParts {
-            task: record.task,
-            name: w::TurnName::new(limits, w::TurnNameParts { attempt: record.attempt, number: record.turn })?,
-            cumulative: record.spent,
-            read: record.read,
-            at: record.at.as_nanos(),
-            turn: w::TurnBytes::Carried(w::TurnCarried::new(limits, w::TurnCarriedParts { bytes })?),
-        },
-    )
+    Ok(w::ArchivedTurn {
+        task: record.task,
+        name: w::TurnName { attempt: record.attempt, number: record.turn },
+        cumulative: record.spent,
+        read: record.read,
+        at: record.at.as_nanos(),
+        turn: w::TurnBytes::Carried(w::TurnCarried { bytes }),
+    })
+}
+
+fn fresh(value: Option<t::Fresh>) -> Option<w::RunFresh> {
+    match value {
+        None => None,
+        Some(value) => Some(match value {
+            t::Fresh::Moved => w::RunFresh::Moved,
+            t::Fresh::Closed => w::RunFresh::Closed,
+            t::Fresh::Cut => w::RunFresh::Cut,
+            t::Fresh::Limit => w::RunFresh::Limit,
+            t::Fresh::Session => w::RunFresh::Session,
+        }),
+    }
 }

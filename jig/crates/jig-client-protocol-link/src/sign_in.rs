@@ -4,7 +4,8 @@ use crate::{
     component::{Attempt, ExchangeKind},
 };
 use jig_client_protocol_wire as w;
-use skein_lib::{Queue, Reader, Secret, Token, Wall, Writer};
+use jig_client_protocol_wire::Record as _;
+use skein_lib::{Queue, Reader, Secret, Token, Wall};
 impl Link {
     #[must_use]
     pub fn credential(&self) -> Option<&Secret> {
@@ -33,35 +34,19 @@ impl Link {
                 }
                 self.signing_exchange(ExchangeKind::SignIn, Message::SignInService, Some(credential), None, out);
             }
-            With::Approval { secret } => {
-                let Ok(record) = w::ApprovalSignIn::new(self.limits.wire(), w::ApprovalSignInParts { secret }) else {
+            With::Approval { secret, grant } => {
+                let Ok(record) = (w::ApprovalSignIn { secret, grant }).encode(self.limits.wire()) else {
                     out.push(Request::Signing { signing: Signing::Approval(crate::Taking::Unknown) });
                     return;
                 };
-                let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-                record.encode(&mut writer).expect("measured approval take");
-                self.signing_exchange(
-                    ExchangeKind::SignInApproval,
-                    Message::SignInApproval(writer.finish()),
-                    None,
-                    None,
-                    out,
-                );
+                self.signing_exchange(ExchangeKind::SignInApproval, Message::SignInApproval(record), None, None, out);
             }
             With::Link { secret, held } => {
-                let Ok(record) = w::LinkSignIn::new(self.limits.wire(), w::LinkSignInParts { secret }) else {
+                let Ok(record) = (w::LinkSignIn { secret }).encode(self.limits.wire()) else {
                     out.push(Request::Signing { signing: Signing::Refused });
                     return;
                 };
-                let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-                record.encode(&mut writer).expect("measured sign-in");
-                self.signing_exchange(
-                    ExchangeKind::SignIn,
-                    Message::SignInLink(writer.finish()),
-                    held.clone(),
-                    held,
-                    out,
-                );
+                self.signing_exchange(ExchangeKind::SignIn, Message::SignInLink(record), held.clone(), held, out);
             }
         }
     }
@@ -134,12 +119,12 @@ impl Link {
                 ExchangeKind::SignIn => match w::SignInAnswer::decode(self.limits.wire(), &mut reader) {
                     Ok(w::SignInAnswer::SignedIn(value))
                         if reader.remaining() == 0
-                            && match value.token() {
+                            && match &value.token {
                                 Some(token) => token.len() == 40,
                                 None => true,
                             } =>
                     {
-                        let fields = value.into_parts();
+                        let fields = value;
                         self.end_sign_in(out);
                         self.credential = fields.token.or(held);
                         self.expires = Some(Wall::from_nanos(fields.expires));
@@ -149,9 +134,9 @@ impl Link {
                     Ok(w::SignInAnswer::NotReady) if reader.remaining() == 0 => Signing::Again,
                     Ok(w::SignInAnswer::Busy) if reader.remaining() == 0 => Signing::Busy,
                     Ok(w::SignInAnswer::Full(value)) if reader.remaining() == 0 => Signing::Full {
-                        sign_ins: value.sign_ins(),
-                        earliest: Wall::from_nanos(value.earliest()),
-                        link_until: Wall::from_nanos(value.link_until()),
+                        sign_ins: value.sign_ins,
+                        earliest: Wall::from_nanos(value.earliest),
+                        link_until: Wall::from_nanos(value.link_until),
                     },
                     Ok(w::SignInAnswer::LinkUsed) if reader.remaining() == 0 => Signing::LinkUsed,
                     Ok(w::SignInAnswer::LinkExpired) if reader.remaining() == 0 => Signing::LinkExpired,
@@ -208,18 +193,19 @@ impl Link {
         }
         match answer {
             w::ApprovalSignInAnswer::SignedIn(value) => {
-                if let Some(token) = value.token()
+                if let Some(token) = (&value.token)
                     && token.len() != 40
                 {
                     return Signing::Lost;
                 }
-                let fields = value.into_parts();
+                let fields = value;
                 self.end_sign_in(out);
                 self.credential = fields.token;
                 self.expires = Some(Wall::from_nanos(fields.expires));
                 self.generation = self.generation.saturating_add(1);
                 Signing::SignedIn { party: fields.party }
             }
+            w::ApprovalSignInAnswer::NotGranted => Signing::Approval(crate::Taking::NotGranted),
             w::ApprovalSignInAnswer::Waiting => Signing::Approval(crate::Taking::Waiting),
             w::ApprovalSignInAnswer::Refused => Signing::Approval(crate::Taking::Refused),
             w::ApprovalSignInAnswer::Expired => Signing::Approval(crate::Taking::Expired),
@@ -228,9 +214,9 @@ impl Link {
             w::ApprovalSignInAnswer::NotReady => Signing::Again,
             w::ApprovalSignInAnswer::Busy => Signing::Busy,
             w::ApprovalSignInAnswer::Full(value) => Signing::Full {
-                sign_ins: value.sign_ins(),
-                earliest: Wall::from_nanos(value.earliest()),
-                link_until: Wall::from_nanos(value.until()),
+                sign_ins: value.sign_ins,
+                earliest: Wall::from_nanos(value.earliest),
+                link_until: Wall::from_nanos(value.until),
             },
         }
     }

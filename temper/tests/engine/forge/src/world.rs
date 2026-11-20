@@ -156,6 +156,7 @@ pub struct World {
     history_hold: bool,
     history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
+    observe_entry_saves: bool,
     serial: u64,
     generation: u64,
     seed: u64,
@@ -616,6 +617,26 @@ impl World {
         world
     }
 
+    /// Bound the restored outbox independently of the fake's capacity.
+    #[must_use]
+    pub fn with_entries(seed: u64, entries: u32) -> World {
+        let mut world = Self::new(seed);
+        world.env.limits.entries = entries;
+        world.env.limits.client.entries = entries;
+        world.restart();
+        world
+    }
+
+    /// Include entry saves in `seen` to check their order against restart stages.
+    pub fn observe_entry_saves(&mut self) {
+        self.observe_entry_saves = true;
+    }
+
+    /// Put a durable record in the snapshot before the next restart.
+    pub fn store_before_restart(&mut self, record: top::Stored) {
+        self.store_record(record);
+    }
+
     /// Read the full goal comparison and check the client's row and byte admission.
     #[must_use]
     pub fn comparison_fits(&self, base: u64, head: u64) -> bool {
@@ -799,6 +820,7 @@ impl World {
             history_hold: false,
             history_held: Vec::new(),
             seen: List::with_capacity(256),
+            observe_entry_saves: false,
             serial: 0,
             generation: 1,
             seed,
@@ -1307,6 +1329,18 @@ impl World {
     pub fn ended_landing_fixture(&mut self, task: u64) {
         let mut row = self.landing(task).clone();
         row.landing.phase = temper_engine_domain_forge_landing::Phase::Landed;
+        for member in &mut row.landing.members {
+            let mut change = self.change(member.change).clone();
+            let merge = change.change.last_head.expect("ready member's head");
+            member.landed = Some(merge);
+            member.recorded = true;
+            member.told = true;
+            change.change.state = temper_engine_domain_forge_change::State::Landed { merge, since: self.env.wall };
+            let (_, hot) = change.split();
+            self.stored
+                .insert(top::Key::ChangeHot(hot.task), top::Stored::ChangeHot(Box::new(hot)))
+                .expect("existing member");
+        }
         self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("existing landing");
         self.restart();
     }
@@ -1682,8 +1716,7 @@ impl World {
     fn take_top(&mut self) {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
-        for _ in 0..self.top_out.len() {
-            let request = self.top_out.pop().expect("counted top output");
+        while let Some(request) = self.top_out.pop() {
             match request {
                 top::Request::ChoosePlace { request, kind, .. } => {
                     let port = match kind {
@@ -1701,6 +1734,9 @@ impl World {
                         top::Event::PlaceChosen { request, place: Some(place), git_program: None },
                         &mut self.top_out,
                     );
+                }
+                top::Request::LandingReady { task } => {
+                    self.top.decide_landing(&self.env, task, true, &mut self.top_out);
                 }
                 top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
                 page @ top::Request::HistoryPage { .. } => {
@@ -1752,7 +1788,12 @@ impl World {
                         self.store_record(record);
                     }
                 }
-                top::Request::Save { record, release, .. } => {
+                top::Request::Save { record, release, read_afresh } => {
+                    if self.observe_entry_saves && matches!(record, top::Stored::Entry { .. }) {
+                        self.seen
+                            .push(top::Request::Save { record: record.clone(), release, read_afresh })
+                            .expect("world output capacity");
+                    }
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
@@ -1788,6 +1829,8 @@ impl World {
                 other @ (top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
@@ -2282,6 +2325,7 @@ mod records {
                 asked: false,
                 first: Some(top::FirstIntent::Empty(top::EmptyIntent {
                     playground: false,
+                    sample: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                     label: b"Work".as_slice().into(),

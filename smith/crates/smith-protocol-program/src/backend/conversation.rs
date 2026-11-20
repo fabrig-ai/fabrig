@@ -181,6 +181,11 @@ impl Backend {
             Some(b"system") => return self.system_record(env.now, document),
             Some(b"rate_limit_event") => {
                 let info = json::field(document, 0, b"rate_limit_info");
+                if let Some(window) = super::usage::window(document, info)
+                    && let Some(request) = self.current.request()
+                {
+                    up.push(ToDomain::Usage { owner: request.owner, window });
+                }
                 if json::text_in(document, json::field_in(document, info, b"status")) == Some(b"rejected".as_slice()) {
                     let retry_after = retry_after(document, env.wall);
                     self.fail(env, llm::Failure::Exhausted { retry_after }, b"smith: program usage limit", up, below);

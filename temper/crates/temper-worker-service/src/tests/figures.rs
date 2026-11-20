@@ -7,23 +7,13 @@ use skein_lib::{Duration, List};
 fn record(places: u32, values: &[(&str, u64)]) -> w::Figures {
     let mut limits = List::with_capacity(u32::try_from(values.len()).unwrap());
     for (name, value) in values {
-        limits
-            .push(w::Limit::new(&w::CEILINGS, w::LimitParts { name: name.as_bytes().into(), value: *value }).unwrap())
-            .unwrap();
+        limits.push(w::Limit { name: name.as_bytes().into(), value: *value }).unwrap();
     }
-    w::Figures::new(
-        &w::CEILINGS,
-        w::FiguresParts {
-            places,
-            limits,
-            agents: w::Agents::new(
-                &w::CEILINGS,
-                w::AgentsParts { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
-            )
-            .unwrap(),
-        },
-    )
-    .unwrap()
+    w::Figures {
+        places,
+        limits,
+        agents: w::Agents { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
+    }
 }
 #[test]
 fn figures_apply_named_limits_and_skip_unknown_names_once() {
@@ -167,10 +157,9 @@ pub(super) fn stock_figures() -> w::Figures {
             .unwrap();
     let mut own = limits::stock();
     limits::derive(&mut own, temper_service_core::derived::STOCK).unwrap();
-    let mut figures =
-        temper_engine_service_startup::figures::Composer::new(&engine, &own).compose(&stock::agents()).into_parts();
+    let mut figures = temper_engine_service_startup::figures::Composer::new(&engine, &own).compose(&stock::agents());
     figures.places = 4;
-    w::Figures::new(&w::CEILINGS, figures).unwrap()
+    figures
 }
 
 fn stock_worker(figures: w::Figures) -> (startup::WorkerPart, crate::settings::Agent) {
@@ -202,9 +191,9 @@ fn stock_engine_figures_start_a_standalone_worker() {
 
 #[test]
 fn figures_places_past_the_worker_link_cap_refuse_the_start_naming_the_engine() {
-    let mut figures = stock_figures().into_parts();
+    let mut figures = stock_figures();
     figures.places = 32;
-    let (part, agent) = stock_worker(w::Figures::new(&w::CEILINGS, figures).unwrap());
+    let (part, agent) = stock_worker(figures);
     let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
     let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert!(w::sizes::worker_cap(&link.sizes).is_none());
@@ -220,19 +209,15 @@ fn figures_places_past_the_worker_link_cap_refuse_the_start_naming_the_engine() 
 fn old_agent_payload_refuses_the_stock_event_carrier() {
     // The former agents setting's payload, before its 2-byte separator.
     const OLD_PAYLOAD: u64 = 10_662;
-    let mut figures = stock_figures().into_parts();
-    let mut agents = figures.agents.into_parts();
+    let mut figures = stock_figures();
+    let mut agents = figures.agents;
     for figure in agents.profile.iter_mut() {
-        if figure.name() == b"declared.tool_payload" {
-            *figure = w::Limit::new(
-                &w::CEILINGS,
-                w::LimitParts { name: b"declared.tool_payload".as_slice().into(), value: OLD_PAYLOAD },
-            )
-            .unwrap();
+        if figure.name.as_ref() == b"declared.tool_payload" {
+            *figure = w::Limit { name: b"declared.tool_payload".as_slice().into(), value: OLD_PAYLOAD };
         }
     }
-    figures.agents = w::Agents::new(&w::CEILINGS, agents).unwrap();
-    let (mut part, agent) = stock_worker(w::Figures::new(&w::CEILINGS, figures).unwrap());
+    figures.agents = agents;
+    let (mut part, agent) = stock_worker(figures);
     let limits = crate::worker_settings::root_limits(&part.worker, &agent, &part.limits);
     assert!(temper_worker_domain::unfit(&limits).iter().any(|unfit| *unfit == temper_worker_domain::Unfit::Events));
     assert!(!temper_worker_domain::valid(&limits));

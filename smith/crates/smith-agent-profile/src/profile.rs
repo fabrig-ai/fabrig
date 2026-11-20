@@ -8,11 +8,11 @@ use skein_lib::Duration;
 use skein_llm as shared;
 use skein_llm_connection as connection;
 use skein_tls as tls;
+use smith_channel::Record;
 use smith_domain::{self as domain, run, session, tools};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
-use smith_transcript::Record;
 
 use crate as service;
 
@@ -389,7 +389,7 @@ fn channel_limits(
             skip: channel_start_bytes(&bodies)?.max(output_bytes),
             output_bytes,
             output_frames,
-            kinds: u32::try_from(smith_channel::V11.len()).or(Err(derived(Layer::Channel, "kinds")))?,
+            kinds: u32::try_from(smith_channel::V12.len()).or(Err(derived(Layer::Channel, "kinds")))?,
         },
         endpoints: ENDPOINTS,
         calls: domain.run.calls,

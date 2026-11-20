@@ -93,9 +93,9 @@ fn answer(root: &mut d::Domain, read: Token, value: c::ReadValue, out: &mut Queu
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    clippy::too_many_lines,
     reason = "the fixture answers its independent needs reads and findings and decisions watches together"
 )]
+#[expect(clippy::too_many_lines, reason = "the paging fixture settles each scripted read and findings filter together")]
 fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
     let mut pages = 0_u32;
     while let Some(request) = out.pop() {
@@ -155,46 +155,32 @@ fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
                     },
             } => {
                 let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS) else { continue };
-                let bytes = match watching.watch() {
-                    w::Watch::Decided(subject) => wire::decisions(
-                        &w::Decisions::new(
-                            &w::CEILINGS,
-                            w::DecisionsParts {
-                                project: subject.project(),
-                                rows: List::with_capacity(0),
-                                asked: List::with_capacity(0),
-                                cut: false,
+                let bytes = match watching.watch {
+                    w::Watch::Decided(subject) => wire::decisions(&w::Decisions {
+                        project: subject.project,
+                        rows: List::with_capacity(0),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    }),
+                    w::Watch::Findings(subject) => wire::findings(&w::Findings {
+                        project: subject.project,
+                        rows: List::from_boxed(
+                            if subject.project == f::PROJECT
+                                && !match subject.filter {
+                                    w::FindingsFilter::Triage(filter) => filter.mine,
+                                    w::FindingsFilter::Goal(_) | w::FindingsFilter::Milestone(_) => false,
+                                }
+                            {
+                                f::groups::bugs()
+                            } else {
+                                Box::default()
                             },
-                        )
-                        .unwrap(),
-                    ),
-                    w::Watch::Findings(subject) => wire::findings(
-                        &w::Findings::new(
-                            &w::CEILINGS,
-                            w::FindingsParts {
-                                project: subject.project(),
-                                rows: List::from_boxed(
-                                    if subject.project() == f::PROJECT
-                                        && !(match subject.filter() {
-                                            w::FindingsFilter::Triage(filter) => filter.mine(),
-                                            w::FindingsFilter::Goal(_) | w::FindingsFilter::Milestone(_) => false,
-                                        })
-                                    {
-                                        f::groups::bugs()
-                                    } else {
-                                        Box::default()
-                                    },
-                                ),
-                                areas: List::with_capacity(0),
-                                triager: None,
-                                holder: w::Holder::Party(
-                                    w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap(),
-                                ),
-                                cut: false,
-                            },
-                        )
-                        .unwrap(),
-                    ),
+                        ),
+                        areas: List::with_capacity(0),
+                        triager: None,
+                        holder: w::Holder::Party(w::HolderParty { number: 1 }),
+                        cut: false,
+                    }),
                     _ => continue,
                 };
                 event(

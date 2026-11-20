@@ -1,13 +1,12 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
-        p::Refusal::Forgotten { oldest } => {
-            w::Refusal::Forgotten(w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest })?)
-        }
+        p::Refusal::Forgotten { oldest } => w::Refusal::Forgotten(w::RefusalForgotten { oldest }),
         p::Refusal::NoTerminal => w::Refusal::NoTerminal,
         p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
         p::Refusal::NotLending => w::Refusal::NotLending,
@@ -17,137 +16,98 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
                 Some(value) => Some(role(value, limits)?),
                 None => None,
             };
-            w::Refusal::Role(w::RefusalRole::new(limits, w::RefusalRoleParts { held })?)
+            w::Refusal::Role(w::RefusalRole { held })
         }
-        p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority::new(
-            limits,
-            w::RefusalAuthorityParts {
-                lacking: lack(lacking, limits)?,
-                proposable: match proposable {
-                    Some(p::Accepter::Role(_)) => Some(true),
-                    Some(p::Accepter::Nobody) => Some(false),
-                    None => None,
-                },
+        p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority {
+            lacking: lack(lacking, limits)?,
+            proposable: match proposable {
+                Some(p::Accepter::Role(_)) => Some(true),
+                Some(p::Accepter::Nobody) => Some(false),
+                None => None,
             },
-        )?),
+        }),
         p::Refusal::Limit { which } => {
-            let which =
-                w::Limit::Admission(w::LimitAdmission::new(limits, w::LimitAdmissionParts { which: limit(which) })?);
-            w::Refusal::Limit(w::RefusalLimit::new(limits, w::RefusalLimitParts { which })?)
+            let which = w::Limit::Admission(w::LimitAdmission { which: limit(which) });
+            w::Refusal::Limit(w::RefusalLimit { which })
         }
         p::Refusal::Moved { now } => moved(now, limits)?,
-        p::Refusal::Ended { how } => {
-            w::Refusal::Ended(w::RefusalEnded::new(limits, w::RefusalEndedParts { how: ending(how, limits)? })?)
+        p::Refusal::Ended { how } => w::Refusal::Ended(w::RefusalEnded { how: ending(how, limits)? }),
+        p::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken { by }),
+        p::Refusal::Judged { at, setting, why } => {
+            w::Refusal::Judged(w::RefusalJudged { at, setting: encode_setting(setting, limits)?, why })
         }
-        p::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken::new(limits, w::RefusalTakenParts { by })?),
-        p::Refusal::Judged { at, setting, why } => w::Refusal::Judged(w::RefusalJudged::new(
-            limits,
-            w::RefusalJudgedParts { at, setting: encode_setting(setting, limits)?, why },
-        )?),
-        p::Refusal::Stale { newest } => {
-            w::Refusal::Stale(w::RefusalStale::new(limits, w::RefusalStaleParts { newest })?)
-        }
-        p::Refusal::Full { revision, tasks, more } => w::Refusal::Full(w::RefusalFull::new(
-            limits,
-            w::RefusalFullParts {
-                revision,
-                tasks: names(&tasks, limits.refusal_full_tasks, w::Path::RefusalFullTasks)?,
-                more,
-            },
-        )?),
-        p::Refusal::NotWellFormed { at, why } => w::Refusal::Malformed(w::RefusalMalformed::new(
-            limits,
-            w::RefusalMalformedParts {
-                at,
-                why: match why {
-                    p::Malformed::Settings { setting, fault, detail } => {
-                        encode_malformed_settings(setting, fault, detail, limits)?
-                    }
-                    p::Malformed::SettingsUnchanged => w::Malformed::SettingsUnchanged,
-                    p::Malformed::Running => w::Malformed::Running,
-                    p::Malformed::Name(rule) => w::Malformed::Name(w::MalformedName::new(
-                        limits,
-                        w::MalformedNameParts { rule: name_rule(rule) },
-                    )?),
-                    p::Malformed::AsAllowedTwice => w::Malformed::TwoAsAllowed,
-                    p::Malformed::Conversation => w::Malformed::ConversationNotAgent,
+        p::Refusal::Stale { newest } => w::Refusal::Stale(w::RefusalStale { newest }),
+        p::Refusal::Full { revision, tasks, more } => w::Refusal::Full(w::RefusalFull {
+            revision,
+            tasks: names(&tasks, limits.refusal_full_tasks, w::paths::REFUSAL_FULL_TASKS)?,
+            more,
+        }),
+        p::Refusal::NotWellFormed { at, why } => w::Refusal::Malformed(w::RefusalMalformed {
+            at,
+            why: match why {
+                p::Malformed::Settings { setting, fault, detail } => {
+                    encode_malformed_settings(setting, fault, detail, limits)?
+                }
+                p::Malformed::SettingsUnchanged => w::Malformed::SettingsUnchanged,
+                p::Malformed::Running => w::Malformed::Running,
+                p::Malformed::Name(rule) => w::Malformed::Name(w::MalformedName { rule: name_rule(rule) }),
+                p::Malformed::AsAllowedTwice => w::Malformed::TwoAsAllowed,
+                p::Malformed::Conversation => w::Malformed::ConversationNotAgent,
 
-                    p::Malformed::EndedBy => w::Malformed::EndedBy,
-                    p::Malformed::Cycle => w::Malformed::Cycle,
-                    p::Malformed::ProposedAsAllowed => w::Malformed::ProposedAsAllowed,
-                },
+                p::Malformed::EndedBy => w::Malformed::EndedBy,
+                p::Malformed::Cycle => w::Malformed::Cycle,
+                p::Malformed::ProposedAsAllowed => w::Malformed::ProposedAsAllowed,
             },
-        )?),
-        p::Refusal::LiveTasks { tasks, more } => w::Refusal::LiveTasks(w::RefusalLiveTasks::new(
-            limits,
-            w::RefusalLiveTasksParts {
-                tasks: names(&tasks, limits.refusal_live_tasks_tasks, w::Path::RefusalLiveTasksTasks)?,
-                more,
+        }),
+        p::Refusal::LiveTasks { tasks, more } => w::Refusal::LiveTasks(w::RefusalLiveTasks {
+            tasks: names(&tasks, limits.refusal_live_tasks_tasks, w::paths::REFUSAL_LIVE_TASKS_TASKS)?,
+            more,
+        }),
+        p::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle {
+            tasks: names(&tasks, limits.refusal_circle_tasks, w::paths::REFUSAL_CIRCLE_TASKS)?,
+            cut,
+        }),
+        p::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept {
+            pending: names(&pending, limits.refusal_kept_pending, w::paths::REFUSAL_KEPT_PENDING)?,
+        }),
+        p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
+        p::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency {
+            dependency,
+            how: match how {
+                p::DependencyStatus::Done => w::TaskStatus::Done,
+                p::DependencyStatus::Failed => w::TaskStatus::Failed,
+                p::DependencyStatus::Cancelled => w::TaskStatus::Cancelled,
             },
-        )?),
-        p::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle::new(
-            limits,
-            w::RefusalCircleParts {
-                tasks: names(&tasks, limits.refusal_circle_tasks, w::Path::RefusalCircleTasks)?,
-                cut,
-            },
-        )?),
-        p::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept::new(
-            limits,
-            w::RefusalKeptParts { pending: names(&pending, limits.refusal_kept_pending, w::Path::RefusalKeptPending)? },
-        )?),
-        p::Refusal::Concluded { at } => {
-            w::Refusal::Concluded(w::RefusalConcluded::new(limits, w::RefusalConcludedParts { at: at.as_nanos() })?)
-        }
-        p::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency::new(
-            limits,
-            w::RefusalDependencyParts {
-                dependency,
-                how: match how {
-                    p::DependencyStatus::Done => w::TaskStatus::Done,
-                    p::DependencyStatus::Failed => w::TaskStatus::Failed,
-                    p::DependencyStatus::Cancelled => w::TaskStatus::Cancelled,
-                },
-            },
-        )?),
+        }),
         p::Refusal::NotWaiting => w::Refusal::NotWaiting,
         p::Refusal::NoFurther => w::Refusal::NoFurther,
         p::Refusal::Unknown => w::Refusal::Unknown,
-        p::Refusal::SignInRedirect { why } => w::Refusal::SignInRedirect(w::RefusalSignInRedirect::new(
-            limits,
-            w::RefusalSignInRedirectParts {
-                why: match why {
-                    p::SignInRedirectWhy::NotWaiting => w::SignInRedirectWhy::NotWaiting,
-                    p::SignInRedirectWhy::Address => w::SignInRedirectWhy::Address,
-                    p::SignInRedirectWhy::State => w::SignInRedirectWhy::State,
-                    p::SignInRedirectWhy::TooMany => w::SignInRedirectWhy::TooMany,
-                },
+        p::Refusal::SignInRedirect { why } => w::Refusal::SignInRedirect(w::RefusalSignInRedirect {
+            why: match why {
+                p::SignInRedirectWhy::NotWaiting => w::SignInRedirectWhy::NotWaiting,
+                p::SignInRedirectWhy::Address => w::SignInRedirectWhy::Address,
+                p::SignInRedirectWhy::State => w::SignInRedirectWhy::State,
+                p::SignInRedirectWhy::TooMany => w::SignInRedirectWhy::TooMany,
             },
-        )?),
-        p::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove::new(
-            limits,
-            w::RefusalAccountMoveParts {
-                why: match why {
-                    p::AccountMoveWhy::NotSignedIn => w::AccountMoveWhy::NotSignedIn,
-                    p::AccountMoveWhy::NotOurs => w::AccountMoveWhy::NotOurs,
-                    p::AccountMoveWhy::Held => w::AccountMoveWhy::Held,
-                    p::AccountMoveWhy::Cancelled => w::AccountMoveWhy::Cancelled,
-                    p::AccountMoveWhy::Moving => w::AccountMoveWhy::Moving,
-                },
+        }),
+        p::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove {
+            why: match why {
+                p::AccountMoveWhy::NotSignedIn => w::AccountMoveWhy::NotSignedIn,
+                p::AccountMoveWhy::NotOurs => w::AccountMoveWhy::NotOurs,
+                p::AccountMoveWhy::Held => w::AccountMoveWhy::Held,
+                p::AccountMoveWhy::Cancelled => w::AccountMoveWhy::Cancelled,
+                p::AccountMoveWhy::Moving => w::AccountMoveWhy::Moving,
             },
-        )?),
-        p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount::new(
-            limits,
-            w::RefusalAccountParts {
-                account,
-                why: match why {
-                    p::AccountWhy::Unknown => w::AccountWhy::Unknown,
-                    p::AccountWhy::Provider => w::AccountWhy::Provider,
-                    p::AccountWhy::Uses => w::AccountWhy::Uses,
-                    p::AccountWhy::Limited => w::AccountWhy::Limited,
-                },
+        }),
+        p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount {
+            account,
+            why: match why {
+                p::AccountWhy::Unknown => w::AccountWhy::Unknown,
+                p::AccountWhy::Provider => w::AccountWhy::Provider,
+                p::AccountWhy::Uses => w::AccountWhy::Uses,
+                p::AccountWhy::Limited => w::AccountWhy::Limited,
             },
-        )?),
+        }),
         p::Refusal::Provider => w::Refusal::Provider,
         p::Refusal::NotOffered => w::Refusal::NotOffered,
         p::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
@@ -156,88 +116,59 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         // Only a made or amended task's refusal names a model, which the answer names by the
         // configured models (answers.rs); an offer's admission is people's own check.
         p::Refusal::Llm { .. } => {
-            return Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound });
+            return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
         }
     })
 }
-pub(super) fn hold_owner(value: p::HoldOwner, limits: &w::Limits) -> Result<w::HoldOwner, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(super) fn hold_owner(value: p::HoldOwner, _limits: &w::Limits) -> Result<w::HoldOwner, w::Problem> {
     Ok(match value {
-        p::HoldOwner::Party { person } => {
-            w::HoldOwner::Party(w::HoldOwnerParty::new(limits, w::HoldOwnerPartyParts { person })?)
-        }
-        p::HoldOwner::Task { task } => {
-            w::HoldOwner::Task(w::HoldOwnerTask::new(limits, w::HoldOwnerTaskParts { task })?)
-        }
+        p::HoldOwner::Party { person } => w::HoldOwner::Party(w::HoldOwnerParty { person }),
+        p::HoldOwner::Task { task } => w::HoldOwner::Task(w::HoldOwnerTask { task }),
     })
 }
-fn role(value: p::Role, limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn role(value: p::Role, _limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
     Ok(match value {
         p::Role::Owner => w::HeldRole::Owner,
         p::Role::Maintainer => w::HeldRole::Maintainer,
         p::Role::Member => w::HeldRole::Member,
         p::Role::Observer => w::HeldRole::Observer,
-        p::Role::Policy { role } => {
-            w::HeldRole::Policy(w::HeldRolePolicy::new(limits, w::HeldRolePolicyParts { role })?)
-        }
+        p::Role::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
     })
 }
 fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
     Ok(match value {
-        p::Lack::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling::new(
-            limits,
-            w::LackingCeilingParts {
-                holder: ceiling_holder(holder, limits)?,
-                dimension: ceiling_dimension(dimension),
-                value,
-                asked,
-            },
-        )?),
+        p::Lack::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling {
+            holder: ceiling_holder(holder, limits)?,
+            dimension: ceiling_dimension(dimension),
+            value,
+            asked,
+        }),
         p::Lack::Approver => w::Lacking::Approver,
         p::Lack::Funding => w::Lacking::Funding,
         p::Lack::Tool => w::Lacking::Tool,
         p::Lack::Scope => w::Lacking::Scope,
         p::Lack::Models => w::Lacking::Models,
-        p::Lack::HoldOwner { hold, owner } => w::Lacking::HoldOwner(w::LackingHoldOwner::new(
-            limits,
-            w::LackingHoldOwnerParts { hold, owner: hold_owner(owner, limits)? },
-        )?),
+        p::Lack::HoldOwner { hold, owner } => {
+            w::Lacking::HoldOwner(w::LackingHoldOwner { hold, owner: hold_owner(owner, limits)? })
+        }
         p::Lack::Reference => w::Lacking::Reference,
         p::Lack::ResourceAccess => w::Lacking::ResourceAccess,
         p::Lack::ResourceUnavailable => w::Lacking::ResourceUnavailable,
         p::Lack::Shape => w::Lacking::Shape,
         p::Lack::Account => w::Lacking::Account,
         p::Lack::Writer => w::Lacking::Writer,
-        p::Lack::Budget { needs, left } => {
-            w::Lacking::Budget(w::LackingBudget::new(limits, w::LackingBudgetParts { needed: needs, left })?)
-        }
-        p::Lack::Grant { kind } => {
-            w::Lacking::GrantKind(w::LackingGrantKind::new(limits, w::LackingGrantKindParts { kind })?)
-        }
-        p::Lack::TaskKind { .. } => {
-            w::Lacking::TaskKind(w::LackingTaskKind::new(limits, w::LackingTaskKindParts { executor: None })?)
-        }
-        p::Lack::Depth { most } => {
-            w::Lacking::Depth(w::LackingDepth::new(limits, w::LackingDepthParts { needed: None, allowed: most })?)
-        }
-        p::Lack::Deadline => w::Lacking::Deadline(w::LackingDeadline::new(
-            limits,
-            w::LackingDeadlineParts { asked: None, latest: None },
-        )?),
-        p::Lack::Tasks { left } => {
-            w::Lacking::Tasks(w::LackingTasks::new(limits, w::LackingTasksParts { needed: None, left })?)
-        }
-        p::Lack::Again { required } => {
-            w::Lacking::Again(w::LackingAgain::new(limits, w::LackingAgainParts { required })?)
-        }
-        p::Lack::Required { connector, kind } => {
-            w::Lacking::Required(w::LackingRequired::new(limits, w::LackingRequiredParts { connector, kind })?)
-        }
-        p::Lack::Failed { connector, kind } => {
-            w::Lacking::Failed(w::LackingFailed::new(limits, w::LackingFailedParts { connector, kind })?)
-        }
-        p::Lack::Unguarded { connector, kind } => {
-            w::Lacking::Unguarded(w::LackingUnguarded::new(limits, w::LackingUnguardedParts { connector, kind })?)
-        }
+        p::Lack::Budget { needs, left } => w::Lacking::Budget(w::LackingBudget { needed: needs, left }),
+        p::Lack::Grant { kind } => w::Lacking::GrantKind(w::LackingGrantKind { kind }),
+        p::Lack::TaskKind { .. } => w::Lacking::TaskKind(w::LackingTaskKind { executor: None }),
+        p::Lack::Depth { most } => w::Lacking::Depth(w::LackingDepth { needed: None, allowed: most }),
+        p::Lack::Deadline => w::Lacking::Deadline(w::LackingDeadline { asked: None, latest: None }),
+        p::Lack::Tasks { left } => w::Lacking::Tasks(w::LackingTasks { needed: None, left }),
+        p::Lack::Again { required } => w::Lacking::Again(w::LackingAgain { required }),
+        p::Lack::Required { connector, kind } => w::Lacking::Required(w::LackingRequired { connector, kind }),
+        p::Lack::Failed { connector, kind } => w::Lacking::Failed(w::LackingFailed { connector, kind }),
+        p::Lack::Unguarded { connector, kind } => w::Lacking::Unguarded(w::LackingUnguarded { connector, kind }),
     })
 }
 pub(super) fn limit(value: p::LimitKind) -> w::AdmissionLimit {
@@ -296,21 +227,19 @@ fn moved(value: p::Moved, limits: &w::Limits) -> Result<w::Refusal, w::Problem> 
     let (revision, what) = match value {
         p::Moved::Hold { revision, reason } => {
             let value = hold(reason, limits)?;
-            let reason =
-                Some(w::CurrentHold::Reason(w::CurrentHoldReason::new(limits, w::CurrentHoldReasonParts { value })?));
-            (revision, w::Moved::Hold(w::MovedHold::new(limits, w::MovedHoldParts { reason })?))
+            let reason = Some(w::CurrentHold::Reason(w::CurrentHoldReason { value }));
+            (revision, w::Moved::Hold(w::MovedHold { reason }))
         }
-        p::Moved::PlacedHold { revision } => {
-            (revision, w::Moved::PlacedHold(w::MovedPlacedHold::new(limits, w::MovedPlacedHoldParts { revision })?))
-        }
+        p::Moved::PlacedHold { revision } => (revision, w::Moved::PlacedHold(w::MovedPlacedHold { revision })),
         p::Moved::Spec { revision } => (revision, w::Moved::Spec),
         p::Moved::Person { revision } => (revision, w::Moved::PersonTask),
         p::Moved::Note { revision } => (u64::from(revision), w::Moved::Note),
     };
-    let now = w::Revision::new(limits, w::RevisionParts { value: revision })?;
-    Ok(w::Refusal::Moved(w::RefusalMoved::new(limits, w::RefusalMovedParts { now, what })?))
+    let now = w::Revision { value: revision };
+    Ok(w::Refusal::Moved(w::RefusalMoved { now, what }))
 }
-fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn hold(value: p::HoldReason, _limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
     Ok(match value {
         p::HoldReason::Stalled => w::HoldCategory::Stalled,
         p::HoldReason::Stopped => w::HoldCategory::Stopped,
@@ -324,36 +253,24 @@ fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::
         p::HoldReason::ResourceAccess => w::HoldCategory::ResourceAccess,
         p::HoldReason::Procedure => w::HoldCategory::Procedure,
         p::HoldReason::Circle => w::HoldCategory::Circle,
-        p::HoldReason::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency::new(
-            limits,
-            w::HoldCategoryDependencyParts { task },
-        )?),
-        p::HoldReason::Placed { hold } => {
-            w::HoldCategory::Placed(w::HoldCategoryPlaced::new(limits, w::HoldCategoryPlacedParts { hold })?)
-        }
-        p::HoldReason::Uncertain { entry } => {
-            w::HoldCategory::Uncertain(w::HoldCategoryUncertain::new(limits, w::HoldCategoryUncertainParts { entry })?)
-        }
-        p::HoldReason::PoolLost { pool } => {
-            w::HoldCategory::PoolLost(w::HoldCategoryPoolLost::new(limits, w::HoldCategoryPoolLostParts { pool })?)
-        }
-        p::HoldReason::Exceeded(value) => w::HoldCategory::Exceeded(w::Exceeded::new(
-            limits,
-            w::ExceededParts {
-                bound: match value.bound {
-                    p::Bound::Reasoning => w::Bound::Reasoning,
-                    p::Bound::Metadata => w::Bound::Metadata,
-                    p::Bound::Items => w::Bound::Items,
-                    p::Bound::Answer => w::Bound::Answer,
-                    p::Bound::Tools => w::Bound::Tools,
-                    p::Bound::HistoryItems => w::Bound::HistoryItems,
-                    p::Bound::History => w::Bound::History,
-                    p::Bound::Window => w::Bound::Window,
-                    p::Bound::Output => w::Bound::Output,
-                },
-                value: value.value,
+        p::HoldReason::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
+        p::HoldReason::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold }),
+        p::HoldReason::Uncertain { entry } => w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry }),
+        p::HoldReason::PoolLost { pool } => w::HoldCategory::PoolLost(w::HoldCategoryPoolLost { pool }),
+        p::HoldReason::Exceeded(value) => w::HoldCategory::Exceeded(w::Exceeded {
+            bound: match value.bound {
+                p::Bound::Reasoning => w::Bound::Reasoning,
+                p::Bound::Metadata => w::Bound::Metadata,
+                p::Bound::Items => w::Bound::Items,
+                p::Bound::Answer => w::Bound::Answer,
+                p::Bound::Tools => w::Bound::Tools,
+                p::Bound::HistoryItems => w::Bound::HistoryItems,
+                p::Bound::History => w::Bound::History,
+                p::Bound::Window => w::Bound::Window,
+                p::Bound::Output => w::Bound::Output,
             },
-        )?),
+            value: value.value,
+        }),
         p::HoldReason::Failures { class } => {
             let class = match class {
                 p::FailureClass::Transient => w::HoldFailure::Transient,
@@ -364,48 +281,44 @@ fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::
                 p::FailureClass::Invalid => w::HoldFailure::Invalid,
                 p::FailureClass::Infrastructure => w::HoldFailure::Infrastructure,
             };
-            w::HoldCategory::Failures(w::HoldCategoryFailures::new(limits, w::HoldCategoryFailuresParts { class })?)
+            w::HoldCategory::Failures(w::HoldCategoryFailures { class })
         }
     })
 }
-fn actor(value: p::Party, limits: &w::Limits) -> Result<w::Actor, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn actor(value: p::Party, _limits: &w::Limits) -> Result<w::Actor, w::Problem> {
     Ok(match value {
-        p::Party::Person(value) => w::Actor::Party(w::ActorParty::new(limits, w::ActorPartyParts { value })?),
-        p::Party::Task(value) => w::Actor::Task(w::ActorTask::new(limits, w::ActorTaskParts { value })?),
-        p::Party::Deployment { project } => w::Actor::ProjectDeployment(w::ActorProjectDeployment::new(
-            limits,
-            w::ActorProjectDeploymentParts { project },
-        )?),
+        p::Party::Person(value) => w::Actor::Party(w::ActorParty { value }),
+        p::Party::Task(value) => w::Actor::Task(w::ActorTask { value }),
+        p::Party::Deployment { project } => w::Actor::ProjectDeployment(w::ActorProjectDeployment { project }),
     })
 }
 fn ending(value: p::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem> {
     let value = match value {
         p::Ending::Done => w::EndingFields::Done,
-        p::Ending::Failed => {
-            w::EndingFields::Failed(w::EndingFailedFields::new(limits, w::EndingFailedFieldsParts { reason: None })?)
+        p::Ending::Failed => w::EndingFields::Failed(w::EndingFailedFields { reason: None }),
+        p::Ending::Cancelled { by, at } => w::EndingFields::Cancelled(w::EndingCancelledFields {
+            by: actor(by, limits)?,
+            reason: None,
+            at: Some(at.as_nanos()),
+        }),
+        p::Ending::Decided { by, at } => {
+            w::EndingFields::Decided(w::EndingDecidedFields { by, party: None, how: None, at: at.as_nanos() })
         }
-        p::Ending::Cancelled { by, at } => w::EndingFields::Cancelled(w::EndingCancelledFields::new(
-            limits,
-            w::EndingCancelledFieldsParts { by: actor(by, limits)?, reason: None, at: Some(at.as_nanos()) },
-        )?),
-        p::Ending::Decided { by, at } => w::EndingFields::Decided(w::EndingDecidedFields::new(
-            limits,
-            w::EndingDecidedFieldsParts { by, party: None, how: None, at: at.as_nanos() },
-        )?),
         p::Ending::Deleted => w::EndingFields::Deleted,
     };
-    let row = w::Fact::Ending(w::EndingRow::new(limits, w::EndingRowParts { parent: None, value })?);
+    let row = w::Fact::Ending(w::EndingRow { parent: None, value });
     let size = row
-        .measure()
+        .measure(limits)?
         .checked_add(4)
-        .ok_or(w::Problem { path: w::Path::EndingRows, reason: skein_codec::Reason::Bound })?;
+        .ok_or(w::Problem { path: w::paths::ENDING_ROWS, reason: skein_codec::Reason::Bound })?;
     if size > limits.ending_rows {
-        return Err(w::Problem { path: w::Path::EndingRows, reason: skein_codec::Reason::Bound });
+        return Err(w::Problem { path: w::paths::ENDING_ROWS, reason: skein_codec::Reason::Bound });
     }
     let mut rows = Writer::new(skein_lib::length::usize_of(size));
-    rows.put(&row.measure().to_be_bytes()).expect("measured piece length");
-    row.encode(&mut rows).expect("measured ending row");
-    w::Ending::new(limits, w::EndingParts { rows: rows.finish() })
+    rows.put(&row.measure(limits)?.to_be_bytes()).expect("measured piece length");
+    row.write(limits, &mut rows).expect("measured ending row");
+    Ok(w::Ending { rows: rows.finish() })
 }
 
 fn names(values: &[u64], bound: u32, path: w::Path) -> Result<skein_lib::List<u64>, w::Problem> {
@@ -428,35 +341,23 @@ fn name_rule(rule: p::NameRule) -> w::NameRule {
     }
 }
 
-fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn encode_setting(value: p::Setting, _limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
         jig_domain_people::Setting::ProjectPolicy { project } => {
-            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
         }
-        p::Setting::Charter(number) => {
-            w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        p::Setting::Template(number) => {
-            w::Setting::Template(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        p::Setting::Policy(number) => {
-            w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        p::Setting::Model(number) => {
-            w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        p::Setting::Worker(number) => {
-            w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
-        p::Setting::Provider(number) => {
-            w::Setting::Provider(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
-        }
+        p::Setting::Charter(number) => w::Setting::Charter(w::SettingNumber { number }),
+        p::Setting::Template(number) => w::Setting::Template(w::SettingNumber { number }),
+        p::Setting::Policy(number) => w::Setting::Policy(w::SettingNumber { number }),
+        p::Setting::Model(number) => w::Setting::Model(w::SettingNumber { number }),
+        p::Setting::Worker(number) => w::Setting::Worker(w::SettingNumber { number }),
+        p::Setting::Provider(number) => w::Setting::Provider(w::SettingNumber { number }),
         p::Setting::Rules => w::Setting::Rules,
         p::Setting::Limits => w::Setting::Limits,
-        p::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
-            limits,
-            w::ApplicationSettingParts { kind, scope, number },
-        )?),
+        p::Setting::Application { kind, scope, number } => {
+            w::Setting::Application(w::ApplicationSetting { kind, scope, number })
+        }
     })
 }
 fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
@@ -475,13 +376,12 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
     }
 }
 
-fn ceiling_holder(value: p::CeilingHolder, limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
     Ok(match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,
-        p::CeilingHolder::Role(role) => {
-            w::CeilingHolder::Role(w::CeilingRole::new(limits, w::CeilingRoleParts { role })?)
-        }
+        p::CeilingHolder::Role(role) => w::CeilingHolder::Role(w::CeilingRole { role }),
     })
 }
 fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
@@ -499,30 +399,28 @@ fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
 }
 
 /// Translate the document refusal facts without checking the settings again.
-fn encode_setting_detail(value: p::SettingDetail, limits: &w::Limits) -> Result<w::SettingDetail, w::Problem> {
-    w::SettingDetail::new(
-        limits,
-        w::SettingDetailParts {
-            member: match value.member {
-                p::SettingMember::Documents => w::SettingMember::Documents,
-                p::SettingMember::NameSegments => w::SettingMember::NameSegments,
-                p::SettingMember::NameSegmentBytes => w::SettingMember::NameSegmentBytes,
-                p::SettingMember::Path => w::SettingMember::Path,
-                p::SettingMember::Heading => w::SettingMember::Heading,
-                p::SettingMember::Connector => w::SettingMember::Connector,
-                p::SettingMember::StoredPolicy => w::SettingMember::StoredPolicy,
-            },
-            rule: match value.rule {
-                p::SettingRule::Maximum => w::SettingRule::Maximum,
-                p::SettingRule::Minimum => w::SettingRule::Minimum,
-                p::SettingRule::Registered => w::SettingRule::Registered,
-            },
-            document: value.document,
-            segment: value.segment,
-            supplied: value.supplied,
-            bound: value.bound,
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn encode_setting_detail(value: p::SettingDetail, _limits: &w::Limits) -> Result<w::SettingDetail, w::Problem> {
+    Ok(w::SettingDetail {
+        member: match value.member {
+            p::SettingMember::Documents => w::SettingMember::Documents,
+            p::SettingMember::NameSegments => w::SettingMember::NameSegments,
+            p::SettingMember::NameSegmentBytes => w::SettingMember::NameSegmentBytes,
+            p::SettingMember::Path => w::SettingMember::Path,
+            p::SettingMember::Heading => w::SettingMember::Heading,
+            p::SettingMember::Connector => w::SettingMember::Connector,
+            p::SettingMember::StoredPolicy => w::SettingMember::StoredPolicy,
         },
-    )
+        rule: match value.rule {
+            p::SettingRule::Maximum => w::SettingRule::Maximum,
+            p::SettingRule::Minimum => w::SettingRule::Minimum,
+            p::SettingRule::Registered => w::SettingRule::Registered,
+        },
+        document: value.document,
+        segment: value.segment,
+        supplied: value.supplied,
+        bound: value.bound,
+    })
 }
 
 fn encode_malformed_settings(
@@ -531,15 +429,12 @@ fn encode_malformed_settings(
     detail: Option<p::SettingDetail>,
     limits: &w::Limits,
 ) -> Result<w::Malformed, w::Problem> {
-    Ok(w::Malformed::Settings(w::MalformedSettings::new(
-        limits,
-        w::MalformedSettingsParts {
-            setting: encode_setting(setting, limits)?,
-            fault: encode_setting_fault(fault),
-            detail: match detail {
-                Some(value) => Some(encode_setting_detail(value, limits)?),
-                None => None,
-            },
+    Ok(w::Malformed::Settings(w::MalformedSettings {
+        setting: encode_setting(setting, limits)?,
+        fault: encode_setting_fault(fault),
+        detail: match detail {
+            Some(value) => Some(encode_setting_detail(value, limits)?),
+            None => None,
         },
-    )?))
+    }))
 }

@@ -1397,7 +1397,8 @@ impl World {
                 let answer = temper_worker_service::translate::answer(&bytes, &limits);
                 self.worker_events.push_back(worker::Event::RedsAnswer { owner, check, answer });
             }
-            worker::Request::ReadList { .. }
+            worker::Request::ReadUsage { .. }
+            | worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
             | worker::Request::Source { .. }
             | worker::Request::SourceFault => {
@@ -1421,12 +1422,14 @@ impl World {
                     host::LinkUp::Turn { .. } => self.observed.turns += 1,
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,
                     host::LinkUp::Call { .. } => self.observed.relays += 1,
-                    host::LinkUp::ListRead { .. }
+                    host::LinkUp::UsageRead { .. }
+                    | host::LinkUp::ListRead { .. }
                     | host::LinkUp::Draining
                     | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }
+                    | host::LinkUp::Usage { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
                     | host::LinkUp::JobAnswer { .. }
@@ -1476,7 +1479,8 @@ impl World {
                 let _moves = self.forge.moves();
             }
             // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
-            worker::Request::AgentStopped { .. }
+            worker::Request::Git { .. }
+            | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }
             | worker::Request::ResultsIgnored { .. }
             | worker::Request::CancelIo { .. } => {}
@@ -1716,6 +1720,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
         Op::Reds { .. }
         | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }

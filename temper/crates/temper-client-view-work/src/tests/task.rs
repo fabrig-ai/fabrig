@@ -1245,3 +1245,25 @@ fn invalid_run_ends_draw_their_reason() {
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected, "{reason:?}");
     }
 }
+
+#[test]
+fn run_beginnings_draw_why_they_began_fresh() {
+    for (fresh, expected) in [
+        (None, b"Run 3 began".as_slice()),
+        (Some(c::RunFresh::Moved), b"Run 3 began fresh: its conversation ran on another endpoint"),
+        (Some(c::RunFresh::Closed), b"Run 3 began fresh: its conversation was closed"),
+        (Some(c::RunFresh::Cut), b"Run 3 began fresh: a turn was too large to load"),
+        (Some(c::RunFresh::Limit), b"Run 3 began fresh: its conversation passed the resume limit"),
+        (Some(c::RunFresh::Session), b"Run 3 began fresh: its session had ended"),
+    ] {
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            crate::pages::task::owner_activity(
+                &mut builder,
+                &c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh },
+                &words,
+            );
+            assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected, "{fresh:?}");
+        }
+    }
+}

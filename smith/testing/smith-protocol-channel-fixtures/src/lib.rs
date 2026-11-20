@@ -2,6 +2,7 @@
 //! Shared fixtures: smith/docs/design/testing.md, section 7.
 #![no_std]
 
+use smith_channel::Record;
 use smith_protocol_channel::Limits;
 
 /// Small framing queues and empty run tables for opening and refusal tests.
@@ -29,7 +30,7 @@ pub fn small() -> Limits {
             skip: 8,
             output_bytes: u32::MAX,
             output_frames: 2,
-            kinds: 20,
+            kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
         },
     }
 }

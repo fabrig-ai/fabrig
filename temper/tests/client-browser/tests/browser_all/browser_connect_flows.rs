@@ -63,7 +63,7 @@ fn connect_github(tier: &Tier) -> Script {
     steps.extend([
         see(Find::exactly_named(Role::Link, b"Create GitHub App")),
         press(Role::Link, b"Create GitHub App"),
-        see(Find::exactly_named(Role::Heading { level: 2 }, b"GitHub is connected")),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"GitHub is connected")),
         // Opening ctl's spent link asks the server to print the browser's fresh one.
         open_printed(),
         Step::Exited { code: 0, within: WITHIN },

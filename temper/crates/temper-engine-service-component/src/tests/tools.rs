@@ -4,11 +4,7 @@ use jig_domain_host as host;
 use skein_lib::{Token, Writer};
 use temper_engine_domain as root;
 fn call(activation: u64, tool: &[u8], input: &[u8]) -> jig_domain_fleet::Call {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation, completion: 2, position: 1 },
-    )
-    .unwrap();
+    let name = smith_channel::CallName { activation, completion: 2, position: 1 };
     let mut writer = Writer::new(16);
     name.encode(&mut writer).unwrap();
     jig_domain_fleet::Call {

@@ -401,6 +401,7 @@ fn fault_words(follow: &runs::Follow, fault: key::Fault) -> Box<[u8]> {
         key::Fault::SetUp => b"set-up",
         key::Fault::Completion => b"completion",
         key::Fault::NoStep => b"no step",
+        key::Fault::Unreported => b"no report uploaded",
         key::Fault::Cancelled => b"cancelled",
         key::Fault::OtherCommit => b"other commit",
         key::Fault::Lost => b"lost",
@@ -469,6 +470,7 @@ fn judged(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, receipt: &Rece
     }
     verdicts
         .push(c::GateReport {
+            revision: 0,
             number: c::FOLLOW_CHECK_GATE,
             head,
             status: if receipt.passed { c::Status::Passed } else { c::Status::Failed },

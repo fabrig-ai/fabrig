@@ -12,8 +12,9 @@ const MUTATIONS: u32 = 8;
 macro_rules! check {
     ($record:ident, $limits:expr, $bytes:expr) => {
         if let Ok(record) = $record::decode($limits, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
+            let mut writer =
+                Writer::new(skein_lib::length::usize_of(record.measure($limits).expect("bounded fixture")));
+            record.write($limits, &mut writer).expect("measured room");
             assert_eq!(writer.finish().as_ref(), $bytes, stringify!($record));
         }
     };

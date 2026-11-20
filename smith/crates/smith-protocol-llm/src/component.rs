@@ -17,7 +17,7 @@ use skein_llm_connection as connection;
 use smith_domain::{Event as DomainEvent, GrantName, llm, run};
 
 use crate::boundary::{FromDomain, ToDomain};
-use crate::{Context, EndpointOptions, Endpoints, Error, GrantError, Grants, Receiving};
+use crate::{Cause, Context, EndpointOptions, Endpoints, Error, GrantError, Grants, Receiving, Refusal};
 
 /// Startup receiving and capacity bounds for the LLM component.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -417,11 +417,21 @@ impl Component {
             return;
         }
         if self.active.contains_key(&owner) {
-            Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
+            Self::refusal(
+                owner,
+                Error::Invalid { cause: Cause::Smith(Refusal::Owner) },
+                bounds.max_failure_bytes,
+                to_domain,
+            );
             return;
         }
         let Some(options) = self.options.get(&prompt.endpoint.0) else {
-            Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
+            Self::refusal(
+                owner,
+                Error::Invalid { cause: Cause::Smith(Refusal::UnknownEndpoint) },
+                bounds.max_failure_bytes,
+                to_domain,
+            );
             return;
         };
         let drop_reasoning = options.drop_reasoning();
@@ -432,7 +442,12 @@ impl Component {
                 return;
             }
             Err(GrantError::Bounds | GrantError::Stale | GrantError::Full | GrantError::Scheme) => {
-                Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
+                Self::refusal(
+                    owner,
+                    Error::Invalid { cause: Cause::Smith(Refusal::Grant) },
+                    bounds.max_failure_bytes,
+                    to_domain,
+                );
                 return;
             }
         };
@@ -542,7 +557,9 @@ impl Component {
                             );
                             continue;
                         }
-                        connection::Refusal::Endpoint => Error::Invalid,
+                        connection::Refusal::Endpoint => {
+                            Error::Invalid { cause: Cause::Smith(Refusal::UnknownEndpoint) }
+                        }
                         connection::Refusal::Calls { bound: _ } => Error::Limit,
                         connection::Refusal::Closed => unreachable!("the service closes the pool after its answer"),
                         connection::Refusal::Client(error) => Error::from_client(error),
@@ -654,7 +671,8 @@ impl Component {
             | DomainEvent::Drain { .. }
             | DomainEvent::Delivered { .. }
             | DomainEvent::Below(
-                smith_domain::Below::Done { .. }
+                smith_domain::Below::Usage { .. }
+                | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
                 | smith_domain::Below::Checked { .. }
@@ -674,7 +692,7 @@ impl Component {
     fn local_failure(owner: Token, failure: llm::Failure, maximum: u32, to_domain: &mut Queue<ToDomain>) {
         let detail: &[u8] = match &failure {
             llm::Failure::Unauthorized => b"credential unavailable",
-            llm::Failure::Invalid => b"invalid local completion configuration or owner",
+            llm::Failure::Invalid => unreachable!("invalid local failures carry a named cause through refusal"),
             llm::Failure::ApplicationLimit => b"completion exceeds local capacity",
             llm::Failure::Limit { which: llm::Limit::Pool { .. }, .. } => b"connection pool memory limit exceeded",
             llm::Failure::Limit { .. } => b"local receiving limit exceeded",
@@ -792,7 +810,6 @@ mod tests {
     #[test]
     fn local_failure_diagnostics_name_the_failure_class_and_keep_the_bound() {
         for (failure, expected) in [
-            (llm::Failure::Invalid, b"invalid local completion configuration or owner".as_slice()),
             (llm::Failure::ApplicationLimit, b"completion exceeds local capacity".as_slice()),
             (llm::Failure::Unauthorized, b"credential unavailable".as_slice()),
             (

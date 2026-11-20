@@ -81,49 +81,31 @@ pub(in crate::tests) fn now(scope: c::NoteScope) -> c::NotePage {
     }
 }
 pub(in crate::tests) fn findings(fixture: &Fixture<'_>) -> w::Findings {
-    let task = |number| w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap());
+    let task = |number| w::Holder::Task(w::HolderTask { number });
     let mut areas = List::with_capacity(2);
     for (name, holder, enabled) in [
         (b"tests".as_slice(), task(40), fixture.areas),
-        (
-            b"core",
-            w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: PARTY }).unwrap()),
-            fixture.you,
-        ),
+        (b"core", w::Holder::Party(w::HolderParty { number: PARTY }), fixture.you),
     ] {
         if enabled {
             areas
-                .push(
-                    w::AreaRow::new(
-                        &w::CEILINGS,
-                        w::AreaRowParts {
-                            name: name.into(),
-                            words: name.into(),
-                            owner: w::AreaOwner::Task(
-                                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap(),
-                            ),
-                            holder: Some(holder),
-                        },
-                    )
-                    .unwrap(),
-                )
+                .push(w::AreaRow {
+                    name: name.into(),
+                    words: name.into(),
+                    owner: w::AreaOwner::Task(w::AreaTask { number: 40 }),
+                    holder: Some(holder),
+                })
                 .unwrap();
         }
     }
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project: PROJECT,
-            rows: List::with_capacity(0),
-            areas,
-            triager: fixture.areas.then_some(w::AreaOwner::Task(
-                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 41 }).unwrap(),
-            )),
-            holder: task(41),
-            cut: false,
-        },
-    )
-    .unwrap()
+    w::Findings {
+        project: PROJECT,
+        rows: List::with_capacity(0),
+        areas,
+        triager: fixture.areas.then_some(w::AreaOwner::Task(w::AreaTask { number: 41 })),
+        holder: task(41),
+        cut: false,
+    }
 }
 pub(in crate::tests) fn root(fixture: Fixture<'_>) -> Domain {
     home_team(

@@ -1,4 +1,4 @@
-family temper-client-wire 40
+family temper-client-wire 42
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -15,7 +15,7 @@ record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes
 enum ForgeAsk { github, owned, managed: ManagedForge, connected: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }
-record FirstEmpty { org: bytes 1024 repository: bytes 1024 playground: bool }
+record FirstEmpty { org: bytes 1024 repository: bytes 1024 playground: bool sample: bool }
 record CopyAddresses { addresses: list 16 bytes 512 }
 enum SetUpFirst { empty: FirstEmpty, copies: CopyAddresses, nothing }
 record SetUp { forge: Making first: SetUpFirst }
@@ -196,7 +196,7 @@ enum CreateStep { admin, org, repository, file }
 record Made { id: u64 }
 record CreateFailed { step: CreateStep }
 enum FirstState { making, made: Made, failed: CreateFailed }
-record FirstRepository { org: bytes 1024 repository: bytes 1024 state: FirstState label: bytes 64 playground: bool }
+record FirstRepository { org: bytes 1024 repository: bytes 1024 state: FirstState label: bytes 64 playground: bool sample: bool }
 record Account { id: u64 login: bytes 1024 }
 record Installation { id: u64 account: option Account suspended: bool stray: bool }
 record ConnectStopped { why: bytes 256 }
@@ -407,9 +407,11 @@ record PrefixJudgement { prefix: fixed 32 verdict: Ci gates: list 64 PrefixGate 
 record ChangeFrom { task: u64 title: bytes 256 }
 record TrainLanding { task: u64 member: u64 round: u16 step: LandingStep title: bytes 256 ready_since: u64 probe: option fixed 32 goal: option ChangeFrom chat: option ChangeFrom milestone: option ChangeFrom }
 record Member { change: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 pull: option Pull base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 GateProof head: option fixed 32 left: option LandingLeave judgement: option PrefixJudgement }
-versioned record LandingPanel { task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 train: option Train round: option LandingRound }
-record LandingLine { task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 train: option Train }
-versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64 LandingLine }
+enum LandingWaitFor { nothing, release, ready, turn, prepare, prefixes, open, close, delete, post, run, receipt, judgement, merge, record, ancestry, read, room }
+record LandingWait { on: LandingWaitFor change: option u64 gate: option bytes 256 run: option u64 landing: option u64 }
+versioned record LandingPanel { waits: option LandingWait task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 train: option Train round: option LandingRound }
+record LandingLine { step: option LandingStep last_event: option u64 task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 train: option Train }
+versioned record LandingsPanel { now: u64 turn_since: option u64 project: u32 turn: option u64 landings: list 64 LandingLine }
 # A project's changes (temper/docs/design/client/forge/records.md).
 record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 goal: option ChangeFrom chat: option ChangeFrom milestone: option ChangeFrom }
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued way: Way in_flight: option TrainLanding }
@@ -432,7 +434,7 @@ record Cleared { merge: fixed 32 tiers: list 32 bytes 8192 uncleared: bool }
 enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared, taking }
 record AuthorityHold { reason: bytes 512 }
 enum ChangeWait { outbox_room }
-enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake }
+enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake, no_test }
 enum GateKind { review, approval, check }
 enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
@@ -502,7 +504,12 @@ record ProjectQuestions { route: QuestionsRoute }
 enum SettingsLandingWay { queue, turn }
 enum SettingsLandingWait { cleared, landed }
 enum SettingsCombine { merge, squash }
-record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait }
+record NamedModel { model: bytes 4096 effort: option bytes 32 }
+record NamedLater { main: NamedModel subagents: list 64 NamedModel }
+record NamedLlm { account: option u32 main: NamedModel subagents: list 64 NamedModel later: option NamedLater }
+record RepairGoalSettings { charter: u32 llm: option NamedLlm priority: u32 budget: u64 }
+record RepairSettings { goals: u8 attempts: u8 deadline_ms: u64 goal: RepairGoalSettings }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait repairs: option RepairSettings }
 enum SettingsReportFormat { junit, lines }
 record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
 record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }
@@ -568,4 +575,4 @@ record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndp
 
 # Limit overrides (protocol/configuration/limit-settings.md, 2.3).
 record LimitOverride { name: bytes 64 value: u64 reason: text 120 }
-record TemperLimits { overrides: list 256 LimitOverride }
+record LimitOverrides { overrides: list 256 LimitOverride }

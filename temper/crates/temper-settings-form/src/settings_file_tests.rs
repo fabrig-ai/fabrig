@@ -3,6 +3,7 @@ use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::{Duration, Writer};
+use temper_client_protocol_wire::v1::Record;
 
 // C7's coordinator paces news at 30 minutes, in the settings file's nanoseconds.
 const COORDINATOR: &[u8] = br#", "wake":{"words":"immediate","notices":"immediate","news":{"paced":1800000000000},"results":"each","questions":true,"answers":true,"timers":true}"#;
@@ -85,14 +86,11 @@ fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
     let value = charter(&file);
     let wire = crate::wire::settings_wire_charter(&value, &Limits::standard().settings).unwrap();
     assert_eq!(
-        wire.wake().words(),
-        &jig_client_protocol_wire::WakeRule::Batch(
-            jig_client_protocol_wire::WakeRuleBatch::new(
-                &Limits::standard().settings,
-                jig_client_protocol_wire::WakeRuleBatchParts { count: 0, age: Duration::ZERO }
-            )
-            .unwrap()
-        )
+        (&wire.wake.words),
+        &jig_client_protocol_wire::WakeRule::Batch(jig_client_protocol_wire::WakeRuleBatch {
+            count: 0,
+            age: Duration::ZERO
+        })
     );
     assert_eq!(value.wake.news, c::WakeRule::Paced { span: Duration::ZERO });
 }
@@ -186,7 +184,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             use temper_client_protocol_wire::v1 as w;
             let c::SettingValue::Application(bytes) = &set.value else { panic!("landing bytes") };
             let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-            assert_eq!(*landing.wait(), if json == br#"{"wait":"landed"}"# {
+            assert_eq!(landing.wait, if json == br#"{"wait":"landed"}"# {
                 w::SettingsLandingWait::Landed
             } else {
                 w::SettingsLandingWait::Cleared
@@ -203,6 +201,65 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+const REPAIR_SETTING: &[u8] = br#"{"kind":"project-landing","project":7}"#;
+fn repair_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLanding {
+    use temper_client_protocol_wire::v1 as w;
+    let items = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).expect("repair setting file");
+    let item = items.get(0).unwrap();
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("kind 4 bytes") };
+    let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+    let mut measure = Encoder::measure(&JsonLimits { depth: 32, length: 8192 });
+    assert!(crate::kinds::render(4, bytes, &mut measure));
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    assert!(crate::kinds::render(4, bytes, &mut out));
+    assert_eq!(out.finish().as_ref(), json);
+    landing
+}
+#[test]
+fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
+    let landing = repair_round_trip(
+        br#"{"wait":"landed","repairs":{"goal":{"charter":5,"llm":null,"priority":0,"budget":2000000}}}"#,
+    );
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (2, 2, 86_400_000));
+    assert!(repairs.goal.llm.is_none());
+}
+#[test]
+fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
+    let landing = repair_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
+    assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
+}
+#[test]
+fn repair_settings_refuse_unknown_and_missing_members_by_path() {
+    for (json, why) in [
+        (
+            br#"{"repairs":{"goal":{"charter":5,"priority":0,"budget":2},"other":0}}"#.as_slice(),
+            b"repairs.other: unknown member".as_slice(),
+        ),
+        (
+            br#"{"repairs":{"goal":{"charter":5,"priority":0,"budget":2,"other":0}}}"#,
+            b"repairs.goal.other: unknown member",
+        ),
+        (br#"{"repairs":{}}"#, b"repairs.goal: missing member"),
+        (br#"{"repairs":{"goal":{"priority":0,"budget":2}}}"#, b"repairs.goal.charter: missing member"),
+        (br#"{"repairs":{"goal":{"charter":5,"budget":2}}}"#, b"repairs.goal.priority: missing member"),
+        (br#"{"repairs":{"goal":{"charter":5,"priority":0}}}"#, b"repairs.goal.budget: missing member"),
+    ] {
+        let error = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).unwrap_err();
+        assert_eq!(error.as_ref(), joined(&[b"settings file item 1: ", why]).as_ref());
+    }
+    // llm alone is optional, as for a template's default choice.
+    file::decode(
+        &kind_file(REPAIR_SETTING, br#"{"wait":"landed","repairs":{"goal":{"charter":5,"priority":0,"budget":2}}}"#),
+        &Limits::standard(),
+    )
+    .expect("llm may be absent");
+}
+
 #[test]
 fn landing_wait_refuses_another_word_at_wait() {
     let bytes = kind_file(br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"soon"}"#);
@@ -221,7 +278,7 @@ fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() 
     assert_eq!(item.setting, c::Setting::Application { kind: 20, scope: 0, number: 1 });
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set welcome") };
     let c::SettingValue::Application(bytes) = &set.value else { panic!("welcome bytes") };
-    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown());
+    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
         overlay: None,
         setting: item.setting,
@@ -262,7 +319,7 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("rule bytes") };
         let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
-        assert_eq!(rule.sets().as_slice(), expected);
+        assert_eq!(rule.sets.as_slice(), expected);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -481,13 +538,11 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
             c::RevisionReplaced::Value(set),
         ),
         (
-            w::RevisionReplaced::TooLarge(w::Size::new(&limits.settings, w::SizeParts { bytes: 1_000_000 }).unwrap()),
+            w::RevisionReplaced::TooLarge(w::Size { bytes: 1_000_000 }),
             c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
         ),
         (
-            w::RevisionReplaced::Application(
-                w::ApplicationSize::new(&limits.settings, w::ApplicationSizeParts { size: 12 }).unwrap(),
-            ),
+            w::RevisionReplaced::Application(w::ApplicationSize { size: 12 }),
             c::RevisionReplaced::Application { size: 12 },
         ),
         (w::RevisionReplaced::Default, c::RevisionReplaced::Default),
@@ -495,11 +550,7 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
         (w::RevisionReplaced::NotOffered, c::RevisionReplaced::NotOffered),
     ];
     for (replaced, expected) in cases {
-        let item = w::RevisionItem::new(
-            &limits.settings,
-            w::RevisionItemParts { setting: w::Setting::Rules, edit: w::RevisionEdit::Reset, replaced },
-        )
-        .unwrap();
+        let item = w::RevisionItem { setting: w::Setting::Rules, edit: w::RevisionEdit::Reset, replaced };
         let restored = crate::wire::settings_restore_revision_item(&item, &limits).unwrap();
         assert_eq!(restored.replaced, expected);
     }
@@ -531,8 +582,8 @@ fn a_settings_file_template_names_its_resources() {
     let value = template(&template_file(br#", "resources":[{"connector":1,"symbol":1}]"#), &limits);
     assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
-    assert_eq!(wire.resources().get(0).unwrap().connector(), 1);
-    assert_eq!(wire.resources().get(0).unwrap().symbol(), 1);
+    assert_eq!(wire.resources.get(0).unwrap().connector, 1);
+    assert_eq!(wire.resources.get(0).unwrap().symbol, 1);
     assert_eq!(crate::wire::documents_me_template(&wire, &limits).unwrap(), value);
 }
 #[test]
@@ -585,7 +636,7 @@ fn a_charters_tools_round_trip() {
     assert_eq!(source.tools, 1536);
     let limits = Limits::standard();
     let wire = crate::wire::settings_wire_charter(&source, &limits.settings).unwrap();
-    assert_eq!(wire.tools(), 1536);
+    assert_eq!(wire.tools, 1536);
     let restored = crate::wire::settings_restore_charter(&wire, &limits).unwrap();
     assert_eq!(restored, source);
     let bounds = JsonLimits { depth: 32, length: 8192 };
@@ -740,8 +791,11 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
             sets: Box::default(),
         };
         let record = temper_protocol_reaches::classes_record(&classes).expect("shaped record");
-        let mut bytes = Writer::new(usize::try_from(record.measure()).expect("record length"));
-        record.encode(&mut bytes).expect("measured record");
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("record length"),
+        );
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("measured record");
         let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 4096 });
         assert!(!crate::kinds::render(8, &bytes.finish(), &mut out));
     }
@@ -936,14 +990,14 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-        assert_eq!(record.source().repository().forge(), 1);
-        assert_eq!(record.source().repository().repository(), 12);
-        assert_eq!(record.target().repository().repository(), 13);
-        assert_eq!(record.start(), &w::FollowStart::Owner);
-        assert_eq!(record.source().paths().is_empty(), optional);
-        assert_eq!(record.source().branch().is_empty(), optional);
-        assert_eq!(record.producer().is_none(), optional);
-        assert_eq!((record.target().branch()).len(), 0);
+        assert_eq!(record.source.repository.forge, 1);
+        assert_eq!(record.source.repository.repository, 12);
+        assert_eq!(record.target.repository.repository, 13);
+        assert_eq!(&record.start, &w::FollowStart::Owner);
+        assert_eq!(record.source.paths.is_empty(), optional);
+        assert_eq!(record.source.branch.is_empty(), optional);
+        assert_eq!(record.producer.is_none(), optional);
+        assert_eq!(record.target.branch.len(), 0);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -972,21 +1026,15 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
     let prefix = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":"#;
     let suffix = br#", "check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
     for (owner, expected) in [
-        (
-            br#"{"task":52}"#.as_slice(),
-            w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap()),
-        ),
-        (
-            br#"{"person":4}"#.as_slice(),
-            w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap()),
-        ),
+        (br#"{"task":52}"#.as_slice(), w::FollowOwner::Task(w::FollowOwnerTask { task: 52 })),
+        (br#"{"person":4}"#.as_slice(), w::FollowOwner::Person(w::FollowPerson { person: 4 })),
     ] {
         let items = file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap();
         let item = items.get(0).unwrap();
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-        assert_eq!(record.owner(), &expected);
+        assert_eq!(&record.owner, &expected);
         let text = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,

@@ -35,6 +35,7 @@ jig-protocol-config.workspace = true
 skein-heap.workspace = true
 temper-service.workspace = true
 skein-fake-forge-domain.workspace = true
+temper-forge-setup.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

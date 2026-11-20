@@ -1,4 +1,5 @@
 use crate::clients::translation;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
@@ -14,18 +15,14 @@ fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
         let link = service.links().pop().expect("sign-in link");
         let engine = service.engine.as_mut().expect("engine");
         let w::SignInAnswer::SignedIn(signed) = sign_in_with_link(engine, &link) else { panic!("signed in") };
-        let bearer = peer::bearer(signed.token().as_ref().expect("credential").expose());
+        let bearer = peer::bearer(signed.token.as_ref().expect("credential").expose());
         let before = engine.domain.deployment().tasks;
-        let owner = w::Owner::Family(
-            w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE }).unwrap(),
+        let owner = w::Owner::Family(w::Family { number: temper_client_protocol_wire::FORGE });
+        let keyed = w::Keyed { key: [71; 16], owner: owner.clone(), version, request: Box::new([255]), value: None };
+        let mut bytes = Writer::new(
+            usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
-        let keyed = w::Keyed::new(
-            &w::CEILINGS,
-            w::KeyedParts { key: [71; 16], owner: owner.clone(), version, request: Box::new([255]), value: None },
-        )
-        .unwrap();
-        let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
-        keyed.encode(&mut bytes).unwrap();
+        keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
         call.pump(engine, true);
         assert!(call.received().starts_with(b"HTTP/1.1 200"));
@@ -35,11 +32,11 @@ fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
         else {
             panic!("version not served")
         };
-        assert_eq!(answer.owner(), &owner);
+        assert_eq!((&answer.owner), &owner);
         let mut range = None;
-        for served in answer.served() {
-            if served.owner() == &owner {
-                range = Some((served.first(), served.last()));
+        for served in &answer.served {
+            if served.owner == owner {
+                range = Some((served.first, served.last));
             }
         }
         assert_eq!(
@@ -123,8 +120,8 @@ fn a_given_secret_prints_no_first_link_and_signs_in() {
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
         panic!("the given secret signs in")
     };
-    assert_eq!(answer.party(), OWNER_PARTY, "the link signs in the owner");
-    assert!(answer.token().is_some(), "the sign-in returns a credential");
+    assert_eq!(answer.party, OWNER_PARTY, "the link signs in the owner");
+    assert!(answer.token.is_some(), "the sign-in returns a credential");
     super::fixtures::turn(&mut service);
     assert!(service.links().is_empty(), "spending the first link prints nothing");
     assert!(service.local_links().is_empty(), "spending the given link draws no local link");
@@ -145,8 +142,8 @@ fn a_given_local_link_signs_in_and_is_never_kept_or_printed() {
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &local) else {
         panic!("the given local link signs in")
     };
-    assert_eq!(answer.party(), OWNER_PARTY, "the local link signs in the owner");
-    assert!(answer.token().is_some(), "the sign-in returns a credential");
+    assert_eq!(answer.party, OWNER_PARTY, "the local link signs in the owner");
+    assert!(answer.token.is_some(), "the sign-in returns a credential");
     assert!(!forges_linked(engine), "a local sign-in leaves the printed link unused");
     let next = local_link(&mut service);
     assert!(next != local && next != given_link(), "the next local link differs from both given links");
@@ -156,7 +153,7 @@ fn a_given_local_link_signs_in_and_is_never_kept_or_printed() {
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
         panic!("the given printed link still signs in")
     };
-    assert_eq!(answer.party(), OWNER_PARTY);
+    assert_eq!(answer.party, OWNER_PARTY);
     assert!(forges_linked(engine), "the printed link's sign-in is in the forges document");
     super::fixtures::turn(&mut service);
     assert!(service.links().is_empty(), "neither given link is printed");
@@ -182,7 +179,7 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &fresh) else {
         panic!("the fresh printed link signs in")
     };
-    assert_eq!(answer.party(), OWNER_PARTY);
+    assert_eq!(answer.party, OWNER_PARTY);
 }
 
 #[test]
@@ -203,8 +200,8 @@ fn the_local_link_is_kept_apart_and_signs_in_in_either_order() {
             let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, link) else {
                 panic!("{row}: either link signs in after the other")
             };
-            assert_eq!(answer.party(), OWNER_PARTY, "{row}: the link signs in the owner");
-            assert!(answer.token().is_some(), "{row}: the sign-in returns a credential");
+            assert_eq!(answer.party, OWNER_PARTY, "{row}: the link signs in the owner");
+            assert!(answer.token.is_some(), "{row}: the sign-in returns a credential");
             linked |= !is_local;
             assert_eq!(forges_linked(engine), linked, "{row}: only the printed sign-in sets linked");
             super::fixtures::turn(&mut service);
@@ -227,9 +224,16 @@ fn first_link_url_is_what_serve_prints() {
         name: Box::from(b"temper.example.com:8443".as_slice()),
     };
     let address = ([127, 0, 0, 1], 7100).into();
-    let secret = given_secret();
-    for origin in [None, Some(&public)] {
+    let secret = skein_lib::Secret::new(Box::new([7; 32]));
+    for (origin, expected) in [
+        (None, b"http://127.0.0.1:7100/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc".as_slice()),
+        (
+            Some(&public),
+            b"https://temper.example.com:8443/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc".as_slice(),
+        ),
+    ] {
         let url = crate::clients::first_link_url(address, origin, &secret);
+        assert_eq!(url.as_ref(), expected);
         assert!(url == crate::clients::printed::link_public(address, origin, &secret), "same URL bytes");
         assert!(!url.contains(&b'\n'), "the URL has no line feed");
     }
@@ -359,7 +363,7 @@ fn the_component_prints_one_sign_in_link_at_start() {
         &mut None,
     );
     let link = clients.links.pop().unwrap();
-    assert!(link.starts_with(b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret="));
+    assert!(link.starts_with(b"http://127.0.0.1:7100/sign-in?secret="));
     assert!(clients.links.is_empty());
     clients.iterate(
         skein_lib::Time::ZERO,
@@ -502,7 +506,7 @@ fn the_next_clients_stream_opens_once_a_peer_ends_its_own() {
     else {
         panic!("signed in")
     };
-    let bearer = peer::bearer(answer.token().as_ref().expect("native credential").expose());
+    let bearer = peer::bearer(answer.token.as_ref().expect("native credential").expose());
     let mut third_opened = false;
     for _ in 0..CLIENTS {
         let mut stream =
@@ -516,7 +520,7 @@ fn the_next_clients_stream_opens_once_a_peer_ends_its_own() {
 fn the_engine_prints_one_sign_in_link_at_start() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().expect("sign-in link");
-    assert!(link.starts_with(b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret="));
+    assert!(link.starts_with(b"http://127.0.0.1:7100/sign-in?secret="));
     assert!(service.links().is_empty());
     super::fixtures::turn(&mut service);
     assert!(service.links().is_empty());
@@ -539,8 +543,8 @@ fn getting_the_printed_links_page_leaves_its_secret_for_the_links_post() {
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &link) else {
         panic!("GET leaves the live printed link unspent for POST")
     };
-    assert_eq!(answer.party(), OWNER_PARTY);
-    assert!(answer.token().is_some(), "the link's POST returns a credential");
+    assert_eq!(answer.party, OWNER_PARTY);
+    assert!(answer.token.is_some(), "the link's POST returns a credential");
 }
 
 #[test]
@@ -556,7 +560,7 @@ fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     else {
         panic!("signed in")
     };
-    assert_eq!(answer.party(), 1);
+    assert_eq!(answer.party, 1);
     assert!(super::fixtures::get(&mut service, core::Key::People(people::Key::SignIn(1))).is_some());
     let engine = service.engine.as_mut().expect("engine");
     let Some(jig_protocol_store::Event::Secret { value: Some(secret), .. }) = engine.store.secrets(
@@ -566,8 +570,8 @@ fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
         panic!("digest durable in real secrets store")
     };
     let jig_protocol_store::SecretValue::Digest { digest, .. } = secret else { panic!("credential digest") };
-    assert_eq!(digest, skein_lib::sha256::digest(answer.token().as_ref().expect("credential").expose()));
-    let bearer = peer::bearer(answer.token().as_ref().expect("native credential").expose());
+    assert_eq!(digest, skein_lib::sha256::digest(answer.token.as_ref().expect("credential").expose()));
+    let bearer = peer::bearer(answer.token.as_ref().expect("native credential").expose());
     let mut stream = peer::Peer::new(engine, b"GET", b"/jig/v1/stream", &[], Some(&bearer));
     stream.pump(engine, true);
     assert!(stream.streaming(), "the issued bearer authenticates through the stored digest");
@@ -746,7 +750,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
     let mut login = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     login.pump(engine, true);
     let w::SignInAnswer::SignedIn(answer) = login.sign_in_answer(engine) else { panic!("signed in") };
-    let bearer = peer::bearer(answer.token().as_ref().expect("credential").expose());
+    let bearer = peer::bearer(answer.token.as_ref().expect("credential").expose());
     let settings = super::fixtures::engine();
     let bound = jig_protocol_accounts::moved::bound(&settings.jig.limits.driver.client.document);
     assert_eq!(bound, 68_252);
@@ -756,34 +760,25 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
         let digest = skein_lib::sha256::digest(value.expose());
         // Encode under the published ceiling to put the extra byte on the wire;
         // the service decodes under temper's configured, smaller value cap.
-        let limits = w::CEILINGS;
-        let ask = w::Ask::AccountChange(
-            w::AskAccountChange::new(
-                &limits,
-                w::AskAccountChangeParts {
-                    holder: w::AskAccountHolder::Own,
-                    change: w::AccountChange::MoveIn(
-                        w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
+        let ask = w::Ask::AccountChange(w::AskAccountChange {
+            holder: w::AskAccountHolder::Own,
+            change: w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest }),
+        });
+        let mut bytes = Writer::new(
+            usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
-        let mut bytes = Writer::new(usize::try_from(ask.measure()).unwrap());
-        ask.encode(&mut bytes).unwrap();
-        let keyed = w::Keyed::new(
-            &limits,
-            w::KeyedParts {
-                key: [extra; 16],
-                owner: w::Owner::Jig,
-                version: jig_client_protocol_wire::VERSION,
-                request: bytes.finish(),
-                value: Some(value),
-            },
-        )
-        .unwrap();
-        let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
-        keyed.encode(&mut bytes).unwrap();
+        ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
+        let keyed = w::Keyed {
+            key: [extra; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: bytes.finish(),
+            value: Some(value),
+        };
+        let mut bytes = Writer::new(
+            usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let mut call =
             peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer)).fragments_up_to(1024);
         // Keep the aggregate bound of 128 batches of 256 turns for the
@@ -800,14 +795,14 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
                 panic!("terminal move-in answer")
             };
             let w::Final::Refused(refused) =
-                w::Final::decode(&engine.clients.env.limits.wire, &mut Reader::new(answer.record())).unwrap()
+                w::Final::decode(&engine.clients.env.limits.wire, &mut Reader::new(answer.record.as_ref())).unwrap()
             else {
                 panic!("the accounts refuse the opaque, invalid file")
             };
-            let w::Refusal::AccountMove(why) = refused.refusal() else {
-                panic!("the value passes both caps and reaches the accounts: {:?}", refused.refusal())
+            let w::Refusal::AccountMove(why) = &refused.refusal else {
+                panic!("the value passes both caps and reaches the accounts: {:?}", refused.refusal)
             };
-            assert_eq!(why.why(), &w::AccountMoveWhy::NotOurs);
+            assert_eq!((&why.why), &w::AccountMoveWhy::NotOurs);
         } else {
             assert!(call.received().starts_with(b"HTTP/1.1 400"), "the wire refuses the extra byte");
             assert!(engine.events.is_empty(), "refused before reaching the root");
@@ -993,5 +988,5 @@ fn forges_linked(engine: &crate::engine::Engine) -> bool {
     let bytes = crate::route::forge_rows(engine, engine.domain.forges()).expect("forges document");
     temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS)
         .expect("whole forges document")
-        .linked()
+        .linked
 }

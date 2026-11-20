@@ -5,6 +5,9 @@ use std::cell::RefCell;
 use temper_fake_git_hosted::Typed;
 
 thread_local! { static SHARED: RefCell<Option<Typed>> = const { RefCell::new(None) }; }
+pub(crate) fn warm_runtime() {
+    SHARED.with(|_| {});
+}
 pub fn share(transport: Option<Typed>) {
     SHARED.with(|shared| *shared.borrow_mut() = transport);
 }
@@ -21,7 +24,8 @@ pub(crate) fn program() -> HostedProgram<Proc> {
 pub(crate) fn roots(spawn: &skein_io::kernel::Spawn) -> Vec<StartupRoot> {
     vec![StartupRoot {
         name: b"worker".as_slice().into(),
-        path: format!("/proc/self/fd/{}", spawn.root.raw()).into_bytes().into(),
+        path: skein_shell::keeper::descriptor_path(spawn.root)
+            .unwrap_or_else(|error| panic!("git worker root {:?}: {error:?}", spawn.root)),
     }]
 }
 

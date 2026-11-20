@@ -112,9 +112,9 @@ pub(crate) fn head(
         match page.state() {
             State::Shown(panel) => {
                 let mut red = List::uncapped();
-                for queue in panel.queues() {
-                    if queue.red() {
-                        red.push(queue.branch()).expect("one signal per queue");
+                for queue in &panel.queues {
+                    if queue.red {
+                        red.push(queue.branch.as_ref()).expect("one signal per queue");
                     }
                 }
                 let facts = super::changes::LandingFacts::panel(panel, red.as_slice());
@@ -377,32 +377,32 @@ fn goal(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
 }
 fn change(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, task: u64) {
     let Some(panel) = panel(root) else { return };
-    for queue in panel.queues() {
-        if let Some(flight) = queue.in_flight()
-            && flight.member() == task
+    for queue in &panel.queues {
+        if let Some(flight) = &queue.in_flight
+            && flight.member == task
         {
-            let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
+            let status = super::change::say(words, super::changes::step_word(&flight.step), &[]);
             linked_from(
                 b,
                 words,
                 bindings,
                 Word::WorkChangeTag,
                 look::WORK_CODE,
-                flight.title(),
+                &flight.title,
                 Address::Task { task },
                 &[status],
             );
             return;
         }
-        for (index, row) in queue.changes().iter().enumerate() {
-            if row.task() == task {
+        for (index, row) in queue.changes.iter().enumerate() {
+            if row.task == task {
                 linked_from(
                     b,
                     words,
                     bindings,
                     Word::WorkChangeTag,
                     look::WORK_CODE,
-                    row.title(),
+                    &row.title,
                     Address::Task { task },
                     &[queue_label(queue, index, words)],
                 );
@@ -463,10 +463,10 @@ fn landed_draft(
 ) {
     let Some(page) = root.pages().drafts() else { return };
     let temper_client_domain::pages::drafts::State::Shown(panel) = page.state() else { return };
-    let Some(row) = panel.drafts().get(index) else { return };
-    let file = temper_client_domain::pages::goal::file_of(row.path());
-    let dir = row.path().strip_suffix(file).expect("file is the last segment");
-    let dir = if dir.is_empty() { crate::accounts::words::join(&[row.name(), b"/"]) } else { dir.into() };
+    let Some(row) = panel.drafts.get(index) else { return };
+    let file = temper_client_domain::pages::goal::file_of(&row.path);
+    let dir = row.path.strip_suffix(file).expect("file is the last segment");
+    let dir = if dir.is_empty() { crate::accounts::words::join(&[&row.name, b"/"]) } else { dir.into() };
     b.open(Role::Paragraph);
     b.style(look::WORK_FROM);
     text(b, Role::Text, look::WORK_PERSON, &words.say(Word::WorkDraftTag, &[]));
@@ -475,11 +475,11 @@ fn landed_draft(
     separated(
         b,
         words,
-        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at())))]),
+        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at)))]),
     );
     b.close();
-    if !row.title().is_empty() {
-        text(b, Role::Paragraph, look::WORK_QUOTE, &crate::common::chat::row_title(row.title()));
+    if !row.title.is_empty() {
+        text(b, Role::Paragraph, look::WORK_QUOTE, &crate::common::chat::row_title(&row.title));
     }
     let Some(me) = root.pages().me(root.client()) else { return };
     let ways = super::goals::ways(me, project, words);
@@ -594,23 +594,23 @@ fn change_row(
 ) {
     let task = row.task;
     let Some(panel) = panel(root) else { return };
-    for queue in panel.queues() {
-        if let Some(flight) = queue.in_flight()
-            && flight.member() == task
+    for queue in &panel.queues {
+        if let Some(flight) = &queue.in_flight
+            && flight.member == task
         {
-            let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
-            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status, None, style);
+            let status = super::change::say(words, super::changes::step_word(&flight.step), &[]);
+            work_row(b, words, bindings, task, b"\xc2\xb7", &flight.title, &status, None, style);
             return;
         }
-        for (index, row) in queue.changes().iter().enumerate() {
-            if row.task() == task {
+        for (index, row) in queue.changes.iter().enumerate() {
+            if row.task == task {
                 work_row(
                     b,
                     words,
                     bindings,
                     task,
                     b"\xc2\xb7",
-                    row.title(),
+                    &row.title,
                     &queue_label(queue, index, words),
                     None,
                     style,
@@ -619,19 +619,29 @@ fn change_row(
             }
         }
     }
-    for change in panel.landed() {
-        if change.task() == task {
+    for change in &panel.landed {
+        if change.task == task {
             let when = words
-                .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at())))]);
-            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when, row.signed.as_deref(), style);
+                .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at)))]);
+            work_row(
+                b,
+                words,
+                bindings,
+                task,
+                b"\xe2\x9c\x93",
+                change.title.as_ref(),
+                &when,
+                row.signed.as_deref(),
+                style,
+            );
             return;
         }
     }
 }
 fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, row: &Landed) {
     let Some(panel) = panel(root) else { return };
-    for change in panel.landed_default() {
-        if change.task() != row.change {
+    for change in &panel.landed_default {
+        if change.task != row.change {
             continue;
         }
         let when = times.say(words, TimeForm::Clock, row.at);
@@ -643,11 +653,11 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
             Item::Goal(goal) => {
                 let title = match origin {
                     Some(temper_client_domain::pages::changes::From::Goal(title)) => title,
-                    Some(temper_client_domain::pages::changes::From::Chat(_)) | None => change.title(),
+                    Some(temper_client_domain::pages::changes::From::Chat(_)) | None => change.title.as_ref(),
                 };
                 (goal, title)
             }
-            Item::Change(task) => (task, change.title()),
+            Item::Change(task) => (task, change.title.as_ref()),
             Item::Milestone(_) | Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => {
                 unreachable!("landed rows are goals or changes")
             }
@@ -801,13 +811,13 @@ fn linked_from(
 }
 
 fn queue_label(queue: &w::ChangesQueue, index: usize, words: &Words) -> Box<[u8]> {
-    if *queue.way() == w::Way::Queue {
+    if queue.way == w::Way::Queue {
         return queue_word(index, words);
     }
     let place = skein_lib::len_u64(index)
         .checked_add(1)
         .expect("wire queue fits")
-        .checked_add(u64::from(queue.in_flight().is_some()))
+        .checked_add(u64::from(queue.in_flight.is_some()))
         .expect("wire queue fits");
     words.say(Word::ChangesPlace, &[Hole::Name(super::changes::ordinal(place, words))])
 }

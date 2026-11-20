@@ -83,6 +83,7 @@ fn only_a_relevant_hint_restarts_an_unfinished_fresh_read_chain() {
             heard: change::Heard {
                 delegate_running: false,
                 flake: false,
+                no_test: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -122,6 +123,7 @@ fn both_fresh_base_facts_remain_dependencies_when_the_pull_and_branch_disagree()
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -259,6 +261,7 @@ fn waiting_step(world: &mut World, entry: u64) {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -364,6 +367,7 @@ fn two_change_hint_request_profile() {
             panic!("change {task}")
         };
         let gates = Box::new([change::GateReport {
+            revision: 0,
             number: 9,
             head: row.change.last_head.expect("pushed head"),
             status: change::Status::Passed,

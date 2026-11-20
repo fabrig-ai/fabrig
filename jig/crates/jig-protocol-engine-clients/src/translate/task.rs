@@ -2,55 +2,40 @@
 use super::{chips, owner, refusals};
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::acts;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::List;
 pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::Problem> {
     Ok(match value {
-        d::TaskLink::Live(value) => w::TaskLink::Live(w::TaskLinkLive::new(
-            limits,
-            w::TaskLinkLiveParts { value: chips::chip(value, limits)? },
-        )?),
-        d::TaskLink::Retained { chip, at } => w::TaskLink::Retained(w::TaskLinkRetained::new(
-            limits,
-            w::TaskLinkRetainedParts {
-                chip: chips::chip(chip, limits)?,
-                at: match *at {
-                    Some(item) => Some(item.as_nanos()),
-                    None => None,
-                },
+        d::TaskLink::Live(value) => w::TaskLink::Live(w::TaskLinkLive { value: chips::chip(value, limits)? }),
+        d::TaskLink::Retained { chip, at } => w::TaskLink::Retained(w::TaskLinkRetained {
+            chip: chips::chip(chip, limits)?,
+            at: match *at {
+                Some(item) => Some(item.as_nanos()),
+                None => None,
             },
-        )?),
-        d::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored::new(
-            limits,
-            w::TaskLinkStoredParts {
-                number: *number,
-                status: match status {
-                    Some(t::Status::Done) => Some(w::TaskStatus::Done),
-                    Some(t::Status::Failed) => Some(w::TaskStatus::Failed),
-                    Some(t::Status::Cancelled) => Some(w::TaskStatus::Cancelled),
-                    None => None,
-                },
+        }),
+        d::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored {
+            number: *number,
+            status: match status {
+                Some(t::Status::Done) => Some(w::TaskStatus::Done),
+                Some(t::Status::Failed) => Some(w::TaskStatus::Failed),
+                Some(t::Status::Cancelled) => Some(w::TaskStatus::Cancelled),
+                None => None,
             },
-        )?),
+        }),
     })
 }
-pub fn proposal(value: &d::ProposalRef, limits: &w::Limits) -> Result<w::ProposalKey, w::Problem> {
-    w::ProposalKey::new(
-        limits,
-        w::ProposalKeyParts {
-            proposer: match value.proposer {
-                jig_domain_people::Proposer::Task(number) => {
-                    w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value: number })?)
-                }
-                jig_domain_people::Proposer::Party(number) => {
-                    w::Proposer::Party(w::ProposerParty::new(limits, w::ProposerPartyParts { value: number })?)
-                }
-            },
-            number: value.number,
+pub fn proposal(value: &d::ProposalRef, _limits: &w::Limits) -> Result<w::ProposalKey, w::Problem> {
+    Ok(w::ProposalKey {
+        proposer: match value.proposer {
+            jig_domain_people::Proposer::Task(number) => w::Proposer::Task(w::ProposerTask { value: number }),
+            jig_domain_people::Proposer::Party(number) => w::Proposer::Party(w::ProposerParty { value: number }),
         },
-    )
+        number: value.number,
+    })
 }
 pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
     Ok(match value {
@@ -83,21 +68,16 @@ pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
         acts::Act::SetPool => w::ActKind::SetPool,
     })
 }
-pub fn recipient(value: &acts::Recipient, limits: &w::Limits) -> Result<w::Recipient, w::Problem> {
+pub fn recipient(value: &acts::Recipient, _limits: &w::Limits) -> Result<w::Recipient, w::Problem> {
     Ok(match value {
-        acts::Recipient::Task(number) => {
-            w::Recipient::Task(w::RecipientTask::new(limits, w::RecipientTaskParts { value: *number })?)
-        }
-        acts::Recipient::Party(number) => {
-            w::Recipient::Party(w::RecipientParty::new(limits, w::RecipientPartyParts { value: *number })?)
-        }
+        acts::Recipient::Task(number) => w::Recipient::Task(w::RecipientTask { value: *number }),
+        acts::Recipient::Party(number) => w::Recipient::Party(w::RecipientParty { value: *number }),
         acts::Recipient::Role { project, role } => {
-            w::Recipient::Role(w::RecipientRole::new(limits, w::RecipientRoleParts { project: *project, role: *role })?)
+            w::Recipient::Role(w::RecipientRole { project: *project, role: *role })
         }
-        acts::Recipient::Roles { project, roles } => w::Recipient::Roles(w::RecipientRoles::new(
-            limits,
-            w::RecipientRolesParts { project: *project, roles: roles.clone() },
-        )?),
+        acts::Recipient::Roles { project, roles } => {
+            w::Recipient::Roles(w::RecipientRoles { project: *project, roles: roles.clone() })
+        }
     })
 }
 pub(super) fn bounds(
@@ -118,31 +98,25 @@ pub(super) fn bounds(
         } => {
             let mut rows = List::with_capacity(procedures.capacity());
             for item in procedures {
-                rows.push(w::CreateProcedure::new(
-                    limits,
-                    w::CreateProcedureParts { connector: item.connector, code: item.code },
-                )?)
-                .expect("supplied goal procedures");
+                rows.push(w::CreateProcedure { connector: item.connector, code: item.code })
+                    .expect("supplied goal procedures");
             }
-            w::Bounds::Create(w::BoundsCreate::new(
-                limits,
-                w::BoundsCreateParts {
-                    authority: owner::authority(models, authority, limits)?,
-                    pool_left: *pool_left,
-                    charters: charters.clone(),
-                    procedures: rows,
-                    latest: match latest {
-                        Some(item) => Some(item.as_nanos()),
-                        None => None,
-                    },
-                    budget: *budget,
-                    maximum_budget: *maximum_budget,
-                    maximum_deadline: match maximum_deadline {
-                        Some(item) => Some(item.as_nanos()),
-                        None => None,
-                    },
+            w::Bounds::Create(w::BoundsCreate {
+                authority: owner::authority(models, authority, limits)?,
+                pool_left: *pool_left,
+                charters: charters.clone(),
+                procedures: rows,
+                latest: match latest {
+                    Some(item) => Some(item.as_nanos()),
+                    None => None,
                 },
-            )?)
+                budget: *budget,
+                maximum_budget: *maximum_budget,
+                maximum_deadline: match maximum_deadline {
+                    Some(item) => Some(item.as_nanos()),
+                    None => None,
+                },
+            })
         }
         acts::Bounds::Amend { budget_left, grants, implications, authority, ceiling } => {
             let mut rows = List::with_capacity(grants.capacity());
@@ -152,56 +126,40 @@ pub(super) fn bounds(
             let grants = owner::grants_pieces(
                 &rows,
                 limits.bounds_amend_grants.min(w::CEILINGS.bounds_amend_grants),
-                w::Path::BoundsAmendGrants,
+                w::paths::BOUNDS_AMEND_GRANTS,
+                limits,
             )?;
             let mut pairs = List::with_capacity(implications.capacity());
             for item in implications {
                 pairs
-                    .push(w::KindImplication::new(
-                        limits,
-                        w::KindImplicationParts { connector: item.connector, kind: item.kind, implies: item.implies },
-                    )?)
+                    .push(w::KindImplication { connector: item.connector, kind: item.kind, implies: item.implies })
                     .expect("supplied implications");
             }
-            w::Bounds::Amend(w::BoundsAmend::new(
-                limits,
-                w::BoundsAmendParts {
-                    budget_left: *budget_left,
-                    grants,
-                    implications: pairs,
-                    authority: owner::authority(models, authority, limits)?,
-                    ceiling: owner::authority(models, ceiling, limits)?,
-                },
-            )?)
+            w::Bounds::Amend(w::BoundsAmend {
+                budget_left: *budget_left,
+                grants,
+                implications: pairs,
+                authority: owner::authority(models, authority, limits)?,
+                ceiling: owner::authority(models, ceiling, limits)?,
+            })
         }
     })
 }
 fn admission(models: &[crate::Model], value: &acts::Admission, limits: &w::Limits) -> Result<w::Admission, w::Problem> {
     Ok(match value {
         acts::Admission::Allowed => w::Admission::Allowed,
-        acts::Admission::Proposed { to } => w::Admission::Proposed(w::AdmissionProposed::new(
-            limits,
-            w::AdmissionProposedParts { to: recipient(to, limits)? },
-        )?),
-        acts::Admission::Refused(value) => w::Admission::Refused(w::AdmissionRefused::new(
-            limits,
-            w::AdmissionRefusedParts { value: refusals::refusal(value.clone(), limits)? },
-        )?),
+        acts::Admission::Proposed { to } => w::Admission::Proposed(w::AdmissionProposed { to: recipient(to, limits)? }),
+        acts::Admission::Refused(value) => {
+            w::Admission::Refused(w::AdmissionRefused { value: refusals::refusal(value.clone(), limits)? })
+        }
         acts::Admission::Bounded { within, beyond } => {
             let beyond = match beyond {
-                acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed::new(
-                    limits,
-                    w::BeyondProposedParts { to: recipient(to, limits)? },
-                )?),
-                acts::Beyond::Refused(value) => w::Beyond::Refused(w::BeyondRefused::new(
-                    limits,
-                    w::BeyondRefusedParts { value: refusals::refusal(value.clone(), limits)? },
-                )?),
+                acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: recipient(to, limits)? }),
+                acts::Beyond::Refused(value) => {
+                    w::Beyond::Refused(w::BeyondRefused { value: refusals::refusal(value.clone(), limits)? })
+                }
             };
-            w::Admission::Bounded(Box::new(w::AdmissionBounded::new(
-                limits,
-                w::AdmissionBoundedParts { within: bounds(models, within, limits)?, beyond },
-            )?))
+            w::Admission::Bounded(Box::new(w::AdmissionBounded { within: bounds(models, within, limits)?, beyond }))
         }
     })
 }
@@ -217,27 +175,29 @@ pub fn offered(
     }
     let mut rows = List::with_capacity(value.capacity());
     for item in value {
-        rows.push(w::Offered::new(
-            limits,
-            w::OfferedParts {
-                effect: match &item.effect {
-                    Some(value) => Some(effect(value, limits)?),
-                    None => None,
-                },
-                act: act(item.act)?,
-                admission: admission(models, &item.admission, limits)?,
+        rows.push(w::Offered {
+            effect: match &item.effect {
+                Some(value) => Some(effect(value, limits)?),
+                None => None,
             },
-        )?)
+            act: act(item.act)?,
+            admission: admission(models, &item.admission, limits)?,
+        })
         .expect("supplied offered acts");
     }
-    offered_pieces(&rows, bound.min(16_777_216), path)
+    offered_pieces(&rows, bound.min(16_777_216), path, limits)
 }
 
-pub fn offered_pieces(rows: &List<w::Offered>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn offered_pieces(
+    rows: &List<w::Offered>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -245,11 +205,16 @@ pub fn offered_pieces(rows: &List<w::Offered>, bound: u32, path: w::Path) -> Res
     }
     pieces(&encoded, bound, path)
 }
-pub fn chips_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn chips_pieces(
+    rows: &List<w::Chip>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -257,11 +222,16 @@ pub fn chips_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<B
     }
     pieces(&encoded, bound, path)
 }
-pub fn links_pieces(rows: &List<w::TaskLink>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn links_pieces(
+    rows: &List<w::TaskLink>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -269,11 +239,16 @@ pub fn links_pieces(rows: &List<w::TaskLink>, bound: u32, path: w::Path) -> Resu
     }
     pieces(&encoded, bound, path)
 }
-pub fn task_resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn task_resources_pieces(
+    rows: &List<w::ResourceLine>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -281,11 +256,16 @@ pub fn task_resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::
     }
     pieces(&encoded, bound, path)
 }
-pub fn delegates_pieces(rows: &List<w::LiveDelegate>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn delegates_pieces(
+    rows: &List<w::LiveDelegate>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -313,108 +293,115 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     let lineage_chips = chips_pieces(
         &lineage_rows,
         limits.task_lineage_chips.min(w::CEILINGS.task_lineage_chips),
-        w::Path::TaskLineageChips,
+        w::paths::TASK_LINEAGE_CHIPS,
+        limits,
     )?;
     let inputs =
-        link_list(&value.inputs, limits, limits.task_inputs.min(w::CEILINGS.task_inputs), w::Path::TaskInputs)?;
+        link_list(&value.inputs, limits, limits.task_inputs.min(w::CEILINGS.task_inputs), w::paths::TASK_INPUTS)?;
     let dependencies = link_list(
         &value.dependencies,
         limits,
         limits.task_dependencies.min(w::CEILINGS.task_dependencies),
-        w::Path::TaskDependencies,
+        w::paths::TASK_DEPENDENCIES,
     )?;
     let references = link_list(
         &value.references,
         limits,
         limits.task_references.min(w::CEILINGS.task_references),
-        w::Path::TaskReferences,
+        w::paths::TASK_REFERENCES,
     )?;
     let resources = resources(&value.resources, limits)?;
     let mut proposals = List::with_capacity(value.proposals.capacity());
     for item in &value.proposals {
         proposals.push(proposal(item, limits)?).expect("supplied proposals");
     }
-    w::Task::new(
-        limits,
-        w::TaskParts {
-            concluded: match value.concluded {
-                Some(value) => {
-                    Some(w::Concluded::new(limits, w::ConcludedParts { by: value.by, at: value.at.as_nanos() })?)
-                }
-                None => None,
-            },
-            talk: match value.talk {
-                Some(talk) => Some(w::Talk::new(
-                    limits,
-                    w::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
-                )?),
-                None => None,
-            },
-            session: match value.session {
-                Some(session) => Some(w::Session::new(
-                    limits,
-                    w::SessionParts { first: session.first, last: session.last.as_nanos() },
-                )?),
-                None => None,
-            },
-            settings: settings(value.settings, limits)?,
-            dependency_facts: chips::dependencies(&value.dependency_facts, limits)?,
-            llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
-            kept_account: value.kept_account,
-            run_wait: super::task_wait::waiting(value.run_wait, limits)?,
-            label: value.label,
-            flags: super::me::flags(value.flags, limits)?,
-            last_activity: value.last_activity.as_nanos(),
-            made: value.made.as_nanos(),
-            tasks_left: value.tasks_left,
-            waits_on: super::queries::waits(value.waits_on.clone(), limits)?,
-            chip: chips::chip(&value.chip, limits)?,
-            goal: value.goal,
-            priority: value.priority,
-            lineage_chips,
-            inputs,
-            project: value.project,
-            requester: owner::requester(value.requester, limits)?,
-            lineage,
-            spec: owner::specification(&value.spec, limits)?,
-            spec_revision: w::Revision::new(limits, w::RevisionParts { value: value.spec_revision })?,
-            person_revision: match value.person_revision {
-                Some(item) => Some(w::Revision::new(limits, w::RevisionParts { value: item })?),
-                None => None,
-            },
-            taken_by: value.taken_by,
-            instructions: match &value.instructions {
-                Some(item) => Some(owner::text(item, limits)?),
-                None => None,
-            },
-            wake: owner::wake(value.wake, limits)?,
-            subscriptions: owner::subscriptions(&value.subscriptions, limits)?,
-            result_contract: owner::contract(&value.contract, limits)?,
-            dependencies,
-            references,
-            cut: value.cut,
-            resources,
-            budget: owner::budget(&value.budget, limits)?,
-            authority: owner::authority(models, &value.authority, limits)?,
-            hold: match &value.hold {
-                Some(item) => Some(chips::held(item, limits)?),
-                None => None,
-            },
-            proposals,
-            activity: value.activity,
-            changed: value.changed.as_nanos(),
-            acts: offered(models, &value.acts, limits, limits.task_acts, w::Path::TaskActs)?,
-            result: match &value.result {
-                Some(item) => Some(w::TaskResult::Ending(w::TaskResultEnding::new(
-                    limits,
-                    w::TaskResultEndingParts { value: chips::ending(item, limits)? },
-                )?)),
-                None => None,
-            },
-            delegates: delegates(&value.delegates, limits)?,
-            context: None,
+    Ok(w::Task {
+        concluded: match value.concluded {
+            Some(value) => Some(w::Concluded { by: value.by, at: value.at.as_nanos() }),
+            None => None,
         },
-    )
+        talk: match value.talk {
+            Some(talk) => {
+                Some(w::Talk { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() })
+            }
+            None => None,
+        },
+        session: match value.session {
+            Some(session) => Some(w::Session { first: session.first, last: session.last.as_nanos() }),
+            None => None,
+        },
+        settings: settings(value.settings, limits)?,
+        dependency_facts: chips::dependencies(&value.dependency_facts, limits)?,
+        unread: unread(&value.unread, limits)?,
+        llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
+        kept_account: value.kept_account,
+        run_wait: super::task_wait::waiting(value.run_wait, limits)?,
+        label: value.label,
+        flags: super::me::flags(value.flags, limits)?,
+        last_activity: value.last_activity.as_nanos(),
+        made: value.made.as_nanos(),
+        tasks_left: value.tasks_left,
+        waits_on: super::queries::waits(value.waits_on.clone(), limits)?,
+        chip: chips::chip(&value.chip, limits)?,
+        goal: value.goal,
+        priority: value.priority,
+        lineage_chips,
+        inputs,
+        project: value.project,
+        requester: owner::requester(value.requester, limits)?,
+        lineage,
+        spec: owner::specification(&value.spec, limits)?,
+        spec_revision: w::Revision { value: value.spec_revision },
+        person_revision: match value.person_revision {
+            Some(item) => Some(w::Revision { value: item }),
+            None => None,
+        },
+        taken_by: value.taken_by,
+        instructions: match &value.instructions {
+            Some(item) => Some(owner::text(item, limits)?),
+            None => None,
+        },
+        wake: owner::wake(value.wake, limits)?,
+        subscriptions: owner::subscriptions(&value.subscriptions, limits)?,
+        result_contract: owner::contract(&value.contract, limits)?,
+        dependencies,
+        references,
+        cut: value.cut,
+        resources,
+        budget: owner::budget(&value.budget, limits)?,
+        authority: owner::authority(models, &value.authority, limits)?,
+        hold: match &value.hold {
+            Some(item) => Some(chips::held(item, limits)?),
+            None => None,
+        },
+        proposals,
+        activity: value.activity,
+        changed: value.changed.as_nanos(),
+        acts: offered(models, &value.acts, limits, limits.task_acts, w::paths::TASK_ACTS)?,
+        result: match &value.result {
+            Some(item) => Some(w::TaskResult::Ending(w::TaskResultEnding { value: chips::ending(item, limits)? })),
+            None => None,
+        },
+        delegates: delegates(&value.delegates, limits)?,
+        context: None,
+    })
+}
+
+fn unread(value: &List<d::UnreadWords>, limits: &w::Limits) -> Result<List<w::UnreadWords>, w::Problem> {
+    let mut result = List::with_capacity(value.capacity());
+    for word in value {
+        result
+            .push(w::UnreadWords {
+                message: word.message,
+                by: owner::requester(word.by, limits)?,
+                at: word.at.as_nanos(),
+                seen: word.seen,
+                head: word.head.bytes.clone(),
+                bytes: word.bytes,
+            })
+            .expect("supplied unread words");
+    }
+    Ok(result)
 }
 
 fn link_list(
@@ -427,7 +414,7 @@ fn link_list(
     for item in value {
         rows.push(link(item, limits)?).expect("supplied task links");
     }
-    links_pieces(&rows, bound, path)
+    links_pieces(&rows, bound, path, limits)
 }
 
 fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -435,74 +422,68 @@ fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u
     for item in value {
         resource_rows.push(chips::resource(item, limits)?).expect("supplied resources");
     }
-    task_resources_pieces(&resource_rows, limits.task_resources.min(w::CEILINGS.task_resources), w::Path::TaskResources)
+    task_resources_pieces(
+        &resource_rows,
+        limits.task_resources.min(w::CEILINGS.task_resources),
+        w::paths::TASK_RESOURCES,
+        limits,
+    )
 }
 
 fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut delegate_rows = List::with_capacity(value.capacity());
     for item in value {
         delegate_rows
-            .push(w::LiveDelegate::new(
-                limits,
-                w::LiveDelegateParts { chip: chips::chip(&item.chip, limits)?, takeover_budget: item.takeover_budget },
-            )?)
+            .push(w::LiveDelegate { chip: chips::chip(&item.chip, limits)?, takeover_budget: item.takeover_budget })
             .expect("supplied delegates");
     }
-    delegates_pieces(&delegate_rows, limits.task_delegates.min(w::CEILINGS.task_delegates), w::Path::TaskDelegates)
+    delegates_pieces(
+        &delegate_rows,
+        limits.task_delegates.min(w::CEILINGS.task_delegates),
+        w::paths::TASK_DELEGATES,
+        limits,
+    )
 }
 
-pub fn effect(value: &acts::Effect, limits: &w::Limits) -> Result<w::Effect, w::Problem> {
+pub fn effect(value: &acts::Effect, _limits: &w::Limits) -> Result<w::Effect, w::Problem> {
     Ok(match value {
-        acts::Effect::Release(value) => w::Effect::Release(w::EffectRelease::new(
-            limits,
-            w::EffectReleaseParts {
-                what: match value {
-                    acts::ReleaseEffect::Judged => w::ReleaseEffect::Judged,
-                    acts::ReleaseEffect::RunAgain => w::ReleaseEffect::RunAgain,
-                    acts::ReleaseEffect::Uncertain => w::ReleaseEffect::Uncertain,
-                },
+        acts::Effect::Release(value) => w::Effect::Release(w::EffectRelease {
+            what: match value {
+                acts::ReleaseEffect::Judged => w::ReleaseEffect::Judged,
+                acts::ReleaseEffect::RunAgain => w::ReleaseEffect::RunAgain,
+                acts::ReleaseEffect::Uncertain => w::ReleaseEffect::Uncertain,
             },
-        )?),
-        acts::Effect::Move { reservation } => {
-            w::Effect::MoveTask(w::EffectMove::new(limits, w::EffectMoveParts { reservation: *reservation })?)
-        }
-        acts::Effect::Cancel(value) => w::Effect::Cancel(w::Impact::new(
-            limits,
-            w::ImpactParts {
-                tasks: w::ImpactCounts::new(
-                    limits,
-                    w::ImpactCountsParts {
-                        ended: 0,
-                        waiting: value.tasks.waiting,
-                        running: value
-                            .tasks
-                            .idle
-                            .checked_add(value.tasks.starting)
-                            .expect("task bound")
-                            .checked_add(value.tasks.running)
-                            .expect("task bound")
-                            .checked_add(value.tasks.backing_off)
-                            .expect("task bound"),
-                        closing: value.tasks.closing,
-                        held: value.tasks.held,
-                        done: value.tasks.done,
-                        failed: value.tasks.failed,
-                        cancelled: value.tasks.cancelled,
-                    },
-                )?,
-                live_runs: value.live_runs,
-                proposals: value.proposals,
+        }),
+        acts::Effect::Move { reservation } => w::Effect::MoveTask(w::EffectMove { reservation: *reservation }),
+        acts::Effect::Cancel(value) => w::Effect::Cancel(w::Impact {
+            tasks: w::ImpactCounts {
+                ended: 0,
+                waiting: value.tasks.waiting,
+                running: value
+                    .tasks
+                    .idle
+                    .checked_add(value.tasks.starting)
+                    .expect("task bound")
+                    .checked_add(value.tasks.running)
+                    .expect("task bound")
+                    .checked_add(value.tasks.backing_off)
+                    .expect("task bound"),
+                closing: value.tasks.closing,
+                held: value.tasks.held,
+                done: value.tasks.done,
+                failed: value.tasks.failed,
+                cancelled: value.tasks.cancelled,
             },
-        )?),
+            live_runs: value.live_runs,
+            proposals: value.proposals,
+        }),
     })
 }
 
-fn settings(value: Option<d::TaskSettings>, limits: &w::Limits) -> Result<Option<w::TaskSettings>, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn settings(value: Option<d::TaskSettings>, _limits: &w::Limits) -> Result<Option<w::TaskSettings>, w::Problem> {
     match value {
-        Some(value) => Ok(Some(w::TaskSettings::new(
-            limits,
-            w::TaskSettingsParts { task: value.task, run: value.run, newest: value.newest },
-        )?)),
+        Some(value) => Ok(Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest })),
         None => Ok(None),
     }
 }

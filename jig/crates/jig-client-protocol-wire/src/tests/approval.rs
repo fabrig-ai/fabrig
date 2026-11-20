@@ -1,4 +1,5 @@
 //! Approval codes and secret prints (jig/docs/design/protocol/client/sign-in.md).
+use crate::Record as _;
 use crate::{ApprovalAsked, ApprovalCode, ApprovalSignIn, CEILINGS};
 use alloc::fmt::format;
 use skein_lib::{Reader, Writer};
@@ -78,7 +79,7 @@ fn debug_of_an_approval_shows_the_secrets_length_never_its_bytes() {
     const TAKE_CANARY: &str = "canary-c42e8b";
     let asked_bytes = secret_bytes(ASKED_CANARY.as_bytes(), b"WDJBMJHT\0\0\0\0\0\0\0\x1d");
     let asked = ApprovalAsked::decode(&CEILINGS, &mut Reader::new(&asked_bytes)).expect("bounded ask secret");
-    let take_bytes = secret_bytes(TAKE_CANARY.as_bytes(), b"");
+    let take_bytes = secret_bytes(TAKE_CANARY.as_bytes(), b"\0");
     let take = ApprovalSignIn::decode(&CEILINGS, &mut Reader::new(&take_bytes)).expect("bounded take secret");
     for (debug, pretty, canary, length) in [
         (format(format_args!("{asked:?}")), format(format_args!("{asked:#?}")), ASKED_CANARY, "Secret { len: 32 }"),
@@ -92,14 +93,76 @@ fn debug_of_an_approval_shows_the_secrets_length_never_its_bytes() {
         assert!(debug.contains(length), "{debug}");
         assert!(pretty.replace([' ', '\n', ','], "").contains(&length.replace(' ', "")), "{pretty}");
     }
-    let encoded = super::fixtures::encoded(&asked, ApprovalAsked::measure, ApprovalAsked::encode);
+    let encoded = super::fixtures::encoded(&asked);
     assert_eq!(encoded, asked_bytes);
     let decoded = ApprovalAsked::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip ask");
-    assert_eq!(decoded.secret().expose(), ASKED_CANARY.as_bytes());
+    assert_eq!(decoded.secret.expose(), ASKED_CANARY.as_bytes());
     assert_eq!(decoded, asked);
-    let encoded = super::fixtures::encoded(&take, ApprovalSignIn::measure, ApprovalSignIn::encode);
+    let encoded = super::fixtures::encoded(&take);
     assert_eq!(encoded, take_bytes);
     let decoded = ApprovalSignIn::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip take");
-    assert_eq!(decoded.secret().expose(), TAKE_CANARY.as_bytes());
+    assert_eq!(decoded.secret.expose(), TAKE_CANARY.as_bytes());
     assert_eq!(decoded, take);
+}
+
+#[test]
+fn approval_records_follow_the_sign_in_contract() {
+    let schema = crate::CLIENT_SCHEMA;
+    for line in [
+        "record ApprovalAsk { port: option u16 }",
+        "enum ApprovalKind { listener, returned, typed }",
+        "record ApprovalWaiting { asked: u64 kind: ApprovalKind source: option fixed 16 reader: option fixed 16 }",
+        "record ApprovalLoopback { port: u16 grant: secret 32 }",
+        "record ApprovalApproved { loopback: option ApprovalLoopback }",
+        "enum ApprovalDecided { approved: ApprovalApproved, refused, used, expired, unknown, not_a_browser, signed_out, not_ready, busy }",
+        "record ApprovalSignIn { secret: secret 64 grant: option secret 32 }",
+        "enum ApprovalSignInAnswer { signed_in: SignedIn, waiting, refused, expired, used, unknown, not_ready, busy, full: ApprovalFull, not_granted }",
+    ] {
+        let mut present = false;
+        for found in schema.lines() {
+            present |= found == line;
+        }
+        assert!(present, "missing declaration: {line}");
+    }
+}
+
+#[test]
+fn approval_records_round_trip_optional_returns_grants_and_sources() {
+    use crate::*;
+    use skein_lib::Secret;
+    macro_rules! round_trip {
+        ($ty:ident, $value:expr) => {{
+            let value = $value;
+            let bytes = super::fixtures::encoded(&value);
+            let decoded = $ty::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("round trip");
+            assert_eq!(decoded, value);
+            assert_eq!(super::fixtures::encoded(&decoded), bytes);
+            bytes
+        }};
+    }
+    for port in [None, Some(43210)] {
+        let ask = ApprovalAsk { port };
+        assert_eq!(ask.port, port);
+        round_trip!(ApprovalAsk, ask);
+    }
+    for returned in [false, true] {
+        let grant = if returned { Some(Secret::new(Box::new([9; 32]))) } else { None };
+        let take = ApprovalSignIn { secret: Secret::new(Box::new([7; 32])), grant };
+        assert_eq!(take.grant.is_some(), returned);
+        round_trip!(ApprovalSignIn, take);
+        let loopback =
+            if returned { Some(ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) }) } else { None };
+        let approved = ApprovalApproved { loopback };
+        round_trip!(ApprovalDecided, ApprovalDecided::Approved(approved));
+    }
+    for (tag, kind) in [(0, ApprovalKind::Listener), (1, ApprovalKind::Returned), (2, ApprovalKind::Typed)] {
+        for source in [None, Some([7; 16])] {
+            for reader in [None, Some([8; 16])] {
+                let waiting = ApprovalWaiting { asked: 100, kind: kind.clone(), source, reader };
+                let bytes = round_trip!(ApprovalWaiting, waiting);
+                assert_eq!(bytes.get(8), Some(&tag), "approval kind's tag");
+            }
+        }
+    }
+    round_trip!(ApprovalSignInAnswer, ApprovalSignInAnswer::NotGranted);
 }

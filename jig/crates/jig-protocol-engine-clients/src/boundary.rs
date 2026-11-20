@@ -309,6 +309,13 @@ pub struct Served {
     pub last: u32,
 }
 
+/// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Via {
+    Public,
+    Listener,
+}
+
 /// Messages from an opaque transport (protocol/client/wire.md, 2.2).
 #[derive(Debug, PartialEq)]
 pub enum FromTransport {
@@ -317,6 +324,8 @@ pub enum FromTransport {
         credential: Option<Secret>,
         /// Whether the transport carried the credential itself, as a browser's cookie (protocol/client/default-http.md, 3).
         browser: bool,
+        via: Via,
+        source: Option<::core::net::IpAddr>,
         message: Message,
     },
     StreamOpen {

@@ -50,7 +50,7 @@ pub(crate) fn new(value: &Value) -> Result<(notes::New, Option<u32>, Option<note
         return Err(Problem::Range(b"name"));
     }
     let references = match value.field(b"references")? {
-        Some(value) => numbers(value)?,
+        Some(value) => numbers(value, b"references")?,
         None => List::with_capacity(0),
     };
     Ok((
@@ -130,14 +130,14 @@ fn scope(value: &Value) -> Result<notes::Scope, Problem> {
     }
 }
 
-fn numbers(value: &Value) -> Result<List<u64>, Problem> {
-    let values = value.array(b"references")?;
+pub(crate) fn numbers(value: &Value, field: &'static [u8]) -> Result<List<u64>, Problem> {
+    let values = value.array(field)?;
     let Ok(capacity) = u32::try_from(values.len()) else { return Err(Problem::TooLarge) };
     let mut out = List::with_capacity(capacity);
     for value in values {
-        let number = value.number(b"references")?;
+        let number = value.number(field)?;
         if number == 0 {
-            return Err(Problem::Range(b"references"));
+            return Err(Problem::Range(field));
         }
         if out.push(number).is_err() {
             return Err(Problem::TooLarge);

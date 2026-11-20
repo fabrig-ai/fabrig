@@ -497,6 +497,19 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   the tree's wait and accounting source. Conformance's `Backend` gives
   `wait_begins`, `wait_unanswered` and `wait_figures`; the simulator uses
   their defaults.
+- **A bound only a slower host misses doubles on macOS,** as nextest's
+  slow timeouts do (`temper/docs/design/testing/macos.md`, 7):
+  `skein_world::real::host_bound(linux: Duration) -> Duration`, a
+  `const fn`, is `host_bound_on(linux, cfg!(target_os = "macos"))`, the
+  pure reading Linux's tests pin. A world opts in where it sets its
+  patience; `Deadline::arm` and `real::World::try_run` take the bound
+  given, and no budget or limit is scaled.
+- **macOS has no schedstat:** the loop thread's CPU there is
+  `skein_shell::keeper::thread_cpu() -> Option<Duration>`
+  (`CLOCK_THREAD_CPUTIME_ID`, on both systems), its runnable wait
+  unknown, so no wait there is starved. The settle line reads `thread CPU
+  elapsed (thread clock): N ns; thread runnable wait elapsed: UNAVAILABLE
+  on macOS`; Linux's lines are unchanged.
 - **A binary's counts mark tree settlement.** `Binary::counts()` is
   present once the binary and its descendants settle, whatever stderr's
   state. Stderr EOF and descriptor closes still drain before its observer
@@ -506,9 +519,10 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   reported without raising another failure.
 - **No fixture outlives its test.** A fixture that would run until
   signalled ends with the test that started it however the test ends,
-  a runner's kill that runs no cleanup among them: on Linux its leader
-  dies with the thread that started it (a parent-death signal,
-  `exec_dying_with_parent`, ../runtime/shell.md, 3), each descendant
+  a runner's kill that runs no cleanup among them: its leader dies with
+  the thread that started it on Linux, and with its process on macOS (a
+  parent-death signal or its watcher, `exec_dying_with_parent`,
+  ../runtime/shell.md, 3), each descendant
   it starts that leaves its group or session ends its own loop once
   that owner process is gone. None of that waits on unwinding: a test
   that unwinds may have the kit end the rest sooner (../examples.md, 6),

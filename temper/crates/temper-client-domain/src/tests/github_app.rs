@@ -79,15 +79,13 @@ fn carried(pem: &[u8]) -> Secret {
             assert_eq!(scope, c::Scope::Deployment);
             assert!(skein_lib::bytes::find(&record.bytes, pem).is_none());
             let bounds = forge::wire_limits(&f::limits().forge).unwrap();
-            let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &bounds).unwrap().into_parts().request
-            else {
+            let w::Request::Connect(connect) = wire::decode_requesting(&record.bytes, &bounds).unwrap().request else {
                 panic!("Connect")
             };
-            let w::Making::Kept(kept) = connect.forge() else { panic!("kept forge") };
-            assert_eq!(kept.forge(), 2);
-            let w::How::GithubApp(app) = connect.how() else { panic!("pasted App") };
-            assert_eq!(app.id(), 7);
+            let w::Making::Kept(kept) = &connect.forge else { panic!("kept forge") };
+            assert_eq!(kept.forge, 2);
+            let w::How::GithubApp(app) = &connect.how else { panic!("pasted App") };
+            assert_eq!(app.id, 7);
             carried = Some(value);
         }
     }
@@ -201,15 +199,7 @@ fn each_forge_refusal_is_said_in_forge_md_words() {
                 attempt = Some(sent);
             }
         }
-        let record = w::Answer::new(
-            &w::CEILINGS,
-            w::AnswerParts {
-                outcome: w::Outcome::ConnectRefused(
-                    w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why }).unwrap(),
-                ),
-            },
-        )
-        .unwrap();
+        let record = w::Answer { outcome: w::Outcome::ConnectRefused(w::ConnectRefused { why }) };
         event(
             &mut root,
             Event::Client {
@@ -325,9 +315,9 @@ fn the_github_row_names_its_app_by_slug_and_lists_its_installations() {
     assert!(forge::forges::accepted(&row));
 }
 #[test]
-fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
+fn install_sends_no_way_back_and_points_once_only_from_the_answer() {
     let (mut root, _, _) = connect::opened(true);
-    let mut out = act(&mut root, forge::Act::Install { forge: 2, back: b"/forges/connect?forge=2".as_slice().into() });
+    let mut out = act(&mut root, forge::Act::Install { forge: 2 });
     let mut attempt = None;
     while let Some(request) = out.pop() {
         if let Request::Leave { .. } = &request {
@@ -340,33 +330,20 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
             attempt = Some(sent);
             assert!(value.is_none());
             let jig_client::Ask::Family { record, .. } = request else { panic!("family") };
-            let w::Request::Install(install) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            let w::Request::Install(install) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("Install")
             };
-            assert_eq!(install.back().as_deref(), Some(b"/forges/connect?forge=2".as_slice()));
+            assert_eq!(install.back, None);
         }
     }
     let attempt = attempt.unwrap();
     let answer = jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(
-            &w::Answer::new(
-                &w::CEILINGS,
-                w::AnswerParts {
-                    outcome: w::Outcome::Link(
-                        w::Link::new(
-                            &w::CEILINGS,
-                            w::LinkParts { address: b"https://fake.invalid/install".as_slice().into() },
-                        )
-                        .unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-        ),
+        bytes: wire::answer(&w::Answer {
+            outcome: w::Outcome::Link(w::Link { address: b"https://fake.invalid/install".as_slice().into() }),
+        }),
     });
     let up = jig_client::Up::Answer {
         attempt,
@@ -375,24 +352,27 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
         why: None,
     };
     let mut out = event(&mut root, Event::Client { event: jig_client::Event::Up { up: up.clone() } });
-    let mut leaves = 0_u32;
+    let mut points = 0_u32;
     while let Some(request) = out.pop() {
-        if let Request::Leave { to, .. } = request {
-            leaves += 1;
+        if let Request::Leave { .. } = request {
+            panic!("GitHub never leaves the page");
+        }
+        if let Request::Tab { tab: crate::Tab::Point { to } } = request {
+            points += 1;
             assert_eq!(to.as_ref(), b"https://fake.invalid/install");
         }
     }
-    assert_eq!(leaves, 1);
+    assert_eq!(points, 1);
     let mut duplicate = event(&mut root, Event::Client { event: jig_client::Event::Up { up } });
     while let Some(request) = duplicate.pop() {
-        if let Request::Leave { .. } = &request {
-            panic!("only the first answer may leave the page");
+        if let Request::Leave { .. } | Request::Tab { .. } = request {
+            panic!("no duplicate departure");
         }
     }
 }
 
 fn manifest(root: &mut crate::Domain) -> Queue<Request> {
-    act(root, forge::Act::ConnectManifest { forge: 2, back: b"/forges/connect".as_slice().into() })
+    act(root, forge::Act::ConnectManifest { forge: 2 })
 }
 #[test]
 fn manifest_connect_needs_a_party() {
@@ -414,7 +394,7 @@ fn manifest_connect_waits_for_the_pending_app_answer() {
 #[test]
 fn manifest_connect_shares_the_pending_install_guard() {
     let (mut root, _, _) = connect::opened(true);
-    act(&mut root, forge::Act::Install { forge: 2, back: b"/forges/connect".as_slice().into() });
+    act(&mut root, forge::Act::Install { forge: 2 });
     assert!(manifest(&mut root).is_empty());
 }
 

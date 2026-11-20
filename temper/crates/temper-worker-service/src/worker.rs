@@ -851,6 +851,23 @@ impl Worker {
         let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
         self.answered(settled);
     }
+    fn read_usage(&mut self, read: u64, source: SourceName) {
+        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+        self.next = self.next.checked_add(1).expect("source owner sequence");
+        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+        let deadline = self.env.now.saturating_add(self.env.limits.host.source_timeout);
+        let settled = self.sources.read_usage(
+            read,
+            io_owner,
+            source,
+            self.directory.expect("worker root"),
+            deadline,
+            self.env.wall,
+            &mut self.io,
+            self.source_files.requests(),
+        );
+        self.answered(settled);
+    }
     fn note_unprepared(&mut self, run: Token, attempt: Token, failure: hub::Preparation, detail: &[u8]) {
         let detail = hosted_detail(&self.name, detail, self.env.limits.host.detail_bytes);
         self.notes.push(crate::worker_alone::Note::Unprepared {
@@ -875,8 +892,33 @@ impl Worker {
             no_progress_ms,
         });
     }
+    #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+    fn note_git(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
+        repository: Box<[u8]>,
+        what: root::Git,
+    ) {
+        let job = match job {
+            Some((kind, verb)) => Some((kind.0, verb)),
+            None => None,
+        };
+        self.notes.push(crate::worker_alone::Note::Git {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            job,
+            repository,
+            what,
+        });
+    }
+    #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Git { run, attempt, job, repository, what } => {
+                self.note_git(run, attempt, job, repository, what);
+            }
             root::Request::AgentStopped { run, attempt, failure } => {
                 self.note_agent_stopped(run, attempt, failure);
             }
@@ -894,6 +936,7 @@ impl Worker {
                 let answer = translate::answer(&bytes, &self.payload);
                 root::step(&mut self.root, &self.env, root::Event::RedsAnswer { owner, check, answer }, &mut self.out);
             }
+            root::Request::ReadUsage { read, source } => self.read_usage(read, source),
             root::Request::ReadList { read, endpoint, grant } => self.read_list(read, endpoint, grant),
             root::Request::CancelRead { read } => {
                 let settled = self.sources.cancel_read(read, &mut self.io);
@@ -1084,6 +1127,7 @@ impl Worker {
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
             let event = match answer {
+                hub::sources::Answer::Usage(outcome) => root::Event::UsageRead { read: owner.raw(), outcome },
                 hub::sources::Answer::Read(outcome) => root::Event::ListRead { read: owner.raw(), outcome },
                 answer @ (hub::sources::Answer::Checked { .. } | hub::sources::Answer::SignedOut(_)) => {
                     root::Event::SourceAnswered { owner, answer }
@@ -1314,17 +1358,13 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    smith_channel::CredentialValue::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CredentialValueParts {
-            scheme: match scheme {
-                Scheme::Bearer => smith_channel::Scheme::Bearer,
-                Scheme::Key => smith_channel::Scheme::Key,
-            },
-            bytes: value.token.clone(),
+    Some(smith_channel::CredentialValue {
+        scheme: match scheme {
+            Scheme::Bearer => smith_channel::Scheme::Bearer,
+            Scheme::Key => smith_channel::Scheme::Key,
         },
-    )
-    .ok()
+        bytes: value.token.clone(),
+    })
 }
 pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;
@@ -1422,6 +1462,7 @@ fn worker_root(limits: &root::Limits) -> root::Domain {
 mod prepared_tests {
     use crate::tests::fixtures;
     use jig_protocol_worker_link::{Event, Request};
+    use jig_protocol_worker_wire::Record;
     use skein_channel::{Lower, LowerEvent};
     use skein_lib::{List, Queue, Time, Token, stream};
 
@@ -1579,7 +1620,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v17::CEILINGS,
+                            &jig_protocol_worker_wire::v19::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),
@@ -1594,21 +1635,21 @@ mod prepared_tests {
             }
         }
         let opening = opening.expect("the worker sent an opening");
-        assert_eq!(opening.wires().len(), 5);
+        assert_eq!(opening.wires.len(), 5);
         let mut charter = None;
-        for wire in opening.wires() {
-            if wire.name() == b"smith-charter" {
+        for wire in &opening.wires {
+            if wire.name.as_ref() == b"smith-charter" {
                 charter = Some(wire);
                 break;
             }
         }
         let charter = charter.expect("charter stated");
-        assert_eq!(charter.lowest(), 5, "the chosen version overrides the floor");
-        for (stated, wire) in opening.wires().iter().zip(expected_jig.iter().chain(expected_application.iter())) {
-            assert_eq!(stated.name(), wire.name.as_bytes());
-            assert_eq!(stated.lowest(), wire.lowest);
-            assert_eq!(stated.layouts().as_slice(), wire.layouts.as_slice());
-            assert_eq!(stated.layouts().len(), 1, "one version of every wire");
+        assert_eq!(charter.lowest, 5, "the chosen version overrides the floor");
+        for (stated, wire) in opening.wires.iter().zip(expected_jig.iter().chain(expected_application.iter())) {
+            assert_eq!(stated.name.as_ref(), wire.name.as_bytes());
+            assert_eq!(stated.lowest, wire.lowest);
+            assert_eq!(stated.layouts.as_slice(), wire.layouts.as_slice());
+            assert_eq!(stated.layouts.len(), 1, "one version of every wire");
         }
     }
 
