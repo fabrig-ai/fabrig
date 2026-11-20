@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 98] = [
+const SHAPES: [Shape; 100] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -86,6 +86,8 @@ const SHAPES: [Shape; 98] = [
     Shape::CharterWords,
     Shape::ProjectWords,
     Shape::ProjectLanding,
+    Shape::RepairSettings,
+    Shape::RepairGoalSettings,
     Shape::ProjectGates,
     Shape::LandingCombineSettings,
     Shape::RepositoryGatesSettings,
@@ -519,6 +521,8 @@ fn optional_worker(field: &Field) -> bool {
 
 fn optional_landing(field: &Field) -> bool {
     field.shape == Shape::ProjectLanding
+        || (field.shape == Shape::RepairSettings && field.name != b"goal")
+        || (field.shape == Shape::RepairGoalSettings && field.name == b"llm")
         || field.shape == Shape::LandingCombineSettings
         || (field.shape == Shape::RepositoryGatesSettings && [b"gates".as_slice(), b"tiers"].contains(&field.name))
         || (field.shape == Shape::GateCheckSettings

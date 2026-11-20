@@ -5,4 +5,5 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[path = "generated/store.rs"]
+#[expect(clippy::large_enum_variant, reason = "generated setting edits own the named repair settings value")]
 pub mod v25;

@@ -940,7 +940,7 @@ fn task_flags(d: &Decoder<'_>, at: u32) -> Result<c::TaskFlags, Error> {
         ended_by: ended_by(d, field(&fields, b"ended_by")?)?,
     })
 }
-fn llm_choice(d: &Decoder<'_>, at: u32) -> Result<c::LlmChoice, Error> {
+pub(crate) fn llm_choice(d: &Decoder<'_>, at: u32) -> Result<c::LlmChoice, Error> {
     let fields = d.object(at, &[b"account", b"main", b"subagents", b"later"])?;
     Ok(c::LlmChoice {
         later: match optional(&fields, b"later") {

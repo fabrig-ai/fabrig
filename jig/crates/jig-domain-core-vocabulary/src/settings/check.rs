@@ -844,7 +844,9 @@ fn template_fault(
     }
     None
 }
-fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
+/// The template choice check against the deployment catalogue.
+#[must_use]
+pub fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
     if !agents_valid(models, choice.main, &choice.subagents) {
         return false;
     }

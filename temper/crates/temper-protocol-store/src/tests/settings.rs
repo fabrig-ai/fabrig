@@ -69,6 +69,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 tier_retries: 4,
                 verification_bound_ms: 90000,
                 wait: temper_engine_domain_forge_change::Wait::Landed,
+                repairs: None,
             }),
         ),
         (
@@ -513,4 +514,39 @@ fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
         let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
     }
+}
+
+#[test]
+fn repair_settings_with_the_whole_named_llm_round_trip() {
+    let main = d::NamedModel { model: b"catalogue-model".as_slice().into(), effort: Some(b"high".as_slice().into()) };
+    let subagent = d::NamedModel { model: b"helper".as_slice().into(), effort: None };
+    let landing = d::ProjectLanding {
+        wait: temper_engine_domain_forge_change::Wait::Landed,
+        repairs: Some(d::RepairSettings {
+            goals: 16,
+            attempts: 8,
+            deadline_ms: 604_800_000,
+            goal: d::RepairGoalSettings {
+                charter: 5,
+                priority: u32::MAX,
+                budget: u64::MAX,
+                llm: Some(d::NamedLlm {
+                    account: Some(u32::MAX),
+                    main: main.clone(),
+                    subagents: Box::new([subagent.clone()]),
+                    later: Some(d::NamedLater { main: subagent, subagents: Box::new([main]) }),
+                }),
+            },
+        }),
+        ..d::ProjectLanding::default()
+    };
+    let row = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue {
+            size: d::landing_record(&landing).measure(),
+            value: d::Value::Landing(landing),
+        }),
+    });
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }

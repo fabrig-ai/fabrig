@@ -26,6 +26,7 @@ pub struct ProjectLanding {
     pub tier_retries: u8,
     pub verification_bound_ms: u64,
     pub wait: temper_engine_domain_forge_change::Wait,
+    pub repairs: Option<super::RepairSettings>,
 }
 impl Default for ProjectLanding {
     fn default() -> Self {
@@ -43,6 +44,7 @@ impl Default for ProjectLanding {
             tier_retries: 2,
             verification_bound_ms: 7_200_000,
             wait: temper_engine_domain_forge_change::Wait::Cleared,
+            repairs: None,
         }
     }
 }
@@ -52,10 +54,36 @@ pub struct ProjectGates {
 }
 
 pub fn landing_record(v: &ProjectLanding) -> w::ProjectLanding {
+<<<<<<< HEAD
     w::ProjectLanding {
         by: match v.by {
             temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
             temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
+=======
+    w::ProjectLanding::new(
+        &w::CEILINGS,
+        w::ProjectLandingParts {
+            repairs: super::repairs::record(v.repairs.as_ref()),
+            by: match v.by {
+                temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
+                temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
+            },
+            batch: v.batch,
+            combine_main: combine_record(v.combine_main),
+            combine_other: combine_record(v.combine_other),
+            merge_job: v.merge_job.clone(),
+            close_job: v.close_job.clone(),
+            landing_attempts: v.landing_attempts,
+            check_timeout_ms: v.check_timeout_ms,
+            gate_retries: v.gate_retries,
+            gate_timeout_ms: v.gate_timeout_ms,
+            tier_retries: v.tier_retries,
+            verification_bound_ms: v.verification_bound_ms,
+            wait: match v.wait {
+                temper_engine_domain_forge_change::Wait::Cleared => w::SettingsLandingWait::Cleared,
+                temper_engine_domain_forge_change::Wait::Landed => w::SettingsLandingWait::Landed,
+            },
+>>>>>>> refs/hand8/10367
         },
         batch: v.batch,
         combine_main: combine_record(v.combine_main),
@@ -76,6 +104,7 @@ pub fn landing_record(v: &ProjectLanding) -> w::ProjectLanding {
 }
 pub fn landing_from(v: w::ProjectLanding) -> ProjectLanding {
     ProjectLanding {
+        repairs: super::repairs::from_record(v.repairs),
         by: match v.by {
             w::SettingsLandingWay::Queue => temper_engine_domain_forge_change::Way::Queue,
             w::SettingsLandingWay::Turn => temper_engine_domain_forge_change::Way::Turn,
@@ -358,6 +387,20 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
             && !job(path)
         {
             return Err(refuse(field, b"must be a relative path of 1 to 4096 bytes without NUL or .. segments"));
+        }
+    }
+    if let Some(repairs) = &v.repairs {
+        if v.wait != temper_engine_domain_forge_change::Wait::Landed {
+            return Err(refuse(b"repairs", b"needs wait landed"));
+        }
+        if !(1..=16).contains(&repairs.goals) {
+            return Err(refuse(b"repairs.repair_goals", b"must be 1 to 16"));
+        }
+        if !(1..=8).contains(&repairs.attempts) {
+            return Err(refuse(b"repairs.repair_attempts", b"must be 1 to 8"));
+        }
+        if !(3_600_000..=604_800_000).contains(&repairs.deadline_ms) {
+            return Err(refuse(b"repairs.repair_deadline_ms", b"must be 3600000 to 604800000"));
         }
     }
     Ok(())
