@@ -35,6 +35,7 @@ fn connect_offers_the_three_kinds() {
             "A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.",
             "Run Forgejo here",
             "GitHub",
+            "In a new tab, on GitHub · about two minutes",
             "Connect GitHub",
             "Or a server of your own",
             "Your Forgejo",
@@ -219,6 +220,7 @@ fn connected_cards_move_the_default_and_offer_forgejos_sign_in() {
             "work/hello",
             "Open Forgejo ↗",
             "GitHub",
+            "In a new tab, on GitHub · about two minutes",
             "Connect GitHub",
         ],
     );
@@ -662,7 +664,7 @@ fn the_forges_row_names_the_first_repository() {
 }
 
 #[test]
-fn connecting_on_github_offers_install_with_its_way_back() {
+fn connecting_on_github_offers_install_without_a_way_back() {
     for address in [
         Address::ConnectForge { forge: Some(Choice::Forge(GITHUB)) },
         Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(GITHUB)) } },
@@ -677,10 +679,7 @@ fn connecting_on_github_offers_install_with_its_way_back() {
         let button = node(view.tree(), Role::Button, b"Install on GitHub");
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
-            Some(d::Action::Forge(d::forge::Act::Install {
-                forge: GITHUB,
-                back: d::address::print(root.pages().address())
-            }))
+            Some(d::Action::Forge(d::forge::Act::Install { forge: GITHUB }))
         );
     }
 }
@@ -787,11 +786,8 @@ fn manifest_started(address: Address) -> (d::Domain, skein_lib::Queue<d::Request
     (root, out)
 }
 #[test]
-fn connect_github_sends_the_flow_address_at_its_forge() {
-    for (address, back) in [
-        (Address::ConnectForge { forge: None }, b"/forges".as_slice()),
-        (Address::Welcome { step: Step::Forge { forge: None } }, b"/welcome?at=forge".as_slice()),
-    ] {
+fn both_connect_github_buttons_send_a_new_manifest_without_back() {
+    for address in [Address::ConnectForge { forge: None }, Address::Welcome { step: Step::Forge { forge: None } }] {
         let (_, mut out) = manifest_started(address);
         let mut sent = None;
         while let Some(request) = out.pop() {
@@ -808,15 +804,16 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
         let w::Request::Connect(connect) = sent.expect("manifest Connect") else { panic!("Connect") };
         let w::Making::New(_) = &connect.forge else { panic!("new forge") };
         let w::How::GithubManifest(manifest) = &connect.how else { panic!("manifest") };
-        assert_eq!(manifest.back.as_deref(), Some(back));
+        assert_eq!(manifest.back, None);
     }
 }
 #[test]
-fn connect_github_is_disabled_until_the_answer() {
+fn connect_github_shows_waiting_before_its_link_arrives() {
     let (root, _) = manifest_started(Address::ConnectForge { forge: None });
     let view = f::browser_page_view(&root);
-    let button = node(view.tree(), Role::Button, b"Connect GitHub");
-    assert!(view.tree().nodes().iter().find(|n| n.id == button).unwrap().states.as_slice().contains(&State::Disabled));
+    node(view.tree(), Role::Status, b"Waiting for GitHub, in the new tab");
+    assert!(f::find(view.tree(), Role::Button, b"Connect GitHub").is_none());
+    assert!(f::find(view.tree(), Role::Link, b"Open it again").is_none());
 }
 #[test]
 fn connect_github_refusal_shows_under_its_button() {
@@ -826,37 +823,43 @@ fn connect_github_refusal_shows_under_its_button() {
     words_in_order(view.tree(), &["Connect GitHub", "temper is busy with forge 0: try again when it ends."]);
 }
 #[test]
-fn connect_github_link_leaves_the_tab_once() {
-    let (mut root, out) = manifest_started(Address::ConnectForge { forge: None });
+fn connect_github_points_the_manifest_once_without_leaving() {
+    let address = Address::ConnectForge { forge: None };
+    let (mut root, out) = manifest_started(address.clone());
     let attempt = attempt(out);
-    let outcome = w::Outcome::Link(w::Link { address: b"/forges/2/github/manifest?state=fake".as_slice().into() });
+    let manifest = b"http://127.0.0.1:4100/forges/2/github/manifest?state=fake";
+    let outcome = w::Outcome::Link(w::Link { address: manifest.as_slice().into() });
     let mut out = drive(&mut root, answer_event(attempt, outcome.clone()));
-    let mut leaves = Vec::new();
-    while let Some(request) = out.pop() {
-        if let d::Request::Leave { to, .. } = request {
-            leaves.push(to);
-        }
-    }
-    assert_eq!(leaves, [Box::<[u8]>::from(b"/forges/2/github/manifest?state=fake".as_slice())]);
-    let mut out = drive(&mut root, answer_event(attempt, outcome));
+    let mut points = Vec::new();
     while let Some(request) = out.pop() {
         if let d::Request::Leave { .. } = request {
-            panic!("only the first answer may leave the page");
+            panic!("the manifest does not leave temper’s page");
+        }
+        if let d::Request::Tab { tab: d::Tab::PointOnOrigin { to } } = request {
+            points.push(to);
         }
     }
-    let view = f::browser_page_view(&root);
-    // The tab leaves by the path; no external link is drawn for it.
-    assert!(view.tree().nodes().iter().all(|n| n.external.is_none()));
+    assert_eq!(points, [Box::<[u8]>::from(manifest.as_slice())]);
+    assert_eq!(root.pages().address(), &address);
+    let mut out = drive(&mut root, answer_event(attempt, outcome));
+    while let Some(request) = out.pop() {
+        if let d::Request::Tab { .. } | d::Request::Leave { .. } = request {
+            panic!("a repeated answer does not point or leave");
+        }
+    }
 }
 #[test]
-fn a_whole_address_link_keeps_its_external_link_meanwhile() {
-    let (mut root, out) = manifest_started(Address::ConnectForge { forge: None });
-    let attempt = attempt(out);
+fn the_install_link_is_external_while_waiting() {
+    let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(GITHUB)) }, github_rows(false));
+    let mut view = f::browser_page_view(&root);
+    let button = node(view.tree(), Role::Button, b"Install on GitHub");
+    let action = crate::act(&mut view, button, Act::Press).expect("live install button");
+    let attempt = attempt(drive(&mut root, d::Event::Act { action }));
     let address = b"https://github.com/apps/temper-fake/installations/new?state=fake";
     let outcome = w::Outcome::Link(w::Link { address: address.as_slice().into() });
     drive(&mut root, answer_event(attempt, outcome));
     let view = f::browser_page_view(&root);
-    let link = node(view.tree(), Role::Link, b"Connect GitHub");
+    let link = node(view.tree(), Role::Link, b"Open it again");
     assert_eq!(
         view.tree().nodes().iter().find(|n| n.id == link).unwrap().external.as_deref(),
         Some(address.as_slice())
@@ -1390,10 +1393,7 @@ fn an_unfinished_github_offers_go_on_before_start_over() {
     words_in_order(view.tree(), &["FORGE · not finished", "Go on", "Start over"]);
     assert_eq!(
         press(&root, Role::Button, b"Go on"),
-        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::GoOn {
-            forge: GITHUB,
-            back: b"/welcome?at=forge".as_slice().into()
-        }))
+        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::GoOn { forge: GITHUB }))
     );
 }
 

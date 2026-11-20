@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-19. Where the tree's code lags or departs from [engine.md](engine.md).
+2026-11-20. Where the tree's code lags or departs from [engine.md](engine.md).
 
 - **Not yet:** the FORGE requests' `SetDraft`: the engine neither routes
   nor answers it (`../domain/forge/drafts.md`) [in flight: change 663].

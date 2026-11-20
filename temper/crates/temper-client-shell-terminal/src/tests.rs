@@ -31,6 +31,20 @@ fn a_jig_read_reaches_the_link_with_its_own_token() {
     assert_eq!(what, fixtures::inbox_read());
 }
 #[test]
+fn origin_tab_points_keep_the_whole_address_for_the_terminal() {
+    let address = b"http://127.0.0.1:4100/forges/3/github/manifest?state=S";
+    for tab in [
+        client::Tab::PointOnOrigin { to: address.as_slice().into() },
+        client::Tab::Point { to: address.as_slice().into() },
+    ] {
+        let Down::Notice(route::Notice::Leave { to }) = route::down(client::Request::Tab { tab }) else {
+            panic!("a pointed tab gives the terminal its address");
+        };
+        assert_eq!(to.as_ref(), address);
+    }
+}
+
+#[test]
 fn a_table_record_saved_then_kept_comes_back_the_same() {
     let limits = fixtures::link_limits();
     {

@@ -55,4 +55,5 @@ mod words;
 mod work;
 
 mod forge_sheet;
+mod github_wait;
 mod sign_in_wait;

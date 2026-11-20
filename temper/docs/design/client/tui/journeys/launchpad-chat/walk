@@ -1,12 +1,17 @@
-walk 1
-see "then press Approve."
-approve
-see "Ask temper"
-mark
-key char "/"
-see "Start a new chat"
-key escape
-key paste "What can you tell me about Hello?"
-key enter
-see "Hello from the local fake model."
-end
+walk 2
+after project-landing
+tui see "then press Approve."
+tui approve
+tui see "Ask temper"
+tui see "Nothing needs you."
+tui see "/draft"
+tui mark
+tui key char "/"
+tui see "Start a new chat"
+tui mark
+tui key escape
+tui key paste "What can you tell me about Hello?"
+tui mark
+tui key enter
+tui see "Hello from the local fake model."
+tui mark

@@ -117,6 +117,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 | Event::BoxClosed
                 | Event::ConnectAnswered { .. }
                 | Event::InstallAnswered { .. }
+                | Event::WayEnded { .. }
                 | Event::ConnectEnded { .. }
                 | Event::SetUpAnswered { .. }
                 | Event::FirstMade { .. }

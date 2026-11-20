@@ -100,6 +100,34 @@ fn admit_watches(host: &mut Host) {
     }
 }
 
+#[test]
+fn github_tabs_have_their_own_words_and_manifest_points_use_only_the_checked_origin_path() {
+    for (address, path) in [
+        (
+            b"http://127.0.0.1:4100/forges/3/github/manifest?state=S".as_slice(),
+            Some(b"/forges/3/github/manifest?state=S".as_slice()),
+        ),
+        (b"http://127.0.0.1:4100", None),
+        (b"http://127.0.0.1:4100?return=/path", None),
+        (b"https://example.test#/path", None),
+        (b"file://example.test/path", None),
+        (b"http://127.0.0.1:4100//another.example/path", None),
+        (b"http://127.0.0.1:4100/path\\not-allowed", None),
+        (b"http://127.0.0.1:4100/path with-space", None),
+    ] {
+        let mut host = linked();
+        host.out.push(Request::Tab { tab: root::Tab::Open { opening: root::Opening::GitHub } });
+        host.out.push(Request::Tab { tab: root::Tab::PointOnOrigin { to: address.into() } });
+        let duties = host.report(Report::Start);
+        let point = match path {
+            Some(path) => TabAct::Point { to: path.into() },
+            None => TabAct::Close,
+        };
+        assert_eq!(duties.tab, [TabAct::Open { words: "Opening GitHub…".as_bytes().into() }, point]);
+        assert!(!duties.departs());
+    }
+}
+
 fn press_sign_in() -> (Host, Duties) {
     let mut host = linked();
     let button = node(&host, Role::Button, b"Continue with ChatGPT");

@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-11. How far temper's client is from its mockups
+Revised 2026-11-20. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -194,8 +194,11 @@ Where the client does otherwise:
   client's. The mockup is not edited.
 
 Not yet known: whether GitHub keeps the state through its
-installation's Configure and Save, and whether the picker reads the
-repositories again on the way back (`../../forge/served.md`, 1).
+installation's Configure and Save. GitHub's way opens its own tab;
+temper's page stays and reads its end on the `forges` watch
+(`../../forge/deployment.md`, *GitHub's way, in a new tab*;
+`../../forge/served.md`, 1). The setup route ends the new tab with its
+close-tab sentence, not a "Back to temper" link.
 
 ## 2. Not under the rules yet
 
