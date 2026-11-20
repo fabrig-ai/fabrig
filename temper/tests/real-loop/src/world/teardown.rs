@@ -85,7 +85,7 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let receipt = Rc::new(Receipt::default());
     // The chooser's block claim outlives the story and belongs in its descriptor baseline.
     drop(temper_fixtures::ports::reserve::<1>(&[]));
-    let descriptors = std::fs::read_dir("/proc/self/fd").expect("own descriptors").count();
+    let descriptors = std::fs::read_dir("/dev/fd").expect("own descriptors").count();
     let Err(message) = startup(&scratch, Some(&listener), receipt.clone()) else {
         panic!("a service exit before its link must fail the story")
     };
@@ -101,7 +101,7 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     assert!(receipt.settled.get(), "the failure is reported after every host empties");
     assert_eq!(receipt.calls.get(), 0, "no CLI command ran before release");
     assert_eq!(
-        std::fs::read_dir("/proc/self/fd").expect("own descriptors").count(),
+        std::fs::read_dir("/dev/fd").expect("own descriptors").count(),
         descriptors,
         "failed startup releases every descriptor"
     );

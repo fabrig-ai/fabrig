@@ -486,7 +486,9 @@ fn serve(shared: &Shared, listener: &str, socket: TcpStream) {
         Ok(())
     })();
     // The quiesce list holds a clone: only a shutdown sends the FIN a graceful close waits for.
-    let _ = socket.get_ref().shutdown(Shutdown::Both);
+    // Darwin rejects Both after the peer's FIN with ENOTCONN, without sending our FIN.
+    let _ = socket.get_ref().shutdown(Shutdown::Write);
+    let _ = socket.get_ref().shutdown(Shutdown::Read);
     if result.is_err() && !shared.stop.load(Ordering::Acquire) {
         let _ = shared.record(listener, "INVALID", "/", 400, true);
     }

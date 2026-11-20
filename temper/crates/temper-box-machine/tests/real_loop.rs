@@ -683,14 +683,14 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
         wake: None,
     });
     world.spawn_signals(|signals| {
-        // All steps use the box's program; the remover execs the /bin/true stub.
+        // All steps use the box's program; the remover execs the /usr/bin/true stub.
         let script = b"printf 'start 17 fake\n' >&3; IFS= read -r step <&4; IFS= read -r started <&4; [ \"$step\" = 'step 17 run' ] && [ \"$started\" = 'started 17' ] || exit 1; printf 'remove 17\n' >&3; IFS= read -r removed <&4; [ \"$removed\" = 'removed 17' ] || exit 1; printf '%s\n' \"$removed\"; exec /bin/sleep 30";
         let steps = Steps {
             always: Box::new([Step::new(b"serve".as_slice().into(), Box::new([b"-c".as_slice().into(), script.as_slice().into()]), Kind::Long)]),
             asked: Box::new([Group {
                 kind: Some(BoxKind::Fake), forge: 0, label: b"Fake".as_slice().into(), recorded: true, before: 0,
                 steps: Box::new([(Stage::Run, Step::new(b"fake-forge".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/sleep 30".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Long))]),
-                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
+                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /usr/bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
             }]),
         };
         boxed(Service::new(&temper_box_machine::limits::stock(), steps, Settings {

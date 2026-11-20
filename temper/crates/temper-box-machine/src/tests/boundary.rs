@@ -33,6 +33,7 @@ fn allowed(path: &str) -> bool {
                 "Kind",
                 "Step",
                 "steps",
+                "kinds",
                 "FORGE_ARGUMENT",
                 "machine::BoxKind",
                 "machine",

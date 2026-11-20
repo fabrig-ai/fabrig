@@ -1050,7 +1050,7 @@ impl Calls {
                 self.action = Some(Action::Signal);
                 let signal: &[u8] = if matches!(step, Step::Pause) { b"-STOP" } else { b"-CONT" };
                 self.spawn(
-                    b"/usr/bin/kill".as_slice().into(),
+                    b"/bin/kill".as_slice().into(),
                     vec![signal.into(), self.forgejo.expect("owned Forgejo pid").to_string().into_bytes().into()],
                     Vec::new(),
                     false,
