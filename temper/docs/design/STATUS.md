@@ -712,6 +712,7 @@ Drafts:
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/early-start-checked.md`](draft/early-start-checked.status.md)
 - [`draft/early-start-squash.md`](draft/early-start-squash.status.md)
+- [`draft/failure-worlds.md`](draft/failure-worlds.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
