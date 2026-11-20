@@ -245,6 +245,39 @@ impl Worker {
     }
     pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
         self.figures = Some(figures);
+        self.last_figures = None;
+    }
+
+    /// Take only the live part, or none of it (configuration/figures.md, 3.2).
+    fn hear_figures(&mut self, heard: jig_protocol_worker_wire::Figures) {
+        use crate::{figures, worker_alone::Note};
+        let Some(in_force) = &self.figures else { return };
+        if &heard == self.last_figures.as_ref().unwrap_or(in_force) {
+            return;
+        }
+        let plan = figures::plan(in_force, &heard, &self.env.limits, self.git.component.limits());
+        self.last_figures = Some(heard);
+        match plan.live {
+            Ok(Some(take)) => {
+                // The link checks before mutating its timers. Git's check was
+                // done on the copy; its construction bounds have not moved.
+                if let Some(timers) = take.timers
+                    && !self.link.retime(timers)
+                {
+                    self.notes.push(Note::FiguresRefused { problem: figures::bound_line() });
+                } else {
+                    assert!(self.git.component.take_limits(&take.git), "checked live git bounds");
+                    self.env.limits = take.root;
+                    self.figures = Some(take.figures);
+                    self.notes.push(Note::FiguresTaken { figures: take.names.into_boxed() });
+                }
+            }
+            Ok(None) => {}
+            Err(problem) => self.notes.push(Note::FiguresRefused { problem }),
+        }
+        if !plan.waiting.is_empty() {
+            self.notes.push(Note::FiguresWaiting { figures: plan.waiting.into_boxed() });
+        }
     }
     pub fn reuse_workspaces(&mut self) {
         self.root.reuse_workspaces();
@@ -542,15 +575,7 @@ impl Worker {
             link::Request::Untranslated { kind, halt } => {
                 self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
             }
-            link::Request::Figures { figures } => {
-                if let Some(built) = &self.figures {
-                    let previous = self.last_figures.as_ref().unwrap_or(built);
-                    if figures != *previous && figures != *built {
-                        self.notes.push(crate::worker_alone::Note::FiguresChanged);
-                    }
-                    self.last_figures = Some(figures);
-                }
-            }
+            link::Request::Figures { figures } => self.hear_figures(figures),
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;
@@ -1689,6 +1714,8 @@ mod prepared_tests {
     }
 }
 
+#[cfg(test)]
+mod figures_tests;
 #[cfg(test)]
 mod stopping_tests;
 

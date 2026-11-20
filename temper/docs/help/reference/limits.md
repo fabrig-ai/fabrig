@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Every row belongs to the temper-limits setting: its name, unit, stock value, when a raise applies and what it bounds.
+Every row belongs to the temper-limits setting: its name, unit, stock value, when a change applies and what it bounds.
 
 ## live_goals
 
@@ -184,16 +184,16 @@ Every row belongs to the temper-limits setting: its name, unit, stock value, whe
 | Name | Unit | Stock | Applies | Bounds |
 |---|---|---|---|---|
 | `checkout.workspaces` | count | 3 | next start | Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held. |
-| `checkout.preparations` | count | 1 | next start | Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival. |
+| `checkout.preparations` | count | 1 | live | Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival. |
 | `checkout.repositories` | count | 2 | next start | Bounds repositories named by one checkout specification. |
 | `checkout.name_bytes` | bytes | 256 | next start | Bounds a workstream key, repository name, remote or branch. |
-| `checkout.message_bytes` | bytes | 63,740 | next start | Bounds a commit message's title and body together. |
+| `checkout.message_bytes` | bytes | 63,740 | live | Bounds a commit message's title and body together. |
 | `checkout.conflicts` | count | 512 | next start | Bounds conflicted paths per repository; zero disables merge starts. |
 | `checkout.path_bytes` | bytes | 255 | next start | Bounds one full relative conflicted path. |
-| `checkout.remote_timeout_ms` | milliseconds | 60,000 | next start | Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing. |
-| `checkout.local_timeout_ms` | milliseconds | 60,000 | next start | Bounds an operation on the worker's disk, including checking out, merging and committing. |
-| `checkout.reds_read_ms` | milliseconds | 5,000 | next start | Waits for the goal’s reds at each check; 100 to 60,000 milliseconds. |
-| `checkout.rerun_processes` | count | 4 | next start | Bounds failing test processes run again by a check; 0 to 16. |
+| `checkout.remote_timeout_ms` | milliseconds | 60,000 | live | Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing. |
+| `checkout.local_timeout_ms` | milliseconds | 60,000 | live | Bounds an operation on the worker's disk, including checking out, merging and committing. |
+| `checkout.reds_read_ms` | milliseconds | 5,000 | live | Waits for the goal’s reds at each check; 100 to 60,000 milliseconds. |
+| `checkout.rerun_processes` | count | 4 | live | Bounds failing test processes run again by a check; 0 to 16. |
 | `checkout.facts` | count | 256 | next start | Bounds facts kept until the parent drains them; later facts are dropped and counted. |
 
 ## git_component
@@ -201,11 +201,11 @@ Every row belongs to the temper-limits setting: its name, unit, stock value, whe
 | Name | Unit | Stock | Applies | Bounds |
 |---|---|---|---|---|
 | `git_component.operations` | count | 3 | next start | Bounds simultaneous git component operations; at least the workspaces. |
-| `git_component.stdout_bytes` | bytes | 131,072 | next start | Bounds standard output retained from a git operation. |
-| `git_component.stderr_bytes` | bytes | 512 | next start | Bounds standard error retained from a git operation. |
-| `git_component.read_bytes` | bytes | 4,096 | next start | Bounds one read from a git operation's output. |
-| `git_component.sweep_entries` | count | 16 | next start | Bounds entries in one page of the checkout trash sweep's listing. |
-| `git_component.sweep_bytes` | bytes | 4,080 | next start | Bounds bytes of names in one page of the checkout trash sweep's listing. |
+| `git_component.stdout_bytes` | bytes | 131,072 | live | Bounds standard output retained from a git operation. |
+| `git_component.stderr_bytes` | bytes | 512 | live | Bounds standard error retained from a git operation. |
+| `git_component.read_bytes` | bytes | 4,096 | live | Bounds one read from a git operation's output. |
+| `git_component.sweep_entries` | count | 16 | live | Bounds entries in one page of the checkout trash sweep's listing. |
+| `git_component.sweep_bytes` | bytes | 4,080 | live | Bounds bytes of names in one page of the checkout trash sweep's listing. |
 
 ## clients
 

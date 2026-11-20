@@ -295,7 +295,7 @@ pub enum Note {
     WorkerFigures {
         limits: u32,
         endpoints: u32,
-        revision: u32,
+        revision: FiguresRevision,
     },
     WorkerFiguresTaken {
         worker: Box<[u8]>,
@@ -382,6 +382,13 @@ pub enum Note {
         number: u16,
         installation: u64,
     },
+}
+
+/// The setting that caused a composition (temper/docs/design/protocol/configuration/figures.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FiguresRevision {
+    Agents(u32),
+    Limits(u32),
 }
 
 /// The engine's listeners (protocol/cluster.md, 3).

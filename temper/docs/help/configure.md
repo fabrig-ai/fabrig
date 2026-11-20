@@ -18,8 +18,12 @@ Or describe how you work to Ask temper: temper help chat.
 ### Deployment capacity
 
 Limits are settings, not keys of `temper.toml`. Read `temper ctl settings show limits`,
-edit the whole value and use `temper ctl settings apply` (steps 1 to 3), then
-restart (temper help deployment). Authority alone cannot raise deployment limits.
+edit the whole value and use `temper ctl settings apply` (steps 1 to 3).
+The limits below take changes at the next start (temper help deployment).
+For other rows, the Limits page and `temper help limits` or
+`temper help limits-engine` say whether raises apply at once, changes apply
+live at the next operation that reads the figure, or changes wait for the
+next start. Authority alone cannot raise deployment limits.
 
 | Limit in the `limits` setting | Bounds |
 |---|---|

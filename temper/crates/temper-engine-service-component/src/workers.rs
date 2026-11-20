@@ -1,5 +1,7 @@
 //! The workers' host and temper's typed root handoff (jig/docs/design/protocol/service.md, 11.3).
-use crate::{assignment::Encoding, settings::Forge, values::Values};
+//! Worker figures and link timers: temper/docs/design/protocol/configuration/figures.md, 2,
+//! and temper/docs/design/protocol/configuration/limit-settings.md, 5.2.
+use crate::{FiguresRevision, assignment::Encoding, limit_settings::Resolved, settings::Forge, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_protocol_config::{self as config, Problems, What};
@@ -7,6 +9,7 @@ use jig_protocol_engine_workers as kit;
 use jig_protocol_worker_wire::Part;
 use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
+use temper_client_protocol_wire::v1::AgentFigures;
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
 use temper_protocol_worker_wire::v1::Record;
@@ -27,15 +30,21 @@ pub struct Workers {
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
     figures: temper_engine_service_vocabulary::figures::Composer,
+    composed: Option<Composed>,
     copy: Option<AgentsCopy>,
     local: Option<LocalCopy>,
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
+}
+#[derive(Debug)]
+struct Composed {
+    agents: Box<AgentFigures>,
+    revision: u32,
 }
 /// The box's shell keeps this copy after restore and each committed change.
 #[derive(Debug)]
 struct AgentsCopy {
     path: Box<[u8]>,
-    initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
+    initial: Option<AgentFigures>,
     restored: bool,
     writes: Queue<Box<[u8]>>,
 }
@@ -73,16 +82,13 @@ impl Workers {
             bad_parts: 0,
             notes: Queue::uncapped(),
             opening_limits: *limits,
+            composed: None,
             copy: None,
             local: None,
             opening_ends: Map::with_capacity(opening_names),
         })
     }
-    pub(crate) fn keep_agents(
-        &mut self,
-        path: Box<[u8]>,
-        initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
-    ) {
+    pub(crate) fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<AgentFigures>) {
         self.copy = Some(AgentsCopy { path, initial, restored: false, writes: Queue::uncapped() });
     }
     #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
@@ -124,12 +130,12 @@ impl Workers {
     pub(crate) fn figures(
         &mut self,
         now: Time,
-        agents: &temper_client_protocol_wire::v1::AgentFigures,
+        agents: Box<AgentFigures>,
         revision: u32,
         events: &mut Queue<root::Event>,
     ) {
         if let Some(copy) = &mut self.copy {
-            if copy.restored || copy.initial.as_ref() != Some(agents) {
+            if copy.restored || copy.initial.as_ref() != Some(agents.as_ref()) {
                 copy.writes.push(
                     agents.encode(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted agents within ceilings"),
                 );
@@ -137,7 +143,43 @@ impl Workers {
             copy.initial = None;
             copy.restored = true;
         }
-        let figures = self.figures.compose(agents);
+        let composed = Composed { agents, revision };
+        let figures = self.figures.compose(&composed.agents);
+        let revision = FiguresRevision::Agents(composed.revision);
+        self.composed = Some(composed);
+        self.send_figures(now, figures, revision, events);
+    }
+    /// Retain all figures in force; only a change read by workers or the host sends figures.
+    pub(crate) fn limits_taken(
+        &mut self,
+        now: Time,
+        before: &Resolved,
+        next: &Resolved,
+        live_moved: bool,
+        revision: u32,
+        events: &mut Queue<root::Event>,
+    ) {
+        let old = before.jig.link;
+        let link = next.jig.link;
+        if old.handshake != link.handshake || old.hello != link.hello || old.stall != link.stall {
+            assert!(
+                self.host.retime(kit::Timers { handshake: link.handshake, hello: link.hello, stall: link.stall }),
+                "the taken timers passed start resolution"
+            );
+        }
+        self.figures.take_limits(&next.jig, &next.temper);
+        if live_moved && let Some(composed) = &self.composed {
+            let figures = self.figures.compose(&composed.agents);
+            self.send_figures(now, figures, FiguresRevision::Limits(revision), events);
+        }
+    }
+    fn send_figures(
+        &mut self,
+        now: Time,
+        figures: jig_protocol_worker_wire::Figures,
+        revision: FiguresRevision,
+        events: &mut Queue<root::Event>,
+    ) {
         self.notes.push(crate::Note::WorkerFigures {
             limits: figures.limits.len(),
             endpoints: figures.agents.endpoints.len(),

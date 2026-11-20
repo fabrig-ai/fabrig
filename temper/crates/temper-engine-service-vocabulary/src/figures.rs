@@ -27,7 +27,7 @@ pub fn tool_payload(agents: &s::AgentFigures) -> u32 {
     temper_service_core::derived::STOCK.payload
 }
 
-/// Startup values retained while the stored agents setting changes.
+/// Limits in force and the configured endpoints.
 #[derive(Debug)]
 pub struct Composer {
     limits: List<w::Limit>,
@@ -36,15 +36,11 @@ pub struct Composer {
 impl Composer {
     #[must_use]
     pub fn new(engine: &config::Engine, own: &limits::Limits) -> Self {
-        let mut values = jig_protocol_config::overrides::list(&engine.limits);
-        for &value in &limits::list(own) {
-            values.push(value).expect("uncapped startup limits");
-        }
-        let mut limits = List::with_capacity(values.len());
-        for &(name, value) in &values {
-            limits.push(limit(name.as_bytes(), value)).expect("counted startup limits");
-        }
-        Self { limits, endpoints: engine.llm.endpoints.clone() }
+        Self { limits: limit_figures(&engine.limits, own), endpoints: engine.llm.endpoints.clone() }
+    }
+
+    pub fn take_limits(&mut self, jig: &config::Limits, own: &limits::Limits) {
+        self.limits = limit_figures(jig, own);
     }
 
     #[must_use]
@@ -68,6 +64,18 @@ impl Composer {
         let agents = w::Agents { profile, endpoints };
         w::Figures { places: 0, limits: self.limits.clone(), agents }
     }
+}
+
+fn limit_figures(jig: &config::Limits, own: &limits::Limits) -> List<w::Limit> {
+    let mut values = jig_protocol_config::overrides::list(jig);
+    for &value in &limits::list(own) {
+        values.push(value).expect("uncapped figure values");
+    }
+    let mut limits = List::with_capacity(values.len());
+    for &(name, value) in &values {
+        limits.push(limit(name.as_bytes(), value)).expect("counted limit figures");
+    }
+    limits
 }
 
 fn limit(name: &[u8], value: u64) -> w::Limit {
