@@ -409,6 +409,7 @@ fn restart_resumes_the_goal_run_and_tells_once() {
     assert_eq!(requests(&out).len(), 0);
     assert_eq!(row(&cold).goal, Some(GOAL));
     assert!(cold.tier_ops.follows.contains_key(&(REPO, TIER.into())));
+    fresh_reads(&mut cold, NEXT_TIP);
     failed_rerun(&mut cold);
     tier_step(&mut cold, RELEASE + 11, false);
     logs(&mut cold);
@@ -450,6 +451,7 @@ fn restart_keeps_pending_span_deadlines_for_goal_and_main_tiers() {
         let out = outputs(&mut cold, Event::ReadAfresh);
         assert_eq!(requests(&out).len(), 0);
         assert_eq!(crate::tiers::deadline(&cold), Some(later().now));
+        fresh_reads(&mut cold, LAST_TIP);
         assert_eq!(requests(&fire(&mut cold, &later())), [(2, LAST_TIP)]);
     }
 }

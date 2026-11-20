@@ -127,7 +127,7 @@ pub(super) fn base_wait(d: &Domain, repository: skein_forge::api::Repository, ba
             && name.repository == repository.repository
             && crate::items::branch_matches(name, base)
             && is_goal(d, name)
-            && waiting(d, name)
+            && (!super::fresh_reads_in(d) || waiting(d, name))
         {
             return true;
         }

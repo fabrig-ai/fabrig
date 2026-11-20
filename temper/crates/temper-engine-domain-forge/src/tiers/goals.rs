@@ -146,7 +146,11 @@ pub(super) fn start_due(
     if row.hold.is_none() && row.record.run.is_none() {
         let mut selected: Option<(Option<Time>, u64)> = None;
         for goal in &row.goals {
-            if goal.tip.is_none() || goal.tip == goal.ran || !span_passed(goal.started, tier.span, env.now) {
+            if !crate::domain::branch_read(d, &name(repository, &goal.branch))
+                || goal.tip.is_none()
+                || goal.tip == goal.ran
+                || !span_passed(goal.started, tier.span, env.now)
+            {
                 continue;
             }
             let order = (goal.started, goal.goal);
@@ -180,7 +184,20 @@ pub(super) fn start_due(
             }
         }
     }
-    if !row.requested
+    let ready = match row.goal {
+        Some(goal) => {
+            let mut ready = false;
+            for entry in &row.goals {
+                if entry.goal == goal {
+                    ready = crate::domain::branch_read(d, &name(repository, &entry.branch));
+                }
+            }
+            ready
+        }
+        None => crate::domain::fresh_reads_in(d),
+    };
+    if ready
+        && !row.requested
         && let Some(run) = &row.record.run
     {
         row.requested = true;

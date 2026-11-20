@@ -7,6 +7,7 @@ mod applications;
 mod away;
 mod binding;
 mod brief_document;
+mod catching_up_changes;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;

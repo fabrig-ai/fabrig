@@ -284,6 +284,10 @@ pub struct Domain {
     pending_ci: Map<Token, PendingCi>,
     ci_news: Map<(u64, skein_forge::api::Commit), ci_news::Watch>,
     restart_fresh: Option<bool>,
+    /// Restored procedures and entries awaiting their restart observations (forge/catching-up.md, 4).
+    fresh_waits: Set<u64>,
+    entry_looks: Set<u64>,
+    pub(crate) fresh_branches: Set<Name>,
     pub(crate) sequence: u64,
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
@@ -1002,6 +1006,15 @@ impl Domain {
             pending_ci: Map::uncapped(),
             ci_news: Map::uncapped(),
             restart_fresh: None,
+            fresh_waits: Set::with_capacity(
+                l.changes
+                    .checked_add(l.landings)
+                    .expect("change and landing waiters")
+                    .checked_add(l.repositories.checked_mul(l.tiers.tiers).expect("tier waiters"))
+                    .expect("restart waiters"),
+            ),
+            entry_looks: Set::with_capacity(l.entries),
+            fresh_branches: Set::with_capacity(l.client.resources),
             sequence: 0,
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
@@ -1109,6 +1122,7 @@ impl Domain {
         self.makings.raise(limits.holds);
         self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
         self.entries.raise(limits.entries);
+        self.entry_looks.raise(limits.entries);
         self.flights.raise(limits.entries);
         if let Some(outage) = &mut self.outage {
             outage.raise(limits.entries);
@@ -2603,6 +2617,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     }
                     continue;
                 }
+                let looked = outcome != skein_forge_client::Outcome::Queued && d.entry_looks.remove(&entry);
                 // The landing settles every merge outcome by readback (landing.md, 8).
                 // Its terminal entry is retired before the route sees this output.
                 let mut landing_merge = false;
@@ -2612,6 +2627,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     }
                 }
                 if !landing_merge && outage::outcome(d, env, entry, outcome, out) {
+                    if looked {
+                        wake_once(out, task);
+                    }
                     continue;
                 }
                 if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
@@ -2664,6 +2682,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         }
                         erase_flight(d, task, entry, out);
                     }
+                }
+                if looked {
+                    wake_once(out, task);
                 }
                 if projection {
                     emit(out, Request::ProjectionOutcome { entry, outcome });
@@ -2750,7 +2771,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     written::cleanup(d, env, out);
-    read_afresh_complete(d, out);
+    read_afresh_complete(d, env, out);
 }
 
 fn settled_facts(
@@ -4980,6 +5001,9 @@ fn step_verified(
     heard: change::Heard,
     out: &mut Queue<Request>,
 ) {
+    if wait_fresh(d, task) {
+        return;
+    }
     let mut row = d.changes.get(&task).expect("known landed change").clone();
     let pending = PendingStep {
         task,
@@ -4992,7 +5016,7 @@ fn step_verified(
         kept: false,
         merge_job: false,
         pending: Box::new([]),
-        branch: row.change.last_head,
+        branch: d.branch_head(&crate::tiers::name(row.repository, &row.branch)).or(row.change.last_head),
         branch_fresh: false,
         base_tip: Some(merge),
         base_read: Some(merge),
@@ -5186,6 +5210,7 @@ fn step_read(
                 }
             }
             if goal_branch::base_wait(d, repository, &base) {
+                wait_fresh(d, pending.task);
                 wait_for_forge(d, env, &pending, None, out);
                 return;
             }
@@ -5202,6 +5227,7 @@ fn step_read(
         }
         StepStage::Base => {
             if goal_branch::base_wait(d, repository, &base) {
+                wait_fresh(d, pending.task);
                 wait_for_forge(d, env, &pending, None, out);
                 return;
             }
@@ -5844,6 +5870,9 @@ fn hold_read_session(
     pending: Option<&PendingStep>,
     out: &mut Queue<Request>,
 ) {
+    if wait_fresh(d, task) {
+        return;
+    }
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
@@ -5958,6 +5987,9 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out: &mut Queue<Request>) {
+    if wait_fresh(d, pending.task) {
+        return;
+    }
     pending.progress = List::uncapped();
     let Some(mut row) = titled_change(d, env, &pending, out) else { return };
     crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
@@ -9616,6 +9648,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.follow_rows.insert((row.project, row.follow), row).expect("restored follow within limits");
         }
         Stored::Tier(row) => {
+            d.tier_ops.restored.insert((row.repository, row.tier.clone())).expect("restored tier within limits");
             d.tiers.insert((row.repository, row.tier.clone()), row).expect("restored tier within limits");
         }
         Stored::Milestone(row) => {
@@ -9674,6 +9707,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             assert!(d.proposed_effects.insert(row.number, row).is_ok(), "restored proposed effect fits");
         }
         Stored::Entry { entry, held } => {
+            if !held {
+                d.entry_looks.insert(entry.number).expect("restored entries fit outbox");
+            }
             d.entries
                 .insert(
                     entry.number,
@@ -9888,8 +9924,18 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut changes = List::with_capacity(env.limits.changes);
     for (task, row) in &d.changes {
         changes.push(*task).expect("change capacity");
+        if let change::State::Landing { .. } = row.change.state {
+            d.fresh_waits.insert(*task).expect("restored landing judgement waiter");
+        }
         if !row.questions.waiting.is_empty() {
             emit(out, Request::WakeProcedure { task: *task });
+        }
+    }
+    for (task, row) in &d.landing.rows {
+        for entry in &row.entries {
+            if entry.operation == crate::Operation::Merge {
+                d.fresh_waits.insert(*task).expect("restored landing judgement waiter");
+            }
         }
     }
     for task in &changes {
@@ -10058,7 +10104,7 @@ pub(crate) fn erase_removed_repositories(
 
 // A making's write waits until after the settle; reading afresh ends on reads
 // alone (temper/docs/design/domain/forge/branches.md, 1).
-fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
+fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.restart_fresh == Some(true)
         && d.landing.pending.is_empty()
         && d.pending_ci.is_empty()
@@ -10068,7 +10114,55 @@ fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
     {
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
+        read_session::fresh(d, env);
+        let capacity = d.fresh_waits.capacity();
+        let waiting = core::mem::replace(&mut d.fresh_waits, Set::with_capacity(capacity));
+        for task in &waiting {
+            wake_once(out, *task);
+        }
+        crate::tiers::fresh(d, env, out);
+        crate::follows::fresh(d, out);
+        d.fresh_branches = Set::with_capacity(d.fresh_branches.capacity());
     }
+}
+
+/// The restart's fresh reads are in (temper/docs/design/domain/forge/catching-up.md, 2).
+pub(crate) fn fresh_reads_in(d: &Domain) -> bool {
+    d.restore_phase != RestorePhase::Restoring && d.restart_fresh.is_none()
+}
+
+fn wake_once(out: &mut Queue<Request>, task: u64) {
+    for request in out.iter() {
+        if let Request::WakeProcedure { task: prior } = request
+            && *prior == task
+        {
+            return;
+        }
+    }
+    emit(out, Request::WakeProcedure { task });
+}
+
+pub(crate) fn wait_fresh(d: &mut Domain, task: u64) -> bool {
+    if fresh_reads_in(d) {
+        return false;
+    }
+    d.fresh_waits.insert(task).expect("one restart waiter per procedure");
+    true
+}
+
+pub(crate) fn entries_looked(d: &Domain, task: u64) -> bool {
+    for number in &d.entry_looks {
+        if let Some(row) = d.entries.get(number)
+            && row.entry.task == task
+        {
+            return false;
+        }
+    }
+    true
+}
+
+pub(crate) fn branch_read(d: &Domain, name: &Name) -> bool {
+    fresh_reads_in(d) || d.fresh_branches.contains(name)
 }
 
 fn settled_projection(d: &Domain, goal: u64, out: &mut Queue<Request>) {

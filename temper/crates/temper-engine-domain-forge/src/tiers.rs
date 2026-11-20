@@ -3,7 +3,7 @@
 use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierLanding, TierRow, Topic, What};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository, Write};
-use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
+use skein_lib::{Env, List, Map, Queue, Set, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
@@ -23,6 +23,7 @@ use parts::{
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) dirty: bool,
+    pub(crate) restored: Set<(Repository, Box<[u8]>)>,
     pub(crate) due: Map<u64, Wall>,
     pub(crate) tip_keys: Map<(Repository, Box<[u8]>), p::Judged>,
     walks: Map<(Repository, Box<[u8]>), Walk>,
@@ -35,6 +36,7 @@ impl State {
         let count = l.repositories.checked_mul(l.tiers.tiers).expect("checked tier count");
         Self {
             dirty: false,
+            restored: Set::with_capacity(count),
             due: Map::with_capacity(count),
             tip_keys: Map::with_capacity(count),
             walks: Map::with_capacity(count),
@@ -325,6 +327,10 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             }
             continue;
         }
+        if !crate::domain::branch_read(d, &name(repository, &branch)) {
+            d.tiers.insert(key, row).expect("waiting tier");
+            continue;
+        }
         let mut ready = true;
         for landing in &row.pending {
             if landing.key.is_none() {
@@ -525,7 +531,12 @@ pub(crate) fn observed(
     after: Commit,
     out: &mut Queue<Request>,
 ) {
+    let name = name(repository, branch);
+    let first = !crate::domain::branch_read(d, &name);
     crate::follows::observed(d, repository, branch, after, out);
+    if !crate::domain::fresh_reads_in(d) && watched(d).as_slice().contains(&name) {
+        d.fresh_branches.insert(name).expect("followed branches fit watches");
+    }
     goals::observed(d, repository, branch, before, after, out);
     let mut names = List::with_capacity(env.limits.tiers.tiers);
     for tier in configured_all(d, repository) {
@@ -535,10 +546,19 @@ pub(crate) fn observed(
     }
     for tier in names.into_boxed() {
         let key = (repository, tier.clone());
+        let restored = d.tier_ops.restored.remove(&key);
         let mut row = match d.tiers.remove(&key) {
             Some(row) => row,
             None => empty(repository, tier),
         };
+        if first
+            && restored
+            && row.record.run.is_none()
+            && let Some(baseline) = &mut row.baseline
+            && baseline.commit != after
+        {
+            *baseline = TierLanding { commit: after, key: None };
+        }
         if (row.record.judged.is_some() || row.record.run.is_some() || row.baseline.is_some())
             && before.is_some()
             && before != Some(after)
@@ -920,6 +940,12 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
     );
 }
 fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u32, out: &mut Queue<Request>) {
+    if crate::domain::wait_fresh(d, row.task.expect("tier task"))
+        || !crate::domain::entries_looked(d, row.task.expect("tier task"))
+    {
+        wait(row.task.expect("tier task"), out);
+        return;
+    }
     let result = row.result.as_ref().expect("terminal receipt");
     let run = row.record.run.as_ref().expect("live range");
     let next = if row.received {
@@ -1112,6 +1138,10 @@ pub(crate) fn step(
         );
         return;
     };
+    if crate::domain::wait_fresh(d, task) || !crate::domain::entries_looked(d, task) {
+        wait(task, out);
+        return;
+    }
     let mut row = d.tiers.remove(&key).expect("found tier");
     cached_part(d, &mut row);
     if heard.released && row.held.is_some() {
@@ -1244,6 +1274,13 @@ pub(crate) fn answered(
         return;
     }
     if read.baseline {
+        let branch = match d.tiers.get(&key) {
+            Some(row) => match configured(d, row) {
+                Some(tier) => followed(d, key.0, &tier),
+                None => None,
+            },
+            None => None,
+        };
         let Some(row) = d.tiers.get_mut(&key) else { return };
         if !d.stopping
             && row.record.judged.is_none()
@@ -1254,6 +1291,11 @@ pub(crate) fn answered(
             row.baseline = Some(TierLanding { commit: tip, key: None });
             row.pending = Box::new([]);
             save(row, out);
+            if !crate::domain::fresh_reads_in(d)
+                && let Some(branch) = branch
+            {
+                d.fresh_branches.insert(name(key.0, &branch)).expect("tier branches fit watches");
+            }
             walk(d, env, &key, out);
         }
         return;
@@ -1627,6 +1669,18 @@ fn span_deadline(d: &Domain, row: &TierRow) -> Option<Time> {
         return None;
     }
     Some(row.started?.saturating_add(tier.span?))
+}
+
+/// Fresh reads release due tiers and procedures without a timer or hint.
+pub(crate) fn fresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    d.tier_ops.restored = Set::with_capacity(d.tier_ops.restored.capacity());
+    let mut repositories = List::with_capacity(d.repositories.capacity());
+    for (repository, _) in &d.repositories {
+        repositories.push(*repository).expect("adopted repositories");
+    }
+    for repository in repositories.into_boxed() {
+        start_due(d, env, repository, out);
+    }
 }
 
 pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

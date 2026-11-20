@@ -60,6 +60,8 @@ fn fixture() -> (Domain, ChangeEvidence) {
         reviews_complete: true,
     };
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
     (d, evidence)
 }
 
@@ -927,8 +929,6 @@ fn path_rules_select_merge_waits_gates_panels_and_approval_rows() {
 
 fn queued_fixture() -> Domain {
     let (mut d, _) = fixture();
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     fixtures::connect(&mut d);
     let row = d.changes.get_mut(&CHANGE).expect("change");

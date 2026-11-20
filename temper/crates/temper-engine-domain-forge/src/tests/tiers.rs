@@ -65,6 +65,19 @@ fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
     ));
     d
 }
+/// Complete the restart's branch reads before exercising the restored tier's policy.
+fn fresh_reads(d: &mut Domain, tip: api::Commit) {
+    for _ in 0..LIMITS.client.pending {
+        if domain::fresh_reads_in(d) {
+            return;
+        }
+        let (call, op) = fixtures::next_at(d, &env());
+        assert!(matches!(op, api::Op::Read(api::Read::Branch { .. })), "{op:?}");
+        fixtures::answer(d, call, Ok(api::Answer::Commit(tip)));
+    }
+    assert!(domain::fresh_reads_in(d));
+}
+
 fn configured(branch: Option<&[u8]>) -> Domain {
     let mut d = restoring(branch);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -679,6 +692,7 @@ fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut cold, Event::ReadAfresh);
+    fresh_reads(&mut cold, BASE);
     let out = settled_step(&mut cold, RELEASE + 3, false);
     let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
     assert_eq!(
@@ -739,6 +753,7 @@ fn cold_restart_follows_a_run_without_dispatching_it_again() {
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut cold, Event::ReadAfresh);
+    fixtures::answer_next(&mut cold, Ok(api::Answer::Commit(BASE)));
     answer(&mut cold, api::Answer::Run(run));
     let out = finish(&mut cold);
     assert_eq!(

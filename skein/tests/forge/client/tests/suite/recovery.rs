@@ -83,10 +83,13 @@ fn a_held_branch_is_written_again_only_after_remake() {
     assert_eq!(world.branch(b"kit/7"), Some(head));
     assert_eq!(
         &world.outcomes()[outcomes..],
-        &[(
-            entry.number,
-            Outcome::Made { made: Made::Branch(skein_forge_client_world::translate::commit(head)), found: false }
-        )]
+        &[
+            (entry.number, Outcome::Uncertain),
+            (
+                entry.number,
+                Outcome::Made { made: Made::Branch(skein_forge_client_world::translate::commit(head)), found: false }
+            ),
+        ]
     );
     world.finish();
 }

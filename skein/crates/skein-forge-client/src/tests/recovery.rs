@@ -186,6 +186,42 @@ fn a_held_update_remade_is_looked_for_first() {
 }
 
 #[test]
+fn a_restored_entry_reports_its_first_absent_find_once_without_delaying_settle() {
+    for restored in [false, true] {
+        for expired in [false, true] {
+            let mut h = updating(api::UpdateStyle::Merge);
+            lose_update(&mut h, api::UpdateStyle::Merge);
+            if restored {
+                h.restart(if expired { 112 } else { 100 }, 100, RecoveryClock::Monotonic);
+            } else if expired {
+                h.fire(112);
+            }
+            h.outcomes = List::with_capacity(h.outcomes.capacity());
+            h.step(Event::PauseOutbox);
+            h.step(Event::SettleOutbox);
+            assert_eq!(h.outbox_done, u32::from(!restored));
+            look_update(&mut h, [1; 32], false);
+            assert_eq!(h.outbox_done, 1, "the find, not its retry write, ends the settle");
+            let expected = if restored { &[(1, Outcome::Uncertain)][..] } else { &[][..] };
+            assert_eq!(h.outcomes.as_slice(), expected, "restored {restored}, expired {expired}");
+            assert!(h.store.contains_key(&1), "the first-look word is nonterminal");
+            if !expired {
+                h.fire(111);
+                look_update(&mut h, [1; 32], false);
+                assert_eq!(h.outcomes.as_slice(), expected, "only the first absent find reports");
+                assert_eq!(h.outbox_done, 1);
+            }
+        }
+    }
+    let mut h = fixture::uncertain_comment();
+    h.restart(112, 112, RecoveryClock::Monotonic);
+    h.outcomes = List::with_capacity(h.outcomes.capacity());
+    let find = h.one();
+    h.answer(find, Ok(fixture::empty_item()));
+    assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Held)], "a terminal find needs no Uncertain first");
+}
+
+#[test]
 fn restart_reads_before_settling_the_outbox() {
     let mut h = kept::Harness::new();
     let mut row = fixture::live();

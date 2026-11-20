@@ -194,6 +194,7 @@ pub(crate) fn keep(
     if let Some(row) = d.follow_rows.get(&key)
         && row.task.is_none()
         && row.stopped.is_none()
+        && branch_ready(d, row)
     {
         out.push(Request::FollowRun { project, follow });
     }
@@ -223,9 +224,17 @@ pub(crate) fn observed(d: &mut Domain, repository: Repository, branch: &[u8], af
         }
     }
     let source = !keys.is_empty();
+    let name = crate::tiers::name(repository, branch);
+    let first = !crate::domain::branch_read(d, &name);
+    if source && !crate::domain::fresh_reads_in(d) {
+        d.fresh_branches.insert(name).expect("follow sources fit watches");
+    }
     for key in keys.into_boxed() {
         d.follow_retry.remove(&key);
         let row = d.follow_rows.get_mut(&key).expect("collected follow");
+        if first {
+            wake(row, out);
+        }
         if row.heard.is_none() {
             row.heard = Some(after);
             save(row, out);
@@ -238,6 +247,27 @@ pub(crate) fn observed(d: &mut Domain, repository: Repository, branch: &[u8], af
         {
             head.commit = after;
             out.push(Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) });
+        }
+    }
+}
+fn branch_ready(d: &Domain, row: &FollowRow) -> bool {
+    let Some(branch) = branch(d, row) else { return false };
+    crate::domain::branch_read(d, &crate::tiers::name(row.source, branch))
+}
+fn wake(row: &FollowRow, out: &mut Queue<Request>) {
+    if row.stopped.is_some() {
+        return;
+    }
+    match row.task {
+        Some(_) => {}
+        None => out.push(Request::FollowRun { project: row.project, follow: row.follow }),
+    }
+}
+pub(crate) fn fresh(d: &Domain, out: &mut Queue<Request>) {
+    for (_, row) in &d.follow_rows {
+        let Some(branch) = branch(d, row) else { continue };
+        if !d.fresh_branches.contains(&crate::tiers::name(row.source, branch)) {
+            wake(row, out);
         }
     }
 }
@@ -262,7 +292,8 @@ fn next(d: &Domain) -> Option<((u32, u32), Option<Commit>)> {
             if !d.follow_retry.contains_key(key) && branch(d, row).is_some() {
                 return Some((*key, None));
             }
-        } else if let Some(after) = tip(d, row)
+        } else if branch_ready(d, row)
+            && let Some(after) = tip(d, row)
             && row.heard != Some(after)
         {
             return Some((*key, Some(after)));
@@ -390,6 +421,10 @@ fn ask_commits(d: &mut Domain, env: &Env<Limits>, owner: Token, pending: Range, 
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
 fn finish_range(d: &mut Domain, env: &Env<Limits>, pending: Range, out: &mut Queue<Request>) {
+    let Some(row) = d.follow_rows.get(&pending.key) else { return };
+    if !branch_ready(d, row) {
+        return;
+    }
     let Some(setting) = d.follow(pending.key.0, pending.key.1) else { return };
     let mut files = List::with_capacity(env.limits.follow_files);
     let mut more_files = 0_u32;
