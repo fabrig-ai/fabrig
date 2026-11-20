@@ -379,7 +379,8 @@ Before a decision depends on a fact, the owner asks for it afresh with
   foreground share is spent and a keeping read is due (section 6).
 - **Its holders.** The client answers, at any time and changing
   nothing, the calls that hold the slab's places, oldest admitted
-  first, each with its owner, its repository and what it reads, so that
+  first, each with its owner, its repository and what it reads, or that
+  it is a write, never the write's content, so that
   an owner can say who holds a full slab (temper's `protocol/README.md`,
   6.3). It keeps the order each call was admitted in, a number, not a
   time.

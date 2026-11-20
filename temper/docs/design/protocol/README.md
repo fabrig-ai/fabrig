@@ -566,7 +566,8 @@ cancelled landings held.
   reservations as they were made (`room.md`, 2), `room asked for task
   T`, `room for task T's call`, `room for goal T's projection`; a read,
   `READ of OWNER/NAME`, READ what it reads (`branch B`, `pull N`, `issue
-  N`, `the listing`, `a file`, `CI at HEAD`), with ` for task T` where a
+  N`, `the listing`, `a file`, `CI at HEAD`), and a write `a write of
+  OWNER/NAME`, never what it writes, each with ` for task T` where a
   task's procedure owns it, oldest admitted first. Example:
   `temper-engine serve: the forge's outbox full for 2 min: 8 of 8, held by entry 1201 (task 10061), entry 1202 (task 10061), entry 1207 (task 10070), entry 1209 (task 10072), entry 1210 (task 10072), entry 1214 (task 10075), entry 1215 (task 10075), entry 1216 (task 10077); 6 waiting for room`.
 - **The census shows the same words.** The forges' document carries
