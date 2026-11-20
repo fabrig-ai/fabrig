@@ -72,8 +72,8 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
 #[test]
 fn the_checkout_and_its_raise_fit_both_stock_links() {
     for (profile, conflicts, saved, answer) in [
-        (Base::Fixture, 512, 265_248, 269_708),
-        (Base::Fixture, 1024, 530_464, 534_924),
+        (Base::Fixture, 512, 265_248, 269_737),
+        (Base::Fixture, 1024, 530_464, 534_953),
         (Base::Stock, 512, 265_248, 397_208),
         (Base::Stock, 1024, 530_464, 662_424),
     ] {

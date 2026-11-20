@@ -120,17 +120,11 @@ impl Release {
 }
 
 pub(super) fn initial(enabled: bool) -> Option<smith_channel::Message> {
-    enabled.then(|| {
-        smith_channel::Message::new(
-            &smith_channel::CEILINGS,
-            smith_channel::MessageParts {
-                finish_requested: false,
-                name: 0,
-                label: b"host".as_slice().into(),
-                text: b"Begin".as_slice().into(),
-            },
-        )
-        .expect("initial message")
+    enabled.then(|| smith_channel::Message {
+        finish_requested: false,
+        name: 0,
+        label: b"host".as_slice().into(),
+        text: b"Begin".as_slice().into(),
     })
 }
 
@@ -149,15 +143,11 @@ pub(super) fn messages(releases: &[HostMessage]) -> std::collections::VecDeque<s
 }
 
 fn message_frame(name: u32, text: &str, finish_requested: bool) -> skein_channel::Frame {
-    let message = smith_channel::Message::new(
-        &smith_channel::CEILINGS,
-        smith_channel::MessageParts {
-            finish_requested,
-            name: u64::from(name),
-            label: b"host".as_slice().into(),
-            text: text.as_bytes().into(),
-        },
-    )
-    .expect("host message");
+    let message = smith_channel::Message {
+        finish_requested,
+        name: u64::from(name),
+        label: b"host".as_slice().into(),
+        text: text.as_bytes().into(),
+    };
     crate::frame!(0x0101, message)
 }

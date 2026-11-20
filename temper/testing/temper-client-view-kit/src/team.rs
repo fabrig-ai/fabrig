@@ -17,12 +17,12 @@ pub const MADE: Wall = Wall::from_nanos(1_793_577_600_000_000_000);
 
 #[must_use]
 pub fn holder_task(number: u64) -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
+    w::Holder::Task(w::HolderTask { number })
 }
 
 #[must_use]
 pub fn owner_task(number: u64) -> w::AreaOwner {
-    w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap())
+    w::AreaOwner::Task(w::AreaTask { number })
 }
 
 #[must_use]

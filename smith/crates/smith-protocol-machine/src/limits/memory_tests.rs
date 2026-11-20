@@ -63,7 +63,11 @@ fn every_pending_listing_keeps_its_largest_filter_within_the_bound() {
     let mut below = Queue::<Below>::with_capacity(1);
     let meter = Meter::new();
     meter.start();
-    let mut component = Component::new(&limits, Environment::encode(&[], &limits).expect("empty environment"));
+    let mut component = Component::new(
+        &limits,
+        Environment::encode(&[], &limits).expect("empty environment"),
+        Box::from(b"/usr/bin/rg".as_slice()),
+    );
     component.workspace(&workspace);
     meter.check(meter.end(), FILTERS_CEILING, &"component and root");
     for index in 0..limits.processes {

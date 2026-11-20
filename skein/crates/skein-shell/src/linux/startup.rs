@@ -12,7 +12,7 @@
 use crate::posix::files::{kernel_error, private_error, read_opened};
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::ptr;
 
 use skein_io::file::Unsafe;
@@ -23,6 +23,12 @@ use crate::startup::Unread;
 
 use super::sync::kind_of;
 use super::{close_unchecked as close, last_errno};
+
+/// Leaves Linux's path as given for a caller's own link checks (runtime/shell.md, 6.1).
+#[must_use]
+pub fn resolve_system_links(path: &Path) -> PathBuf {
+    path.to_path_buf()
+}
 
 pub(crate) fn read_private_file(path: &Path, max: u32, user: u32) -> Result<Secret, Unread> {
     let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| Unread::Kernel(Error::InvalidArgument))?;

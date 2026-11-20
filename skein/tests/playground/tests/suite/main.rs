@@ -6,4 +6,5 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 mod memory;
 mod replay;
 mod slices;
+mod tab;
 mod visitor;

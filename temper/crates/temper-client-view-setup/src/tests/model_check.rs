@@ -16,6 +16,7 @@ use temper_client_domain::{
     self as d, Address, Step,
     pages::{accounts::Way, connect_model::Act},
 };
+use temper_client_protocol_wire::v1::Record;
 const WAY: Way = Way::Program { provider: 17 };
 fn claude(state: State) -> Trial {
     Trial {
@@ -311,20 +312,16 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read() == &v::Read::Deployment
+            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read == v::Read::Deployment
         {
             f::deliver_deployment(&mut root, *read, true, true);
         }
     }
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
-    let forges_doc = v::Forges::new(
-        &v::CEILINGS,
-        v::ForgesParts {
-            forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
-            linked: false,
-        },
-    )
-    .unwrap();
+    let forges_doc = v::Forges {
+        forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
+        linked: false,
+    };
     up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -353,16 +350,14 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     (root, trials, accounts)
 }
 pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(
-        &v::CEILINGS,
-        v::TrialRowParts { run_wait: None, account: 1, task: Some(91), took: None, step, state },
-    )
-    .unwrap()
+    v::TrialRow { run_wait: None, account: 1, task: Some(91), took: None, step, state }
 }
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
-    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
-    let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
-    doc.encode(&mut writer).unwrap();
+    let doc = v::Trials { rows: List::from_boxed(rows.into()) };
+    let mut writer = Writer::new(
+        usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
         jig_client::Up::FamilyDelivered {
@@ -372,7 +367,7 @@ pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> 
     )
 }
 pub(crate) fn failed(why: v::TrialWhy) -> v::TrialState {
-    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+    v::TrialState::Failed(v::TrialFailed { why })
 }
 pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&f::tree_limits());
@@ -426,16 +421,7 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
                 }
             }
         }
-        rows(
-            &mut root,
-            watch,
-            &[row(
-                v::TrialStep::Answers,
-                v::TrialState::Answered(
-                    v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 7 }).unwrap(),
-                ),
-            )],
-        );
+        rows(&mut root, watch, &[row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 7 }))]);
         for w in [f::words(), f::browser_words()] {
             let trial = model_check::trial(&root, &w).unwrap();
             assert_eq!(trial.detail.as_deref(), detail.map(str::as_bytes));
@@ -447,13 +433,13 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
 }
 
 fn wait_delivery(root: &mut d::Domain, watch: Token, wait: Option<jig_client_protocol_wire::TaskRunWait>) {
-    let mut parts = row(v::TrialStep::Starts, v::TrialState::Running).into_parts();
+    let mut parts = row(v::TrialStep::Starts, v::TrialState::Running);
     parts.run_wait = wait.map(|wait| {
         let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
         wait.encode(&mut writer).unwrap();
         writer.finish()
     });
-    rows(root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);
+    rows(root, watch, &[parts]);
 }
 fn source(state: jig_client_protocol_wire::TaskSourceState) -> jig_client_protocol_wire::TaskWaitWhy {
     use jig_client_protocol_wire as j;
@@ -645,15 +631,11 @@ fn took_names_the_account_that_answered_and_the_newest_row_wins() {
     other.number = 2;
     doc.accounts = List::from_boxed(Box::new([doc.accounts.get(0).unwrap().clone(), other]));
     f::accounts::deliver(&mut root, accounts, doc);
-    let mut took = row(v::TrialStep::Answers, failed(v::TrialWhy::Waited)).into_parts();
+    let mut took = row(v::TrialStep::Answers, failed(v::TrialWhy::Waited));
     took.took = Some(2);
-    let mut older = row(v::TrialStep::Starts, v::TrialState::Running).into_parts();
+    let mut older = row(v::TrialStep::Starts, v::TrialState::Running);
     older.account = 2;
-    rows(
-        &mut root,
-        watch,
-        &[v::TrialRow::new(&v::CEILINGS, took).unwrap(), v::TrialRow::new(&v::CEILINGS, older).unwrap()],
-    );
+    rows(&mut root, watch, &[took, older]);
     for w in [f::words(), f::browser_words()] {
         let (tree, _) = from_root(&root, &w);
         assert!(model_check::of_account(&root, &w, 1).is_none());
@@ -678,9 +660,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
         unused.usable = false;
         account.sources = List::from_boxed(Box::new([unused, source]));
         f::accounts::deliver(&mut root, accounts, doc);
-        let why = v::TrialWhy::Ended(
-            v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: v::TrialClass::Permanent }).unwrap(),
-        );
+        let why = v::TrialWhy::Ended(v::TrialEnded { class: v::TrialClass::Permanent });
         rows(&mut root, watch, &[row(v::TrialStep::Answers, failed(why))]);
         for w in [f::words(), f::browser_words()] {
             for welcome in [false, true] {

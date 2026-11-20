@@ -30,6 +30,8 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         started_from: Box::new([]),
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         placed: None,
         settings: task::SettingsRevision { task: 3, run: Some(2) },

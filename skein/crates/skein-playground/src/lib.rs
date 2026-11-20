@@ -6,6 +6,7 @@ extern crate alloc;
 pub mod memory;
 pub mod replay;
 pub mod slices;
+pub mod tab;
 pub mod visitor;
 #[cfg(target_arch = "wasm32")]
 pub mod worker;

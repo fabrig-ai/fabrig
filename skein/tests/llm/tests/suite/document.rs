@@ -29,9 +29,9 @@ fn neutral_document_errors_distinguish_receiving_limits_from_invalid_input() {
             DocumentError::TooLarge { which: skein_llm::Cap::Retained, bound: 1 },
             Error::Limit { which: skein_llm::Cap::Retained, bound: 1 },
         ),
-        (b"{", 1024, DocumentError::Malformed, Error::Invalid),
-        (b"{}", 1024, DocumentError::Missing, Error::Invalid),
-        (b"[]", 1024, DocumentError::WrongType, Error::Invalid),
+        (b"{", 1024, DocumentError::Malformed, Error::Invalid { cause: skein_llm::Invalid::Document }),
+        (b"{}", 1024, DocumentError::Missing, Error::Invalid { cause: skein_llm::Invalid::Document }),
+        (b"[]", 1024, DocumentError::WrongType, Error::Invalid { cause: skein_llm::Invalid::Document }),
     ];
     for (input, cap, expected, classification) in controls {
         let error = refusal(input, cap);

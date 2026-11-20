@@ -2,6 +2,7 @@
 //! See temper/docs/design/client/testing.md.
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 pub fn entry(
     object: c::ObjectKey,
@@ -107,13 +108,15 @@ pub fn result(position: u64, at: Wall, result: c::Result) -> c::DecodedActivityL
 /// A goal query's first part, including its milestone even when it has no report.
 pub fn goal_part(report: Option<(&[u8], Wall)>, milestone: Option<u64>) -> c::RowPart {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let report = report.map(|(headline, at)| {
-        w::GoalReport::new(&w::CEILINGS, w::GoalReportParts { headline: headline.into(), at: at.as_nanos() })
-            .expect("report fixture")
-    });
-    let part = w::GoalPart::new(&w::CEILINGS, w::GoalPartParts { report, milestone }).expect("goal part fixture");
-    let mut writer = skein_lib::Writer::new(part.measure().try_into().expect("part size"));
-    part.encode(&mut writer).expect("encoded goal part");
+    let report = report.map(|(headline, at)| w::GoalReport { headline: headline.into(), at: at.as_nanos() });
+    let part = w::GoalPart { report, milestone };
+    let mut writer = skein_lib::Writer::new(
+        part.measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings")
+            .try_into()
+            .expect("part size"),
+    );
+    part.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("encoded goal part");
     c::RowPart::Value(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() })
 }
 
@@ -121,8 +124,13 @@ pub fn goal_part(report: Option<(&[u8], Wall)>, milestone: Option<u64>) -> c::Ro
 pub fn chat_part(document: Option<&[u8]>) -> c::RowPart {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let document = document.map(Into::into);
-    let part = w::ChatPart::new(&w::CEILINGS, w::ChatPartParts { document }).expect("chat part fixture");
-    let mut writer = skein_lib::Writer::new(part.measure().try_into().expect("part size"));
-    part.encode(&mut writer).expect("encoded chat part");
+    let part = w::ChatPart { document };
+    let mut writer = skein_lib::Writer::new(
+        part.measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings")
+            .try_into()
+            .expect("part size"),
+    );
+    part.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("encoded chat part");
     c::RowPart::Value(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() })
 }

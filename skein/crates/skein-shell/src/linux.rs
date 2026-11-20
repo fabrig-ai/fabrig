@@ -44,6 +44,7 @@ mod startup;
 mod sync;
 
 pub use roots::make_root;
+pub use startup::resolve_system_links;
 pub(crate) use startup::{read_file, read_private_file};
 use sync::encode;
 pub(crate) use sync::{

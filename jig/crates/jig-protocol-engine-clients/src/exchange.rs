@@ -5,6 +5,8 @@ use skein_lib::Token;
 pub(crate) struct Exchange {
     pub name: Token,
     pub stream: bool,
+    pub via: crate::Via,
+    pub source: Option<core::net::IpAddr>,
     pub version: Option<u32>,
     pub response: Option<Reply>,
     pub ended: Option<Ended>,
@@ -12,7 +14,16 @@ pub(crate) struct Exchange {
 }
 impl Exchange {
     pub fn new(exchange: Token, stream: bool) -> Self {
-        Self { name: exchange, stream, version: None, response: None, ended: None, closing: false }
+        Self {
+            name: exchange,
+            stream,
+            via: crate::Via::Listener,
+            source: None,
+            version: None,
+            response: None,
+            ended: None,
+            closing: false,
+        }
     }
     pub fn respond(&mut self, reply: Reply) {
         self.response = Some(reply);

@@ -125,8 +125,12 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
                 result(b"Begin the work your brief describes.\n\n2: Result from task 2:\n1a2b3c4abcdef0123456789abcdef0123456789abcd"),
                 message(c::Speaker::Assistant, &[c::Block::Text(text(LANDED)), call(3, b"wait", b"{}", None)]),
             ], turn_text)).expect("resumed turn");
-            rows.push(owner(task, 7, c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: true }))
-                .expect("resumed");
+            rows.push(owner(
+                task,
+                7,
+                c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: true, fresh: None },
+            ))
+            .expect("resumed");
             rows.push(owner(
                 task,
                 6,
@@ -166,7 +170,8 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
         )
     };
     rows.push(first).expect("first turn");
-    rows.push(owner(task, 2, c::Activity::RunBegan { attempt, why: c::RunWhy::Made, resumed: false })).expect("began");
+    rows.push(owner(task, 2, c::Activity::RunBegan { attempt, why: c::RunWhy::Made, resumed: false, fresh: None }))
+        .expect("began");
     rows.push(owner(task, 1, c::Activity::Milestone { position: 1 })).expect("initial milestone");
     for index in 0..rows.len() {
         let row = rows.get_mut(index).expect("bounded activity");

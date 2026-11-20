@@ -39,18 +39,100 @@ fn text(node: &Node) -> String {
 }
 
 #[test]
+fn a_sign_in_tab_returns_to_the_listener_and_the_welcome_reaches_ready() {
+    let mut page = Page::start(facts::start(None).expect("fixed facts"), b"sign-in").expect("page");
+    press(&mut page, Role::Link, "Set up temper");
+    press(&mut page, Role::Link, "Run on this machine");
+    press(&mut page, Role::Button, "Run on this machine");
+    press(&mut page, Role::Button, "Continue with ChatGPT");
+    page.wait(&Find::exactly_named(Role::Button, b"Create your project"), Some(&Act::Press), WITHIN)
+        .unwrap_or_else(|why| panic!("Ready: {why:?}\n{}", page.html()));
+    let tab = page.tab().expect("sign-in opened and pointed a tab");
+    assert_eq!(tab.status, 200);
+    assert!(!tab.failed);
+    assert_eq!(&*tab.body, b"Sign-in received. You can close this tab.\n");
+    assert!(tab.address.starts_with(b"http://127.0.0.1:1455/auth/callback?"));
+    assert!(page.html().contains("ChatGPT plan · sam@example.com"), "{}", page.html());
+    // A fresh accounts read, not a locally optimistic connected state, sees the
+    // account retained by the service after the callback's code exchange.
+    page.reload(b"/welcome?at=ready", WITHIN).expect("fresh welcome read");
+    page.wait(&Find::exactly_named(Role::Paragraph, "ChatGPT plan · sam@example.com".as_bytes()), None, WITHIN)
+        .expect("service holds the signed-in account");
+}
+
+#[test]
+fn owned_setup_connects_and_makes_its_sample_at_the_walks_forge() {
+    let start = facts::start(None).expect("fixed facts");
+    let shared = start.fakes.forge.forge.clone();
+    let mut page = Page::start(start, b"owned forge").expect("page");
+    let forge = page
+        .world()
+        .processes()
+        .iter()
+        .find_map(|process| if let Process::Forge(peer) = process { peer.address() } else { None });
+    assert_eq!(forge, Some(facts::FORGE.parse().expect("fixed forge address")));
+    press(&mut page, Role::Link, "Set up temper");
+    press(&mut page, Role::Link, "Run on this machine");
+    press(&mut page, Role::Button, "Run on this machine");
+    page.wait(
+        &Find::exactly_named(
+            Role::Paragraph,
+            "Forgejo on this machine · connected as temper · work/hello made".as_bytes(),
+        ),
+        None,
+        WITHIN,
+    )
+    .unwrap_or_else(|why| panic!("done: {why:?}\n{}", page.html()));
+    let service = page
+        .world()
+        .processes()
+        .iter()
+        .find_map(|process| if let Process::Service(service) = process { Some(service) } else { None })
+        .expect("service");
+    let engine = service.service.engine_domain().expect("engine");
+    let forges = engine.forges();
+    let [row] = forges.rows.as_ref() else { panic!("one owned forge") };
+    assert_eq!(row.host.as_ref(), facts::FORGE.as_bytes());
+    let record = engine.forge_record(row.number).expect("kept owned forge");
+    assert_eq!(record.place.api.host.as_ref(), b"127.0.0.1");
+    assert_eq!(record.place.api.port, 10002);
+    assert_eq!(record.place.git.as_ref(), b"http://127.0.0.1:10002");
+    if let Some(web) = &record.place.web {
+        assert_eq!(web.as_ref(), b"http://127.0.0.1:10002");
+    }
+    assert!(shared.borrow().domain.metadata(b"work/hello").is_ok(), "the start's shared forge made the sample");
+
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("directories");
+    let path = directories
+        .join(
+            jig_protocol_config::Directory::Data,
+            &temper_forge_setup::setup_file::path(row.number, temper_forge_setup::machine::BoxKind::Owned),
+        )
+        .expect("setup path");
+    let read = temper_service::HandoverRead { forge: row.number, run: skein_lib::Token::new(0), path, max: 65536 };
+    let bytes = temper_playground::service::read_handover(&mut service.parameters.disk.borrow_mut(), &read)
+        .expect("setup read")
+        .expect("setup file");
+    let setup = temper_forge_setup::setup_file::decode(bytes.expose(), &directories).expect("owned setup file");
+    assert_eq!(setup.listen(), facts::FORGE.parse().expect("fixed forge address"));
+    let temper_forge_setup::setup_file::SetupFile::Owned(owned) = setup else { panic!("owned setup") };
+    assert_eq!(owned.remote.as_ref(), b"http://127.0.0.1:10002");
+}
+
+#[test]
 fn owned_setup_draws_every_pipe_step_before_the_next_line() {
     let mut page = Page::start(facts::start(None).expect("fixed facts"), b"owned").expect("page");
     press(&mut page, Role::Link, "Set up temper");
     page.wait(&Find::text(b"Forgejo"), None, WITHIN).expect("Forgejo card");
     press(&mut page, Role::Link, "Run on this machine");
-    let empty =
-        page.wait(&Find::exactly_named(Role::Choice, b"An empty repository"), None, WITHIN).expect("sheet defaults");
-    assert!(page.tree().find(empty).expect("empty choice").states.as_slice().contains(&skein_ui::State::Selected));
+    let sample =
+        page.wait(&Find::exactly_named(Role::Choice, b"A sample project"), None, WITHIN).expect("sheet defaults");
+    assert!(page.tree().find(sample).expect("sample choice").states.as_slice().contains(&skein_ui::State::Selected));
+    assert!(!page.tree().nodes().iter().any(|node| node.role == Role::TextField));
     for value in [b"work".as_slice(), b"hello"] {
         assert!(
-            page.tree().nodes().iter().any(|node| node.value.as_ref().is_some_and(|v| v.text.as_ref() == value)),
-            "default {}",
+            !page.tree().nodes().iter().any(|node| node.value.as_ref().is_some_and(|v| v.text.as_ref() == value)),
+            "sample name stays hidden: {}",
             String::from_utf8_lossy(value)
         );
     }
@@ -87,6 +169,7 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
         }
         let drawn = steps(&page);
         assert_eq!(drawn.len(), 5);
+        assert_eq!(drawn[4].0, "Making work/hello");
         assert_eq!(drawn[current].0, words);
         for (at, (_, status)) in drawn.iter().enumerate() {
             let wanted = match at.cmp(&current) {

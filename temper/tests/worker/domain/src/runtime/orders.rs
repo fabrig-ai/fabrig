@@ -133,6 +133,7 @@ impl Driver {
                     | Request::ReadList { .. }
                     | Request::CancelRead { .. }
                     | Request::Source { .. }
+                    | Request::Git { .. }
                     | Request::AgentStopped { .. }
                     | Request::Unprepared { .. }
                     | Request::ResultsIgnored { .. }

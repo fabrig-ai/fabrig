@@ -234,6 +234,8 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         started_from: Box::new([]),
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },

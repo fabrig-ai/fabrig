@@ -1,6 +1,6 @@
 # Kept builds
 
-Provisional, 2026-11-12, revised 2026-11-16, from
+Provisional, 2026-11-12, revised 2026-11-20, from
 `../../draft/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
 `../../draft/landed-qa.execution.md`. The builds
 a pass judges: made by the deployment at landed tips, published to
@@ -98,13 +98,17 @@ check that fails, with nothing moved or recorded:
 5. **Same filesystem:** DIR is moved by a rename, so it must be on the
    builds directory's filesystem: `DIR is not on the filesystem of
    BUILDS`.
-6. **Checksums:** one `sha256sum -- FILE...` process, with DIR as its
-   working directory, the captured environment and closed stdin, hashes
-   every file but the manifest in sorted path order. Its byte answer must
-   parse as section 4's checksum lines and name every file exactly once,
-   with no other path. A missing file or an unparseable answer refuses
-   the keep before anything moves. The checksum command is behind a face,
-   as git and tar are.
+6. **Checksums:** the tool hashes every file but the manifest, by its
+   path from DIR, in sorted path order, itself: SHA-256 in Rust, each
+   file streamed through, never read whole, and no checksum program
+   run, so that a keep needs neither GNU's `sha256sum` nor macOS's
+   `shasum` (`../macos.md`). Its byte answer is section 4's checksum
+   lines, one per file in that order, exactly as `sha256sum -- FILE...`
+   prints them from DIR; it must parse as those lines and name every
+   file exactly once, with no other path. A file that does not read
+   (`checksum: PATH: WHY`) or an unparseable answer refuses the keep
+   before anything moves. The checksums are behind a face, as git and
+   tar are, so that a test answers them.
 7. **Published:** DIR renamed to `BUILDS/.COMMIT.partial`, its manifest
    written there from that answer (section 4), and that renamed to
    `BUILDS/COMMIT`; then
@@ -122,13 +126,20 @@ line per file of the build but the manifest, sorted by path,
 `SHA256  PATH` (the lowercase hexadecimal SHA-256 of its bytes, two
 spaces, its path from the build's directory), as `sha256sum` prints and
 checks it. A path with a backslash, newline or carriage return has the
-line's leading backslash and the escaped path bytes that `sha256sum`
-prints; paths need not be UTF-8. The checksum answer's bytes are kept
-unchanged after the commit line. So
-`grep -v '^commit ' manifest | sha256sum -c` checks a kept build from its
-directory. The manifest is made and checked at keep;
-linked installs do not hash again. A cross-device install checks its
-copies with `sha256sum --check` (`places.md`, 3).
+line's leading backslash and its path escaped as `sha256sum` escapes it:
+each backslash `\\`, each newline `\n` and each carriage return `\r`;
+paths need not be UTF-8, though only Linux's file systems hold one that
+is not (`../macos.md`, 3). The tool's `manifest` module owns the form:
+one writer of a line, which section 3's checksums use, and one reader,
+which a keep's parse and an install's check use (`places.md`, 3). The
+checksum answer's bytes are kept unchanged after the commit line, so a
+manifest made by GNU's `sha256sum` and one made by the tool are the same
+bytes, and an install's byte-for-byte receipt (`places.md`, 3) holds
+across them. So `grep -v '^commit ' manifest | sha256sum -c` checks a
+kept build from its directory where GNU's `sha256sum` is installed. The
+manifest is made and checked at keep; linked installs do not hash
+again. A cross-device install checks its copies against the manifest
+(`places.md`, 3).
 
 ## 5. Deleting
 

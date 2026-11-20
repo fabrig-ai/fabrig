@@ -328,7 +328,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
                     .iter()
                     .filter(|node| node.styles.as_slice().contains(&look::WELCOME_OPTION_MORE))
                     .count(),
-                1
+                0
             );
         }
     }
@@ -1110,7 +1110,7 @@ fn asking_ways_head_keeps_the_requested_overlay_rules() {
         (".temper-way-pick", "position:relative;", None),
         (
             ".temper-way-pick > button[aria-haspopup=menu]",
-            "min-height:34px;padding:4px12px4px14px;border:1pxsolidvar(--gf-line-2);border-radius:8px;background:var(--gf-surface);font:50013.5px/1.6var(--gf-sans);white-space:nowrap;cursor:pointer;box-shadow:none;display:inline-flex;align-items:center;gap:10px;color:var(--gf-ink-2);",
+            "min-height:34px;padding:4px12px4px14px;border:1pxsolidvar(--gf-line-2);border-radius:8px;background:var(--gf-surface);font:50013.5px/1.6var(--gf-sans);white-space:nowrap;cursor:pointer;box-shadow:none;display:inline-flex;align-items:center;gap:10px;color:var(--gf-ink);",
             None,
         ),
         (
@@ -1144,6 +1144,25 @@ fn asking_ways_head_keeps_the_requested_overlay_rules() {
         ),
         (".temper-way-ask-mark", "flex:none;color:var(--gf-ink);", None),
         (".temper-way-acts", "margin-left:0;", Some("@media (max-width: 760px)")),
+        (
+            ".temper-way-menu [role=menuitem] > [id^=\"skein-ui-description-\"]",
+            "margin-left:auto;color:var(--gf-faint);font-size:12.5px;",
+            None,
+        ),
+        (
+            ".temper-way-menu [role=menuitem][aria-selected=true]:has(> [id^=\"skein-ui-description-\"])::after",
+            "margin-left:10px;",
+            None,
+        ),
+        (".temper-starter:has(> .temper-ways)", "position:relative;", None),
+        (".temper-starter:has(> .temper-ways) > .temper-ways-lede", "padding-right:260px;", None),
+        (".temper-starter > .temper-ways .temper-way-acts", "position:absolute;top:-3px;right:0;margin:0;", None),
+        (
+            ".temper-starter:has(> .temper-ways) > .temper-ways-lede",
+            "padding-right:0;",
+            Some("@media (max-width: 760px)"),
+        ),
+        (".temper-starter > .temper-ways .temper-way-acts", "position:static;", Some("@media (max-width: 760px)")),
     ];
     let mut found = vec![false; rules.len()];
     let mut parents = Vec::new();
@@ -1165,13 +1184,28 @@ fn asking_ways_head_keeps_the_requested_overlay_rules() {
                             *suffix,
                             ".temper-starter > .temper-way" | ".temper-way-ask" | ".temper-way-ask-mark"
                         ) {
-                            let how_suffix = if *suffix == ".temper-way > .temper-ways-panel" {
-                                ".temper-ways-panel"
-                            } else {
-                                suffix
+                            let how_suffix = match *suffix {
+                                ".temper-way > .temper-ways-panel" => ".temper-ways-panel",
+                                ".temper-starter:has(> .temper-ways)" => {
+                                    ".temper-settings-section:has(> .temper-way-head)"
+                                }
+                                ".temper-starter:has(> .temper-ways) > .temper-ways-lede" => {
+                                    ".temper-settings-section:has(> .temper-way-head) > .temper-settings-section-head"
+                                }
+                                ".temper-starter > .temper-ways .temper-way-acts" => {
+                                    ".temper-settings-section > .temper-way-head > .temper-way-acts"
+                                }
+                                _ => suffix,
                             };
                             let how = format!("#app > .temper-settings {how_suffix}");
-                            assert!(selector.split(',').any(|s| s.trim() == how), "shared head rule: {selector}");
+                            if suffix.starts_with(".temper-starter") && parent.is_none() {
+                                let expected_how = expected.replace("top:-3px", "top:-6px");
+                                let start = css.find(&format!("{how} {{")).expect("How work runs' rule");
+                                let body = css[start..].split_once('{').unwrap().1.split_once('}').unwrap().0;
+                                assert_eq!(body.split_whitespace().collect::<String>(), expected_how, "{how}");
+                            } else {
+                                assert!(selector.split(',').any(|s| s.trim() == how), "shared head rule: {selector}");
+                            }
                         }
                         assert!(!found[index], "one rule for {selector} under {parent:?}");
                         found[index] = true;

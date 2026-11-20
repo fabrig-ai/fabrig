@@ -259,7 +259,17 @@ impl Host {
         self.view.tree()
     }
     fn event(&mut self, event: Event) {
+        let had_approval_code = match self.root.approval() {
+            Some(page) => page.code().is_some(),
+            None => false,
+        };
         root::step(&mut self.root, &self.env, event, &mut self.out);
+        if had_approval_code
+            && let Some(page) = self.root.approval()
+            && page.code().is_none()
+        {
+            self.show = Some((root::address::print_approve(None), true));
+        }
     }
     fn client(&mut self, event: jig_client::Event) {
         self.event(Event::Client { event });

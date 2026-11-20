@@ -4,6 +4,7 @@ use jig_client::contract::{self as c, RowPart};
 use jig_client_protocol_link as link;
 use jig_client_protocol_wire as jig;
 use skein_lib::{List, Reader, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{
     self as wire,
     v1::{ChatPart, GoalPart, MilestonePart, MilestoneTotals},
@@ -57,11 +58,10 @@ pub fn milestone(line: &c::TaskLine, limits: &link::Limits) -> Option<MilestoneR
     if !reader.is_empty() {
         return None;
     }
-    let part = part.into_parts();
+
     let mut goals = List::with_capacity(part.goals.len());
     let mut more = part.more;
     for goal in part.goals.into_boxed() {
-        let goal = goal.into_parts();
         if let Some(line) = milestone_line(&goal.line, limits) {
             goals.push((line, goal.headline)).expect("same goal count");
         } else {

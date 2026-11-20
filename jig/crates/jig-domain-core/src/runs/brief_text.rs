@@ -212,6 +212,7 @@ fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32)
 }
 
 const WAITING_OPENING: &[u8] = b"Questions asked of you, still open, oldest first:\n";
+const WORDS_OPENING: &[u8] = b"Words sent to you, not yet recorded, oldest first:\n";
 
 fn question_heading(question: tasks::OpenQuestion) -> Box<[u8]> {
     let asker = Decimal::of(question.asker);
@@ -238,6 +239,36 @@ fn question_heading(question: tasks::OpenQuestion) -> Box<[u8]> {
     writer.finish()
 }
 
+fn words_heading(word: &tasks::Word) -> Box<[u8]> {
+    let (label, sender) = match word.from {
+        tasks::Party::Person(number) => (b"Person ".as_slice(), number),
+        tasks::Party::Task(number) => (b"Task ".as_slice(), number),
+        tasks::Party::Deployment { .. } => unreachable!("deployment words are never kept unrecorded"),
+    };
+    let sender = Decimal::of(sender);
+    let number = Decimal::of(word.number);
+    let parts = [
+        label,
+        sender.as_bytes(),
+        b" wrote (message ",
+        number.as_bytes(),
+        b"); once it is in a spec or a note, mark_read messages=[",
+        number.as_bytes(),
+        b"], or name ",
+        number.as_bytes(),
+        b" in that note's records:\n",
+    ];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded words heading");
+    }
+    let mut writer = Writer::new(length);
+    for part in parts {
+        writer.put(part).expect("measured words heading");
+    }
+    writer.finish()
+}
+
 fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
     let Some(context) = core.contexts.get(&task) else { return BriefRead::Failed };
     let Some(row) = core.tasks.task(task) else { return BriefRead::Failed };
@@ -259,11 +290,23 @@ fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
             questions.push(question).expect("open question subset");
         }
     }
-    if questions.is_empty() {
+    waiting_text(core, &questions, &row.unrecorded, bytes)
+}
+
+fn waiting_text(
+    core: &Core,
+    questions: &List<tasks::OpenQuestion>,
+    unrecorded: &[tasks::Word],
+    bytes: u32,
+) -> BriefRead {
+    if questions.is_empty() && unrecorded.is_empty() {
         return BriefRead::Got(Box::new([]));
     }
-    let mut length = WAITING_OPENING.len();
-    for question in &questions {
+    let opening = if questions.is_empty() { b"".as_slice() } else { WAITING_OPENING };
+    let separator = if questions.is_empty() || unrecorded.is_empty() { b"".as_slice() } else { b"\n" };
+    let words_opening = if unrecorded.is_empty() { b"".as_slice() } else { WORDS_OPENING };
+    let mut length = opening.len();
+    for question in questions {
         let Some(words) = core.open_question_words(*question) else { return BriefRead::Failed };
         length = length
             .checked_add(question_heading(*question).len())
@@ -273,10 +316,24 @@ fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
             .checked_add(usize::from(!words.ends_with(b"\n")))
             .expect("question newline");
     }
+    length = length
+        .checked_add(separator.len())
+        .expect("waiting separator")
+        .checked_add(words_opening.len())
+        .expect("bounded words opening");
+    for word in unrecorded {
+        length = length
+            .checked_add(words_heading(word).len())
+            .expect("bounded words headings")
+            .checked_add(word.words.len())
+            .expect("bounded unrecorded words")
+            .checked_add(usize::from(!word.words.ends_with(b"\n")))
+            .expect("words newline");
+    }
     let bound = length.min(skein_lib::usize_of(bytes));
-    let mut kept = skein_lib::bytes::utf8_prefix(WAITING_OPENING, bound).len();
-    let mut cut = kept < WAITING_OPENING.len();
-    for question in &questions {
+    let mut kept = skein_lib::bytes::utf8_prefix(opening, bound).len();
+    let mut cut = kept < opening.len();
+    for question in questions {
         let words = core.open_question_words(*question).expect("measured question words");
         let heading = question_heading(*question);
         let newline = if words.ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
@@ -289,14 +346,44 @@ fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
             cut = prefix.len() < part.len();
         }
     }
+    for part in [separator, words_opening] {
+        if cut {
+            break;
+        }
+        let prefix = skein_lib::bytes::utf8_prefix(part, bound.checked_sub(kept).expect("bounded waiting text"));
+        kept = kept.checked_add(prefix.len()).expect("bounded waiting prefix");
+        cut = prefix.len() < part.len();
+    }
+    for word in unrecorded {
+        let heading = words_heading(word);
+        let newline = if word.words.ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
+        for part in [heading.as_ref(), word.words.as_ref(), newline] {
+            if cut {
+                break;
+            }
+            let prefix = skein_lib::bytes::utf8_prefix(part, bound.checked_sub(kept).expect("bounded waiting text"));
+            kept = kept.checked_add(prefix.len()).expect("bounded waiting prefix");
+            cut = prefix.len() < part.len();
+        }
+    }
     let mut exact = Writer::new(kept);
-    exact.put(skein_lib::bytes::utf8_prefix(WAITING_OPENING, exact.room())).expect("bounded opening");
-    for question in &questions {
+    exact.put(skein_lib::bytes::utf8_prefix(opening, exact.room())).expect("bounded opening");
+    for question in questions {
         let heading = question_heading(*question);
         let words = core.open_question_words(*question).expect("measured words");
         let newline = if words.ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
         for part in [heading.as_ref(), words, newline] {
             exact.put(skein_lib::bytes::utf8_prefix(part, exact.room())).expect("measured waiting text");
+        }
+    }
+    for part in [separator, words_opening] {
+        exact.put(skein_lib::bytes::utf8_prefix(part, exact.room())).expect("measured words opening");
+    }
+    for word in unrecorded {
+        let heading = words_heading(word);
+        let newline = if word.words.ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
+        for part in [heading.as_ref(), word.words.as_ref(), newline] {
+            exact.put(skein_lib::bytes::utf8_prefix(part, exact.room())).expect("measured unrecorded words");
         }
     }
     BriefRead::Got(Box::new([BriefFragment {
@@ -739,7 +826,202 @@ fn task_read(record: &tasks::RunContext, people: &people::Domain, parts: u32, by
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skein_lib::Queue;
+    use crate::tests::fixtures::CurrentFixtures;
+    use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+
+    const WORDS_TEXT: &[u8] = b"Words sent to you, not yet recorded, oldest first:\nPerson 42 wrote (message 77); once it is in a spec or a note, mark_read messages=[77], or name 77 in that note's records:\nAlso add a /ready endpoint beside /health.\nTask 9 wrote (message 78); once it is in a spec or a note, mark_read messages=[78], or name 78 in that note's records:\nKeep the caf\xc3\xa9.\nTwo lines.\n";
+    const QUESTIONS_TEXT: &[u8] = b"Questions asked of you, still open, oldest first:\nTask 9 asks (question 76); answer with message target=9, form=answer, question=76:\nWhich form?\n";
+
+    fn task_event(core: &mut Core, limits: &crate::Limits, event: tasks::Event) -> Queue<tasks::Request> {
+        let mut out = Queue::uncapped();
+        tasks::step(
+            &mut core.tasks,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
+            event,
+            &mut out,
+        );
+        for request in &out {
+            if let tasks::Request::Refused { problem, .. } = request {
+                panic!("fixture task event refused: {problem:?}");
+            }
+        }
+        out
+    }
+
+    fn kept_words(question: bool) -> (Core, crate::Limits) {
+        let (mut core, limits) = crate::tests::make_tree();
+        core.current.test_charter_mut(1).policy.resume = false;
+        let mut rows = List::with_capacity(4);
+        for number in [1, 2, 3, 4] {
+            let mut row = core.tasks.task(number).expect("fixture task").clone();
+            row.root = 9;
+            if number == 1 {
+                row.number = 9;
+                if question {
+                    row.questions = Box::new([tasks::QuestionCredit {
+                        number: 76,
+                        answerer: tasks::Party::Task(2),
+                        asked: tasks::Party::Task(2),
+                        line: row.activity,
+                    }]);
+                }
+            } else {
+                row.requester = tasks::Party::Task(9);
+                row.funder = tasks::Funder::Task(9);
+            }
+            if number == 2 {
+                row.unrecorded = Box::new([
+                    tasks::Word {
+                        number: 77,
+                        from: tasks::Party::Person(42),
+                        kind: tasks::MessageKind::Words,
+                        words: b"Also add a /ready endpoint beside /health.".as_slice().into(),
+                        at: Wall::from_nanos(1),
+                        hits: 1,
+                        eligible: true,
+                    },
+                    tasks::Word {
+                        number: 78,
+                        from: tasks::Party::Task(9),
+                        kind: tasks::MessageKind::Words,
+                        words: b"Keep the caf\xc3\xa9.\nTwo lines.\n".as_slice().into(),
+                        at: Wall::from_nanos(2),
+                        hits: 1,
+                        eligible: true,
+                    },
+                ]);
+                if question {
+                    row.question_lines = Box::new([tasks::QuestionLine { message: 76, line: 0, answer: None }]);
+                }
+            }
+            rows.push(row).expect("four fixture rows");
+        }
+        let mut ledgers = List::with_capacity(core.tasks.funding_records().len());
+        for (_, ledger) in core.tasks.funding_records() {
+            ledgers.push(*ledger).expect("fixture ledger room");
+        }
+        crate::tests::fixtures::restore(&mut core, &limits, rows.into_boxed());
+        for ledger in ledgers.into_boxed() {
+            drop(task_event(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) }));
+        }
+        drop(task_event(&mut core, &limits, tasks::Event::Check));
+        assert_eq!(core.tasks.restore_failure(), None);
+        drop(task_event(&mut core, &limits, tasks::Event::Restored));
+        if question {
+            assert!(core.remember_question(&tasks::ActivityLine {
+                task: 9,
+                position: core.tasks.task(9).expect("asker").activity,
+                at: Wall::EPOCH,
+                line: tasks::Line::Words {
+                    message: 76,
+                    by: tasks::Party::Task(9),
+                    kind: tasks::MessageKind::Question,
+                    words: b"Which form?".as_slice().into(),
+                },
+            }));
+        }
+        core.contexts.insert(2, core.tasks.run_context(2).expect("waiting task context")).expect("context room");
+        (core, limits)
+    }
+
+    fn expected_waiting() -> Box<[u8]> {
+        let mut writer = Writer::new(
+            QUESTIONS_TEXT.len().checked_add(1).expect("separator").checked_add(WORDS_TEXT.len()).expect("words"),
+        );
+        writer.put(QUESTIONS_TEXT).expect("questions");
+        writer.put(b"\n").expect("blank line");
+        writer.put(WORDS_TEXT).expect("words");
+        writer.finish()
+    }
+
+    #[test]
+    fn waiting_keeps_unrecorded_words_after_questions_oldest_first() {
+        let (core, _) = kept_words(true);
+        let BriefRead::Got(parts) = waiting_read(&core, 2, 0, 4096) else { panic!("waiting text") };
+        let expected = expected_waiting();
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].bytes.as_ref(), expected.as_ref());
+        assert_eq!(parts[0].left, 0);
+    }
+
+    #[test]
+    fn waiting_cuts_unrecorded_words_from_the_end_and_counts_left() {
+        let (core, _) = kept_words(true);
+        let expected = expected_waiting();
+        let accent = skein_lib::bytes::find(&expected, b"\xc3\xa9").expect("multibyte words");
+        for budget in [0, 12, QUESTIONS_TEXT.len(), accent.checked_add(1).expect("inside accent")] {
+            let BriefRead::Got(parts) = waiting_read(&core, 2, 0, u32::try_from(budget).expect("small budget")) else {
+                panic!("cut waiting text")
+            };
+            let kept = skein_lib::bytes::utf8_prefix(&expected, budget);
+            assert_eq!(parts.len(), 1);
+            assert_eq!(parts[0].bytes.as_ref(), kept);
+            assert_eq!(
+                parts[0].left,
+                u64::try_from(expected.len().checked_sub(kept.len()).expect("kept prefix")).expect("cut count")
+            );
+            assert!(parts[0].bytes.len() <= budget);
+            let limits = BriefTextLimits {
+                parts: 1,
+                read_bytes: u32::try_from(budget).expect("small budget"),
+                brief_bytes: 4096,
+            };
+            let rendered = read_brief_part(&core, limits, 2, BriefPart::Waiting { carried: 0 }).expect("cut marker");
+            let newline = if kept.is_empty() || kept.ends_with(b"\n") { b"".as_slice() } else { b"\n" };
+            let omitted = Decimal::of(parts[0].left);
+            let end = b" bytes cut]\n";
+            let length = kept
+                .len()
+                .checked_add(newline.len())
+                .expect("line break")
+                .checked_add(1)
+                .expect("marker opening")
+                .checked_add(omitted.as_bytes().len())
+                .expect("cut count")
+                .checked_add(end.len())
+                .expect("marker end");
+            let mut marked = Writer::new(length);
+            for part in [kept, newline, b"[", omitted.as_bytes(), end] {
+                marked.put(part).expect("expected cut marker");
+            }
+            assert_eq!(rendered.as_ref(), marked.finish().as_ref());
+        }
+    }
+
+    #[test]
+    fn recorded_words_leave_no_waiting_section() {
+        let (mut core, limits) = kept_words(false);
+        let BriefRead::Got(parts) = waiting_read(&core, 2, 0, 4096) else { panic!("unrecorded words") };
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].bytes.as_ref(), WORDS_TEXT);
+        let out = task_event(
+            &mut core,
+            &limits,
+            tasks::Event::RecordWords { reply_to: ReplyTo::new(Token::new(1)), task: 2, messages: Box::new([77, 78]) },
+        );
+        let mut recorded_reply = false;
+        for request in &out {
+            if let tasks::Request::WordsRecorded { recorded, unknown, .. } = request {
+                assert_eq!(recorded.as_ref(), [77, 78]);
+                assert!(unknown.is_empty());
+                recorded_reply = true;
+            }
+        }
+        assert!(recorded_reply);
+        assert!(core.tasks.task(2).expect("recorded task").unrecorded.is_empty());
+        let BriefRead::Got(parts) = waiting_read(&core, 2, 0, 4096) else { panic!("empty waiting text") };
+        assert!(parts.is_empty(), "no questions or unrecorded words means no waiting fragment");
+        assert!(
+            read_brief_part(
+                &core,
+                BriefTextLimits { parts: 1, read_bytes: 4096, brief_bytes: 4096 },
+                2,
+                BriefPart::Waiting { carried: 0 }
+            )
+            .expect("empty section")
+            .is_empty()
+        );
+    }
 
     #[test]
     fn tail_reads_count_only_omitted_original_text_and_cut_the_oldest_text() {

@@ -124,8 +124,14 @@ fn effort_is_explicit_and_unsupported_fields_are_rejected() {
     let mut prompt = prompt(Role::User, text(b"hello"));
     for effort in [b"off".as_slice(), b"none", b"unknown"] {
         prompt.reasoning_effort = Some(bytes::copy_of(effort));
-        assert_eq!(encode_request(&prompt, 4096, &LIMITS), Err(Error::Unsupported));
-        assert_eq!(measure_request(&prompt, 4096, &LIMITS), Err(Error::Unsupported));
+        assert_eq!(
+            encode_request(&prompt, 4096, &LIMITS),
+            Err(Error::Unsupported { cause: crate::Unsupported::Effort })
+        );
+        assert_eq!(
+            measure_request(&prompt, 4096, &LIMITS),
+            Err(Error::Unsupported { cause: crate::Unsupported::Effort })
+        );
     }
     prompt.reasoning_effort = None;
     let without_affinity = encode_request(&prompt, 4096, &LIMITS).expect("plain request");
@@ -135,7 +141,7 @@ fn effort_is_explicit_and_unsupported_fields_are_rejected() {
     assert_eq!(encode_request(&prompt, 4096, &LIMITS).expect("accepted affinity"), without_affinity);
     prompt.affinity = None;
     prompt.max_output_tokens = Some(0);
-    assert_eq!(measure_request(&prompt, 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(measure_request(&prompt, 4096, &LIMITS), Err(Error::Invalid { cause: crate::Invalid::Output }));
 }
 
 #[test]
@@ -166,7 +172,10 @@ fn malformed_unsigned_and_duplicate_reasoning_cannot_replay() {
         br#"{"type":"redacted_thinking","data":""}"#,
         br#"{"type":"text","text":"cannot masquerade as opaque"}"#,
     ] {
-        assert_eq!(measure_request(&prompt(Role::Assistant, reasoning(value)), 4096, &LIMITS), Err(Error::Invalid));
+        assert_eq!(
+            measure_request(&prompt(Role::Assistant, reasoning(value)), 4096, &LIMITS),
+            Err(Error::Invalid { cause: crate::Invalid::Reasoning })
+        );
     }
     let replay = Replay {
         provider: Provider::OpenAi,
@@ -175,7 +184,7 @@ fn malformed_unsigned_and_duplicate_reasoning_cannot_replay() {
     };
     assert_eq!(
         measure_request(&prompt(Role::Assistant, Block::Reasoning { replay }), 4096, &LIMITS),
-        Err(Error::Unsupported)
+        Err(Error::Unsupported { cause: crate::Unsupported::ReplayProvider })
     );
 }
 
@@ -187,12 +196,24 @@ fn roles_utf8_object_arguments_and_tool_identifiers_are_checked_before_encoding(
         arguments: bytes::copy_of(b"{}"),
         replay: None,
     };
-    assert_eq!(measure_request(&prompt(Role::User, tool), 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(
+        measure_request(&prompt(Role::User, tool), 4096, &LIMITS),
+        Err(Error::Invalid { cause: crate::Invalid::Role })
+    );
     let result = Block::ToolResult { id: bytes::copy_of(b"id"), text: bytes::copy_of(b"result"), is_error: false };
-    assert_eq!(measure_request(&prompt(Role::Assistant, result), 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(
+        measure_request(&prompt(Role::Assistant, result), 4096, &LIMITS),
+        Err(Error::Invalid { cause: crate::Invalid::Role })
+    );
     let signed = reasoning(br#"{"type":"thinking","thinking":"a","signature":"s"}"#);
-    assert_eq!(measure_request(&prompt(Role::User, signed), 4096, &LIMITS), Err(Error::Invalid));
-    assert_eq!(measure_request(&prompt(Role::User, text(&[0xff])), 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(
+        measure_request(&prompt(Role::User, signed), 4096, &LIMITS),
+        Err(Error::Invalid { cause: crate::Invalid::Role })
+    );
+    assert_eq!(
+        measure_request(&prompt(Role::User, text(&[0xff])), 4096, &LIMITS),
+        Err(Error::Invalid { cause: crate::Invalid::Text })
+    );
     for arguments in [b"broken".as_slice(), b"[]", b"null"] {
         let tool = Block::ToolCall {
             id: bytes::copy_of(b"id"),
@@ -200,7 +221,10 @@ fn roles_utf8_object_arguments_and_tool_identifiers_are_checked_before_encoding(
             arguments: bytes::copy_of(arguments),
             replay: None,
         };
-        assert_eq!(measure_request(&prompt(Role::Assistant, tool), 4096, &LIMITS), Err(Error::Invalid));
+        assert_eq!(
+            measure_request(&prompt(Role::Assistant, tool), 4096, &LIMITS),
+            Err(Error::Invalid { cause: crate::Invalid::Arguments })
+        );
     }
     for id in [b"bad|id".as_slice(), b""] {
         let tool = Block::ToolCall {
@@ -209,12 +233,18 @@ fn roles_utf8_object_arguments_and_tool_identifiers_are_checked_before_encoding(
             arguments: bytes::copy_of(b"{}"),
             replay: None,
         };
-        assert_eq!(measure_request(&prompt(Role::Assistant, tool), 4096, &LIMITS), Err(Error::Invalid));
+        assert_eq!(
+            measure_request(&prompt(Role::Assistant, tool), 4096, &LIMITS),
+            Err(Error::Invalid { cause: crate::Invalid::Identifier })
+        );
     }
     let replay =
         Replay { provider: Provider::Anthropic, value: Json::from_bytes(b"{}", &LIMITS.document()).expect("JSON") };
     let block = Block::Text { text: bytes::copy_of(b"a"), replay: Some(replay) };
-    assert_eq!(measure_request(&prompt(Role::Assistant, block), 4096, &LIMITS), Err(Error::Unsupported));
+    assert_eq!(
+        measure_request(&prompt(Role::Assistant, block), 4096, &LIMITS),
+        Err(Error::Unsupported { cause: crate::Unsupported::ReplayBlock })
+    );
 }
 
 #[test]
@@ -285,9 +315,9 @@ fn assistant_refusal_is_a_native_text_block_and_empty_history_is_invalid() {
         "Anthropic refusals have native text content"
     );
     request.messages = Box::new([]);
-    assert_eq!(measure_request(&request, 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(measure_request(&request, 4096, &LIMITS), Err(Error::Invalid { cause: crate::Invalid::NoMessages }));
     request.messages = Box::new([Message { role: Role::User, content: Box::new([]) }]);
-    assert_eq!(measure_request(&request, 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(measure_request(&request, 4096, &LIMITS), Err(Error::Invalid { cause: crate::Invalid::EmptyMessage }));
 }
 
 #[test]
@@ -465,7 +495,7 @@ fn declared_output_sets_the_default_and_admits_only_caps_at_or_below_it() {
     assert_eq!(measure_request(&request, declared, &LIMITS), Err(Error::limit(crate::Cap::Output, declared)));
     assert_eq!(encode_request(&request, declared, &LIMITS), Err(Error::limit(crate::Cap::Output, declared)));
     request.max_output_tokens = None;
-    assert_eq!(measure_request(&request, 0, &LIMITS), Err(Error::Invalid));
+    assert_eq!(measure_request(&request, 0, &LIMITS), Err(Error::Invalid { cause: crate::Invalid::Output }));
 }
 
 #[test]
@@ -562,12 +592,12 @@ fn argument_text_keeps_the_previous_invalid_argument_failures() {
     ];
     for arguments in cases {
         let legacy = match Json::from_bytes(arguments, &LIMITS.request_document()) {
-            Err(error) => Err(crate::translate::decode(error)),
+            Err(error) => Err(crate::translate::decode_invalid(error, crate::Invalid::Arguments)),
             Ok(value) => {
                 if openai::json::kind(value.view(), 0) == Some(skein_json::Kind::ObjectStart) {
                     Ok(())
                 } else {
-                    Err(Error::Invalid)
+                    Err(Error::Invalid { cause: crate::Invalid::Arguments })
                 }
             }
         };
@@ -642,7 +672,10 @@ fn a_reasoning_run_replays_as_consecutive_native_content_items() {
 #[test]
 fn a_reasoning_run_validates_each_native_items_signature_and_limit() {
     let run = br#"[{"type":"thinking","thinking":"a","signature":"s0"},{"type":"thinking","thinking":"c"}]"#;
-    assert_eq!(encode_request(&prompt(Role::Assistant, reasoning(run)), 4096, &LIMITS), Err(Error::Invalid));
+    assert_eq!(
+        encode_request(&prompt(Role::Assistant, reasoning(run)), 4096, &LIMITS),
+        Err(Error::Invalid { cause: crate::Invalid::Reasoning })
+    );
     let valid = br#"[{"type":"thinking","thinking":"a","signature":"s0"},{"type":"redacted_thinking","data":"b"}]"#;
     assert_eq!(
         encode_request(&prompt(Role::Assistant, reasoning(valid)), 4096, &openai::Limits { reasoning: 32, ..LIMITS }),

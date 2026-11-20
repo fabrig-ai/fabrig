@@ -14,6 +14,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use skein_lib::{Reader, Token};
+use smith_channel::Record;
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_engine_service_vocabulary::{settings, translate};
@@ -98,8 +99,7 @@ pub fn decode(call: &fleet::Call) -> engine::Call {
     let mut reader = Reader::new(&call.name);
     let name = smith_channel::CallName::decode(&smith_channel::CEILINGS, &mut reader).expect("smith's call name");
     assert!(reader.is_empty(), "one whole call name");
-    let name =
-        run::CallName { activation: name.activation(), completion: name.completion(), position: name.position() };
+    let name = run::CallName { activation: name.activation, completion: name.completion, position: name.position };
     let input = run::HostInput::attested(call.input.clone()).expect("bounded host input");
     let temper_engine_smith::Decoded::Call(body) = temper_engine_smith::call(name, &call.tool, &input)
         .unwrap_or_else(|error| panic!("tool {:?}: {error:?}, input {:?}", call.tool, call.input))

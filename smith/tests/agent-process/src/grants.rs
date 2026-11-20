@@ -1,6 +1,6 @@
 //! Tagged wire fixtures shared by the process stories.
 use skein_lib::Secret;
-use smith_channel::{CEILINGS, GrantValue, Scheme};
+use smith_channel::{GrantValue, Scheme};
 
 /// A host's bearer wire value.
 #[must_use]
@@ -15,40 +15,18 @@ pub fn key(value: &[u8]) -> GrantValue {
 }
 
 fn credential(value: &[u8], scheme: Scheme) -> GrantValue {
-    GrantValue::Credential(
-        smith_channel::CredentialValue::new(
-            &CEILINGS,
-            smith_channel::CredentialValueParts { scheme, bytes: Secret::new(Box::from(value)) },
-        )
-        .expect("bounded credential fixture"),
-    )
+    GrantValue::Credential(smith_channel::CredentialValue { scheme, bytes: Secret::new(Box::from(value)) })
 }
 
 /// A host's program source wire value.
 #[must_use]
 pub fn program(name: &[u8]) -> GrantValue {
-    GrantValue::Program(
-        smith_channel::ProgramValue::new(&CEILINGS, smith_channel::ProgramValueParts { name: Box::from(name) })
-            .expect("bounded program fixture"),
-    )
+    GrantValue::Program(smith_channel::ProgramValue { name: Box::from(name) })
 }
 
 pub(crate) fn refresh(value: GrantValue) -> skein_channel::Frame {
-    let record = smith_channel::GrantRefresh::new(
-        &CEILINGS,
-        smith_channel::GrantRefreshParts {
-            grant: smith_channel::Grant::new(
-                &CEILINGS,
-                smith_channel::GrantParts {
-                    account: 0,
-                    generation: 2,
-                    valid: skein_lib::Duration::from_secs(7200),
-                    value,
-                },
-            )
-            .expect("bounded grant"),
-        },
-    )
-    .expect("refresh");
+    let record = smith_channel::GrantRefresh {
+        grant: smith_channel::Grant { account: 0, generation: 2, valid: skein_lib::Duration::from_secs(7200), value },
+    };
     crate::frame!(0x0104, record)
 }

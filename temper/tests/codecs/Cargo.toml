@@ -16,6 +16,9 @@ temper-protocol-reaches.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+temper-engine-service-vocabulary.workspace = true
+jig-protocol-store.workspace = true
+jig-client-view-codec.workspace = true
 skein-heap.workspace = true
 skein-scratch.workspace = true
 skein-codec.workspace = true

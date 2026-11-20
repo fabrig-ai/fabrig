@@ -37,7 +37,10 @@ pub fn world(settings: Settings) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 38, last: 38 },
+                versions: VersionRange {
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
                 truth,
                 bounds: Bounds {
                     text: 128,

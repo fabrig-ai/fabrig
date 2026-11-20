@@ -790,7 +790,7 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
 fn worker_settings_and_linked_facts_cross_client_wire() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::settings as client;
-    assert_eq!(jig_client_protocol_wire::VERSION, 38);
+    assert_eq!(jig_client_protocol_wire::VERSION, 40);
     for digest in [None, Some([9; 32])] {
         let source = s::Value::Worker(Box::new(s::WorkerSetting {
             number: 2,

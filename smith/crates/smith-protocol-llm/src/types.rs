@@ -12,8 +12,8 @@ use crate::{Limits, Receiving};
 /// A preparation refusal reported by the protocol component to its caller.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
-    /// The caller supplied an invalid tool value; no call starts.
-    Invalid,
+    /// The request breaks a local or dialect rule; no call starts.
+    Invalid { cause: Cause },
 
     /// A local tool or client bound refused the value; no call starts.
     Limit,
@@ -22,7 +22,7 @@ pub enum Error {
     PathLimit { which: llm::Cap, bound: u64 },
 
     /// The configured dialect cannot represent the value; no call starts.
-    Unsupported,
+    Unsupported { cause: Cause },
 }
 
 impl Error {
@@ -31,9 +31,94 @@ impl Error {
     #[must_use]
     pub const fn from_client(error: skein_llm::Error) -> Self {
         match error {
-            skein_llm::Error::Invalid => Self::Invalid,
+            skein_llm::Error::Invalid { cause } => Self::Invalid { cause: Cause::Invalid(cause) },
             skein_llm::Error::Limit { which, bound } => Self::PathLimit { which: crate::failure::cap(which), bound },
-            skein_llm::Error::Unsupported => Self::Unsupported,
+            skein_llm::Error::Unsupported { cause } => Self::Unsupported { cause: Cause::Unsupported(cause) },
+        }
+    }
+}
+
+/// A refusal's cause, owned here or retained from skein's admission boundary.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Cause {
+    /// Smith cannot build the request.
+    Smith(Refusal),
+    /// The request breaks its dialect's rule.
+    Invalid(skein_llm::Invalid),
+    /// The dialect cannot carry the requested value.
+    Unsupported(skein_llm::Unsupported),
+}
+
+impl Cause {
+    /// The fixed local name reported to the owner, never a provider's text.
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::Smith(cause) => cause.name(),
+            Self::Invalid(cause) => cause.name(),
+            Self::Unsupported(cause) => cause.name(),
+        }
+    }
+}
+
+/// Smith's closed request refusals (protocol/llm.md, section 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Refusal {
+    /// The chosen tool is not among those served.
+    ChoiceNotServed,
+    /// Two tools are served under one name.
+    ToolName,
+    /// A host schema is not a plain object.
+    HostSchema,
+    /// A schema or input is not a JSON object.
+    NotObject,
+    /// Delivery is offered without its contract.
+    DeliverContract,
+    /// Failed-write feedback has no preceding call to follow.
+    FailedWrite,
+    /// A result's error flag differs from its feedback's.
+    Feedback,
+    /// A tool result carries unsupported provider replay.
+    ResultReplay,
+    /// A read is rendered from line zero.
+    ReadLine,
+    /// The guard's start or measured sizes are out of order.
+    Guard,
+    /// The observation cursor is past the history.
+    Observation,
+    /// The fixed empty schema was refused.
+    FixedSchema,
+    /// A completion holds a tool result.
+    CompletionResult,
+    /// The connection does not hold the named endpoint.
+    UnknownEndpoint,
+    /// The owner is already calling.
+    Owner,
+    /// The grant is out of bounds, stale, full or of another scheme.
+    Grant,
+}
+
+impl Refusal {
+    /// The design's fixed name, disjoint from skein's admission causes.
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::ChoiceNotServed => b"choice-not-served",
+            Self::ToolName => b"tool-name",
+            Self::HostSchema => b"host-schema",
+            Self::NotObject => b"not-object",
+            Self::DeliverContract => b"deliver-contract",
+            Self::FailedWrite => b"failed-write",
+            Self::Feedback => b"feedback",
+            Self::ResultReplay => b"result-replay",
+            Self::ReadLine => b"read-line",
+            Self::Guard => b"guard",
+            Self::Observation => b"observation",
+            Self::FixedSchema => b"fixed-schema",
+            Self::CompletionResult => b"completion-result",
+            Self::UnknownEndpoint => b"unknown-endpoint",
+            Self::Owner => b"owner",
+            Self::Grant => b"grant",
         }
     }
 }

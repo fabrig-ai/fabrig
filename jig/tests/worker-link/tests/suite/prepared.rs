@@ -1,5 +1,6 @@
 //! Prepared fixtures retain the fresh values (jig/docs/design/protocol/channel/README.md, 11).
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::fixtures;
 use skein_lib::{List, Writer};
 
@@ -9,32 +10,23 @@ fn fresh_schema() -> skein_channel::Schema {
 }
 
 fn fresh_agreement() -> skein_channel::Frame {
-    let limits = wire::sizes::limits(&fixtures::SIZES).expect("small codec limits");
     let mut wires = List::with_capacity(5);
     for spoken in &wire::spoken() {
         wires
-            .push(
-                wire::AgreedWire::new(
-                    &limits,
-                    wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
-                )
-                .expect("wire"),
-            )
+            .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
             .expect("four jig wires");
     }
-    wires
-        .push(
-            wire::AgreedWire::new(
-                &limits,
-                wire::AgreedWireParts { name: b"test-worker-wire".as_slice().into(), version: 3 },
-            )
-            .expect("wire"),
-        )
-        .expect("application wire");
-    let record = wire::v18::Agreed::new(&limits, wire::v18::AgreedParts { wires }).expect("agreement");
-    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut body).expect("measured agreement");
-    let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
+    wires.push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 }).expect("application wire");
+    let record = wire::v19::Agreed { wires };
+    let mut body = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
+    let mut frame = skein_channel::frame_writer(
+        0x018d,
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    )
+    .expect("frame");
     frame.put(&body.finish()).expect("body");
     frame.finish().expect("measured frame")
 }

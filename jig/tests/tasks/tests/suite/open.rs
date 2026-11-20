@@ -192,7 +192,12 @@ fn a_batchs_requester_authority_takes_one_shape() {
                 assert_eq!(w.live(), before, "{name}");
                 assert_eq!(w.records, records, "{name}");
             }
-            Reply::Lifted { .. } | Reply::Done | Reply::Acknowledged(_) | Reply::Turn(_) | Reply::WriterWaiting(_) => {
+            Reply::WordsRecorded { .. }
+            | Reply::Lifted { .. }
+            | Reply::Done
+            | Reply::Acknowledged(_)
+            | Reply::Turn(_)
+            | Reply::WriterWaiting(_) => {
                 panic!("batch outcome")
             }
         }

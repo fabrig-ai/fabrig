@@ -176,6 +176,7 @@ fn encode_task_from_person_revision(value: &jig_client::contract::Task, out: &mu
         None => out.null(),
     }
     super::task_settings::encode(value.settings.as_ref(), out);
+    super::unread::encode(&value.unread, out, budget);
     out.key(b"wake");
     super::encode_owner_wake_policy(&value.wake, out, budget);
     out.key(b"subscriptions");

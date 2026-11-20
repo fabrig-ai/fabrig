@@ -38,6 +38,10 @@ env:
   # These two pins move together when Linux's Chromium changes major version.
   CHROME_FOR_TESTING_VERSION: 147.0.7727.117
   CHROME_FOR_TESTING_SHA256: 7a91c88d288500033f00fecbd1b3f1a0aa61803fec74432658012bdd83fd1c9f
+  # Linux's machines carry ripgrep 14.1.1 at /usr/bin/rg (macos.md, 6).
+  # The aarch64-apple-darwin archive's published release SHA-256, checked before unpacking.
+  RIPGREP_VERSION: 14.1.1
+  RIPGREP_SHA256: 24ad76777745fbff131c8fbc466742b011f925bfa4fffa2ded6def23b5b937be
   CARGO_TERM_COLOR: never
   CARGO_INCREMENTAL: "0"
   # Line tables fit the runner's disk (macos.md, 6).
@@ -61,6 +65,8 @@ jobs:
       process_ids: ${{ steps.plan.outputs.process_ids }}
       browser: ${{ steps.plan.outputs.browser }}
       browser_ids: ${{ steps.plan.outputs.browser_ids }}
+      browser-temper: ${{ steps.plan.outputs.browser-temper }}
+      browser-temper_ids: ${{ steps.plan.outputs.browser-temper_ids }}
       skein: ${{ steps.plan.outputs.skein }}
       skein_ids: ${{ steps.plan.outputs.skein_ids }}
       smith: ${{ steps.plan.outputs.smith }}
@@ -159,7 +165,7 @@ jobs:
         run: python3 -I -B ../_macos/tools/macos/macos.py setup-runner
       - &rust
         name: The workspace toolchain and checked cargo-nextest
-        run: python3 -I -B "$MACOS_HELPER" install
+        run: exec python3 -I -B "$MACOS_HELPER" install
       - &registry-restore
         name: Restore the registry
         id: registry
@@ -178,18 +184,20 @@ jobs:
         with:
           path: tested/target
           key: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}
-          restore-keys: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-
+          restore-keys: |
+            target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}-partial-
+            target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-
       - &build
         name: Build the whole part, or make its compiler red
         id: build
-        run: python3 -I -B "$MACOS_HELPER" build "$PART" "$PART.xml"
+        run: exec python3 -I -B "$MACOS_HELPER" build "$PART" "$PART.xml"
       - name: The pinned forge binaries
         if: ${{ steps.build.outputs.run_tests == 'true' }}
         run: python3 -I -B "$MACOS_HELPER" fetch-forge
       - &run-part
         name: Run selections and refuse cut-short runs, then make the part's file
         if: ${{ success() && steps.build.outputs.build_red == 'false' }}
-        run: python3 -I -B "$MACOS_HELPER" run "$PART" "$PART.xml"
+        run: exec python3 -I -B "$MACOS_HELPER" run "$PART" "$PART.xml"
       - &upload-part
         name: Upload the part's file, never a partial result
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -212,7 +220,7 @@ jobs:
         continue-on-error: true
         with:
           path: tested/target
-          key: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}
+          key: ${{ env.MACOS_BUILT == 'true' && steps.target.outputs.cache-primary-key || format('{0}-partial-{1}-{2}', steps.target.outputs.cache-primary-key, github.run_id, github.run_attempt) }}
       - &registry-save
         name: Save the registry once per key
         if: ${{ always() && steps.registry.outcome == 'success' && steps.registry.outputs.cache-hit != 'true' }}
@@ -258,14 +266,16 @@ jobs:
       - *rust
       - *registry-restore
       - *target-restore
-      - name: The browser's wasm target, checked installed
+      - &wasm-target
+        name: The browser's wasm target, checked installed
         run: |
           $RUN wasm-target rustup target add wasm32-unknown-unknown
           $RUN wasm-installed bash -c 'rustup target list --installed | grep -Fx wasm32-unknown-unknown'
       - name: The C compiler for wasm, checked to target it
-        run: python3 -I -B "$MACOS_HELPER" wasm-compiler
+        run: exec python3 -I -B "$MACOS_HELPER" wasm-compiler
       - *build
-      - name: Chrome for Testing, checked before unpacking
+      - &chrome
+        name: Chrome for Testing, checked before unpacking
         if: ${{ steps.build.outputs.run_tests == 'true' }}
         run: |
           archive="$RUNNER_TEMP/chrome-mac-arm64.zip"
@@ -278,6 +288,44 @@ jobs:
           $RUN chrome-file test -f "$chrome"
           $RUN chrome-version "$chrome" --version
           echo "SKEIN_TEST_CHROMIUM=$chrome" >>"$GITHUB_ENV"
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 6.3: the playground has its own bound, cache and lighter profiles.
+  browser-temper:
+    needs: plan
+    if: ${{ needs.plan.outputs.browser-temper == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: browser-temper
+      IDS: ${{ needs.plan.outputs.browser-temper_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+      CARGO_PROFILE_WEB_LTO: "off"
+      CARGO_PROFILE_PLAYGROUND_LTO: "off"
+      CARGO_PROFILE_WEB_CODEGEN_UNITS: "16"
+      CARGO_PROFILE_PLAYGROUND_CODEGEN_UNITS: "16"
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - *wasm-target
+      - name: The C compiler for wasm, checked to target it
+        run: exec python3 -I -B "$MACOS_HELPER" wasm-compiler
+      - *build
+      - *chrome
       - *run-part
       - *upload-part
       - *prune
@@ -338,6 +386,9 @@ jobs:
       - *registry-restore
       - *target-restore
       - *build
+      - name: Ripgrep, checked before unpacking
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        run: python3 -I -B "$MACOS_HELPER" install-ripgrep
       - *run-part
       - *upload-part
       - *prune
@@ -398,7 +449,25 @@ jobs:
       - *registry-restore
       - *target-restore
       - *build
+      - name: Restore the pinned forge binaries
+        id: forge-cache
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/fetch/cache
+          key: forge-macos-26-${{ hashFiles('tested/skein/crates/skein-forge/src/forgejo/pin.rs', 'tested/temper/crates/temper-forge-setup/src/fetch.rs') }}
+      - name: The pinned forge binaries
+        id: forge-fetch
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        run: python3 -I -B "$MACOS_HELPER" fetch-forge
       - *run-part
+      - name: Save the forge binaries once per key
+        if: ${{ always() && steps.forge-fetch.outcome == 'success' && steps.forge-cache.outcome == 'success' && steps.forge-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/fetch/cache
+          key: forge-macos-26-${{ hashFiles('tested/skein/crates/skein-forge/src/forgejo/pin.rs', 'tested/temper/crates/temper-forge-setup/src/fetch.rs') }}
       - *upload-part
       - *prune
       - *target-save
@@ -481,7 +550,7 @@ jobs:
 
   # macos.md, 1, 5.3–5.4: a missing part is a fault, never a partial report.
   report:
-    needs: [plan, process, browser, skein, smith, jig, temper, live]
+    needs: [plan, process, browser, browser-temper, skein, smith, jig, temper, live]
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:

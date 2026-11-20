@@ -1005,7 +1005,7 @@ pub mod serve_gate_tests {
             Fd::new(1),
             Fd::new(2),
             found(),
-            b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture",
+            b"http://127.0.0.1:8367/sign-in?secret=fixture",
         )
         .with_serve_data(scratch.path());
         person.start(Time::ZERO);

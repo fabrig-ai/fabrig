@@ -230,6 +230,8 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
@@ -906,6 +908,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
         delivered: None,
+        pin: None,
         identity: 1,
     }
 }
@@ -1864,7 +1867,7 @@ pub fn forge_connecting(
     use jig_client_protocol_wire as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let record = wire::requesting(&w::Requesting { request });
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
     let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
@@ -1891,7 +1894,7 @@ pub fn forge_connecting(
     else {
         panic!("family terminal")
     };
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
 

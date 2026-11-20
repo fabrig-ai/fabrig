@@ -3,6 +3,7 @@ use super::fixtures;
 use crate::{Component, Event, Loss, Request, Worker};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_channel::{Lower, LowerEvent};
 use skein_lib::{Intake, Queue, Time, Token, Writer, stream};
 
@@ -37,9 +38,15 @@ impl Opening {
         )
         .expect("worker peer");
         let hello = fixtures::hello_record();
-        let mut body = Writer::new(skein_lib::length::usize_of(hello.measure()));
-        hello.encode(&mut body).expect("measured hello");
-        let mut frame = skein_channel::frame_writer(wire::Kind::Hello.number(), hello.measure()).expect("hello frame");
+        let mut body = Writer::new(skein_lib::length::usize_of(
+            hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+        ));
+        hello.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured hello");
+        let mut frame = skein_channel::frame_writer(
+            wire::Kind::Hello.number(),
+            hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+        )
+        .expect("hello frame");
         frame.put(&body.finish()).expect("measured hello frame");
         peer.play(frame.finish().expect("whole hello"));
         let mut opening = Self {

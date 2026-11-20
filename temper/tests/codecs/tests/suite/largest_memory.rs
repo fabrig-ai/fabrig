@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_client_protocol_wire::CLIENT_SCHEMA,
-        temper_client_protocol_wire::v1, sealed,
+        temper_client_protocol_wire::v1, lean,
         limits [
             adopt_owner,
             adopt_name,
@@ -204,6 +204,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             member_branch,
             member_landing,
             member_gates,
+            landing_wait_gate_some,
             landing_panel_members,
             landing_line_changes,
             landing_line_repositories,
@@ -264,6 +265,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             landing_rule_gates,
             landing_rule_approvals,
             landing_rule_sets,
+            named_model_model,
+            named_model_effort_some,
+            named_later_subagents,
+            named_llm_subagents,
             project_landing_merge_job_some,
             project_landing_close_job_some,
             settings_gate_report_artifact,
@@ -321,7 +326,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             agent_figures_endpoints,
             limit_override_name,
             limit_override_reason,
-            temper_limits_overrides,
+            limit_overrides_overrides,
         ],
         roots [
             Trials,
@@ -375,13 +380,13 @@ fn largest_roots_stay_within_decoded_bounds() {
             Welcome,
             Findings,
             AgentFigures,
-            TemperLimits,
+            LimitOverrides,
         ]
     );
     family!(
         CAP,
         temper_client_protocol_wire::PUBLIC_SCHEMA,
-        temper_client_protocol_wire::public_v1, sealed,
+        temper_client_protocol_wire::public_v1, lean,
         limits [
             public_change_gates,
             public_landing_line_members,
@@ -572,6 +577,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             binding_subject,
             landing_member_gates,
             landing_member_branch,
+            landing_last_prepare_suffix,
             failing_test_test_id,
             shown_test_test_id,
             many_tests_tests,
@@ -637,6 +643,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             landing_rule_gates,
             landing_rule_approvals,
             landing_rule_sets,
+            named_model_model,
+            named_model_effort_some,
+            named_later_subagents,
+            named_llm_subagents,
             project_landing_merge_job_some,
             project_landing_close_job_some,
             settings_gate_report_artifact,

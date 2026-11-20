@@ -1,6 +1,7 @@
 //! Page trouble policy, without a browser (client/drive.md, 2.3, 2.5 and 3.7).
 use super::*;
 
+const PAGE: &str = "http://127.0.0.1:8367/sign-in";
 const ROUTE: &str = "http://127.0.0.1:8367/jig/v1/sign-in/link";
 const REFUSED: &str = "Failed to load resource: the server responded with a status of 401 (Unauthorized)";
 const MISSING: &str = "Failed to load resource: the server responded with a status of 404 (Not Found)";
@@ -9,7 +10,7 @@ fn trouble(kind: Trouble, text: &str, url: &str) -> Event {
     Event::PageTrouble { trouble: kind, text: text.as_bytes().into(), url: url.as_bytes().into() }
 }
 fn link(secret: &str) -> Event {
-    Event::BoxLine { output: Output::Stdout, line: format!("{ROUTE}?secret={secret}").into_bytes().into() }
+    Event::BoxLine { output: Output::Stdout, line: format!("{PAGE}?secret={secret}").into_bytes().into() }
 }
 fn signing_in() -> Machine {
     let (mut m, _) = Machine::start(plan(), Time::ZERO);
@@ -21,7 +22,7 @@ fn opening() -> Machine {
     let mut m = signing_in();
     let actions = step(&mut m, exited(Process::SignIn, 0));
     assert!(
-        matches!(actions.as_slice(), [Action::RemoveLink, Action::Open(url)] if url.as_ref() == format!("{ROUTE}?secret=first").as_bytes())
+        matches!(actions.as_slice(), [Action::RemoveLink, Action::Open(url)] if url.as_ref() == format!("{PAGE}?secret=first").as_bytes())
     );
     m
 }

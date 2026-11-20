@@ -2,6 +2,7 @@
 //! Saved frames cross the channel; session markers stay on the fake machine.
 //! No agent state is inspected.
 use skein_lib::Reader;
+use smith_channel::Record;
 
 /// Extract the transcript bodies the agent gave its host, without inspecting domains.
 #[must_use]
@@ -12,7 +13,7 @@ pub fn from_frames(frames: &[skein_fake_channel::Observed]) -> Vec<Box<[u8]>> {
         .map(|frame| {
             let turn = smith_channel::Turn::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body))
                 .expect("turn envelope");
-            Box::from(turn.body())
+            Box::from(turn.body.as_ref())
         })
         .collect()
 }
@@ -98,18 +99,12 @@ pub(super) fn activation(
             start.messages = skein_lib::List::with_capacity(1);
             start
                 .messages
-                .push(
-                    smith_channel::Message::new(
-                        &smith_channel::CEILINGS,
-                        smith_channel::MessageParts {
-                            finish_requested: false,
-                            name: options.activation,
-                            label: b"host".as_slice().into(),
-                            text: b"FOLLOWUP Have one sub-agent read README.md once more.".as_slice().into(),
-                        },
-                    )
-                    .expect("follow-up message"),
-                )
+                .push(smith_channel::Message {
+                    finish_requested: false,
+                    name: options.activation,
+                    label: b"host".as_slice().into(),
+                    text: b"FOLLOWUP Have one sub-agent read README.md once more.".as_slice().into(),
+                })
                 .expect("one message");
             // Workspace authority is supplied again with each activation.
             let workspace = super::tools_start(charter, value);
@@ -118,7 +113,7 @@ pub(super) fn activation(
                 &mut Reader::new(workspace.bytes().get(8..).expect("Start header")),
             )
             .expect("workspace start");
-            start.workspace.clone_from(start_workspace.workspace());
+            start.workspace.clone_from(&start_workspace.workspace);
         }
     });
     parent.peer = crate::host();

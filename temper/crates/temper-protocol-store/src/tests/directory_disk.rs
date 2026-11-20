@@ -64,6 +64,47 @@ impl Disk {
         let [a, b, c, d] = &mut self.io;
         self.seeded = store::seed([a, b, c, d], 1);
     }
+    /// Inspect a copy, leaving the store's handles and directory cursors alone.
+    pub fn bytes(&self, path: &[u8]) -> Vec<u8> {
+        let mut machine = self.machine.fork();
+        let root = machine.reopen_root(0);
+        let file = machine.open(root, path, skein_fake_machine::How::Read).expect("stored file");
+        let size = u32::try_from(machine.stat(file).size).expect("fixture file fits u32");
+        machine.read(file, 0, size).expect("stored bytes")
+    }
+    pub fn snapshot(&self, path: &[u8]) -> alloc::collections::BTreeMap<Vec<u8>, Vec<u8>> {
+        use skein_fake_machine::{How, Is};
+        let mut machine = self.machine.fork();
+        let root = machine.reopen_root(0);
+        let mut directories = vec![path.to_vec()];
+        let mut files = alloc::collections::BTreeMap::new();
+        while let Some(path) = directories.pop() {
+            let directory = machine.open(root, &path, How::Directory).expect("stored directory");
+            files.insert([path.as_slice(), b"/"].concat(), Vec::new());
+            loop {
+                let entries = machine.list(directory, 32, 8192).expect("directory entries");
+                if entries.is_empty() {
+                    break;
+                }
+                for (kind, name) in entries {
+                    let path = [path.as_slice(), b"/", name.as_ref()].concat();
+                    match kind {
+                        Is::Directory => directories.push(path),
+                        Is::File => {
+                            let file = machine.open(root, &path, How::Read).expect("stored file");
+                            let size = u32::try_from(machine.stat(file).size).expect("fixture file fits u32");
+                            let bytes = machine.read(file, 0, size).expect("stored bytes");
+                            machine.close(file);
+                            files.insert(path, bytes);
+                        }
+                        Is::Link | Is::Fifo | Is::Device => panic!("a generation holds files and directories"),
+                    }
+                }
+            }
+            machine.close(directory);
+        }
+        files
+    }
     pub fn limits(&self) -> store::Limits {
         self.env.limits
     }

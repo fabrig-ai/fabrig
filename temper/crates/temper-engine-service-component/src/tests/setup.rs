@@ -2120,6 +2120,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
         let mut record = runtime_record(domain::Kind::Forgejo, mode);
         record.first = Some(domain::FirstIntent::Empty(domain::EmptyIntent {
             playground: true,
+            sample: true,
             org: b"kept-org".as_slice().into(),
             repository: b"kept-repository".as_slice().into(),
             label: b"kept-label".as_slice().into(),
@@ -2135,6 +2136,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             assert_eq!(first.repository.as_ref(), b"kept-repository");
             assert_eq!(first.label.as_ref(), b"kept-label");
             assert!(first.playground);
+            assert!(first.sample);
             if mode == domain::Mode::Fake {
                 assert_eq!(local.trigger, lifecycle::Trigger::StartFake);
             }
@@ -2163,6 +2165,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             let first = active.first.as_ref().unwrap();
             assert_eq!(first.org.as_ref(), b"kept-org");
             assert_eq!(first.repository.as_ref(), b"kept-repository");
+            assert!(first.sample);
             keep(engine, &record);
             assert!(
                 engine.setup.lifecycle.local(2).unwrap().first.is_none(),

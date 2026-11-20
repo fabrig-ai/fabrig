@@ -1,4 +1,5 @@
 landing 61 · project 1 · proving
+waits for: the round's pull request to close
 member: change 51 · work/hello on forge 1 · temper/51 into main
   pull request #3 · http://127.0.0.1:3000/work/hello/pulls/3
   candidate 1111111111111111111111111111111111111111111111111111111111111111 on main 2222222222222222222222222222222222222222222222222222222222222222

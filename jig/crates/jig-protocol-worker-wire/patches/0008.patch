@@ -2,12 +2,4 @@ patch 1
 owner jig 8
 
 family jig-worker-wire 17 to 18
-add UsageWindow
-add Usage
-add UsageWindows
-add UsageOutcome
-add UsageRead
-add ReadUsage
-add FromWorker.usage
-add FromWorker.usage_read
-add FromEngine.read_usage
+add ModelFailure.refusal option text 24 none

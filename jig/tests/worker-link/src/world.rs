@@ -1,5 +1,6 @@
 use crate::{fixtures, net::Net};
 use jig_protocol_worker_link::{Component, Event, Limits, Loss, Request};
+use jig_protocol_worker_wire::Record;
 use skein_fake_channel::ScriptedPeer;
 use skein_lib::{Duration, Queue, Rng, Time, Token};
 use std::collections::VecDeque;
@@ -298,12 +299,7 @@ impl World {
                 &mut skein_lib::Reader::new(&frame.bytes()[8..]),
             )
         {
-            self.trace.push(Trace::Busy(
-                self.now,
-                Token::new(record.task()),
-                Token::new(record.attempt()),
-                record.number(),
-            ));
+            self.trace.push(Trace::Busy(self.now, Token::new(record.task), Token::new(record.attempt), record.number));
         }
         self.net.as_mut().expect("open channel").peer.play(frame);
         self.run();

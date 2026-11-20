@@ -1,5 +1,6 @@
 // Bounded admission fixtures have a fake runtime and retain fixture-relative file keys.
 //! Fixtures for the owned forge commands, shared with the process tier.
+//! Process observations follow `temper/docs/design/testing/macos.md`, 3.
 use super::patience::Patience;
 use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
 use skein_lib::Duration;
@@ -222,9 +223,74 @@ pub fn finished(directory: &Path) {
 /// Whether the process is blocked in its `sleep`. The kernel names the process `sleep` as the exec begins, and
 /// the dynamic loader holds a descriptor (3) until it has mapped the libraries, so only a process asleep has
 /// closed every descriptor the exec and its startup opened.
+#[cfg(target_os = "linux")]
 fn asleep(pid: u32) -> bool {
     fs::read_to_string(format!("/proc/{pid}/stat"))
         .is_ok_and(|stat| stat.rsplit_once(") ").is_some_and(|(_, rest)| rest.starts_with("S ")))
+}
+
+#[cfg(target_os = "linux")]
+fn execed_asleep(pid: u32) -> bool {
+    fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|name| name.trim() == "sleep") && asleep(pid)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn execed_asleep(pid: u32) -> bool {
+    Command::new("/bin/ps").args(["-o", "ucomm=,state=", "-p", &pid.to_string()]).output().is_ok_and(|output| {
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut words = text.split_whitespace();
+        output.status.success()
+            && words.next() == Some("sleep")
+            && words.next().is_some_and(|state| state.starts_with('S') || state.starts_with('I'))
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn descriptors(pid: u32) -> Vec<u32> {
+    fs::read_dir(format!("/proc/{pid}/fd"))
+        .expect("descriptors")
+        .map(|entry| entry.expect("fd").file_name().to_str().expect("number").parse().expect("fd number"))
+        .collect()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn descriptors(pid: u32) -> Vec<u32> {
+    let output = Command::new("/usr/sbin/lsof")
+        .args(["-a", "-p", &pid.to_string(), "-d", "0-65535", "-F", "f"])
+        .output()
+        .expect("descriptors");
+    assert!(output.status.success(), "lsof reads descriptors");
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.strip_prefix('f'))
+        .map(|number| number.parse().expect("fd number"))
+        .collect()
+}
+
+/// Whether the process holds the given file as standard input.
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn stdin_is(pid: u32, file: &Path) -> bool {
+    fs::read_link(format!("/proc/{pid}/fd/0")).expect("stdin") == file
+}
+
+/// Whether the process holds the given file as standard input.
+#[cfg(not(target_os = "linux"))]
+#[must_use]
+pub fn stdin_is(pid: u32, file: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt as _;
+
+    let output = Command::new("/usr/sbin/lsof")
+        .args(["-a", "-p", &pid.to_string(), "-d", "0", "-F", "i"])
+        .output()
+        .expect("stdin");
+    assert!(output.status.success(), "lsof reads stdin");
+    let inode = fs::metadata(file).expect("stdin file").ino();
+    // macOS can name the same file under /var and /private/var.
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.strip_prefix('i'))
+        .any(|number| number.parse::<u64>().expect("stdin inode") == inode)
 }
 
 pub struct Marker {
@@ -245,18 +311,15 @@ impl Programs {
             if let Ok(text) = fs::read_to_string(self.directory.join(format!("{program}.marker"))) {
                 let mut lines = text.lines();
                 if let Some(pid) = lines.next().and_then(|line| line.parse::<u32>().ok())
-                    && fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|name| name.trim() == "sleep")
-                    && asleep(pid)
+                    && execed_asleep(pid)
                 {
                     let arguments =
                         lines.by_ref().take_while(|line| *line != "ENVIRONMENT").map(String::from).collect();
+                    // macOS's /bin/sh (bash) adds SHLVL and _ itself; Linux's list stays exact.
+                    #[cfg(not(target_os = "linux"))]
+                    let lines = lines.filter(|line| !line.starts_with("SHLVL=") && !line.starts_with("_="));
                     let environment = lines.map(String::from).collect();
-                    let mut descriptors: Vec<_> = fs::read_dir(format!("/proc/{pid}/fd"))
-                        .expect("descriptors")
-                        .map(|entry| {
-                            entry.expect("fd").file_name().to_str().expect("number").parse().expect("fd number")
-                        })
-                        .collect();
+                    let mut descriptors = descriptors(pid);
                     descriptors.sort_unstable();
                     return Marker { pid, arguments, environment, descriptors };
                 }

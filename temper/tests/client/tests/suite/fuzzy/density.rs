@@ -9,6 +9,7 @@ use temper_client_domain::{
     forge,
     pages::{self, all_home, home, needs, parts},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::fixtures;
 
@@ -87,7 +88,6 @@ impl World {
                     if let jig_client::Ask::Family { record, .. } = request
                         && let w::Request::Looked(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
                             .expect("bounded density fixture")
-                            .into_parts()
                             .request
                     {
                         self.pending.push(Up::Answer {
@@ -97,10 +97,7 @@ impl World {
                             answer: Some(jig_client::Answered::Family(jig_client::Family {
                                 family: wire::FORGE,
                                 version: wire::CLIENT_VERSION,
-                                bytes: wire::answer(
-                                    &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
-                                        .expect("bounded density fixture"),
-                                ),
+                                bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                             })),
                         });
                     }
@@ -149,20 +146,14 @@ impl World {
     }
 
     fn findings(&mut self, project: u32) {
-        let document = w::Findings::new(
-            &w::CEILINGS,
-            w::FindingsParts {
-                project,
-                rows: List::with_capacity(0),
-                areas: List::with_capacity(0),
-                triager: None,
-                holder: w::Holder::Role(
-                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("owners"),
-                ),
-                cut: false,
-            },
-        )
-        .expect("density findings");
+        let document = w::Findings {
+            project,
+            rows: List::with_capacity(0),
+            areas: List::with_capacity(0),
+            triager: None,
+            holder: w::Holder::Role(w::HolderRole { number: 0 }),
+            cut: false,
+        };
         self.family(forge::findings::watch(project, &self.env.limits.forge), wire::findings(&document));
     }
 
@@ -393,30 +384,23 @@ impl World {
     fn setting_read(&self, what: &Readable) -> Option<Readout> {
         if let Readable::Family { scope: c::Scope::Project(project), record, .. } = what
             && let w::Read::Setting(setting) =
-                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("bounded density fixture").into_parts().read
-            && setting.kind() == 7
+                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("bounded density fixture").read
+            && setting.kind == 7
         {
-            let value = w::ProjectWays::new(
-                &w::CEILINGS,
-                w::ProjectWaysParts {
-                    drafts: true,
-                    goals: false,
-                    changes: true,
-                    way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
-                },
-            )
-            .expect("bounded density fixture");
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded density fixture"));
-            value.encode(&mut writer).expect("bounded density fixture");
+            let value = w::ProjectWays {
+                drafts: true,
+                goals: false,
+                changes: true,
+                way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
+            };
+            let mut writer = Writer::new(
+                usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .expect("bounded density fixture"),
+            );
+            value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("bounded density fixture");
             return Some(Readout::Family {
                 family: wire::FORGE,
-                record: Some(wire::setting_answer(
-                    &w::SettingAnswer::new(
-                        &w::CEILINGS,
-                        w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
-                    )
-                    .expect("bounded density fixture"),
-                )),
+                record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) })),
             });
         }
         None
@@ -430,86 +414,62 @@ impl World {
         let landed = self.rng.below(4);
         let seen = self.rng.below(4);
         let previous = (self.rng.below(3) != 0).then_some(2 * SECOND);
-        let brief = (self.rng.below(3) != 0).then(|| {
-            w::StatusBrief::new(
-                &w::CEILINGS,
-                w::StatusBriefParts {
-                    sentence: b"A change landed.".as_slice().into(),
-                    lede: b"The change is ready. More follows.".as_slice().into(),
-                    at: self.rng.below(5) * SECOND,
-                    landed,
-                },
-            )
-            .expect("bounded density fixture")
+        let brief = (self.rng.below(3) != 0).then(|| w::StatusBrief {
+            sentence: b"A change landed.".as_slice().into(),
+            lede: b"The change is ready. More follows.".as_slice().into(),
+            at: self.rng.below(5) * SECOND,
+            landed,
         });
-        let document = w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
-                project,
-                landed,
-                seen,
-                previous,
-                last_landed: (landed > 0).then_some(SECOND),
-                brief,
-                queued: 0,
-                red: false,
-                branch: b"main".as_slice().into(),
-                unpaid: self.rng.below(2) == 0,
-            },
-        )
-        .expect("bounded density fixture");
+        let document = w::ProjectStatus {
+            project,
+            landed,
+            seen,
+            previous,
+            last_landed: (landed > 0).then_some(SECOND),
+            brief,
+            queued: 0,
+            red: false,
+            branch: b"main".as_slice().into(),
+            unpaid: self.rng.below(2) == 0,
+        };
         self.family(forge::status::watch(project, &self.env.limits.forge), wire::project_status(&document));
     }
 
     fn decisions(&mut self, project: u32) {
         let mut rows = List::with_capacity(3);
         for number in 1..=self.rng.below(4) {
-            rows.push(
-                w::Decision::new(
-                    &w::CEILINGS,
-                    w::DecisionParts {
-                        reach: w::Reach::new(
-                            &w::CEILINGS,
-                            w::ReachParts {
-                                kind: w::ReachKind::Tests,
-                                class: w::ReachClass::Decide,
-                                reason: w::ReachReason::Kind,
-                                under: 0,
-                                sets: 0,
-                                matched: 0,
-                                away: false,
-                            },
-                        )
-                        .expect("density reach"),
-                        number: u32::try_from(number).expect("bounded density fixture"),
-                        task: 100 + number,
-                        at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
-                            0 => DAY,
-                            1 => DAY + SECOND,
-                            2 => SECOND,
-                            _ => unreachable!("three decision ages"),
-                        }),
-                        question: b"Which approach?".as_slice().into(),
-                        took: b"Small".as_slice().into(),
-                        why: b"Within the landing rule.".as_slice().into(),
-                        overturned: false,
-                    },
-                )
-                .expect("bounded density fixture"),
-            )
+            rows.push(w::Decision {
+                reach: w::Reach {
+                    kind: w::ReachKind::Tests,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+                number: u32::try_from(number).expect("bounded density fixture"),
+                task: 100 + number,
+                at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
+                    0 => DAY,
+                    1 => DAY + SECOND,
+                    2 => SECOND,
+                    _ => unreachable!("three decision ages"),
+                }),
+                question: b"Which approach?".as_slice().into(),
+                took: b"Small".as_slice().into(),
+                why: b"Within the landing rule.".as_slice().into(),
+                overturned: false,
+            })
             .expect("bounded density fixture");
         }
         if let Some(watch) =
             self.watch(&forge::decided::watch(project, &self.env.limits.forge).expect("decision subject fits"))
         {
             self.decision_rows.retain(|(held, _, _)| *held != watch);
-            self.decision_rows.push((watch, project, rows.iter().map(w::Decision::at).collect()));
+            self.decision_rows.push((watch, project, rows.iter().map(|row| row.at).collect()));
         }
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .expect("bounded density fixture");
+        let document = w::Decisions { project, rows, asked: List::with_capacity(0), cut: false };
         self.family(forge::decided::watch(project, &self.env.limits.forge), wire::decisions(&document));
         self.drain();
     }
@@ -518,33 +478,20 @@ impl World {
         let mut dismissed = List::with_capacity(self.projects);
         for project in 1..=self.projects {
             if self.rng.below(2) == 0 {
-                dismissed
-                    .push(w::PersonFact::ToBegin(
-                        w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).expect("bounded density fixture"),
-                    ))
-                    .expect("bounded density fixture");
+                dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project })).expect("bounded density fixture");
             }
         }
-        self.family(
-            forge::dismissed::watch(&self.env.limits.forge),
-            wire::dismissals(
-                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).expect("bounded density fixture"),
-            ),
-        );
+        self.family(forge::dismissed::watch(&self.env.limits.forge), wire::dismissals(&w::Dismissals { dismissed }));
     }
 
     fn approval_rows(&mut self) {
-        let document = w::Approvals::new(
-            &w::CEILINGS,
-            w::ApprovalsParts { rows: List::from_boxed(self.approvals.clone().into_boxed_slice()), more: 0 },
-        )
-        .expect("bounded density fixture");
+        let document = w::Approvals { rows: List::from_boxed(self.approvals.clone().into_boxed_slice()), more: 0 };
         self.family(forge::approvals::watch(&self.env.limits.forge), wire::approvals(&document));
     }
 
     fn settings(&mut self, project: u32) {
         let before = self.open();
-        if before.iter().any(|object| self.approvals.iter().any(|row| *object == c::ObjectKey::Task(row.task()))) {
+        if before.iter().any(|object| self.approvals.iter().any(|row| *object == c::ObjectKey::Task(row.task))) {
             self.observed.insert("settings with approval");
         }
         self.revision += 1;
@@ -611,20 +558,12 @@ impl World {
         let subject = forge::follows::watch(project, &self.env.limits.forge).expect("follows subject");
         let Some(watch) = self.watch(&subject) else { return };
         let count = u32::try_from(self.rng.below(3)).expect("at most two relations");
-        let dependencies = (1..=count)
-            .map(|number| {
-                w::DependencyView::new(&w::CEILINGS, w::DependencyViewParts { number, project: 7 }).expect("dependency")
-            })
-            .collect::<Vec<_>>();
-        let panel = w::FollowsPanel::new(
-            &w::CEILINGS,
-            w::FollowsPanelParts {
-                project,
-                follows: List::with_capacity(0),
-                dependencies: List::from_boxed(dependencies.into_boxed_slice()),
-            },
-        )
-        .expect("relations");
+        let dependencies = (1..=count).map(|number| w::DependencyView { number, project: 7 }).collect::<Vec<_>>();
+        let panel = w::FollowsPanel {
+            project,
+            follows: List::with_capacity(0),
+            dependencies: List::from_boxed(dependencies.into_boxed_slice()),
+        };
         self.relation_rows.retain(|(held, _)| *held != watch);
         self.relation_rows.push((watch, count));
         self.family(Some(subject), wire::follows_panel(&panel));
@@ -700,7 +639,7 @@ impl World {
                     "project decisions within their day"
                 );
                 let brief_lines = page.brief().map_or(0, |brief| {
-                    assert!(!brief.lede().is_empty(), "the brief has words");
+                    assert!(!brief.lede.is_empty(), "the brief has words");
                     1
                 });
                 assert_eq!(brief_lines, usize::from(fresh(&page.status)), "only a new brief shows");
@@ -734,8 +673,8 @@ impl World {
 fn fresh(status: &home::Status) -> bool {
     match status {
         home::Status::Unknown => false,
-        home::Status::Shown(document) => document.brief().as_ref().is_some_and(|brief| {
-            brief.landed() > document.seen() || document.previous().is_some_and(|previous| brief.at() > previous)
+        home::Status::Shown(document) => document.brief.as_ref().is_some_and(|brief| {
+            brief.landed > document.seen || document.previous.is_some_and(|previous| brief.at > previous)
         }),
     }
 }
@@ -834,7 +773,7 @@ fn check_unpaid_line(world: &mut World, view: &mut temper_client_view::View) {
         Address::Home { project } => {
             let page = home::facts(&world.root, project, world.env.wall);
             let unpaid = match &page.status {
-                home::Status::Shown(document) => document.unpaid(),
+                home::Status::Shown(document) => document.unpaid,
                 home::Status::Unknown => false,
             };
             !page.to_begin() && !fresh(&page.status) && unpaid
@@ -918,7 +857,7 @@ fn check_approval_sizes(world: &mut World, view: &mut temper_client_view::View) 
 fn check_settings(before: &[c::ObjectKey], after: &[c::ObjectKey], approvals: &[w::ApprovalRow]) {
     assert_eq!(before, after, "a settings revision keeps the open set and its order");
     for row in approvals {
-        let object = c::ObjectKey::Task(row.task());
+        let object = c::ObjectKey::Task(row.task);
         if before.contains(&object) {
             assert!(after.contains(&object), "approval asked before a settings move stays open");
         }
@@ -976,10 +915,7 @@ fn generate(seed: u64) -> World {
     world.drain();
     world.family(
         forge::forges::watch(&limits.forge),
-        wire::forges(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0), linked: false })
-                .expect("bounded density fixture"),
-        ),
+        wire::forges(&w::Forges { forges: List::with_capacity(0), linked: false }),
     );
     world.dismissals();
     world.entries = (10..=13).map(|task| entry(task, world.project_of(task))).collect();
@@ -1229,49 +1165,34 @@ fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
             if kind == 2 {
                 counts[usize::try_from(rng.below(3)).expect("three counts")] = u32::MAX;
             }
-            Some(
-                w::ApprovalSize::new(
-                    &w::CEILINGS,
-                    w::ApprovalSizeParts {
-                        files: counts[0],
-                        additions: counts[1],
-                        deletions: counts[2],
-                        cut: kind == 2,
-                    },
-                )
-                .expect("size"),
-            )
+            Some(w::ApprovalSize { files: counts[0], additions: counts[1], deletions: counts[2], cut: kind == 2 })
         }
     };
-    w::ApprovalRow::new(
-        &w::CEILINGS,
-        w::ApprovalRowParts {
-            task: 200 + u64::from(project),
-            project,
-            goal: None,
-            forge: 3,
-            kind: w::Kind::Github,
-            owner: b"acme".as_slice().into(),
-            name: b"widget".as_slice().into(),
-            pull: 24,
-            address: b"https://github.com/acme/widget/pull/24/files".as_slice().into(),
-            title: b"A change".as_slice().into(),
-            since: SECOND,
-            scope: project,
-            rule: 4,
-            role: 5,
-            required: 2,
-            counted: 1,
-            sets: List::with_capacity(0),
-            whole: true,
-            yours: w::ApprovalYours::Counts,
-            signed: List::with_capacity(0),
-            can_sign: List::with_capacity(0),
-            can_sign_more: 0,
-            size,
-        },
-    )
-    .expect("bounded density fixture")
+    w::ApprovalRow {
+        task: 200 + u64::from(project),
+        project,
+        goal: None,
+        forge: 3,
+        kind: w::Kind::Github,
+        owner: b"acme".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        pull: 24,
+        address: b"https://github.com/acme/widget/pull/24/files".as_slice().into(),
+        title: b"A change".as_slice().into(),
+        since: SECOND,
+        scope: project,
+        rule: 4,
+        role: 5,
+        required: 2,
+        counted: 1,
+        sets: List::with_capacity(0),
+        whole: true,
+        yours: w::ApprovalYours::Counts,
+        signed: List::with_capacity(0),
+        can_sign: List::with_capacity(0),
+        can_sign_more: 0,
+        size,
+    }
 }
 fn budget() -> c::Budget {
     c::Budget {
@@ -1366,6 +1287,7 @@ fn task_document(task: u64, project: u32) -> c::Task {
         result_contract: c::TaskContractDocument::Report { words: 512 },
         dependencies: List::with_capacity(0),
         dependency_facts: List::with_capacity(0),
+        unread: List::with_capacity(0),
         references: List::with_capacity(0),
         cut: false,
         resources: List::with_capacity(0),

@@ -123,6 +123,7 @@ fn each_workspace_access_reaches_its_items() {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             }),
         ),
     ] {

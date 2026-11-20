@@ -38,7 +38,7 @@ const SETTINGS: &[&[u8]] = &[
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
 #[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
-fn rows() -> [(Command, &'static [&'static [u8]]); 25] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 29] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
@@ -60,6 +60,16 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 25] {
                 fixtures::REMOTE,
                 b"making/1",
             ],
+        ),
+        (Command::CountObjects { store: Some(Token::new(9)) }, &[b"count-objects", b"-v"]),
+        (Command::CountObjects { store: None }, &[b"count-objects", b"-v"]),
+        (
+            Command::Repack { store: Some(Token::new(9)) },
+            &[b"-c", b"remote.origin.promisor=true", b"repack", b"-A", b"-d", b"-l", b"-q", b"--no-write-bitmap-index"],
+        ),
+        (
+            Command::Repack { store: None },
+            &[b"-c", b"remote.origin.promisor=true", b"repack", b"-A", b"-d", b"-l", b"-q", b"--no-write-bitmap-index"],
         ),
         (Command::Format, &[b"rev-parse", b"--show-object-format"]),
         (
@@ -242,8 +252,13 @@ fn each_command_s_arguments_are_git_md_s_vector() {
         };
         let directories: &[&[u8]] = match command {
             Command::Version | Command::Clone { .. } | Command::Store { .. } | Command::Origin { .. } => &[],
-            Command::Format | Command::Fetch { .. } => &[b"--git-dir=stores/9"],
+            Command::CountObjects { store: Some(_) }
+            | Command::Repack { store: Some(_) }
+            | Command::Format
+            | Command::Fetch { .. } => &[b"--git-dir=stores/9"],
             Command::Reds(_)
+            | Command::CountObjects { store: None }
+            | Command::Repack { store: None }
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotFetch { .. }

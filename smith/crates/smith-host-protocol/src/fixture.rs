@@ -1,5 +1,6 @@
 //! Small channel bounds for deterministic worlds (protocol/channel.md, section 2).
 use crate::Limits;
+use smith_channel::Record;
 
 /// Codec ceilings with a small transport queue and eight outstanding calls.
 #[must_use]

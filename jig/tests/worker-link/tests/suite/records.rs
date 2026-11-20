@@ -2,6 +2,7 @@ use jig_domain_host as host;
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_worker_link::{Event, GrantValue, Request};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{Duration, Reader, Token};
 fn world() -> World {
@@ -155,53 +156,55 @@ fn a_transcript_piece_that_does_not_split_is_refused_as_invalid() {
         });
         let records = world.records();
         let answer = wire::Answer::decode(&fixtures::codec(), &mut Reader::new(&records[0][1].body)).expect("refusal");
-        let wire::Ending::Refused(refusal) = answer.ending() else { panic!("refused") };
-        let wire::Refusal::Invalid(invalid) = refusal.value() else { panic!("invalid") };
-        assert_eq!(invalid.value(), &wire::Invalid::Transcript);
+        let wire::Ending::Refused(refusal) = &answer.ending else { panic!("refused") };
+        let wire::Refusal::Invalid(invalid) = &refusal.value else { panic!("invalid") };
+        assert_eq!((&invalid.value), &wire::Invalid::Transcript);
     }
 }
 
-fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v18::Limits) {
+fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v19::Limits) {
     let turn = wire::Turn::decode(limits, &mut Reader::new(&records[1].body)).expect("turn");
     assert_eq!(
-        (turn.task(), turn.attempt(), turn.number(), turn.spent(), *turn.read(), turn.opens_window(), turn.body()),
+        (turn.task, turn.attempt, turn.number, turn.spent, turn.read, turn.opens_window, turn.body.as_ref()),
         (7, 2, 1, 3, Some(5), true, b"turn".as_slice())
     );
-    assert_eq!(turn.refused().get(0).expect("refusal").reason(), &wire::MessageRefusal::Full);
+    assert_eq!((&turn.refused.get(0).expect("refusal").reason), &wire::MessageRefusal::Full);
     let call = wire::Call::decode(limits, &mut Reader::new(&records[2].body)).expect("call");
     assert_eq!(
-        (call.task(), call.attempt(), call.name(), call.tool(), call.writes(), call.input(), call.deadline()),
+        (
+            call.task,
+            call.attempt,
+            call.name.as_ref(),
+            call.tool.as_ref(),
+            call.writes,
+            call.input.as_ref(),
+            call.deadline
+        ),
         (7, 2, b"call".as_slice(), b"tool".as_slice(), true, b"{}".as_slice(), Duration::from_secs(60))
     );
     let answer = wire::Answer::decode(limits, &mut Reader::new(&records[3].body)).expect("answer");
+    assert_eq!((answer.task, answer.attempt, answer.turns, answer.spent, answer.read), (7, 2, 1, 3, Some(5)));
+    let wire::Ending::Ended(ended) = &answer.ending else { panic!("ended") };
     assert_eq!(
-        (answer.task(), answer.attempt(), answer.turns(), answer.spent(), *answer.read()),
-        (7, 2, 1, 3, Some(5))
-    );
-    let wire::Ending::Ended(ended) = answer.ending() else { panic!("ended") };
-    assert_eq!(
-        (ended.outcome(), ended.work().left().as_deref(), ended.work().saved().as_deref()),
+        (ended.outcome.as_ref(), ended.work.left.as_deref(), ended.work.saved.as_deref()),
         (b"result".as_slice(), Some(b"left".as_slice()), Some(b"saved".as_slice()))
     );
     let fact = wire::Fact::decode(limits, &mut Reader::new(&records[4].body)).expect("fact");
-    let wire::FactValue::Long(long) = fact.value() else { panic!("long") };
+    let wire::FactValue::Long(long) = &fact.value else { panic!("long") };
     assert_eq!(
-        (fact.task(), fact.attempt(), long.operation(), long.span()),
+        (fact.task, fact.attempt, (&long.operation), long.span),
         (7, 2, &wire::Operation::Command, Duration::from_secs(2))
     );
     let unauthorized = wire::Unauthorized::decode(limits, &mut Reader::new(&records[5].body)).expect("unauthorized");
-    assert_eq!(
-        (unauthorized.task(), unauthorized.attempt(), unauthorized.account(), unauthorized.generation()),
-        (7, 2, 1, 3)
-    );
+    assert_eq!((unauthorized.task, unauthorized.attempt, unauthorized.account, unauthorized.generation), (7, 2, 1, 3));
     let limited = wire::Limited::decode(limits, &mut Reader::new(&records[6].body)).expect("limited");
     assert_eq!(
-        (limited.task(), limited.attempt(), limited.account(), *limited.reset()),
+        (limited.task, limited.attempt, limited.account, limited.reset),
         (7, 2, 1, Some(Duration::from_secs(60)))
     );
     let refused = wire::AccountRefused::decode(limits, &mut Reader::new(&records[7].body)).expect("account refused");
     assert_eq!(
-        (refused.task(), refused.attempt(), refused.account(), refused.code(), refused.reason()),
+        (refused.task, refused.attempt, refused.account, refused.code.as_ref(), refused.reason.as_ref()),
         (7, 2, 1, b"forbidden".as_slice(), b"suspended".as_slice())
     );
 }
@@ -262,6 +265,7 @@ fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
             kind: Kind::Unavailable,
             evidence: Evidence::Unsent,
             status: Some(403),
+            refusal: None,
         }),
         Some(host::ModelFailure {
             endpoint: Box::new([255; 40]),
@@ -269,6 +273,7 @@ fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
             kind: Kind::ContextTooLong,
             evidence: Evidence::Response,
             status: Some(u16::MAX),
+            refusal: None,
         }),
         Some(host::ModelFailure {
             endpoint: Box::new([]),
@@ -276,6 +281,15 @@ fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
             kind: Kind::Invalid,
             evidence: Evidence::Unknown,
             status: None,
+            refusal: None,
+        }),
+        Some(host::ModelFailure {
+            endpoint: b"anthropic-api".as_slice().into(),
+            model: b"claude-opus-5-5".as_slice().into(),
+            kind: Kind::Invalid,
+            evidence: Evidence::Unsent,
+            status: None,
+            refusal: Some(b"empty-message".as_slice().into()),
         }),
         None,
     ]

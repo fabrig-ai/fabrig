@@ -6,6 +6,7 @@ use crate::{Address, Limits, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Handle, Key, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Decimal, Duration, List, Map, Queue, Reader, Time, Writer, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,7 +36,7 @@ pub struct State {
     holds_pending: Option<Handle>,
     holds_done: bool,
     inbox: Option<Handle>,
-    value: Option<w::TemperLimits>,
+    value: Option<w::LimitOverrides>,
     value_read: bool,
     value_pending: Option<(Handle, u32)>,
     revision: Option<u32>,
@@ -81,7 +82,7 @@ impl State {
         let task = card.document()?;
         let held = task.hold.as_ref()?;
         let row = self.holds.get(&task.chip.task)?;
-        if row.revision() == held.revision { Some(row) } else { None }
+        if row.revision == held.revision { Some(row) } else { None }
     }
     #[must_use]
     pub fn ready(&self) -> bool {
@@ -120,7 +121,7 @@ fn handle(next: &mut u64) -> Handle {
     handle
 }
 fn read(handle: Handle, query: w::Read, bounds: &w::Limits, out: &mut Queue<Request>) {
-    let record = w::Reading::new(bounds, w::ReadingParts { read: query }).expect("bounded read cursor");
+    let record = w::Reading { read: query };
     out.push(Request::Client(jig_client::Event::Read {
         handle,
         read: Readable::Family {
@@ -129,7 +130,7 @@ fn read(handle: Handle, query: w::Read, bounds: &w::Limits, out: &mut Queue<Requ
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::reading(&record),
+                bytes: record.encode(bounds).expect("bounded read cursor"),
             },
         },
     }));
@@ -206,15 +207,13 @@ pub(super) fn configure(
         && !page.refused
     {
         let pending = handle(&mut pages.next);
-        let query =
-            w::LimitsRead::new(&bounds, w::LimitsReadParts { after: page.after.clone() }).expect("limit cursor");
+        let query = w::LimitsRead { after: page.after.clone() };
         read(pending, w::Read::Limits(query), &bounds, out);
         page.pending = Some(pending);
     }
     if party.is_some() && held_card && !state.holds_done && state.holds_pending.is_none() {
         let pending = handle(&mut pages.next);
-        let query =
-            w::LimitHoldsRead::new(&bounds, w::LimitHoldsReadParts { after: state.holds_after }).expect("hold cursor");
+        let query = w::LimitHoldsRead { after: state.holds_after };
         read(pending, w::Read::LimitHolds(query), &bounds, out);
         state.holds_pending = Some(pending);
     }
@@ -226,8 +225,7 @@ pub(super) fn configure(
         && let Some(newest) = newest
     {
         let pending = handle(&mut pages.next);
-        let query =
-            w::SettingRead::new(&bounds, w::SettingReadParts { kind: 22, scope: 0, number: 1 }).expect("limit kind");
+        let query = w::SettingRead { kind: 22, scope: 0, number: 1 };
         read(pending, w::Read::Setting(query), &bounds, out);
         state.value_pending = Some((pending, newest));
     }
@@ -300,9 +298,9 @@ pub(super) fn told(pages: &mut Pages, told: &Told, now: Time, limits: &Limits) -
         if let Some(encoded) = encoded
             && let Some(answer) = wire::decode_limit_holds_answer(encoded, &bounds)
         {
-            let w::LimitHoldsAnswerParts { rows, next } = answer.into_parts();
+            let w::LimitHoldsAnswer { rows, next } = answer;
             for row in rows.into_boxed() {
-                state.holds.insert(row.task(), row).expect("one row per task");
+                state.holds.insert(row.task, row).expect("one row per task");
             }
             if next > state.holds_after {
                 state.holds_after = next;
@@ -329,19 +327,19 @@ pub(super) fn told(pages: &mut Pages, told: &Told, now: Time, limits: &Limits) -
     }
     false
 }
-fn value(encoded: &[u8], bounds: &w::Limits) -> Option<w::TemperLimits> {
+fn value(encoded: &[u8], bounds: &w::Limits) -> Option<w::LimitOverrides> {
     let answer = wire::decode_setting_answer(encoded, bounds)?;
-    match answer.into_parts().value {
+    match answer.value {
         Some(encoded) => {
             let mut reader = Reader::new(&encoded);
-            let value = w::TemperLimits::decode(bounds, &mut reader).ok()?;
+            let value = w::LimitOverrides::decode(bounds, &mut reader).ok()?;
             if reader.is_empty() { Some(value) } else { None }
         }
-        None => w::TemperLimits::new(
-            bounds,
-            w::TemperLimitsParts { overrides: List::with_capacity(bounds.temper_limits_overrides) },
-        )
-        .ok(),
+        None => {
+            let value = w::LimitOverrides { overrides: List::with_capacity(bounds.limit_overrides_overrides) };
+            value.measure(bounds).ok()?;
+            Some(value)
+        }
     }
 }
 pub(super) fn act(pages: &mut Pages, client: &jig_client::Client, limits: &Limits, act: Act, out: &mut Queue<Request>) {
@@ -354,9 +352,9 @@ pub(super) fn act(pages: &mut Pages, client: &jig_client::Client, limits: &Limit
         Act::Next => {
             if let Some(page) = &mut pages.limit_settings.page
                 && let Some(rows) = &page.rows
-                && rows.next().is_some()
+                && rows.next.is_some()
             {
-                page.after = rows.next().clone();
+                page.after = rows.next.clone();
                 page.rows = None;
                 page.refused = false;
             }
@@ -380,8 +378,8 @@ fn raise(
     for card in &inbox.cards {
         if let Some(row) = pages.limit_settings.hold(card)
             && card.key.is_none()
-            && row.task() == task
-            && row.revision() == held_revision
+            && row.task == task
+            && row.revision == held_revision
         {
             held = Some(row);
         }
@@ -410,34 +408,32 @@ fn raise(
         }))),
     }));
 }
-fn raised_item(value: &w::TemperLimits, held: &w::LimitHold, bounds: &w::Limits) -> Option<c::SettingItem> {
-    let figure = raise_figure(held.configured(), held.needed())?;
+fn raised_item(value: &w::LimitOverrides, held: &w::LimitHold, bounds: &w::Limits) -> Option<c::SettingItem> {
+    let figure = raise_figure(held.configured, held.needed)?;
     let reason = bytes::concat(&[
         b"raised for task ",
-        Decimal::of(held.task()).as_bytes(),
+        Decimal::of(held.task).as_bytes(),
         b", which needed ",
-        Decimal::of(held.needed()).as_bytes(),
+        Decimal::of(held.needed).as_bytes(),
     ]);
-    let raised =
-        w::LimitOverride::new(bounds, w::LimitOverrideParts { name: held.limit().into(), value: figure, reason })
-            .ok()?;
-    let mut overrides = List::with_capacity(bounds.temper_limits_overrides);
+    let raised = w::LimitOverride { name: held.limit.clone(), value: figure, reason };
+    let mut overrides = List::with_capacity(bounds.limit_overrides_overrides);
     let mut added = false;
-    for old in value.overrides() {
-        if !added && old.name() >= held.limit() {
+    for old in &value.overrides {
+        if !added && old.name >= held.limit {
             overrides.push(raised.clone()).ok()?;
             added = true;
         }
-        if old.name() != held.limit() {
+        if old.name != held.limit {
             overrides.push(old.clone()).ok()?;
         }
     }
     if !added {
         overrides.push(raised).ok()?;
     }
-    let value = w::TemperLimits::new(bounds, w::TemperLimitsParts { overrides }).ok()?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).ok()?);
-    value.encode(&mut writer).ok()?;
+    let value = w::LimitOverrides { overrides };
+    let mut writer = Writer::new(usize::try_from(value.measure(bounds).ok()?).ok()?);
+    value.write(bounds, &mut writer).ok()?;
     Some(c::SettingItem {
         setting: c::Setting::Application { kind: 22, scope: 0, number: 1 },
         edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(writer.finish()) }),

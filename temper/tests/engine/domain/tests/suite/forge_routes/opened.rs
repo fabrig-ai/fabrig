@@ -157,6 +157,52 @@ fn an_opened_changes_blamed_red_delegates_a_bounded_repair_under_the_forges_char
 }
 
 #[test]
+fn an_opened_changes_landing_repair_is_judged_against_the_failed_rounds_newer_base() {
+    let mut world = trouble_world(true);
+    let (task, head) = open(&mut world, 0, 100);
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"other", b"base moved", 2)
+        .expect("main moved after the source was pushed");
+    for _ in 0..STEPS {
+        world.prepare_tick();
+        if !world.assigned.is_empty() {
+            break;
+        }
+    }
+    let run = world.assigned.first().expect("repair assigned after candidate failed");
+    let row = change_row(&world, task);
+    assert_eq!(row.kept, Some(translate::commit(head)));
+    let Some((child, change::Delegate::Repair(change::Repair::LandingAt { gate, candidate, .. }))) = row.delegate
+    else {
+        panic!("landing repair: {:?}", row.delegate)
+    };
+    assert_eq!(child, run.task);
+    let receipt = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::Receipt { receipt, .. } if receipt.candidate == candidate && !receipt.passed => {
+                    Some(receipt)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("failed candidate receipt");
+    assert_eq!(receipt.base, Some(translate::commit(base)));
+    assert_ne!(receipt.base, row.kept, "the landing used a newer base than the opened source");
+    assert_eq!(run.workspace.repositories[0].pin, receipt.base);
+    assert_eq!(run.workspace.repositories[0].start, engine::ForgeStart::Branch(row.branch.clone()));
+    assert_eq!(run.workspace.repositories[0].landing, None);
+    let base = String::from_utf8(engine::commit_text(&translate::commit(base)).into_vec()).expect("full hex base");
+    assert_eq!(
+        row.result.repairs.bytes.as_ref(),
+        format!("landing gate {gate} failed, judged against {base}").as_bytes()
+    );
+}
+
+#[test]
 fn an_opened_change_waits_for_stocks_gate_one_review_then_lands() {
     let defaults = goal_branch::stock_defaults();
     let model = stock::box_model();

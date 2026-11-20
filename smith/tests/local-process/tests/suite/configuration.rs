@@ -45,7 +45,7 @@ fn declared_read_search_shell_and_check_bounds_reach_the_machine() {
         },
     ];
     for request in requests {
-        let mut machine = Component::new(&config.limits.machine, config.environment.clone());
+        let mut machine = Component::new(&config.limits.machine, config.environment.clone(), config.rg.clone());
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
                 host: Box::from(b"/host".as_slice()),

@@ -99,7 +99,7 @@ fn the_printed_link_names_the_bound_address_and_the_secret() {
     let secret = skein_lib::Secret::new(Box::new([0; 32]));
     assert_eq!(
         &*crate::clients::printed::link(fixtures::http::address().socket().unwrap(), &secret),
-        b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        b"http://127.0.0.1:7100/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     );
 }
 

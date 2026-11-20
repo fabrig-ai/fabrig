@@ -8,7 +8,7 @@ use skein_ui::{Builder, Role, Run};
 
 use jig_client::contract::{
     Activity, ActivityLine, FailureTries, HoldFailure, MessageKind, MessageProposalKind, NewsClass, NoticeState,
-    Requester, RunEnd, RunWhy, Word, WordResult,
+    Requester, RunEnd, RunFresh, RunWhy, Word, WordResult,
 };
 
 fn say(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
@@ -262,11 +262,12 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
             identity(b, *recipient, words);
             word(b, value, words);
         }
-        Activity::RunBegan { attempt, why: value, resumed } => {
+        Activity::RunBegan { attempt, why: value, resumed, fresh } => {
             caption(b, words, P::RunBegan);
             number(b, words, P::Attempt, *attempt);
             why(b, *value, words);
             caption(b, words, if *resumed { P::Resumed } else { P::NotResumed });
+            fresh_cause(b, *fresh, words);
         }
         Activity::RunEnded { attempt, end: value, spent } => {
             caption(b, words, P::RunEnded);
@@ -332,6 +333,21 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
             caption(b, words, P::Milestone);
             number(b, words, P::Position, *position);
         }
+    }
+}
+fn fresh_cause(b: &mut Builder, value: Option<RunFresh>, words: &Words) {
+    if let Some(cause) = value {
+        caption(
+            b,
+            words,
+            match cause {
+                RunFresh::Moved => P::FreshMoved,
+                RunFresh::Closed => P::FreshClosed,
+                RunFresh::Cut => P::FreshCut,
+                RunFresh::Limit => P::FreshLimit,
+                RunFresh::Session => P::FreshSession,
+            },
+        );
     }
 }
 /// Whole supplied task, commit position and clock plus its closed activity line.

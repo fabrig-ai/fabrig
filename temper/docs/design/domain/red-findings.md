@@ -109,8 +109,8 @@ What waits is section 11.
   names, within 256 bytes; the log takes them from the row.
 - **Bounds:** at most `forge.landings_pending` landings, the range's
   oldest, and at most `forge.landing_members` goals each.
-- **Moved** by a person or the triager is the draft's section 7, not
-  this document's.
+- **Moved** by the finding's holder or a project owner with the act
+  `blame`, its strength then `moved` (`red-repairs.md`, section 3).
 
 ## 4. Its words
 
@@ -325,6 +325,6 @@ evicted, and at most 8 filings waiting per tier.
   `Fixes-finding: n` name its repair once the landing log keeps their
   trailers (`after-landing.md`, sections 8 and 10); until then its
   members' pull request bodies alone do.
-- **The rest of the draft:** a red's blame moved, shown on its goal and
-  milestone, sorted by the triager and repaired by a repair goal
-  (`../draft/after-landing-repairs.md`, sections 6 to 8).
+- **The rest of the draft:** a red shown on its goal and milestone
+  (`../draft/after-landing-repairs.md`, section 6). Its sorting, its
+  blame moved and its repair goals are `red-repairs.md`'s.

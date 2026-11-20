@@ -72,7 +72,7 @@ pub fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
 
 pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
     let previous = match &facts.status {
-        Status::Shown(status) => *status.previous(),
+        Status::Shown(status) => status.previous,
         Status::Unknown => None,
     };
     let mut kicker = kicker(w, previous, times);
@@ -85,7 +85,7 @@ pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> 
     let landed = if facts.to_begin() { 0 } else { facts.landed_since() };
     let brief = if facts.to_begin() { None } else { facts.brief() };
     let sentence = match brief {
-        Some(brief) => brief.sentence().into(),
+        Some(brief) => brief.sentence.clone(),
         None => match landed {
             0 => match if facts.to_begin() { None } else { facts.last_landed() } {
                 Some(last) => {
@@ -105,8 +105,8 @@ pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> 
     let accounts = brief.is_none() && facts.unpaid() && !facts.to_begin();
     let (lede, byline) = match brief {
         Some(brief) => {
-            let lede = if brief.lede().is_empty() { None } else { Some(brief.lede().into()) };
-            let at = times.say(w, TimeForm::Clock, skein_lib::Wall::from_nanos(brief.at()));
+            let lede = if brief.lede.is_empty() { None } else { Some(brief.lede.clone()) };
+            let at = times.say(w, TimeForm::Clock, skein_lib::Wall::from_nanos(brief.at));
             (lede, Some(w.say(Word::HomeByline, &[Hole::Name(at)])))
         }
         None => (if accounts { Some(w.say(Word::HomeUnpaid, &[])) } else { None }, None),

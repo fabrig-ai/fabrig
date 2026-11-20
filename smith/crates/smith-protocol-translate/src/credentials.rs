@@ -42,12 +42,12 @@ impl GrantValue {
     /// Copy one checked wire credential into its redacted service-owned form.
     pub fn from_wire(value: &smith_channel::GrantValue) -> Result<GrantValue, Error> {
         Ok(match value {
-            smith_channel::GrantValue::Credential(value) => match value.scheme() {
-                smith_channel::Scheme::Bearer => GrantValue::Bearer(Box::from(value.bytes().expose())),
-                smith_channel::Scheme::Key => GrantValue::Key(Box::from(value.bytes().expose())),
+            smith_channel::GrantValue::Credential(value) => match value.scheme {
+                smith_channel::Scheme::Bearer => GrantValue::Bearer(Box::from(value.bytes.expose())),
+                smith_channel::Scheme::Key => GrantValue::Key(Box::from(value.bytes.expose())),
             },
             smith_channel::GrantValue::Program(value) => {
-                let name = program_name(value.name())?;
+                let name = program_name(&value.name)?;
                 GrantValue::Program(Box::from(name))
             }
         })
@@ -57,7 +57,7 @@ impl GrantValue {
 /// Renewal policy already carried by the existing wire form (smith/docs/design/protocol/channel.md, section 6).
 pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
     match value {
-        channel::GrantValue::Credential(credential) => match credential.scheme() {
+        channel::GrantValue::Credential(credential) => match credential.scheme {
             channel::Scheme::Key => false,
             channel::Scheme::Bearer => true,
         },
@@ -70,9 +70,9 @@ pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
 #[must_use]
 pub fn refreshed_grant(value: &channel::Grant) -> smith_domain::Grant {
     smith_domain::Grant {
-        name: smith_domain::GrantName { account: value.account(), generation: value.generation() },
-        valid: value.valid(),
-        renewable: renewable(value.value()),
+        name: smith_domain::GrantName { account: value.account, generation: value.generation },
+        valid: value.valid,
+        renewable: renewable(&value.value),
     }
 }
 

@@ -756,10 +756,10 @@ fields, each after one space, a word bare, bytes in double quotes.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the box's part played by the world's box's peer (`../journey-walks.md`, 4.4 and 6), no `temper box`: the welcome marked, "Set up temper" pressed, the Forge step marked, Forgejo's "Run on this machine" pressed, its sheet marked with an empty repository chosen, its "Run on this machine" pressed, which makes the forge and sets it up (`../pages/README.md`), then the Model step marked as the peer reports fetching, preparing and starting, and once the forge is connected as temper and `work/hello` made | `01.html`, the welcome, leading to `02.html`, the Forge step's choices, leading to `03.html`, Forgejo's sheet, leading to `04.html` to `06.html`, the Model step with the set up's steps under way, fetching at the peer's first figure, preparing and starting, then `07.html`, the Model step with Forgejo on this machine connected as temper and `work/hello` made; its `welcome-set-up/README.md` describes the world's pages |
+| `welcome-set-up` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the box's part played by the world's box's peer (`../journey-walks.md`, 4.4 and 6), no `temper box`: the welcome marked, "Set up temper" pressed, the Forge step marked, Forgejo's "Run on this machine" pressed, its sheet marked with the sample chosen, its "Run on this machine" pressed, which makes the forge and sets it up (`../pages/README.md`), then the Model step marked as the peer reports fetching, preparing and starting, and once the forge is connected as temper and `work/hello` made | `01.html`, the welcome, leading to `02.html`, the Forge step's choices, leading to `03.html`, Forgejo's sheet, leading to `04.html` to `06.html`, the Model step with the set up's steps under way, fetching at the peer's first figure, preparing and starting, then `07.html`, the Model step with Forgejo on this machine connected as temper and `work/hello` made; its `welcome-set-up/README.md` describes the world's pages |
 | `welcome-playground` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome` (`../journey-walks.md`, 4 and 6), no `temper box`: the welcome seen and marked, "Try the playground" pressed, the banner and New chat seen, then marked | `01.html`, the welcome under its top bar, its "Try the playground" leading to `02.html`, New chat in Demo with `playground/widget`, the banner above main, the three suggested requests and composer, model `fake`; the rail offers New change, no Away, and Deployment says "a forge is setting up"; no Chat/Split/Draft switch or plan-or-key choices at this mark; its `welcome-playground/README.md` describes the world's pages |
-| `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
-| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Chat, Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat; not recorded until temper/ui walks it anew (10) | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
+| `project-landing` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the forge at `127.0.0.1:10002`, the box's part played by the world's box's peer and the sign-in's tab by the world's tab (`../journey-walks.md`, 4 and 6), no `temper box`: Forgejo run on this machine with the sample, `work/hello`; "Continue with ChatGPT" pressed, its tab carried to the fake issuer and back, so that the welcome moves on to Ready by itself; Ready's "Create your project" pressed, which creates Hello and adopts `work/hello`; once Home says "work/hello is in Hello", `/projects/1` reloaded, "Hello is ready." seen and marked | `01.html`, Home in Hello with "Hello is ready.", the ChatGPT plan, Forgejo with `work/hello`'s link at `127.0.0.1:10002`, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", and the rail's "Home" and "Ask temper" alone while To begin shows; its `project-landing/README.md` describes the world's page |
+| `chat-draft` | version-2 `walk`, `after project-landing`, with its `scripts.json`, in one process on the playground's composition (`../journey-walks.md`, 4 and 6): `/projects/1/settings` reloaded and "Chats can write drafts" seen on, as a fresh project has it; a new chat started from Chats with "Let us design Away mode." and its scripted reply marked; Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), the fake model's document seen and marked; Chat chosen, "Add what happens to a running goal." sent and the second revision's turn marked; Split, then Draft, each marked; "Start goal…" pressed and its sheet marked; the sheet's "Start goal" pressed and the goal's page marked once its report is drawn; its "Draft" link pressed and the chat marked | `01.html`, the chat after its first reply; `02.html`, Split with the document's first revision; `03.html`, Chat after the second turn; `04.html` and `05.html`, Split and Draft at the second revision, "Start goal…" offered; `06.html`, the Start goal sheet; `07.html`, the goal's page with its report and its Draft link (`../../domain/agent/agents.md`, 3; `../pages/README.md`); `08.html`, the chat that link returns to; its `chat-draft/README.md` describes the world's pages |
 
 A journey recorded on a real box says so in its walk here, as `real`,
 and in its `../README.md`; none is yet (3.5).
@@ -780,6 +780,10 @@ The `ask-temper-ways` request's hand-made `ask-temper-ways/01.html`
 through `04.html` are not journeys to reprint or land (section 7): no
 journey reaches the ways, and the gallery draws them and the states its
 message names in words (`gallery.md`, 2, the `ask-ways-*` states).
+So are the `ways-shown` request's hand-made `ways-shown/review-*.html`
+and `approve-*.html`, from a browser recording: the gallery draws their
+states, `ask-first-run`, `ask-ways-menu`, `ask-ways-approve` and
+`ask-ways-approve-menu`, and How work runs' `how` and `how-menu`.
 
 The `bundle-loading` request's hand-made `bundle-loading/01.html` through
 `04.html` are not journeys to reprint or land (section 7): they draw the
@@ -876,18 +880,14 @@ states the messages name in words are the gallery's (`gallery.md`, 2).
 `chat-bar` removes "+ Draft", which `chat-draft`'s recorded walk pressed
 (`Pages(AddDraft)` in Chat), so its replay would go stale (4.2) and a plan
 walks no journey anew (`look-requests.md`, 3; the user, 2026-11-12):
-`chat-bar`'s landing removes `chat-draft`'s recording and prints, and
-temper/ui walks it anew after landing, as section 9's table has it
-(section 10).
+`chat-draft` is a walk in a world instead, by section 9's table, its
+pages the writer's (`../journey-walks.md`, 6).
 
 Milestone R4 of `../../draft/page-round-trips.md` holds Work to its budget,
 which changes which requests the pages send and when (`../README.md`, 3.4;
-`../pages/work.md`, 1, *Its budget*): `welcome-playground`'s and
-`project-landing`'s recorded exchanges go stale (4.2), and the box their
-`again` needs could not be set up where R4 was built. R4's landing removes
-their recordings and prints, keeping `project-landing`'s `setup` (8.2) and
-each journey's `README.md`; the reprint holds only what is still recorded. Each is recorded again with `again NAME` (8.1) after
-R4 lands, as section 9's table has it.
+`../pages/work.md`, 1, *Its budget*), so a recorded exchange goes stale
+by it (4.2). `welcome-playground` and `project-landing` print in a world,
+where nothing recorded is compared (`../journey-walks.md`, 6).
 
 The `forge-steps` request's hand-made `forge-steps/fetching-before.html`,
 `fetching-after.html`, `preparing-before.html` and `preparing-after.html`
@@ -934,16 +934,6 @@ words in the welcome and Forges. No overlay rule changes.
   gallery inputs, with no recording of a night choice; print equality
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
-
-- **Renewing `chat-draft`** (8, 9): temper/ui walks it anew after
-  landing, by section 9's walk, choosing Split and pressing "Write it up
-  from this chat" where the old walk pressed "+ Draft", and following the
-  Draft link to the chat the goal names, then adds the whole recording and
-  its prints. Removing the configuring chat changed task numbers too, so
-  the old walk's task 2 is no longer the return target. Default:
-  `chat-bar`'s landing removes the old recording and prints, which no
-  longer replay (9); until the renewal no journey prints a chat's draft
-  flow, which the gallery's chat states and the view's tables cover.
 
 - **Ask temper's first-run prints** (9): temper/ui compares
   `project-landing`, `chat-draft` and `welcome-playground` with the

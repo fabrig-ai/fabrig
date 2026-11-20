@@ -5,7 +5,7 @@
 use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
 use skein_lib::List;
 
-use crate::{kind, v12};
+use crate::{Record, kind, v12};
 
 /// A version-twelve body's number, sender, admission obligation and codec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

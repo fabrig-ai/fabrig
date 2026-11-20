@@ -4,6 +4,7 @@ use smith_agent_process_world::{
     program_world::{self, Case, Run},
 };
 use smith_channel::{ModelFault, RunFailure, RunResult};
+use smith_charter::Record;
 use smith_fake_claude::{End, Step, Story, Turn};
 
 fn charter_turns() -> Box<[u8]> {
@@ -25,13 +26,13 @@ fn finish() -> Step {
     Step::Outcome { input: json!({"outcome":{"form":"report","text":"done","fields":{}}}) }
 }
 fn accepted(run: &Run) {
-    assert!(matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)), "{:?}", run.answer());
+    assert!(matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)), "{:?}", run.answer());
 }
 fn fault(run: &Run) -> ModelFault {
     let answer = run.answer().expect("answer");
-    match answer.result() {
-        RunResult::Failed(failed) => match failed.reason() {
-            RunFailure::Model(model) => model.value().clone(),
+    match &answer.result {
+        RunResult::Failed(failed) => match &failed.reason {
+            RunFailure::Model(model) => model.value.clone(),
             other @ (RunFailure::Transcript(_)
             | RunFailure::Budget(_)
             | RunFailure::Policy(_)
@@ -86,23 +87,23 @@ fn usage_is_counted_per_message() {
     let run = program_world::run(Case::Turns, &story, Some(b"claude.ai"), &charter_turns(), &program(b"source"), None);
     accepted(&run);
     let answer = run.answer().expect("bounded test fixture");
-    assert_eq!(answer.turns(), 2);
-    assert_eq!(answer.spent(), 2);
+    assert_eq!(answer.turns, 2);
+    assert_eq!(answer.spent, 2);
 }
 
 fn limited(run: &Run, reset: Option<u64>) {
     let ModelFault::Limited(fault) = fault(run) else { panic!("limited fault") };
-    assert_eq!(fault.account(), 0);
+    assert_eq!(fault.account, 0);
     let notices: Vec<_> = run.frames.iter().filter(|frame| frame.kind == 0x010e).collect();
     assert_eq!(notices.len(), 1, "one limited notice reaches the host");
     let notice =
         smith_channel::Limited::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&notices[0].body))
             .expect("limited notice");
-    assert_eq!(notice.account(), 0);
-    assert_eq!(notice.reset(), fault.reset(), "notice retains the fault's reset");
+    assert_eq!(notice.account, 0);
+    assert_eq!((&notice.reset), (&fault.reset), "notice retains the fault's reset");
     match reset {
         Some(seconds) => {
-            let duration = notice.reset().expect("the supplied reset is retained");
+            let duration = notice.reset.expect("the supplied reset is retained");
             assert!(
                 duration
                     <= skein_lib::Duration::from_secs(
@@ -117,7 +118,7 @@ fn limited(run: &Run, reset: Option<u64>) {
                 "absolute reset becomes a remaining duration"
             );
         }
-        None => assert_eq!(*notice.reset(), None, "missing reset remains absent"),
+        None => assert_eq!(notice.reset, None, "missing reset remains absent"),
     }
 }
 #[test]
@@ -201,13 +202,13 @@ fn an_error_result_retains_the_usage_limit_notice() {
 fn a_login_lost_mid_run_fails_unauthorized() {
     let run = run(vec![Turn::new(vec![Step::LoseLogin, Step::Text("continue".into())])]);
     let ModelFault::Unauthorized(fault) = fault(&run) else { panic!("unauthorized fault") };
-    assert_eq!(fault.account(), 0);
+    assert_eq!(fault.account, 0);
     let notices: Vec<_> = run.frames.iter().filter(|frame| frame.kind == 0x010d).collect();
     assert_eq!(notices.len(), 1, "one unauthorized notice reaches the host");
     let notice =
         smith_channel::Unauthorized::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&notices[0].body))
             .expect("unauthorized notice");
-    assert_eq!(notice.account(), 0);
+    assert_eq!(notice.account, 0);
 }
 #[test]
 fn a_program_that_exits_before_its_result_fails_the_run() {
@@ -227,15 +228,15 @@ fn a_finished_tool_turn_resumes_without_an_extra_completion() {
         Turn::new(vec![finish()]),
     ]);
     accepted(&run);
-    assert_eq!(run.answer().expect("answer").turns(), 2);
+    assert_eq!(run.answer().expect("answer").turns, 2);
 }
 
 #[test]
 fn a_structured_failure_ends_with_its_declared_failure() {
     let charter = smith_agent_process_world::wire::edit_charter(&charter_turns(), |parts| {
-        let mut contract = parts.contract.clone().into_parts();
+        let mut contract = parts.contract.clone();
         contract.failure = contract.report.take();
-        parts.contract = smith_charter::Contract::new(&smith_charter::CEILINGS, contract).expect("failure contract");
+        parts.contract = contract;
     });
     let story = Story {
         turns: vec![Turn::new(vec![Step::Outcome {
@@ -245,13 +246,15 @@ fn a_structured_failure_ends_with_its_declared_failure() {
     };
     let run = program_world::run(Case::Turns, &story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     let answer = run.answer().expect("answer");
-    let RunResult::Accepted(accepted) = answer.result() else { panic!("declared result: {answer:?}") };
-    let result =
-        smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(accepted.result()))
-            .expect("outcome");
-    assert_eq!(result.form(), &smith_charter::Form::Failure);
-    assert_eq!(result.text(), b"cannot proceed");
-    assert_eq!(answer.turns(), 1);
+    let RunResult::Accepted(accepted) = &answer.result else { panic!("declared result: {answer:?}") };
+    let result = smith_charter::RunResult::decode(
+        &smith_charter::CEILINGS,
+        &mut skein_lib::Reader::new(accepted.result.as_ref()),
+    )
+    .expect("outcome");
+    assert_eq!((&result.form), &smith_charter::Form::Failure);
+    assert_eq!(result.text.as_ref(), b"cannot proceed");
+    assert_eq!(answer.turns, 1);
     assert!(
         !run.seen.iter().any(|seen| matches!(seen, smith_fake_claude::Seen::Called { tool, .. } if tool == "finish"))
     );

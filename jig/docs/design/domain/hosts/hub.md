@@ -244,9 +244,11 @@ pub struct ModelFailure {
     pub kind: ModelFailureKind,
     pub evidence: ModelEvidence,
     pub status: Option<u16>,     // the HTTP status the call's answer carried, where one came
+    pub refusal: Option<Box<[u8]>>,  // why its application refused the call before sending it, by its cause's name
 }
 impl ModelFailure {
     pub const NAME_BYTES: u32 = 40;     // each name's bound
+    pub const REFUSAL_BYTES: u32 = 24;  // the refusal's bound
     pub fn outage(&self) -> bool;       // the provider unreachable (below)
     pub fn words(&self) -> Box<[u8]>;   // its words (below)
 }
@@ -272,15 +274,27 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
   class, one to one, a local limit's being `Limit`; the evidence says
   whether the call's request went out (`Unsent`: no call reached the
   model), may have (`Unknown`), or was answered (`Response`).
+- **The refusal** says why a call its application refused before
+  sending it was refused, by its cause's name: smith's, or skein's
+  client's which smith passes on (smith's `protocol/llm.md`, section 6;
+  skein's `llm/admission.md`). It comes only with the kind `Invalid` or
+  `Unsupported`, the evidence `Unsent` and no status, and is at most
+  `REFUSAL_BYTES` of lowercase ASCII letters and hyphens; a name past
+  that is none, never cut. It is fixed bytes of the application's, never
+  a provider's code or text, so one refusal is told from another without
+  any prose: an empty message from a tool's schema, say.
 - **Its words** are `<endpoint> <model>: <kind>, status <status>,
-  <evidence>`, the status part only where one came, and each name's
-  bytes outside printable ASCII written `?`:
-  `anthropic claude-opus-5-5: unavailable, status 403, unsent`. The kinds
-  are written `unavailable`, `overloaded`, `rate limited`, `exhausted`,
-  `timed out`, `context too long`, `invalid`, `refused`, `unsupported`,
-  `unauthorized`, `protocol`, `cancelled` and `limit`; the evidence
-  `unsent`, `unknown` and `response`. They are at most 123 bytes, within
-  the tasks child's `REASON_BYTES` (128).
+  <evidence>`, the status part only where one came, then `: <refusal>`
+  where one came, and each name's bytes outside printable ASCII written
+  `?`: `anthropic claude-opus-5-5: unavailable, status 403, unsent`, and
+  `anthropic-api claude-opus-5-5: invalid, unsent: empty-message`. The
+  kinds are written `unavailable`, `overloaded`, `rate limited`,
+  `exhausted`, `timed out`, `context too long`, `invalid`, `refused`,
+  `unsupported`, `unauthorized`, `protocol`, `cancelled` and `limit`;
+  the evidence `unsent`, `unknown` and `response`. They are at most 123
+  bytes without a refusal, and 128 with one, which comes with no status
+  and a kind of at most 11 bytes: within the tasks child's
+  `REASON_BYTES` (128).
 - **An outage** is a failure of kind `Unavailable` or `Overloaded` whose
   evidence is `Unsent`: the provider could not be reached, and no call
   reached the model. The engine counts it an infrastructure failure

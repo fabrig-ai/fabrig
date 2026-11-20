@@ -8,164 +8,134 @@ pub(super) fn encode(
 ) -> Result<wire::AccountChange, wire::Problem> {
     Ok(match value {
         domain::AccountChange::LoginProgram { provider, name } => {
-            wire::AccountChange::LoginProgram(wire::AccountChangeLoginProgram::new(
-                limits,
-                wire::AccountChangeLoginProgramParts { provider: *provider, name: name.clone() },
-            )?)
+            wire::AccountChange::LoginProgram(wire::AccountChangeLoginProgram {
+                provider: *provider,
+                name: name.clone(),
+            })
         }
-        domain::AccountChange::CancelLogin { number } => wire::AccountChange::CancelLogin(
-            wire::AccountChangeCancelLogin::new(limits, wire::AccountChangeCancelLoginParts { number: *number })?,
-        ),
+        domain::AccountChange::CancelLogin { number } => {
+            wire::AccountChange::CancelLogin(wire::AccountChangeCancelLogin { number: *number })
+        }
         domain::AccountChange::LoginEnded { number, exit } => {
-            wire::AccountChange::LoginEnded(wire::AccountChangeLoginEnded::new(
-                limits,
-                wire::AccountChangeLoginEndedParts { number: *number, exit: encode_exit(*exit, limits)? },
-            )?)
+            wire::AccountChange::LoginEnded(wire::AccountChangeLoginEnded {
+                number: *number,
+                exit: encode_exit(*exit, limits),
+            })
         }
-        domain::AccountChange::ReadLists { provider } => wire::AccountChange::ReadLists(
-            wire::AccountChangeReadLists::new(limits, wire::AccountChangeReadListsParts { provider: *provider })?,
-        ),
-        domain::AccountChange::MoveOut { account } => wire::AccountChange::MoveOut(wire::AccountChangeMoveOut::new(
-            limits,
-            wire::AccountChangeMoveOutParts { account: *account },
-        )?),
-        domain::AccountChange::Written { number } => wire::AccountChange::Written(wire::AccountChangeWritten::new(
-            limits,
-            wire::AccountChangeWrittenParts { number: *number },
-        )?),
+        domain::AccountChange::ReadLists { provider } => {
+            wire::AccountChange::ReadLists(wire::AccountChangeReadLists { provider: *provider })
+        }
+        domain::AccountChange::MoveOut { account } => {
+            wire::AccountChange::MoveOut(wire::AccountChangeMoveOut { account: *account })
+        }
+        domain::AccountChange::Written { number } => {
+            wire::AccountChange::Written(wire::AccountChangeWritten { number: *number })
+        }
         domain::AccountChange::FinishSignIn { source, digest } => {
-            wire::AccountChange::FinishSignIn(wire::AccountChangeFinishSignIn::new(
-                limits,
-                wire::AccountChangeFinishSignInParts { source: *source, digest: bytes::copy_of(digest) },
-            )?)
+            wire::AccountChange::FinishSignIn(wire::AccountChangeFinishSignIn {
+                source: *source,
+                digest: bytes::copy_of(digest),
+            })
         }
-        domain::AccountChange::MoveIn { digest } => wire::AccountChange::MoveIn(wire::AccountChangeMoveIn::new(
-            limits,
-            wire::AccountChangeMoveInParts { digest: bytes::copy_of(digest) },
-        )?),
+        domain::AccountChange::MoveIn { digest } => {
+            wire::AccountChange::MoveIn(wire::AccountChangeMoveIn { digest: bytes::copy_of(digest) })
+        }
         domain::AccountChange::DeclareProgram { provider, join, name } => {
-            wire::AccountChange::DeclareProgram(wire::AccountChangeDeclareProgram::new(
-                limits,
-                wire::AccountChangeDeclareProgramParts { provider: *provider, join: *join, name: name.clone() },
-            )?)
+            wire::AccountChange::DeclareProgram(wire::AccountChangeDeclareProgram {
+                provider: *provider,
+                join: *join,
+                name: name.clone(),
+            })
         }
-        domain::AccountChange::CheckProgram { source } => wire::AccountChange::CheckProgram(
-            wire::AccountChangeCheckProgram::new(limits, wire::AccountChangeCheckProgramParts { source: *source })?,
-        ),
+        domain::AccountChange::CheckProgram { source } => {
+            wire::AccountChange::CheckProgram(wire::AccountChangeCheckProgram { source: *source })
+        }
         domain::AccountChange::AddKey { provider, join, digest } => {
-            wire::AccountChange::AddKey(wire::AccountChangeAddKey::new(
-                limits,
-                wire::AccountChangeAddKeyParts { provider: *provider, join: *join, digest: bytes::copy_of(digest) },
-            )?)
+            wire::AccountChange::AddKey(wire::AccountChangeAddKey {
+                provider: *provider,
+                join: *join,
+                digest: bytes::copy_of(digest),
+            })
         }
         domain::AccountChange::ReplaceKey { source, digest } => {
-            wire::AccountChange::ReplaceKey(wire::AccountChangeReplaceKey::new(
-                limits,
-                wire::AccountChangeReplaceKeyParts { source: *source, digest: bytes::copy_of(digest) },
-            )?)
+            wire::AccountChange::ReplaceKey(wire::AccountChangeReplaceKey {
+                source: *source,
+                digest: bytes::copy_of(digest),
+            })
         }
-        domain::AccountChange::RemoveKey { source } => wire::AccountChange::RemoveKey(
-            wire::AccountChangeRemoveKey::new(limits, wire::AccountChangeRemoveKeyParts { source: *source })?,
-        ),
-        domain::AccountChange::Resume { source } => wire::AccountChange::Resume(wire::AccountChangeResume::new(
-            limits,
-            wire::AccountChangeResumeParts { source: *source },
-        )?),
-        domain::AccountChange::Remove { account } => wire::AccountChange::Remove(wire::AccountChangeRemove::new(
-            limits,
-            wire::AccountChangeRemoveParts { account: *account },
-        )?),
+        domain::AccountChange::RemoveKey { source } => {
+            wire::AccountChange::RemoveKey(wire::AccountChangeRemoveKey { source: *source })
+        }
+        domain::AccountChange::Resume { source } => {
+            wire::AccountChange::Resume(wire::AccountChangeResume { source: *source })
+        }
+        domain::AccountChange::Remove { account } => {
+            wire::AccountChange::Remove(wire::AccountChangeRemove { account: *account })
+        }
         domain::AccountChange::MoveAccount { account, place } => {
-            wire::AccountChange::MoveAccount(wire::AccountChangeMoveAccount::new(
-                limits,
-                wire::AccountChangeMoveAccountParts { account: *account, place: *place },
-            )?)
+            wire::AccountChange::MoveAccount(wire::AccountChangeMoveAccount { account: *account, place: *place })
         }
         domain::AccountChange::MoveSource { account, source, place } => {
-            wire::AccountChange::MoveSource(wire::AccountChangeMoveSource::new(
-                limits,
-                wire::AccountChangeMoveSourceParts { account: *account, source: *source, place: *place },
-            )?)
+            wire::AccountChange::MoveSource(wire::AccountChangeMoveSource {
+                account: *account,
+                source: *source,
+                place: *place,
+            })
         }
-        domain::AccountChange::SetUses { account, uses } => {
-            wire::AccountChange::SetUses(wire::AccountChangeSetUses::new(
-                limits,
-                wire::AccountChangeSetUsesParts { account: *account, uses: encode_uses(uses.as_deref(), limits)? },
-            )?)
-        }
+        domain::AccountChange::SetUses { account, uses } => wire::AccountChange::SetUses(wire::AccountChangeSetUses {
+            account: *account,
+            uses: encode_uses(uses.as_deref(), limits)?,
+        }),
     })
 }
 pub(super) fn decode(value: wire::AccountChange) -> Result<domain::AccountChange, wire::Problem> {
     Ok(match value {
         wire::AccountChange::LoginProgram(value) => {
-            let value = value.into_parts();
             domain::AccountChange::LoginProgram { provider: value.provider, name: value.name }
         }
-        wire::AccountChange::CancelLogin(value) => domain::AccountChange::CancelLogin { number: value.number() },
+        wire::AccountChange::CancelLogin(value) => domain::AccountChange::CancelLogin { number: value.number },
         wire::AccountChange::LoginEnded(value) => {
-            domain::AccountChange::LoginEnded { number: value.number(), exit: decode_exit(value.exit()) }
+            domain::AccountChange::LoginEnded { number: value.number, exit: decode_exit(&value.exit) }
         }
-        wire::AccountChange::MoveOut(value) => domain::AccountChange::MoveOut { account: value.account() },
-        wire::AccountChange::Written(value) => domain::AccountChange::Written { number: value.number() },
-        wire::AccountChange::FinishSignIn(value) => {
-            let value = value.into_parts();
-            domain::AccountChange::FinishSignIn {
-                source: value.source,
-                digest: digest(value.digest, wire::Path::AccountChangeFinishSignInDigest)?,
-            }
-        }
-        wire::AccountChange::MoveIn(value) => domain::AccountChange::MoveIn {
-            digest: digest(value.into_parts().digest, wire::Path::AccountChangeMoveInDigest)?,
+        wire::AccountChange::MoveOut(value) => domain::AccountChange::MoveOut { account: value.account },
+        wire::AccountChange::Written(value) => domain::AccountChange::Written { number: value.number },
+        wire::AccountChange::FinishSignIn(value) => domain::AccountChange::FinishSignIn {
+            source: value.source,
+            digest: digest(value.digest, wire::paths::ACCOUNT_CHANGE_FINISH_SIGN_IN_DIGEST)?,
         },
+        wire::AccountChange::MoveIn(value) => {
+            domain::AccountChange::MoveIn { digest: digest(value.digest, wire::paths::ACCOUNT_CHANGE_MOVE_IN_DIGEST)? }
+        }
         wire::AccountChange::DeclareProgram(value) => {
-            let value = value.into_parts();
             if jig_domain_link::SourceName::new(&value.name).is_none() {
                 return Err(wire::Problem {
-                    path: wire::Path::AccountChangeDeclareProgramName,
+                    path: wire::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME,
                     reason: skein_codec::Reason::Malformed,
                 });
             }
             domain::AccountChange::DeclareProgram { provider: value.provider, join: value.join, name: value.name }
         }
-        wire::AccountChange::ReadLists(value) => domain::AccountChange::ReadLists { provider: value.provider() },
-        wire::AccountChange::CheckProgram(value) => domain::AccountChange::CheckProgram { source: value.source() },
-        wire::AccountChange::AddKey(value) => {
-            let value = value.into_parts();
-            domain::AccountChange::AddKey {
-                provider: value.provider,
-                join: value.join,
-                digest: digest(value.digest, wire::Path::AccountChangeAddKeyDigest)?,
-            }
-        }
-        wire::AccountChange::ReplaceKey(value) => {
-            let value = value.into_parts();
-            domain::AccountChange::ReplaceKey {
-                source: value.source,
-                digest: digest(value.digest, wire::Path::AccountChangeReplaceKeyDigest)?,
-            }
-        }
-        wire::AccountChange::RemoveKey(value) => {
-            let value = value.into_parts();
-            domain::AccountChange::RemoveKey { source: value.source }
-        }
-        wire::AccountChange::Resume(value) => {
-            let value = value.into_parts();
-            domain::AccountChange::Resume { source: value.source }
-        }
-        wire::AccountChange::Remove(value) => {
-            let value = value.into_parts();
-            domain::AccountChange::Remove { account: value.account }
-        }
+        wire::AccountChange::ReadLists(value) => domain::AccountChange::ReadLists { provider: value.provider },
+        wire::AccountChange::CheckProgram(value) => domain::AccountChange::CheckProgram { source: value.source },
+        wire::AccountChange::AddKey(value) => domain::AccountChange::AddKey {
+            provider: value.provider,
+            join: value.join,
+            digest: digest(value.digest, wire::paths::ACCOUNT_CHANGE_ADD_KEY_DIGEST)?,
+        },
+        wire::AccountChange::ReplaceKey(value) => domain::AccountChange::ReplaceKey {
+            source: value.source,
+            digest: digest(value.digest, wire::paths::ACCOUNT_CHANGE_REPLACE_KEY_DIGEST)?,
+        },
+        wire::AccountChange::RemoveKey(value) => domain::AccountChange::RemoveKey { source: value.source },
+        wire::AccountChange::Resume(value) => domain::AccountChange::Resume { source: value.source },
+        wire::AccountChange::Remove(value) => domain::AccountChange::Remove { account: value.account },
         wire::AccountChange::MoveAccount(value) => {
-            let value = value.into_parts();
             domain::AccountChange::MoveAccount { account: value.account, place: value.place }
         }
         wire::AccountChange::MoveSource(value) => {
-            let value = value.into_parts();
             domain::AccountChange::MoveSource { account: value.account, source: value.source, place: value.place }
         }
         wire::AccountChange::SetUses(value) => {
-            let value = value.into_parts();
             domain::AccountChange::SetUses { account: value.account, uses: decode_uses(value.uses) }
         }
     })
@@ -178,18 +148,12 @@ fn encode_uses(
     let mut out = List::with_capacity(limits.account_change_set_uses_uses_some);
     for value in uses {
         let value = match value {
-            domain::Use::Party(number) => wire::AccountUse::Party(wire::AccountUseParty::new(
-                limits,
-                wire::AccountUsePartyParts { number: *number },
-            )?),
-            domain::Use::Project(number) => wire::AccountUse::Project(wire::AccountUseProject::new(
-                limits,
-                wire::AccountUseProjectParts { number: *number },
-            )?),
+            domain::Use::Party(number) => wire::AccountUse::Party(wire::AccountUseParty { number: *number }),
+            domain::Use::Project(number) => wire::AccountUse::Project(wire::AccountUseProject { number: *number }),
         };
         if out.push(value).is_err() {
             return Err(wire::Problem {
-                path: wire::Path::AccountChangeSetUsesUses,
+                path: wire::paths::ACCOUNT_CHANGE_SET_USES_USES,
                 reason: skein_codec::Reason::Bound,
             });
         }
@@ -201,8 +165,8 @@ fn decode_uses(uses: Option<List<wire::AccountUse>>) -> Option<Box<[domain::Use]
     let mut out = List::with_capacity(uses.len());
     for value in uses.into_boxed() {
         out.push(match value {
-            wire::AccountUse::Party(value) => domain::Use::Party(value.into_parts().number),
-            wire::AccountUse::Project(value) => domain::Use::Project(value.into_parts().number),
+            wire::AccountUse::Party(value) => domain::Use::Party(value.number),
+            wire::AccountUse::Project(value) => domain::Use::Project(value.number),
         })
         .expect("account uses room");
     }
@@ -215,21 +179,17 @@ fn digest(bytes: Box<[u8]>, path: wire::Path) -> Result<[u8; 32], wire::Problem>
     }
 }
 
-fn encode_exit(value: domain::LoginExit, limits: &wire::Limits) -> Result<wire::LoginExit, wire::Problem> {
-    Ok(match value {
-        domain::LoginExit::Exited { code } => {
-            wire::LoginExit::Exited(wire::LoginExitExited::new(limits, wire::LoginExitExitedParts { code })?)
-        }
-        domain::LoginExit::Killed { signal } => {
-            wire::LoginExit::Killed(wire::LoginExitKilled::new(limits, wire::LoginExitKilledParts { signal })?)
-        }
+fn encode_exit(value: domain::LoginExit, _limits: &wire::Limits) -> wire::LoginExit {
+    match value {
+        domain::LoginExit::Exited { code } => wire::LoginExit::Exited(wire::LoginExitExited { code }),
+        domain::LoginExit::Killed { signal } => wire::LoginExit::Killed(wire::LoginExitKilled { signal }),
         domain::LoginExit::NotStarted => wire::LoginExit::NotStarted,
-    })
+    }
 }
 fn decode_exit(value: &wire::LoginExit) -> domain::LoginExit {
     match value {
-        wire::LoginExit::Exited(value) => domain::LoginExit::Exited { code: value.code() },
-        wire::LoginExit::Killed(value) => domain::LoginExit::Killed { signal: value.signal() },
+        wire::LoginExit::Exited(value) => domain::LoginExit::Exited { code: value.code },
+        wire::LoginExit::Killed(value) => domain::LoginExit::Killed { signal: value.signal },
         wire::LoginExit::NotStarted => domain::LoginExit::NotStarted,
     }
 }

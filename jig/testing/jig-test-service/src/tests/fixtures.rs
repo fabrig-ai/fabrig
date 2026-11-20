@@ -5,6 +5,7 @@ use jig_domain_link::{Bounds, EndpointBound};
 use jig_domain_people as people;
 use skein_lib::{List, ReplyTo, Secret, Time, Token, Wall};
 use skein_lib::{Queue, Writer};
+use smith_channel::Record;
 
 const ENGINE: &[u8] = br#"{
 "limits": {"profile": "standard", "overrides": {"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
@@ -413,16 +414,11 @@ pub fn endpoints() -> smith_protocol_channel::Endpoints {
     smith_protocol_channel::Endpoints::new(entries)
 }
 pub fn call(input: &[u8]) -> jig_domain_fleet::Call {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: 3, completion: 7, position: 2 },
-    )
-    .expect("call name");
-    let mut writer = Writer::new(skein_lib::length::usize_of(name.measure()));
-    name.encode(&mut writer).expect("call name size");
+    let name = smith_channel::CallName { activation: 3, completion: 7, position: 2 };
+    let name = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     jig_domain_fleet::Call {
         contract: 1,
-        name: writer.finish(),
+        name,
         tool: b"cancel".as_slice().into(),
         writes: true,
         input: input.into(),

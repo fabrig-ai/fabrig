@@ -2,9 +2,10 @@
 //! provider kept as scripted neighbours (protocol/channel.md, section 10).
 
 use skein_channel::StreamMode;
-use skein_lib::{Duration, Env, Queue, Reader, ReplyTo, Time, Token, Wall, Writer};
+use skein_lib::{Duration, Env, Queue, Reader, ReplyTo, Time, Token, Wall};
 use smith_channel::CEILINGS;
 use smith_channel_world::{Observation, World, initial_grant};
+use smith_charter::Record;
 use smith_domain::{self as agent, Event as AgentEvent, Request as AgentRequest};
 use smith_host_domain::{self as host, Down, Up};
 
@@ -157,52 +158,29 @@ fn composed_charter() -> host::Charter {
     let smallest = &crate::values::charter("smallest");
     let source =
         smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(smallest)).expect("golden charter");
-    let mut parts = source.into_parts();
-    parts.budget = smith_charter::Budget::new(
-        &smith_charter::CEILINGS,
-        smith_charter::BudgetParts {
-            turns: 1,
-            spend: 1,
-            time: Duration::from_secs(60),
-            reserve: smith_charter::Reserve::new(
-                &smith_charter::CEILINGS,
-                smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
-            )
-            .expect("bounded reserve"),
-        },
-    )
-    .expect("workable budget");
-    parts.contract = smith_charter::Contract::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ContractParts {
-            report: Some(
-                smith_charter::TextRule::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::TextRuleParts { max: 128, fields: skein_lib::List::with_capacity(0) },
-                )
-                .expect("report rule"),
-            ),
-            verdicts: skein_lib::List::with_capacity(0),
-            change: None,
-            failure: None,
-        },
-    )
-    .expect("outcome contract");
-    let mut llm = parts.main.into_parts();
+    let mut parts = source;
+    parts.budget = smith_charter::Budget {
+        turns: 1,
+        spend: 1,
+        time: Duration::from_secs(60),
+        reserve: smith_charter::Reserve { turns: 0, time: Duration::ZERO },
+    };
+    parts.contract = smith_charter::Contract {
+        report: Some(smith_charter::TextRule { max: 128, fields: skein_lib::List::with_capacity(0) }),
+        verdicts: skein_lib::List::with_capacity(0),
+        change: None,
+        failure: None,
+    };
+    let mut llm = parts.main;
     llm.account = Some(0);
     llm.model = Box::from(*b"fake");
     llm.window = 8192;
     llm.output = 1024;
-    llm.prices = smith_charter::Prices::new(
-        &smith_charter::CEILINGS,
-        smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-    )
-    .expect("prices");
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("valid charter record");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small charter"));
-    record.encode(&mut writer).expect("measured charter");
-    smith_channel_world::typed_charter(&writer.finish())
+    llm.prices = smith_charter::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 };
+    parts.main = llm;
+    let record = parts;
+    let bytes = record.encode(&smith_charter::CEILINGS).expect("small charter");
+    smith_channel_world::typed_charter(&bytes)
 }
 
 #[test]

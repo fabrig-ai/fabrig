@@ -19,6 +19,7 @@ mod model_check;
 mod notes;
 mod peers;
 mod restart;
+mod sample;
 mod sign_in;
 mod teardown;
 mod template_bounds;

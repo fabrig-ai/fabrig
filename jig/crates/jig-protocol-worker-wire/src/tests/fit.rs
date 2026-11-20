@@ -1,7 +1,8 @@
 //! A resumed start fitted to its room (jig/docs/design/protocol/channel/README.md, 11).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
-use crate::{self as wire, sizes, v18};
+use crate::v19::Record;
+use crate::{self as wire, sizes};
 use skein_lib::List;
 
 // The resumed fixture's fixed fields57 + workspace27 + charter14 + transcript24
@@ -23,38 +24,31 @@ enum Answer {
 
 const HOST: Answer = Answer::Host { bytes: ANSWER_BYTES, error: false };
 
-fn calls(limits: &v18::Limits, answers: &[Answer]) -> List<wire::AnsweredCall> {
+fn calls(answers: &[Answer]) -> List<wire::AnsweredCall> {
     let mut calls = List::with_capacity(u32::try_from(answers.len()).unwrap());
     for (position, answer) in answers.iter().enumerate() {
         let position = u8::try_from(position).unwrap();
         let answer = match *answer {
-            Answer::Host { bytes, error } => wire::SettledAnswer::Host(
-                wire::HostAnswer::new(limits, wire::HostAnswerParts { error, body: repeated(position, bytes) })
-                    .unwrap(),
-            ),
-            Answer::Delivery => wire::SettledAnswer::Delivery(
-                wire::DeliveryAnswer::new(
-                    limits,
-                    wire::DeliveryAnswerParts {
-                        outcome: wire::DeliveryOutcome::Delivered,
-                        evidence: repeated(0xff, ANSWER_BYTES),
-                    },
-                )
-                .unwrap(),
-            ),
+            Answer::Host { bytes, error } => {
+                wire::SettledAnswer::Host(wire::HostAnswer { error, body: repeated(position, bytes) })
+            }
+            Answer::Delivery => wire::SettledAnswer::Delivery(wire::DeliveryAnswer {
+                outcome: wire::DeliveryOutcome::Delivered,
+                evidence: repeated(0xff, ANSWER_BYTES),
+            }),
         };
         let name = repeated(b'a'.checked_add(position).unwrap(), 6);
         let tool = repeated(b'k'.checked_add(position).unwrap(), 6);
-        let call = wire::AnsweredCall::new(limits, wire::AnsweredCallParts { name, tool, answer }).unwrap();
+        let call = wire::AnsweredCall { name, tool, answer };
         calls.push(call).unwrap();
     }
     calls
 }
 
-fn resumed(limits: &v18::Limits, answered: List<wire::AnsweredCall>) -> wire::Assignment {
-    let mut parts = fixtures::assignment_resumed().into_parts();
+fn resumed(answered: List<wire::AnsweredCall>) -> wire::Assignment {
+    let mut parts = fixtures::assignment_resumed();
     parts.answered = answered;
-    wire::Assignment::new(limits, parts).unwrap()
+    parts
 }
 
 #[test]
@@ -157,37 +151,37 @@ fn a_resumed_start_is_fitted_to_its_room() {
     ];
     let mut failures = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for row in rows {
-        let mut parts = resumed(&limits, calls(&limits, row.answers)).into_parts();
+        let mut parts = resumed(calls(row.answers));
         if let Some(bytes) = row.charter {
             parts.charter = repeated(b'c', bytes);
         }
-        let assignment = wire::Assignment::new(&limits, parts).unwrap();
-        let mut expected = assignment.clone().into_parts();
+        let assignment = parts;
+        let mut expected = assignment.clone();
         let mut answered = List::with_capacity(expected.answered.capacity());
         assert_eq!(expected.answered.len(), u32::try_from(row.cut.len()).unwrap(), "{}", row.name);
         for (call, cut) in expected.answered.into_boxed().into_iter().zip(row.cut) {
-            let mut parts = call.into_parts();
+            let mut parts = call;
             if *cut {
                 let host = match parts.answer {
                     wire::SettledAnswer::Host(host) => host,
                     wire::SettledAnswer::Delivery(_) => panic!("a delivery is never cut"),
                 };
-                let mut host = host.into_parts();
+                let mut host = host;
                 host.body = cut_words(u32::try_from(host.body.len()).unwrap());
-                parts.answer = wire::SettledAnswer::Host(wire::HostAnswer::new(&limits, host).unwrap());
+                parts.answer = wire::SettledAnswer::Host(host);
             }
-            answered.push(wire::AnsweredCall::new(&limits, parts).unwrap()).unwrap();
+            answered.push(parts).unwrap();
         }
         expected.answered = answered;
-        let (returned, fitted) = fit(assignment, &limits, row.room);
-        let bytes = returned.measure() + 8;
+        let (returned, fitted) = fit(assignment, &limits, row.room).unwrap();
+        let bytes = returned.measure(&crate::CEILINGS).expect("record within limits") + 8;
         let within_room = match fitted {
             Fitted::Whole | Fitted::Cut { .. } => bytes <= row.room,
             Fitted::Past { bytes: past } => past == bytes && bytes > row.room,
         };
         // Comparing all parts holds names, tools, positions, error flags and
         // every field outside the cut bodies, including workspace and grants.
-        let same_parts = returned.into_parts() == expected;
+        let same_parts = returned == expected;
         if fitted != row.fitted || bytes != row.bytes || !within_room || !same_parts {
             failures.push((row.name, fitted, bytes, row.room, same_parts)).unwrap();
         }
@@ -210,20 +204,15 @@ fn the_smallest_resumed_start_is_measured() {
         .unwrap();
         let mut answered = List::with_capacity(count);
         for _ in 0..count {
-            let host = wire::HostAnswer::new(&limits, wire::HostAnswerParts { error: false, body: cut_words(answer) })
-                .unwrap();
-            let call = wire::AnsweredCall::new(
-                &limits,
-                wire::AnsweredCallParts {
-                    name: repeated(b'n', name),
-                    tool: repeated(b't', tool),
-                    answer: wire::SettledAnswer::Host(host),
-                },
-            )
-            .unwrap();
+            let host = wire::HostAnswer { error: false, body: cut_words(answer) };
+            let call = wire::AnsweredCall {
+                name: repeated(b'n', name),
+                tool: repeated(b't', tool),
+                answer: wire::SettledAnswer::Host(host),
+            };
             answered.push(call).unwrap();
         }
-        let mut parts = fixtures::assignment_resumed().into_parts();
+        let mut parts = fixtures::assignment_resumed();
         parts.workspace = None;
         parts.save = false;
         parts.charter = [].into();
@@ -231,8 +220,8 @@ fn the_smallest_resumed_start_is_measured() {
         parts.answered = answered;
         parts.messages = List::with_capacity(0);
         parts.grants = List::with_capacity(0);
-        let assignment = wire::Assignment::new(&limits, parts).unwrap();
-        assert_eq!(assignment.measure() + 8, expected);
+        let assignment = parts;
+        assert_eq!(assignment.measure(&limits).expect("record within limits") + 8, expected);
         assert_eq!(sizes::smallest_resumed(count, name, tool, answer), Some(expected));
     }
     assert_eq!(sizes::smallest_resumed(u32::MAX, 64, 64, 1), None);

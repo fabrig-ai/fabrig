@@ -560,10 +560,10 @@ fn stale_prepare_round(cut: PrepareCut) {
             if cut == PrepareCut::Asked {
                 world.restart();
             }
-            assert_eq!(
+            assert!(matches!(
                 landings::step_landing_raw(&mut world, LANDING, entry + 100),
-                landing::Decision::Wait { until: None }
-            );
+                landing::Decision::Wait { until: Some(_), on: landing::Awaited::Prefixes }
+            ));
             world.prepare_landing(LANDING, false);
             if cut == PrepareCut::Pushed {
                 world.restart();

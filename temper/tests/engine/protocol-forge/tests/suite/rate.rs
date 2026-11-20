@@ -130,6 +130,7 @@ impl Scheduler {
                         heard: change::Heard {
                             delegate_running: false,
                             flake: false,
+                            no_test: false,
                             delegate_live: false,
                             review_request: None,
                             start_conflict: None,

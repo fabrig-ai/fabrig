@@ -2,6 +2,7 @@
 use crate::{calls, fixtures, forge, llm, service::ServiceHost, world};
 use skein_io::kernel::{Complete, Done, Op};
 use std::{fmt::Write as _, net::SocketAddr, os::unix::fs::DirBuilderExt, path::Path};
+use temper_client_protocol_wire::v1::Record;
 
 /// Script hold released once every started worker has received an assignment.
 pub const PLACED: &[u8] = b"cluster-placed";
@@ -299,7 +300,7 @@ impl Runs {
                             &mut skein_lib::Reader::new(&self.bytes[HEADER_BYTES..end]),
                         )
                         .expect("assignment");
-                        self.pending = Some(assignment.task());
+                        self.pending = Some(assignment.task);
                         self.assigned_at.get_or_insert(now);
                         self.assignments.push(assignment);
                     }
@@ -341,52 +342,37 @@ fn prepare_agents(data: &Path, mut agent: serde_json::Value) {
     for group in ["declared", "policy"] {
         for (name, value) in agent["profile"][group].as_object().expect("profile") {
             profile
-                .push(
-                    w::AgentFigure::new(
-                        &w::CEILINGS,
-                        w::AgentFigureParts {
-                            name: format!("{group}.{name}").into_bytes().into(),
-                            value: value.as_u64().expect("scalar"),
-                        },
-                    )
-                    .expect("profile figure"),
-                )
+                .push(w::AgentFigure {
+                    name: format!("{group}.{name}").into_bytes().into(),
+                    value: value.as_u64().expect("scalar"),
+                })
                 .expect("profile room");
         }
     }
     let mut endpoints = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_endpoints);
     for endpoint in agent["endpoints"].as_array().expect("endpoints") {
         let limits = &endpoint["limits"];
-        let limits = w::AgentLimits::new(
-            &w::CEILINGS,
-            w::AgentLimitsParts {
-                window: u32::try_from(limits["window"].as_u64().expect("window")).expect("u32"),
-                output: u32::try_from(limits["output"].as_u64().expect("output")).expect("u32"),
-                reasoning_item: u32::try_from(limits["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
-                head_ms: limits["head"].as_u64().expect("head"),
-                idle_ms: limits["idle"].as_u64().expect("idle"),
-                oversized: w::Oversized::Fail,
-            },
-        )
-        .expect("endpoint limits");
+        let limits = w::AgentLimits {
+            window: u32::try_from(limits["window"].as_u64().expect("window")).expect("u32"),
+            output: u32::try_from(limits["output"].as_u64().expect("output")).expect("u32"),
+            reasoning_item: u32::try_from(limits["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
+            head_ms: limits["head"].as_u64().expect("head"),
+            idle_ms: limits["idle"].as_u64().expect("idle"),
+            oversized: w::Oversized::Fail,
+        };
         endpoints
-            .push(
-                w::AgentEndpointLimits::new(
-                    &w::CEILINGS,
-                    w::AgentEndpointLimitsParts {
-                        endpoint: endpoint["name"].as_str().expect("endpoint").as_bytes().into(),
-                        limits,
-                    },
-                )
-                .expect("endpoint figures"),
-            )
+            .push(w::AgentEndpointLimits {
+                endpoint: endpoint["name"].as_str().expect("endpoint").as_bytes().into(),
+                limits,
+            })
             .expect("endpoint room");
     }
-    let fallback = endpoints.get(0).expect("one endpoint").limits().clone();
-    let value =
-        w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback }).expect("figures");
-    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("agent figures bytes");
+    let fallback = endpoints.get(0).expect("one endpoint").limits.clone();
+    let value = w::AgentFigures { profile, endpoints, fallback };
+    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(
+        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+    ));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("agent figures bytes");
     fixtures::private(&data.join("agents.setting"), &bytes.finish()).expect("initial agent figures");
 }
 
@@ -414,15 +400,15 @@ mod tests {
         let agents = forge.iter().find(|row| row.kind == 21).expect("initial agent figures");
         let Value::AgentFigures(figures) = &agents.value.value else { panic!("agent figures") };
         let unacknowledged = figures
-            .profile()
+            .profile
             .iter()
-            .find(|figure| figure.name() == b"policy.unacknowledged")
+            .find(|figure| figure.name.as_ref() == b"policy.unacknowledged")
             .expect("cluster host admission");
-        assert_eq!(unacknowledged.value(), 1, "one outstanding turn per worker");
-        let endpoint = figures.endpoints().get(0).expect("fixture endpoint");
-        assert_eq!(endpoint.endpoint(), b"fake");
-        assert_eq!(endpoint.limits().window(), 1_048_576, "the fixture's model window");
-        assert_eq!(figures.fallback(), endpoint.limits(), "the fixture's fallback");
+        assert_eq!(unacknowledged.value, 1, "one outstanding turn per worker");
+        let endpoint = figures.endpoints.get(0).expect("fixture endpoint");
+        assert_eq!(endpoint.endpoint.as_ref(), b"fake");
+        assert_eq!(endpoint.limits.window, 1_048_576, "the fixture's model window");
+        assert_eq!(&figures.fallback, &endpoint.limits, "the fixture's fallback");
     }
 
     #[test]

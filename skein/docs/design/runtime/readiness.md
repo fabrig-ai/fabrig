@@ -223,9 +223,11 @@ synchronous operations, the error tables, what decodes a `statx` or a
 | A child's handle | its pidfd | a kqueue of the child's own, its `EVFILT_PROC` exit registered: a descriptor that is readable once the child has exited |
 | A child's exit | `waitid` on the pidfd | `waitid` on the child's pid, `WNOWAIT` to observe |
 | Signalling a child | `pidfd_send_signal` | `kill`, `killpg`, by the pid its handle names |
+| A child dying with its parent | `PR_SET_PDEATHSIG` | a watcher process, forked before the exec, the parent's and the program's `EVFILT_PROC` exits registered (below) |
 | Signals to the service | `signalfd` | a kqueue of the service's own, its `EVFILT_SIGNAL`s registered, the signals ignored |
 | The seed | `getrandom` | `getentropy` |
 | Usage's resident size | KiB | bytes |
+| The process's unreaped children | `/proc/self/task/*/children` | `proc_listpids`, `PROC_PPID_ONLY` |
 
 - **A child stays unreaped until io closes it,** on macOS as with
   pidfds, so its pid is never another process's while io can still
@@ -236,6 +238,67 @@ synchronous operations, the error tables, what decodes a `statx` or a
   conformance suite are the same on both systems: a `Wait` waits for its
   handle to be readable, a `Signal` finds the pid its handle names, and
   a `Close` of the handle forgets it.
+- **The process's unreaped children,** read from outside io for a
+  test's settled check (smith's `testing.md`, 6):
+  `unreaped_children() -> Result<Box<[u32]>, i32>`, public from the
+  shell on both systems, answers the pids of the processes whose
+  parent is the calling process and that it has not reaped, a zombie
+  among them, in no order. It takes no handle, reaps nothing and
+  signals no one. Linux reads each of its threads' `children` file
+  under `/proc/self/task`, a thread's file that is gone (`ENOENT`, the
+  thread ended) counting no children. macOS lists by `proc_listpids`
+  with `PROC_PPID_ONLY` (libproc.h's 6) and the caller's pid, a byte
+  estimate first as the group's reading takes it (below); its walk
+  takes the zombies' list after the living's, as the group's reading
+  relies on. A reading that fails answers its error number, and one
+  that may have been cut short (a listing that fills the buffer it was
+  given, or a byte count that is no whole number of pids) answers
+  `ENOBUFS`: never a shorter list.
+- **A child dying with its parent, on macOS, has a watcher**
+  (`shell.md`, 3): macOS has no parent-death signal, so the process
+  about to exec, the program to be, first forks a watcher that sends
+  the signal for it. In the child-side exec that process is the
+  caller; in the parent-side spawn, the forked child, in its pre-exec
+  hook. The watcher's parent is the program, whose pid the exec keeps.
+  1. **The watcher** blocks every signal it can, so a signal sent to the
+     program's group (a terminal's interrupt, a supervisor's
+     termination) leaves it watching. It closes every descriptor it
+     inherited but its handshake's writing end, so it holds none of the
+     program's pipes, nor the exec-error pipe a spawn reads to its end.
+     It registers the exits of the parent and of the program on a
+     kqueue of its own, then writes its handshake: four bytes, zero once
+     both are registered, or the registration's error number, after
+     which it exits. It closes the handshake either way.
+  2. **The program to be** closes its own copy of the writing end and
+     reads the four bytes. Zero, it re-checks its parent as Linux does
+     and execs. An error number refuses the exec: `ESRCH` (the parent
+     already gone) as the re-check's "parent changed before exec", any
+     other as itself. Fewer than four bytes, the watcher ended before
+     answering, refuses with `EIO`. It reaps a watcher that refused or
+     ended before it refuses.
+  3. **The watcher then waits** for either exit. The program's: it
+     exits. The parent's: while it is still the program's child
+     (`getppid()` names the program), it sends the program the signal,
+     then exits. A program that ended first has made it launchd's, so a
+     pid that has gone is never signalled, and when one wait reports
+     both exits the program's wins and nothing is sent.
+
+  Everything the watcher uses is prepared before its fork: the pipe,
+  both pids, the signal's number and the close bound, taken as the
+  terminal's child takes it. Between its fork and its exit it makes
+  only async-signal-safe calls and the kqueue's, and runs no
+  allocation, formatting, lock or destructor, since a spawning process
+  may have other threads. It fires at the parent **process**'s exit,
+  not a thread's. It lives in the program's group and session and no
+  longer than the program or the parent; once the program has ended,
+  launchd reaps it, and a group kill ends it with the program. A
+  program that waits for every child it has until none is left waits
+  for it too. It cannot signal a setuid or setgid program, as such an
+  exec clears Linux's signal. The watcher is `posix`'s, built for macOS
+  and for Linux's unit tests; each system gives its wait on two
+  processes' exits, Darwin's a kqueue with an `EVFILT_PROC` `NOTE_EXIT`
+  for each, and Linux's, for those tests alone, two pidfds and `poll`.
+  Linux's exec and spawn keep `PR_SET_PDEATHSIG`.
 
 **The crate's layout.** `unsafe` is in `linux`, `darwin` and `posix` alone; every
 other module is safe Rust, the same on both systems.
@@ -247,7 +310,7 @@ other module is safe Rust, the same on both systems.
 | `calls` | what every backend decodes the same way: each operation's error table, the kind of what an `Open` opened, the paths' checks, `Open`'s retries, the listing buffer's size, a release against a floor (6) | both |
 | `linux` | Linux's calls and wait (`linux::epoll`), and the ring adapter (`linux::ring`), the only user of `io-uring` | Linux |
 | `darwin` | Darwin's calls and wait (`darwin::kqueue`) | macOS |
-| `posix` | what both systems write alike: terminal modes and sizes, a signal to a group and the probes of a group or a process, a socket's shutdown, the wait for a readable descriptor, a startup file's read and a mode's kind, `SIGPIPE`'s block, the error numbers' meaning | both |
+| `posix` | what both systems write alike: terminal modes and sizes, a signal to a group and the probes of a group or a process, a socket's shutdown, the wait for a readable descriptor, a startup file's read and a mode's kind, `SIGPIPE`'s block, the error numbers' meaning; the parent-death watcher (above), on macOS and in Linux's unit tests | both |
 | `clock`, `seed`, `startup`, `terminal`, `settings`, `drive` | the public startup and loop, calling `system` | both |
 | `keeper` | what a test harness alone needs of the processes it keeps (below) | both, Linux's own parts on Linux |
 
@@ -330,6 +393,67 @@ other module is safe Rust, the same on both systems.
   stopped at the suite's budget).
   Darwin answers an escape with `ENOTCAPABLE`, which `darwin` gives up
   as Linux's `EXDEV`, so that one error table serves both (`Escape`).
+- **The system's own links are passed.** macOS keeps `/var`, `/tmp` and
+  `/etc` as links into `/private` (`/var -> private/var`), and every
+  user's temporary directory lies beneath `/var/folders`, so
+  `O_NOFOLLOW_ANY` alone refuses every path through them, where Linux,
+  with no links there, opens it. A link is *the system's own* when root
+  owns it and the directory it lies in, and that directory has no group
+  or other write bit: no one but root could have placed it there. Every
+  no-follow open on Darwin, an `Open` beneath a root and the startup
+  reads alike (`shell.md`, 6.1), passes those and refuses every other
+  link, as Linux's refuse them:
+  1. It opens as above. Any answer but `ELOOP` is the open's.
+  2. On `ELOOP`, it walks the path once, from where the open starts (the
+     root, the working directory, or `/` for an absolute path), a
+     component at a time, by `fstatat` with `AT_SYMLINK_NOFOLLOW`, every
+     component but the last: a directory is walked into; a system's own
+     link is passed, its target read once (`readlinkat`) taking its
+     place in the path and walked the same way, an absolute target
+     starting again at `/`; `.` and empty components are skipped. The
+     walk ends at anything else, left as written with all that follows
+     it: a link that is not the system's own, a `..`, a component it
+     cannot stat or read, and a ninth link, at most eight being passed.
+     Its calls change nothing, and are tried again on `EINTR`.
+  3. With no link passed, the answer is the `ELOOP`, as before;
+     otherwise it opens the rewritten path once more, with the same
+     flags, `O_NOFOLLOW_ANY` among them, and that answer is the open's.
+
+  Why so:
+  - **No-follow still holds at the open.** The kernel refuses every link
+    in the path it opens, so a link swapped in after the walk is refused;
+    the walk replaces only links no one but root could have placed. A
+    root-owned link in a directory others may write may be one they
+    hard-linked there, whose relative target would then resolve beneath
+    their own directory: it is not passed. A user's own link is refused
+    as on Linux, the path's owner's included. The bits read are the
+    mode's, as io's private-file checks read them (io/files.md, 3).
+  - **Not the canonical path.** Making a path canonical (`realpath`)
+    before the open would follow every link, a user's too, and leave
+    `O_NOFOLLOW_ANY` nothing to refuse; making only each root canonical
+    at startup would still refuse a startup read's absolute path, and an
+    `Open` beneath a root opened at `/` (temper's fake git).
+  - **Only on `ELOOP`.** An open that meets no link costs nothing more;
+    one through `/var` costs a walk and a second open.
+  - **The last component is never passed:** a no-follow open refuses a
+    link at its own name, root's too, and `PathNoFollow` opens it as a
+    link. Beneath a root, the rewritten path is opened beneath it as any
+    path is: a target that leaves it is an `Escape`.
+  - **Linux passes none.** Its no-follow opens stay `RESOLVE_NO_SYMLINKS`,
+    which refuses root's links too (`/var/run -> /run`), and
+    `resolve_system_links` answers a path as given there (`shell.md`,
+    6.1); whether Linux should pass them is kernel.md, 9's question.
+
+  The walk is `posix`'s, built for macOS and for the crate's tests, with
+  the owner whose links it passes as its argument (root's, 0, on
+  Darwin), so that its tests run on Linux and macOS alike, the test's
+  own user standing in for root: a path whose parent is that owner's
+  link, in a directory only that owner may write, is rewritten through
+  the link's target, and the rewritten path holds no link; a path
+  through another owner's link, through a link in a directory others
+  may write, or ending at a link is left as written, and so is a link
+  after a `..`; a chain of nine links is rewritten through eight, the
+  ninth kept for the open to refuse.
 - **Files:** `pread`, `pwrite`, `write`, `ftruncate`, `fstat` (decoded by
   `darwin`), `renameatx_np` with `RENAME_EXCL` for a rename that never
   replaces and `renameat` otherwise, `unlinkat`, `mkdirat`, `linkat`
@@ -439,7 +563,8 @@ other module is safe Rust, the same on both systems.
   `CLOCK_MONOTONIC` and `CLOCK_REALTIME`; `getrusage`, whose resident
   size Darwin gives in bytes; `TIOCGWINSZ` and the terminal's modes as on
   Linux; `faccessat` with `AT_EACCESS` for a directory's access; the
-  startup reads opened with `O_NOFOLLOW_ANY` where Linux's refuse links.
+  startup reads opened with `O_NOFOLLOW_ANY` where Linux's refuse links,
+  passing the system's own links as an `Open` does (above).
 - **Names that differ only in case** are one name on a default APFS
   volume. The shell passes names as they are and answers as the volume
   does (a `Create` of `A` beside `a` is `AlreadyExists` there); it folds

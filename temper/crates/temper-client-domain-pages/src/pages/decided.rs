@@ -88,7 +88,7 @@ impl Store {
                     project.document = match client.document(*handle) {
                         Some(document) if document.state != jig_client::State::Ended => match document.latest {
                             Some(Latest::Family(record)) => match forge::decided::document(record, limits) {
-                                Some(document) if document.project() == project.project => Some(Box::new(document)),
+                                Some(document) if document.project == project.project => Some(Box::new(document)),
                                 Some(_) | None => None,
                             },
                             Some(Latest::Jig(_)) | None => None,
@@ -247,11 +247,11 @@ impl Pages {
                 continue;
             }
             let Some(document) = &held.document else { continue };
-            more |= document.cut();
-            for row in document.rows() {
-                if wall.as_nanos().saturating_sub(row.at()) < DAY {
+            more |= document.cut;
+            for row in &document.rows {
+                if wall.as_nanos().saturating_sub(row.at) < DAY {
                     showing = showing.checked_add(1).expect("four bounded documents");
-                    expires = expires.min(Wall::from_nanos(row.at().saturating_add(DAY)));
+                    expires = expires.min(Wall::from_nanos(row.at.saturating_add(DAY)));
                 }
             }
         }
@@ -270,9 +270,9 @@ impl Pages {
                     continue;
                 }
                 let Some(document) = &held.document else { continue };
-                for row in document.rows() {
-                    let key = (row.at(), held.project, row.number());
-                    if wall.as_nanos().saturating_sub(row.at()) >= DAY {
+                for row in &document.rows {
+                    let key = (row.at, held.project, row.number);
+                    if wall.as_nanos().saturating_sub(row.at) >= DAY {
                         continue;
                     }
                     if let Some(before) = before
@@ -281,7 +281,7 @@ impl Pages {
                         continue;
                     }
                     let later = match newest {
-                        Some((project, held)) => key > (held.at(), project, held.number()),
+                        Some((project, held)) => key > (held.at, project, held.number),
                         None => true,
                     };
                     if later {
@@ -290,12 +290,12 @@ impl Pages {
                 }
             }
             let Some((project, row)) = newest else { break };
-            before = Some((row.at(), project, row.number()));
+            before = Some((row.at, project, row.number));
             let mut title = None;
             let mut milestone = None;
             let mut state = DecisionTask::Unknown;
             for read in &self.decided.reads {
-                if read.task == row.task() {
+                if read.task == row.task {
                     title.clone_from(&read.title);
                     milestone.clone_from(&read.milestone);
                     state = read.state;
@@ -304,17 +304,17 @@ impl Pages {
             }
             rows.push(DecisionLine {
                 project,
-                number: row.number(),
-                task: row.task(),
+                number: row.number,
+                task: row.task,
                 title,
                 milestone,
                 state,
-                at: Wall::from_nanos(row.at()),
-                question: row.question().into(),
-                took: row.took().into(),
-                why: row.why().into(),
-                overturned: row.overturned() || self.overturns.marked(project, row.number()),
-                reach: temper_protocol_reaches::reach_from(row.reach()),
+                at: Wall::from_nanos(row.at),
+                question: row.question.clone(),
+                took: row.took.clone(),
+                why: row.why.clone(),
+                overturned: row.overturned || self.overturns.marked(project, row.number),
+                reach: temper_protocol_reaches::reach_from(&row.reach),
             })
             .expect("seven shown decisions");
         }

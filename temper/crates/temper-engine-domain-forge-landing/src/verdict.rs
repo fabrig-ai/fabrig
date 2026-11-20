@@ -48,6 +48,8 @@ pub enum Fault {
     /// A tier dispatch refused because its workflow is absent at the run's commit.
     /// See temper/docs/design/domain/after-landing.md, 3.
     MissingWorkflow,
+    /// A failed landing gate uploaded no report (temper/docs/design/domain/landing.md, 7.4).
+    Unreported,
 }
 
 /// Classify only the run and step facts, never log words.

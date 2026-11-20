@@ -24,13 +24,15 @@ pub struct Fakes {
     pub llm: skein_fake_peers::llm::Peer,
     pub forge: temper_fake_git::Typed,
     pub peer: skein_fake_peers::forge::Peer,
+    /// Only a walk opts into the box's auto-grant sign-in issuer.
+    pub issuer: Option<temper_fake::oauth::Document>,
 }
 impl Fakes {
     /// Build the composition's default Forgejo peer beside its git transport.
     #[must_use]
     pub fn new(llm: skein_fake_peers::llm::Peer, forge: temper_fake_git::Typed, seed: u64) -> Self {
         let peer = fakes::forge_peer(&forge, seed);
-        Self { llm, forge, peer }
+        Self { llm, forge, peer, issuer: None }
     }
 }
 /// Who consumes the service's sign-in links.
@@ -68,7 +70,7 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &documents::C
             .unwrap_or(0);
         let number = u16::try_from(last + 1).expect("playground forge number");
         let setup =
-            temper_forge_setup::setup_file::chosen(BoxKind::Fake, documents::FORGE.port(), b"ada", false, &directories)
+            temper_forge_setup::setup_file::chosen(BoxKind::Fake, deployment.forge.port(), b"ada", false, &directories)
                 .expect("world fake setup");
         let entry = setup.entry(number, &directories).expect("fake setup entry");
         let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
@@ -127,6 +129,14 @@ pub fn world_with<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process
     });
     let at = world.spawn(|| Process::Visitor(Box::new(Visitor::new(&documents::visitor(&document)))));
     assert_eq!(at, VISITOR, "the visitor follows the service and its two fake peers");
+    if let Some(document) = fakes.issuer {
+        world.spawn_signals(|signal| {
+            Process::Issuer(Box::new(crate::machine::SignalHost::new(
+                programs::Issuer::new(&document, seed),
+                Some(signal),
+            )))
+        });
+    }
     world
 }
 

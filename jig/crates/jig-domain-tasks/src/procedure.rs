@@ -44,7 +44,7 @@ pub(crate) fn stepped(
         live.record.spec.words = words;
     }
     live.record.attempt = step;
-    crate::inbox::take(&mut live.record, read, None);
+    crate::inbox::take(&mut live.record, read, None, false);
     live.procedure_offered = None;
     let woken = live.procedure_woken;
     live.procedure_woken = false;
@@ -141,7 +141,7 @@ fn check(
     parent.started_from = started_from.into_boxed();
     parent.attempt = step;
     parent.phase = Phase::Active(Active::Idle);
-    crate::inbox::take(&mut parent, read, None);
+    crate::inbox::take(&mut parent, read, None, false);
     let mut delegates = skein_lib::List::with_capacity(env.limits.delegates);
     for child in &parent.delegates {
         delegates.push(*child).expect("bounded delegates");

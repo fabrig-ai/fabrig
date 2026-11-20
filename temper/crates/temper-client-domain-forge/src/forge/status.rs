@@ -1,17 +1,18 @@
 //! A project's status subject and look request (temper/docs/design/client/forge/records.md).
 use super::{Limits, wire_limits};
 use jig_client::{Ask, Family, Watchable, contract as c};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[must_use]
 pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::StatusSubject::new(&bounds, w::StatusSubjectParts { project }).ok()?;
-    let watching = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Status(subject) }).ok()?;
+    let subject = w::StatusSubject { project };
+    let watching = w::Watching { watch: w::Watch::Status(subject) };
     Some(Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&watching) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(&bounds).ok()? },
     })
 }
 
@@ -26,11 +27,11 @@ pub fn document(record: &Family, limits: Limits) -> Option<w::ProjectStatus> {
 #[must_use]
 pub fn ask(project: u32, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
-    let looked = w::Looked::new(&bounds, w::LookedParts { project }).ok()?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::Looked(looked) }).ok()?;
+    let looked = w::Looked { project };
+    let record = w::Requesting { request: w::Request::Looked(looked) };
     Some(Ask::Family {
         scope: c::Scope::Project(project),
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 
@@ -69,7 +70,7 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
     if !reader.is_empty() {
         return None;
     }
-    Some(match answer.into_parts().outcome {
+    Some(match answer.outcome {
         w::Outcome::Looked => Answer::Looked,
         w::Outcome::Unknown => Answer::Unknown,
         w::Outcome::Dismissed

@@ -4,7 +4,8 @@ use crate::people_v17 as wire;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as domain;
-use skein_lib::{Duration, List, Reader, Wall, Writer};
+use skein_lib::{Duration, List, Reader, Wall};
+use wire::Record;
 mod acts;
 mod asks;
 mod batch;
@@ -169,79 +170,58 @@ pub fn encode(
     names: &[core::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
-        domain::Stored::Deleted { project } => {
-            wire::Value::Deleted(wire::StoredDeleted::new(limits, wire::StoredDeletedParts { project: *project })?)
+        domain::Stored::Deleted { project } => wire::Value::Deleted(wire::StoredDeleted { project: *project }),
+        domain::Stored::Public { project } => wire::Value::Public(wire::StoredPublic { project: *project }),
+        domain::Stored::Deletion { project, step, grace } => wire::Value::Deletion(wire::StoredDeletion {
+            project: *project,
+            step: encode_deletion_step(*step),
+            grace: compound::encode_grace(*grace),
+        }),
+        domain::Stored::Person { number, identity } => {
+            wire::Value::Person(wire::StoredPerson { number: *number, identity: encode_identity(identity, limits) })
         }
-        domain::Stored::Public { project } => {
-            wire::Value::Public(wire::StoredPublic::new(limits, wire::StoredPublicParts { project: *project })?)
+        domain::Stored::ReadResults { party, through } => {
+            wire::Value::ReadResults(wire::StoredReadResults { party: *party, through: *through })
         }
-        domain::Stored::Deletion { project, step, grace } => wire::Value::Deletion(wire::StoredDeletion::new(
-            limits,
-            wire::StoredDeletionParts {
-                project: *project,
-                step: encode_deletion_step(*step),
-                grace: compound::encode_grace(*grace),
-            },
-        )?),
-        domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson::new(
-            limits,
-            wire::StoredPersonParts { number: *number, identity: encode_identity(identity, limits)? },
-        )?),
-        domain::Stored::ReadResults { party, through } => wire::Value::ReadResults(wire::StoredReadResults::new(
-            limits,
-            wire::StoredReadResultsParts { party: *party, through: *through },
-        )?),
         domain::Stored::ReadConversation { party, task, through } => {
-            wire::Value::ReadConversation(wire::StoredReadConversation::new(
-                limits,
-                wire::StoredReadConversationParts { party: *party, task: *task, through: *through },
-            )?)
+            wire::Value::ReadConversation(wire::StoredReadConversation {
+                party: *party,
+                task: *task,
+                through: *through,
+            })
         }
-        domain::Stored::EndedRead { task, party, through } => wire::Value::EndedRead(wire::EndedRead::new(
-            limits,
-            wire::EndedReadParts { task: *task, party: *party, through: *through },
-        )?),
-        domain::Stored::SignIn { number, person, expires } => wire::Value::SignIn(wire::StoredSignIn::new(
-            limits,
-            wire::StoredSignInParts { number: *number, person: *person, expires: expires.as_nanos() },
-        )?),
-        domain::Stored::Roles { project, holdings } => wire::Value::Roles(wire::StoredRoles::new(
-            limits,
-            wire::StoredRolesParts { project: *project, holdings: encode_holdings(holdings, limits)? },
-        )?),
-        domain::Stored::Policy { project, name, value } => wire::Value::Policy(wire::StoredPolicy::new(
-            limits,
-            wire::StoredPolicyParts {
-                project: *project,
-                name: Box::from(name.as_bytes()),
-                value: encode_policy_value(value, limits)?,
-                models: encode_configured_names(names, limits)?,
-            },
-        )?),
-        domain::Stored::Acted { key, act, outcome, at } => wire::Value::Acted(wire::StoredActed::new(
-            limits,
-            wire::StoredActedParts {
-                key: wire::ActKey::new(limits, wire::ActKeyParts { connector: key.connector, key: key.key })?,
-                act: acts::encode(act, limits)?,
-                outcome: outcomes::encode_outcome(outcome, limits)?,
-                at: at.as_nanos(),
-            },
-        )?),
-        domain::Stored::Answer { key, ask, models, outcome, at } => wire::Value::Answer(wire::StoredAnswer::new(
-            limits,
-            wire::StoredAnswerParts {
-                key: encode_request_key(key, limits)?,
-                ask: encode_ask(ask, limits)?,
-                models: encode_model_names(models, limits)?,
-                outcome: outcomes::encode_outcome(outcome, limits)?,
-                at: at.as_nanos(),
-            },
-        )?),
+        domain::Stored::EndedRead { task, party, through } => {
+            wire::Value::EndedRead(wire::EndedRead { task: *task, party: *party, through: *through })
+        }
+        domain::Stored::SignIn { number, person, expires } => {
+            wire::Value::SignIn(wire::StoredSignIn { number: *number, person: *person, expires: expires.as_nanos() })
+        }
+        domain::Stored::Roles { project, holdings } => {
+            wire::Value::Roles(wire::StoredRoles { project: *project, holdings: encode_holdings(holdings, limits)? })
+        }
+        domain::Stored::Policy { project, name, value } => wire::Value::Policy(wire::StoredPolicy {
+            project: *project,
+            name: Box::from(name.as_bytes()),
+            value: encode_policy_value(value, limits)?,
+            models: encode_configured_names(names, limits)?,
+        }),
+        domain::Stored::Acted { key, act, outcome, at } => wire::Value::Acted(wire::StoredActed {
+            key: wire::ActKey { connector: key.connector, key: key.key },
+            act: acts::encode(act, limits)?,
+            outcome: outcomes::encode_outcome(outcome, limits)?,
+            at: at.as_nanos(),
+        }),
+        domain::Stored::Answer { key, ask, models, outcome, at } => wire::Value::Answer(wire::StoredAnswer {
+            key: encode_request_key(key, limits)?,
+            ask: encode_ask(ask, limits)?,
+            models: encode_model_names(models, limits)?,
+            outcome: outcomes::encode_outcome(outcome, limits)?,
+            at: at.as_nanos(),
+        }),
     };
-    let row = wire::Row::new(limits, wire::RowParts { value })?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut writer).expect("measured room");
-    Ok(writer.finish())
+    let row = wire::Row { value };
+    let writer = row.encode(limits)?;
+    Ok(writer)
 }
 /// Decode a people row; a policy row's roles' models move to today's `names`, and a name no
 /// longer configured drops out (protocol/store/records.md, 1).
@@ -251,40 +231,40 @@ pub fn decode(
     limits: &wire::Limits,
     names: &[core::settings::ModelName],
 ) -> Result<domain::Stored, wire::Problem> {
-    let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    let wire::Row { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?;
     let row = match value {
-        wire::Value::Deleted(value) => domain::Stored::Deleted { project: value.project() },
-        wire::Value::Public(value) => domain::Stored::Public { project: value.project() },
+        wire::Value::Deleted(value) => domain::Stored::Deleted { project: value.project },
+        wire::Value::Public(value) => domain::Stored::Public { project: value.project },
         wire::Value::Deletion(value) => {
-            let wire::StoredDeletionParts { project, step, grace } = value.into_parts();
+            let wire::StoredDeletion { project, step, grace } = value;
             domain::Stored::Deletion { project, step: decode_deletion_step(step), grace: compound::decode_grace(grace) }
         }
         wire::Value::Person(value) => {
-            let wire::StoredPersonParts { number, identity } = value.into_parts();
+            let wire::StoredPerson { number, identity } = value;
             domain::Stored::Person { number, identity: decode_identity(identity) }
         }
         wire::Value::ReadResults(value) => {
-            let wire::StoredReadResultsParts { party, through } = value.into_parts();
+            let wire::StoredReadResults { party, through } = value;
             domain::Stored::ReadResults { party, through }
         }
         wire::Value::ReadConversation(value) => {
-            let wire::StoredReadConversationParts { party, task, through } = value.into_parts();
+            let wire::StoredReadConversation { party, task, through } = value;
             domain::Stored::ReadConversation { party, task, through }
         }
         wire::Value::EndedRead(value) => {
-            let wire::EndedReadParts { task, party, through } = value.into_parts();
+            let wire::EndedRead { task, party, through } = value;
             domain::Stored::EndedRead { task, party, through }
         }
         wire::Value::SignIn(value) => {
-            let wire::StoredSignInParts { number, person, expires } = value.into_parts();
+            let wire::StoredSignIn { number, person, expires } = value;
             domain::Stored::SignIn { number, person, expires: Wall::from_nanos(expires) }
         }
         wire::Value::Roles(value) => {
-            let wire::StoredRolesParts { project, holdings } = value.into_parts();
+            let wire::StoredRoles { project, holdings } = value;
             domain::Stored::Roles { project, holdings: decode_holdings(holdings) }
         }
         wire::Value::Policy(value) => {
-            let wire::StoredPolicyParts { project, name, value, models } = value.into_parts();
+            let wire::StoredPolicy { project, name, value, models } = value;
             let mut value = decode_policy_value(value, limits)?;
             let moved = model_moves(&models, names);
             if let Some(models) = value.ceiling.models {
@@ -299,8 +279,8 @@ pub fn decode(
             domain::Stored::Policy { project, name, value }
         }
         wire::Value::Acted(value) => {
-            let wire::StoredActedParts { key, act, outcome, at } = value.into_parts();
-            let wire::ActKeyParts { connector, key } = key.into_parts();
+            let wire::StoredActed { key, act, outcome, at } = value;
+            let wire::ActKey { connector, key } = key;
             domain::Stored::Acted {
                 key: domain::ActKey { connector, key },
                 act: acts::decode(act, limits)?,
@@ -309,7 +289,7 @@ pub fn decode(
             }
         }
         wire::Value::Answer(value) => {
-            let wire::StoredAnswerParts { key, ask, models, outcome, at } = value.into_parts();
+            let wire::StoredAnswer { key, ask, models, outcome, at } = value;
             domain::Stored::Answer {
                 key: decode_request_key(key),
                 ask: Box::new(decode_ask(ask, limits)?),
@@ -324,19 +304,19 @@ pub fn decode(
 
 fn encode_configured_names(
     names: &[core::settings::ModelName],
-    limits: &wire::Limits,
+    _limits: &wire::Limits,
 ) -> Result<List<wire::ModelName>, wire::Problem> {
     let mut result = List::with_capacity(count(names.len())?);
     for name in names {
-        let name = wire::ModelName::new(limits, wire::ModelNameParts { name: name.name.clone() })?;
+        let name = wire::ModelName { name: name.name.clone() };
         result.push(name).expect("same number of names");
     }
     Ok(result)
 }
-fn encode_model_names(names: &[Box<[u8]>], limits: &wire::Limits) -> Result<List<wire::ModelName>, wire::Problem> {
+fn encode_model_names(names: &[Box<[u8]>], _limits: &wire::Limits) -> Result<List<wire::ModelName>, wire::Problem> {
     let mut result = List::with_capacity(count(names.len())?);
     for name in names {
-        let name = wire::ModelName::new(limits, wire::ModelNameParts { name: name.clone() })?;
+        let name = wire::ModelName { name: name.clone() };
         result.push(name).expect("same number of names");
     }
     Ok(result)
@@ -345,23 +325,23 @@ fn encode_model_names(names: &[Box<[u8]>], limits: &wire::Limits) -> Result<List
 fn model_moves(kept: &List<wire::ModelName>, names: &[core::settings::ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (bit, name) in kept.iter().enumerate() {
-        *moved.get_mut(bit).expect("bounded names") = core::settings::model_bit(name.name(), names);
+        *moved.get_mut(bit).expect("bounded names") = core::settings::model_bit(&name.name, names);
     }
     moved
 }
 fn decode_model_names(names: List<wire::ModelName>) -> Result<Box<[Box<[u8]>]>, wire::Problem> {
     let mut result = List::with_capacity(names.capacity());
     for name in names.into_boxed() {
-        result.push(name.into_parts().name).expect("same context count");
+        result.push(name.name).expect("same context count");
     }
     let result = result.into_boxed();
     if !domain::valid_model_names(&result) {
-        return Err(wire::Problem { path: wire::Path::StoredAnswerModels, reason: skein_codec::Reason::Bound });
+        return Err(wire::Problem { path: wire::paths::STORED_ANSWER_MODELS, reason: skein_codec::Reason::Bound });
     }
     Ok(result)
 }
 fn problem() -> wire::Problem {
-    wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound }
+    wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound }
 }
 fn count(length: usize) -> Result<u32, wire::Problem> {
     match u32::try_from(length) {
@@ -370,16 +350,14 @@ fn count(length: usize) -> Result<u32, wire::Problem> {
     }
 }
 
-pub(super) fn encode_role(value: domain::Role, limits: &wire::Limits) -> Result<wire::Role, wire::Problem> {
-    Ok(match value {
+pub(super) fn encode_role(value: domain::Role, _limits: &wire::Limits) -> wire::Role {
+    match value {
         domain::Role::Owner => wire::Role::Owner,
         domain::Role::Maintainer => wire::Role::Maintainer,
         domain::Role::Member => wire::Role::Member,
         domain::Role::Observer => wire::Role::Observer,
-        domain::Role::Policy { role } => {
-            wire::Role::Policy(wire::RolePolicy::new(limits, wire::RolePolicyParts { role })?)
-        }
-    })
+        domain::Role::Policy { role } => wire::Role::Policy(wire::RolePolicy { role }),
+    }
 }
 pub(super) fn decode_role(value: wire::Role) -> domain::Role {
     match value {
@@ -388,58 +366,49 @@ pub(super) fn decode_role(value: wire::Role) -> domain::Role {
         wire::Role::Member => domain::Role::Member,
         wire::Role::Observer => domain::Role::Observer,
         wire::Role::Policy(value) => {
-            let wire::RolePolicyParts { role } = value.into_parts();
+            let wire::RolePolicy { role } = value;
             domain::Role::Policy { role }
         }
     }
 }
 
-pub(super) fn encode_holding(value: &domain::Holding, limits: &wire::Limits) -> Result<wire::Holding, wire::Problem> {
+pub(super) fn encode_holding(value: &domain::Holding, limits: &wire::Limits) -> wire::Holding {
     let domain::Holding { person, role } = value;
-    wire::Holding::new(limits, wire::HoldingParts { person: *person, role: encode_role(*role, limits)? })
+    wire::Holding { person: *person, role: encode_role(*role, limits) }
 }
 pub(super) fn decode_holding(value: wire::Holding) -> domain::Holding {
-    let wire::HoldingParts { person, role } = value.into_parts();
+    let wire::Holding { person, role } = value;
     domain::Holding { person, role: decode_role(role) }
 }
 
-pub(super) fn encode_identity_key(
-    value: &domain::IdentityKey,
-    limits: &wire::Limits,
-) -> Result<wire::IdentityKey, wire::Problem> {
+pub(super) fn encode_identity_key(value: &domain::IdentityKey, _limits: &wire::Limits) -> wire::IdentityKey {
     let domain::IdentityKey { provider, subject } = value;
-    wire::IdentityKey::new(limits, wire::IdentityKeyParts { provider: *provider, subject: subject.clone() })
+    wire::IdentityKey { provider: *provider, subject: subject.clone() }
 }
 pub(super) fn decode_identity_key(value: wire::IdentityKey) -> domain::IdentityKey {
-    let wire::IdentityKeyParts { provider, subject } = value.into_parts();
+    let wire::IdentityKey { provider, subject } = value;
     domain::IdentityKey { provider, subject }
 }
 
-pub(super) fn encode_identity(
-    value: &domain::Identity,
-    limits: &wire::Limits,
-) -> Result<wire::Identity, wire::Problem> {
+pub(super) fn encode_identity(value: &domain::Identity, limits: &wire::Limits) -> wire::Identity {
     let domain::Identity { key, login, name } = value;
-    wire::Identity::new(
-        limits,
-        wire::IdentityParts { key: encode_identity_key(key, limits)?, login: login.clone(), name: name.clone() },
-    )
+    wire::Identity { key: encode_identity_key(key, limits), login: login.clone(), name: name.clone() }
 }
 pub(super) fn decode_identity(value: wire::Identity) -> domain::Identity {
-    let wire::IdentityParts { key, login, name } = value.into_parts();
+    let wire::Identity { key, login, name } = value;
     domain::Identity { key: decode_identity_key(key), login, name }
 }
 
 pub fn encode_request_key(
     value: &domain::RequestKey,
-    limits: &wire::Limits,
+    _limits: &wire::Limits,
 ) -> Result<wire::RequestKey, wire::Problem> {
     let domain::RequestKey { person, key } = value;
-    wire::RequestKey::new(limits, wire::RequestKeyParts { person: *person, key: *key })
+    Ok(wire::RequestKey { person: *person, key: *key })
 }
 #[must_use]
 pub fn decode_request_key(value: wire::RequestKey) -> domain::RequestKey {
-    let wire::RequestKeyParts { person, key } = value.into_parts();
+    let wire::RequestKey { person, key } = value;
     domain::RequestKey { person, key }
 }
 
@@ -509,7 +478,7 @@ fn decode_holdings(values: List<wire::Holding>) -> Box<[domain::Holding]> {
 fn encode_holdings(values: &[domain::Holding], limits: &wire::Limits) -> Result<List<wire::Holding>, wire::Problem> {
     let mut result = List::with_capacity(count(values.len())?);
     for value in values {
-        result.push(encode_holding(value, limits)?).expect("same number of members");
+        result.push(encode_holding(value, limits)).expect("same number of members");
     }
     Ok(result)
 }
@@ -598,9 +567,7 @@ mod account_hosts;
 /// Reuse the people family's refusal vocabulary inside a decided core call.
 pub(crate) fn refusal_bytes(value: &domain::Refusal) -> Result<Box<[u8]>, wire::Problem> {
     let value = outcomes::encode_refusal(value, &wire::CEILINGS)?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured refusal");
-    Ok(writer.finish())
+    value.encode(&wire::CEILINGS)
 }
 pub(crate) fn read_refusal(bytes: &[u8]) -> Result<domain::Refusal, wire::Problem> {
     Ok(outcomes::decode_refusal(wire::Refusal::decode(&wire::CEILINGS, &mut Reader::new(bytes))?))

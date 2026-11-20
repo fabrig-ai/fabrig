@@ -235,6 +235,7 @@ impl Core {
                 authority::Call::Tool
             }
             ToolKind::Delegate
+            | ToolKind::MarkRead
             | ToolKind::Control
             | ToolKind::Decide
             | ToolKind::Propose
@@ -268,7 +269,7 @@ impl Core {
     fn tool_family(&self, kind: &ToolKind) -> authority::Tools {
         match kind {
             ToolKind::Delegate => self.settings.tools.delegate,
-            ToolKind::Message { .. } => self.settings.tools.message,
+            ToolKind::Message { .. } | ToolKind::MarkRead => self.settings.tools.message,
             ToolKind::Control => self.settings.tools.control,
             ToolKind::Decide => self.settings.tools.decide,
             ToolKind::Propose => self.settings.tools.propose,
@@ -299,7 +300,7 @@ impl Core {
 #[derive(Hash, Debug)]
 pub(crate) enum NoteRoute {
     Deletion { project: u32 },
-    Call { to: ReplyTo, key: CallKey },
+    Call { to: ReplyTo, key: CallKey, records: Box<[u64]> },
     Person { request: Token },
     Brief { task: u64 },
     Preferences { task: u64 },

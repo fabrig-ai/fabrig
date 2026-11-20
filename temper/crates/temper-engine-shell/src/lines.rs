@@ -448,7 +448,11 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
 fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> String {
     use std::fmt::Write as _;
     let Some(failure) = failure else { return "store load failed".into() };
-    let mut line = format!("{:?}", failure.cause);
+    let mut line = if let jig_protocol_store::restore::Cause::History { task, failure } = failure.cause {
+        format!("task {task} history fetch: {}", history_failure(failure))
+    } else {
+        format!("{:?}", failure.cause)
+    };
     if let Some(row) = &failure.row {
         if let Some(family) = row.family {
             write!(line, ", family {family:?}").expect("format restore family");
@@ -459,6 +463,27 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
         }
     }
     line
+}
+
+fn history_failure(failure: jig_protocol_store::restore::HistoryFailure) -> &'static str {
+    use jig_protocol_store::restore::HistoryFailure;
+    match failure {
+        HistoryFailure::LogId => "task has no history log id",
+        HistoryFailure::ExtentMissing => "history extent missing",
+        HistoryFailure::ExtentMalformed => "history extent malformed or unreadable",
+        HistoryFailure::PlaceMissing => "history place missing",
+        HistoryFailure::PlaceMalformed => "history place malformed or unreadable",
+        HistoryFailure::Unread => "generation cannot give the history frame",
+        HistoryFailure::Empty => "history fetch returned no frame",
+        HistoryFailure::FramePosition => "history frame position invalid",
+        HistoryFailure::FramePastExtent => "history frame past the extent",
+        HistoryFailure::FramePastPage => "history frame past the fetch page",
+        HistoryFailure::Record => "history record does not parse",
+        HistoryFailure::RecordTask => "history record names another task",
+        HistoryFailure::Incomplete => "history fetch ended before its extent",
+        HistoryFailure::Continuation => "history fetch continuation disagrees with its frame",
+        HistoryFailure::Arithmetic => "history fetch accounting overflow",
+    }
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps the engine vocabulary beside its words")]
@@ -473,6 +498,29 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
+            let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended; its changes {changes} wait again\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
+        temper_engine_service::Note::HoldDropped { name, task } => {
+            let branch = match name.what {
+                temper_engine_domain_forge::What::Branch(segments) => {
+                    segments.iter().map(|segment| String::from_utf8_lossy(segment)).collect::<Vec<_>>().join("/")
+                }
+                temper_engine_domain_forge::What::Repository => "repository".to_owned(),
+                temper_engine_domain_forge::What::Pull(number) => format!("pull {number}"),
+                temper_engine_domain_forge::What::Issue(number) => format!("issue {number}"),
+            };
+            format!(
+                "{binary} serve: warning: hold on {branch} of repository {}/{} by task {task}, which has no task: dropped\n",
+                name.forge, name.repository
+            )
+        }
         temper_engine_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -481,6 +529,26 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 temper_engine_domain_forge::LinkNote::Cleared => "cleared",
             };
             format!("forge {forge}'s person: {words}\n")
+        }
+        temper_engine_service::Note::LandingRefused { task, repository, branch, why, changes } => {
+            use std::fmt::Write as _;
+            let why = match why {
+                Some(why) => format!("{why:?}"),
+                None => "unknown".to_owned(),
+            };
+            let mut members = String::new();
+            for (index, change) in changes.iter().enumerate() {
+                if index != 0 {
+                    members.push_str(", ");
+                }
+                write!(members, "{change}").expect("format landing members");
+            }
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} not formed: jig refused its task: {why}; its changes {members} wait\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
         }
         temper_engine_service::Note::RunFailed(diagnostic) => run_failure_line(
             binary,

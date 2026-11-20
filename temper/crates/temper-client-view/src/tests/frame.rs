@@ -1968,11 +1968,11 @@ fn goals_opens_in_its_projects_frame() {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
+                let temper_client_protocol_wire::v1::Read::Setting(setting) = &reading.read else {
                     panic!("project setting")
                 };
-                assert_eq!((setting.scope(), setting.number()), (fixtures::PROJECT, 1));
-                kinds.push(setting.kind()).unwrap();
+                assert_eq!((setting.scope, setting.number), (fixtures::PROJECT, 1));
+                kinds.push(setting.kind).unwrap();
             }
             assert!(kinds.as_slice().contains(&7));
             assert!(kinds.as_slice().contains(&8));

@@ -2,6 +2,7 @@
 use jig_engine_workers_world::{World, fixtures};
 use jig_protocol_engine_workers::{Event, Request};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, Reader};
 
 #[test]
@@ -35,7 +36,7 @@ fn a_restart_tells_each_worker_by_its_channels_version_and_can_be_asked_again() 
             assert_eq!(words.len(), count);
             for word in words {
                 let record = wire::Restarting::decode(&codec, &mut Reader::new(&word.body)).expect("restart word");
-                assert_eq!(record.wait_ms(), 1_200_000);
+                assert_eq!(record.wait_ms, 1_200_000);
             }
         }
         assert!(!world.observed(older).iter().any(|r| r.kind == 0x018f));

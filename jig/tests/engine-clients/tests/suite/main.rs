@@ -19,6 +19,7 @@ mod public_http;
 
 mod fuzzy {
     mod cursor;
+    mod source;
 }
 
 mod accounts;

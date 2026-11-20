@@ -116,7 +116,17 @@
     (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who
     concluded it and when, `concluded: Option<Concluded>`, none while
     delegates may join (`../../../domain/tasks/gatherings.md`, section
-    3); the proposals waiting in its subtree; how
+    3); the proposals waiting in its subtree; its unread words,
+    `unread: List<UnreadWords>`, oldest first, at most
+    `tasks.inbox_messages`: each words message from a person, or from
+    its requester where that is a task, that no run has recorded, still
+    in its inbox (`seen: false`) or kept unrecorded past a run's read
+    (`seen: true`, `../../../domain/tasks/messages.md`, 2), as
+    `UnreadWords { message: u64, by: Requester, at: Wall, seen: bool,
+    head: Text, bytes: u32 }`, `head` its words cut at a character's
+    edge to `UNREAD_HEAD_BYTES`, 256, and `bytes` their whole length, so
+    that a party sees what waits to be recorded without the document
+    carrying every message whole (its activity holds them whole); how
     far its activity has committed; for an agent task, `Task.settings:
     Option<TaskSettings>`, `TaskSettings { task: u32, run: Option<u32>,
     newest: u32 }`: the settings revision it records, its live run's

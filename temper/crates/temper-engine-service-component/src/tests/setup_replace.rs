@@ -44,7 +44,7 @@ fn connected_forgejo() -> (crate::Service, Box<[u8]>, Forge, Tokens, u64) {
     (service, bearer, forge, old, user)
 }
 fn http_replace(service: &mut crate::Service, bearer: &[u8], value: Secret) {
-    let request = w::Request::Replace(w::Replace::new(&w::CEILINGS, w::ReplaceParts { forge: FORGE }).unwrap());
+    let request = w::Request::Replace(w::Replace { forge: FORGE });
     fixtures::forge_connecting(service, bearer, 2, request, value);
 }
 fn observe_replace(trace: &mut tokens::Trace, engine: &crate::engine::Engine, new: &Tokens) {

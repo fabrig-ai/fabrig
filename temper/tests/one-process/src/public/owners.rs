@@ -302,9 +302,9 @@ impl Walk {
                     "/jig/v1/public/0/1/1".to_owned(),
                     format!("/jig/v1/public/0/1/2/{project:016x}"),
                     format!("/jig/v1/public/0/1/3/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/2/3/1/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/2/3/2/{project:016x}"),
-                    format!("/jig/v1/public/2/3/3/{project:016x}/{task:016x}"),
+                    format!("/jig/v1/public/2/4/1/{project:016x}/{task:016x}"),
+                    format!("/jig/v1/public/2/4/2/{project:016x}"),
+                    format!("/jig/v1/public/2/4/3/{project:016x}/{task:016x}"),
                     "/jig/v1/public/0/2/1".to_owned(),
                     format!("/jig/v1/public/2/1/2/{project:016x}"),
                     "/jig/v1/public/0/1/65535".to_owned(),
@@ -577,7 +577,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
                 _ => {}
             }
             let version = versions.served().iter().next().ok_or_else(|| String::from("served version"))?;
-            match (&(version.first(), version.last()), &(if row == 6 { (1, 1) } else { (3, 3) })) {
+            match (&(version.first(), version.last()), &(if row == 6 { (1, 1) } else { (4, 4) })) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -602,7 +602,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
 #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
 fn forge_references(row: usize, record: &[u8]) -> Result<(), String> {
     let mut fields = Reader::new(record);
-    match (&(fields.u16()), &(Some(3))) {
+    match (&(fields.u16()), &(Some(4))) {
         (left, right) if left != right => {
             let finding = String::from("the declared public record version");
             return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));

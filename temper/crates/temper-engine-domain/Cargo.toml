@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 temper-engine-domain-store.workspace = true
+temper-engine-domain-translate.workspace = true
 temper-engine-domain-room.workspace = true
 temper-engine-domain-forge-closer.workspace = true
 temper-protocol-reaches.workspace = true
@@ -22,6 +23,7 @@ skein-json.workspace = true
 skein-push.workspace = true
 smith-domain-run.workspace = true
 jig-domain-core.workspace = true
+jig-domain-core-vocabulary.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-fleet.workspace = true

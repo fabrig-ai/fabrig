@@ -4,6 +4,7 @@
 
 
 
+
 Section 4.3 has no known gap in the endings' header and column, linking
 the served bundle's `files/pages.css` by its digest, and reading plain
 with no bundle served; the Google client's tables cover each ending with

@@ -39,6 +39,7 @@ pub(in crate::tests) fn claim(core: &mut Core, limits: &Limits) -> u64 {
         core,
         limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: tasks::Reasons::ALL,
             reasons: tasks::Reasons::FIRST,

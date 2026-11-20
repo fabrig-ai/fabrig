@@ -2,6 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
+use jig_protocol_worker_wire::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -11,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_worker_wire::SCHEMA,
-        jig_protocol_worker_wire::v18, sealed,
+        jig_protocol_worker_wire::v19, lean,
         limits [
             wire_name,
             wire_layouts,
@@ -36,6 +37,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             resource_resource_some,
             model_failure_endpoint,
             model_failure_model,
+            model_failure_refusal_some,
             failed_detail,
             answer_refused,
             input_call_id,

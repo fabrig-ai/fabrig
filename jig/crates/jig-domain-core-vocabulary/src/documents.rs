@@ -59,7 +59,8 @@ pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery};
 pub use task_tree::{
     AuthorityLine, BudgetLine, ContractLine, Dependency, Ending, EscalationState, FoldedCount, GrantLine,
     HoldPhaseLine, NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase,
-    ProposalRef, ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow,
+    ProposalRef, ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow, UNREAD_HEAD_BYTES,
+    UnreadWords,
 };
 pub use task_wait::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
@@ -546,7 +547,7 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 }
 
 /// Bound of a document including live delegates up to `tasks.delegates`, their
-/// chip heaps, whole settings-proposal reasons and the inbox's requester selection context.
+/// chip heaps, unread heads, whole settings-proposal reasons and the inbox's requester selection context.
 #[must_use]
 pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
@@ -555,6 +556,8 @@ pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Ki
         .checked_add(
             u64::from(limits.fleet.configured_workers).checked_mul(u64::from(limits.fleet.worker_name_bytes))?,
         )?
+        .checked_add(List::<UnreadWords>::price(limits.tasks.inbox_messages)?)?
+        .checked_add(u64::from(limits.tasks.inbox_messages).checked_mul(u64::from(UNREAD_HEAD_BYTES))?)?
         .checked_add(List::<LiveDelegate>::price(limits.tasks.delegates)?)?
         .checked_add(u64::from(limits.tasks.delegates).checked_mul(chip_phase::heap_bound(&limits.documents)?)?)?
         .checked_add(settings::document_bound(limits, kinds)?)?

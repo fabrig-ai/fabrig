@@ -10,6 +10,7 @@ use temper_client_domain::{
     pages::{Act, limit_settings},
 };
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_world::{
     app::Temper,
     fixtures,
@@ -42,36 +43,24 @@ fn see(role: Role, name: &[u8]) -> Step<Address> {
 }
 fn page() -> w::LimitsAnswer {
     let mut rows = List::with_capacity(1);
-    rows.push(
-        w::LimitRow::new(
-            &w::CEILINGS,
-            w::LimitRowParts {
-                name: b"forge.entries".as_slice().into(),
-                line: b"Bounds the forge outbox.".as_slice().into(),
-                unit: w::LimitUnit::Count,
-                stock: Some(8),
-                setting: Some(
-                    w::LimitSetting::new(
-                        &w::CEILINGS,
-                        w::LimitSettingParts {
-                            kind: w::LimitKind::Temper,
-                            value: 32,
-                            reason: b"dev's outbox".as_slice().into(),
-                        },
-                    )
-                    .expect("limits fixture"),
-                ),
-                in_force: Some(16),
-                applies: w::LimitApplies::AtOnce,
-                waiting: true,
-                left_out: false,
-                held: None,
-            },
-        )
-        .expect("limits fixture"),
-    )
+    rows.push(w::LimitRow {
+        name: b"forge.entries".as_slice().into(),
+        line: b"Bounds the forge outbox.".as_slice().into(),
+        unit: w::LimitUnit::Count,
+        stock: Some(8),
+        setting: Some(w::LimitSetting {
+            kind: w::LimitKind::Temper,
+            value: 32,
+            reason: b"dev's outbox".as_slice().into(),
+        }),
+        in_force: Some(16),
+        applies: w::LimitApplies::AtOnce,
+        waiting: true,
+        left_out: false,
+        held: None,
+    })
     .expect("limits fixture");
-    w::LimitsAnswer::new(&w::CEILINGS, w::LimitsAnswerParts { rows, next: None, revision: 1 }).expect("limits fixture")
+    w::LimitsAnswer { rows, next: None, revision: 1 }
 }
 #[test]
 fn how_work_runs_links_to_limits_with_settings_and_existing_capacity_facts() {
@@ -162,12 +151,12 @@ fn a_limit_held_card_sends_one_whole_list_at_the_current_revision_and_stays_runn
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(encoded) }) = &item.edit else {
         panic!("one limits list")
     };
-    let value = w::TemperLimits::decode(&w::CEILINGS, &mut skein_lib::Reader::new(encoded)).expect("limits fixture");
-    assert_eq!(value.overrides().len(), 1);
-    let raised = value.overrides().get(0).expect("limits fixture");
-    assert_eq!(raised.name(), row.limit());
-    assert_eq!(raised.value(), 8);
-    assert_eq!(raised.reason(), format!("raised for task {task}, which needed 5").as_bytes());
+    let value = w::LimitOverrides::decode(&w::CEILINGS, &mut skein_lib::Reader::new(encoded)).expect("limits fixture");
+    assert_eq!(value.overrides.len(), 1);
+    let raised = value.overrides.get(0).expect("limits fixture");
+    assert_eq!(&raised.name, &row.limit);
+    assert_eq!(raised.value, 8);
+    assert_eq!(raised.reason.as_ref(), format!("raised for task {task}, which needed 5").as_bytes());
     let kept = saved.expect("limits fixture");
     assert!(
         matches!(kept, forge::settings::Edit::Set(forge::settings::SizedValue { value: forge::settings::Value::Limits(values), .. }) if values.len() == 1 && values[0].value == 8)

@@ -12,6 +12,7 @@ test = true
 doctest = false
 
 [dependencies]
+serde_json.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-ui-screen.workspace = true

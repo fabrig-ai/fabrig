@@ -8,6 +8,7 @@ use crate::jig::{
 use alloc::collections::BTreeSet;
 use jig_client::{Family, Readable, Readout, contract as c};
 use skein_lib::{List, Reader};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
@@ -38,32 +39,26 @@ pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
     true
 }
 pub(crate) fn setting_query(kind: u32, scope: u32, number: u32) -> w::Read {
-    w::Read::Setting(
-        w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind, scope, number }).expect("fixed read"),
-    )
+    w::Read::Setting(w::SettingRead { kind, scope, number })
 }
 pub(crate) fn read(query: Query) -> Readable {
     let query = match query {
         Query::Setting(c::Setting::Application { kind, scope, number }) => setting_query(kind, scope, number),
         Query::RevisionSetting { setting: c::Setting::Application { kind, scope, number }, revision } => {
-            w::Read::RevisionSetting(
-                w::RevisionSettingRead::new(
-                    &w::CEILINGS,
-                    w::RevisionSettingReadParts { kind, scope, number, revision },
-                )
-                .expect("fixed read"),
-            )
+            w::Read::RevisionSetting(w::RevisionSettingRead { kind, scope, number, revision })
         }
         Query::Setting(_) | Query::RevisionSetting { .. } => unreachable!("application setting"),
-        Query::ProposalItems { key } => w::Read::ProposalItems(
-            w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key }).expect("fixed read"),
-        ),
+        Query::ProposalItems { key } => w::Read::ProposalItems(w::ProposalItemsRead { key }),
     };
-    let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: query }).expect("fixed read");
+    let record = w::Reading { read: query };
     Readable::Family {
         scope: c::Scope::Deployment,
         window: c::Window { rows: 1, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::reading(&record) },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(&w::CEILINGS).expect("fixed read"),
+        },
     }
 }
 fn bytes(page: &Readout) -> Option<&[u8]> {
@@ -97,7 +92,7 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         14 => w::ProjectAreas::decode(&w::CEILINGS, &mut reader).is_ok(),
         15 => w::ProjectTriager::decode(&w::CEILINGS, &mut reader).is_ok(),
         21 => w::AgentFigures::decode(&w::CEILINGS, &mut reader).is_ok(),
-        22 => w::TemperLimits::decode(&w::CEILINGS, &mut reader).is_ok(),
+        22 => w::LimitOverrides::decode(&w::CEILINGS, &mut reader).is_ok(),
         20 => w::Welcome::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
@@ -105,7 +100,7 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
 }
 fn setting(page: &Readout, kind: u32) -> Result<Option<c::SettingValue>, ()> {
     let record = wire::decode_setting_answer(bytes(page).ok_or(())?, &w::CEILINGS).ok_or(())?;
-    match record.into_parts().value {
+    match record.value {
         Some(bytes) if valid(kind, &bytes) => Ok(Some(c::SettingValue::Application(bytes))),
         Some(_) => Err(()),
         None => Ok(stock(kind)),
@@ -114,28 +109,16 @@ fn setting(page: &Readout, kind: u32) -> Result<Option<c::SettingValue>, ()> {
 fn stock(kind: u32) -> Option<c::SettingValue> {
     let bytes = match kind {
         6 => {
-            let value =
-                w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::QuestionsRoute::None })
-                    .expect("stock questions");
-            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
-            value.encode(&mut out).expect("fixed stock record");
-            out.finish()
+            let value = w::ProjectQuestions { route: w::QuestionsRoute::None };
+            value.encode(&w::CEILINGS).expect("stock setting within ceilings")
         }
         7 => {
-            let value = w::ProjectWays::new(
-                &w::CEILINGS,
-                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
-            )
-            .expect("stock ways");
-            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
-            value.encode(&mut out).expect("fixed stock record");
-            out.finish()
+            let value = w::ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
+            value.encode(&w::CEILINGS).expect("stock setting within ceilings")
         }
         8 => {
             let value = classes_record(&Classes::stock(Way::AgentsReview)).expect("stock classes fit");
-            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
-            value.encode(&mut out).expect("fixed stock record");
-            out.finish()
+            value.encode(&w::CEILINGS).expect("stock setting within ceilings")
         }
         _ => return None,
     };
@@ -144,12 +127,12 @@ fn stock(kind: u32) -> Option<c::SettingValue> {
 fn proposal_items(page: &Readout) -> Option<w::ProposalItemsAnswer> {
     let record = wire::decode_proposal_items_answer(bytes(page)?, &w::CEILINGS)?;
     let mut keys = BTreeSet::new();
-    for item in record.items() {
-        if !keys.insert((item.kind(), item.scope(), item.number())) {
+    for item in &record.items {
+        if !keys.insert((item.kind, item.scope, item.number)) {
             return None;
         }
-        if let w::SettingEdit::Set(set) = item.edit()
-            && !valid(item.kind(), set.value())
+        if let w::SettingEdit::Set(set) = &item.edit
+            && !valid(item.kind, &set.value)
         {
             return None;
         }
@@ -166,13 +149,12 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
         Query::Setting(_) | Query::RevisionSetting { .. } => unreachable!("application setting"),
         Query::ProposalItems { .. } => {
             let record = proposal_items(page)?;
-            let mut items = List::with_capacity(record.items().len());
-            for item in record.into_parts().items.into_boxed() {
-                let item = item.into_parts();
+            let mut items = List::with_capacity(record.items.len());
+            for item in record.items.into_boxed() {
                 let edit = match item.edit {
-                    w::SettingEdit::Set(value) => c::SettingEdit::Set(c::SettingSet {
-                        value: c::SettingValue::Application(value.into_parts().value),
-                    }),
+                    w::SettingEdit::Set(value) => {
+                        c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(value.value) })
+                    }
                     w::SettingEdit::Removed => c::SettingEdit::Removed,
                     w::SettingEdit::Reset => c::SettingEdit::Reset,
                 };
@@ -426,7 +408,7 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Enco
             if !reader.is_empty() {
                 return false;
             }
-            out.string(value.line());
+            out.string(&value.line);
         }
         10 => {
             let Ok(value) = w::ProjectWords::decode(&w::CEILINGS, &mut reader) else { return false };
@@ -435,9 +417,9 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Enco
             }
             out.object_start();
             out.key(b"headline");
-            out.string(value.headline());
+            out.string(&value.headline);
             out.key(b"lede");
-            out.string(value.lede());
+            out.string(&value.lede);
             out.object_end();
         }
         _ => return value::render(kind, bytes, out),

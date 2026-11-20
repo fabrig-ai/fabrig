@@ -7,8 +7,24 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
+fn activity(world: &World) -> Vec<tasks::Line> {
+    world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row))) = row {
+                Some(row.line.clone())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn a_chat_answers_parks_and_resumes() {
     let mut world = World::new(Setup { seed: 101, ..Setup::default() });
+    assert!(matches!(activity(&world).last(), Some(tasks::Line::RunBegan { fresh: None, .. })));
     let first = world.assigned.as_ref().expect("chat assigned").attempt;
     world.turn(1, 3, None, b"first opaque turn");
     world.park_for_message(3);
@@ -30,6 +46,7 @@ fn a_chat_answers_parks_and_resumes() {
         [Box::<[u8]>::from(&b"first opaque turn"[..]), Box::<[u8]>::from(&b"second opaque turn"[..])]
     );
     let task = third.task;
+    assert!(matches!(activity(&world).last(), Some(tasks::Line::RunBegan { resumed: true, fresh: None, .. })));
     assert_eq!(world.spent(), 5, "each attempt's accepted spend is charged once");
     world.end(
         tasks::End::Finished {
@@ -120,6 +137,10 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
     world.park_for_message(2);
     world.say(76);
     assert!(world.assigned.as_ref().expect("fresh chat").transcript.is_empty());
+    assert!(matches!(
+        activity(&world).last(),
+        Some(tasks::Line::RunBegan { resumed: false, fresh: Some(tasks::Fresh::Limit), .. })
+    ));
 }
 
 // The reference root asks resume_bytes (256), below the store page bound.
@@ -1300,6 +1321,7 @@ fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
                         kind,
                         evidence,
                         status,
+                        refusal: None,
                     }),
                 },
                 0,

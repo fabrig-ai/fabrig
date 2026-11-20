@@ -40,7 +40,7 @@ fn review(world: &mut ClientWorld, client: ClientId) -> u64 {
         tick(world);
         if let Some(panel) = &world.root(client).person().forge().panel()
             && let State::Shown(value) = &panel.state
-            && let Some(task) = value.runs()
+            && let Some(task) = &value.runs
         {
             return *task;
         }
@@ -95,13 +95,13 @@ fn late_open_landed_change_keeps_its_final_panel() {
         tick(&mut world);
     }
     let value = panel(&world, client);
-    let wire::Step::Landed(landed) = value.step() else {
+    let wire::Step::Landed(landed) = &value.step else {
         panic!(
             "design client/forge/served.md 2: a page first opened after landing must receive its final panel: {value:?}"
         );
     };
-    let merge = *landed.merge();
-    let number = value.pull().as_ref().expect("retained pull").number();
+    let merge = landed.merge;
+    let number = value.pull.as_ref().expect("retained pull").number;
     let stand = world.front().engine.forge.as_mut().expect("fake forge");
     let skein_forge::api::Answer::Pull(pull) = stand.read(
         skein_forge::api::Repository { forge: 1, repository: 7 },
@@ -135,7 +135,7 @@ fn externally_closed_pull_holds_the_panel_at_gating() {
     let (mut world, task) = change_world();
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
     review(&mut world, client);
-    let number = panel(&world, client).pull().as_ref().expect("open pull").number();
+    let number = panel(&world, client).pull.as_ref().expect("open pull").number;
     let limits = world.front().engine.env.limits.forge.client;
     let stand = world.front().engine.forge.as_mut().expect("fake forge");
     stand.call(
@@ -150,16 +150,16 @@ fn externally_closed_pull_holds_the_panel_at_gating() {
     }
     let value = panel(&world, client);
     assert_eq!(
-        value.hold(),
+        &value.hold,
         &Some(wire::Hold::Closed),
         "design client/forge/served.md 2: an externally closed pull's hold must be delivered, got {value:?}"
     );
     assert_eq!(
-        value.step(),
+        &value.step,
         &wire::Step::Gating,
         "design client/forge/served.md 2: a held panel retains the step it was held at"
     );
-    assert_eq!(value.ci(), &wire::Ci::Passed);
+    assert_eq!(&value.ci, &wire::Ci::Passed);
 }
 
 // client/forge/served.md, 2 and domain/forge/change/repairs.md: a blocking rejection names its gate as repair reason.
@@ -168,7 +168,7 @@ fn rejected_review_panel_names_the_gate_repair_reason() {
     let (mut world, task) = change_world();
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
     let delegate = review(&mut world, client);
-    let gate = panel(&world, client).gates().as_slice()[0].number();
+    let gate = panel(&world, client).gates.as_slice()[0].number;
     finish_review(
         &mut world,
         delegate,
@@ -182,16 +182,16 @@ fn rejected_review_panel_names_the_gate_repair_reason() {
         tick(&mut world);
     }
     let value = panel(&world, client);
-    let wire::Step::Repairing(repair) = value.step() else {
+    let wire::Step::Repairing(repair) = &value.step else {
         panic!("design domain/forge/change/repairs.md: blocking review changes require a repair, got {value:?}");
     };
-    let wire::Reason::Gate(reason) = repair.reason() else {
+    let wire::Reason::Gate(reason) = &repair.reason else {
         panic!("design client/forge/served.md 2: a gate repair must carry that gate's number, got {repair:?}");
     };
-    assert_eq!(reason.gate(), gate);
-    assert_eq!(value.repairs().used(), 1);
-    assert!(value.runs().is_some(), "the named repair has an admitted delegate: {value:?}");
-    assert_eq!(value.gates().as_slice()[0].verdict(), &wire::Verdict::Changes);
+    assert_eq!(reason.gate, gate);
+    assert_eq!(value.repairs.used, 1);
+    assert!(value.runs.is_some(), "the named repair has an admitted delegate: {value:?}");
+    assert_eq!(&value.gates.as_slice()[0].verdict, &wire::Verdict::Changes);
 }
 
 // client/forge/served.md, 2: a cancelled change still has its panel when first opened afterwards.
@@ -254,7 +254,7 @@ fn leaving_a_live_change_page_releases_its_watch() {
     world.go(client, fixtures::task_page(task));
     review(&mut world, client);
     assert!(world.front().watching_change(client, task));
-    assert_eq!(panel(&world, client).step(), &wire::Step::Gating);
+    assert_eq!(&panel(&world, client).step, &wire::Step::Gating);
 }
 
 // domain/forge/change/README.md, 5, and domain/forge/keeping-up.md, 3: CI changes only when a step reads it, and failed CI names its repair.
@@ -263,7 +263,7 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     let (mut world, task) = change_world();
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
     let delegate = review(&mut world, client);
-    let head = panel(&world, client).head().expect("pushed head");
+    let head = panel(&world, client).head.expect("pushed head");
     let limits = world.front().engine.env.limits.forge.client;
     let stand = world.front().engine.forge.as_mut().expect("fake forge");
     stand.call(
@@ -280,7 +280,7 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     );
     assert_eq!(stand.replies().len(), 1, "external CI status must complete");
     assert_eq!(
-        panel(&world, client).ci(),
+        &panel(&world, client).ci,
         &wire::Ci::Passed,
         "design domain/forge/change/README.md 5: the panel keeps the last step's CI, until another step reads it"
     );
@@ -296,18 +296,18 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     }
     let value = panel(&world, client);
     assert_eq!(
-        value.ci(),
+        &value.ci,
         &wire::Ci::Failed,
         "design domain/forge/change/README.md 5: the next step's changed CI verdict must reach the watched panel: {value:?}"
     );
-    let wire::Step::Repairing(repair) = value.step() else {
+    let wire::Step::Repairing(repair) = &value.step else {
         panic!("design domain/forge/change/repairs.md: failed CI must enter repair: {value:?}");
     };
     assert_eq!(
-        repair.reason(),
+        &repair.reason,
         &wire::Reason::Ci,
         "design client/forge/served.md 2: a CI repair must retain its CI reason"
     );
-    assert_eq!(value.repairs().used(), 1);
-    assert!(value.runs().is_some(), "the named repair has an admitted delegate: {value:?}");
+    assert_eq!(value.repairs.used, 1);
+    assert!(value.runs.is_some(), "the named repair has an admitted delegate: {value:?}");
 }

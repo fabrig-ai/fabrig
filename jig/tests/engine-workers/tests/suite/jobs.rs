@@ -3,9 +3,10 @@ use jig_domain_link::{Form, JobBound, JobKind};
 use jig_engine_workers_world::{World, fixtures};
 use jig_protocol_engine_workers::{Event, GrantValue, Request};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, List, Reader, Secret, Token, Writer};
 
-fn codec() -> wire::v18::Limits {
+fn codec() -> wire::v19::Limits {
     wire::sizes::limits(&fixtures::SIZES).expect("codec")
 }
 pub(super) fn assignment(channel: Token) -> Event {
@@ -27,21 +28,21 @@ pub(super) fn assignment(channel: Token) -> Event {
     }
 }
 fn encoded(record: &wire::JobAnswer) -> skein_channel::Frame {
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small"));
-    record.encode(&mut writer).expect("answer");
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"))
+            .expect("small"),
+    );
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut writer).expect("answer");
     fixtures::frame(wire::Kind::JobAnswer.number(), &writer.finish())
 }
 pub(super) fn answer_frame() -> skein_channel::Frame {
-    encoded(&answer(wire::JobEnding::Finished(
-        wire::JobFinished::new(&codec(), wire::JobFinishedParts { result: Box::from([0, 255, 127]), work: work() })
-            .expect("finished"),
-    )))
+    encoded(&answer(wire::JobEnding::Finished(wire::JobFinished { result: Box::from([0, 255, 127]), work: work() })))
 }
 fn answer(ending: wire::JobEnding) -> wire::JobAnswer {
-    wire::JobAnswer::new(&codec(), wire::JobAnswerParts { task: 8, attempt: 3, ending }).expect("answer")
+    wire::JobAnswer { task: 8, attempt: 3, ending }
 }
 fn work() -> wire::Work {
-    wire::Work::new(&codec(), wire::WorkParts { left: Some(Box::from(&b"left"[..])), saved: None }).expect("work")
+    wire::Work { left: Some(Box::from(&b"left"[..])), saved: None }
 }
 
 /// Jobs carry their workspace and application grants (jig/docs/design/protocol/channel/records.md, 4).
@@ -55,45 +56,29 @@ fn a_job_is_encoded_with_its_workspace_and_grants() {
     assert_eq!(records.len(), 2);
     assert_eq!(records[1].kind, wire::Kind::Job.number());
     let job = wire::Job::decode(&codec(), &mut Reader::new(&records[1].body)).expect("job");
-    assert_eq!((job.task(), job.attempt(), job.kind(), job.deadline()), (8, 3, 42, Duration::from_secs(4)));
-    assert_eq!(job.spec(), [0, 255, 127]);
-    let workspace = job.workspace().as_ref().expect("workspace");
-    assert_eq!((workspace.workstream(), workspace.items()), (9, &b"items"[..]));
-    let grant = job.grants().get(0).expect("grant");
-    assert_eq!((grant.number(), grant.generation(), grant.valid()), (1, 4, Duration::from_secs(30)));
-    let wire::GrantValue::Application(value) = grant.value() else { panic!("application") };
-    assert_eq!(value.secret().expose(), fixtures::TOKEN_TWO);
+    assert_eq!((job.task, job.attempt, job.kind, job.deadline), (8, 3, 42, Duration::from_secs(4)));
+    assert_eq!(job.spec.as_ref(), [0, 255, 127]);
+    let workspace = job.workspace.as_ref().expect("workspace");
+    assert_eq!((workspace.workstream, workspace.items.as_ref()), (9, &b"items"[..]));
+    let grant = job.grants.get(0).expect("grant");
+    assert_eq!((grant.number, grant.generation, grant.valid), (1, 4, Duration::from_secs(30)));
+    let wire::GrantValue::Application(value) = &grant.value else { panic!("application") };
+    assert_eq!(value.secret.expose(), fixtures::TOKEN_TWO);
 }
 
 /// All three job endings reach the fleet, with work as parts (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_answer_reaches_the_fleet_as_link_up() {
-    let stale = wire::JobFailure::Undelivered(
-        wire::DeliveryOutcomeValue::new(
-            &codec(),
-            wire::DeliveryOutcomeValueParts { value: wire::DeliveryOutcome::Stale },
-        )
-        .expect("stale"),
-    );
-    let invalid = wire::JobRefusal::Invalid(
-        wire::JobInvalidValue::new(&codec(), wire::JobInvalidValueParts { value: wire::JobInvalid::Kind })
-            .expect("invalid"),
-    );
+    let stale = wire::JobFailure::Undelivered(wire::DeliveryOutcomeValue { value: wire::DeliveryOutcome::Stale });
+    let invalid = wire::JobRefusal::Invalid(wire::JobInvalidValue { value: wire::JobInvalid::Kind });
     let records = [
-        answer(wire::JobEnding::Finished(
-            wire::JobFinished::new(&codec(), wire::JobFinishedParts { result: Box::from([0, 255, 127]), work: work() })
-                .expect("finished"),
-        )),
-        answer(wire::JobEnding::Failed(
-            wire::JobFailed::new(
-                &codec(),
-                wire::JobFailedParts { failure: stale, detail: Box::from(&b"stale"[..]), work: work() },
-            )
-            .expect("failed"),
-        )),
-        answer(wire::JobEnding::Refused(
-            wire::JobRefusalValue::new(&codec(), wire::JobRefusalValueParts { value: invalid }).expect("refused"),
-        )),
+        answer(wire::JobEnding::Finished(wire::JobFinished { result: Box::from([0, 255, 127]), work: work() })),
+        answer(wire::JobEnding::Failed(wire::JobFailed {
+            failure: stale,
+            detail: Box::from(&b"stale"[..]),
+            work: work(),
+        })),
+        answer(wire::JobEnding::Refused(wire::JobRefusalValue { value: invalid })),
     ];
     for (index, record) in records.into_iter().enumerate() {
         let mut peer = fixtures::reporting_worker(fixtures::WORKER_A, fixtures::SECRET_A);
@@ -130,21 +115,18 @@ fn a_job_answer_reaches_the_fleet_as_link_up() {
 /// The hello's declared kinds keep every bound (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_hello_carries_its_job_kinds() {
-    let mut fields = fixtures::hello_record().into_parts();
+    let mut fields = fixtures::hello_record();
     fields.jobs = List::with_capacity(1);
     fields
         .jobs
-        .push(
-            wire::JobBound::new(
-                &codec(),
-                wire::JobBoundParts { kind: 42, spec: 12, result: 13, deadline: Duration::from_nanos(123) },
-            )
-            .expect("kind"),
-        )
+        .push(wire::JobBound { kind: 42, spec: 12, result: 13, deadline: Duration::from_nanos(123) })
         .expect("room");
-    let record = wire::Hello::new(&codec(), fields).expect("hello");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small"));
-    record.encode(&mut writer).expect("hello");
+    let record = fields;
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"))
+            .expect("small"),
+    );
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut writer).expect("hello");
     let mut peer = fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION);
     peer.play(fixtures::frame(wire::Kind::Hello.number(), &writer.finish()));
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
@@ -185,20 +167,13 @@ fn a_job_past_its_bounds_or_missing_its_parts_is_dropped() {
 fn a_job_answer_past_its_bound_is_refused_as_framing() {
     let mut larger = codec();
     larger.job_finished_result += 1;
-    let record = wire::JobAnswer::new(
-        &larger,
-        wire::JobAnswerParts {
-            task: 8,
-            attempt: 3,
-            ending: wire::JobEnding::Finished(
-                wire::JobFinished::new(&larger, wire::JobFinishedParts { result: vec![0; 17].into(), work: work() })
-                    .expect("larger result"),
-            ),
-        },
-    )
-    .expect("answer");
+    let record = wire::JobAnswer {
+        task: 8,
+        attempt: 3,
+        ending: wire::JobEnding::Finished(wire::JobFinished { result: vec![0; 17].into(), work: work() }),
+    };
     let mut peer = fixtures::reporting_worker(fixtures::WORKER_A, fixtures::SECRET_A);
-    peer.play(encoded(&record));
+    peer.play(fixtures::frame(wire::Kind::JobAnswer.number(), &record.encode(&larger).expect("larger answer")));
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
     let connection = world.connect(peer);
     world.run();

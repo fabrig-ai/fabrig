@@ -1,6 +1,6 @@
 //! One person's brief shared by direct, program and seeded Open stories.
 use skein_lib::{Duration, List};
-use smith_charter::{CEILINGS, Mode, Section, SectionParts, Tools};
+use smith_charter::{Mode, Section};
 
 pub const INSTRUCTIONS: &[u8] = b"Coordinate the work; ask before changing files.";
 pub const BRIEF: &str = "## Request\n\nRead café; propose a plan and ask for my go-ahead.\n\n## Context\n\nKeep the person's words whole.\n\n";
@@ -15,10 +15,10 @@ pub fn charter() -> Box<[u8]> {
         parts.mode = Mode::Open;
         parts.instructions = INSTRUCTIONS.into();
         parts.waiting = Duration::from_millis(10);
-        let mut budget = parts.budget.clone().into_parts();
+        let mut budget = parts.budget.clone();
         budget.turns = TURNS;
         budget.spend = SPEND;
-        parts.budget = smith_charter::Budget::new(&CEILINGS, budget).expect("chat budget");
+        parts.budget = budget;
         parts.brief = List::with_capacity(BRIEF_SECTIONS);
         for (title, text) in [
             ("Request", "Read café; propose a plan and ask for my go-ahead."),
@@ -26,18 +26,12 @@ pub fn charter() -> Box<[u8]> {
         ] {
             parts
                 .brief
-                .push(
-                    Section::new(
-                        &CEILINGS,
-                        SectionParts { title: title.as_bytes().into(), body: text.as_bytes().into() },
-                    )
-                    .expect("brief section"),
-                )
+                .push(Section { title: title.as_bytes().into(), body: text.as_bytes().into() })
                 .expect("two sections");
         }
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         tools.wait = true;
         tools.deliver = None;
-        parts.tools = Tools::new(&CEILINGS, tools).expect("Open tools");
+        parts.tools = tools;
     })
 }

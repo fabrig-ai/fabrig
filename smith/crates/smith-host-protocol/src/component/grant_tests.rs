@@ -5,6 +5,7 @@ use crate::{Error, Values, grant_form};
 use alloc::boxed::Box;
 use skein_channel::{Control, Direction, Lower, LowerEvent, StreamMode, Term, control_frame, frame_writer};
 use skein_lib::{Duration, List, Queue, Token, Writer, stream};
+use smith_channel::Record;
 use smith_host_domain::{Form, Scheme, SourceName};
 use smith_protocol_translate::GrantValue;
 
@@ -105,42 +106,24 @@ pub(super) fn admitted_channel() -> (Component, Queue<crate::Received>, Queue<Lo
 }
 
 fn name(completion: u32) -> smith_channel::CallName {
-    smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: 1, completion, position: 1 },
-    )
-    .expect("call name")
+    smith_channel::CallName { activation: 1, completion, position: 1 }
 }
 
 fn call_body(completion: u32) -> Box<[u8]> {
     let limits = smith_channel::CEILINGS;
-    let ask = smith_channel::HostAsk::new(
-        &limits,
-        smith_channel::HostAskParts { tool: Box::from(*b"lookup"), input: Box::from(*b"{}") },
-    )
-    .expect("host ask");
-    let record = smith_channel::Call::new(
-        &limits,
-        smith_channel::CallParts {
-            name: name(completion),
-            effect: smith_channel::Effect::Read,
-            deadline: Duration::from_secs(30),
-            ask: smith_channel::Ask::Host(ask),
-        },
-    )
-    .expect("call");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("call size"));
-    record.encode(&mut writer).expect("call body");
-    writer.finish()
+    let ask = smith_channel::HostAsk { tool: Box::from(*b"lookup"), input: Box::from(*b"{}") };
+    let record = smith_channel::Call {
+        name: name(completion),
+        effect: smith_channel::Effect::Read,
+        deadline: Duration::from_secs(30),
+        ask: smith_channel::Ask::Host(ask),
+    };
+    record.encode(&limits).expect("call body")
 }
 
 fn withdraw_body(completion: u32) -> Box<[u8]> {
-    let record =
-        smith_channel::Withdraw::new(&smith_channel::CEILINGS, smith_channel::WithdrawParts { name: name(completion) })
-            .expect("withdraw");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("withdraw size"));
-    record.encode(&mut writer).expect("withdraw body");
-    writer.finish()
+    let record = smith_channel::Withdraw { name: name(completion) };
+    record.encode(&smith_channel::CEILINGS).expect("withdraw body")
 }
 
 fn receive(

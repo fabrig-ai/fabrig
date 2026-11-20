@@ -12,27 +12,15 @@ use temper_client_protocol_wire::v1 as w;
 
 fn underway() -> skein_lib::List<w::ForgeRow> {
     forge::first_rows(
-        w::Connection::SettingUp(
-            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None })
-                .unwrap(),
-        ),
+        w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Fetch), fetched: None }),
         w::FirstState::Making,
     )
 }
 fn fetching(binary: w::SetUpBinary, total: Option<u64>) -> w::Connection {
-    w::Connection::SettingUp(
-        w::SettingUp::new(
-            &w::CEILINGS,
-            w::SettingUpParts {
-                step: Some(w::SetUpStep::Fetch),
-                fetched: Some(
-                    w::SetUpFetched::new(&w::CEILINGS, w::SetUpFetchedParts { binary, done: 41_999_999, total })
-                        .unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    )
+    w::Connection::SettingUp(w::SettingUp {
+        step: Some(w::SetUpStep::Fetch),
+        fetched: Some(w::SetUpFetched { binary, done: 41_999_999, total }),
+    })
 }
 fn fetch_rows(binary: w::SetUpBinary, total: Option<u64>) -> skein_lib::List<w::ForgeRow> {
     forge::first_rows(fetching(binary, total), w::FirstState::Making)
@@ -76,9 +64,7 @@ fn with_no_size_the_bar_keeps_moving_and_says_its_bytes() {
 #[test]
 fn a_fetch_no_line_has_reached_keeps_the_busy_bar() {
     for step in [None, Some(w::SetUpStep::Fetch), Some(w::SetUpStep::Prepare), Some(w::SetUpStep::Run)] {
-        let connection = w::Connection::SettingUp(
-            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step, fetched: None }).unwrap(),
-        );
+        let connection = w::Connection::SettingUp(w::SettingUp { step, fetched: None });
         let view = browser(forge::first_rows(connection, w::FirstState::Making));
         let bars: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::Progress).collect();
         assert_eq!(bars.len(), 1);
@@ -117,20 +103,14 @@ fn the_first_step_says_the_figure_until_it_is_fetched() {
             };
             let mut rows = forge::first_rows(connection, w::FirstState::Making);
             if pins {
-                let mut parts = rows.as_slice()[0].clone().into_parts();
-                parts.owned = Some(
-                    w::OwnedForge::new(
-                        &w::CEILINGS,
-                        w::OwnedForgeParts {
-                            forgejo: b"17.0.1".as_slice().into(),
-                            runner: Some(b"13.2.1".as_slice().into()),
-                            password: b"/fake/first-password".as_slice().into(),
-                        },
-                    )
-                    .unwrap(),
-                );
+                let mut parts = rows.as_slice()[0].clone();
+                parts.owned = Some(w::OwnedForge {
+                    forgejo: b"17.0.1".as_slice().into(),
+                    runner: Some(b"13.2.1".as_slice().into()),
+                    password: b"/fake/first-password".as_slice().into(),
+                });
                 rows = skein_lib::List::with_capacity(1);
-                rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+                rows.push(parts).unwrap();
             }
             let welcome = root(rows.clone(), None);
             let connect =
@@ -158,13 +138,10 @@ fn the_first_step_says_the_figure_until_it_is_fetched() {
 }
 fn failed() -> skein_lib::List<w::ForgeRow> {
     forge::first_rows(
-        w::Connection::SetUpFailed(
-            w::SetUpFailed::new(
-                &w::CEILINGS,
-                w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: Some(w::FailedStep::Fetch) },
-            )
-            .unwrap(),
-        ),
+        w::Connection::SetUpFailed(w::SetUpFailed {
+            why: b"fetch failed".as_slice().into(),
+            at: Some(w::FailedStep::Fetch),
+        }),
         w::FirstState::Making,
     )
 }
@@ -376,9 +353,7 @@ fn the_bar_sits_between_the_line_and_each_step() {
     }
 }
 fn setting_up(step: w::SetUpStep) -> w::Connection {
-    w::Connection::SettingUp(
-        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
-    )
+    w::Connection::SettingUp(w::SettingUp { step: Some(step), fetched: None })
 }
 #[test]
 fn done_failed_and_a_waiting_github_have_no_bar() {

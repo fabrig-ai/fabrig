@@ -142,30 +142,22 @@ fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
         matched: 0,
         away: false,
     };
-    let row = w::Decision::new(
-        &w::CEILINGS,
-        w::DecisionParts {
-            number: 1,
-            task: 99,
-            at: 0,
-            question: b"Which tests?".as_slice().into(),
-            took: b"The focused suite".as_slice().into(),
-            why: b"It covers the rule.".as_slice().into(),
-            overturned: false,
-            reach: temper_protocol_reaches::reach_record(&reach),
-        },
-    )
-    .unwrap();
-    let document = w::Decisions::new(
-        &w::CEILINGS,
-        w::DecisionsParts {
-            project: f::PROJECT,
-            rows: List::from_boxed(Box::new([row])),
-            asked: List::with_capacity(0),
-            cut: false,
-        },
-    )
-    .unwrap();
+    let row = w::Decision {
+        number: 1,
+        task: 99,
+        at: 0,
+        question: b"Which tests?".as_slice().into(),
+        took: b"The focused suite".as_slice().into(),
+        why: b"It covers the rule.".as_slice().into(),
+        overturned: false,
+        reach: temper_protocol_reaches::reach_record(&reach),
+    };
+    let document = w::Decisions {
+        project: f::PROJECT,
+        rows: List::from_boxed(Box::new([row])),
+        asked: List::with_capacity(0),
+        cut: false,
+    };
     let mut out = Queue::uncapped();
     event(
         root,

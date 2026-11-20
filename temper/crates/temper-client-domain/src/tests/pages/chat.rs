@@ -79,7 +79,7 @@ fn a_chat_opens_to_its_opening_or_a_screen_and_a_half() {
                 let mut rows = skein_lib::List::with_capacity(1);
                 rows.push(owner_activity(
                     1,
-                    c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false },
+                    c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
                 ))
                 .unwrap();
                 f.chat.told(
@@ -498,8 +498,11 @@ fn a_chat_sends_no_seen_without_a_new_loaded_reply() {
 fn a_chat_sees_reply_numbers_instead_of_activity_positions() {
     let (mut pages, client) = chat_pages();
     let mut rows = skein_lib::List::with_capacity(4);
-    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
-        .unwrap();
+    rows.push(owner_activity(
+        1,
+        c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
+    ))
+    .unwrap();
     rows.push(owner_activity(
         2,
         c::Activity::Words {
@@ -526,8 +529,11 @@ fn a_chat_sees_reply_numbers_instead_of_activity_positions() {
 fn a_chat_with_activity_but_no_numbered_owner_turn_sends_no_seen() {
     let (mut pages, client) = chat_pages();
     let mut rows = skein_lib::List::with_capacity(3);
-    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
-        .unwrap();
+    rows.push(owner_activity(
+        1,
+        c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
+    ))
+    .unwrap();
     rows.push(owner_activity(
         2,
         c::Activity::Words {
@@ -1102,7 +1108,7 @@ fn window_activity(page: u32, pages: u32) -> c::ActivityPage {
                 pages.checked_sub(page).unwrap().checked_mul(WINDOW_PAGE_ROWS).unwrap().checked_sub(offset).unwrap(),
             ),
             skein_lib::Wall::EPOCH,
-            c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
+            c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false, fresh: None },
         ))
         .unwrap();
     }
@@ -3262,11 +3268,11 @@ fn view_reads(out: &mut Queue<Request>) -> skein_lib::List<(jig_client::Handle, 
             assert_eq!(record.family, wire::FORGE);
             assert_eq!(record.version, wire::CLIENT_VERSION);
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-            let w::Read::View(view) = reading.into_parts().read else { panic!("chat reads a view") };
-            assert_eq!(scope, c::Scope::Project(view.project()));
-            assert_eq!(view.project(), fixtures::PROJECT);
+            let w::Read::View(view) = reading.read else { panic!("chat reads a view") };
+            assert_eq!(scope, c::Scope::Project(view.project));
+            assert_eq!(view.project, fixtures::PROJECT);
             assert_eq!(window, c::Window { rows: 0, after: None });
-            reads.push((handle, view.into_parts().address)).unwrap();
+            reads.push((handle, view.address)).unwrap();
         }
     }
     reads
@@ -3457,13 +3463,11 @@ fn numbered_view_text(number: u64) -> Box<[u8]> {
 
 fn view_value() -> temper_client_protocol_wire::v1::View {
     use temper_client_protocol_wire::v1 as w;
-    w::View::NotDrawn(
-        w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"Not drawn yet".as_slice().into() }).unwrap(),
-    )
+    w::View::NotDrawn(w::NotDrawn { words: b"Not drawn yet".as_slice().into() })
 }
 fn view_page() -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: view_value() }).unwrap();
+    let answer = w::ViewAnswer { view: view_value() };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) }
 }
 fn settings_watch(client: &mut jig_client::Client) -> skein_lib::Token {

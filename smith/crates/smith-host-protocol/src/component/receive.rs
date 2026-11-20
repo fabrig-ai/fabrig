@@ -6,6 +6,7 @@ use super::{CallKey, Component, Received, State};
 use crate::Error;
 use alloc::boxed::Box;
 use skein_lib::{Reader, Token};
+use smith_channel::Record;
 use smith_host_domain::channel;
 
 use smith_channel::kind::{
@@ -96,7 +97,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let permitted = match record.result() {
+        let permitted = match &record.result {
             smith_channel::RunResult::Refused(_) => self.state == State::Started,
             smith_channel::RunResult::Accepted(_)
             | smith_channel::RunResult::Parked
@@ -115,7 +116,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let key = CallKey::from_wire(record.name());
+        let key = CallKey::from_wire(&record.name);
         if self.calls_by_name.contains_key(&key) || self.calls_by_name.len() >= self.calls_by_name.capacity() {
             return Err(Error::Calls);
         }
@@ -132,7 +133,7 @@ impl Component {
             message: smith_host_domain::Up::Call {
                 call,
                 name: key.domain(),
-                deadline: self.now.saturating_add(record.deadline()),
+                deadline: self.now.saturating_add(record.deadline),
                 ask,
             },
         })
@@ -143,7 +144,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let key = CallKey::from_wire(record.name());
+        let key = CallKey::from_wire(&record.name);
         Ok(match self.calls_by_name.get(&key) {
             Some(call) => Some(Received::Message { message: smith_host_domain::Up::Withdraw { call: *call } }),
             // Crossing the host's answer settles the withdrawal without spending its read.
@@ -156,7 +157,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let read = match record.last_read() {
+        let read = match &record.last_read {
             Some(name) => Some(Token::new(*name)),
             None => None,
         };
@@ -169,21 +170,22 @@ impl Component {
             Err(problem) => return Err(Error::Body(problem)),
         };
         let sequence = self.sequence.checked_add(1).ok_or(Error::Value)?;
-        let Ok(value) = smith_protocol_translate::decode_turn(turn.body(), sequence, &self.transcript, &self.endpoints)
+        let Ok(value) =
+            smith_protocol_translate::decode_turn(turn.body.as_ref(), sequence, &self.transcript, &self.endpoints)
         else {
             return Err(Error::Value);
         };
         self.sequence = value.sequence;
-        self.live.turn(turn.number());
+        self.live.turn(turn.number);
         let body =
             smith_host_domain::TurnValue::new(value, u64::MAX).expect("codec bounds ensure representable ownership");
         Ok(Received::Message {
             message: smith_host_domain::Up::Turn {
                 turn: channel::Turn {
-                    number: turn.number(),
-                    opens_window: turn.opens_window(),
-                    spent: turn.spent(),
-                    read: match turn.last_read() {
+                    number: turn.number,
+                    opens_window: turn.opens_window,
+                    spent: turn.spent,
+                    read: match &turn.last_read {
                         Some(name) => Some(Token::new(*name)),
                         None => None,
                     },
@@ -198,14 +200,14 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let operation = match record.operation() {
+        let operation = match &record.operation {
             smith_channel::Operation::Check => smith_domain::Operation::Checks,
             smith_channel::Operation::Completion => smith_domain::Operation::Completion,
             smith_channel::Operation::Command => smith_domain::Operation::Command,
             smith_channel::Operation::Grant => smith_domain::Operation::Grant,
         };
         self.long_open = self.long_open.checked_add(1).ok_or(Error::Order)?;
-        Ok(Received::Message { message: smith_host_domain::Up::Long { operation, span: record.span() } })
+        Ok(Received::Message { message: smith_host_domain::Up::Long { operation, span: record.span } })
     }
 
     fn long_done(&mut self, body: &[u8]) -> Result<Received, Error> {
@@ -222,14 +224,14 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let reason = match record.reason() {
+        let reason = match &record.reason {
             smith_channel::MessageRefusal::TooLarge => smith_host_domain::MessageRefusal::TooLarge,
             smith_channel::MessageRefusal::Full => smith_host_domain::MessageRefusal::Full,
             smith_channel::MessageRefusal::NameInUse => smith_host_domain::MessageRefusal::NameInUse,
             smith_channel::MessageRefusal::Ending => smith_host_domain::MessageRefusal::Ending,
         };
         Ok(Received::Message {
-            message: smith_host_domain::Up::MessageRefused { name: Token::new(record.name()), reason },
+            message: smith_host_domain::Up::MessageRefused { name: Token::new(record.name), reason },
         })
     }
 
@@ -242,12 +244,12 @@ impl Component {
             return Err(Error::Order);
         }
         Ok(Received::Live {
-            turn: piece.turn(),
-            retry: piece.retry(),
-            kind: piece.kind().clone(),
-            offset: piece.offset(),
-            bytes: Box::from(piece.bytes()),
-            call: piece.call().clone(),
+            turn: piece.turn,
+            retry: piece.retry,
+            kind: piece.kind.clone(),
+            offset: piece.offset,
+            bytes: Box::from(piece.bytes.as_ref()),
+            call: piece.call.clone(),
         })
     }
 }

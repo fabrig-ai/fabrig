@@ -360,7 +360,7 @@ impl Process {
 
     fn stop(&mut self) {
         if self.child.try_wait().ok().flatten().is_none() {
-            let _ = Command::new("/usr/bin/kill")
+            let _ = Command::new("/bin/kill")
                 .args(["-TERM", &self.child.id().to_string()])
                 .env_clear()
                 .stdin(Stdio::null())

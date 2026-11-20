@@ -127,6 +127,7 @@ fn write_notes(world: &mut World, project: u32, task: u64) {
                     author: notes::Author::Task { task, attempt: key.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         }));
     }

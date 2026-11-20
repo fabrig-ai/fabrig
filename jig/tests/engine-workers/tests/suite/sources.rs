@@ -3,26 +3,23 @@ use jig_domain_link::{SignOutResult, SourceName};
 use jig_engine_workers_world::{World, fixtures};
 use jig_protocol_engine_workers::{Event, Request};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_lib::{List, Writer};
 fn frame(names: &[&[u8]]) -> skein_channel::Frame {
     let mut rows = List::with_capacity(u32::try_from(names.len()).expect("rows"));
     for name in names {
-        rows.push(
-            wire::Login::new(
-                &wire::CEILINGS,
-                wire::LoginParts {
-                    name: (*name).into(),
-                    state: wire::LoginState::Usable,
-                    email: Some(b"you@example.com".as_slice().into()),
-                },
-            )
-            .expect("wire row"),
-        )
+        rows.push(wire::Login {
+            name: (*name).into(),
+            state: wire::LoginState::Usable,
+            email: Some(b"you@example.com".as_slice().into()),
+        })
         .expect("list");
     }
-    let record = wire::Logins::new(&wire::CEILINGS, wire::LoginsParts { logins: rows }).expect("wire rows");
-    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut body).expect("encode");
+    let record = wire::Logins { logins: rows };
+    let mut body = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("encode");
     fixtures::frame(0x0108, &body.finish())
 }
 #[test]
@@ -45,13 +42,11 @@ fn source_records_are_host_wide_without_attempt_fences() {
     for kind in [0x0188, 0x0189, 0x018a] {
         assert!(kinds.contains(&kind));
     }
-    let record = wire::SignedOut::new(
-        &wire::CEILINGS,
-        wire::SignedOutParts { name: b"alice".as_slice().into(), result: wire::SignOutResult::SignedOut },
-    )
-    .expect("answer");
-    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut body).expect("encode");
+    let record = wire::SignedOut { name: b"alice".as_slice().into(), result: wire::SignOutResult::SignedOut };
+    let mut body = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("encode");
     world.play(connection, fixtures::frame(0x0109, &body.finish()));
     world.run();
     assert!(world.root().iter().any(|request| matches!(request, Request::Up { up: host::LinkUp::SignedOut { name, result: SignOutResult::SignedOut }, .. } if *name == alice)));

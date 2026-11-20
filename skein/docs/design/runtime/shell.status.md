@@ -1,13 +1,14 @@
 # shell: status
 
-2026-11-14. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-19. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop
 test world checks that a 1,024-byte tail retains that closing text when
-it fits; the report exceeds the tail. Sections 3 and 12's parent-death
-exec is Linux's; macOS returns `Unsupported` and its alternative remains
-section 9's question.
+it fits; the report exceeds the tail. Sections 3 and 12's parent death
+on macOS, the watcher of `readiness.md`, 5, runs on Linux in
+skein-shell's unit tests alone, over the wait built for them; its
+kqueue wait has not been seen run on macOS.
 
 Section 6.3 has no known gap in requested hangup handling, preserving a
 hangup ignored at startup, or `Kept::on_abort` restoring the terminal

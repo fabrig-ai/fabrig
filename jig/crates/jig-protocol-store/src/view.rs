@@ -342,7 +342,7 @@ fn run(store: &mut Store, env: &Env<Limits>, ask: Ask, above: &mut Queue<Event>,
 #[derive(Debug)]
 enum Failure {
     Bounds { needs: u64, key: Box<[u8]> },
-    Corrupt,
+    History { task: u64, failure: crate::restore::HistoryFailure },
 }
 fn fail(store: &mut Store, failure: Failure, above: &mut Queue<Event>) {
     let Some(active) = store.view.active.take() else { return };
@@ -361,14 +361,17 @@ fn fail(store: &mut Store, failure: Failure, above: &mut Queue<Event>) {
             }
             Ask::Get { .. } | Ask::Load { .. } => crate::loads::corrupt(store, owner, above),
         },
-        Failure::Corrupt => match active.ask {
+        Failure::History { task, failure } => match active.ask {
             Ask::Restore { .. } => {
                 store.phase = Phase::Stopped;
+                let key = crate::keys::encode_own(&crate::keys::Own::History { task }, u32::MAX)
+                    .expect("a history place key has a fixed length");
                 above.push(Event::PageRefused {
                     owner,
-                    failure: crate::restore::Failure::rowless(crate::restore::Cause::Decode(
-                        crate::restore::DecodeFailure::Value,
-                    )),
+                    failure: crate::restore::Failure::at(
+                        crate::restore::Cause::History { task, failure },
+                        crate::restore::site(store, &key),
+                    ),
                 });
             }
             Ask::Read { .. } | Ask::Get { .. } | Ask::Load { .. } => {

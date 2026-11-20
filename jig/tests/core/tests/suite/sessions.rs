@@ -240,12 +240,14 @@ fn incremental_talk_pairs_and_activity_times_match_a_whole_scan() {
 #[test]
 fn a_warm_wake_keeps_the_transcript_instructions_and_session() {
     let (mut world, run, _) = opened();
+    assert_began(&world, run, None, None);
     let session = live_row(&world, run.0).session;
     story::park(&mut world, run, None);
     assert!(!live_row(&world, run.0).activation_open);
     gap(&mut world, 269);
     say(&mut world, run.0, 80);
-    assignment(&world, run.0, FIRST, true);
+    let next = assignment(&world, run.0, FIRST, true);
+    assert_began(&world, next, None, None);
     assert_eq!(live_row(&world, run.0).session, session);
     assert_eq!(ends(&world, run.0).len(), 0);
     assert!(live_row(&world, run.0).activation_open);
@@ -273,6 +275,7 @@ fn a_quiet_wake_commits_the_end_and_restarts_the_session_and_tries() {
     say(&mut world, run.0, 80);
     let next = assignment(&world, run.0, LATER, false);
     assert_eq!(ends(&world, run.0), [(run.1, tasks::SessionEnd::Quiet)]);
+    assert_began(&world, next, Some(tasks::Fresh::Session), Some(tasks::SessionEnd::Quiet));
     assert_eq!(
         live_row(&world, run.0).session,
         Some(tasks::Session {
@@ -620,5 +623,62 @@ fn a_talk_lapses_at_a_wake_and_a_settings_move_keeps_the_talk_not_the_session() 
     assignment(&world, run.0, b"T\n\nWR", false);
     assert_eq!(ends(&world, run.0).last(), Some(&(fresh.1, tasks::SessionEnd::Left)));
     assert!(live_row(&world, run.0).talk.is_none());
+    world.close();
+}
+
+fn assert_began(world: &World, run: (u64, u64), fresh: Option<tasks::Fresh>, end: Option<tasks::SessionEnd>) {
+    let lines: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(line))) if line.task == run.0 => Some(line),
+            _ => None,
+        })
+        .collect();
+    let began = lines
+        .iter()
+        .find(|line| matches!(line.line, tasks::Line::RunBegan { attempt, .. } if attempt == run.1))
+        .expect("claim's beginning");
+    assert!(matches!(began.line, tasks::Line::RunBegan { fresh: cause, .. } if cause == fresh));
+    if let Some(end) = end {
+        assert!(
+            lines.iter().any(|line| line.position + 1 == began.position
+                && matches!(line.line, tasks::Line::SessionEnded { end: cause, .. } if cause == end)),
+            "session end immediately precedes beginning"
+        );
+    }
+}
+
+#[test]
+fn a_bound_session_records_why_its_next_run_began_fresh() {
+    let mut setup = setup();
+    let config = setup.configuration.as_mut().expect("session configuration");
+    config.core.settings.models[0].window = 1;
+    config.core.defaults.charters[0].policy.model.window = 1;
+    config.core.defaults.charters[1].policy.model.window = 1;
+    let (mut world, run) = start_with(true, setup);
+    let _child = story::child(&mut world, run);
+    story::turn(&mut world, run, None);
+    story::park(&mut world, run, None);
+    say(&mut world, run.0, 80);
+    let next = assignment(&world, run.0, LATER, false);
+    assert_eq!(ends(&world, run.0), [(run.1, tasks::SessionEnd::Bound)]);
+    assert_began(&world, next, Some(tasks::Fresh::Session), Some(tasks::SessionEnd::Bound));
+    world.close();
+}
+
+#[test]
+fn a_moved_standing_window_records_moved_after_ending_its_session() {
+    let (mut world, run, child) = opened();
+    story::park(&mut world, run, None);
+    let mut proof = world.domain.core().proofs.get(&run.0).expect("saved run proof").clone();
+    proof.endpoint = Some(2);
+    world.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
+    restart(&mut world, child);
+    say(&mut world, run.0, 80);
+    let next = assignment(&world, run.0, LATER, false);
+    assert_eq!(ends(&world, run.0), [(run.1, tasks::SessionEnd::Fresh)]);
+    assert_began(&world, next, Some(tasks::Fresh::Moved), Some(tasks::SessionEnd::Fresh));
     world.close();
 }

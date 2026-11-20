@@ -1,8 +1,9 @@
 //! A resumed start's committed calls fitted to a room (jig/docs/design/protocol/channel/README.md, 8 and 10).
+use crate::v19::Record;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 
-use crate::v18;
+use crate::v19;
 
 /// What fitting did to an assignment.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -32,43 +33,46 @@ pub fn cut_words(bytes: u32) -> Box<[u8]> {
     writer.finish()
 }
 
-fn saving(answer: &v18::SettledAnswer) -> u32 {
+fn saving(answer: &v19::SettledAnswer) -> u32 {
     match answer {
-        v18::SettledAnswer::Host(host) => {
-            let bytes = u32::try_from(host.body().len()).expect("the body's ceiling fits u32");
+        v19::SettledAnswer::Host(host) => {
+            let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             bytes.saturating_sub(cut_length(bytes))
         }
-        v18::SettledAnswer::Delivery(_) => 0,
+        v19::SettledAnswer::Delivery(_) => 0,
     }
 }
 
-fn cut_call(call: v18::AnsweredCall, limits: &v18::Limits) -> v18::AnsweredCall {
-    let mut parts = call.into_parts();
+fn cut_call(call: v19::AnsweredCall) -> v19::AnsweredCall {
+    let mut parts = call;
     parts.answer = match parts.answer {
-        v18::SettledAnswer::Host(host) => {
-            let mut host = host.into_parts();
+        v19::SettledAnswer::Host(host) => {
+            let mut host = host;
             let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             host.body = cut_words(bytes);
-            let host = v18::HostAnswer::new(limits, host).expect("a cut body is shorter than the body it replaces");
-            v18::SettledAnswer::Host(host)
+
+            v19::SettledAnswer::Host(host)
         }
-        v18::SettledAnswer::Delivery(delivery) => v18::SettledAnswer::Delivery(delivery),
+        v19::SettledAnswer::Delivery(delivery) => v19::SettledAnswer::Delivery(delivery),
     };
-    v18::AnsweredCall::new(limits, parts).expect("only a shorter answer body changed")
+    parts
 }
 
 /// `assignment` with its committed calls fitted to `room`, a frame's bytes.
-#[must_use]
-pub fn fit(assignment: v18::Assignment, limits: &v18::Limits, room: u32) -> (v18::Assignment, Fitted) {
-    let mut bytes = u64::from(assignment.measure()).checked_add(8).expect("a u32 body and its header fit u64");
+pub fn fit(
+    assignment: v19::Assignment,
+    limits: &v19::Limits,
+    room: u32,
+) -> Result<(v19::Assignment, Fitted), v19::Problem> {
+    let mut bytes = u64::from(assignment.measure(limits)?).checked_add(8).expect("a u32 body and its header fit u64");
     if bytes <= u64::from(room) {
-        return (assignment, Fitted::Whole);
+        return Ok((assignment, Fitted::Whole));
     }
 
     // A body's four-byte length stays the same size, so each saving is exact.
     let mut cut = 0_u32;
-    for call in assignment.answered() {
-        let saved = saving(call.answer());
+    for call in &assignment.answered {
+        let saved = saving(&call.answer);
         if saved != 0 {
             bytes = bytes.checked_sub(u64::from(saved)).expect("each saving is within the measured body");
             cut = cut.checked_add(1).expect("the calls' count fits u32");
@@ -77,8 +81,8 @@ pub fn fit(assignment: v18::Assignment, limits: &v18::Limits, room: u32) -> (v18
     let fitted = if bytes > u64::from(room) {
         Fitted::Past { bytes: u32::try_from(bytes).unwrap_or(u32::MAX) }
     } else {
-        for call in assignment.answered().iter().rev() {
-            let saved = saving(call.answer());
+        for call in assignment.answered.iter().rev() {
+            let saved = saving(&call.answer);
             if saved != 0 {
                 let whole =
                     bytes.checked_add(u64::from(saved)).expect("restoring a body stays within the original frame");
@@ -92,19 +96,19 @@ pub fn fit(assignment: v18::Assignment, limits: &v18::Limits, room: u32) -> (v18
         Fitted::Cut { cut }
     };
 
-    let mut parts = assignment.into_parts();
+    let mut parts = assignment;
     let mut answered = List::with_capacity(parts.answered.capacity());
     let mut left = cut;
     for call in parts.answered.into_boxed() {
-        let call = if left != 0 && saving(call.answer()) != 0 {
+        let call = if left != 0 && saving(&call.answer) != 0 {
             left = left.checked_sub(1).expect("an answer remains to cut");
-            cut_call(call, limits)
+            cut_call(call)
         } else {
             call
         };
         answered.push(call).expect("the calls keep their count and capacity");
     }
     parts.answered = answered;
-    let assignment = v18::Assignment::new(limits, parts).expect("only shorter answer bodies changed");
-    (assignment, fitted)
+    let assignment = parts;
+    Ok((assignment, fitted))
 }

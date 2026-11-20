@@ -128,6 +128,10 @@ impl Step {
         self.listeners = Box::new([]);
         self
     }
+    #[must_use]
+    pub fn takes_group_listener(&self) -> bool {
+        self.group_listener
+    }
     pub fn bind_group_listener(&mut self, address: core::net::SocketAddr) {
         if self.group_listener {
             self.listeners = Box::new([address]);

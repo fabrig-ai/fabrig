@@ -2,6 +2,7 @@
 use crate::Error;
 use alloc::boxed::Box;
 use skein_channel::Frame;
+use smith_channel::Record;
 
 /// The stream selected by the service for a live piece.
 #[derive(Clone, Copy, Debug)]
@@ -25,33 +26,22 @@ pub struct Piece<'a> {
 pub(crate) fn frame(piece: Piece<'_>, limits: &smith_channel::Limits) -> Result<Frame, Error> {
     let (kind, call) = match piece.kind {
         PieceKind::Text => (smith_channel::LiveKind::Text, None),
-        PieceKind::Input { id, tool } => (
-            smith_channel::LiveKind::Input,
-            Some(
-                match smith_channel::LiveCall::new(
-                    limits,
-                    smith_channel::LiveCallParts { id: Box::from(id), tool: Box::from(tool) },
-                ) {
-                    Ok(value) => value,
-                    Err(problem) => return Err(Error::ChannelBody(problem)),
-                },
-            ),
-        ),
+        PieceKind::Input { id, tool } => {
+            (smith_channel::LiveKind::Input, Some(smith_channel::LiveCall { id: Box::from(id), tool: Box::from(tool) }))
+        }
     };
-    let record = match smith_channel::Live::new(
-        limits,
-        smith_channel::LiveParts {
-            turn: piece.turn,
-            retry: piece.retry,
-            kind,
-            offset: piece.offset,
-            bytes: Box::from(piece.bytes),
-            call,
-        },
-    ) {
-        Ok(value) => value,
+    let record = smith_channel::Live {
+        turn: piece.turn,
+        retry: piece.retry,
+        kind,
+        offset: piece.offset,
+        bytes: Box::from(piece.bytes),
+        call,
+    };
+    match record.measure(limits) {
+        Ok(_) => (),
         Err(problem) => return Err(Error::ChannelBody(problem)),
-    };
+    }
     let frame = match smith_channel::frame(smith_channel::Body::Live(record)) {
         Ok(value) => value,
         Err(problem) => return Err(Error::Frame(problem)),

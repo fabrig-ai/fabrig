@@ -23,7 +23,11 @@ pub(super) struct Jobs {
 pub(super) fn fill() -> Jobs {
     let limits = smith_agent_process_world::limits();
     let mut jobs = Jobs {
-        component: Component::new(&limits.machine, Environment::encode(&[], &limits.machine).expect("environment")),
+        component: Component::new(
+            &limits.machine,
+            Environment::encode(&[], &limits.machine).expect("environment"),
+            Box::from(b"/usr/bin/rg".as_slice()),
+        ),
         env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.machine },
         up: Queue::with_capacity(QUEUE_SLOTS),
         down: Queue::with_capacity(QUEUE_SLOTS),

@@ -1479,7 +1479,8 @@ impl World {
                 let _moves = self.forge.moves();
             }
             // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
-            worker::Request::AgentStopped { .. }
+            worker::Request::Git { .. }
+            | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }
             | worker::Request::ResultsIgnored { .. }
             | worker::Request::CancelIo { .. } => {}
@@ -1719,6 +1720,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
         Op::Reds { .. }
         | Op::Reset { .. }
+        | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
