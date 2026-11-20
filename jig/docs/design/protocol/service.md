@@ -383,6 +383,10 @@ down:  released and door outputs → components → io submissions
   period per configured project, at the deployment's first start
   (`configuration.md`, section 5). An application copies it for its own
   `main`, and jig's end-to-end and live tests run it (`service.md`, section 8).
+  When it ends on its own, at no signal (a failed commit, a component's
+  or a listener's failure), its `main` writes why to stderr in one line,
+  `jig-test: stopped: <reason>`, before its failure status: the reason's
+  words, never a secret or a sign-in's address.
 - **`ops`'s service follows them,** as the reference for an application
   with agents in the engine and no workers: its crates, its server and
   its periods are `../examples.md`'s (sections 4 and 9.1).
@@ -424,7 +428,10 @@ Each within jig's suites' budgets.
   classifies unanswered waits under measured starvation; and a table of
   its agent modes (section 7), a row each, the program child running a
   scripted Claude Code's `auth status` whose output smith reads as its
-  status check does, with no loop. Account sign-in,
+  status check does, with no loop. A binary that ends before its story
+  asks it to fails the story with its exit status, the last step the
+  story saw and the end of its stderr, read to its end or for a bounded
+  while, never a sign-in's address. Account sign-in,
   refresh, sign-out and moves are covered in their lower worlds.
 - **The live layer:** `jig-test` with a real LLM account, a key added
   by a request, a sign-in made as the test starts, or a program's login

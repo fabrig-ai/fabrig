@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-18. Where skein's code lags or departs from [README.md](README.md).
+2026-11-20. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as is the row runner's
@@ -20,6 +20,7 @@ A span counts its thread's allocations (`Span::made`, held by
 and skein-codec's patcher step tests show reuse by rooms and by none
 counted around each reused pass, never by an address.
 
+- **Not yet:** 5: `skein_world::real::host_bound` and `host_bound_on`, and the loop thread's CPU on macOS (`skein_shell::keeper::thread_cpu`, the settle line's thread-clock form). [in flight: change 10647]
 - **Not yet:** 4: the probe's report of a contained tree.
   4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
   [in flight: change 9030]

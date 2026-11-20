@@ -1,8 +1,9 @@
 # real-loop: status
 
-2026-11-18. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
+2026-11-20. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
 
 
+- **Not yet:** the whole document: the stories' patience is 20 s on macOS too, not doubled through `real::host_bound`. [in flight: change 10647]
 - **Not yet:** the whole document: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). the whole document:
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document). the whole document: the B2 twin remains `reference-case.status.md` (Not yet, the whole document).
