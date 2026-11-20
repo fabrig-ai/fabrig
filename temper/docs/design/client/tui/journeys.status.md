@@ -8,10 +8,6 @@
   change 3434].
 - **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
   start [in flight: change 7722].
-- **Not yet:** 3.2: no records `listening`, `returned`, `listen`,
-  `unlisten` and `answer` [in flight: change 10574].
-- **Not yet:** 5: the grant isn't redacted, in a `sign-in-approval`
-  send or a `returned` record's target [in flight: change 10576].
 
 - **Departs:** 7, 8: `design-session`, `launchpad-chat` and
   `launchpad-drawn` are stale. Their recordings predate the client

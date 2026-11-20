@@ -12,11 +12,6 @@
 - **Not yet:** 3: the events table's `Own { command }` row: no `Web`,
   and `Duties.open` never carries the printed link [in flight: change
   8716].
-- **Not yet:** 3: `Report::Listening` and `Report::Returned`,
-  `Duties.listen`, `unlisten` and `answer`, and the `loopback` module
-  [in flight: change 10574].
-- **Not yet:** 3: the events table's `TypeCode` row, and `SignIn` at a
-  name asking the one click again [in flight: change 10576].
 - **Not yet:** 4: the loopback listener on the run's io [in flight:
   change 10574].
 

@@ -5,10 +5,6 @@
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
-- **Not yet:** 4.1, *Asking*, *Asked*, *The grant* and *The tab's
-  address*: `Event::AskApproval` names no port, `asked::State::Asked`
-  keeps none, there is no `Event::Granted`, and `approval_address`
-  chooses the code by the origin [in flight: change 10572].
 
 
 
