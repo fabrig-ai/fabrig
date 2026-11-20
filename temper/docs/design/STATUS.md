@@ -490,10 +490,9 @@ TLS-fetching loop and agents, keep the host's clock
 
 Main's journey files have one writer, run after each landing, ending
 `Printed: COMMIT`; no test or goal writes them
-(`client/journey-writer.md`). A journey whose `walk` is of version 2,
-`welcome-playground`, `welcome-set-up` and the TUI's `sign-in-approved`
-first, prints in one process by `temper-client-walk`, the TUI's host on
-the service with no terminal and the box's part played by a peer of
+(`client/journey-writer.md`). A journey whose `walk` is of version 2
+prints in one process by `temper-client-walk`, the TUI's host on the
+service with no terminal, the box's part and a sign-in's tab played by
 the world's (`client/journey-walks.md`).
 
 Design documents:
