@@ -790,6 +790,17 @@ impl Domain {
         }
     }
 
+    /// A making keeps its place while its task is held (domain/forge/room.md, 3).
+    #[must_use]
+    pub fn making_waits(&self, task: u64) -> bool {
+        for (_, pending) in &self.makings {
+            if pending.task == task && pending.outbox_wait.is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// An ask holds room until this procedure can decide afresh.
     #[must_use]
     pub fn room_asked(&self, task: u64) -> bool {
@@ -10045,13 +10056,15 @@ pub(crate) fn erase_removed_repositories(
     !kept
 }
 
+// A making's write waits until after the settle; reading afresh ends on reads
+// alone (temper/docs/design/domain/forge/branches.md, 1).
 fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
     if d.restart_fresh == Some(true)
         && d.landing.pending.is_empty()
         && d.pending_ci.is_empty()
         && d.goal_file_reads.is_empty()
         && d.lost.is_empty()
-        && d.makings.is_empty()
+        && !goal_branch::reading_afresh(d)
     {
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });

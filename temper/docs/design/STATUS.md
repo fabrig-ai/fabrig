@@ -479,10 +479,11 @@ TLS-fetching loop and agents, keep the host's clock
 
 Main's journey files have one writer, run after each landing, ending
 `Printed: COMMIT`; no test or goal writes them
-(`client/journey-writer.md`). A journey whose `walk` is of version 2
-prints in one process by `temper-client-walk`, the TUI's host on the
-service with no terminal, the box's part and a sign-in's tab played by
-the world's (`client/journey-walks.md`).
+(`client/journey-writer.md`). Every journey on main has a `walk` of
+version 2 and prints in one process by `temper-client-walk`, the TUI's
+host on the service with no terminal, the box's part, a sign-in's tab
+and the model's scripted turns played by the world's
+(`client/journey-walks.md`).
 
 Design documents:
 - [Areas](status-areas.status.md)
@@ -712,6 +713,7 @@ Drafts:
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/early-start-checked.md`](draft/early-start-checked.status.md)
 - [`draft/early-start-squash.md`](draft/early-start-squash.status.md)
+- [`draft/failure-worlds.md`](draft/failure-worlds.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
@@ -767,6 +769,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/real-loop-cancel-kills.md`](draft/real-loop-cancel-kills.status.md)
 - [`draft/real-loop-kill-cause.md`](draft/real-loop-kill-cause.status.md)
+- [`draft/reconciling-start.md`](draft/reconciling-start.status.md) — S1, goal 10905: a start reads and doesn't write; a missing goal branch is made after the settle, in the outbox line's order (`domain/forge/branches.md`, 1).
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)

@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_ops_client_protocol_wire::SCHEMA,
-        jig_ops_client_protocol_wire::v1, lean,
+        jig_ops_client_protocol_wire::v1,
         limits [
             infrastructure_service_environment,
             infrastructure_service_name,

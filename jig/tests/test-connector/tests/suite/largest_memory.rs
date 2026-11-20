@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_test_store::SCHEMA,
-        jig_test_store::v2, lean,
+        jig_test_store::v2,
         limits [
             segment_bytes,
             resource_path_segments,

@@ -413,6 +413,41 @@ All eight passed. The named dependency-boundary test,
 also passed alone (0.125 s). No budget, timeout, nextest setting or
 reference was added or raised.
 
+### The TUI's design session
+
+2026-11-20, change 10883, based on
+`0d86632282802e0919d31ec10c02f0e3247fdcf8`: `design-session`'s version-2
+walk, `after project-landing`, prints ten frames and their HTML in one
+process. It approves the TUI, opens Hello's design session, cycles the
+pane, answers the drafter and starts its goal. On Linux x86_64,
+`nproc` = 8, CPU model AMD EPYC-Genoa Processor, three warm prints of the
+unoptimized debug binary into fresh scratch directories took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 6.75 | 6.28 | 0.27 | 6.55 |
+| 2 | 6.78 | 6.25 | 0.32 | 6.57 |
+| 3 | 7.31 | 6.52 | 0.35 | 6.87 |
+
+**Median: 6.78 wall s, 6.57 CPU s.** `/usr/bin/time` measured the built
+binary alone, launched through `cargo run -p temper-client-walk` with
+`target.x86_64-unknown-linux-gnu.runner` set to that timer, and
+`TEMPER_INTERNAL_BUNDLE=none`; build and Cargo overhead are excluded.
+Earlier diagnostic prints warmed the binary. An independently idle host
+was not established. All three scratch trees had identical bytes. The
+frames and key links were checked against the journey's README; scratch
+was removed, and no page or recording is committed.
+
+The new focused test, `temper-client-walk-tool` / `suite` /
+`a_tui_drafts_pane_cycles_and_key_links_print_repeatably`, passed alone
+in **6.939 s**, nextest's per-test elapsed time, not CPU or build time.
+It uses its own playground ancestor, TUI walk and model scripts, prints
+half, all, folded and half again twice, and checks identical bytes,
+document visibility, choices below the box and Ctrl-P's page links.
+Disabling the walker's key-link retention made that test fail on the
+missing Ctrl-P link; restoring it passed. No budget, timeout, nextest
+setting or reference was added or raised.
+
 ### The TUI's launchpad chat
 
 2026-11-20, change 10881: `launchpad-chat`'s version-2 walk runs

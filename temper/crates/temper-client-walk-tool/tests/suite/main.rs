@@ -188,6 +188,89 @@ fn tui_keys_link_the_marked_frame_to_the_next_page() {
 }
 
 #[test]
+fn a_tui_drafts_pane_cycles_and_key_links_print_repeatably() {
+    let f = Fixture::new();
+    f.tui_journey(
+        "pane",
+        r#"walk 2
+after w
+tui approve
+tui see "/draft    a design session"
+tui key paste "/draft Design a small checklist."
+tui key enter
+tui see "Tell it something else"
+tui see "checklist.md"
+tui mark
+tui key control "p"
+tui see "The last checkpoint is visible here."
+tui mark
+tui key control "p"
+tui see "Which approach should we take?"
+tui mark
+tui key control "p"
+tui see "checklist.md"
+tui mark
+"#,
+    );
+    // The ancestor reaches the playground: its first chat is T1 in project 1.
+    fs::write(
+        f.root().join(TUI).join("pane/scripts.json"),
+        r##"{
+  "cued": [{
+    "cue": "Design a small checklist.",
+    "turns": [{
+      "lines": [{"call": "note", "arguments": {
+        "scope": {"kind": "goal", "project": 1, "goal": 1},
+        "description": "Checklist",
+        "body": "# Checklist\n\n## Steps\n\nRead the request carefully before choosing the smallest useful change.\n\nKeep the person's existing authority and budget throughout the work.\n\nMake each decision clear enough that another person can follow it.\n\nCheck the result against the request before offering the finished work.\n\nLeave the surrounding code intact when a small local edit will suffice.\n\nName each check so another person can repeat the same observation.\n\nExplain what remains without claiming that unobserved work has passed.\n\nThe last checkpoint is visible here.\n"
+      }}], "finish": "tool_calls", "tokens": 100
+    }, "Which approach should we take?\n\n1. Use it — keep the checklist\n2. Change it — revise the checklist\n3. Tell me something else"]
+  }],
+  "otherwise": ["No scripted request matched."]
+}"##,
+    )
+    .expect("pane scripts");
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["pane"]));
+    ok(&f.print(&b, &["pane"]));
+    assert_eq!(bytes(&a), bytes(&b), "both prints include identical frames, HTML and assets");
+    let pages = bytes(&a.join(TUI).join("pane"));
+    assert_eq!(pages.len(), 8, "four marks each print one frame and one HTML page");
+    let half = String::from_utf8_lossy(&pages[Path::new("01.txt")]);
+    assert!(half.contains("checklist.md"), "{half}");
+    assert!(!half.contains("The last checkpoint is visible here."), "{half}");
+    let all = String::from_utf8_lossy(&pages[Path::new("02.txt")]);
+    assert!(all.contains("The last checkpoint is visible here."), "{all}");
+    let folded = String::from_utf8_lossy(&pages[Path::new("03.txt")]);
+    for document_words in [
+        "checklist.md",
+        "Steps",
+        "Read the request",
+        "Keep the person's",
+        "Make each decision",
+        "Check the result",
+        "Leave the surrounding",
+        "Name each check",
+        "Explain what remains",
+        "The last checkpoint",
+    ] {
+        assert!(!folded.contains(document_words), "folded document: {folded}");
+    }
+    let below_box = folded.rsplit('─').next().expect("choices below the composer's rule");
+    assert!(below_box.contains("1. Use it"), "{folded}");
+    assert!(below_box.contains("2. Change it"), "{folded}");
+    assert!(below_box.contains("3. Tell it something else"), "{folded}");
+    let half_again = String::from_utf8_lossy(&pages[Path::new("04.txt")]);
+    assert_eq!(half, half_again, "the pane returns to the same half frame");
+    for (page, next) in [("01.html", "02.html"), ("02.html", "03.html"), ("03.html", "04.html")] {
+        let html = String::from_utf8_lossy(&pages[Path::new(page)]);
+        assert!(html.contains(&format!("data-journey-key=\"control p\" data-journey-next=\"{next}\"")), "{html}");
+    }
+    assert!(!String::from_utf8_lossy(&pages[Path::new("04.html")]).contains("data-journey-key"));
+}
+
+#[test]
 fn a_delegated_question_walks_its_choices_and_prints_repeatably() {
     let f = Fixture::new();
     f.journey("project", W);
