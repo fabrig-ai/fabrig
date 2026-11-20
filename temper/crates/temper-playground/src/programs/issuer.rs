@@ -28,7 +28,7 @@ impl Host for Issuer {
     fn operations(&self) -> u32 { self.peer.operations() }
 }
 
-/// Provider 1's OpenAI dialect is hosted at the story model's endpoint zero.
+/// Provider 1's `OpenAI` dialect is hosted at the story model's endpoint zero.
 pub(super) fn endpoints() -> smith_protocol_channel::Endpoints {
     let mut entries = skein_lib::List::with_capacity(1);
     entries.push(smith_protocol_channel::Endpoint {
