@@ -28,7 +28,8 @@ jobs:
       # A change with no code input by the head's own rule (tools/pre-pr/pre_pr.py's code_inputs) runs only the
       # citations check; anything else, or any doubt, runs the gate.
       - run: |
-          python3 -I - "${{ inputs.temper_commit }}" "${{ inputs.temper_base }}" <<'PY'
+          decided=0
+          python3 -I - "${{ inputs.temper_commit }}" "${{ inputs.temper_base }}" <<'PY' || decided=$?
           # Decide whether HEAD, against BASE, touches code, by the head's own rule (tools/pre-pr/pre_pr.py's code_inputs).
           # Exit 0: no code input and its citations hold, so the gate is skipped. Exit 2: no code input but broken citations.
           # Exit 1: code, or any doubt: the gate runs.
@@ -75,7 +76,6 @@ jobs:
           shutil.rmtree(work, ignore_errors=True)
           sys.exit(0 if cited.returncode == 0 else 2)
           PY
-          decided=$?
           if [ "$decided" = 0 ] || [ "$decided" = 2 ]; then
             printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0"/>\n' > junit.xml
             : > failed-tests.txt
