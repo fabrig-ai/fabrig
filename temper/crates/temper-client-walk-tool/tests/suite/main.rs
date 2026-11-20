@@ -494,6 +494,86 @@ fn usage_refuses_unmoved_names_and_output_inside_either_root_even_through_links(
 }
 
 #[test]
+fn a_goal_from_a_draft_prints_its_report_and_returns_to_chat_repeatably() {
+    let f = Fixture::new();
+    f.journey(
+        "draft-goal",
+        r#"walk 2
+web press button "Try the playground"
+web see "New chat"
+web input textbox "What do you want done?" "Let us design Away mode."
+web submit textbox "What do you want done?"
+web see "Let us write down how Away mode works."
+web press button "Split"
+web press button "Write it up from this chat"
+web see "Away mode keeps the person's decisions for their return."
+web see "I wrote the Away mode draft."
+web press button "Start goal\xe2\x80\xa6"
+web see "Start a goal from away-mode.md"
+web mark
+web press button "Start goal"
+web see "The walk goal wrote its report."
+web see "Nothing remains in this demonstration."
+web see "landed"
+web mark
+web press link "Draft"
+web see "Let us write down how Away mode works."
+web mark
+"#,
+    );
+    // The playground's first chat is T1; its draft starts goal T2.
+    fs::write(
+        f.root().join(WEB).join("draft-goal/scripts.json"),
+        r##"{
+  "asked": [{
+    "cue": "Let us design Away mode.",
+    "turns": ["Let us write down how Away mode works."]
+  }],
+  "cued": [{
+    "cue": "Write this up as a draft beside us.",
+    "turns": [{
+      "lines": [{"call": "note", "arguments": {
+        "scope": {"kind": "goal", "project": 1, "goal": 1},
+        "description": "Away mode",
+        "body": "# Away mode\n\nAway mode keeps the person's decisions for their return.\n"
+      }}], "finish": "tool_calls", "tokens": 64
+    }, "I wrote the Away mode draft."]
+  }, {
+    "cue": "away-mode\n\nImplement this draft.",
+    "turns": [{
+      "lines": [{"call": "note", "arguments": {
+        "scope": {"kind": "goal", "project": 1, "goal": 2},
+        "description": "report: The walk goal wrote its report.",
+        "body": "I wrote this report in the walk's world.\n\nLeft: Nothing remains in this demonstration.\nRisk: This scripted model does not change a repository."
+      }}], "finish": "tool_calls", "tokens": 64
+    }, {
+      "lines": [{"call": "finish", "arguments": {
+        "form": "report", "text": "The walk goal wrote its report.", "fields": {}
+      }}], "finish": "tool_calls", "tokens": 16
+    }]
+  }],
+  "otherwise": ["No scripted request matched."]
+}"##,
+    )
+    .expect("model scripts");
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["draft-goal"]));
+    ok(&f.print(&b, &["draft-goal"]));
+    assert_eq!(bytes(&a), bytes(&b), "both prints have the same bytes, including assets");
+    let pages = bytes(&a.join(WEB).join("draft-goal"));
+    assert_eq!(pages.keys().map(|p| p.to_str().expect("name")).collect::<Vec<_>>(), ["01.html", "02.html", "03.html"]);
+    let sheet = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(sheet.contains("Start a goal from away-mode.md"), "{sheet}");
+    let goal = String::from_utf8_lossy(&pages[Path::new("02.html")]);
+    assert!(goal.contains("The walk goal wrote its report."), "{goal}");
+    assert!(goal.contains("Nothing remains in this demonstration."), "{goal}");
+    assert!(goal.contains("data-journey-next=\"03.html\""), "Draft links back to the chat: {goal}");
+    let chat = String::from_utf8_lossy(&pages[Path::new("03.html")]);
+    assert!(chat.contains("Let us write down how Away mode works."), "{chat}");
+}
+
+#[test]
 fn submit_on_a_textbox_links_by_its_act() {
     let f = Fixture::new();
     f.journey("s", "walk 2\nweb see \"Try the playground\"\nweb press button \"Try the playground\"\nweb see \"New chat\"\nweb input textbox \"What do you want done?\" \"Add CSV export to widget\"\nweb mark\nweb submit textbox \"What do you want done?\"\nweb mark\n");
