@@ -197,10 +197,14 @@ ID
 BODY
 ```
 
+- **TIER,** in the title line and the repository's line, the findings'
+  distinct tiers, oldest finding's first, joined by `, `: one
+  repository's findings may be of several tiers (4.2 refuses only two
+  repositories).
 - **The title line,** at most 60 characters: K the distinct ids of the
   findings (`1 test`; `many tests` where a finding's signature says
-  `many`); where the line would pass 60, the tier's name is cut and
-  ends with `…`.
+  `many`); where the line would pass 60, TIER is cut and ends with
+  `…`; the repository's line and each finding are never cut for it.
 - **WORDS,** the act's, whole: the triager's sort and, where a person
   decided, the answer.
 - **Each finding,** oldest first: its number and title, its attempt
