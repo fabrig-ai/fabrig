@@ -1,7 +1,7 @@
 //! The journeys binary's capture and dispatch (temper/docs/design/testing/tools.md, 3–4).
 use crate::{
     EnvironmentEntry, TABLE,
-    table::{ADD, CAUTION, DRIVE, NORMALISE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK},
+    table::{ADD, CAUTION, DRIVE, JOURNEY_WALK, NORMALISE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK},
 };
 use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui};
 use skein_shell::{Front, Table};
@@ -41,6 +41,8 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                     crate::recipe::Mode::List
                 };
                 return session_exit(crate::recipe::run(mode, rest, &environment));
+            } else if *command == JOURNEY_WALK {
+                return session_exit(crate::journey_walk::run(rest, &environment));
             } else if *command == DRIVE {
                 return drive(rest, &environment);
             } else if *command == ADD {

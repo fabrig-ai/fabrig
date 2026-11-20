@@ -41,6 +41,14 @@ fn normalise_help(text: &str) -> bool {
         && words.contains("Reads no configuration, environment, clock or network.")
 }
 
+fn journey_walk_help(text: &str) -> bool {
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    internal(text) && words.contains("temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR [--strict] [--ports LIST] [--widths LIST] [--deployment DIR]")
+}
+fn drive_help(text: &str) -> bool {
+    internal(text) && text.contains("--journey") && text.contains("--widths LIST")
+}
+
 fn version(text: &str) -> bool {
     let prefix = format!("temper-client-journeys {} (", env!("CARGO_PKG_VERSION"));
     let Some(commit) = text.strip_prefix(&prefix).and_then(|text| text.strip_suffix(")\n")) else {
@@ -58,6 +66,8 @@ const ROWS: &[Case] = &[
     (&["help"], 0, help, ""),
     (&["--version"], 0, version, ""),
     (&["add", "--help"], 0, add_help, ""),
+    (&["journey", "walk", "--help"], 0, journey_walk_help, ""),
+    (&["drive", "--help"], 0, drive_help, ""),
     (&["normalise", "--help"], 0, normalise_help, ""),
     (&["normalise", "-h"], 0, normalise_help, ""),
     (
