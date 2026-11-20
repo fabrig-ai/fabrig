@@ -43,7 +43,7 @@ the nearest thing, and says so in the draft's status.
 |---|---|---|---|---|
 | M1 | The TUI at a name | 3, 4, 5.2, 5.5, 6, 7 | | landed |
 | M2 | Approval across the internet | 5.3, 5.4, and 5.1's engine and page | | landed |
-| M3 | One click | 5.1's terminal | M1, M2 | not started |
+| M3 | One click | 5.1's terminal | M1, M2 | landed |
 
 ### M1. The TUI at a name
 
@@ -103,7 +103,8 @@ the nearest thing, and says so in the draft's status.
   opener, the take with the grant, the redirect back, Enter for a typed
   code instead.
 - **Design:** `../client/README.md`, 4.1; `../client/tui/pages/sign-in.md`,
-  1.
+  3 and 4; `../client/tui/README.md`, 3 and 4;
+  `../client/tui/journeys.md`, 3.2 and 5.
 - **Builds:** the TUI's one-shot listener on skein-io; the one-click ask
   and its lines; the take by grant; the listener's closing.
 - **After landing:** `temper https://dev.fabrig.ai` from the user's

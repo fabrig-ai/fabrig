@@ -415,7 +415,9 @@ The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
 are `[ADDRESS]` and `help`; `ctl` is internal. It runs the TUI and ctl from
 shared shells, and `--version` reads `temper-version`. The TUI also
-takes `https://NAME` (`draft/tui-remote.md`, M1). Its ctl story signs
+takes `https://NAME` (`draft/tui-remote.md`, M1), and signs in there by
+one click in the browser, or by a code typed where it can't open one
+(`draft/tui-remote.md`, 5.1 and 5.2). Its ctl story signs
 in to a `temper-engine` and runs after landing. Its closure is held by the
 boundary test's row, with five shared vocabulary crates as named
 exceptions (`protocol/binaries.status.md`; `client/README.status.md`, 2).
@@ -802,7 +804,7 @@ Drafts:
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: unencodable assignments name fields/figures in engine log and held reason; generated paths name themselves; charter fixed costs checked by family at apply and against defaults at start, including local agents. T2, goal 5617: authority-filtered tools by charter family, `read_docs` except asking runs; ≤1,024-byte short declarations, whole on `host-tools`; 18 forge reads via `read_forge`/`read_issues`/`read_ci` with `what`; contract 4, floor 1, adapters 1–3; stock goal/coder offers ≤14,336/4,096 bytes; brief floor checked at apply/start. Goal 8709: short forms name each `what`'s inputs; omitted branch defaults, `file` at branch head; sentence refusals; contract 10, three-read adapters 6–9.
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
-- [`draft/tui-remote.md`](draft/tui-remote.status.md) — M2, goal 8650: approval by the public name, its kinds, sources and loopback grant.
+- [`draft/tui-remote.md`](draft/tui-remote.status.md) — M2, goal 8650: approval by the public name, its kinds, sources and loopback grant. M3, goal 10555: the TUI's one click, its one-shot listener on `127.0.0.1`, the ask with its loopback return where it can open a browser, the take by the grant the browser brings, the redirect back to the page, and "Type a code instead".
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/turn-landing-placement.md`](draft/turn-landing-placement.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
