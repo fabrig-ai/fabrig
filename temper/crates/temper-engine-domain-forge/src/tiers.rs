@@ -79,7 +79,7 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
     }
     None
 }
-fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
+pub(crate) fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
     match &tier.follows {
         Follows::Branch(branch) => Some(branch.clone()),
         Follows::Landing => Some(d.repositories.get(&repository)?.landing.clone()),

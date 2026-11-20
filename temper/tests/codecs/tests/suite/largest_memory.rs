@@ -739,6 +739,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             finding_areas_names_item,
             finding_words_words,
             finding_reply_area_some,
+            finding_reply_more,
             call_follow_refusal_some,
             red_key,
             red_head,

@@ -189,6 +189,20 @@ fn kept_propose_settings_calls_preserve_the_current_input() {
 }
 
 #[test]
+fn kept_finding_calls_preserve_the_current_input() {
+    let input = br#"{"act":"hand","number":3,"area":"tests","why":"its suite"}"#;
+    let Decoded::Call(current) = decode(&CONTRACT, wire::VERSION, b"finding", input).unwrap() else {
+        panic!("current finding call decodes")
+    };
+    for version in wire::FLOOR..wire::VERSION {
+        let Decoded::Call(kept) = decode(&CONTRACT, version, b"finding", input).unwrap() else {
+            panic!("kept finding call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
+}
+
+#[test]
 fn kept_decided_calls_preserve_the_current_input() {
     let input = br#"{"question":"Which?","options":["Small","Broad"],"took":1,"why":"Fits","kind":"implementation","paths":["src/core.rs"],"under":3}"#;
     let Decoded::Call(current) = decode(&CONTRACT, wire::VERSION, b"decided", input).unwrap() else {

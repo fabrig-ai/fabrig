@@ -575,9 +575,9 @@ enum FindingRefusal { no_area: FindingAreas, full: FindingCount, not_yours: Find
 
 record FindingRefused { why: FindingRefusal }
 
-enum FindingResult { filed: FindingHeld, handed: FindingHeld, routed: Number, backlog, dropped, refused: FindingRefused }
+enum FindingResult { filed: FindingHeld, handed: FindingHeld, routed: Number, backlog, dropped, refused: FindingRefused, repaired: Number, blamed }
 
-record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult }
+record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult more: list 15 u32 = [] landing: option fixed 32 = none }
 record CallFollow { follow: u32 refusal: option bytes 8192 }
 # A goal's reds (domain/forge/reds.md, 2 and 6), families 44 and 45.
 enum Recorder { task: Number, party: Number }

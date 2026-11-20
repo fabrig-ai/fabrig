@@ -3,6 +3,48 @@
 
 use skein_codec::Record;
 #[test]
+fn an_earlier_finding_reply_keeps_its_result_and_defaults_repair_and_blame_context() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let reply = family.current.lines().find(|line| line.starts_with("record FindingReply {")).unwrap();
+    let before = family
+        .current
+        .replace(reply, "record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult }")
+        .replace(", repaired: Number, blamed", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"call")).unwrap();
+    let new_root = new.root(b"Row", Some(b"call")).unwrap();
+    let stored = d::Stored::Call {
+        key: d::NamedCall { task: 40, attempt: 1, completion: 2, position: 3 },
+        answer: d::CallPayload::Finding(Box::new(d::FindingReply {
+            project: 3,
+            number: 12,
+            area: Some(b"tests".as_slice().into()),
+            result: Ok(d::FindingDone::Routed(99)),
+            more: Box::new([]),
+            landing: None,
+        })),
+    };
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("reply additions default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(stored));
+}
+
+#[test]
 fn a_registered_layout_defaults_an_added_list() {
     let old = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 }\n").unwrap();
     let new = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 waiting: list 16 u64 = [] }\n")

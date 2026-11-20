@@ -76,6 +76,123 @@ fn task_event(domain: &mut Domain, env: &Env<Limits>, event: tasks::Event) {
     tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scenario checks ownership, unchanged facts and no news in every state")]
+fn blame_and_repair_observe_ownership_before_the_act_and_blame_sends_no_news_in_any_state() {
+    use super::super::people;
+    use forge::findings::{BlameAct, BlameMove, BlameStrength, FindingBlame, FindingSignature, RepairAct};
+    for state in [
+        forge::FindingState::New,
+        forge::FindingState::Routed,
+        forge::FindingState::Backlog,
+        forge::FindingState::Dropped,
+    ] {
+        let (mut domain, env, task) = triager();
+        domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+        domain.core.people.start_restore(env.wall);
+        for record in [
+            people::Stored::Person {
+                number: 1,
+                identity: people::Identity { key: forge::user_key(1, 7), login: Box::default(), name: Box::default() },
+            },
+            people::Stored::Roles {
+                project: 1,
+                holdings: Box::new([people::Holding { person: 1, role: people::Role::Owner }]),
+            },
+        ] {
+            people::step(
+                &mut domain.core.people,
+                &env.with(env.limits.people),
+                people::Event::Restore { record },
+                &mut Queue::uncapped(),
+            );
+        }
+        assert!(domain.core.people.start_link());
+        domain.core.people.start_sweep();
+        assert!(domain.core.people.start_complete(&env.with(env.limits.people)));
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        let filing = forge::VerdictFiling {
+            project: 1,
+            kind: forge::FindingKind::Red,
+            severity: forge::Severity::High,
+            title: b"Red".as_slice().into(),
+            body: b"its evidence".as_slice().into(),
+            follow: None,
+            signature: FindingSignature {
+                repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+                source: b"browser".as_slice().into(),
+                ids: Box::new([b"test a::t x".as_slice().into()]),
+                first: Box::default(),
+                many: false,
+            },
+            blame: Some(FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]), moved: None }),
+        };
+        assert_eq!(
+            file_verdict(&mut domain, &env, &mut decision, task, filing),
+            forge::FileFindingAnswer::Filed { number: 1 }
+        );
+        let mut expected = domain.forge.finding(1, 1).unwrap().clone();
+        expected.state = state;
+        expected.goal = Some(task);
+        domain.forge.commit_finding(
+            &env.limits.forge,
+            forge::FindingWrite { row: expected.clone(), erase: None },
+            &mut Queue::uncapped(),
+        );
+        let blame = forge::Triage::Blame(BlameAct { landing: None, why: b"unrelated landing".as_slice().into() });
+        let repair = forge::Triage::Repair(RepairAct { more: Box::new([5]), words: b"fix".as_slice().into() });
+        for act in [blame.clone(), repair.clone()] {
+            assert_eq!(
+                triage_finding(
+                    &mut domain,
+                    &env,
+                    &mut decision,
+                    Filer::Task(u64::MAX),
+                    forge::TriageFinding { project: 1, number: 1, act }
+                ),
+                forge::TriageFindingAnswer::Refused(FindingRefusal::NotYours(Holder::Task(task)))
+            );
+            assert_eq!(domain.forge.finding(1, 1), Some(&expected));
+        }
+        for by in [Filer::Task(task), Filer::Party(1)] {
+            assert_eq!(domain.core.people.role(1, 1), Some(people::Role::Owner));
+            let news = queued_news(&domain, task).len();
+            assert_eq!(
+                triage_finding(
+                    &mut domain,
+                    &env,
+                    &mut decision,
+                    by,
+                    forge::TriageFinding { project: 1, number: 1, act: blame.clone() }
+                ),
+                forge::TriageFindingAnswer::Triaged
+            );
+            expected.blame = Some(FindingBlame {
+                strength: BlameStrength::Moved,
+                landings: Box::new([]),
+                moved: Some(BlameMove { by, why: b"unrelated landing".as_slice().into() }),
+            });
+            assert_eq!(domain.forge.finding(1, 1), Some(&expected));
+            assert_eq!(holder(&domain, 1, None), Holder::Task(task));
+            assert_eq!(queued_news(&domain, task).len(), news, "moving blame routes nothing");
+            let answer = triage_finding(
+                &mut domain,
+                &env,
+                &mut decision,
+                by,
+                forge::TriageFinding { project: 1, number: 1, act: repair.clone() },
+            );
+            assert_eq!(
+                answer,
+                forge::TriageFindingAnswer::Refused(FindingRefusal::Words(
+                    b"repairs are off in project 1".as_slice().into()
+                ))
+            );
+            assert_eq!(domain.forge.finding(1, 1), Some(&expected));
+        }
+    }
+}
+
+#[test]
 fn task_hand_news_and_charter_standing_use_the_same_decision() {
     let (source, source_env, source_task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
     let template = source.core.tasks.task(source_task).unwrap().clone();

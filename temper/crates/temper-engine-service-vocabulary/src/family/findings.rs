@@ -189,6 +189,7 @@ pub(super) fn hand_answer(value: forge::HandFindingAnswer, limits: &w::Limits) -
 pub(super) fn triage_answer(value: forge::TriageFindingAnswer, limits: &w::Limits) -> Option<w::Outcome> {
     match value {
         forge::TriageFindingAnswer::Triaged => Some(w::Outcome::Triaged),
+        forge::TriageFindingAnswer::Repaired(_) => None,
         forge::TriageFindingAnswer::Refused(value) => refused(value, limits),
     }
 }

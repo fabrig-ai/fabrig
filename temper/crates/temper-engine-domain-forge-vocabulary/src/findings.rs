@@ -226,6 +226,20 @@ pub enum Triage {
     Route(u64),
     Backlog,
     Drop(Box<[u8]>),
+    Repair(RepairAct),
+    Blame(BlameAct),
+}
+/// Repair's findings past the first, and the triager's words (domain/red-repairs.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RepairAct {
+    pub more: Box<[u32]>,
+    pub words: Box<[u8]>,
+}
+/// The landing and words of a blame move (domain/red-repairs.md, 3, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlameAct {
+    pub landing: Option<skein_forge::api::Commit>,
+    pub why: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingRefusal {
@@ -250,6 +264,7 @@ pub enum HandFindingAnswer {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TriageFindingAnswer {
     Triaged,
+    Repaired(u64),
     Refused(FindingRefusal),
 }
 /// The deciding snapshot kept for an agent's named finding write (domain/agent/tools.md).
@@ -259,6 +274,8 @@ pub struct FindingReply {
     pub number: u32,
     pub area: Option<Box<[u8]>>,
     pub result: Result<FindingDone, FindingRefusal>,
+    pub more: Box<[u32]>,
+    pub landing: Option<skein_forge::api::Commit>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingDone {
@@ -267,6 +284,8 @@ pub enum FindingDone {
     Routed(u64),
     Backlog,
     Dropped,
+    Repaired(u64),
+    Blamed,
 }
 #[must_use]
 pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
@@ -291,7 +310,9 @@ pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
             | FindingRefusal::Ended => {}
         }
     }
-    area.checked_add(bytes)
+    let more = skein_lib::len_u64(reply.more.len()).checked_mul(4)?;
+    // The inline landing is included by the caller's size_of_val(FindingReply).
+    area.checked_add(bytes)?.checked_add(more)
 }
 
 /// The three-step rule; standing comes from the root's snapshot of the core.
