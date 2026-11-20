@@ -2,7 +2,6 @@
 //! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
 //! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{Service, path, prefixed, program_login, setup};
-use jig_client_protocol_wire::Record as _;
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use std::os::unix::ffi::OsStrExt;

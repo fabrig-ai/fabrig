@@ -1,6 +1,5 @@
 use super::fixtures;
 use crate::family;
-use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Reader, ReplyTo, Token};

@@ -1,6 +1,5 @@
 //! The box builds from its engine and its durable agents copy.
 use crate::{serve, served};
-use jig_client_protocol_wire::Record as _;
 use std::{
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},

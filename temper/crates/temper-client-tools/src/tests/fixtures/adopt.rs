@@ -1,5 +1,4 @@
 use super::*;
-use jig_client_protocol_wire::Record as _;
 use temper_client_domain_forge::forge;
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};

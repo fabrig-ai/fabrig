@@ -1,7 +1,6 @@
 //! jig's core refusal remains opaque in the forge family (client/forge/records.md).
 use super::values;
 use jig_client_protocol_wire as jig;
-use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1;
 use temper_client_protocol_wire::v1::Record;

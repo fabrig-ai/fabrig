@@ -1,5 +1,4 @@
 //! Real-loop fixtures on kernel-assigned ports (temper/docs/design/protocol/forge/engine.md, 1).
-use jig_client_protocol_wire::Record as _;
 pub(crate) mod file;
 mod kept;
 pub(crate) use kept::seed;

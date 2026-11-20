@@ -4,7 +4,6 @@ use super::{connect_model as model, fixtures as f};
 use crate::pages::model_check::{self, Answer, First, State};
 use crate::{accounts::Bindings, words::Words};
 use jig_client::contract as c;
-use jig_client_protocol_wire::Record as _;
 use skein_lib::Writer;
 use skein_lib::{List, Token};
 use skein_ui::Role;

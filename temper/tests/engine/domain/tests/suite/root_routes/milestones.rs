@@ -1,6 +1,5 @@
 //! The root composes milestone totals, without reservations (domain/milestones.md, 7).
 use super::*;
-use jig_client_protocol_wire::Record as _;
 use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_forge as forge;
 

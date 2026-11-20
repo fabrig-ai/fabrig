@@ -1,6 +1,5 @@
 //! Public wire records used by the anonymous view (temper/docs/design/client/web/public.md, 4).
 use self as records;
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{List, Queue, Time, Writer};
 use temper_client_domain::{

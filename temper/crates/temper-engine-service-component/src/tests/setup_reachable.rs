@@ -5,7 +5,6 @@
 
 use super::lifecycle_tests::{accepted, app};
 use super::*;
-use jig_client_protocol_wire::Record as _;
 use temper_client_protocol_wire::v1::Record;
 
 fn reached(service: &mut crate::Service) -> domain::ReachableAnswer {

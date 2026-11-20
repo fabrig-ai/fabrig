@@ -1,7 +1,6 @@
 //! Milestone row fixtures for the client's grouped lists (client/forge/parts.md, 3).
 use jig_client::contract as c;
 use jig_client_protocol_wire as j;
-use jig_client_protocol_wire::Record as _;
 use jig_client_test_records as records;
 use skein_lib::{List, Wall, Writer};
 use temper_client_protocol_wire::v1::Record;

@@ -5,7 +5,6 @@ use crate::{
     forge::{self, trials},
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
-use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Token, Writer};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};

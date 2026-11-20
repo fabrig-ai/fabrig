@@ -1,5 +1,4 @@
 use jig_client::contract as c;
-use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Secret, Time, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Limits, Request, forge};
 use temper_client_protocol_wire::v1::Record;

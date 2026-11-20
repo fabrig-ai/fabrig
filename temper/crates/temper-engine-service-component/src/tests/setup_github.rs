@@ -1,6 +1,5 @@
 //! GitHub service composition (temper/docs/design/protocol/setup/github.md).
 use super::*;
-use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
 use skein_lib::{Reader, ReplyTo};

@@ -1,6 +1,5 @@
 use super::fixtures;
 use crate::{Event, Request, forge};
-use jig_client_protocol_wire::Record as _;
 use skein_lib::{Queue, RequestEnvelope};
 use temper_client_protocol_wire::v1::Record;
 

@@ -11,7 +11,6 @@ use crate::{
     pages::model_check::{self, Answer, First, State, Trial},
     words::Words,
 };
-use jig_client_protocol_wire::Record as _;
 use skein_ui::{Builder, Role, Tree};
 use temper_client_domain::{
     self as d, Address, Step,

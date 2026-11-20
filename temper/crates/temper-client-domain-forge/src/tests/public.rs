@@ -3,7 +3,6 @@ use crate::{
     address::Public,
     public::{Doc, Heard, PublicEvent, PublicLimits, PublicRead, Reader, Shown},
 };
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as jig;
 use skein_lib::{Duration, List, Queue, Time, Writer};
 use temper_client_protocol_wire::public_v1 as forge;

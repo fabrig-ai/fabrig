@@ -13,7 +13,6 @@ use crate::{
     tests::fixtures,
 };
 use jig_client::contract as c;
-use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Wall};
 use temper_client_protocol_wire::v1::Record;
 

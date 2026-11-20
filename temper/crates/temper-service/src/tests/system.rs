@@ -1,6 +1,5 @@
 use super::fixtures;
 use crate::{End, EngineEnd};
-use jig_client_protocol_wire::Record as _;
 use skein_lib::{Time, Token, Wall};
 use temper_client_protocol_wire::v1::Record;
 
