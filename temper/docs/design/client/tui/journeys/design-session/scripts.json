@@ -1,0 +1,174 @@
+{
+  "cued": [
+    {
+      "cue": "Plan a farewell line for hello.",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "note",
+              "arguments": {
+                "scope": {
+                  "kind": "goal",
+                  "project": 1,
+                  "goal": 2
+                },
+                "description": "Farewell line",
+                "body": "# Farewell line\n\n_Draft, with the user._\n\n## Purpose\n\nAdd a farewell line to hello, alongside its greeting.\n\n## Checks\n\nCheck README.md keeps its greeting and contains one farewell line.\n\n## Open questions\n\nWhere should the farewell line go?\nRecommendation: at the end of README.md so it closes the page.\n"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 200
+        },
+        "I wrote the farewell draft beside us. Where should the farewell line go?\n\n1. At the end of README.md \u2014 it closes the page\n2. In its own file \u2014 the greeting stays alone\n3. Tell me something else",
+        {
+          "lines": [
+            {
+              "call": "note",
+              "arguments": {
+                "scope": {
+                  "kind": "goal",
+                  "project": 1,
+                  "goal": 2
+                },
+                "description": "Farewell line",
+                "body": "Put the farewell line at the end of README.md.\nNo open questions block the work.\n",
+                "name": 3,
+                "recalled": 1,
+                "first": 15,
+                "remove": 2
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 200
+        },
+        "I settled the location at the end of README.md. The draft is ready; nothing blocks the work."
+      ],
+      "inputs": [
+        {
+          "cue": "Note 3 revision 2 written",
+          "turn": 3
+        },
+        {
+          "cue": "Note 3 revision 1 written",
+          "turn": 1
+        },
+        {
+          "cue": "At the end of README.md",
+          "turn": 2
+        },
+        {
+          "cue": "",
+          "turn": 0
+        }
+      ]
+    },
+    {
+      "cue": "At the end of README.md",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "note",
+              "arguments": {
+                "scope": {
+                  "kind": "goal",
+                  "project": 1,
+                  "goal": 2
+                },
+                "description": "Farewell line",
+                "body": "# Farewell line\n\n_Draft, with the user._\n\n## Purpose\n\nAdd a farewell line to hello, alongside its greeting.\n\n## Checks\n\nCheck README.md keeps its greeting and contains one farewell line.\n\n## Open questions\n\nWhere should the farewell line go?\nRecommendation: at the end of README.md so it closes the page.\n"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 200
+        },
+        "I wrote the farewell draft beside us. Where should the farewell line go?\n\n1. At the end of README.md \u2014 it closes the page\n2. In its own file \u2014 the greeting stays alone\n3. Tell me something else",
+        {
+          "lines": [
+            {
+              "call": "note",
+              "arguments": {
+                "scope": {
+                  "kind": "goal",
+                  "project": 1,
+                  "goal": 2
+                },
+                "description": "Farewell line",
+                "body": "Put the farewell line at the end of README.md.\nNo open questions block the work.\n",
+                "name": 3,
+                "recalled": 1,
+                "first": 15,
+                "remove": 2
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 200
+        },
+        "I settled the location at the end of README.md. The draft is ready; nothing blocks the work."
+      ],
+      "inputs": [
+        {
+          "cue": "Note 3 revision 2 written",
+          "turn": 3
+        },
+        {
+          "cue": "Note 3 revision 1 written",
+          "turn": 1
+        },
+        {
+          "cue": "At the end of README.md",
+          "turn": 2
+        },
+        {
+          "cue": "",
+          "turn": 0
+        }
+      ]
+    },
+    {
+      "cue": "farewell-line\n\nImplement this draft.",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "note",
+              "arguments": {
+                "scope": {
+                  "kind": "goal",
+                  "project": 1,
+                  "goal": 3
+                },
+                "description": "report: The local goal wrote its report.",
+                "body": "I wrote this report in the walk's world.\n\nLeft: Nothing remains in this demonstration.\nRisk: This scripted model does not change a repository."
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 64
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "report",
+                "text": "The local goal wrote its report.",
+                "fields": {}
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 16
+        }
+      ]
+    }
+  ],
+  "otherwise": [
+    "No scripted request matched."
+  ]
+}
