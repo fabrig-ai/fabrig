@@ -13,6 +13,9 @@ impl Issuer {
     pub fn new(document: &temper_fake::oauth::Document, seed: u64) -> Self {
         Self { peer: document.peer(seed).expect("walk issuer"), seed }
     }
+    pub fn shutdown(&mut self) {
+        self.peer.shutdown();
+    }
 }
 impl Host for Issuer {
     fn iterate(&mut self, now: Time, wall: Wall) {

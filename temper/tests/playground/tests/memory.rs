@@ -111,6 +111,7 @@ fn name(process: &Process<()>) -> &'static str {
     match process {
         Process::Service(_) => "service (engine + worker)",
         Process::Peer(_) => "fake LLM",
+        Process::Issuer(_) => "fake sign-in issuer",
         Process::Forge(_) => "fake forge HTTP",
         Process::Git(_) | Process::GitRoute(_) => "git",
         Process::Agent(_) | Process::List(_) => "agent",
