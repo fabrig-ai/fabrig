@@ -1,0 +1,88 @@
+{
+  "asked": [
+    {
+      "cue": "Add a CSV export to the report",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "goal",
+              "arguments": {
+                "words": "Choose the CSV export delimiter."
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 32
+        },
+        "A CSV export question waits for you."
+      ]
+    }
+  ],
+  "cued": [
+    {
+      "cue": "Choose the CSV export delimiter.",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "message",
+              "arguments": {
+                "target": 2,
+                "form": "question",
+                "words": "csv-export: comma or semicolon?\nChoice: Comma (recommended)\nChoice: Semicolon"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 32
+        },
+        {
+          "lines": [
+            {
+              "call": "wait",
+              "arguments": {}
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 16
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "report",
+                "text": "The CSV export delimiter is agreed.",
+                "fields": {}
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 16
+        }
+      ],
+      "inputs": [
+        {
+          "cue": "Comma",
+          "turn": 2
+        },
+        {
+          "cue": "Semicolon",
+          "turn": 2
+        },
+        {
+          "cue": "Message ",
+          "turn": 1
+        },
+        {
+          "cue": "",
+          "turn": 0
+        }
+      ]
+    }
+  ],
+  "otherwise": [
+    "No scripted request matched."
+  ]
+}
