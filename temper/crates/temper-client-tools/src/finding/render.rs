@@ -190,43 +190,73 @@ pub(super) fn show(project: u32, detail: &w::FindingDetail, json: bool, limits: 
         success(out.finish())
     }
 }
-fn act_word(act: Act) -> &'static [u8] {
+fn act_word(act: &Act) -> &'static [u8] {
     match act {
         Act::File => b"filed",
         Act::Hand => b"handed",
         Act::Route => b"routed",
         Act::Backlog => b"backlog",
         Act::Drop => b"dropped",
+        Act::Repair(_) => b"repaired",
+        Act::Blame(_) => b"blamed",
         Act::List | Act::Show => unreachable!("act result"),
     }
 }
-fn acted_text(pending: &Pending, held: Option<&w::Holder>, out: &mut Text) {
-    out.put(act_word(pending.act));
+fn acted_text(pending: &Pending, held: Option<&w::Holder>, goal: Option<u64>, out: &mut Text) {
+    if let Act::Repair(more) = &pending.act {
+        out.put(b"repair goal ");
+        out.number(goal.expect("repair answer has its goal"));
+        out.put(b" made for ");
+        reference(pending.project, pending.number, out);
+        for number in more {
+            out.put(b", ");
+            reference(pending.project, *number, out);
+        }
+        out.put(b"\n");
+        return;
+    }
+    out.put(act_word(&pending.act));
     out.put(b": ");
     reference(pending.project, pending.number, out);
+    if let Act::Blame(landing) = &pending.act {
+        match landing {
+            Some(landing) => {
+                out.put(b" on landing ");
+                for byte in landing.iter().take(6) {
+                    out.put(&hex_byte(*byte));
+                }
+            }
+            None => out.put(b" on no landing"),
+        }
+    }
     if let Some(held) = held {
         out.put(b", held by ");
         holder(held, out);
     }
     out.put(b"\n");
 }
-pub(super) fn acted(pending: &Pending, held: Option<&w::Holder>, limits: &Limits) -> jig::Printed {
+pub(super) fn acted(pending: &Pending, held: Option<&w::Holder>, goal: Option<u64>, limits: &Limits) -> jig::Printed {
+    if let Act::Repair(_) = &pending.act
+        && goal.is_none()
+    {
+        return jig::render::failure(b"repair answer has no goal", pending.json, 1);
+    }
     if pending.json {
         let bounds = skein_json::writer::Limits {
             depth: 4,
             length: u32::try_from(limits.tools.result_bytes).expect("output bound"),
         };
         let mut measure = Encoder::measure(&bounds);
-        acted_json(pending, held, &mut measure);
+        acted_json(pending, held, goal, &mut measure);
         let Ok(size) = measure.measured() else { return jig::render::failure(b"result limit", true, 1) };
         let mut out = Encoder::write(size, &bounds);
-        acted_json(pending, held, &mut out);
+        acted_json(pending, held, goal, &mut out);
         success(out.finish())
     } else {
         let mut measure = Text::measure();
-        acted_text(pending, held, &mut measure);
+        acted_text(pending, held, goal, &mut measure);
         let mut out = Text::writing_exact(measure);
-        acted_text(pending, held, &mut out);
+        acted_text(pending, held, goal, &mut out);
         success(out.finish())
     }
 }
@@ -267,7 +297,11 @@ fn refusal_text(pending: &Pending, why: &w::FindingRefusal, out: &mut Text) {
         w::FindingRefusal::NoGoal => out.put(b"no live goal of this project"),
         w::FindingRefusal::Ended => out.put(b"finding already routed or dropped"),
         w::FindingRefusal::Words(value) => {
-            out.put(b"finding words past their bounds: ");
+            if [b"title".as_slice(), b"body", b"area", b"why", b"reason", b"signature", b"words", b"more", b"landing"]
+                .contains(&value.field.as_ref())
+            {
+                out.put(b"finding words past their bounds: ");
+            }
             out.put(&value.field);
         }
     }
@@ -409,14 +443,49 @@ fn show_json(project: u32, detail: &w::FindingDetail, out: &mut Encoder) {
     optional(detail.reason.as_deref(), out);
     out.object_end();
 }
-fn acted_json(pending: &Pending, held: Option<&w::Holder>, out: &mut Encoder) {
+fn hex_byte(byte: u8) -> [u8; 2] {
+    let digits = b"0123456789abcdef";
+    [
+        *digits.get(usize::from(byte >> 4_u32)).expect("hex nibble"),
+        *digits.get(usize::from(byte & 15)).expect("hex nibble"),
+    ]
+}
+fn acted_json(pending: &Pending, held: Option<&w::Holder>, goal: Option<u64>, out: &mut Encoder) {
     out.object_start();
     out.key(b"act");
-    out.string(act_word(pending.act));
+    out.string(act_word(&pending.act));
     out.key(b"project");
     out.unsigned(u64::from(pending.project));
     out.key(b"number");
     out.unsigned(u64::from(pending.number));
+    match &pending.act {
+        Act::Repair(more) => {
+            out.key(b"goal");
+            out.unsigned(goal.expect("repair answer has its goal"));
+            out.key(b"more");
+            out.array_start();
+            for number in more {
+                out.unsigned(u64::from(*number));
+            }
+            out.array_end();
+        }
+        Act::Blame(landing) => {
+            out.key(b"landing");
+            match landing {
+                Some(landing) => {
+                    let mut hex = skein_lib::List::with_capacity(64);
+                    for byte in landing {
+                        for digit in hex_byte(*byte) {
+                            hex.push(digit).expect("commit fits");
+                        }
+                    }
+                    out.string(hex.as_slice());
+                }
+                None => out.null(),
+            }
+        }
+        Act::List | Act::Show | Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop => {}
+    }
     if let Some(held) = held {
         out.key(b"holder");
         held_json(held, out);

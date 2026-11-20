@@ -13,6 +13,8 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::FINDING_ROUTE_AT), "help_finding_route"),
     (Some(jig::rows::FINDING_BACKLOG_AT), "help_finding_backlog"),
     (Some(jig::rows::FINDING_DROP_AT), "help_finding_drop"),
+    (Some(jig::rows::FINDING_REPAIR_AT), "help_finding_repair"),
+    (Some(jig::rows::FINDING_BLAME_AT), "help_finding_blame"),
     (Some(jig::rows::NEED_ASK_AT), "help_need_ask"),
     (Some(jig::rows::PARTY_MAKE_AT), "help_party_make"),
     (Some(jig::rows::SIGN_IN_AT), "help_sign_in"),
@@ -508,6 +510,10 @@ fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
 #[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
+}
+#[test]
+fn the_finding_reference_is_what_the_table_renders() {
+    reference_matches(b"finding", b"ctl-finding");
 }
 #[test]
 fn the_draft_reference_is_what_the_table_renders() {

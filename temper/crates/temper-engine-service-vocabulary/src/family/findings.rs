@@ -27,6 +27,22 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
                 w::Triage::Route(value) => forge::Triage::Route(value.task),
                 w::Triage::Backlog => forge::Triage::Backlog,
                 w::Triage::Drop(value) => forge::Triage::Drop(value.reason),
+                w::Triage::Repair(value) => {
+                    forge::Triage::Repair(forge::RepairAct { more: value.more.into_boxed(), words: value.words })
+                }
+                w::Triage::Blame(value) => {
+                    let landing = match value.landing {
+                        Some(bytes) => {
+                            let mut commit = [0; 32];
+                            for (cell, byte) in commit.iter_mut().zip(&bytes) {
+                                *cell = *byte;
+                            }
+                            Some(commit)
+                        }
+                        None => None,
+                    };
+                    forge::Triage::Blame(forge::BlameAct { landing, why: value.why })
+                }
             },
         })),
         w::Request::Adopt(_)
@@ -178,8 +194,8 @@ pub(super) fn hand_answer(value: forge::HandFindingAnswer, limits: &w::Limits) -
 }
 pub(super) fn triage_answer(value: forge::TriageFindingAnswer, limits: &w::Limits) -> Option<w::Outcome> {
     match value {
-        forge::TriageFindingAnswer::Triaged => Some(w::Outcome::Triaged),
-        forge::TriageFindingAnswer::Repaired(_) => None,
+        forge::TriageFindingAnswer::Triaged => Some(w::Outcome::Triaged(w::Triaged { goal: None })),
+        forge::TriageFindingAnswer::Repaired(goal) => Some(w::Outcome::Triaged(w::Triaged { goal: Some(goal) })),
         forge::TriageFindingAnswer::Refused(value) => refused(value, limits),
     }
 }

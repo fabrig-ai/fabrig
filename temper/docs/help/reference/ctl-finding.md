@@ -98,3 +98,34 @@ Prints: dropped: P/N
 Key: --key KEY, required.
 Only its holder or a project owner may triage. Its issue, if any, closes with the reason.
 ```
+
+## finding repair
+
+```
+finding repair FINDING... TEXT --key KEY
+  FINDING (findings): P/N: a project name or number, then a finding number; repeated, at most 16. One to sixteen findings of one project, each named once
+  TEXT (words): text, at most 1048576 bytes, or - to read stdin; required. The repair's words, 1 to 4096 bytes
+Make one repair goal for findings of one project
+Prints: repair goal G made for P/N, P/M
+--json: the record finding_repaired.
+Key: --key KEY, required.
+Only the holder or a project owner may triage. A refusal prints its words, exit 2.
+```
+
+## finding blame
+
+```
+finding blame FINDING --landing COMMIT TEXT --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  --landing COMMIT: text, at most 1048576 bytes; required. The landing's full commit, 40 or 64 hex digits
+  TEXT (why): text, at most 1048576 bytes, or - to read stdin; required. Why, 1 to 200 bytes
+finding blame FINDING --none TEXT --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  --none: a switch. Blame no landing
+  TEXT (why): text, at most 1048576 bytes, or - to read stdin; required. Why, 1 to 200 bytes
+Move a finding's blame to a landing or to no landing
+Prints: blamed: P/N on landing COMMIT (its first twelve digits), or blamed: P/N on no landing
+--json: the record finding_blamed.
+Key: --key KEY, required.
+Name exactly one of --landing and --none. Only the holder or a project owner may triage. A refusal prints its words, exit 2.
+```

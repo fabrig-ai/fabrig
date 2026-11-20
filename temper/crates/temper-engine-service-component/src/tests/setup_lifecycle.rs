@@ -2119,14 +2119,17 @@ fn a_non_owner_accept_never_reaches_the_setup_host() {
 #[test]
 fn foreign_versions_and_former_layouts_are_refused() {
     for (bytes, why) in [
-        (&[0, 2, 10, 0, 0, 0, 1, b'*'][..], b"pasted with another version of temper: paste it again".as_slice()),
-        (&[0, 1, 10, 0, 0, 0, 1, b'*'][..], b"the pasted value is not a key".as_slice()),
+        (
+            b"\0\x02\x0a\0\0\0\x08*marker*".as_slice(),
+            b"pasted with another version of temper: paste it again".as_slice(),
+        ),
+        (b"\0\x01\x0a\0\0\0\x08*marker*".as_slice(), b"the pasted value is not a key".as_slice()),
     ] {
         let mut service = service(8, Duration::from_secs(3600));
         let bundle = Secret::new(Box::from(bytes));
         let digest = skein_lib::sha256::digest(bundle.expose());
         paste_start(&mut service, bundle, digest);
-        assert_eq!(paste_ended(&mut service, false, b"*").as_deref(), Some(why));
+        assert_eq!(paste_ended(&mut service, false, b"*marker*").as_deref(), Some(why));
     }
 }
 

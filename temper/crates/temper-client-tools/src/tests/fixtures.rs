@@ -88,6 +88,20 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "--key",
     "open-change",
 ];
+pub(crate) const FINDING_REPAIR_CALL: &[&str] =
+    &["finding", "repair", "1/3", "shop/5", "repair together", "--key", "repair"];
+pub(crate) const FINDING_BLAME_LANDING_CALL: &[&str] = &[
+    "finding",
+    "blame",
+    "1/3",
+    "--landing",
+    "1234567890abcdef1234567890abcdef12345678",
+    "this landing",
+    "--key",
+    "blame-landing",
+];
+pub(crate) const FINDING_BLAME_NONE_CALL: &[&str] =
+    &["finding", "blame", "1/3", "--none", "no landing", "--key", "blame-none"];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["link", "--out", "record"],
     &["deployment", "checkpoint"],
@@ -110,6 +124,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
     &["finding", "backlog", "3/12", "--key", "backlog"],
     &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
+    FINDING_REPAIR_CALL,
+    FINDING_BLAME_LANDING_CALL,
+    FINDING_BLAME_NONE_CALL,
     &[
         "need",
         "ask",

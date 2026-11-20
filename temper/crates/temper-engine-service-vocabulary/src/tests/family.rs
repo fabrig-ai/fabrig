@@ -4302,6 +4302,67 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
     }
 }
 
+#[test]
+fn repair_and_blame_requests_keep_their_fields_and_pad_sha1_for_the_forge() {
+    let more = List::from_boxed(Box::new([5, u32::MAX]));
+    assert_eq!(
+        away_request(w::Request::TriageFinding(w::TriageFinding {
+            project: 2,
+            number: 3,
+            act: w::Triage::Repair(w::FindingRepair { more, words: b"repair together".as_slice().into() }),
+        })),
+        root::Application::TriageFinding(forge::TriageFinding {
+            project: 2,
+            number: 3,
+            act: forge::Triage::Repair(forge::RepairAct {
+                more: Box::new([5, u32::MAX]),
+                words: b"repair together".as_slice().into()
+            }),
+        })
+    );
+    let mut sha1 = [0; 32];
+    sha1.get_mut(..20).unwrap().fill(0x42);
+    for (landing, expected) in
+        [(None, None), (Some(repeated(0x42, 20)), Some(sha1)), (Some(repeated(0x43, 32)), Some([0x43; 32]))]
+    {
+        assert_eq!(
+            away_request(w::Request::TriageFinding(w::TriageFinding {
+                project: 2,
+                number: 3,
+                act: w::Triage::Blame(w::FindingBlame { landing, why: b"this landing".as_slice().into() }),
+            })),
+            root::Application::TriageFinding(forge::TriageFinding {
+                project: 2,
+                number: 3,
+                act: forge::Triage::Blame(forge::BlameAct {
+                    landing: expected,
+                    why: b"this landing".as_slice().into()
+                }),
+            })
+        );
+    }
+}
+
+#[test]
+fn triage_answers_keep_the_repair_goal_and_long_refusal_words() {
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Repaired(u64::MAX)))),
+        w::Outcome::Triaged(w::Triaged { goal: Some(u64::MAX) })
+    );
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged))),
+        w::Outcome::Triaged(w::Triaged { goal: None })
+    );
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Refused(
+            forge::FindingRefusal::Words(repeated(b'x', 1024))
+        )))),
+        w::Outcome::FindingRefused(w::FindingRefused {
+            reason: w::FindingRefusal::Words(w::FindingWords { field: repeated(b'x', 1024) })
+        })
+    );
+}
+
 fn finding_holders() -> [(forge::Holder, w::Holder); 3] {
     [
         (forge::Holder::Task(u64::MAX), w::Holder::Task(w::HolderTask { number: u64::MAX })),
@@ -4317,7 +4378,10 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
             w::Outcome::Filed(w::Filed { number: 27 }),
         ),
         (root::ApplicationAnswer::HandFinding(forge::HandFindingAnswer::Handed), w::Outcome::Handed),
-        (root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged), w::Outcome::Triaged),
+        (
+            root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged),
+            w::Outcome::Triaged(w::Triaged { goal: None }),
+        ),
     ] {
         assert_eq!(away_answer(Some(answer)), expected);
     }
