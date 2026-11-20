@@ -71,9 +71,10 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 11 (`channel-v11.schema`), which adds a
-  program that started without smith's tools to a run's failures
-  (section 4); version 8 added a model failure's status to its report.
+  The current version is 12 (`channel-v12.schema`), which adds the
+  agent's `signalled` (section 4); version 11 added a program that
+  started without smith's tools to a run's failures, and version 8 a
+  model failure's status to its report.
   From 2026-11-12 the version
   moves with every change to its layout (the owner, 2026-11-12), as a new
   kind always moved it. Its `schema/` holds the current text alone, and
@@ -229,6 +230,7 @@ of domain/host.md, section 2.
 | refused | an account, and the provider's code and reason (below) | when its provider refused the account what the run asked, such as a model its plan does not serve |
 | fact | one fact (section 8) | while the run is admitted and has not answered, with room to spare; any other is not projected, and counted (section 7) |
 | live | a piece of live content (below) | while the run is admitted and has not answered, only for a kind the start asked for, with room to spare; any other is dropped, and counted (section 7) |
+| signalled | the signal, `interrupt` or `terminate`; the sender's process id, if the system names one | at most once per run: when the agent hears a termination signal while the run is live, its channel open and the host's cancel not yet heard, or at its admission for one heard before it; a request to the host, never a cancel (agent.md, section 6; domain/host.md, section 4); added in version 12 |
 | answer | the turns it took; what it spent; the last message read, if any; how it ended (below) | the last word |
 
 **A piece of live content** is what the run's main conversation's
@@ -355,6 +357,7 @@ edge is independent of the channel's own flow control (section 7).
   - the last message read names a message the host sent, and never goes
     back across turns, waits and the answer;
   - a long done ends a long operation still open;
+  - signalled comes at most once, after admitted and before the answer;
   - a piece comes only while the run is admitted and has not answered,
     only for a kind the start asked for and the agent sends, and its
     turn is the last one told plus one. Within a stream, a retry never

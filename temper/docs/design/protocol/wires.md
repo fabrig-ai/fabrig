@@ -198,7 +198,12 @@ them.
     grace`, V the channel's version, below the first that has the word;
   - the worker, at each word heard (jig's `protocol/channel/restart.md`,
     4): `the engine said it restarts: runs kept up to MS ms after the
-    link drops`, MS the longer of the wait and its grace.
+    link drops`, MS the longer of the wait and its grace;
+  - the engine, at each pause its component could not send (jig's
+    `protocol/channel/pause.md`, 3): `worker NAME not told to MODE:
+    jig-worker-wire V; the engine's placement follows the ask`, MODE
+    `pause`, `drain` or `resume`, V the channel's version, below the
+    first that has the kind.
 
 ## 5. A mismatch costs no task
 
