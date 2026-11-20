@@ -767,6 +767,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/real-loop-cancel-kills.md`](draft/real-loop-cancel-kills.status.md)
 - [`draft/real-loop-kill-cause.md`](draft/real-loop-kill-cause.status.md)
+- [`draft/reconciling-start.md`](draft/reconciling-start.status.md) — S1, goal 10905: a start reads and doesn't write; a missing goal branch is made after the settle, in the outbox line's order (`domain/forge/branches.md`, 1).
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
