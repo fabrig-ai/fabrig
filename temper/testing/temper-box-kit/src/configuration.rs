@@ -1,5 +1,30 @@
 //! Pure configuration fixtures shared by unit and process tests.
 use std::path::Path;
+use temper_config_shell::{File, Shape};
+
+/// A standalone fixture's explicit file values (configuration/file.md, 4).
+#[must_use]
+pub fn file() -> File {
+    File {
+        listen: Some("127.0.0.1:0".parse().expect("fixture listener")),
+        webhooks: Some("127.0.0.1:0".parse().expect("fixture webhooks")),
+        owner: Some("owner-a@example.invalid".into()),
+        ..File::default()
+    }
+}
+
+/// Build a start in memory through the same boundary as the binaries.
+#[must_use]
+pub fn start(file: &File, shape: Shape) -> serde_json::Value {
+    serde_json::from_slice(&parse(&temper_config_shell::render(file, shape), shape).document).expect("start document")
+}
+
+#[must_use]
+pub fn parse(text: &[u8], shape: Shape) -> temper_config_shell::Read {
+    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+    temper_config_shell::parse(text, shape, &facts).expect("fixture file")
+}
+
 /// Turn measurements retain model declarations with inert direct endpoints.
 pub mod turn_bounds {
     pub use temper_playground::documents::turn_bounds::apply;
@@ -29,36 +54,23 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
 }
 #[must_use]
 pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_playground::documents::Configuration) {
+    let file = file();
     let mut value = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON"),
     );
-    value.as_object_mut().expect("whole object").remove("service");
+    value.document = start(&file, Shape::Standalone);
     use_stock(&mut value);
     // A Create member owns stock's fourteen grants and eighteen executors, plus its words.
     value.jig_over("people.amendment_bytes", 2048);
-    let worker: serde_json::Value =
-        serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
-    value["workers"] = worker["workers"].clone();
     value.jig_over("tasks.inbox_bytes", 4096);
     value.jig_over("tasks.run_inbox", 8);
     value.jig_over("tasks.run_inbox", 8);
     value.jig_over("hub.inbox", 8);
     value.jig_over("hub.held", 8);
     value.jig_over("tasks.result_bytes", 512);
-    for worker in value["workers"].as_array_mut().expect("workers") {
-        let worker = worker.as_object_mut().expect("worker");
-        worker.remove("memory_bytes");
-        worker.remove("graces");
-        worker.remove("programs");
-    }
-    value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0].as_object_mut().expect("worker").remove("agent");
-    value["workers"][0].as_object_mut().expect("worker").remove("limits");
     value.jig_over("hub.accounts", 4);
     value.jig_over("hub.held", 8);
-    value["workers"][0]["name"] = "local".into();
     value.jig_over("fleet.slots", 4);
-    value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value.jig_over("tasks.charters", 16);
     value.jig_over("core.templates", 7);
@@ -92,11 +104,6 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     value.jig_over("people.projects", 3);
     value.jig_over("authority.projects", 3);
     value.jig_over("tasks.funders", 4);
-    // The journal's charter carrier matches this fixture's core.run_bytes.
-    value["application"] = serde_json::json!({
-        "webhooks":null,
-"clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "sign_in":null});
     value.temper_over("forge.client.answer_bytes", 65_536_u64);
     value.temper_over("forge.client.op_bytes", 512_u64);
     value.temper_over("forge_component.body_bytes", 16_384_u64);

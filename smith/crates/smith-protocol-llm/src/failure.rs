@@ -77,7 +77,7 @@ pub fn cancelled(context: Context) -> Event {
 }
 
 /// Reports a preparation refusal as an unsent root terminal; no wire call existed.
-/// Unsupported is explicitly Invalid, with its distinct bounded diagnostic.
+/// Invalid and unsupported causes share Invalid, with their fixed name as code.
 /// Fixed local ASCII detail is clipped only to the receiving diagnostic allowance.
 #[must_use]
 pub fn refusal(owner: Token, error: Error, max_failure_bytes: u32) -> Event {
@@ -87,8 +87,9 @@ pub fn refusal(owner: Token, error: Error, max_failure_bytes: u32) -> Event {
             llm::Failure::Limit { which: llm::Limit::Path(which), bound },
             b"native Client preparation exceeds its named path bound",
         ),
-        Error::Invalid => (llm::Failure::Invalid, b"invalid tool prompt or configured call"),
-        Error::Unsupported => (llm::Failure::Invalid, b"unsupported replay or configured call"),
+        Error::Invalid { cause } | Error::Unsupported { cause } => {
+            return named_refusal(owner, cause.name(), max_failure_bytes);
+        }
     };
     let length = text.len().min(usize::try_from(max_failure_bytes).expect("u32 fits usize"));
     let detail = bytes::copy_of(text.get(..length).expect("clipped fixed local diagnostic"));
@@ -98,6 +99,24 @@ pub fn refusal(owner: Token, error: Error, max_failure_bytes: u32) -> Event {
         evidence: llm::Evidence::Unsent,
         detail,
         report: llm::Report::none(),
+    })
+}
+
+fn named_refusal(owner: Token, name: &[u8], maximum: u32) -> Event {
+    let prefix = b"refused before sending: ";
+    let length = prefix.len().checked_add(name.len()).expect("fixed bounded cause name");
+    let length = length.min(usize::try_from(maximum).expect("u32 fits usize"));
+    let mut writer = Writer::new(length);
+    let prefix_length = prefix.len().min(length);
+    writer.put(prefix.get(..prefix_length).expect("clipped refusal prefix")).expect("measured prefix");
+    let name_length = length.checked_sub(prefix_length).expect("prefix within detail");
+    writer.put(name.get(..name_length).expect("clipped cause name")).expect("measured cause");
+    Event::Below(smith_domain::Below::Failed {
+        owner,
+        failure: llm::Failure::Invalid,
+        evidence: llm::Evidence::Unsent,
+        detail: writer.finish(),
+        report: llm::Report { status: None, code: bytes::copy_of(name), request: Box::new([]), field: Box::new([]) },
     })
 }
 

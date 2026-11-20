@@ -168,9 +168,15 @@ forge, temper adds:
 
 ## 6. Documents
 
+- `status-areas.md`: areas and routing status.
+- `domain/forge/change/repairs-later.md`: repairs, resolutions and releases: open questions.
+- `domain/landing-forge.md`: what the forge shows of landings and their open questions.
+- `protocol/git-later.md`: the checkout’s git: open questions.
+
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
-  (`after-landing.md`) and findings (`findings.md`), the worker, and
+  (`after-landing.md`) and findings (`findings.md`, its reds after
+  landing `red-findings.md`), the worker, and
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
@@ -205,6 +211,8 @@ forge, temper adds:
   them on,
   `client/journey-writer.md` the one writer of main's journey files,
   run after each landing,
+  `client/journey-walks.md` a journey's walk, printed in one process
+  with no box, browser or recording,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
   `temper-box`, `client/view-crates.md` the view's crates and how it

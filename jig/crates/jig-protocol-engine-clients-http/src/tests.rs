@@ -11,12 +11,17 @@ mod fixtures;
 
 #[test]
 fn a_printed_link_has_the_client_mappings_asked_link_bytes() {
-    let settings = fixtures::mount().settings;
+    let mut settings = fixtures::mount().settings;
     let secret = Secret::new(Box::new([7; 32]));
     let address = SocketAddr::from(([127, 0, 0, 1], 8080));
     assert_eq!(
         printed_link(address, &link_path(&settings, &secret)).as_ref(),
         b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
+    settings.page = Some(Box::from(b"/sign-in".as_slice()));
+    assert_eq!(
+        printed_link(address, &link_path(&settings, &secret)).as_ref(),
+        b"http://127.0.0.1:8080/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
     );
 }
 
@@ -785,7 +790,7 @@ fn via_is_public_for_the_exact_public_name() {
 #[test]
 fn via_is_listener_without_a_public_host_match() {
     for public in [Some(Box::from(fixtures::PUBLIC)), None] {
-        let settings = Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public };
+        let settings = Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), page: None, public };
         for host in [
             None,
             Some(fixtures::HOST),

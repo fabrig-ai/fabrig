@@ -208,7 +208,9 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
-    WayBack,
+    WayShown,
+    WayCurrent,
+    WayOwnName,
     WayStock,
     WayOwn,
     WayAskMark,
@@ -1075,6 +1077,7 @@ pub enum Word {
     HomeAddOther,
     HomeAddSheet,
     HomeAddSheetLead,
+    HomeAddCopiesDetail,
     HomeAddLegend,
     HomeAddIt,
     HomeMaking,
@@ -1289,9 +1292,8 @@ pub enum Word {
     WelcomeForgeConnected,
     WelcomeForgeLine,
     WelcomeModelSigningIn,
-    ForgeConfigCode,
-    ForgeIdentityCode,
-    ForgeSetupCode,
+    ForgeAdminCommand,
+    ForgeBotCommand,
     ForgeConnecting,
     ForgesTitle,
     ForgeHere,
@@ -1301,10 +1303,9 @@ pub enum Word {
     ForgeOwnServerConnect,
     ForgeRunHere,
     ForgeCardConnected,
-    ForgeConfigLead,
-    ForgeConfigStep,
-    ForgeIdentityStep,
-    ForgeSetupStep,
+    ForgeElsewhereLead,
+    ForgeAdminStep,
+    ForgeBotStep,
     ForgeElsewhere,
     ForgeOther,
     ForgePlayground,
@@ -1345,11 +1346,6 @@ pub enum Word {
     ForgeTerminalDetails,
     ForgeTerminalNext,
     ForgeElsewhereDetails,
-    ForgeConfig,
-    ForgeIdentity,
-    ForgeSetupEntry,
-    ForgeBotOnly,
-    ForgeRestart,
     ForgeSettingUpTitle,
     ForgeFetch,
     ForgeMakingFirst,
@@ -1653,6 +1649,12 @@ pub enum Word {
     ChatFailed,
     ChatCancelled,
     RunBegan,
+    RunBeganMoved,
+    RunBeganClosed,
+    RunBeganCut,
+    RunBeganLimit,
+    RunBeganSession,
+
     RunEnded,
     /// A run ended with a result outside its admitted contract.
     RunEndedInvalid,
@@ -2052,6 +2054,8 @@ pub enum Word {
     WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
     WelcomeForgejoStartWith,
+    WelcomeForgejoSample,
+    WelcomeForgejoSampleDetail,
     WelcomeForgejoEmpty,
     WelcomeForgejoEmptyDetail,
     WelcomeForgejoCopies,
@@ -2281,7 +2285,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2840;
+const PHRASES: u32 = 2844;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2308,10 +2312,10 @@ const PHRASES: u32 = 2840;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5274;
+const SEGMENTS: u32 = 5284;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66839;
-const ALL: [Word; 2107] = [
+const ENGLISH_BYTES: u32 = 66629;
+const ALL: [Word; 2110] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2472,7 +2476,9 @@ const ALL: [Word; 2107] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
-    Word::WayBack,
+    Word::WayShown,
+    Word::WayCurrent,
+    Word::WayOwnName,
     Word::WayStock,
     Word::WayOwn,
     Word::WayAskMark,
@@ -3324,6 +3330,7 @@ const ALL: [Word; 2107] = [
     Word::HomeAddOther,
     Word::HomeAddSheet,
     Word::HomeAddSheetLead,
+    Word::HomeAddCopiesDetail,
     Word::HomeAddLegend,
     Word::HomeAddIt,
     Word::HomeMaking,
@@ -3530,9 +3537,8 @@ const ALL: [Word; 2107] = [
     Word::WelcomeForgeConnected,
     Word::WelcomeForgeLine,
     Word::WelcomeModelSigningIn,
-    Word::ForgeConfigCode,
-    Word::ForgeIdentityCode,
-    Word::ForgeSetupCode,
+    Word::ForgeAdminCommand,
+    Word::ForgeBotCommand,
     Word::ForgeConnecting,
     Word::ForgesTitle,
     Word::ForgeHere,
@@ -3542,10 +3548,9 @@ const ALL: [Word; 2107] = [
     Word::ForgeOwnServerConnect,
     Word::ForgeRunHere,
     Word::ForgeCardConnected,
-    Word::ForgeConfigLead,
-    Word::ForgeConfigStep,
-    Word::ForgeIdentityStep,
-    Word::ForgeSetupStep,
+    Word::ForgeElsewhereLead,
+    Word::ForgeAdminStep,
+    Word::ForgeBotStep,
     Word::ForgeElsewhere,
     Word::ForgeOther,
     Word::ForgePlayground,
@@ -3585,11 +3590,6 @@ const ALL: [Word; 2107] = [
     Word::ForgeTerminalDetails,
     Word::ForgeTerminalNext,
     Word::ForgeElsewhereDetails,
-    Word::ForgeConfig,
-    Word::ForgeIdentity,
-    Word::ForgeSetupEntry,
-    Word::ForgeBotOnly,
-    Word::ForgeRestart,
     Word::ForgeSettingUpTitle,
     Word::ForgeFetch,
     Word::ForgeMakingFirst,
@@ -3883,6 +3883,11 @@ const ALL: [Word; 2107] = [
     Word::ChatFailed,
     Word::ChatCancelled,
     Word::RunBegan,
+    Word::RunBeganMoved,
+    Word::RunBeganClosed,
+    Word::RunBeganCut,
+    Word::RunBeganLimit,
+    Word::RunBeganSession,
     Word::RunEnded,
     Word::RunEndedInvalid,
     Word::RunEndedUnreadable,
@@ -4267,6 +4272,8 @@ const ALL: [Word; 2107] = [
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
     Word::WelcomeForgejoStartWith,
+    Word::WelcomeForgejoSample,
+    Word::WelcomeForgejoSampleDetail,
     Word::WelcomeForgejoEmpty,
     Word::WelcomeForgejoEmptyDetail,
     Word::WelcomeForgejoCopies,
@@ -4572,7 +4579,9 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
-            Self::WayBack => 9720,
+            Self::WayShown => 9878,
+            Self::WayCurrent => 9879,
+            Self::WayOwnName => 9880,
             Self::WayStock => 9721,
             Self::WayOwn => 9722,
             Self::WayAskMark => 9723,
@@ -5476,6 +5485,7 @@ impl Word {
             Self::HomeAddOther => 3352,
             Self::HomeAddSheet => 3353,
             Self::HomeAddSheetLead => 3354,
+            Self::HomeAddCopiesDetail => 9961,
             Self::HomeAddLegend => 3355,
             Self::HomeAddIt => 3356,
             Self::HomeMaking => 3357,
@@ -5687,9 +5697,8 @@ impl Word {
             Self::WelcomeForgeConnected => 1708,
             Self::WelcomeForgeLine => 1835,
             Self::WelcomeModelSigningIn => 1832,
-            Self::ForgeConfigCode => 1711,
-            Self::ForgeIdentityCode => 1712,
-            Self::ForgeSetupCode => 1713,
+            Self::ForgeAdminCommand => 1711,
+            Self::ForgeBotCommand => 1712,
             Self::ForgeConnecting => 1717,
             Self::ForgesTitle => 1719,
             Self::ForgeHere => 1720,
@@ -5699,10 +5708,9 @@ impl Word {
             Self::ForgeOwnServerConnect => 3921,
             Self::ForgeRunHere => 3922,
             Self::ForgeCardConnected => 3923,
-            Self::ForgeConfigLead => 3924,
-            Self::ForgeConfigStep => 3925,
-            Self::ForgeIdentityStep => 3926,
-            Self::ForgeSetupStep => 3927,
+            Self::ForgeElsewhereLead => 3924,
+            Self::ForgeAdminStep => 3925,
+            Self::ForgeBotStep => 3926,
             Self::ForgeElsewhere => 1722,
             Self::ForgeOther => 1723,
             Self::ForgePlayground => 1724,
@@ -5743,11 +5751,6 @@ impl Word {
             Self::ForgeTerminalDetails => 1749,
             Self::ForgeTerminalNext => 1843,
             Self::ForgeElsewhereDetails => 1750,
-            Self::ForgeConfig => 1751,
-            Self::ForgeIdentity => 1752,
-            Self::ForgeSetupEntry => 1753,
-            Self::ForgeBotOnly => 1754,
-            Self::ForgeRestart => 1755,
             Self::ForgeSettingUpTitle => 1757,
             Self::ForgeFetch => 1758,
             Self::ForgeMakingFirst => 1847,
@@ -6118,6 +6121,12 @@ impl Word {
             Self::ChatFailed => 1045,
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
+            Self::RunBeganMoved => 4490,
+            Self::RunBeganClosed => 4491,
+            Self::RunBeganCut => 4492,
+            Self::RunBeganLimit => 4493,
+            Self::RunBeganSession => 4494,
+
             Self::RunEnded => 151,
             Self::RunEndedInvalid => 4183,
             Self::RunEndedUnreadable => 4184,
@@ -6465,6 +6474,8 @@ impl Word {
             Self::WelcomeForgeDoneRepository => 3049,
             Self::WelcomeForgejoLead => 3032,
             Self::WelcomeForgejoStartWith => 3033,
+            Self::WelcomeForgejoSample => 9962,
+            Self::WelcomeForgejoSampleDetail => 9963,
             Self::WelcomeForgejoEmpty => 3034,
             Self::WelcomeForgejoEmptyDetail => 3035,
             Self::WelcomeForgejoCopies => 3036,
@@ -6582,15 +6593,23 @@ pub enum Shell {
     Browser,
 }
 #[derive(Clone, Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the vocabulary is read-only so its capacities can be checked once; shell facts remain public"
+)]
 pub struct Words {
     /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
     pub zone_minutes: i32,
     pub shell: Shell,
-    pub book: Phrasebook,
+    pub(crate) book: Phrasebook,
     pub language: u16,
     pub connector: u16,
     /// The checked joined bound of ordinary Name holes.
     pub name_bytes: u32,
+    capacity_connector: u16,
+    ordinary: Option<u32>,
+    classes: Option<u32>,
+    follows: Option<u32>,
 }
 // A refusal joins only this closed vocabulary, bounded numbers and a calendar
 // clock: 256 bytes holds its longest three-sentence explanation whole.
@@ -7028,11 +7047,31 @@ impl Words {
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { zone_minutes: 0, shell, book, language: 0, connector, name_bytes: joined })
+        let mut words = Words {
+            zone_minutes: 0,
+            shell,
+            book,
+            language: 0,
+            connector,
+            name_bytes: joined,
+            capacity_connector: connector,
+            ordinary: None,
+            classes: None,
+            follows: None,
+        };
+        words.ordinary = words.walk_ordinary_capacity();
+        words.classes = words.walk_classes_capacity();
+        words.follows = words.walk_follows_capacity();
+        Ok(words)
+    }
+    /// The checked vocabulary; its capacities remain valid while words are reused.
+    #[must_use]
+    pub const fn book(&self) -> &Phrasebook {
+        &self.book
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
+        self.book().say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
     #[must_use]
     pub fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
@@ -7041,7 +7080,7 @@ impl Words {
     }
     #[must_use]
     pub fn say_word(&self, word: jig_client::words::Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(), holes).expect("checked jig word").text
+        self.book().say(self.language, word.id(), holes).expect("checked jig word").text
     }
     /// A run's supplied placement time in absolute UTC.
     #[must_use]
@@ -7058,12 +7097,13 @@ impl Words {
         word: temper_client_domain::forge::words::ResourceWord,
         holes: &[Hole],
     ) {
-        let text = self.book.say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
+        let text =
+            self.book().say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
         builder.text(Run::Plain, &text);
     }
     #[must_use]
     pub fn path_bytes(&self) -> u32 {
-        self.book
+        self.book()
             .capacity(temper_client_domain::forge::words::ResourceWord::Path.id(self.connector))
             .expect("checked path word")
     }
@@ -7073,21 +7113,30 @@ impl Words {
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.classes } else { self.walk_classes_capacity() }
+    }
+    fn walk_classes_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut] {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
     pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.follows } else { self.walk_follows_capacity() }
+    }
+    fn walk_follows_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in FOLLOW_WORDS {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.ordinary } else { self.walk_ordinary_capacity() }
+    }
+    fn walk_ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
             if FOLLOW_WORDS.contains(&word)
@@ -7095,10 +7144,10 @@ impl Words {
             {
                 continue;
             }
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         for word in jig_client::words::ALL {
-            most = most.max(self.book.capacity(word.id())?);
+            most = most.max(self.book().capacity(word.id())?);
         }
         Some(most.max(forge::capacity(self)?).max(accounts::capacity(self)?))
     }
@@ -7262,7 +7311,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
         Word::WaysLede => (&[b"How a change is produced and lands in ", b"."], &[Name]),
-        Word::WayBack => (&[b"Back"], &[]),
+        Word::WayShown => (&[b"Way shown: ", b""], &[Name]),
+        Word::WayCurrent => (&[b"current"], &[]),
+        Word::WayOwnName => (&[b"", b"'s own"], &[Name]),
         Word::WayStock => (match shell { Shell::Browser => &[b"Stock ways"], Shell::Terminal => &[b"Stock ways:"] }, &[]),
         Word::WayOwn => (&[b"", b" runs settings of its own."], &[Name]),
         Word::WayAskMark => (match shell { Shell::Browser => &[b"\xe2\x9c\xa6"], Shell::Terminal => &[b"\xe2\x9c\xa6 "] }, &[]),
@@ -7818,6 +7869,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAddOther => (&[b"Adopt another\xe2\x80\xa6"], &[]),
         Word::HomeAddSheet => (&[b"Add a repository to ", b""], &[Name]),
         Word::HomeAddSheetLead => (&[b"Made or copied on your Forgejo, then in this project at once."], &[]),
+        Word::HomeAddCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
         Word::HomeAddLegend => (&[b"A repository"], &[]),
         Word::HomeAddIt => (&[b"Add it"], &[]),
         Word::HomeMaking => (&[b"Making ", b"/", b"\xe2\x80\xa6"], &[Name, Name]),
@@ -7876,7 +7928,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeStartOver => (&[b"Start over"], &[]),
         Word::ForgeGoOn => (&[b"Go on"], &[]),
         Word::ConnectGitHub => (&[b"GitHub"], &[]),
-        Word::ConnectOwned => (&[b"Forgejo on this machine"], &[]),
+        Word::ConnectOwned => (&[b"Local forge"], &[]),
         Word::ConnectManaged => (&[b"Your Forgejo"], &[]),
         Word::ConnectHow => (&[b"How temper connects"], &[]),
         Word::ConnectAdminWay => (&[b"As its admin"], &[]),
@@ -7930,18 +7982,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GitHubReadNotFound => (&[b"GitHub no longer has this installation: install the App again."], &[]),
         Word::GitHubReadReload => (&[b"Reload this page to try again."], &[]),
         Word::GitHubRepositories => (&[b"Repositories"], &[]),
-        Word::WelcomeForgejo => (&[b"Forgejo"], &[]),
+        Word::WelcomeForgejo => (&[b"Local"], &[]),
         Word::WelcomeForgejoDescription => (
-            &[b"A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
+            &[b"A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
             &[],
         ),
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
-        Word::WelcomeForgejoLead => (&[b"temper starts it here and connects to it; you connect your model meanwhile."], &[]),
+        Word::WelcomeForgejoLead => (&[b"temper starts Forgejo here and connects to it; you connect your model meanwhile."], &[]),
         Word::WelcomeForgejoStartWith => (&[b"Start it with"], &[]),
+        Word::WelcomeForgejoSample => (&[b"A sample project"], &[]),
+        Word::WelcomeForgejoSampleDetail => (&[b"A short shell script with tests and CI. Use it to explore temper\xe2\x80\x99s features."], &[]),
         Word::WelcomeForgejoEmpty => (&[b"An empty repository"], &[]),
         Word::WelcomeForgejoEmptyDetail => (&[b"A README and a starter CI check."], &[]),
         Word::WelcomeForgejoCopies => (&[b"Copies of public repositories"], &[]),
-        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
+        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
         Word::WelcomeForgejoAddresses => (&[b"Their addresses, one per line"], &[]),
         Word::WelcomeForgejoAddressHint => (&[b"github.com/owner/name"], &[]),
         Word::WelcomeForgejoNothing => (&[b"Nothing for now"], &[]),
@@ -8068,22 +8122,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
         Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in\xe2\x80\xa6"], &[Name]),
-        Word::ForgeConfigCode => (&[b"{\n  \"number\": ", b",\n  \"kind\": \"forgejo\",\n  \"api\": {\"host\": \"forge.example\", \"port\": 443},\n  \"transport\": {\"tls\": {\n    \"server_name\": \"forge.example\", \"trust\": null\n  }},\n  \"git\": \"https://forge.example\",\n  \"web\": null,\n  \"log_origins\": null\n}"], &[Number]),
-        Word::ForgeIdentityCode => (&[b"{\n  \"number\": ", b", \"forge\": ", b", \"login\": null,\n  \"author\": {\n    \"name\": \"temper\",\n    \"email\": \"temper-bot@forge.example\"\n  }\n}"], &[Number, Number]),
-        Word::ForgeSetupCode => (&[b"{\n  \"forge\": ", b",\n  \"bot\": {\"login\": \"temper\", \"email\": \"temper-bot@forge.example\"},\n  \"mode\": \"managed\"\n}"], &[Number]),
+        Word::ForgeAdminCommand => (&[b"temper ctl DIR forge connect forgejo-admin FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY"], &[]),
+        Word::ForgeBotCommand => (&[b"temper ctl DIR forge connect forgejo FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY"], &[]),
         Word::ForgeConnecting => (&[b"Connecting"], &[]),
         Word::ForgesTitle => (&[b"Forges"], &[]),
         Word::ForgeHere => (&[b"Forgejo on this machine"], &[]),
         Word::ForgeGitHub => (&[b"GitHub"], &[]),
         Word::ForgeOwnServer => (&[b"Or a server of your own"], &[]),
-        Word::ForgeOwnServerDescription => (&[b"temper connects as its admin, or with its bot\xe2\x80\x99s tokens. Needs a change to temper\xe2\x80\x99s configuration and a restart."], &[]),
+        Word::ForgeOwnServerDescription => (&[b"temper connects as its admin, or with its bot's tokens. No restart."], &[]),
         Word::ForgeOwnServerConnect => (&[b"Connect your Forgejo"], &[]),
         Word::ForgeRunHere => (&[b"Run Forgejo here"], &[]),
         Word::ForgeCardConnected => (&[b"\xe2\x9c\x93 Connected"], &[]),
-        Word::ForgeConfigLead => (&[b"In ~/.config/temper/temper.json, with your host and unused numbers:"], &[]),
-        Word::ForgeConfigStep => (&[b"Add it to application.forges:"], &[]),
-        Word::ForgeIdentityStep => (&[b"Add its git identity to application.identities:"], &[]),
-        Word::ForgeSetupStep => (&[b"To connect as its admin, add it to application.setup. Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
+        Word::ForgeElsewhereLead => (&[b"Choose how temper connects. Replace DIR with your client directory, FILE with the private token file, KEY with a fresh request key, and forge.example with your host:"], &[]),
+        Word::ForgeAdminStep => (&[b"As its admin, use forge connect forgejo-admin; temper makes and keeps its bot:"], &[]),
+        Word::ForgeBotStep => (&[b"With its bot's tokens, use forge connect forgejo:"], &[]),
         Word::ForgeElsewhere => (&[b"A Forgejo elsewhere"], &[]),
         Word::ForgeOther => (&[b"Forgejo"], &[]),
         Word::ForgePlayground => (&[b"Playground forge"], &[]),
@@ -8093,7 +8145,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeHereTime => (&[b"Here \xc2\xb7 about a minute"], &[]),
         Word::ForgeCommandsTime => (&[b"Needs four commands and a restart"], &[]),
         Word::ForgeElsewhereDescription => (&[b"Your own Forgejo server. temper connects as its admin, or with its bot\xe2\x80\x99s tokens."], &[]),
-        Word::ForgeElsewhereTime => (&[b"Needs a change to temper\xe2\x80\x99s configuration and a restart"], &[]),
+        Word::ForgeElsewhereTime => (&[b"Connect with a command; no restart"], &[]),
         Word::ForgeShowHow => (&[b"Show how"], &[]),
         Word::ForgeAll => (&[b"Other forges"], &[]),
         Word::ForgeConnectGitHub => (&[b"Connect GitHub"], &[]),
@@ -8123,12 +8175,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeTerminal => (&[b"Set it up under temper box"], &[]),
         Word::ForgeTerminalNext => (&[b"Start temper with temper box to set one up here."], &[]),
         Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself."], &[]),
-        Word::ForgeElsewhereDetails => (&[b"Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot\xe2\x80\x99s tokens."], &[]),
-        Word::ForgeConfig => (&[b"For a forge at forge.example, add this entry to application.forges in ~/.config/temper/temper.json. Replace the example host with yours; use an unused forge number."], &[]),
-        Word::ForgeIdentity => (&[b"Add its git identity to application.identities, using an unused identity number and the same forge number:"], &[]),
-        Word::ForgeSetupEntry => (&[b"To connect as its admin, add its setup entry to application.setup:"], &[]),
-        Word::ForgeBotOnly => (&[b"Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
-        Word::ForgeRestart => (&[b"Restart temper box, then connect it from this page."], &[]),
+        Word::ForgeElsewhereDetails => (&[b"Connect as its admin and temper makes and keeps its bot, or connect with its bot's tokens. No configuration edit or restart."], &[]),
         Word::ForgeSettingUpTitle => (&[b"Setting up Forgejo on this machine"], &[]),
         Word::ForgeFetched => (&[b"Fetched Forgejo"], &[]),
         Word::ForgeConnectingAsTemper => (&[b"Connecting as temper"], &[]),
@@ -8560,6 +8607,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatFailed => (&[b"Failed \xc2\xb7 ", b""], &[Name]),
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
+        Word::RunBeganMoved => (&[b"Run ", b" began fresh: its conversation ran on another endpoint"], &[Number]),
+        Word::RunBeganClosed => (&[b"Run ", b" began fresh: its conversation was closed"], &[Number]),
+        Word::RunBeganCut => (&[b"Run ", b" began fresh: a turn was too large to load"], &[Number]),
+        Word::RunBeganLimit => (&[b"Run ", b" began fresh: its conversation passed the resume limit"], &[Number]),
+        Word::RunBeganSession => (&[b"Run ", b" began fresh: its session had ended"], &[Number]),
+
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
         Word::RunEndedInvalid => (&[b"Run ", b" ended: its result broke its contract (", b")"], &[Number, Name]),
         Word::RunEndedUnreadable => (&[b"Run ", b" ended: its result couldn't be read"], &[Number]),

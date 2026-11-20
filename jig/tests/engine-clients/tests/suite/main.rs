@@ -21,3 +21,8 @@ mod fuzzy {
     mod cursor;
     mod source;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

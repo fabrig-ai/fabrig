@@ -2145,32 +2145,24 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                 if Some(&subject) == d::forge::status::watch(1, &f::limits().forge).as_ref() =>
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                let brief = w::StatusBrief::new(
-                    &w::CEILINGS,
-                    w::StatusBriefParts {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: Box::default(),
-                        at: 0,
-                        landed: 1,
-                    },
-                )
-                .unwrap();
-                let status = w::ProjectStatus::new(
-                    &w::CEILINGS,
-                    w::ProjectStatusParts {
-                        project: 1,
-                        landed: 1,
-                        seen: 0,
-                        last_landed: Some(0),
-                        previous: Some(0),
-                        queued: 0,
-                        red: false,
-                        branch: b"main".as_slice().into(),
-                        unpaid: false,
-                        brief: Some(brief),
-                    },
-                )
-                .unwrap();
+                let brief = w::StatusBrief {
+                    sentence: b"One change landed.".as_slice().into(),
+                    lede: Box::default(),
+                    at: 0,
+                    landed: 1,
+                };
+                let status = w::ProjectStatus {
+                    project: 1,
+                    landed: 1,
+                    seen: 0,
+                    last_landed: Some(0),
+                    previous: Some(0),
+                    queued: 0,
+                    red: false,
+                    branch: b"main".as_slice().into(),
+                    unpaid: false,
+                    brief: Some(brief),
+                };
                 Up::FamilyDelivered {
                     watch,
                     record: jig_client::Family {
@@ -2191,9 +2183,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::answer(
-                            &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked }).unwrap(),
-                        ),
+                        bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                     })),
                 }
             }
@@ -2281,21 +2271,14 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     matched: 0,
                     away: false,
                 };
-                let asked = w::Asked::new(
-                    &w::CEILINGS,
-                    w::AskedParts { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
-                )
-                .unwrap();
-                let document = w::Decisions::new(
-                    &w::CEILINGS,
-                    w::DecisionsParts {
-                        project: 1,
-                        rows: List::with_capacity(0),
-                        asked: List::from_boxed(Box::new([asked])),
-                        cut: false,
-                    },
-                )
-                .unwrap();
+                let asked =
+                    w::Asked { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) };
+                let document = w::Decisions {
+                    project: 1,
+                    rows: List::with_capacity(0),
+                    asked: List::from_boxed(Box::new([asked])),
+                    cut: false,
+                };
                 Up::FamilyDelivered {
                     watch,
                     record: jig_client::Family {

@@ -145,6 +145,7 @@ fn a_large_document_and_a_large_goal_cross_the_wire() {
                     author: jig_domain_notes::Author::Task { task: chat, attempt: assignment.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         }),
     );
@@ -283,6 +284,7 @@ fn a_note_written_corrected_by_a_person_and_recalled() {
                 author: jig_domain_notes::Author::Task { task: assignment.task, attempt: assignment.attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     );
     let name = match world.front().session.driver.world.answers.last().expect("committed note answer").2 {

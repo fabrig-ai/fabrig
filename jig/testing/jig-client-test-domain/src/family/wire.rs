@@ -36,9 +36,7 @@ pub fn request(value: &family::Ask) -> (u32, jig_client_test_protocol_wire::v2::
             (*project, *object, revision.value, Some(*value))
         }
     };
-    let value =
-        w::ApplicationRequest::new(&w::CEILINGS, w::ApplicationRequestParts { object, revision, value, release: None })
-            .expect("fixed family request");
+    let value = w::ApplicationRequest { object, revision, value, release: None };
     (project, value)
 }
 
@@ -184,7 +182,7 @@ mod tests {
             revision: Revision { value: u64::MAX },
             value: 0,
         });
-        assert_eq!(*encoded.value(), Some(0));
+        assert_eq!(encoded.value, Some(0));
         let original = family::Subject { scope: family::Scope::Project(4), kind: family::Kind::Panel(PANEL) };
         let limits = ConnectorLimits { rows: 3, paths: 3, segments: 3, segment_bytes: 64, bytes: 100_000 };
         let panel = |task, capacity| ClientDocument::Panel {
@@ -220,22 +218,20 @@ mod subject_fields {
             Proposer::Task(value) => w::FamilyProposer::Task(number(value)),
             Proposer::Party(value) => w::FamilyProposer::Party(number(value)),
         };
-        w::FamilyProposalKey::new(&w::CEILINGS, w::FamilyProposalKeyParts { proposer, number: value.number })
-            .expect("fixed proposal key")
+        w::FamilyProposalKey { proposer, number: value.number }
     }
     pub(super) fn key_value(value: w::FamilyProposalKey) -> ProposalKey {
-        let value = value.into_parts();
         let proposer = match value.proposer {
-            w::FamilyProposer::Task(value) => Proposer::Task(value.value()),
-            w::FamilyProposer::Party(value) => Proposer::Party(value.value()),
+            w::FamilyProposer::Task(value) => Proposer::Task(value.value),
+            w::FamilyProposer::Party(value) => Proposer::Party(value.value),
         };
         ProposalKey { proposer, number: value.number }
     }
     fn number(value: u64) -> w::FamilyNumber {
-        w::FamilyNumber::new(&w::CEILINGS, w::FamilyNumberParts { value }).expect("fixed number")
+        w::FamilyNumber { value }
     }
     fn project(value: u32) -> w::FamilyProject {
-        w::FamilyProject::new(&w::CEILINGS, w::FamilyProjectParts { value }).expect("fixed project")
+        w::FamilyProject { value }
     }
     pub(super) fn subject(value: d::Subject) -> w::FamilySubject {
         let scope = match value.scope {
@@ -253,23 +249,22 @@ mod subject_fields {
             d::Kind::Project(value) => w::FamilyKind::Project(project(value)),
             d::Kind::Deployment => w::FamilyKind::Deployment,
         };
-        w::FamilySubject::new(&w::CEILINGS, w::FamilySubjectParts { scope, kind }).expect("fixed subject")
+        w::FamilySubject { scope, kind }
     }
     pub(super) fn subject_value(value: w::FamilySubject) -> d::Subject {
-        let value = value.into_parts();
         let scope = match value.scope {
-            w::FamilyScope::Project(value) => d::Scope::Project(value.value()),
+            w::FamilyScope::Project(value) => d::Scope::Project(value.value),
             w::FamilyScope::Deployment => d::Scope::Deployment,
         };
         let kind = match value.kind {
-            w::FamilyKind::Item(value) => d::Kind::Item(value.value()),
-            w::FamilyKind::Panel(value) => d::Kind::Panel(value.value()),
-            w::FamilyKind::Result(value) => d::Kind::Result(value.value()),
+            w::FamilyKind::Item(value) => d::Kind::Item(value.value),
+            w::FamilyKind::Panel(value) => d::Kind::Panel(value.value),
+            w::FamilyKind::Result(value) => d::Kind::Result(value.value),
             w::FamilyKind::Effect(value) => d::Kind::Effect(key_value(value)),
-            w::FamilyKind::OwnerEffect(value) => d::Kind::OwnerEffect(value.value()),
-            w::FamilyKind::Outbox(value) => d::Kind::Outbox(value.value()),
-            w::FamilyKind::Hold(value) => d::Kind::Hold(value.value()),
-            w::FamilyKind::Project(value) => d::Kind::Project(value.value()),
+            w::FamilyKind::OwnerEffect(value) => d::Kind::OwnerEffect(value.value),
+            w::FamilyKind::Outbox(value) => d::Kind::Outbox(value.value),
+            w::FamilyKind::Hold(value) => d::Kind::Hold(value.value),
+            w::FamilyKind::Project(value) => d::Kind::Project(value.value),
             w::FamilyKind::Deployment => d::Kind::Deployment,
         };
         d::Subject { scope, kind }
@@ -281,16 +276,10 @@ mod subject_fields {
 pub fn encode_document(value: &family::Document) -> Box<[u8]> {
     use jig_client_test_protocol_wire::{codec, v2 as w};
     let value = match value {
-        family::Document::Connector(value) => w::FamilyDocument::Connector(
-            w::FamilyConnectorDocument::new(
-                &w::CEILINGS,
-                w::FamilyConnectorDocumentParts {
-                    subject: subject_fields::subject(value.subject),
-                    value: codec::family::connector_document(&value.value),
-                },
-            )
-            .expect("admitted connector document"),
-        ),
+        family::Document::Connector(value) => w::FamilyDocument::Connector(w::FamilyConnectorDocument {
+            subject: subject_fields::subject(value.subject),
+            value: codec::family::connector_document(&value.value),
+        }),
     };
     codec::family::document(value)
 }
@@ -305,7 +294,6 @@ pub fn decode_document(
     let Ok(value) = codec::family::document_value(bytes, bounds) else { return Err(Invalid::TooLarge) };
     match value {
         w::FamilyDocument::Connector(value) => {
-            let value = value.into_parts();
             let subject = subject_fields::subject_value(value.subject);
             let Ok(value) = codec::family::connector_document_value(value.value, bounds) else {
                 return Err(Invalid::TooLarge);

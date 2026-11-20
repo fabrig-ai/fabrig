@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 
 /// A landing repair found only flakes (domain/forge/change/repairs.md).
 pub const REPAIR_FLAKE: u32 = 1;
+pub const REPAIR_NO_TEST: u32 = 2;
 
 pub mod address;
 pub mod approvals;
@@ -32,6 +33,7 @@ pub mod forge_user;
 pub mod gates;
 pub mod held;
 pub mod history;
+pub mod hold_words;
 pub mod items;
 pub mod judge;
 pub mod landing;
@@ -50,19 +52,23 @@ pub mod reconcile;
 pub mod red;
 pub mod reds;
 pub mod refusal;
+pub mod relay_route;
 pub mod resources;
 pub mod restore;
 pub mod result;
+pub mod routing;
 pub mod settings;
 pub mod status;
 #[cfg(test)]
 mod tests;
 pub mod text;
+pub mod tier_report;
 pub mod tiers;
 pub use tiers::{TierAct, TierActRequest, TierRefusal};
 pub mod verification;
 pub mod views;
 pub mod workflows;
+pub mod workspace;
 
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 pub use approvals::{ApprovalWait, ShortApproval};
@@ -82,9 +88,10 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 pub use findings::{
-    AreaRow, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind,
-    FindingRefusal, FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings, HandFinding,
-    HandFindingAnswer, Holder, Severity, Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    AreaRow, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding,
+    FindingAnswer, FindingBlame, FindingCleared, FindingDone, FindingKind, FindingRefusal, FindingReply, FindingRow,
+    FindingSignature, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage,
+    TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
@@ -132,8 +139,8 @@ pub use views::{
     APPROVALS_SUBJECT, ChangeFrom, ChangesLanded, ChangesQueue, ChangesQueued, ChangesSigned, ChangesView,
     DependencyView, Document, FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine,
     LandingMember, LandingRound, LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView,
-    LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject,
-    landings_subject,
+    LandingWait, LandingWaitFor, LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding,
+    changes_subject, follows_subject, landings_subject,
 };
 
 /// The prepare job (temper/docs/design/domain/worker/jobs.md).
@@ -521,6 +528,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 for command in [&value.merge_job, &value.close_job].into_iter().flatten() {
                     held = held.checked_add(bytes(command))?;
                 }
+                if let Some(repairs) = &value.repairs {
+                    held = held.checked_add(settings::repairs_heap(repairs)?)?;
+                }
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Gates(value), .. }) => {
@@ -568,17 +578,17 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::AgentFigures(value), .. }) => {
-                let mut held = u64::from(value.profile().len())
+                let mut held = u64::from(value.profile.len())
                     .checked_mul(u64::try_from(size_of::<settings::AgentFigure>()).ok()?)?
                     .checked_add(
-                        u64::from(value.endpoints().len())
+                        u64::from(value.endpoints.len())
                             .checked_mul(u64::try_from(size_of::<settings::AgentEndpointLimits>()).ok()?)?,
                     )?;
-                for figure in value.profile() {
-                    held = held.checked_add(bytes(figure.name()))?;
+                for figure in &value.profile {
+                    held = held.checked_add(bytes(&figure.name))?;
                 }
-                for endpoint in value.endpoints() {
-                    held = held.checked_add(bytes(endpoint.endpoint()))?;
+                for endpoint in &value.endpoints {
+                    held = held.checked_add(bytes(&endpoint.endpoint))?;
                 }
                 Some(held)
             }
@@ -655,16 +665,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
             if let Some(signature) = &row.signature {
-                bytes = bytes
-                    .checked_add(skein_lib::len_u64(signature.source.len()))?
-                    .checked_add(skein_lib::len_u64(signature.first.len()))?
-                    .checked_add(
-                        skein_lib::len_u64(signature.ids.len())
-                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
-                    )?;
-                for id in &signature.ids {
-                    bytes = bytes.checked_add(skein_lib::len_u64(id.len()))?;
-                }
+                bytes = bytes.checked_add(findings::signature_bytes(signature)?)?;
+            }
+            if let Some(blame) = &row.blame {
+                bytes = bytes.checked_add(findings::blame_bytes(blame)?)?;
             }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
                 bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
@@ -890,6 +894,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
+            .checked_add(match &row.goal_title {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(match &row.draft {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
             .checked_add(bytes(&row.body))?
             .checked_add(bytes(&row.report))?
             .checked_add(match &row.follows {
@@ -989,6 +1001,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
+            .checked_add(match &row.goal_title {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(match &row.draft {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
             .checked_add(bytes(&row.body))?
             .checked_add(bytes(&row.report))?
             .checked_add(llm(row.producing_llm.as_ref())?)?

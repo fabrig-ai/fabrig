@@ -1,8 +1,9 @@
 # box-link-first: status
 
-2026-11-11. Where the design lags or departs from [box-link-first.md](box-link-first.md).
+2026-11-19. Where the design lags or departs from [box-link-first.md](box-link-first.md).
 
 - **Design departs:**
+  - 2: `../protocol/setup/box.md`, 2: the block's link is at the link's page, `http://127.0.0.1:8367/sign-in?secret=...`, where this draft has the link route, `/jig/v1/sign-in/link`, "as today": a link at the route still signs in (`../client/README.md`, section 4). The user's request of 2026-11-18, "a more terse URL".
   - 2: `../protocol/setup/box.md`, 2: the block's footer says "It signs you in as this temper's owner, once, within 2 hours." and "Opened after that, it prints a fresh one here.", where this draft has "once and for a short while" and "Opened again once spent": an expired link draws a fresh one too, and it lives 2 hours (jig's `protocol/client/sign-in.md`). The user's, 2026-11-06, walking a real box.
   - 2: `../protocol/setup/box.md`, 2: a fresh link's blank line is on stderr, the link on stdout, where this draft's words can read as both on stdout: its own "the link alone on stdout, the other lines on stderr" and `temper help commands`' "its stdout" want a script reading stdout to read links alone. A terminal shows the same. Decided by the plan's cut.
   - 2, 3, 4: `../protocol/setup/box.md`, 1 and 2: a clients' listener at port 0 is not held, as 7.1 has it, so the box has no port to print: serve draws its own first secret and the block is written at its first link. The default document's port is fixed (8.2), so a person's box never meets this. Decided by the plan's cut, to keep 7.1's rule and leave such a document working.

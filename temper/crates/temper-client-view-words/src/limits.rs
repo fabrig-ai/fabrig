@@ -314,6 +314,6 @@ pub fn valid(limits: &Limits, domain: &temper_client_domain::Limits, words: &Wor
 }
 fn valid_edges(limits: &Limits, domain: &temper_client_domain::Limits, words: &Words) -> bool {
     skein_ui::valid(&limits.tree)
-        && skein_ui::phrases::valid(words.book.limits())
+        && skein_ui::phrases::valid(words.book().limits())
         && domain.client.domain.rows.checked_mul(3).is_some()
 }

@@ -8,13 +8,13 @@ stacked by a merge job, a prefix per member on a branch the landing
 holds; gates proved by receipts kept by key, at the stack's top; and
 the landing's own pull request fast-forwarded into the branch, which
 lands its members by containment. It is the merge queue
-(`../draft/merge-queue.md`, its execution's M1 to M3); a red round of
+(`../draft/merge-queue.md`); a red round of
 several units is narrowed by prefixes, `landing-search.md`. It replaces, for such a project, the change's CI, its queue,
 its updates and its merge in the repository's style
 (`forge/change/README.md`, 2 steps 3 and 5 to 7, `forge/queues.md` and
 `forge/README.md`, section 6). What follows a landing, its tiers and its
 verdict, is `after-landing.md`. The forge's calls it makes are skein's
-`forge/README.md`, 3.2. What is still open is `landing.md`, section 17.
+`forge/README.md`, 3.2. What is still open is section 17.
 
 ## 1. In one page
 
@@ -217,7 +217,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 
 - **A procedure task of the forge's,** `landing`, made in the decision
   that forms it (section 9), with its members. It holds each member's
-  branch in the landing from its making (5.1).
+  branch in the landing from its making (5.1). The landing is saved once
+  jig has made it (`landing-forming.md`).
 - **Requested by the deployment on the project's behalf,** with the
   authority the project's policy gives landings, as a branch's repair
   under `queue` is (`forge/queues.md`); funded from the project's
@@ -249,6 +250,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   first in line by its kept time. Cancelled, by a person's act on the
   landing task, its members are left ready and in no landing, each
   unless it is recorded landed (section 8), and the train forms again.
+  Either way every change that names it, member or not, stops naming
+  it as it ends, an ask it still keeps for one going onto that change.
+  Either end wakes its own train's waiting changes, no other's.
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (5.2), `prepare job: WHY`;
@@ -275,6 +279,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   bounded by the change's own stall (`forge/change/stalls.md`): the
   change holds, and the member leaves. A release lifts the landing's
   hold, and it prepares again in a new round, keeping its receipts.
+  Short of a hold, a step waits only on what it names, and with no
+  deadline only on its own effect, a change's step or a release
+  (`landing-waits.md`, 3).
 - **Drained** (jig's `domain/connectors.md`, 6.7): a landing in a
   draining hold's scope that has begun its proof goes on, through the
   turn, to land; one still preparing is idle, and held. A stale base or
@@ -303,6 +310,11 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 - **It keeps its place:** its first ready time is unchanged, so once
   ready again it is first in line by that time. Leaving is never a
   repair by itself.
+- **Its link goes as it leaves:** at the leave, whatever its change
+  does next, the change stops naming the landing (section 12), and the
+  landing's ask for it, a resolution or a repair with its context, goes
+  onto the change, kept there until it takes it. No landing keeps a
+  change that left it out of its queue.
 - **The rest stay:** a member that leaves while the job stacks is
   skipped by that job (5.2). One that leaves later ends the round (5.1),
   but for a unit its round's search blames (`landing-search.md`, 4):
@@ -341,7 +353,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   prefixes and receipts. A prepare still running settles before cleanup;
   its delivered prefixes are read and retained even when the round ends
   before preparation recorded them. A restart at that boundary resumes
-  the same cleanup before any new prepare.
+  the same cleanup before any new prepare. Once the cleanup is
+  answered, the next step is due at once: the next round's prepare, its
+  opening, its proof and turn, or the landing's end, reading no fact of
+  the ended round (`landing-waits.md`, 3).
 - **The next round** takes the members still in the landing: its job
   stacks only those above the last kept prefix, onto it or onto the
   base (5.2); with none, the last kept prefix is its top, and no job is
@@ -606,36 +621,36 @@ The default, for a project with no prepare command:
 
 ### 7.3 A real failure
 
-- **A run whose workflow's own step failed** makes a failed receipt,
-  read with each failed job's failed step and the end of its log
-  (skein's `Read::Job`) as the landing makes it, and, where its gate
-  names a report (`landing-settings.md`, 1.1), its failed tests, read as a tier's
-  (`after-landing.md`, 4): a report not read leaves them unknown, never
-  a fault.
+- **A run whose workflow's own step failed, by its gate's own verdict,**
+  makes a failed receipt, read with each failed job's failed step and
+  the end of its log (skein's `Read::Job`) as the landing makes it, and,
+  where its gate names a report (`landing-settings.md`, 1.1), its failed
+  tests, read as a tier's (`after-landing.md`, 4): a report there but
+  not read leaves them unknown. The gate's verdict is its report, one
+  its run never uploaded a fault (7.4); a gate naming none, its failed
+  step (the requester, 2026-11-19).
 - **A round of one unit:** its changes are repaired
-  (`forge/change/repairs.md`), each one's words naming the run, the
-  candidate, its base and its failed tests and jobs, its brief those
-  steps and logs. Its
-  members leave (4.3), and the landing ends with nothing landed. A
+  (`forge/change/repairs.md`), its members leave (4.3), and the landing ends with nothing landed. A
   repaired head waits for a later landing, whose keys that did not
   change hold by their receipts.
 - **A round of several units is narrowed by prefixes**
-  (`landing-search.md`): the same gates at the unit boundaries below
-  the candidate find a green prefix and the red one a unit above it;
-  that unit's changes are repaired and leave, the green prefix lands in
-  the round's turn, and the units above it go on in the next round.
+  (`landing-search.md`): the same gates at the unit boundaries find a
+  green prefix and the red unit above it, whose changes are repaired and
+  leave; the green prefix lands in the round's turn, the units above it
+  in the next round.
 
 ### 7.4 A fault of the runner
 
 - **The runner's, not the change's:** a job whose set-up step failed, or
   whose completion step alone failed, or that failed with no step
-  failed; a run cancelled by no one of temper's; a run never found, or
-  found at another commit; a dispatch refused for a missing workflow or
-  runner. Never read from a log's words (`../draft/ci-on-forgejo-17.md`,
-  2.1).
-- **Retried, never repaired:** the failed jobs rerun (skein's
-  `Write::Rerun`, naming each job's attempt, so that a rerun whose
-  outcome was lost is found by the job's next attempt), or the gate
+  failed; a failed run whose gate's report it never uploaded
+  (`unreported`: the gate cut by a signal, a shutdown, a lost job); a
+  run cancelled by no one of temper's; a run never found, or found at
+  another commit; a dispatch refused for a missing workflow or runner.
+  Never read from a log's words (`../draft/ci-on-forgejo-17.md`, 2.1).
+- **Retried, never repaired or searched:** the failed jobs rerun (skein's
+  `Write::Rerun`, naming each job's attempt, so that a lost rerun is
+  found by the job's next), or the gate
   dispatched again, up to the project's `gate_retries` per key: a run
   cancelled, or never found, is dispatched afresh, never rerun. No
   receipt is made.
@@ -743,7 +758,10 @@ The default, for a project with no prepare command:
 - **A train is a repository and the branch its changes land into:** a
   repository's main, or a goal's branch, each a train of its own.
 - **Held** by its live landing from the decision that forms it to its
-  end. Held is derived from the landings' phases, never stored. A
+  end (4.2), so a train has one live landing at a time. Held is derived
+  from the landings' phases, never stored: one landed or cancelled
+  holds it no more, though its task may still follow its runs (7.1)
+  and delete its branches. A
   landing held for a person (4.2) holds its own train alone: other
   trains form, prove and turn beside it.
 - **Waiting changes** are ready (section 3) under turn and in no
@@ -760,12 +778,32 @@ The default, for a project with no prepare command:
   beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
-  each train they touch. Changes made ready by one event (a dependency
-  they share ending, one decision's gates) are waiting together:
-  forming is judged once the readiness that event makes due has
-  settled, so they form one landing, never the first alone, and no
-  timer or delay stands in for that settling.
-  Other trains settle and form independently.
+  each train they touch.
+- **A due step leaves no change out:** a waiting change whose own step
+  is due (woken when a landing ends, or awaiting its step's forge read)
+  joins the forming judged while it is due, in its place in line, as a
+  quiet one does, and never holds it. Its readiness drops only with its
+  head moving, and its landing reads each member's head as it joins: a
+  moved one leaves (4.3).
+- **Changes made ready by one event** (a dependency they share ending,
+  one decision's gates) are waiting together: a change into the train
+  under turn, in no landing and not yet ready, whose due step will make
+  it ready, holds that train's forming while that step is due, so they
+  form one landing, never the first alone, and no timer or delay stands
+  in for that settling. Its step will make it ready when it is gating
+  at its head, each blocking gate passed there or its gate's result come
+  back for that step to take in, and no dependency of it pending
+  outside its unit (4.1).
+- **One step at most:** the hold lasts that one step. A change whose
+  step ends with it not ready holds no more while it stays gating at
+  that head, whatever wakes it again. The running engine remembers
+  that, unstored, so after a restart such a change may hold for one more
+  step. No other due step holds a train:
+  not a change still checking or producing, gating with a gate
+  outstanding, kept by a pending dependency, or already ready, whatever
+  step made it so.
+- **Each train on its own:** a change's step or wake holds only its own
+  train's forming; other trains settle and form independently.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 8). Stale rounds are counted on the landing and
@@ -775,30 +813,7 @@ The default, for a project with no prepare command:
 
 ## 10. What the forge shows
 
-- **The round's pull request,** the landing's own: from the top's
-  branch into the train's branch, titled `Land #N: TITLE`, N and TITLE
-  the member's pull request's number and title, for a stack of one, and
-  `Land K changes: #N1, #N2, …` for a stack of K, the numbers in its
-  order, as many as the title's bound holds whole; its body naming the
-  round and its base, then a line per member in the stack's order: its
-  change, pull request, head and prefix, then, after a search, the
-  search's line (`landing-search.md`, 8). It is merged by the turn, or
-  closed as its round ends unlanded or its search cuts the stack.
-- **Each gate as a commit status on the candidate,** and on each prefix
-  a search probed,
-  `temper/gate/<name>`: pending with its key's first 16 hexadecimal
-  digits once dispatched; success or failure with the run as its link
-  once its receipt is made; success with the receipt's run as its link
-  when a receipt held with no run. A fast-forward makes the branch's
-  commit the candidate, so the branch shows the statuses that proved
-  it, and protection may require them.
-- **A merged member's pull request is marked merged** by the forge's
-  detection of a manual merge (Forgejo's "autodetect manual merge",
-  which adoption reads, `landing-settings.md`, 1.2): its head is in the branch, its merge
-  commit its prefix. temper writes nothing to it at the turn.
-- **A squashed member's is recorded merged** by the landing at its
-  squash commit (section 8), Forgejo's "manually merged" with that
-  commit, which needs the repository to allow a manual merge (`landing-settings.md`, 1.2).
+See [Landings at the forge](landing-forge.md), section 1.
 
 ## 11. Effects and kinds
 
@@ -883,7 +898,11 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   key: the verdict, the run, the candidate and the time.
 - **A change's state** grows its landing, its clean merges' heads, its
   way (`queue` or `turn`), its judgement at its prefix, its landing's
-  asks: judge, resolve, repair, landed.
+  asks: judge, resolve, repair, landed. It names only a landing it is
+  in and has not left; an ask handed over as it left or as its landing
+  ended is kept on the change (4.2, 4.3). The landing's row keeps the
+  times of its last event and its turn's start, and its latest wait
+  (`landing-waits.md`, 4).
 - **Registered layouts,** converted at read (`../protocol/store.md`,
   section 4): new fields declare their defaults, renamed parts their
   former names. A change no plan derives is a written job, not a map
@@ -918,8 +937,8 @@ Under `../client/ctl/tools.md`, 1's names (a group `landing`):
 
 | Tool | What it answers or does |
 |---|---|
-| `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top and at each probed prefix; its round's search (`landing-search.md`, 8); its step, its stale rounds and faults |
-| `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases; the live ones first |
+| `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top and at each probed prefix; its round's search (`landing-search.md`, 8); its step and what it waits for (`landing-waits.md`, 4), its stale rounds and faults |
+| `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases, each live one's step and the age of its last event, and the turn holder with how long it has held its turn; the live ones first |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time |
 | `landing history --project PROJECT [--change TASK \| --landing TASK] ...` | the steps of the project's changes and landings as events, kept after their rows go (`landing-history.md`, 5.1) |
 
@@ -942,7 +961,8 @@ documents for another task or project remain errors.
 ## 15. Restart
 
 - **Restored whole** with the forge's other families (`forge/README.md`,
-  section 9). Trains are derived again from the live landings.
+  section 9). Trains are derived again from the live landings. A live
+  landing jig never made ends at the link pass (`landing-forming.md`, 4).
 - **Before any landing steps,** the train's tip and each member's head
   are read afresh, and each run in flight is read (`Read::Run`); a
   dispatch whose outcome was uncertain is found by its runs, as section 11 says.
@@ -958,6 +978,10 @@ documents for another task or project remain errors.
   squashed member's record, uncertain, is found by its pull request
   read merged at its prefix, and made where it is not; ended, its
   release goes on.
+- **A link to an ended landing is dropped** as the store is read: a
+  change naming a landing ended, or one the store does not hold, stops
+  naming it, an ask that landing still keeps for it going onto the
+  change; ready, it waits in its train's queue by its kept time.
 - **Forming** is judged again for every train (section 9).
 
 ## 16. The world
@@ -1012,8 +1036,8 @@ stories supply prepare outcomes as a worker does. The forge's world holds:
   `exact` one asked at the prefix on the landing's pull request;
 - **a real failure** repairs the member, which leaves, and only its
   changed keys run in its next landing;
-- **a runner's fault** is rerun, never repaired, and past its bound
-  holds the landing; a run cancelled by a person is dispatched afresh
+- **a runner's fault,** an unreported run's too, is rerun, never repaired,
+  and past its bound holds the landing; a run cancelled by a person is dispatched afresh
   at its key and candidate; a run past `gate_timeout` holds it;
 - **a stale base as prepare ends or at the turn** ends the round, every
   member stacked again once on the new base, and the next round lands;
@@ -1051,15 +1075,4 @@ them (`../testing/qa/setups.md`, 6).
 
 ## 17. Open questions
 
-- **Reviews in a landing:** before forming (the default here), or on
-  the candidate.
-- **A judgement gate's key** as a patch id of the member's diff, which a
-  merge over conflicting lines would keep and a clean merge (the
-  mechanism here) may not; kept as clean merges until a project needs
-  more.
-- **A gate for a goal's branch's train:** none here (7.1); a project
-  that wants one names it when one does.
-- **A merge raced by a push** waits out the client's tries before its
-  round ends (section 8), its pull request's lane holding the round's
-  close behind it. A typed answer for Forgejo's `500`, or a pending merge
-  withdrawn once its round is stale, would end it at once.
+See [Landings at the forge](landing-forge.md), section 2.

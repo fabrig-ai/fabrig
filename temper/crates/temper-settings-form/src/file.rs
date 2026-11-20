@@ -1,7 +1,7 @@
 //! Bounded whole settings input (client/ctl/results.md, 4; jig's client/domain/contract/requests.md, 2).
 use crate::Limits;
 #[path = "settings_file_values.rs"]
-mod values;
+pub(crate) mod values;
 use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};

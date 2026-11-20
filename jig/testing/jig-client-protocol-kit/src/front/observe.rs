@@ -154,18 +154,18 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
             }
         }
         w::Owner::Family(_) => {
-            use jig_client_test_protocol_wire::v2 as family;
+            use jig_client_test_protocol_wire::v2::{self as family, Record};
             sent.application = true;
             let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
                 .expect("family request envelope");
             let request = family::Request::decode(&family::CEILINGS, &mut Reader::new(envelope.record()))
                 .expect("family request");
             let subject = jig_client_test_domain::family::Subject {
-                scope: jig_client_test_domain::family::Scope::Project(request.project()),
-                kind: jig_client_test_domain::family::Kind::Item(request.value().object()),
+                scope: jig_client_test_domain::family::Scope::Project(request.project),
+                kind: jig_client_test_domain::family::Kind::Item(request.value.object),
             };
             sent.card = Some(jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(&subject)));
-            sent.revision = Some((0, request.value().revision()));
+            sent.revision = Some((0, request.value.revision));
         }
     }
     Some(sent)

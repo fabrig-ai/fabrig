@@ -1,5 +1,6 @@
 //! The engine binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
+use temper_config_shell::{File, Shape, render};
 use temper_engine_shell::{ENGINE, commands};
 #[path = "../support/upgrade.rs"]
 mod upgrade;
@@ -64,13 +65,14 @@ mod settings;
 
 #[test]
 fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generation() {
+    use settings::Numbers;
     let (scratch, directories) = deployment::deployment();
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
     let active_path = data.join("state/active");
-    for moved in [false, true] {
-        settings::seed_numbered_settings(&directories, moved);
+    for numbers in [Numbers::Kept, Numbers::Moved, Numbers::Past, Numbers::Taken] {
+        settings::seed_numbered_settings(&directories, numbers);
         let active = std::fs::read(&active_path).expect("active generation");
         let before = deployment::tree(&data);
         let output = Command::new(skein_scratch::paths::binary("temper-engine"))
@@ -85,21 +87,75 @@ fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generatio
             .expect("run upgrade check");
         let out = String::from_utf8_lossy(&output.stdout);
         let err = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(output.status.code(), Some(i32::from(!moved)), "{out}\n{err}");
+        let refused = matches!(numbers, Numbers::Past | Numbers::Taken);
+        assert_eq!(output.status.code(), Some(i32::from(refused)), "{out}\n{err}");
         assert!(err.lines().all(engine_long_pass), "{err}");
-        if moved {
+        if !refused {
             assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
             assert!(!out.contains("settings out of their numbers"), "{out}");
-        } else {
+        } else if numbers == Numbers::Past {
             let refusal = out.lines().find(|line| line.contains("settings out of their numbers")).expect(&out);
-            for words in
-                ["changed template 9", "changed charter 17", "the stock's 1 to 32", "a deployment's own 33 to 64"]
-            {
+            for words in ["changed charter 65", "the stock's 1 to 32", "a deployment's own 33 to 64"] {
                 assert!(refusal.contains(words), "{refusal}");
+            }
+        } else {
+            for words in [
+                "the stock's new settings take numbers a deployment's own hold",
+                "charter 1",
+                "move each to 33 to 64 on the build that runs now, then start this one",
+            ] {
+                assert!(out.contains(words), "{out}");
             }
         }
         assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
         assert_eq!(deployment::tree(&data), before, "the check leaves the data directory unchanged");
+    }
+}
+
+#[test]
+fn upgrade_check_restores_under_the_limits_a_start_takes_from_the_copy() {
+    let (scratch, directories) = deployment::deployment();
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    let cache = scratch.path().join("cache");
+    // The copy's own `limits` setting raises core.settings.versions past the stock's, and the copy holds more.
+    let versions = settings::seed_raised_versions(&directories, 64);
+    let refusal = format!("restart refused during core restore: Versions, held {versions}, limit {}", versions - 1);
+    let hold = data.join("limits-held");
+    let held_line = format!(
+        "limits held: {}; the limit settings are not taken; remove it and restart to take them",
+        hold.display()
+    );
+    let active_path = data.join("state/active");
+    let active = std::fs::read(&active_path).expect("active generation");
+    let before = deployment::tree(&data.join("state"));
+    // Held at the stock, a start takes neither kind and refuses what it holds past the stock's figure.
+    for stock in [false, true] {
+        if stock {
+            std::fs::write(&hold, b"").expect("limits held at the stock");
+        }
+        let output = Command::new(skein_scratch::paths::binary("temper-engine"))
+            .args(["upgrade", "--check"])
+            .arg(data.join("state"))
+            .env_clear()
+            .env("TEMPER_CONFIG", &config)
+            .env("TEMPER_DATA", &data)
+            .env("TEMPER_CACHE", &cache)
+            .stdin(Stdio::null())
+            .output()
+            .expect("run upgrade check");
+        let out = String::from_utf8_lossy(&output.stdout);
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(i32::from(stock)), "{out}\n{err}");
+        assert!(err.lines().all(|line| engine_long_pass(line) || (stock && line == held_line)), "{err}");
+        if stock {
+            assert!(out.contains(&refusal), "{out}");
+        } else {
+            assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
+            assert!(!out.contains("restart refused"), "{out}");
+        }
+        assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
+        assert_eq!(deployment::tree(&data.join("state")), before, "the check leaves the copy unchanged");
     }
 }
 
@@ -133,8 +189,6 @@ fn only_engine_long_pass_diagnostics_are_accepted_on_stderr() {
     }
 }
 
-const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
-const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
 const FETCH: &[&str] = &["forge", "fetch", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE", "1"];
 
@@ -187,6 +241,10 @@ fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(ENGINE.binary, &temper_shell::help::Request::Index).expect("index page")
 }
 
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::EngineAlone).as_ref()
+}
+
 fn commands_page(text: &str) -> bool {
     text == temper_shell::table::commands_page(&ENGINE)
 }
@@ -201,7 +259,7 @@ fn forge_help(text: &str) -> bool {
 }
 
 type Check = fn(&str) -> bool;
-type Case = (&'static [&'static str], Option<&'static str>, i32, Check, &'static str);
+type Case = (&'static [&'static str], Option<Shape>, i32, Check, &'static str);
 
 const CHECKPOINT_USAGE: &str = "temper-engine checkpoint: invalid arguments\nusage: temper-engine checkpoint [DIRECTORIES]\nusage: temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-engine checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
@@ -215,6 +273,7 @@ const ROWS: &[Case] = &[
     (&["help"], None, 0, help, ""),
     (&["help", "pages"], None, 0, pages, ""),
     (&["help", "commands"], None, 0, commands_page, ""),
+    (&["help", "config"], None, 0, config_page, ""),
     (&["help", "nope"], None, 1, empty, "temper-engine: no page nope; temper-engine help lists them\n"),
     (&["box"], None, 2, empty, "temper-engine: no command box; temper-engine --help lists them\n"),
     (
@@ -228,24 +287,24 @@ const ROWS: &[Case] = &[
     (&["--version", "extra"], None, 2, empty, "temper-engine: no command --version; temper-engine --help lists them\n"),
     (
         SERVE,
-        Some(WORKER),
+        Some(Shape::WorkerAlone),
         1,
         empty,
-        "temper-engine serve: temper.json holds a worker alone; temper-worker serve runs it\n",
+        "temper-engine serve: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
         SERVE,
-        Some(STANDALONE),
+        Some(Shape::Standalone),
         1,
         empty,
-        "temper-engine serve: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
+        "temper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
         FETCH,
-        Some(WORKER),
+        Some(Shape::WorkerAlone),
         1,
         empty,
-        "temper-engine forge fetch: temper.json holds a worker alone; temper-worker serve runs it\n",
+        "temper-engine forge fetch: forge 1: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine forge fetch: {file}: workers: required in temper-engine's file\n",
     ),
     (
         &["upgrade", "--check"],
@@ -285,11 +344,20 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
     std::fs::create_dir(&config).expect("configuration directory");
-    let document = config.join("temper.json");
+    std::fs::create_dir(&data).expect("data directory");
+    let directories = temper_agent_fixtures::directories(&config);
+    let jig = temper_service_shell::jig_directories(&directories);
+    let setup =
+        temper_forge_setup::setup_file::chosen(temper_forge_setup::machine::BoxKind::Fake, 3007, b"sam", false, &jig)
+            .expect("fake setup");
+    temper_forge_setup_shell::setup_file::write(&jig, 1, &setup).expect("setup file");
+    std::fs::create_dir_all(data.join("box/groups")).expect("groups directory");
+    std::fs::write(data.join("box/groups/1"), b"fake\n").expect("group kind");
+    let document = config.join(temper_config_shell::FILE);
     let mut failures = Vec::new();
     for (arguments, contents, code, stdout, stderr) in ROWS {
         if let Some(contents) = contents {
-            std::fs::write(&document, contents).expect("write document");
+            std::fs::write(&document, shape_file(*contents)).expect("write document");
         } else if document.exists() {
             std::fs::remove_file(&document).expect("remove document");
         }
@@ -314,9 +382,22 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
             .expect("run temper-engine");
         let out = String::from_utf8(output.stdout).expect("UTF-8 stdout");
         let err = String::from_utf8(output.stderr).expect("UTF-8 stderr");
-        if output.status.code() != Some(*code) || !stdout(&out) || err != *stderr {
+        if output.status.code() != Some(*code)
+            || !stdout(&out)
+            || err != stderr.replace("{file}", temper_config_shell::FILE)
+        {
             failures.push(format!("{arguments:?}, document {contents:?}: exit {:?}, stdout {out:?}, stderr {err:?}; expected exit {code}, stderr {stderr:?}", output.status.code()));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn shape_file(shape: Shape) -> Box<[u8]> {
+    let address = "127.0.0.1:1".parse().expect("fixture address");
+    let file = match shape {
+        Shape::Standalone => File { listen: Some(address), ..File::default() },
+        Shape::EngineAlone => File { workers: Some(address), ..File::default() },
+        Shape::WorkerAlone => File { engine: Some(address), ..File::default() },
+    };
+    render(&file, shape)
 }

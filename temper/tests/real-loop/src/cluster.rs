@@ -2,6 +2,7 @@
 use crate::{calls, fixtures, forge, llm, service::ServiceHost, world};
 use skein_io::kernel::{Complete, Done, Op};
 use std::{fmt::Write as _, net::SocketAddr, os::unix::fs::DirBuilderExt, path::Path};
+use temper_client_protocol_wire::v1::Record;
 
 /// Script hold released once every started worker has received an assignment.
 pub const PLACED: &[u8] = b"cluster-placed";
@@ -156,6 +157,11 @@ impl Shape {
                 .create(path.join(name))
                 .expect("cluster directories");
         }
+        let mut file = fixtures::file::read(&data, temper_config_shell::Shape::Standalone).file;
+        let shape = match self {
+            Self::Engine { .. } => temper_config_shell::Shape::EngineAlone,
+            Self::Worker { .. } => temper_config_shell::Shape::WorkerAlone,
+        };
         let document = configuration;
         document["world_settings"] =
             serde_json::from_slice(&std::fs::read(data.join("world-settings.json")).expect("world settings"))
@@ -183,7 +189,7 @@ impl Shape {
                 document["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
                 document["workers"] = json!([]);
 
-                document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
+                file.workers = Some(([127, 0, 0, 1], 0).into());
                 // Every configured position admitted: the small profile admits two workers.
                 document.jig_over("fleet.workers", workers.len());
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
@@ -222,24 +228,25 @@ impl Shape {
                 worker.as_object_mut().expect("worker").remove("limits");
                 worker.as_object_mut().expect("worker").remove("agent");
                 worker["name"] = (*name).into();
-                worker["secret"] = format!("secrets/{name}.secret").into();
-                worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
+                worker["secret"] = "secrets/worker.secret".into();
+                file = temper_config_shell::File {
+                    name: Some((*name).into()),
+                    engine: Some(engine.unwrap_or(([127, 0, 0, 1], 0).into())),
+                    ..Default::default()
+                };
                 worker.as_object_mut().expect("worker").remove("graces");
                 worker.as_object_mut().expect("worker").remove("programs");
                 document.document = json!({"workers":document["workers"],"application":{}});
-                fixtures::private(
-                    &data.join(format!("secrets/{name}.secret")),
-                    format!("{name}-fixture-secret").as_bytes(),
-                )
-                .expect("fixture secret");
+                fixtures::private(&data.join("secrets/worker.secret"), format!("{name}-fixture-secret").as_bytes())
+                    .expect("fixture secret");
             }
         }
         if let Some(flags) = document.as_object_mut().expect("cluster document").remove("world_settings") {
             fixtures::private(&data.join("world-settings.json"), &serde_json::to_vec(&flags).expect("world flags"))
                 .expect("world settings");
         }
-        fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
-            .expect("private cluster document");
+        fixtures::file::write(&config, &file, shape).expect("cluster configuration file");
+        document.document = fixtures::file::document(&config, shape);
     }
 }
 
@@ -293,7 +300,7 @@ impl Runs {
                             &mut skein_lib::Reader::new(&self.bytes[HEADER_BYTES..end]),
                         )
                         .expect("assignment");
-                        self.pending = Some(assignment.task());
+                        self.pending = Some(assignment.task);
                         self.assigned_at.get_or_insert(now);
                         self.assignments.push(assignment);
                     }
@@ -335,52 +342,37 @@ fn prepare_agents(data: &Path, mut agent: serde_json::Value) {
     for group in ["declared", "policy"] {
         for (name, value) in agent["profile"][group].as_object().expect("profile") {
             profile
-                .push(
-                    w::AgentFigure::new(
-                        &w::CEILINGS,
-                        w::AgentFigureParts {
-                            name: format!("{group}.{name}").into_bytes().into(),
-                            value: value.as_u64().expect("scalar"),
-                        },
-                    )
-                    .expect("profile figure"),
-                )
+                .push(w::AgentFigure {
+                    name: format!("{group}.{name}").into_bytes().into(),
+                    value: value.as_u64().expect("scalar"),
+                })
                 .expect("profile room");
         }
     }
     let mut endpoints = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_endpoints);
     for endpoint in agent["endpoints"].as_array().expect("endpoints") {
         let limits = &endpoint["limits"];
-        let limits = w::AgentLimits::new(
-            &w::CEILINGS,
-            w::AgentLimitsParts {
-                window: u32::try_from(limits["window"].as_u64().expect("window")).expect("u32"),
-                output: u32::try_from(limits["output"].as_u64().expect("output")).expect("u32"),
-                reasoning_item: u32::try_from(limits["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
-                head_ms: limits["head"].as_u64().expect("head"),
-                idle_ms: limits["idle"].as_u64().expect("idle"),
-                oversized: w::Oversized::Fail,
-            },
-        )
-        .expect("endpoint limits");
+        let limits = w::AgentLimits {
+            window: u32::try_from(limits["window"].as_u64().expect("window")).expect("u32"),
+            output: u32::try_from(limits["output"].as_u64().expect("output")).expect("u32"),
+            reasoning_item: u32::try_from(limits["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
+            head_ms: limits["head"].as_u64().expect("head"),
+            idle_ms: limits["idle"].as_u64().expect("idle"),
+            oversized: w::Oversized::Fail,
+        };
         endpoints
-            .push(
-                w::AgentEndpointLimits::new(
-                    &w::CEILINGS,
-                    w::AgentEndpointLimitsParts {
-                        endpoint: endpoint["name"].as_str().expect("endpoint").as_bytes().into(),
-                        limits,
-                    },
-                )
-                .expect("endpoint figures"),
-            )
+            .push(w::AgentEndpointLimits {
+                endpoint: endpoint["name"].as_str().expect("endpoint").as_bytes().into(),
+                limits,
+            })
             .expect("endpoint room");
     }
-    let fallback = endpoints.get(0).expect("one endpoint").limits().clone();
-    let value =
-        w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback }).expect("figures");
-    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("agent figures bytes");
+    let fallback = endpoints.get(0).expect("one endpoint").limits.clone();
+    let value = w::AgentFigures { profile, endpoints, fallback };
+    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(
+        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+    ));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("agent figures bytes");
     fixtures::private(&data.join("agents.setting"), &bytes.finish()).expect("initial agent figures");
 }
 
@@ -408,15 +400,15 @@ mod tests {
         let agents = forge.iter().find(|row| row.kind == 21).expect("initial agent figures");
         let Value::AgentFigures(figures) = &agents.value.value else { panic!("agent figures") };
         let unacknowledged = figures
-            .profile()
+            .profile
             .iter()
-            .find(|figure| figure.name() == b"policy.unacknowledged")
+            .find(|figure| figure.name.as_ref() == b"policy.unacknowledged")
             .expect("cluster host admission");
-        assert_eq!(unacknowledged.value(), 1, "one outstanding turn per worker");
-        let endpoint = figures.endpoints().get(0).expect("fixture endpoint");
-        assert_eq!(endpoint.endpoint(), b"fake");
-        assert_eq!(endpoint.limits().window(), 1_048_576, "the fixture's model window");
-        assert_eq!(figures.fallback(), endpoint.limits(), "the fixture's fallback");
+        assert_eq!(unacknowledged.value, 1, "one outstanding turn per worker");
+        let endpoint = figures.endpoints.get(0).expect("fixture endpoint");
+        assert_eq!(endpoint.endpoint.as_ref(), b"fake");
+        assert_eq!(endpoint.limits.window, 1_048_576, "the fixture's model window");
+        assert_eq!(&figures.fallback, &endpoint.limits, "the fixture's fallback");
     }
 
     #[test]

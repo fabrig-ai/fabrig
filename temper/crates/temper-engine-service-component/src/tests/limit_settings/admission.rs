@@ -5,6 +5,7 @@ use crate::tests::fixtures;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
 use skein_lib::{Queue, ReplyTo, Token};
+use smith_channel::Record;
 use temper_engine_domain as root;
 use temper_engine_domain_forge::settings as f;
 
@@ -108,20 +109,15 @@ fn names_are_checked_at_entry_even_when_the_start_would_leave_them_out() {
 }
 
 fn call(input: &[u8]) -> root::HostRequest {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: 1, completion: 2, position: 1 },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(16);
-    name.encode(&mut writer).unwrap();
+    let name = smith_channel::CallName { activation: 1, completion: 2, position: 1 };
+    let name = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     root::HostRequest::Decode {
         to: ReplyTo::new(REPLY),
         task: 1,
         attempt: 1,
         call: jig_domain_fleet::Call {
             contract: 1,
-            name: writer.finish(),
+            name,
             tool: b"propose_settings".as_slice().into(),
             input: input.into(),
             writes: true,
@@ -237,6 +233,34 @@ fn owned() -> Box<crate::Service> {
     }));
     fixtures::settle_root(&mut service, &mut Queue::uncapped());
     service
+}
+
+#[test]
+fn a_hundred_goals_is_accepted_for_restart_but_a_hundred_and_one_is_refused() {
+    let mut service = owned();
+    let engine = service.engine.as_mut().unwrap();
+    let before = engine.limits_in_force().unwrap().in_force.root;
+    let change = party(Box::new([temper(Box::new([item(b"live_goals", 100)]))]), false, 1);
+    let change = admission::party(engine.limits_in_force(), change).expect("100 is admitted at entry");
+    engine.step(change);
+    fixtures::settle_root(&mut service, &mut Queue::uncapped());
+    let state = service.engine.as_ref().unwrap().limits_in_force().unwrap();
+    assert_eq!(state.revision, 2);
+    assert_eq!(state.temper.as_ref(), &[item(b"live_goals", 100)]);
+    assert_eq!(state.in_force.temper.live_goals, 40, "a raise waits for the next start");
+    assert_eq!(state.in_force.root, before);
+    let input = service.engine.as_mut().unwrap().limits_in_force.take().unwrap().inputs;
+    let mut store = opening(&input, Some(super::kept(service)));
+    let state = store.resolve_settings(input, None).unwrap();
+    assert_eq!(state.in_force.temper.live_goals, 100);
+    let mut service = build(store, state);
+    fixtures::restart(&mut service);
+    let state = service.engine.as_ref().unwrap().limits_in_force().unwrap();
+    assert_eq!(state.in_force.temper.live_goals, 100);
+    for propose in [false, true] {
+        let why = refused(state, Box::new([temper(Box::new([item(b"live_goals", 101)]))]), propose);
+        assert_eq!(judged(why, 0, TEMPER).as_ref(), b"live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for; put limits-held in the data directory to start at the stock\n");
+    }
 }
 
 #[test]

@@ -1,5 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
+use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
@@ -134,6 +134,12 @@ pub struct Domain {
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
+    /// One forming drains its make before admission (domain/landing-forming.md, 2).
+    pub(crate) forge_forming: Option<(u64, Option<jig_domain_tasks::Refusal>)>,
+    /// Refusal time, last reason and whether expiry was judged (domain/landing-forming.md, 3).
+    #[expect(clippy::type_complexity, reason = "a train maps directly to its unstored refusal time and reason")]
+    pub(crate) forge_refused:
+        Map<(skein_forge::api::Repository, Box<[u8]>), (Wall, Option<jig_domain_tasks::Refusal>, bool)>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,
@@ -142,6 +148,8 @@ pub struct Domain {
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
+    /// Ended tasks wait for archive and load room, in the core's read-flight bound (root.md, 7).
+    pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
     pub(crate) call_renders: Map<Token, host_route::Flight>,
@@ -653,6 +661,8 @@ impl Domain {
                 limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
+            forge_forming: None,
+            forge_refused: Map::with_capacity(limits.forge.changes),
             closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
@@ -667,6 +677,7 @@ impl Domain {
             answer_parts: Map::uncapped(),
             refused_calls: Map::uncapped(),
             archive_reads: Slab::with_capacity(limits.loads.loads),
+            ended_waiting: Queue::with_capacity(limits.tasks.tasks),
             store_answers: Queue::with_capacity(limits.loads.loads),
             call_renders: Map::with_capacity(limits.fleet.calls),
             work: Queue::uncapped(),
@@ -717,6 +728,12 @@ impl Domain {
         backlog(self)
     }
 
+    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings.md, 7).
+    #[must_use]
+    pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
+        self.core.settings_kept()
+    }
+
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).
     #[must_use]
     pub fn ready(&self) -> bool {
@@ -765,6 +782,7 @@ impl Domain {
 
     pub(crate) fn stop_start(&mut self, stop: StartStop) {
         if self.start_stop.is_none() {
+            self.ended_waiting.clear();
             self.start_stop = Some(stop);
             self.stop_pending = true;
         }
@@ -794,6 +812,7 @@ impl Domain {
             && self.refused_calls.is_empty()
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
+            && self.ended_waiting.is_empty()
             && self.revision_reads.is_empty()
             && self.history_reads.is_empty()
             && self.view_reads.is_empty()
@@ -830,7 +849,8 @@ impl Domain {
 
     /// Retired IO/body/child slots are reclaimed at iteration end, after every event and ready
     /// pass. Bounded child/slab bookkeeping releases only retired entries; issued loads still
-    /// awaiting a terminal remain owned. Emits no request or terminal.
+    /// awaiting a terminal remain owned. Waiting ended reads reserve freed slots for their next
+    /// held-output pass. Emits no request or terminal.
     pub fn reclaim(&mut self) {
         self.changed();
         self.settled = None;
@@ -839,6 +859,7 @@ impl Domain {
         self.forge.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
+        crate::archive::reclaim_ended(self);
     }
 
     /// Shell/root caller discards every currently queued child observation, scanning at most each
@@ -982,6 +1003,9 @@ fn finish_close(
         domain.journal = Journal::uncapped(1, commits);
         domain.sent_commit = commits;
         domain.durable_commit = commits;
+    }
+    if domain.core.stopping() || domain.journal.stopped() {
+        domain.ended_waiting.clear();
     }
     if domain.journal.stopped() {
         domain.journal_stop = journal_stop;

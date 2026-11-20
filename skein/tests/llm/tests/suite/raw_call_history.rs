@@ -237,7 +237,10 @@ fn sent_raw_arguments_use_request_bytes_and_validate_utf8_without_inner_parsing(
     assert!(openai::encode_request(&raw_request(over), &bounds.native()).is_ok());
     assert!(client::Client::prepare(history(over), &bounds).is_ok());
     assert_eq!(openai::encode_request(&raw_request(&[0xff]), &bounds.native()), Err(openai::DecodeError::Malformed));
-    assert!(matches!(client::Client::prepare(history(&[0xff]), &bounds), Err(Error::Invalid)));
+    assert!(matches!(
+        client::Client::prepare(history(&[0xff]), &bounds),
+        Err(Error::Invalid { cause: skein_llm::Invalid::Text })
+    ));
 }
 
 #[test]
@@ -296,7 +299,10 @@ fn anthropic_embedded_object_history_remains_honest() {
         "representable application-invalid object is legal history"
     );
     assert!(
-        matches!(client::Client::prepare(anthropic_history(RAW), &limits()), Err(Error::Invalid)),
+        matches!(
+            client::Client::prepare(anthropic_history(RAW), &limits()),
+            Err(Error::Invalid { cause: skein_llm::Invalid::Arguments })
+        ),
         "unrepresentable native object cannot be rewritten or dropped"
     );
 }

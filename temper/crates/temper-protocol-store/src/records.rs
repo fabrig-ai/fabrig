@@ -1,6 +1,7 @@
 //! Total translations between durable domain rows and generated records.
 use crate::{Bounds, Undecodable, v25 as w};
 use alloc::boxed::Box;
+use skein_codec::Record;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
 mod answers;
@@ -52,9 +53,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
         d::Stored::RedPass(row) => w::Value::RedPass(reds::encode_pass(row)),
         d::Stored::Red(row) => w::Value::Red(reds::encode(row)),
-        d::Stored::RedNumber { last } => {
-            w::Value::RedNumber(w::RedNumber::new(&w::CEILINGS, w::RedNumberParts { last: *last }).expect(FITS))
-        }
+        d::Stored::RedNumber { last } => w::Value::RedNumber(w::RedNumber { last: *last }),
         d::Stored::Finding(row) => w::Value::Finding(findings::encode(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
@@ -66,9 +65,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::LandingLog(row) => w::Value::LandingLog(landing_log::encode(row)),
         d::Stored::Verification(row) => w::Value::Verification(verification::encode(row)),
         d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
-        d::Stored::ForgeNumber { last } => {
-            w::Value::ForgeNumber(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS))
-        }
+        d::Stored::ForgeNumber { last } => w::Value::ForgeNumber(w::ForgeNumber { last: *last }),
         d::Stored::Playground(row) => w::Value::Playground(forges::encode_playground(row)),
         d::Stored::Landing(row) => w::Value::Landing(Box::new(landing::encode(row))),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
@@ -90,47 +87,31 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Call { key, answer } => w::Value::Call(entries::encode_call(key, answer)),
         d::Stored::Dismissed { party, what } => {
             let what = match what {
-                d::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(
-                    w::KeepAsking::new(
-                        &w::CEILINGS,
-                        w::KeepAskingParts { project: *project, subject: encode_subject(*subject), at: *at },
-                    )
-                    .expect(FITS),
-                ),
-                d::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(
-                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).expect(FITS),
-                ),
-                d::PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
-                    w::GoalFrom::new(
-                        &w::CEILINGS,
-                        w::GoalFromParts { project: *project, chat: *chat, goal: *goal, at: *at },
-                    )
-                    .expect(FITS),
-                ),
+                d::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(w::KeepAsking {
+                    project: *project,
+                    subject: encode_subject(*subject),
+                    at: *at,
+                }),
+                d::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(w::ToBegin { project: *project }),
+                d::PersonFact::GoalFrom { project, chat, goal, at } => {
+                    w::PersonFact::GoalFrom(w::GoalFrom { project: *project, chat: *chat, goal: *goal, at: *at })
+                }
             };
-            w::Value::Dismissed(w::Dismissed::new(&w::CEILINGS, w::DismissedParts { party: *party, what }).expect(FITS))
+            w::Value::Dismissed(w::Dismissed { party: *party, what })
         }
-        d::Stored::Binding { address, subject } => w::Value::Binding(
-            w::Binding::new(&w::CEILINGS, w::BindingParts { address: address.clone(), subject: subject.clone() })
-                .expect(FITS),
-        ),
-        d::Stored::Flight { task, entry } => {
-            w::Value::Flight(w::Flight::new(&w::CEILINGS, w::FlightParts { task: *task, entry: *entry }).expect(FITS))
+        d::Stored::Binding { address, subject } => {
+            w::Value::Binding(w::Binding { address: address.clone(), subject: subject.clone() })
         }
-        d::Stored::Writer(value) => w::Value::Writer(
-            w::ForgeWriter::new(&w::CEILINGS, w::ForgeWriterParts { forge: value.forge, author: value.author })
-                .expect(FITS),
-        ),
+        d::Stored::Flight { task, entry } => w::Value::Flight(w::Flight { task: *task, entry: *entry }),
+        d::Stored::Writer(value) => w::Value::Writer(w::ForgeWriter { forge: value.forge, author: value.author }),
         d::Stored::Client(value) => w::Value::Client(client::encode(value)),
         d::Stored::ChangeCold(value) => w::Value::ChangeCold(Box::new(change::encode_change_cold(value))),
         d::Stored::ChangeHot(value) => w::Value::ChangeHot(Box::new(change::encode_change_hot(value))),
         d::Stored::Change(_) => unreachable!("whole changes are saved as two parts"),
         d::Stored::Issue(value) => w::Value::Issue(Box::new(issues::encode(value))),
     };
-    let row = w::Row::new(&w::CEILINGS, w::RowParts { value }).expect("admitted row fits the schema");
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("row length fits"));
-    row.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let row = w::Row { value };
+    row.encode(&w::CEILINGS).expect("admitted row fits the schema")
 }
 
 /// Decode one supported row with the checked startup bounds.
@@ -145,10 +126,10 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             w::Row::decode(&earlier, &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?
         }
     };
-    Ok(match row.into_parts().value {
+    Ok(match row.value {
         w::Value::RedPass(row) => d::Stored::RedPass(reds::decode_pass(row, bounds)?),
         w::Value::Red(row) => d::Stored::Red(reds::decode(row, bounds)?),
-        w::Value::RedNumber(row) => d::Stored::RedNumber { last: row.last() },
+        w::Value::RedNumber(row) => d::Stored::RedNumber { last: row.last },
         w::Value::HistoryProject(row) => d::Stored::HistoryProject(history::decode_project(row)),
         w::Value::HistoryEvent(row) => d::Stored::HistoryEvent(history::decode_event(row)),
         w::Value::HistoryChange(row) => d::Stored::HistoryChange(history::decode_change_index(row)),
@@ -175,7 +156,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
         w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)?),
         w::Value::ForgeNumber(row) => {
-            let w::ForgeNumberParts { last } = row.into_parts();
+            let w::ForgeNumber { last } = row;
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
@@ -186,33 +167,30 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::ChangeCold(value) => d::Stored::ChangeCold(Box::new(change::decode_change_cold(*value))),
         w::Value::ChangeHot(value) => d::Stored::ChangeHot(Box::new(change::decode_change_hot(*value)?)),
         w::Value::Dismissed(value) => {
-            let w::DismissedParts { party, what } = value.into_parts();
+            let w::Dismissed { party, what } = value;
             let what = match what {
                 w::PersonFact::KeepAsking(value) => d::PersonFact::KeepAsking {
-                    project: value.project(),
-                    subject: decode_subject(value.subject())?,
-                    at: value.at(),
+                    project: value.project,
+                    subject: decode_subject(&value.subject)?,
+                    at: value.at,
                 },
-                w::PersonFact::ToBegin(value) => d::PersonFact::ToBegin { project: value.into_parts().project },
-                w::PersonFact::GoalFrom(value) => d::PersonFact::GoalFrom {
-                    project: value.project(),
-                    chat: value.chat(),
-                    goal: value.goal(),
-                    at: value.at(),
-                },
+                w::PersonFact::ToBegin(value) => d::PersonFact::ToBegin { project: value.project },
+                w::PersonFact::GoalFrom(value) => {
+                    d::PersonFact::GoalFrom { project: value.project, chat: value.chat, goal: value.goal, at: value.at }
+                }
             };
             d::Stored::Dismissed { party, what }
         }
         w::Value::Binding(value) => {
-            let w::BindingParts { address, subject } = value.into_parts();
+            let w::Binding { address, subject } = value;
             d::Stored::Binding { address, subject }
         }
         w::Value::Flight(row) => {
-            let w::FlightParts { task, entry } = row.into_parts();
+            let w::Flight { task, entry } = row;
             d::Stored::Flight { task, entry }
         }
         w::Value::Writer(value) => {
-            let w::ForgeWriterParts { forge, author } = value.into_parts();
+            let w::ForgeWriter { forge, author } = value;
             d::Stored::Writer(skein_forge_client::Writer { forge, author })
         }
         w::Value::Client(value) => d::Stored::Client(client::decode(value, bounds)?),
@@ -223,7 +201,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Hold(value) => d::Stored::Hold(names::decode_hold(value, bounds)?),
         w::Value::LimitHold(row) => d::Stored::LimitHold(limit_holds::decode(row, bounds)?),
         w::Value::Names(value) => {
-            let w::NamesParts { task, resources } = value.into_parts();
+            let w::Names { task, resources } = value;
             d::Stored::Names { task, resources: topics::decode_names(resources, bounds)? }
         }
         w::Value::Subscription(value) => d::Stored::Subscription(topics::decode_subscriber(value)),
@@ -231,7 +209,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::PullState(value) => d::Stored::PullState(topics::decode_pull_state(value, bounds)?),
         w::Value::Ci(value) => d::Stored::Ci(topics::decode_ci_state(value)),
         w::Value::Landed(value) => {
-            let w::LandedParts { commit, task } = value.into_parts();
+            let w::Landed { commit, task } = value;
             d::Stored::Landed { commit, task }
         }
         w::Value::Release(value) => d::Stored::Release(topics::decode_release(value, bounds)?),
@@ -371,6 +349,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_by_test_probed: forge.gates.checked_mul(forge.landing_members)?,
         landing_selection_tests: forge.tiers.failing_tests,
         landing_searched_changes: forge.landing_members,
+        landing_last_prepare_suffix: forge.landing_members,
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,
@@ -433,15 +412,18 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
 
 fn encode_subject(subject: temper_protocol_reaches::Subject) -> w::ClassSubject {
     let record = temper_protocol_reaches::subject_record(subject);
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("subject measure"));
-    record.encode(&mut writer).expect("measured subject room");
+    let mut writer = Writer::new(
+        usize::try_from(
+            record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings"),
+        )
+        .expect("subject measure"),
+    );
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured subject room");
     w::ClassSubject::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect("matching subject records")
 }
 fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::Subject, Undecodable> {
     use temper_client_protocol_wire::v1;
-    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
-    record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
-    let record =
-        v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
+    let bytes = record.encode(&w::CEILINGS).or(Err(Undecodable::Malformed))?;
+    let record = v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).or(Err(Undecodable::Malformed))?;
     Ok(temper_protocol_reaches::subject_from(&record))
 }

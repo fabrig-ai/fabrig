@@ -3,6 +3,7 @@
 use super::*;
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Unplanned, ValueType};
 use jig_test_layouts::layouts::{CURRENT, KEPT, WRITTEN};
+use skein_codec::Record as _;
 use skein_lib::{Buffer, Reader};
 mod edges;
 mod restoring;
@@ -57,9 +58,7 @@ fn row(store: &mut Store, number: u16, id: u16) -> Option<crate::registry_v1::La
 fn text(store: &mut Store, digest: [u8; 32]) -> Option<Box<[u8]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Text(digest), store.limits.store.key).unwrap();
     let bytes = fixtures::get_kv(store, &key)?;
-    Some(Box::from(
-        crate::registry_v1::Text::decode(&crate::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap().text(),
-    ))
+    Some(crate::registry_v1::Text::decode(&crate::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap().text)
 }
 fn hash(text: &str) -> [u8; 32] {
     let mut hash = skein_lib::sha256::Sha256::new();
@@ -108,9 +107,9 @@ fn a_new_value_type_registers_its_current_variant() {
     let mut store = store(&disk, set);
     assert_opened(&disk.open(&mut store), 3);
     let layout = row(&mut store, 2, 2).unwrap();
-    assert_eq!(layout.root(), b"Row");
-    assert_eq!(layout.variant().as_deref(), Some(b"later".as_slice()));
-    assert_eq!(*layout.text(), hash(current));
+    assert_eq!(layout.root.as_ref(), b"Row");
+    assert_eq!(layout.variant.as_deref(), Some(b"later".as_slice()));
+    assert_eq!(layout.text, hash(current));
 }
 
 #[test]
@@ -126,11 +125,11 @@ fn binary_registration_keeps_held_layouts_and_values_and_reopens_in_place() {
         let row = row(&mut store, number, id).unwrap();
         let schema = skein_codec::schema::parse(if id == 3 { CURRENT.as_bytes() } else { KEPT.as_bytes() }).unwrap();
         let expected = schema.layout(schema.root(root.as_bytes(), None).unwrap(), &[]).unwrap().digest();
-        assert_eq!(*row.layout(), expected);
-        assert_eq!(row.root(), root.as_bytes());
-        assert!(row.held().is_empty());
-        assert_eq!(text(&mut store, *row.text()).unwrap().as_ref(), schema.text());
-        assert_eq!(*row.text(), hash(if id == 3 { CURRENT } else { KEPT }));
+        assert_eq!(row.layout, expected);
+        assert_eq!(row.root.as_ref(), root.as_bytes());
+        assert!(row.held.is_empty());
+        assert_eq!(text(&mut store, row.text).unwrap().as_ref(), schema.text());
+        assert_eq!(row.text, hash(if id == 3 { CURRENT } else { KEPT }));
         let key = crate::keys::Own::Layout { family: FAMILY.name.into(), number, id };
         let encoded = crate::keys::encode_own(&key, store.limits.store.key).unwrap();
         assert_eq!(
@@ -165,8 +164,8 @@ fn empty_first_commit_registers_only_the_binary_layouts_at_the_familys_version()
     assert!(row(&mut store, 0, 2).is_none());
     let events = disk.request(&mut store, fixtures::commit(1, Box::new([fixtures::header(1)])));
     assert!({ if let [Event::Committed { number: 1, .. }] = events.as_ref() { true } else { false } }, "{events:?}");
-    assert_eq!(*row(&mut store, 0, 2).unwrap().text(), hash(CURRENT));
-    assert_eq!(*row(&mut store, 1, 2).unwrap().text(), hash(CURRENT));
+    assert_eq!(row(&mut store, 0, 2).unwrap().text, hash(CURRENT));
+    assert_eq!(row(&mut store, 1, 2).unwrap().text, hash(CURRENT));
     assert!(row(&mut store, 0, 3).is_none());
     assert_eq!(text(&mut store, hash(KEPT)), None);
 }
@@ -208,9 +207,8 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     );
     store.registry.assert_settled();
     let mut value = [0, 1, 0, 0, 0, 0, 3, 0, 1, 42];
-    let mut out = Buffer::with_capacity(32);
     assert_eq!(
-        store.registry.read(b"\x02h/0", &mut value, &mut out, &mut store.layout_work.workspace),
+        store.registry.read(b"\x02h/0", &mut value, &mut store.layout_work),
         &[0, 1, 0, 0, 0, 0, 4, 0, 1, 42, 7]
     );
     let mut value = [0, 1, 1];
@@ -303,7 +301,6 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     // plan at the old id below must still convert without either of them.
     store.registry.assert_settled();
     let key = b"\x02a/0";
-    let mut out = Buffer::with_capacity(64);
     for (key, input, expected) in [
         (key.as_slice(), vec![0, 3, 0, 42, 8], vec![0, 2, 0, 42, 8]),
         (key.as_slice(), vec![0, 2, 0, 42], vec![0, 2, 0, 42, 7]),
@@ -313,7 +310,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
         (b"\x02b/0", vec![0, 3, 0, 42], vec![0, 3, 0, 42]),
     ] {
         let mut input = input;
-        assert_eq!(store.registry.read(key, &mut input, &mut out, &mut store.layout_work.workspace), expected);
+        assert_eq!(store.registry.read(key, &mut input, &mut store.layout_work), expected);
     }
     let mut value = [0, 2, 0, 42, 7];
     assert_eq!(store.registry.write(key, &mut value), Ok(()));
@@ -325,8 +322,9 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     let kept_key = crate::keys::Own::Layout { family: FAMILY.name.into(), number: 1, id: 8 };
     let encoded = crate::keys::encode_own(&kept_key, store.limits.store.key).unwrap();
     let row = row(&mut store, 1, 2).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut writer).unwrap();
+    let mut writer =
+        skein_lib::Writer::new(usize::try_from(row.measure(&crate::registry_v1::CEILINGS).unwrap()).unwrap());
+    row.write(&crate::registry_v1::CEILINGS, &mut writer).unwrap();
     let encoded7 = crate::keys::encode_own(
         &crate::keys::Own::Layout { family: FAMILY.name.into(), number: 1, id: 7 },
         store.limits.store.key,
@@ -344,7 +342,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     );
     crate::registry::open(&mut store, false).unwrap();
     let mut value = [0, 7, 2];
-    assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut out, &mut store.layout_work.workspace), &[0, 2, 2]);
+    assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut store.layout_work), &[0, 2, 2]);
 }
 pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
     let number = store.stores.store.last() + 1;
@@ -355,7 +353,8 @@ pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>
     if let Some(family) =
         store.owner_sets.sets.iter().flat_map(|set| set.families).find(|family| family.name == "jig-store-core")
     {
-        let from = skein_codec::schema::parse(include_str!("../../../schema/core-v6.schema").as_bytes()).unwrap();
+        let from =
+            skein_codec::schema::parse(crate::STORE_FAMILIES.get(3).expect("store family").current.as_bytes()).unwrap();
         let to = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
         let plan = skein_codec::layout::Plan::derive(
             &from,
@@ -418,19 +417,16 @@ fn old_row(id: u16, family: &str, number: u16) -> skein_kv::Op {
 fn layout_row(text: &str, id: u16, family: &str, number: u16) -> skein_kv::Op {
     let schema = skein_codec::schema::parse(text.as_bytes()).unwrap();
     let layout = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
-    let value = crate::registry_v1::Layout::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::LayoutParts {
-            root: b"Growing".as_slice().into(),
-            variant: None,
-            layout,
-            text: hash(text),
-            held: skein_lib::List::with_capacity(0),
-        },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let value = crate::registry_v1::Layout {
+        root: b"Growing".as_slice().into(),
+        variant: None,
+        layout,
+        text: hash(text),
+        held: skein_lib::List::with_capacity(0),
+    };
+    let mut writer =
+        skein_lib::Writer::new(usize::try_from(value.measure(&crate::registry_v1::CEILINGS).unwrap()).unwrap());
+    value.write(&crate::registry_v1::CEILINGS, &mut writer).unwrap();
     skein_kv::Op::Put {
         key: crate::keys::encode_own(&crate::keys::Own::Layout { family: family.into(), number, id }, 1024).unwrap(),
         value: writer.finish(),
@@ -440,13 +436,10 @@ fn old_text() -> skein_kv::Op {
     layout_text(KEPT)
 }
 fn layout_text(text: &str) -> skein_kv::Op {
-    let value = crate::registry_v1::Text::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::TextParts { text: text.as_bytes().into() },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let value = crate::registry_v1::Text { text: text.as_bytes().into() };
+    let mut writer =
+        skein_lib::Writer::new(usize::try_from(value.measure(&crate::registry_v1::CEILINGS).unwrap()).unwrap());
+    value.write(&crate::registry_v1::CEILINGS, &mut writer).unwrap();
     skein_kv::Op::Put {
         key: crate::keys::encode_own(&crate::keys::Own::Text(hash(text)), 1024).unwrap(),
         value: writer.finish(),
@@ -485,13 +478,9 @@ fn missing_text_and_undeclared_stored_families_are_layout_refusals_without_write
 fn stored_text_bytes_must_give_their_digest_without_writes() {
     let mut disk = Disk::new(&[]);
     let mut store = fresh(&mut disk, SET);
-    let text = crate::registry_v1::Text::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::TextParts { text: [KEPT.as_bytes(), b"\n"].concat().into_boxed_slice() },
-    )
-    .expect("fixture text fits");
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure()));
-    text.encode(&mut writer).expect("fixture text encodes");
+    let text = crate::registry_v1::Text { text: [KEPT.as_bytes(), b"\n"].concat().into_boxed_slice() };
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    text.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture text encodes");
     raw(
         &mut disk,
         &mut store,
@@ -512,20 +501,16 @@ fn stored_fingerprint_must_match_the_reused_registration_layout_without_writes()
     let mut disk = Disk::new(&[]);
     let mut store = fresh(&mut disk, SET);
     let binary = row(&mut store, 0, 2).expect("binary row");
-    let value = crate::registry_v1::Layout::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::LayoutParts {
-            root: Box::from(binary.root()),
-            variant: binary.variant().clone(),
-            layout: [0; 32],
-            text: *binary.text(),
-            held: binary.held().clone(),
-        },
-    )
-    .expect("fixture row fits");
-    assert_ne!(value.layout(), binary.layout());
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut writer).expect("fixture row encodes");
+    let value = crate::registry_v1::Layout {
+        root: binary.root,
+        variant: binary.variant.clone(),
+        layout: [0; 32],
+        text: binary.text,
+        held: binary.held.clone(),
+    };
+    assert_ne!(value.layout, binary.layout);
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    value.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
     raw(
         &mut disk,
         &mut store,

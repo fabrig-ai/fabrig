@@ -16,6 +16,7 @@ fn the_box_keeps_entries_then_its_own_home_and_path() {
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &crate::stock::agents(),
+        4,
         &own,
     )
     .unwrap()
@@ -45,22 +46,62 @@ fn the_box_keeps_entries_then_its_own_home_and_path() {
 }
 
 #[test]
+fn the_box_builds_at_local_places_not_document_slots() {
+    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::stock_document()).unwrap();
+    let directories = jig_protocol_config::Directories::working();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    for (slots, places) in [(1_u32, 4), (4, 4), (1, 2), (4, 2), (41, 2)] {
+        document["workers"][0]["slots"] = slots.into();
+        let bytes = serde_json::to_vec(&document).unwrap();
+        let part = startup::box_worker(
+            &bytes,
+            &directories,
+            &crate::stock::Given::Stock,
+            &crate::stock::agents(),
+            places,
+            &[],
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(part.figures.as_ref().unwrap().places, places);
+        assert_eq!(part.worker.jig.slots, places);
+        assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, places);
+        assert_eq!(part.limits.checkout.workspaces, places);
+        assert_eq!(part.limits.git_component.operations, places);
+        let checked = startup::checked_start_with_worker(
+            &bytes,
+            &directories,
+            &fixtures::stock_files(),
+            Some(&agent),
+            &fixtures::seeds(),
+            skein_lib::List::with_capacity(0),
+            None,
+            &crate::stock::Given::Stock,
+            None,
+            Some(part),
+        )
+        .unwrap();
+        assert_eq!(checked.engine.jig.limits.core.fleet.slots, 32);
+        let (worker, prepared) = checked.worker.unwrap();
+        assert_eq!(worker.jig.slots, places);
+        assert_eq!(prepared.root.host.slots, places);
+        assert_eq!(prepared.link.sizes.slots, places);
+    }
+}
+
+#[test]
 fn a_box_derives_its_composed_carriers_from_its_agent() {
     use temper_client_protocol_wire::v1 as w;
 
     let document = fixtures::stock_document();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(8192, 48_000).unwrap());
-    let mut agents = crate::stock::agents().into_parts();
+    let mut agents = crate::stock::agents();
     for figure in agents.profile.iter_mut() {
-        if figure.name() == b"declared.tool_payload" {
-            *figure = w::AgentFigure::new(
-                &w::CEILINGS,
-                w::AgentFigureParts { name: b"declared.tool_payload".as_slice().into(), value: 8192 },
-            )
-            .unwrap();
+        if figure.name.as_ref() == b"declared.tool_payload" {
+            *figure = w::AgentFigure { name: b"declared.tool_payload".as_slice().into(), value: 8192 };
         }
     }
-    let agents = w::AgentFigures::new(&w::CEILINGS, agents).unwrap();
+    let agents = agents;
     let declaration = agent.declaration();
     let (mut jig, own) =
         crate::limits::base(40, 4096, temper_service_core::derived::Sources::agent(&declaration)).unwrap();
@@ -70,6 +111,7 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &agents,
+        4,
         &[],
         Some(&declaration),
         (&jig, &own),
@@ -82,9 +124,9 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
     assert!(problems.is_empty(), "{problems:?}");
     let figures = part.figures.unwrap();
     let mut turn = None;
-    for limit in figures.limits() {
-        if limit.name() == b"hub.turn_bytes" {
-            turn = Some(limit.value());
+    for limit in &figures.limits {
+        if limit.name.as_ref() == b"hub.turn_bytes" {
+            turn = Some(limit.value);
         }
     }
     assert_eq!(turn, Some(u64::from(agent.declaration().turn_body)));
@@ -99,6 +141,7 @@ fn an_engine_alone_refuses_application_environment() {
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &crate::stock::agents(),
+        4,
         &[],
     )
     .unwrap_err();
@@ -113,7 +156,7 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
     let seeds = fixtures::seeds();
     let given = crate::stock::Given::Stock;
     let agents = crate::stock::agents();
-    let part = startup::box_worker(&document, &directories, &given, &agents, &[]).unwrap().unwrap();
+    let part = startup::box_worker(&document, &directories, &given, &agents, 4, &[]).unwrap().unwrap();
     let built = part.figures.clone().unwrap();
     let mut checked = startup::checked_start_with_worker(
         &document,
@@ -132,9 +175,9 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
         checked.worker.as_ref().unwrap().0.jig.limits.as_ref().unwrap().hub.source_interval,
         skein_lib::Duration::from_millis(60_000)
     );
-    let mut opening = temper_engine_service::figures::compose(&checked.engine, &agents).into_parts();
-    opening.places = checked.engine.jig.limits.core.fleet.slots;
-    let opening = jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, opening).unwrap();
+    let mut opening = temper_engine_service::figures::compose(&checked.engine, &agents);
+    opening.places = 4;
+
     assert_eq!(built, opening, "the in-process host sends what the box composed");
     // This worker-notice fixture has no accounts shell.
     for provider in &mut checked.engine.jig.llm.providers {
@@ -155,9 +198,9 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
     let worker = service.worker.as_mut().unwrap();
     worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: opening.clone() });
     assert_eq!(worker.notes().pop(), None);
-    let mut changed = opening.into_parts();
+    let mut changed = opening;
     changed.places = changed.places.checked_add(1).unwrap();
-    let changed = jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, changed).unwrap();
+
     worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: changed });
     assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::FiguresChanged));
     assert_eq!(worker.notes().pop(), None);

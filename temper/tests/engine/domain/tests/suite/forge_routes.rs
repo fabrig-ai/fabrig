@@ -127,6 +127,7 @@ mod stall_hold;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+mod findings_cleared;
 mod red_findings;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
@@ -924,6 +925,17 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
     let words = ci_words(&repair);
     assert!(contains(words, BUILD_STEP), "{}", String::from_utf8_lossy(words));
     assert!(contains(words, BUILD_LOG_END), "{}", String::from_utf8_lossy(words));
+    world.close();
+}
+
+#[test]
+fn a_failed_ci_repair_keeps_its_branch_start_without_a_named_pin() {
+    let (mut world, _chat, producer, branch) = change_world(false, 0, None);
+    let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
+    let repository = &repair.workspace.repositories[0];
+    assert_eq!(repository.pin, None);
+    assert_eq!(repository.start, engine::ForgeStart::Branch(branch));
+    assert_eq!(repository.landing, None);
     world.close();
 }
 

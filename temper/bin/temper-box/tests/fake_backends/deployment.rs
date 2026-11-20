@@ -255,9 +255,15 @@ impl Place {
     }
 
     fn listeners(&self) {
-        let engine = document(&self.scratch.join("config/engine/temper.json"));
+        let engine = support::start_document(
+            &self.scratch.join("config/engine").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::EngineAlone,
+        );
         let providers = document(&self.scratch.join("config/providers.json"));
-        let worker = document(&self.scratch.join("config/worker/temper.json"));
+        let worker = support::start_document(
+            &self.scratch.join("config/worker").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::WorkerAlone,
+        );
         let agent = document(&self.scratch.join("data/worker/workspaces/agent/agent.json"));
         let model = document(&self.scratch.join("config/model.json"));
         let forge = document(&self.scratch.join("config/forgejo.json"));
@@ -374,10 +380,12 @@ fn document(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("rendered deployment document")).expect("deployment JSON")
 }
 fn no_link(bytes: &[u8]) {
-    assert!(
-        !bytes.windows(b"/jig/v1/sign-in/link".len()).any(|part| part == b"/jig/v1/sign-in/link"),
-        "sign-in link must not be printed, answered or logged"
-    );
+    for path in [b"/sign-in?secret=".as_slice(), b"/jig/v1/sign-in/link"] {
+        assert!(
+            !bytes.windows(path.len()).any(|part| part == path),
+            "sign-in link must not be printed, answered or logged"
+        );
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

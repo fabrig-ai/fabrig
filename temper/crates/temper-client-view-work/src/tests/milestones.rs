@@ -33,11 +33,7 @@ fn done(task: u64, title: &[u8]) -> c::TaskLine {
     line
 }
 fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
-    w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts { task: 99, done, failed, live, closed: 0, ended: None, last_landing: None, spent: 0 },
-    )
-    .unwrap()
+    w::MilestoneTotals { task: 99, done, failed, live, closed: 0, ended: None, last_landing: None, spent: 0 }
 }
 fn report() -> Report {
     Report {

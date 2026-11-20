@@ -80,9 +80,11 @@ impl Peer {
                 let outcome = match error {
                     io::Error::Busy => Delivery::NoRoom,
                     io::Error::Reset => Delivery::Reset,
-                    io::Error::Refused | io::Error::Unreachable | io::Error::TimedOut | io::Error::Other => {
-                        Delivery::Refused
-                    }
+                    io::Error::Refused
+                    | io::Error::Unreachable
+                    | io::Error::TimedOut
+                    | io::Error::Reach(_)
+                    | io::Error::Other => Delivery::Refused,
                 };
                 self.delivery_terminal(index, outcome);
             }

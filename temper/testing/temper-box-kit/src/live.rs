@@ -1,5 +1,5 @@
 //! A fresh `ChatGPT` sign-in and the native chat/change stories on real Responses.
-use super::{Process, Seen, forgejo::Throwaway, person, write_private};
+use super::{Process, Seen, forgejo::Throwaway, person};
 use jig_protocol_store::{codec, transcripts};
 use serde_json::Value;
 use skein_io::kernel::Signal;
@@ -16,7 +16,6 @@ use temper_box_shell::directories::jig_directories;
 
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
-    let path = directory.join("temper.json");
     let mut value = super::limit_settings::configuration(directory);
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
     let providers = temper_agent_fixtures::providers::input(&mut value);
@@ -49,7 +48,6 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         std::str::from_utf8(arguments).expect("delegate JSON").replace("@coding", "\\u0040coding")
     );
     super::configuration::use_derived(&mut value);
-    write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
     super::limit_settings::remember(directory, &value);
     temper_agent_fixtures::install(directory, &agent);
     instructions
@@ -470,7 +468,8 @@ pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
 
 fn count_completions(config: &Path, directories: &temper_box_shell::directories::Directories) -> Result<u32, String> {
     use std::os::unix::ffi::OsStrExt;
-    let value = fs::read(config.join("temper.json")).map_err(|error| format!("configuration: {error:?}"))?;
+    let value =
+        super::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
     let document = jig_protocol_config::document(
         &value,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
@@ -507,7 +506,7 @@ fn count_completions(config: &Path, directories: &temper_box_shell::directories:
     Ok(count)
 }
 
-/// Redact link secrets and structured credential values before diagnostic output.
+/// Redact link secrets, API headers, Anthropic keys and structured credentials before diagnostic output.
 #[must_use]
 pub fn redact(text: &str) -> String {
     let mut output = text.to_owned();
@@ -548,6 +547,29 @@ pub fn redact(text: &str) -> String {
                 at = value + "\"…\"".len();
             }
         }
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].to_ascii_lowercase().find("x-api-key:") {
+        let header = at + found + "x-api-key:".len();
+        let start = output.len() - output[header..].trim_start().len();
+        let end = output[start..]
+            .find(|c: char| c.is_whitespace() || matches!(c, '&' | '"' | '\'' | '<' | '>'))
+            .map_or(output.len(), |n| start + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].find("sk-ant-") {
+        let start = at + found;
+        at = start + "sk-ant-".len();
+        if output[..start].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let end = output[at..]
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+            .map_or(output.len(), |n| at + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
     }
     output
 }

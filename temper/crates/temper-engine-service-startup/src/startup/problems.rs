@@ -21,6 +21,7 @@ pub enum EngineWhat {
     TestIdBytes { bytes: u32, bound: u32 },
     StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
+    StoreLiveGoals { count: u64, bound: u32 },
     StoreTask { needs: u32, has: u32, batch_bytes: u32 },
     Agent,
     Admission { why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64 },
@@ -60,7 +61,7 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TierFailingTests { .. } | EngineWhat::LandingPending { .. } | EngineWhat::LandingComments { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TierFailingTests { .. } | EngineWhat::LandingPending { .. } | EngineWhat::LandingComments { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreLiveGoals { .. } | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
  }
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -216,6 +217,12 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             }
             EngineWhat::Room(short) => put(writer, &mut length, measuring, &short.words()),
             EngineWhat::Stock(floor) => stock(floor, writer, &mut length, measuring),
+            EngineWhat::StoreLiveGoals { count, bound } => {
+                put(writer, &mut length, measuring, Decimal::of(count).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                put(writer, &mut length, measuring, b", the most live goals the store is sized for");
+            }
             EngineWhat::TierChanges { count, bound, ceiling } => {
                 past_bound(count, bound, writer, &mut length, measuring);
                 put(

@@ -34,7 +34,7 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
         };
         let mut rows = List::with_capacity(3);
         for (position, line) in [
-            (3, t::Line::RunBegan { attempt: 13, why: t::Why::Made, resumed: false }),
+            (3, t::Line::RunBegan { attempt: 13, why: t::Why::Made, resumed: false, fresh: None }),
             (2, t::Line::Heard(word)),
             (
                 1,
@@ -76,7 +76,7 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
         assert_eq!(page.rows.len(), 3);
         assert!(page.cut);
         for (row, (position, line)) in page.rows.iter().zip([
-            (3, c::Activity::RunBegan { attempt: 13, why: c::RunWhy::Made, resumed: false }),
+            (3, c::Activity::RunBegan { attempt: 13, why: c::RunWhy::Made, resumed: false, fresh: None }),
             (
                 2,
                 c::Activity::Heard(c::Word {
@@ -592,4 +592,49 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
     );
     let line = t::ActivityLine { line: t::Line::NowWritten { attempt: 3, line: Box::from([b'n'; 513]) }, ..line };
     assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityNowWrittenLine);
+}
+
+#[test]
+fn run_beginnings_carry_each_fresh_cause_to_the_decoded_client_page() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall};
+    for (fresh, expected) in [
+        (None, None),
+        (Some(t::Fresh::Moved), Some(c::RunFresh::Moved)),
+        (Some(t::Fresh::Closed), Some(c::RunFresh::Closed)),
+        (Some(t::Fresh::Cut), Some(c::RunFresh::Cut)),
+        (Some(t::Fresh::Limit), Some(c::RunFresh::Limit)),
+        (Some(t::Fresh::Session), Some(c::RunFresh::Session)),
+    ] {
+        let mut exchange = fixtures::read_exchange();
+        let limits = exchange.env.limits.wire;
+        let read =
+            w::Read::Activity(w::ReadActivity::new(&limits, w::ReadActivityParts { task: 7, before: None }).unwrap());
+        let (owner, reply, _) = exchange.read(&read);
+        let mut rows = List::with_capacity(1);
+        rows.push(reads::PageRow::Activity {
+            line: t::ActivityLine {
+                task: 7,
+                position: 1,
+                at: Wall::EPOCH,
+                line: t::Line::RunBegan { attempt: 3, why: t::Why::Ready, resumed: false, fresh },
+            },
+            turn: None,
+        })
+        .unwrap();
+        exchange.release_read(reply, reads::Answer::Page(Box::new(fixtures::page(rows))));
+        let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else { panic!("served activity") };
+        let w::ReadValue::Activity(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record())).unwrap()
+        else {
+            panic!("activity page")
+        };
+        let client = jig_client_protocol_link::Limits::new(*fixtures::client_limits().client(), 4).unwrap();
+        let page = jig_client_protocol_link::translate::pages::activity_page(page, &client).unwrap();
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(
+            page.rows.as_slice().first().unwrap().source.line,
+            c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh: expected }
+        );
+    }
 }

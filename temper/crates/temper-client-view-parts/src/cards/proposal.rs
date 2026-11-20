@@ -181,7 +181,7 @@ fn batch_facts(
     b.open(Role::Paragraph);
     let facts = jig_client::facts::decision(Some(page), c::ActKind::Accept);
     let mut first = true;
-    for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
+    for fact in &jig_client::words::decision(&facts, words.book(), words.language) {
         if !first {
             separator(b);
         }

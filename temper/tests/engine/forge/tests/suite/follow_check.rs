@@ -110,6 +110,7 @@ fn the_follow_workflow_repairs_from_its_report_then_lands_and_keeps_green_parity
         status: c::Status::Passed,
         no_change: false,
         flake: false,
+        no_test: false,
         failed: false,
         cancelled: false,
         words: b"Fixed the port".as_slice().into(),

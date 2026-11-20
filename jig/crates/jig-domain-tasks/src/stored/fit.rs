@@ -491,7 +491,7 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
     let mut amendments = 0_usize;
     let mut met = 0_usize;
     let mut ordinary_count = 0_usize;
-    for word in &value.inbox {
+    for word in value.inbox.iter().chain(value.unrecorded.iter()) {
         let size = payload(word, limits)?;
         let (which, limit) = payload_bound(value, word, limits);
         count(which, size, limit)?;
@@ -553,7 +553,7 @@ pub(super) fn linked_inbox(domain: &Domain, limits: &Limits, value: &TaskRecord)
         }
     }
     let mut ordinary_count = 0_usize;
-    for word in &value.inbox {
+    for word in value.inbox.iter().chain(value.unrecorded.iter()) {
         if ordinary(&word.kind) {
             ordinary_count = ordinary_count.checked_add(1).ok_or(RestoreCause::Accounting)?;
         }

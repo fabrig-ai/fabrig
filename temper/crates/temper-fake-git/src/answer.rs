@@ -37,10 +37,14 @@ impl Answer {
 pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl Transport) -> Answer {
     transport.authenticate(checked.credential.as_ref());
     let at = checked.at.as_ref();
+    if let Some(directory) = &checked.git_dir {
+        git::set_directory(checkout, at, directory);
+    }
     match &checked.command {
+        Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
         Command::Reds(command) => reds(command, checkout, at, transport),
         Command::SnapshotHead => {
-            let Some(head) = checkout.content(&path(at, b".git/temper-head")).map(count_bytes) else {
+            let Some(head) = checkout.content(&meta(checkout, at, b"temper-head")).map(count_bytes) else {
                 return Answer::local_failure();
             };
             let mut stdout = [id(head).as_slice(), b" "].concat();
@@ -54,7 +58,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             stdout.push(b'\n');
             Answer::success(stdout)
         }
-        Command::SnapshotMerge { .. } => match checkout.content(&path(at, b".git/MERGE_HEAD")) {
+        Command::SnapshotMerge { .. } => match checkout.content(&meta(checkout, at, b"MERGE_HEAD")) {
             Some(head) => Answer::success([id(count_bytes(head)).as_slice(), b"\n"].concat()),
             None => Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() },
         },
@@ -63,36 +67,44 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 Ok(heads) => heads,
                 Err(fault) => return failed(remote, fault),
             };
-            checkout.remove(&path(at, b".git/temper-delivery-heads"));
+            checkout.remove(&meta(checkout, at, b"temper-delivery-heads"));
             for head in heads {
                 if let Err(fault) = git::fetch(transport, checkout, remote, at, Want::Commit(head)) {
                     return failed(remote, fault);
                 }
-                checkout.write(&path(at, format!(".git/temper-delivery-heads/{head}").as_bytes()), &head.to_le_bytes());
+                checkout.write(
+                    &meta(checkout, at, format!("temper-delivery-heads/{head}").as_bytes()),
+                    &head.to_le_bytes(),
+                );
             }
             Answer::success(Vec::new())
         }
         Command::SnapshotReachable { second, .. } => {
             let head = checkout
-                .tree(&path(at, b".git/temper-delivery-heads"))
+                .tree(&meta(checkout, at, b"temper-delivery-heads"))
                 .into_values()
                 .map(|bytes| count_bytes(&bytes))
                 .find(|head| transport.is_ancestor(count(*second), *head));
             Answer::success(head.map_or_else(Vec::new, |head| [id(head).as_slice(), b"\n"].concat()))
         }
         Command::SnapshotReset { commit } => {
-            checkout.write(&path(at, b".git/temper-head"), &count(*commit).to_le_bytes());
-            checkout.remove(&path(at, b".git/MERGE_HEAD"));
-            checkout.remove(&path(at, b".git/temper-conflicts"));
+            checkout.write(&meta(checkout, at, b"temper-head"), &count(*commit).to_le_bytes());
+            checkout.remove(&meta(checkout, at, b"MERGE_HEAD"));
+            checkout.remove(&meta(checkout, at, b"temper-conflicts"));
             write_index(checkout, at, transport.tree(count(*commit)));
             Answer::success(Vec::new())
         }
+        Command::CountObjects { .. } => Answer::success(
+            b"count: 0\nsize: 0\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0\n"
+                .to_vec(),
+        ),
+        Command::Repack { .. } => Answer::success(Vec::new()),
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
-            let directory = path(at, directory);
-            if let Some(remote) = checkout.content(&path(&directory, b".git/temper-remote")) {
+            let directory = path(&checked.root, directory);
+            if let Some(remote) = checkout.content(&path(&directory, b"temper-remote")) {
                 Answer::success([remote, b"\n"].concat())
-            } else if checkout.exists(&path(&directory, b".git")) {
+            } else if checkout.exists(&path(&directory, b"HEAD")) {
                 Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() }
             } else {
                 Answer {
@@ -103,7 +115,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             }
         }
         Command::Format => {
-            if !checkout.exists(&path(at, b".git")) && !checkout.exists(&path(at, b"HEAD")) {
+            if !checkout.exists(&meta(checkout, at, b"HEAD")) && !checkout.exists(&meta(checkout, at, b"temper-head")) {
                 return Answer::local_failure();
             }
             Answer::success(match git::object_format(checkout, at) {
@@ -111,22 +123,22 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 git::ObjectFormat::Sha256 => b"sha256\n".to_vec(),
             })
         }
-        Command::Clone { directory, format } => {
+        Command::Clone { directory, format, bare } => {
             let format = match format {
                 temper_worker_protocol_git::invocation::Format::Sha1 => git::ObjectFormat::Sha1,
                 temper_worker_protocol_git::invocation::Format::Sha256 => git::ObjectFormat::Sha256,
             };
-            git::init_with_format(checkout, &path(at, directory), false, format);
+            git::init_with_format(checkout, &path(&checked.root, directory), *bare, format);
             Answer::success(Vec::new())
         }
         Command::Store { directory, remote } => {
-            match git::clone_bare(transport, checkout, remote, &path(at, directory)) {
+            match git::clone_bare(transport, checkout, remote, &path(&checked.root, directory)) {
                 Ok(()) => Answer::success(Vec::new()),
                 Err(fault) => failed(remote, fault),
             }
         }
-        Command::Remote { remote } => {
-            checkout.write(&path(at, b".git/temper-remote"), remote);
+        Command::Remote { remote, .. } => {
+            checkout.write(&meta(checkout, at, b"temper-remote"), remote);
             Answer::success(Vec::new())
         }
         Command::UpdateRef { into, commit } => {
@@ -153,7 +165,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
         ),
         Command::Create { remote, branch, commit } => create(checked, checkout, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
-            let lock = path(at, b".git/index.lock");
+            let lock = meta(checkout, at, b"index.lock");
             if checkout.exists(&lock) {
                 return Answer {
                     exit: 128,
@@ -179,7 +191,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
         Command::Merge { theirs } => merge(checkout, at, transport, count(*theirs)),
         Command::Unmerged => {
             let mut bytes = Vec::new();
-            for file in checkout.tree(&path(at, b".git/temper-conflicts")).into_values() {
+            for file in checkout.tree(&meta(checkout, at, b"temper-conflicts")).into_values() {
                 bytes.extend(file);
                 bytes.push(0);
             }
@@ -187,7 +199,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
         }
         Command::Add => {
             stage(checkout, at);
-            checkout.remove(&path(at, b".git/temper-conflicts"));
+            checkout.remove(&meta(checkout, at, b"temper-conflicts"));
             Answer::success(Vec::new())
         }
         Command::DiffPaths { before, after } => {
@@ -227,7 +239,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 return Answer::local_failure();
             }
             let commit = transport.commit_tree(parent, merging.map(count), snapshot, &checked.message);
-            checkout.write(&object(at, commit), b"");
+            checkout.write(&object(checkout, at, commit), b"");
             Answer::success([id(commit).as_slice(), b"\n"].concat())
         }
         Command::MergeBases { head, upstream } => {
@@ -280,14 +292,14 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
 }
 fn merge(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, theirs: u64) -> Answer {
     // temper-git-transcripts' merge-in-progress records this refusal before even an already-contained head.
-    if checkout.exists(&path(at, b".git/MERGE_HEAD")) {
+    if checkout.exists(&meta(checkout, at, b"MERGE_HEAD")) {
         return Answer {
             exit: 128,
             stdout: Vec::new(),
             stderr: b"fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.\n".to_vec(),
         };
     }
-    let Some(head) = checkout.content(&path(at, b".git/temper-head")).map(count_bytes) else {
+    let Some(head) = checkout.content(&meta(checkout, at, b"temper-head")).map(count_bytes) else {
         return Answer::local_failure();
     };
     if transport.is_ancestor(theirs, head) {
@@ -355,8 +367,11 @@ fn count_bytes(bytes: &[u8]) -> u64 {
 pub(crate) fn path(at: &[u8], name: &[u8]) -> Vec<u8> {
     if at.is_empty() { name.to_vec() } else { [at, b"/", name].concat() }
 }
-fn object(at: &[u8], commit: u64) -> Vec<u8> {
-    path(at, format!(".git/objects/{commit}").as_bytes())
+pub(crate) fn meta(checkout: &Checkout, at: &[u8], name: &[u8]) -> Vec<u8> {
+    path(&git::directory(checkout, at), name)
+}
+fn object(checkout: &Checkout, at: &[u8], commit: u64) -> Vec<u8> {
+    meta(checkout, at, format!("objects/{commit}").as_bytes())
 }
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
@@ -370,7 +385,7 @@ fn working(checkout: &Checkout, at: &[u8]) -> Tree {
     tree
 }
 fn staged(checkout: &Checkout, at: &[u8]) -> Tree {
-    checkout.tree(&path(at, b".git/temper-index"))
+    checkout.tree(&meta(checkout, at, b"temper-index"))
 }
 // protocol/git.md, 4.7: excluded logs retain the index's contents, even when deleted.
 fn stage(checkout: &mut Checkout, at: &[u8]) {
@@ -397,7 +412,7 @@ fn hidden_log(path: &[u8]) -> bool {
         .is_some_and(|name| name.len() > b".log".len() && name.starts_with(b".") && name.ends_with(b".log"))
 }
 fn write_index(checkout: &mut Checkout, at: &[u8], tree: Tree) {
-    let index = path(at, b".git/temper-index");
+    let index = meta(checkout, at, b"temper-index");
     checkout.remove(&index);
     checkout.mkdir(&index);
     for (name, content) in tree {
@@ -543,14 +558,13 @@ fn reds(
     transport: &mut impl Transport,
 ) -> Answer {
     use temper_worker_protocol_git::reds::CheckCommand;
-    let read = |name: &[u8]| checkout.content(&path(at, name)).map(count_bytes);
+    let read = |name: &[u8]| checkout.content(&meta(checkout, at, name)).map(count_bytes);
     match command {
-        CheckCommand::Pin => match read(b".git/refs/temper/landing") {
+        CheckCommand::Pin => match read(b"refs/temper/landing") {
             Some(head) => Answer::success([id(head).as_slice(), b"\n"].concat()),
             None => Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() },
         },
-        CheckCommand::Path { .. } => Answer::success(b".git/temper\n".to_vec()),
-        CheckCommand::Merge => match read(b".git/MERGE_HEAD") {
+        CheckCommand::Merge => match read(b"MERGE_HEAD") {
             Some(head) => Answer::success([id(head).as_slice(), b"\n"].concat()),
             None => Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() },
         },
@@ -568,11 +582,11 @@ fn reds(
             }
         }
         CheckCommand::Base { merging } => {
-            let (Some(landing), Some(head)) = (read(b".git/refs/temper/landing"), read(b".git/temper-head")) else {
+            let (Some(landing), Some(head)) = (read(b"refs/temper/landing"), read(b"temper-head")) else {
                 return Answer::local_failure();
             };
             let mut ours = ancestors(transport, head);
-            if *merging && let Some(second) = read(b".git/MERGE_HEAD") {
+            if *merging && let Some(second) = read(b"MERGE_HEAD") {
                 ours.extend(ancestors(transport, second));
             }
             let landing = ancestors(transport, landing);

@@ -61,6 +61,33 @@ impl Reconciliation {
         }
         Ok(())
     }
+    /// Subtract just this erased row's references, retaining every other row's links.
+    pub(crate) fn forget(&mut self, row: &Stored, limits: &Limits) {
+        let mut erased = Self::new(limits);
+        erased.restore(row).expect("an erased restored row's references fit");
+        let mut kept = 0_u32;
+        for index in 0..self.references.len() {
+            let reference = *self.references.get(index).expect("bounded restored reference");
+            let mut found = None;
+            for (index, candidate) in erased.references.iter().enumerate() {
+                if candidate.kind == reference.kind
+                    && candidate.need == reference.need
+                    && candidate.client_repository == reference.client_repository
+                {
+                    found = Some(u32::try_from(index).expect("bounded erased reference"));
+                    break;
+                }
+            }
+            if let Some(index) = found {
+                erased.references.swap_remove(index).expect("selected erased reference");
+            } else {
+                *self.references.get_mut(kept).expect("compaction stays within restored references") = reference;
+                kept = kept.checked_add(1).expect("bounded references");
+            }
+        }
+        self.references.truncate(kept);
+    }
+
     #[expect(clippy::too_many_lines, reason = "one exhaustive reference map for the connector durable rows")]
     fn restore_references(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
         match row {

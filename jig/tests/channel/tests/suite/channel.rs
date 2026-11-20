@@ -384,16 +384,14 @@ fn a_figures_opening_takes_the_reference_engines_named_limits_without_admission(
         &jig_protocol_config_fixtures::small(),
     )
     .expect("figures fixture");
-    assert_eq!(figures.places(), fixtures::workers()[0].places);
-    assert!(figures.agents().profile().is_empty());
-    assert!(figures.agents().endpoints().is_empty());
-    assert_eq!(
-        figures.limits().len(),
-        u32::try_from(jig_protocol_config::names::NAMES.len()).expect("figures fixture")
-    );
+    assert_eq!(figures.places, fixtures::workers()[0].places);
+    assert!(figures.agents.profile.is_empty());
+    assert!(figures.agents.endpoints.is_empty());
+    assert_eq!(figures.limits.len(), u32::try_from(jig_protocol_config::names::NAMES.len()).expect("figures fixture"));
     for named in &jig_protocol_config::names::NAMES {
-        let limit = figures.limits().iter().find(|limit| limit.name() == named.name.as_bytes()).expect("named figure");
-        assert_eq!(limit.value(), (named.value)(&engine.limits), "{}", named.name);
+        let limit =
+            figures.limits.iter().find(|limit| limit.name.as_ref() == named.name.as_bytes()).expect("named figure");
+        assert_eq!(limit.value, (named.value)(&engine.limits), "{}", named.name);
     }
     assert_eq!(outcome.admitted_hellos, 0);
     assert_eq!(outcome.agent_starts, 0);

@@ -17,10 +17,14 @@ pub(super) fn page() -> c::ActivityPage {
                     .expect("Now line fits"),
             },
         ),
-        (8, sunday, c::Activity::RunBegan { attempt: 4, why: c::RunWhy::Ready, resumed: false }),
+        (8, sunday, c::Activity::RunBegan { attempt: 4, why: c::RunWhy::Ready, resumed: false, fresh: None }),
         (7, sunday - 120_000_000_000, c::Activity::SessionEnded { attempt: 2, end: c::SessionEnd::Quiet }),
         (6, saturday + 1_320_000_000_000, c::Activity::RunEnded { attempt: 3, end: c::RunEnd::Parked, spent: 4 }),
-        (5, saturday + 900_000_000_000, c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: true }),
+        (
+            5,
+            saturday + 900_000_000_000,
+            c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: true, fresh: None },
+        ),
         (4, saturday + 600_000_000_000, c::Activity::RunEnded { attempt: 2, end: c::RunEnd::Parked, spent: 13 }),
         (
             3,
@@ -31,7 +35,7 @@ pub(super) fn page() -> c::ActivityPage {
                     .expect("Stood fits"),
             },
         ),
-        (2, saturday, c::Activity::RunBegan { attempt: 2, why: c::RunWhy::Ready, resumed: false }),
+        (2, saturday, c::Activity::RunBegan { attempt: 2, why: c::RunWhy::Ready, resumed: false, fresh: None }),
         (1, saturday - 1_200_000_000_000, c::Activity::SessionEnded { attempt: 1, end: c::SessionEnd::Quiet }),
     ] {
         rows.push(c::DecodedActivityLine {
@@ -55,7 +59,7 @@ pub(super) fn page() -> c::ActivityPage {
             task: 52,
             position: 1,
             at: Wall::from_nanos(friday),
-            line: c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Ready, resumed: false },
+            line: c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Ready, resumed: false, fresh: None },
         }),
         decoded: None,
     })

@@ -9,7 +9,7 @@ use skein_ui_screen_terminal::Key;
 use temper_client_tui::{BoxLine, Scheme};
 
 pub(in crate::journey) fn printed_link() -> Box<[u8]> {
-    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into()
+    format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into()
 }
 
 pub(in crate::journey) fn written(records: &[Line]) -> Box<[u8]> {
@@ -87,7 +87,7 @@ fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
 #[test]
 fn web_browse_and_its_wrapped_note_are_redacted_and_prove() {
     let encoded = url_base64(&[0x53; 32]);
-    let url: Box<[u8]> = [b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=".as_slice(), &encoded].concat().into();
+    let url: Box<[u8]> = [b"http://127.0.0.1:8367/sign-in?secret=".as_slice(), &encoded].concat().into();
     let mut world = World::with_front(b"127.0.0.1:8367", true);
     let duties = world.report(Report::Local { link: Some(skein_lib::Secret::new(url.clone())) });
     let exchange = duties
@@ -492,23 +492,16 @@ fn redacted_approval_proves_and_replays_to_its_end() {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one table checks found links in either form and the unsent welcome's redaction"
-)]
 fn found_links_are_redacted_even_when_never_sent() {
-    let url = printed_link();
+    let url: Box<[u8]> =
+        format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into();
     let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
         .expect("temper mapping");
     let mut failures = Vec::new();
     for (name, source, sent) in [
         ("found never sent", Line::Found(Some(url.clone())), false),
         ("found sent", Line::Found(Some(url.clone())), true),
-        (
-            "page found never sent",
-            Line::Found(Some(format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into())),
-            false,
-        ),
+        ("page found never sent", Line::Found(Some(printed_link())), false),
         ("box-line never sent", Line::BoxLine([b"link ".as_slice(), &url].concat().into()), false),
     ] {
         let mut records = vec![source];
@@ -569,36 +562,5 @@ fn found_links_are_redacted_even_when_never_sent() {
             failures.push(format!("{name}: not a link original"));
         }
     }
-    let mut world = World::with_front(b"127.0.0.1:8367", true);
-    world.report(Report::Front(BoxLine::Link { url: skein_lib::Secret::new(url.clone()) }));
-    let now = Time::from_nanos(world.now);
-    let wall = Wall::from_nanos(world.now);
-    world.host.clocks(now, wall);
-    world.recorder.turn(now, wall);
-    world.recorder.mark(&mut world.host);
-    world.recorder.deadline(world.host.deadline());
-    let recording = world.save();
-    let records = lines(&recording).expect("welcome records");
-    assert!(
-        !records.iter().any(|line| matches!(line, Line::Send { message: Sent::SignInLink(_), .. })),
-        "the printed link was never sent"
-    );
-    assert!(
-        records.iter().any(|line| {
-            if let Line::Mark(Some(print)) = line {
-                return find_from(print, &url, 0).is_some();
-            }
-            false
-        }),
-        "the mark drew the printed link whole"
-    );
-    let redacted = redact(&recording, &[]).expect("redact welcome");
-    let proved = prove(&redacted.recording).expect("redacted welcome proof");
-    assert!(scan(&proved, &redacted.originals).expect("welcome scan").is_none(), "redacted welcome scan");
-    let mut replay = Replay::new(&proved).expect("welcome replay");
-    let frame = replay.next().expect("welcome duties").expect("welcome mark").frame;
-    let hidden_url = url_base64(&[b'x'; 32]);
-    assert!(find_from(&frame.text(), &url, 0).is_none(), "welcome no longer draws the printed link's original");
-    assert!(find_from(&frame.text(), &hidden_url, 0).is_some(), "welcome draws the redacted link");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

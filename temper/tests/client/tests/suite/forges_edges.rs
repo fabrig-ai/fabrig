@@ -346,7 +346,7 @@ fn choose_orders_owned_github_and_elsewhere_and_omits_fakes() {
         client,
         vec![
             see(Role::Region, b"GitHub"),
-            see(Role::Region, b"Forgejo"),
+            see(Role::Region, b"Local"),
             see(Role::Link, b"Connect your Forgejo"),
             gone(Role::Region, b"Playground forge"),
         ],
@@ -359,7 +359,7 @@ fn choose_orders_owned_github_and_elsewhere_and_omits_fakes() {
         .filter_map(|node| node.name.as_deref())
         .collect::<Vec<_>>();
     let github = names.iter().position(|name| *name == b"GitHub").expect("GitHub card");
-    let owned = names.iter().position(|name| *name == b"Forgejo").expect("owned card");
+    let owned = names.iter().position(|name| *name == b"Local").expect("owned card");
     assert!(owned < github, "forge/deployment.md: {names:?}");
 }
 
@@ -495,7 +495,7 @@ fn github_details_offer_only_the_app_of_ones_own_with_a_masked_key() {
 const ADMIN_TOKEN: &[u8] = b"admin-token-placeholder-0123";
 pub(super) fn admin_world(mode: forge::Mode) -> Pages {
     // The original deployment's durable store is cold-restored with the new
-    // configuration, as after changing temper.json and restarting.
+    // configuration, as after changing the configuration and restarting.
     let mut world = configured_accounts(
         true,
         false,

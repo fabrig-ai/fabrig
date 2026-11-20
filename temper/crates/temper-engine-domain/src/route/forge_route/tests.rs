@@ -2,11 +2,16 @@ use super::{commit_text, landing_words};
 use alloc::boxed::Box;
 
 mod call_room;
+mod due_ready;
 mod flake;
+mod landing_end;
 mod limit_holds;
 mod reds;
+mod refused;
 mod room;
+mod round_ends;
 mod settling;
+mod settling_due;
 mod taking;
 
 const SHA1: [u8; 32] = [
@@ -1145,85 +1150,7 @@ fn writable_repositories_exclude_an_ended_forge() {
     assert_eq!(domain.forge.readable_repositories(5).len(), 1);
 }
 
-fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
-    use super::{forge, forge_change as change};
-    forge::ChangeRow {
-        room: None,
-        source: None,
-        kept: None,
-        regate: None,
-        task_release: None,
-        job: None,
-        signed: Box::new([]),
-        task: 7,
-        repository: skein_forge::api::Repository { forge: 3, repository: 1 },
-        branch: Box::from(b"temper/7".as_slice()),
-        base: Box::from(b"main".as_slice()),
-        title: Box::from(b"Change".as_slice()),
-        body: Box::new([]),
-        priority: 0,
-        ci: None,
-        change: change::Change {
-            ended_held: None,
-            early: change::Early::None,
-            way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
-            task: 7,
-            state: change::State::Producing { requested: false },
-            gates: Box::new([]),
-            clean: Box::new([]),
-            gate_failures: Box::new([]),
-            released_resolution: false,
-            released: None,
-            repairs: 0,
-            resolutions: 0,
-            updates: 0,
-            stale: None,
-            since: skein_lib::Wall::from_nanos(0),
-            ready_since: None,
-            owns_turn: false,
-            last_head: None,
-            last_checked: None,
-            last_checked_by: None,
-            clock: None,
-        },
-        pull,
-        pending: None,
-        effect: change::EffectResult::None,
-        delegate: None,
-        delegate_status: change::Status::Unknown,
-        delegate_flake: false,
-        delegate_head: None,
-        verdicts: Box::new([]),
-        milestone: None,
-        goal: None,
-        ending: None,
-        repair_tasks: Box::new([]),
-        resolution_tasks: Box::new([]),
-        result: forge::ChangeResult::empty(),
-        gate_remarks: Box::new([]),
-        drift: None,
-        base_repair: false,
-        queue_repair: None,
-        queue_repairs: 0,
-        producing_charter: 2,
-        review_charter: 4,
-        producing_llm: None,
-        review_llm: None,
-
-        questions: temper_engine_domain_forge_change::Questions::default(),
-        effect_account: None,
-        producer_failure: None,
-        report: Box::new([]),
-        repairs: None,
-        follows: None,
-        catch_up: None,
-        close: None,
-        merge_result: None,
-        history: None,
-        follow_check: None,
-    }
-}
+use crate::tests::change_row::change_row;
 
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
@@ -2039,6 +1966,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                     status: forge_change::Status::Failed,
                     no_change: false,
                     flake: false,
+                    no_test: false,
                     failed: false,
                     cancelled: true,
                     words: reason.into(),
@@ -2289,8 +2217,13 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
 }
 
 fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
+    reserved_turn_landing_with_limits(&crate::tests::resume_fixture::limits())
+}
+fn reserved_turn_landing_with_limits(
+    limits: &super::Limits,
+) -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
     use super::{Work, forge, forge_change};
-    let (mut domain, env) = procedure_root();
+    let (mut domain, env) = procedure_root_with_limits(*limits);
     reserve_period(&mut domain, &env);
     let mut row = change_row(Some(7));
     row.repository = adopted(1).provider;
@@ -2320,10 +2253,19 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
     super::start_landing(&mut domain, &env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
-    let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
-    assert_eq!(row.landing.members[0].change, 7);
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    assert_eq!(row.landing.members[0].change, 7);
+    for name in names {
+        domain.work.push(Work::Forge(forge::Event::Hold {
+            entry: 0,
+            task: row.landing.task,
+            resource: name,
+            from: None,
+        }));
+    }
+    domain.forge_forming = None;
     (domain, env, row)
 }
 
@@ -2973,18 +2915,18 @@ fn malformed_repairs_refuses_a_change_start() {
     reason = "unit fixtures format expected protocol bytes and resolution text"
 )]
 fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
-    use temper_protocol_worker_wire::v1;
+    use temper_protocol_worker_wire::v1::{self, Record};
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
             let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command(), b"fabrig/.temper/merge");
+            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
                 core::str::from_utf8(base_text).unwrap(),
             );
-            assert_eq!(decoded.request(), expected.as_bytes());
+            assert_eq!(decoded.request.as_ref(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
             assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
             assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
@@ -3181,11 +3123,17 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
         }
     }
     assert_eq!(
-        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
+        super::change_delegate_status(
+            &super::tasks::MessageKind::Result(super::tasks::ResultKind::Job),
+            super::forge_change::Delegate::Close
+        ),
         Some((super::forge_change::Status::Passed, false, false))
     );
     assert_eq!(
-        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
+        super::change_delegate_status(
+            &super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed),
+            super::forge_change::Delegate::Close
+        ),
         Some((super::forge_change::Status::Failed, true, false))
     );
 }
@@ -4642,7 +4590,11 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
 #[test]
 fn the_job_root_names_the_declaration_the_engine_encodes() {
     use jig_protocol_worker_wire::Carried;
-    use temper_protocol_worker_wire::{application, v1, wire};
+    use temper_protocol_worker_wire::{
+        application,
+        v1::{self, Record},
+        wire,
+    };
     let application = application(&v1::CEILINGS).expect("temper's application");
     let mut found = None;
     for root in &application.roots {
@@ -4658,20 +4610,20 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
         super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
-        assert_ne!(spec.command(), []);
-        assert_ne!(spec.request(), []);
+        assert_ne!(spec.command.as_ref(), []);
+        assert_ne!(spec.request.as_ref(), []);
     }
 }
 
 /// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {
-    use temper_protocol_worker_wire::v1;
+    use temper_protocol_worker_wire::v1::{self, Record};
     let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
     let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
-    assert_eq!(decoded.command(), b"fabrig/.temper/close");
-    assert_eq!(decoded.request(), request);
+    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/close");
+    assert_eq!(decoded.request.as_ref(), request);
     let bound = u32::try_from(bytes.len()).expect("bounded spec");
     assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
     assert_eq!(
@@ -4899,7 +4851,12 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
 fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{forge, forge_change as c, tasks};
     use skein_lib::Queue;
-    let (mut domain, mut env) = procedure_root();
+    let mut limits = crate::tests::resume_fixture::limits();
+    // Two ready changes and their retained landing tasks need admission room.
+    limits.tasks.tasks = 16;
+    limits.tasks.project_tasks = 16;
+    limits.people.inbox_tasks = 32;
+    let (mut domain, mut env) = procedure_root_with_limits(limits);
     env.limits.tasks.batch = 2;
     env.limits.tasks.batch_bytes = 16_384;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
@@ -5029,6 +4986,32 @@ fn judge_trains(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>)
     crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
         .unwrap();
 }
+#[test]
+fn the_root_forms_a_train_from_a_restored_change_with_a_stale_landing_link() {
+    use super::{forge, landing};
+    use skein_lib::Queue;
+    for phase in [None, Some(landing::Phase::Landed), Some(landing::Phase::Cancelled)] {
+        let (mut domain, env) = train_root(false);
+        let mut row = domain.forge.change(7).unwrap().clone();
+        row.change.landing = Some(99);
+        let forge_env = super::super::environment_forge(&env);
+        let event = forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) };
+        forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+        if let Some(phase) = phase {
+            let (_, _, mut row) = reserved_turn_landing();
+            row.landing.task = 99;
+            row.landing.phase = phase;
+            let event = forge::Event::Restore { record: forge::Stored::Landing(row) };
+            forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+        }
+        domain.forge.fit_restored(&env.limits.forge).unwrap();
+        judge_trains(&mut domain, &env);
+        let formed = domain.forge.change(7).unwrap().change.landing.unwrap();
+        assert_ne!(formed, 99, "the stale member is taken again, before the later task");
+        assert_eq!(domain.forge.landing(formed).unwrap().landing.members[0].change, 7);
+    }
+}
+
 #[test]
 fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     use super::{Work, forge, tasks};
@@ -5341,6 +5324,37 @@ fn an_ended_prepares_record_needs_an_answer_kept_for_its_suffix() {
     row.job.as_mut().unwrap().members = Box::new([1]);
     row.landing.round.failure = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into();
     assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Absent);
+}
+
+#[test]
+fn each_refusal_of_a_kept_prepare_reads_absent() {
+    use super::forge::{LandingRow, history::Job};
+    use temper_engine_domain_forge_landing::{Leave, Preparation};
+    type Case = (&'static str, fn(&mut LandingRow), Preparation);
+    let (mut domain, env, mut row) = unprepared_round();
+    let context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+    row.landing.round.failure = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into();
+    let cases: [Case; 6] = [
+        ("kept", |_| {}, Preparation::Idle),
+        ("an earlier round", |row| row.job.as_mut().unwrap().round = 0, Preparation::Absent),
+        ("a merge job", |row| row.job.as_mut().unwrap().step.job = Job::Merge, Preparation::Absent),
+        ("a member since left", |row| row.landing.members[1].left = Some(Leave::Cancelled), Preparation::Absent),
+        ("a member since landed", |row| row.landing.members[0].landed = Some(SHA1), Preparation::Absent),
+        (
+            "a report for no job member",
+            |row| {
+                row.landing.members[1].candidate = Some(SHA1);
+                row.job.as_mut().unwrap().members = Box::new([0]);
+                row.landing.round.failure = br#"{"combined":[{"member":2,"by":"merge"}]}"#.as_slice().into();
+            },
+            Preparation::Absent,
+        ),
+    ];
+    for (case, change, expected) in cases {
+        let mut row = row.clone();
+        change(&mut row);
+        assert_eq!(read_preparation(&mut domain, &env, &row, &context), expected, "{case}");
+    }
 }
 
 fn prepare_child(

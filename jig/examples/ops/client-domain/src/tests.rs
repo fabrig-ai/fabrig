@@ -960,3 +960,15 @@ fn family_values_survive_offline_without_admitting_work_until_live_and_hide_on_s
 fn client_limits() -> jig_client::Limits {
     support::client_limits()
 }
+
+#[test]
+fn an_oversized_family_subject_reports_invalid_at_encode() {
+    let subject = |length| infrastructure::Subject {
+        scope: infrastructure::Scope::Deployment,
+        kind: infrastructure::Kind::Environments {
+            pool: Some(infrastructure::values::Pool(skein_lib::bytes::zeroed(length))),
+        },
+    };
+    crate::wire::infrastructure::subject(&subject(4096)).expect("subject at the wire ceiling");
+    assert_eq!(crate::wire::infrastructure::subject(&subject(4097)), Err(crate::wire::Invalid));
+}

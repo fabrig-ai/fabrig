@@ -113,29 +113,29 @@ impl Staging {
     }
     fn shard(&self) -> Option<Box<[u8]>> {
         let row = self.record.files.get(self.next)?;
-        match row.part() {
+        match row.part {
             3 => Some(join(
                 &join(&generations::map(self.generation, generations::Map::Store), b"/"),
-                &skein_kv::log_directory(row.number()),
+                &skein_kv::log_directory(row.number),
             )),
-            4 => Some(join(&join(STAGED, b"/"), &crate::transcripts::name(row.number() >> 12))),
+            4 => Some(join(&join(STAGED, b"/"), &crate::transcripts::name(row.number >> 12))),
             1 | 2 | 5 | 6 => None,
             _ => unreachable!("source's parts validated before safety checkpoint"),
         }
     }
     fn transfer(&mut self, queue: &mut Queue<file::Request>) {
         let row = self.record.files.get(self.next).expect("current file");
-        let linking = match row.part() {
+        let linking = match row.part {
             1 | 2 => Linking::Always,
             3 => {
-                if row.way() == 1 {
+                if row.way == 1 {
                     Linking::Exact
                 } else {
                     Linking::Never
                 }
             }
             4 => {
-                if row.way() == 1 {
+                if row.way == 1 {
                     Linking::Always
                 } else {
                     Linking::Never
@@ -144,11 +144,11 @@ impl Staging {
             5 | 6 => Linking::Never,
             _ => unreachable!("validated part"),
         };
-        let from = files::file_path(1, row.part(), row.number());
-        let to = if row.part() == 4 {
-            join(&join(STAGED, b"/"), &crate::transcripts::path(row.number()))
+        let from = files::file_path(1, row.part, row.number);
+        let to = if row.part == 4 {
+            join(&join(STAGED, b"/"), &crate::transcripts::path(row.number))
         } else {
-            files::file_path(self.generation, row.part(), row.number())
+            files::file_path(self.generation, row.part, row.number)
         };
         self.path.clone_from(&from);
         self.step = Step::Transfer(Box::new(Transfer::begin(
@@ -156,7 +156,7 @@ impl Staging {
             self.root,
             from,
             to,
-            Some(row.length()),
+            Some(row.length),
             linking,
             false,
             self.owner,
@@ -167,7 +167,7 @@ impl Staging {
         // Missing transcripts require no file request. The bounded record supplies this loop's bound.
         for _ in self.next..self.record.files.len() {
             let row = self.record.files.get(self.next).expect("bounded record cursor");
-            if (row.part() == 4) != self.tree || row.way() == 3 {
+            if (row.part == 4) != self.tree || row.way == 3 {
                 self.next = self.next.saturating_add(1);
                 continue;
             }

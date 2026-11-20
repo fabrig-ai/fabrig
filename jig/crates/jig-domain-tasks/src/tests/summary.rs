@@ -7,7 +7,128 @@
 )]
 use super::revisions::{Harness, task, to};
 use crate::*;
-use skein_lib::Wall;
+use skein_lib::{Queue, Wall};
+
+fn declared_failure(executor: Executor, reason: &[u8], bound: u32) -> Harness {
+    let mut h = Harness::new();
+    h.env.limits.result_bytes = bound;
+    let mut new = task(12, &[]);
+    new.executor = executor;
+    new.contract = Contract::Report { words: bound.min(32) };
+    h.make(vec![new]);
+    let result = TaskResult::Failure { reason: reason.into() };
+    let out = match executor {
+        Executor::Agent { .. } | Executor::Job { .. } => {
+            h.send(Event::Prepare { reply_to: to(), task: 12 });
+            h.send(Event::Claim {
+                fresh: None,
+                reply_to: to(),
+                task: 12,
+                attempt: 1,
+                resumed: false,
+                budget: 1,
+                account: None,
+                writes: Box::new([]),
+                reasons: Reasons::FIRST,
+                offered: Reasons::ALL,
+                session_end: None,
+            });
+            h.send(Event::Activation {
+                reply_to: to(),
+                task: 12,
+                attempt: 1,
+                end: End::Finished { result, cancel_delegates: false },
+                saved: None,
+                cause: Cause::Priced { cumulative: 0 },
+            })
+        }
+        Executor::Person(_) => h.send(Event::AnswerPerson { reply_to: to(), task: 12, person: 10, result }),
+        Executor::Procedure { .. } => {
+            let (_, _, step) = h.domain.procedure_due(12).unwrap();
+            let read = h.domain.procedure_offered(12);
+            h.send(Event::Procedure {
+                reply_to: to(),
+                task: 12,
+                step,
+                read,
+                decision: ProcedureDecision::new(ProcedureEnd::Result(result)),
+            })
+        }
+    };
+    let Phase::Closing(_) = &h.domain.task(12).unwrap().phase else { panic!("failure refused: {out:?}") };
+    h.send(Event::EffectsSettled { task: 12 });
+    h.send(Event::Settled { task: 12 });
+    h
+}
+
+fn assert_failed_summary(h: &Harness, words: &[u8]) {
+    let Stored::Ended(record) = &h.stored[&Key::Ended(12)] else { panic!("ended task") };
+    assert_eq!(record.phase, Phase::Ended(Ending::Failed { reason: words.into() }));
+    let Stored::Summary(summary) = &h.stored[&Key::Summary(12)] else { panic!("task summary") };
+    assert_eq!(summary.ending, SummaryEnding::Failed);
+    assert_eq!(summary.reason.as_ref(), words);
+    assert!(!summary.reason_cut);
+}
+
+#[test]
+fn an_empty_run_failure_has_a_reason_in_its_summary() {
+    let h = declared_failure(Executor::Agent { charter: 1 }, b"", 256);
+    assert_failed_summary(&h, b"Its run declared failure without a reason.");
+}
+
+#[test]
+fn an_empty_person_failure_has_a_reason_in_its_summary() {
+    let h = declared_failure(Executor::Person(PersonAddress::Person(10)), b"", 256);
+    assert_failed_summary(&h, b"Its person declared failure without a reason.");
+}
+
+#[test]
+fn an_empty_procedure_failure_has_a_reason_in_its_summary() {
+    let h = declared_failure(Executor::Procedure { connector: 1, code: 1 }, b"", 256);
+    assert_failed_summary(&h, b"Its procedure declared failure without a reason.");
+}
+
+#[test]
+fn declared_failure_reasons_are_kept_byte_for_byte() {
+    for executor in [
+        Executor::Agent { charter: 1 },
+        Executor::Person(PersonAddress::Person(10)),
+        Executor::Procedure { connector: 1, code: 1 },
+    ] {
+        let h = declared_failure(executor, b"no access", 256);
+        assert_failed_summary(&h, b"no access");
+    }
+}
+
+fn closer_failure(reason: &[u8], bound: u32) -> Harness {
+    let mut h = Harness::new();
+    h.env.limits.result_bytes = bound;
+    h.make(vec![task(12, &[])]);
+    let row = &mut domain::task_mut(&mut h.domain, 12).unwrap().record;
+    row.closer = Some(13);
+    row.tries.run = h.env.limits.retries.run.retries;
+    let mut out = Queue::uncapped();
+    closer::ended(&mut h.domain, &h.env, 12, 13, &Ending::Failed { reason: reason.into() }, &mut out);
+    closing::progress(&mut h.domain, &h.env, &mut out);
+    h.send(Event::EffectsSettled { task: 12 });
+    h.send(Event::Settled { task: 12 });
+    h
+}
+
+#[test]
+fn an_empty_closer_failure_omits_the_colon_and_reason() {
+    // The closer's own failed ending may carry no words.
+    let h = closer_failure(b"", 256);
+    assert_failed_summary(&h, b"Its closer failed, past its 2 run tries.");
+}
+
+#[test]
+fn generated_failure_reasons_keep_only_the_bounded_character_prefix() {
+    let h = declared_failure(Executor::Agent { charter: 1 }, b"", 7);
+    assert_failed_summary(&h, b"Its run");
+    let h = closer_failure("ééé".as_bytes(), 44);
+    assert_failed_summary(&h, "Its closer failed, past its 2 run tries: é".as_bytes());
+}
 
 #[test]
 fn summary_titles_keep_only_the_first_line_and_cut_at_a_character_boundary() {

@@ -9,6 +9,7 @@ use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{Duration, Intake, List, Queue, ReplyTo, Secret, Time, Token, stream};
 use temper_client_protocol_wire::v1 as s;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain as root;
 use temper_engine_domain_forge::settings as own;
 
@@ -239,7 +240,10 @@ fn signed_in(engine: &mut Engine) {
 }
 
 fn changed(engine: &mut Engine, agents: &s::AgentFigures, against: u32) {
-    let value = own::SizedValue { size: agents.measure(), value: own::Value::AgentFigures(agents.clone()) };
+    let value = own::SizedValue {
+        size: agents.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        value: own::Value::AgentFigures(agents.clone()),
+    };
     engine.step(root::Event::Party(root::PartyInput::ChangeSettings {
         reply_to: ReplyTo::new(Token::new(101)),
         sign_in: 1,
@@ -264,9 +268,9 @@ fn changed(engine: &mut Engine, agents: &s::AgentFigures, against: u32) {
 fn expected(agents: &s::AgentFigures) -> wire::Figures {
     let settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
     let figures = temper_engine_service_vocabulary::figures::compose(&settings, agents);
-    let mut parts = figures.into_parts();
+    let mut parts = figures;
     parts.places = 1;
-    wire::Figures::new(&wire::CEILINGS, parts).unwrap()
+    parts
 }
 fn notes(engine: &mut Engine) -> List<(u32, u32, u32)> {
     let mut values = List::with_capacity(2);
@@ -284,13 +288,10 @@ fn notes(engine: &mut Engine) -> List<(u32, u32, u32)> {
 fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     let mut service = started(None);
     fixtures::restart(&mut service);
-    let mut parts = crate::stock::agents().into_parts();
-    parts.profile = List::from_boxed(Box::new([s::AgentFigure::new(
-        &s::CEILINGS,
-        s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 901 },
-    )
-    .unwrap()]));
-    let first = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    let mut parts = crate::stock::agents();
+    parts.profile =
+        List::from_boxed(Box::new([s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 901 }]));
+    let first = parts;
     let engine = service.engine.as_mut().unwrap();
     signed_in(engine);
     changed(engine, &first, 1);
@@ -305,32 +306,24 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     assert!(!figures.hello);
     assert!(figures.ended);
     Peer::engine_up(engine, io::Event::Closed { owner: figures.owner.unwrap() });
-    assert_eq!(
-        notes(engine).as_slice(),
-        &[(expected_first.limits().len(), expected_first.agents().endpoints().len(), 2)]
-    );
+    assert_eq!(notes(engine).as_slice(), &[(expected_first.limits.len(), expected_first.agents.endpoints.len(), 2)]);
     let mut linked = Peer::open(engine, Opening::Link);
     assert_eq!(linked.figures.as_slice(), &[expected_first]);
     assert!(linked.hello);
     settle(engine);
-    let mut parts = first.into_parts();
-    parts.profile.get_mut(0).unwrap().clone_from(
-        &s::AgentFigure::new(
-            &s::CEILINGS,
-            s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 902 },
-        )
-        .unwrap(),
-    );
-    let second = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    let mut parts = first;
+    parts
+        .profile
+        .get_mut(0)
+        .unwrap()
+        .clone_from(&s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 902 });
+    let second = parts;
     changed(engine, &second, 2);
     linked.settle(engine);
     let expected_second = expected(&second);
     assert_eq!(linked.figures.len(), 2);
     assert_eq!(linked.figures.as_slice()[1], expected_second);
-    assert_eq!(
-        notes(engine).as_slice(),
-        &[(expected_second.limits().len(), expected_second.agents().endpoints().len(), 3)]
-    );
+    assert_eq!(notes(engine).as_slice(), &[(expected_second.limits.len(), expected_second.agents.endpoints.len(), 3)]);
 }
 
 #[test]
@@ -391,6 +384,75 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
     service
 }
 
+fn local_value(places: u32) -> jig_client_protocol_wire::WorkerSetting {
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+    WorkerSetting::new(
+        &CEILINGS,
+        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false },
+    )
+    .unwrap()
+}
+
+#[test]
+fn local_copy_follows_owner_changes_and_repairs_a_different_restore() {
+    let path: Box<[u8]> = b"/data/local.setting".as_slice().into();
+    let mut service = started(None);
+    service.engine.as_mut().unwrap().keep_local(path.clone(), None);
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    let (_, default) = engine.take_local_write().expect("missing copy is repaired");
+    let mut reader = skein_lib::Reader::new(&default);
+    assert_eq!(
+        jig_client_protocol_wire::WorkerSetting::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap(),
+        local_value(4)
+    );
+    assert!(reader.is_empty());
+    signed_in(engine);
+    engine.step(root::Event::Party(root::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(101)),
+        sign_in: 1,
+        key: [1; 16],
+        digest: [1; 32],
+        kinds: Box::new([]),
+        change: Box::new(settings::Change {
+            against: 1,
+            items: Box::new([settings::Item {
+                setting: settings::Setting::Worker(1),
+                edit: settings::Edit::Set(settings::Value::Worker(Box::new(settings::WorkerSetting {
+                    number: 1,
+                    name: b"local".as_slice().into(),
+                    places: 2,
+                    digest: None,
+                    withdrawn: false,
+                }))),
+            }]),
+            running: settings::Running::Stays,
+        }),
+    }));
+    assert_eq!(settle(engine).as_slice(), &[Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })]);
+    let (written, bytes) = engine.take_local_write().expect("owner change keeps copy");
+    assert_eq!(written, path);
+    let mut reader = skein_lib::Reader::new(&bytes);
+    assert_eq!(
+        jig_client_protocol_wire::WorkerSetting::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap(),
+        local_value(2)
+    );
+    assert!(reader.is_empty());
+    assert!(engine.take_local_write().is_none());
+    let previous = service.engine.take().unwrap();
+    let stored = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut service = started(Some(stored));
+    service.engine.as_mut().unwrap().keep_local(path.clone(), Some(local_value(4)));
+    fixtures::restart(&mut service);
+    assert_eq!(service.engine.as_mut().unwrap().take_local_write(), Some((path.clone(), bytes)));
+    let previous = service.engine.take().unwrap();
+    let stored = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut service = started(Some(stored));
+    service.engine.as_mut().unwrap().keep_local(path, Some(local_value(2)));
+    fixtures::restart(&mut service);
+    assert!(service.engine.as_mut().unwrap().take_local_write().is_none());
+}
+
 #[test]
 fn box_copy_follows_owner_changes_and_repairs_a_different_restore() {
     let stock = crate::stock::agents();
@@ -398,17 +460,13 @@ fn box_copy_follows_owner_changes_and_repairs_a_different_restore() {
     service.engine.as_mut().unwrap().keep_agents(b"/data/agents.setting".as_slice().into(), Some(stock.clone()));
     fixtures::restart(&mut service);
     assert!(service.engine.as_mut().unwrap().take_agents_write().is_none());
-    let mut parts = stock.clone().into_parts();
+    let mut parts = stock.clone();
     for row in parts.profile.iter_mut() {
-        if row.name() == b"policy.max_turns" {
-            *row = s::AgentFigure::new(
-                &s::CEILINGS,
-                s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 900 },
-            )
-            .unwrap();
+        if row.name.as_ref() == b"policy.max_turns" {
+            *row = s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 900 };
         }
     }
-    let agents = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    let agents = parts;
     let engine = service.engine.as_mut().unwrap();
     signed_in(engine);
     changed(engine, &agents, 1);

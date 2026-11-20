@@ -8,7 +8,7 @@ use smith_agent_process_world::{
 use smith_channel::{RunFailure, RunResult};
 use smith_fake_claude::{Decision, Seen, Step, Story, Turn};
 
-fn selected(change: impl FnOnce(&mut smith_charter::CharterParts)) -> Box<[u8]> {
+fn selected(change: impl FnOnce(&mut smith_charter::Charter)) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
         smith_agent_process_world::wire::budget(parts, 8, 20);
         change(parts);
@@ -34,20 +34,16 @@ fn finish() -> Step {
     Step::Outcome { input: json!({"outcome":{"form":"report","text":"done","fields":{}}}) }
 }
 
-fn winding(parts: &mut smith_charter::CharterParts) {
-    let mut budget = parts.budget.clone().into_parts();
+fn winding(parts: &mut smith_charter::Charter) {
+    let mut budget = parts.budget.clone();
     budget.turns = 3;
-    budget.reserve = smith_charter::Reserve::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ReserveParts { turns: 2, time: Duration::from_secs(1) },
-    )
-    .expect("bounded test fixture");
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded test fixture");
+    budget.reserve = smith_charter::Reserve { turns: 2, time: Duration::from_secs(1) };
+    parts.budget = budget;
 }
 
 fn budget_failure(run: &Run) {
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Failed(failed) if matches!(failed.reason(), RunFailure::Budget(_))),
+        matches!( &run.answer().expect("answer").result, RunResult::Failed(failed) if matches!( &failed.reason, RunFailure::Budget(_))),
         "answer={:?} stderr={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -65,7 +61,7 @@ fn a_cancel_interrupts_the_turn() {
         run.answer()
     );
     assert!(
-        matches!(run.answer().expect("bounded test fixture").result(), RunResult::Failed(failed) if matches!(failed.reason(), RunFailure::Cancelled))
+        matches!( &run.answer().expect("bounded test fixture").result, RunResult::Failed(failed) if matches!( &failed.reason, RunFailure::Cancelled))
     );
     assert!(!run.seen.contains(&Seen::Terminated));
     assert!(run.exits.contains(&skein_io::kernel::Exit::Code(0)));
@@ -95,7 +91,7 @@ fn the_wind_down_sends_the_note() {
         vec![turn(vec![Step::Call { tool: "unoffered".into(), input: json!({}) }, Step::Hang]), turn(vec![finish()])],
     );
     assert!(
-        matches!(run.answer().expect("bounded test fixture").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("bounded test fixture").result, RunResult::Accepted(_)),
         "{:?}",
         run.answer()
     );
@@ -117,9 +113,9 @@ fn the_wind_down_sends_the_note() {
 #[test]
 fn wall_time_stops_the_program() {
     let charter = selected(|parts| {
-        let mut budget = parts.budget.clone().into_parts();
+        let mut budget = parts.budget.clone();
         budget.time = Duration::from_secs(1);
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded test fixture");
+        parts.budget = budget;
     });
     let run = run(Case::Turns, &charter, vec![turn(vec![Step::Hang])]);
     budget_failure(&run);
@@ -136,13 +132,9 @@ fn wall_time_stops_the_program() {
 fn a_wind_down_denies_a_built_in() {
     let charter = selected(|parts| {
         winding(parts);
-        let mut tools = parts.tools.clone().into_parts();
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { inspect: true, modify: false, shell: false, agents: false },
-        )
-        .expect("bounded test fixture");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("bounded test fixture");
+        let mut tools = parts.tools.clone();
+        tools.families = smith_charter::Families { inspect: true, modify: false, shell: false, agents: false };
+        parts.tools = tools;
     });
     let run = run(
         Case::Tools,
@@ -160,7 +152,7 @@ fn a_wind_down_denies_a_built_in() {
         ],
     );
     assert!(
-        matches!(run.answer().expect("bounded test fixture").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("bounded test fixture").result, RunResult::Accepted(_)),
         "{:?}",
         run.answer()
     );
@@ -170,14 +162,14 @@ fn a_wind_down_denies_a_built_in() {
 #[test]
 fn spend_past_the_budget_fails_the_run() {
     let charter = selected(|parts| {
-        let mut budget = parts.budget.clone().into_parts();
+        let mut budget = parts.budget.clone();
         budget.spend = 2;
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded test fixture");
-        let mut llm = parts.main.clone().into_parts();
-        let mut prices = llm.prices.into_parts();
+        parts.budget = budget;
+        let mut llm = parts.main.clone();
+        let mut prices = llm.prices;
         prices.unit = 1_000_000;
-        llm.prices = smith_charter::Prices::new(&smith_charter::CEILINGS, prices).expect("bounded test fixture");
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("bounded test fixture");
+        llm.prices = prices;
+        parts.main = llm;
     });
     let run = program_world::run(
         Case::Turns,
@@ -193,7 +185,7 @@ fn spend_past_the_budget_fails_the_run() {
     );
     budget_failure(&run);
     let answer = run.answer().expect("bounded test fixture");
-    assert_eq!(answer.spent(), 3);
+    assert_eq!(answer.spent, 3);
     assert!(
         run.seen.contains(&Seen::Interrupted),
         "seen={:?} calls={:?} answer={:?}",

@@ -1,6 +1,6 @@
 # commands: status
 
-2026-11-11. Where the tree's code lags or departs from [commands.md](commands.md).
+2026-11-19. Where the tree's code lags or departs from [commands.md](commands.md).
 
 - **Not yet:**
   - the whole document: the `--account` flag and the `account` setting.

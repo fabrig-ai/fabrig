@@ -244,6 +244,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
         },
         channel_endpoints: smith_protocol_translate::Endpoints::new(endpoints),
         llm_endpoints,
+        rg: Box::from(b"/usr/bin/rg".as_slice()),
         environment: smith_protocol_machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
         stream_mode: StreamMode::Two,
     }
@@ -321,83 +322,61 @@ pub(crate) fn start_workspace_message(
     value: &smith_channel::GrantValue,
     live: Option<smith_channel::LiveAsk>,
 ) -> skein_channel::Frame {
-    let limits = smith_channel::CEILINGS;
-    let window = smith_channel::Window::new(&limits, smith_channel::WindowParts { turns, bytes: 1_000_000_000 })
-        .expect("window");
+    let window = smith_channel::Window { turns, bytes: 1_000_000_000 };
     let mut grants = List::with_capacity(1);
     grants
-        .push(
-            smith_channel::Grant::new(
-                &limits,
-                smith_channel::GrantParts {
-                    account: 0,
-                    generation: 1,
-                    valid: Duration::from_secs(7200),
-                    value: value.clone(),
-                },
-            )
-            .expect("grant"),
-        )
+        .push(smith_channel::Grant {
+            account: 0,
+            generation: 1,
+            valid: Duration::from_secs(7200),
+            value: value.clone(),
+        })
         .expect("one grant");
     let mut messages = List::with_capacity(u32::from(message.is_some()));
     if let Some(message) = message {
         messages.push(message.clone()).expect("one selected host message");
     }
-    let record = smith_channel::Start::new(
-        &limits,
-        smith_channel::StartParts {
-            live,
-            messages,
-            identity: None,
-            activation: 1,
-            charter: Box::from(charter),
-            workspace: if workspace {
-                let mut directories = List::with_capacity(2);
-                for (name, path) in
-                    [(b"repo".as_slice(), b"/unused-a".as_slice()), (b"other".as_slice(), b"/unused-b".as_slice())]
-                {
-                    directories
-                        .push(
-                            smith_channel::Directory::new(
-                                &limits,
-                                smith_channel::DirectoryParts {
-                                    name: name.into(),
-                                    path: path.into(),
-                                    writable: false,
-                                    git: false,
-                                    conflicts: List::with_capacity(0),
-                                },
-                            )
-                            .expect("configured test directory"),
-                        )
-                        .expect("two directories");
-                }
-                Some(
-                    smith_channel::Workspace::new(&limits, smith_channel::WorkspaceParts { directories })
-                        .expect("two roots"),
-                )
-            } else {
-                None
-            },
-            transcript: Box::default(),
-            answered: List::with_capacity(0),
-            grants,
-            window,
+    let record = smith_channel::Start {
+        live,
+        messages,
+        identity: None,
+        activation: 1,
+        charter: Box::from(charter),
+        workspace: if workspace {
+            let mut directories = List::with_capacity(2);
+            for (name, path) in
+                [(b"repo".as_slice(), b"/unused-a".as_slice()), (b"other".as_slice(), b"/unused-b".as_slice())]
+            {
+                directories
+                    .push(smith_channel::Directory {
+                        name: name.into(),
+                        path: path.into(),
+                        writable: false,
+                        git: false,
+                        conflicts: List::with_capacity(0),
+                    })
+                    .expect("two directories");
+            }
+            Some(smith_channel::Workspace { directories })
+        } else {
+            None
         },
-    )
-    .expect("Start record");
+        transcript: Box::default(),
+        answered: List::with_capacity(0),
+        grants,
+        window,
+    };
     crate::frame!(0x0100, record)
 }
 
 pub(crate) fn start_root(charter: &[u8], path: &[u8]) -> skein_channel::Frame {
     let frame = start_workspace_message(charter, 8, true, None, &bearer(b"token"), None);
     crate::wire::edit_start(&frame, |start| {
-        let mut workspace = start.workspace.take().expect("workspace").into_parts();
-        let mut directory = workspace.directories.get(0).expect("first directory").clone().into_parts();
+        let mut workspace = start.workspace.take().expect("workspace");
+        let mut directory = workspace.directories.get(0).expect("first directory").clone();
         directory.path = path.into();
-        *workspace.directories.get_mut(0).expect("first directory") =
-            smith_channel::Directory::new(&smith_channel::CEILINGS, directory).expect("root path");
-        start.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
+        *workspace.directories.get_mut(0).expect("first directory") = directory;
+        start.workspace = Some(workspace);
     })
 }
 
@@ -414,47 +393,25 @@ fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Crede
 pub fn charter() -> Box<[u8]> {
     let smallest = &charter_fixture();
     crate::wire::edit_charter(smallest, |parts| {
-        parts.budget = smith_charter::Budget::new(
-            &smith_charter::CEILINGS,
-            smith_charter::BudgetParts {
-                turns: 1,
-                spend: 2,
-                time: Duration::from_secs(60),
-                reserve: smith_charter::Reserve::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
-                )
-                .expect("bounded reserve"),
-            },
-        )
-        .expect("workable budget");
-        parts.contract = smith_charter::Contract::new(
-            &smith_charter::CEILINGS,
-            smith_charter::ContractParts {
-                report: Some(
-                    smith_charter::TextRule::new(
-                        &smith_charter::CEILINGS,
-                        smith_charter::TextRuleParts { max: 128, fields: List::with_capacity(0) },
-                    )
-                    .expect("report rule"),
-                ),
-                verdicts: List::with_capacity(0),
-                change: None,
-                failure: None,
-            },
-        )
-        .expect("outcome contract");
-        let mut llm = parts.main.clone().into_parts();
+        parts.budget = smith_charter::Budget {
+            turns: 1,
+            spend: 2,
+            time: Duration::from_secs(60),
+            reserve: smith_charter::Reserve { turns: 0, time: Duration::ZERO },
+        };
+        parts.contract = smith_charter::Contract {
+            report: Some(smith_charter::TextRule { max: 128, fields: List::with_capacity(0) }),
+            verdicts: List::with_capacity(0),
+            change: None,
+            failure: None,
+        };
+        let mut llm = parts.main.clone();
         llm.account = Some(0);
         llm.model = Box::from(*b"fake");
         llm.window = declarations(0).endpoints[0].limits.window;
         llm.output = declarations(0).endpoints[0].limits.output;
-        llm.prices = smith_charter::Prices::new(
-            &smith_charter::CEILINGS,
-            smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-        )
-        .expect("prices");
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
+        llm.prices = smith_charter::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 };
+        parts.main = llm;
     })
 }
 
@@ -473,8 +430,7 @@ pub fn assert_program_event_conformance(records: &[smith_events::Record], receiv
 mod world;
 
 fn acknowledge(number: u32) -> skein_channel::Frame {
-    let record = smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number })
-        .expect("durable prefix acknowledgement");
+    let record = smith_channel::Acknowledge { number };
     crate::frame!(0x0103, record)
 }
 
@@ -482,9 +438,10 @@ mod grants;
 pub use grants::{bearer, key, program};
 
 fn charter_fixture() -> Vec<u8> {
-    let schema = skein_codegen::parse(include_str!("../../../crates/smith-charter/schema/charter-v5.schema"))
-        .expect("charter schema");
-    skein_codegen::goldens(&schema)
+    let values = skein_codegen::values(smith_charter::SCHEMA);
+    values
+        .goldens
+        .clone()
         .into_iter()
         .find(|value| value.name == "record_charter_smallest.bin")
         .expect("smallest charter")

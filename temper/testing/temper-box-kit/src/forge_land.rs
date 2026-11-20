@@ -8,8 +8,10 @@ use skein_lib::Duration;
 use skein_world::{Referee, real};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
+mod failure;
 pub mod rung;
 mod survivors;
+pub use failure::{keep_box_data, run_failure_lines};
 
 /// forge-setup's first repository goes into project 1, the first made
 /// (temper/docs/design/client/ctl/areas.md): work/hello is project 1's.
@@ -915,10 +917,8 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
     if let LiveModel::AnthropicKey { .. } = model {
         configure_live_model(&paths[0], model, std::path::Path::new(""));
     }
-    let path = paths[0].join("temper.json");
     let mut value = super::limit_settings::configuration(&paths[0]);
     value.jig_over("accounts.sign_in_deadline_ms", 600_000);
-    super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
     super::limit_settings::remember(&paths[0], &value);
 }
 
@@ -1080,7 +1080,7 @@ pub fn reserve_live_store(path: &std::path::Path) -> Result<bool, String> {
         ("cache", true),
         ("data/deployment", true),
         ("data/forge-1/forgejo", true),
-        ("config/temper.json", false),
+        (&format!("config/{}", temper_config_shell::FILE), false),
         ("data/box/started/1", false),
         ("data/forge-1/forgejo/app.ini", false),
         ("data/forge-1/forgejo/forgejo.db", false),
@@ -1539,20 +1539,22 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
 /// Keep the live `OpenAI` provider and demo; the owner selects the model after startup.
 pub fn retain_live_model(path: &std::path::Path, name: &str) {
     assert_eq!(name, LiveModel::ChatGpt { account: None }.name());
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
+    let root = path.parent().expect("configuration directory");
+    let data = temper_agent_fixtures::data(root);
+    let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
     for table in ["providers", "endpoints"] {
         temper_agent_fixtures::providers::input(&mut value)[table]
             .as_array_mut()
             .expect("LLM table")
             .retain(|row| row["name"] != "anthropic");
     }
-    super::write_private(path, &serde_json::to_vec(&value).expect("deployment JSON"));
+    temper_agent_fixtures::providers::keep(&mut value, &data);
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
     if let LiveModel::AnthropicKey { .. } = model {
-        let path = config.join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let data = temper_agent_fixtures::data(config);
+        let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
         let provider = temper_agent_fixtures::providers::input(&mut value)["providers"]
             .as_array_mut()
             .expect("providers")
@@ -1563,12 +1565,12 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
             .expect("provider");
         provider.remove("keep");
         provider.remove("drop");
-        super::write_private(&path, &serde_json::to_vec(&value).expect("key configuration"));
+        temper_agent_fixtures::providers::keep(&mut value, &data);
         return;
     }
     let LiveModel::ClaudeCode { login } = model else { return };
-    let path = config.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+    let data = temper_agent_fixtures::data(config);
+    let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
     let mut agent = temper_agent_fixtures::read(config);
     let mut endpoint = agent["endpoints"]
         .as_array()
@@ -1617,7 +1619,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     agent["programs"]["claude_code"] = serde_json::json!({
         "path":executable, "directory":login.parent().expect("held login parent")
     });
-    super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
+    temper_agent_fixtures::providers::keep(&mut value, &data);
     temper_agent_fixtures::install(config, &agent);
 }
 

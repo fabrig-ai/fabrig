@@ -44,6 +44,7 @@ this design.
 | processes | `skein-io` | spawning children, their pipes, signals and containment | [runtime/io/processes.md](runtime/io/processes.md) |
 | the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [runtime/shell.md](runtime/shell.md) |
 | the simulator | `skein-sim` | the simulated kernel and its faults; beside it, the conformance suite (`skein-conformance`) | [testing/simulator.md](testing/simulator.md) |
+| the conformance suite | `skein-conformance` | the scenarios that hold the simulator and each backend on the real kernel to the kernel boundary's contract | [testing/conformance.md](testing/conformance.md) |
 | the fake LLM | `skein-fake-llm-domain`, `skein-fake-llm-protocol` | shared bounded scripts and independent byte peers; application worlds supply tools and policy | [testing/fakes/llm.md](testing/fakes/llm.md) |
 | the key-value store | `skein-kv` | ordered byte keys and values in memory, made durable by a commit log and snapshots on io's files | [data/kv.md](data/kv.md) |
 | the fake push service | `skein-fake-push` | for tests: a push service that checks a Web Push request's form, token and seal, records it and answers by a script; its peer in `skein-fake-peers` | [testing/fakes/push.md](testing/fakes/push.md) |
@@ -69,6 +70,7 @@ this design.
 | Web Push | `skein-push` | a push message sealed for a browser's subscription and signed with the service's VAPID key, and its answer read | [net/push.md](net/push.md) |
 | the link | `skein-link` | one socket and its optional TLS, under a protocol layer's HTTP clients: the handshake, a body's upload, a bounded close that sends `close_notify` | [net/link.md](net/link.md) |
 | LLM | `skein-llm` | provider-neutral calls, streaming deltas, concrete replay and completions; subscription wire dialects | [llm/README.md](llm/README.md) |
+| LLM admission | `skein-llm` | why a request is refused before it is sent, each refusal by its cause's name | [llm/admission.md](llm/admission.md) |
 | LLM connections | `skein-llm-connection` | a protocol layer's component that runs LLM calls end to end: connecting, TLS, deadlines, reuse | [llm/connection.md](llm/connection.md) |
 | OAuth | `skein-oauth`, `skein-oauth-codec`, `skein-oauth-accounts`, `skein-fake-oauth` | bounded sign-in and refresh client, with its saved records' generated code in a codec crate below it; the driver that runs it end to end for its owner, listener, connection and keeping included; an independent rotating issuer for worlds | [oauth/README.md](oauth/README.md), [data/codec/README.md](data/codec/README.md) |
 | the OAuth issuer | `skein-oauth-issuer` | OpenID Connect's issuer, stateless: an authorization and a token request checked, an ID token signed, the discovery document, key set and userinfo answer | [oauth/issuer.md](oauth/issuer.md) |

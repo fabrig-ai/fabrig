@@ -1,0 +1,4 @@
+listen = "{story.clients}"
+webhooks = "{story.webhooks}"
+owner = "owner-a@example.invalid"
+workers = "{story.workers}"

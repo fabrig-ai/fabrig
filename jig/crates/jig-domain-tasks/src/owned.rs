@@ -395,7 +395,8 @@ fn proposal_bytes(proposal: &Proposal) -> Option<u64> {
 #[must_use]
 pub fn task_bytes(task: &TaskRecord) -> Option<u64> {
     let mut inbox_bytes = bytes(size_of_val(&*task.inbox))?.checked_add(bytes(size_of_val(&*task.refused))?)?;
-    for word in &task.inbox {
+    inbox_bytes = inbox_bytes.checked_add(bytes(size_of_val(&*task.unrecorded))?)?;
+    for word in task.inbox.iter().chain(task.unrecorded.iter()) {
         inbox_bytes = inbox_bytes.checked_add(word_bytes(word)?)?;
     }
     let mut saved_bytes = bytes(size_of_val(&*task.saved))?;

@@ -61,7 +61,9 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
 skein-fork.workspace = true
+smith-protocol-channel.workspace = true
 temper-limits-fixtures.workspace = true
 temper-engine-service-startup.workspace = true
 smith-transcript.workspace = true

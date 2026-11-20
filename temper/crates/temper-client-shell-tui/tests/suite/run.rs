@@ -509,7 +509,14 @@ impl World {
                 self.recording_sync = None;
                 self.saved += 1;
             }
-            if let Ask::Spawn { program, args, .. } = &call.ask {
+            if let Ask::Spawn { program, args, reach, .. } = &call.ask {
+                if reach.is_some() {
+                    answers.push(Answer {
+                        ticket: call.ticket,
+                        result: Err(io::kernel::Error::Reach(io::kernel::Unenforced::Unsupported)),
+                    });
+                    continue;
+                }
                 if args.first().is_some_and(|arg| arg.as_ref() == b"program-login") && self.login_refused {
                     answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::NotFound) });
                     continue;
@@ -1893,8 +1900,7 @@ fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
     world.end_loan_world();
 }
 
-const HANDED_LINK: &[u8] =
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const HANDED_LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 #[test]
 fn a_front_connects_after_early_readiness_or_a_refused_connect() {

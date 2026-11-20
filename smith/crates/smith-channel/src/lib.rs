@@ -1,6 +1,6 @@
 //! Bounded channel records and the version-eleven kind table. This crate keeps no
 //! runtime state and knows no domain, credentials or host policy. Generated
-//! constructors, encoders and decoders handle bodies; [`schema`] advertises
+//! records, encoders and decoders handle bodies; [`schema`] advertises
 //! their largest permitted encodings. Contracts: `protocol/channel.md`,
 //! sections 2-4 and 6-8.
 
@@ -8,6 +8,14 @@
 #![forbid(unsafe_code)]
 
 extern crate alloc;
+
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const CHANNEL_SCHEMA: &str = include_str!("../schema/channel-v11.schema");
+
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const PIECES_SCHEMA: &str = include_str!("../schema/pieces-v1.schema");
 
 #[rustfmt::skip]
 mod generated {
@@ -28,40 +36,25 @@ pub use frame::{Body, frame};
 
 pub use kinds::{KindRule, Overflow, V11, peer_terms_gap, schema};
 pub use v11::{
-    Cap, CompletionLimit, CompletionPhase, LimitFailure, LimitFailureParts, PathCap, PathCapParts, PoolLimit,
-    PoolLimitParts, Renewals, RenewalsParts, ResponseEvidence, ResponseEvidenceParts, TimeoutFailure,
-    TimeoutFailureParts,
+    Cap, CompletionLimit, CompletionPhase, LimitFailure, PathCap, PoolLimit, Record, Renewals, ResponseEvidence,
+    TimeoutFailure,
 };
 
 pub use v11::{
-    Accepted, AcceptedParts, AccountRefused, AccountRefusedParts, Acknowledge, AcknowledgeParts, Admitted,
-    AdmittedParts, Answer, AnswerParts, AnsweredCall, AnsweredCallParts, Ask, BudgetCeiling, BudgetCeilingValue,
-    BudgetCeilingValueParts, BudgetChecks, BudgetChecksParts, BudgetCompletion, BudgetCompletionParts, BudgetFailure,
-    BudgetFailureValue, BudgetFailureValueParts, BudgetPart, BudgetPartValue, BudgetPartValueParts, BudgetRefusal,
-    BudgetRefusalValue, BudgetRefusalValueParts, BudgetSpend, BudgetSpendParts, BudgetTime, BudgetTimeParts,
-    BudgetTurns, BudgetTurnsParts, CEILINGS, Call, CallName, CallNameParts, CallParts, Cancel, CancelParts,
-    CompletionEvidence, CompletionFailure, CompletionFault, CompletionFaultParts, CredentialValue,
-    CredentialValueParts, DeliverAsk, DeliverAskParts, Delivered, DeliveredParts, Delivery, DeliveryFailure,
-    DeliveryFailureParts, DeliveryReason, DeliveryRefusal, DeliveryRefusalParts, DeliveryReply, DeliveryReplyParts,
-    Directory, DirectoryParts, Drain, DrainParts, Effect, Fact, FactKind, FactParts, Failed, FailedParts, Field,
-    FieldParts, Grant, GrantParts, GrantRefresh, GrantRefreshParts, GrantValue, HostAnswer, HostAnswerParts, HostAsk,
-    HostAskParts, HostReply, HostReplyParts, InvalidStart, InvalidStartValue, InvalidStartValueParts, Limited,
-    LimitedFault, LimitedFaultParts, LimitedParts, Limits, Live, LiveAsk, LiveAskParts, LiveCall, LiveCallParts,
-    LiveKind, LiveParts, Long, LongDone, LongDoneParts, LongParts, Marker, MarkerParts, Message, MessageParts,
-    MessageRefusal, MessageRefused, MessageRefusedParts, ModelFault, ModelFaultValue, ModelFaultValueParts, Operation,
-    Overflow as BudgetOverflow, OverflowValue, OverflowValueParts, PolicyFailure, PolicyFailureParts, PriceRate,
-    PriceRateValue, PriceRateValueParts, ProgramFault, ProgramFaultParts, ProgramValue, ProgramValueParts, Receipt,
-    ReceiptParts, ReceivingLimit, ReceivingLimitValue, ReceivingLimitValueParts, Refused, RefusedFault,
-    RefusedFaultParts, RefusedParts, Reply, RunFailure, RunResult, SavedReply, Scheme, Start, StartParts, StartRefusal,
-    TranscriptRefusal, TranscriptRefusalValue, TranscriptRefusalValueParts, Turn, TurnParts, Unauthorized,
-    UnauthorizedFault, UnauthorizedFaultParts, UnauthorizedParts, Waiting, WaitingParts, Window, WindowBound,
-    WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
+    Accepted, AccountRefused, Acknowledge, Admitted, Answer, AnsweredCall, Ask, BudgetCeiling, BudgetCeilingValue,
+    BudgetChecks, BudgetCompletion, BudgetFailure, BudgetFailureValue, BudgetPart, BudgetPartValue, BudgetRefusal,
+    BudgetRefusalValue, BudgetSpend, BudgetTime, BudgetTurns, CEILINGS, Call, CallName, Cancel, CompletionEvidence,
+    CompletionFailure, CompletionFault, CredentialValue, DeliverAsk, Delivered, Delivery, DeliveryFailure,
+    DeliveryReason, DeliveryRefusal, DeliveryReply, Directory, Drain, Effect, Fact, FactKind, Failed, Field, Grant,
+    GrantRefresh, GrantValue, HostAnswer, HostAsk, HostReply, InvalidStart, InvalidStartValue, Limited, LimitedFault,
+    Limits, Live, LiveAsk, LiveCall, LiveKind, Long, LongDone, Marker, Message, MessageRefusal, MessageRefused,
+    ModelFault, ModelFaultValue, Operation, Overflow as BudgetOverflow, OverflowValue, PolicyFailure, PriceRate,
+    PriceRateValue, ProgramFault, ProgramValue, Receipt, ReceivingLimit, ReceivingLimitValue, Refused, RefusedFault,
+    Reply, RunFailure, RunResult, SavedReply, Scheme, Start, StartRefusal, TranscriptRefusal, TranscriptRefusalValue,
+    Turn, Unauthorized, UnauthorizedFault, Waiting, Window, WindowBound, Withdraw, Workspace,
 };
 
-pub use v11::{
-    ListAnswer, ListAsk, ListAskParts, ListFailed, ListFailure, ListFailureParts, ListRefused, ListRefusedParts,
-    ListRow, ListRowParts, ListRows, ListRowsParts,
-};
+pub use v11::{ListAnswer, ListAsk, ListFailed, ListFailure, ListRefused, ListRow, ListRows};
 
 /// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
 pub mod wire {
@@ -74,8 +67,7 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;
 
-    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    pub(crate) const TEXT: &str = include_str!("../schema/channel-v11.schema");
+    pub(crate) const TEXT: &str = crate::CHANNEL_SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

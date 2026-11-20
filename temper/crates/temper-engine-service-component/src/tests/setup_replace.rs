@@ -9,6 +9,7 @@ use super::create_tests::Forge;
 use super::tokens_tests::{self as tokens, Tokens};
 use super::*;
 use temper_client_protocol_wire::v1 as w;
+use temper_protocol_worker_wire::v1::Record;
 
 const FORGE: u16 = 1;
 const REQUEST: Token = Token::new(90);
@@ -43,7 +44,7 @@ fn connected_forgejo() -> (crate::Service, Box<[u8]>, Forge, Tokens, u64) {
     (service, bearer, forge, old, user)
 }
 fn http_replace(service: &mut crate::Service, bearer: &[u8], value: Secret) {
-    let request = w::Request::Replace(w::Replace::new(&w::CEILINGS, w::ReplaceParts { forge: FORGE }).unwrap());
+    let request = w::Request::Replace(w::Replace { forge: FORGE });
     fixtures::forge_connecting(service, bearer, 2, request, value);
 }
 fn observe_replace(trace: &mut tokens::Trace, engine: &crate::engine::Engine, new: &Tokens) {
@@ -59,8 +60,8 @@ fn observe_replace(trace: &mut tokens::Trace, engine: &crate::engine::Engine, ne
             &mut skein_lib::Reader::new(value.expose()),
         )
         .unwrap();
-        let temper_protocol_worker_wire::v1::Kind::Forgejo(auth) = identity.kind() else { panic!("Forgejo identity") };
-        assert!(auth.token().expose() == new.git.expose());
+        let temper_protocol_worker_wire::v1::Kind::Forgejo(auth) = &identity.kind else { panic!("Forgejo identity") };
+        assert!(auth.token.expose() == new.git.expose());
     }
 }
 // The live connection stays open while Check uses its own socket. Both faces hold

@@ -123,6 +123,27 @@ fn calls_choose_current_unchanged_or_adapted_decoding() {
 }
 
 #[test]
+fn previous_note_contract_defaults_records_and_cannot_call_mark_read() {
+    let old = wire::VERSION - 1;
+    let input = br#"{"scope":{"kind":"project","project":1},"description":"plan","body":"kept"}"#;
+    assert!(!CONTRACT.unchanged(old, b"note"));
+    assert!(CONTRACT.adapter(old, b"note").is_some());
+    let Decoded::Call(call) = decode(&CONTRACT, old, b"note", input).unwrap() else {
+        panic!("old note reaches current tools")
+    };
+    let engine::Tool::Note { records, .. } = call.tool else { panic!("current note") };
+    assert!(records.is_empty());
+    let Decoded::Call(call) =
+        decode(&CONTRACT, old, b"message", br#"{"target":12,"form":"words","words":"kept"}"#).unwrap()
+    else {
+        panic!("old unchanged message")
+    };
+    let engine::Tool::Message { target: 12, .. } = call.tool else { panic!("unchanged message") };
+    assert_eq!(decode(&CONTRACT, old, b"mark_read", br#"{"messages":[77]}"#).unwrap_err(), Problem::UnknownTool);
+    assert_eq!(wire::FLOOR, 1);
+}
+
+#[test]
 fn versions_outside_the_answered_range_are_error_answers() {
     for version in [0, 3] {
         let (body, error) = answered(decode(&TWO, version, b"release", b"{}").unwrap());

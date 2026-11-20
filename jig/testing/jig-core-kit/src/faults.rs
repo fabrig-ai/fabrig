@@ -18,6 +18,22 @@ pub fn workers(seed: u64, count: u32, engine: bool) -> World {
 /// The same actors with a crash cut armed before startup.
 #[must_use]
 pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::world::Cut>) -> World {
+    workers_setup(seed, count, engine, cut, Vec::new())
+}
+
+/// Fork the selected startup cuts, retaining one real first start in the parent.
+#[must_use]
+pub fn workers_sweeping(seed: u64, count: u32, engine: bool, cuts: Vec<crate::world::Cut>) -> World {
+    workers_setup(seed, count, engine, None, cuts)
+}
+
+fn workers_setup(
+    seed: u64,
+    count: u32,
+    engine: bool,
+    cut: Option<crate::world::Cut>,
+    sweep: Vec<crate::world::Cut>,
+) -> World {
     assert!((1..=3).contains(&count));
     let (config, limits) = crate::peers::fixture(seed, u32::from(engine));
     let script = |read| {
@@ -48,6 +64,7 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::world:
             )],
         )),
         cut,
+        sweep,
         ..Setup::default()
     });
     if let Some(assignment) = &world.assigned {

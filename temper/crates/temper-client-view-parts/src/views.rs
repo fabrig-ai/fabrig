@@ -54,28 +54,28 @@ fn drawn(b: &mut Builder, address: &[u8], view: &w::View, words: &Words) {
     match view {
         w::View::Way(way) => {
             b.open(Role::Group);
-            b.name(way.name());
+            b.name(&way.name);
             b.style(look::VIEW);
             b.open(Role::Paragraph);
-            b.text(Run::Strong, way.name());
-            if way.current() {
+            b.text(Run::Strong, &way.name);
+            if way.current {
                 b.text(Run::Plain, &words.say(Word::ViewNow, &[]));
             }
             b.close();
             b.open(Role::Paragraph);
             b.style(look::VIEW_MUTED);
-            b.text(Run::Plain, way.line());
+            b.text(Run::Plain, &way.line);
             b.close();
-            path(b, way.path(), &words.say(Word::ViewWay, &[]), address, words);
+            path(b, &way.path, &words.say(Word::ViewWay, &[]), address, words);
             b.close();
         }
         w::View::Path(value) => {
-            let label = match value.repository() {
+            let label = match &value.repository {
                 Some(repository) => words.say(
                     Word::ViewRepositoryPath,
-                    &[Hole::Name(copy_of(value.branch())), Hole::Name(repository.clone())],
+                    &[Hole::Name(copy_of(&value.branch)), Hole::Name(repository.clone())],
                 ),
-                None => words.say(Word::ViewPath, &[Hole::Name(copy_of(value.branch()))]),
+                None => words.say(Word::ViewPath, &[Hole::Name(copy_of(&value.branch))]),
             };
             b.open(Role::Group);
             b.name(&label);
@@ -84,7 +84,7 @@ fn drawn(b: &mut Builder, address: &[u8], view: &w::View, words: &Words) {
             b.close();
         }
         w::View::Proposal(proposal) => {
-            for (word, value) in [(Word::ViewBefore, proposal.before()), (Word::ViewAfter, proposal.after())] {
+            for (word, value) in [(Word::ViewBefore, &proposal.before), (Word::ViewAfter, &proposal.after)] {
                 let label = words.say(word, &[]);
                 b.open(Role::Group);
                 b.name(&label);
@@ -94,28 +94,28 @@ fn drawn(b: &mut Builder, address: &[u8], view: &w::View, words: &Words) {
                 b.close();
             }
         }
-        w::View::Charter(charter) => card(b, charter.card()),
-        w::View::Rule(rule) => card(b, rule.card()),
+        w::View::Charter(charter) => card(b, &charter.card),
+        w::View::Rule(rule) => card(b, &rule.card),
         w::View::Roles(roles) => {
-            for role in roles.roles() {
-                card(b, role.card());
+            for role in &roles.roles {
+                card(b, &role.card);
             }
         }
-        w::View::NotDrawn(value) => line(b, Role::Paragraph, value.words()),
+        w::View::NotDrawn(value) => line(b, Role::Paragraph, &value.words),
     }
 }
 
 fn path(b: &mut Builder, path: &w::BranchPath, label: &[u8], address: &[u8], words: &Words) {
     let mut stops = List::with_capacity(paths::STOPS);
-    for stop in path.stops() {
-        let mark = match stop.actor() {
+    for stop in &path.stops {
+        let mark = match &stop.actor {
             w::Actor::Person => paths::Mark::Person,
             w::Actor::Agent => paths::Mark::Agent,
             w::Actor::Code => paths::Mark::Code,
             w::Actor::Bar => paths::Mark::Bar,
         };
         stops
-            .push(paths::Stop { mark, words: stop.words(), needed: stop.needed(), over: stop.over() })
+            .push(paths::Stop { mark, words: &stop.words, needed: stop.needed, over: &stop.over })
             .expect("wire bounds path stops");
     }
     if paths::path(b, label, stops.as_slice(), None).is_err() {
@@ -125,13 +125,13 @@ fn path(b: &mut Builder, path: &w::BranchPath, label: &[u8], address: &[u8], wor
 
 fn card(b: &mut Builder, card: &w::Card) {
     b.open(Role::Group);
-    b.name(card.name());
+    b.name(&card.name);
     b.style(look::VIEW);
     b.style(look::VIEW_CARD);
-    line(b, Role::Heading { level: 3 }, card.name());
+    line(b, Role::Heading { level: 3 }, &card.name);
     b.open(Role::Paragraph);
     b.style(look::VIEW_MUTED);
-    b.text(Run::Plain, card.who());
+    b.text(Run::Plain, &card.who);
     b.close();
     facts(b, card);
     b.close();
@@ -139,10 +139,10 @@ fn card(b: &mut Builder, card: &w::Card) {
 
 pub fn facts(b: &mut Builder, card: &w::Card) {
     b.open(Role::Group);
-    for fact in card.facts() {
+    for fact in &card.facts {
         b.open(Role::Slot);
-        line(b, Role::Term, fact.label());
-        line(b, Role::Description, fact.value());
+        line(b, Role::Term, &fact.label);
+        line(b, Role::Description, &fact.value);
         b.close();
     }
     b.close();

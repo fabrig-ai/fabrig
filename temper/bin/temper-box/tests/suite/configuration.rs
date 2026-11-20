@@ -1,5 +1,6 @@
 use crate::support;
 use temper_box_shell::directories::jig_directories;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 #[path = "creating.rs"]
 mod creating;
 #[path = "configuration/turn_landing.rs"]
@@ -45,7 +46,9 @@ fn the_process_document_holds_the_agent_after_the_store_restores_stock() {
 
     let scratch = support::Scratch::startup("process-stock-turn");
     support::configuration(scratch.path(), &support::Forge::Unreached);
-    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
+    let bytes =
+        support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document;
     let document = serde_json::from_slice(&bytes).expect("deployment JSON");
     // Compose stock agents(), not the fixture's pre-serve agents.setting.
     let configuration = serde_json::to_vec(&temper_agent_fixtures::configuration(&document)).expect("stock agent JSON");
@@ -86,9 +89,8 @@ fn the_process_workers_figures_follow_the_agents_setting() {
     ] {
         let scratch = support::Scratch::startup(&format!("process-worker-figures-{case}"));
         support::configuration(scratch.path(), &forge);
-        let path = scratch.path().join("temper.json");
-        let mut document: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&path).expect("process document")).expect("deployment JSON");
+        let path = scratch.path().join(temper_config_shell::FILE);
+        let mut document = support::start_document(&path, temper_config_shell::Shape::Standalone);
         let mut agent = temper_agent_fixtures::read(scratch.path());
         for payload in [63_740, 8192] {
             agent["profile"]["declared"]["tool_payload"] = payload.into();
@@ -101,6 +103,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
                 &jig_directories(&support::configuration::directories(scratch.path())),
                 &temper_service::stock::Given::Stock,
                 &agents,
+                4,
                 &[],
             )
             .expect("box composition")
@@ -127,6 +130,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
                 &jig_directories(&support::configuration::directories(scratch.path())),
                 &temper_service::stock::Given::Stock,
                 &agents,
+                4,
                 &[],
                 Some(&agent.declaration()),
                 (&jig, &own),
@@ -166,7 +170,9 @@ fn the_native_forge_fixture_fits_its_store() {
             git: "http://127.0.0.1:3000/".into(),
         },
     );
-    let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
+    let document =
+        support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document;
     let agent = temper_agent_fixtures::prepared(scratch.path()).agent;
     let store = temper_service::startup::store_limits_with_limits(
         &document,
@@ -314,8 +320,18 @@ fn cluster_documents(scratch: &std::path::Path) -> support::cluster::Cluster {
 }
 
 fn cluster_document(cluster: &support::cluster::Cluster, process: &str) -> serde_json::Value {
-    serde_json::from_slice(&std::fs::read(cluster.dir(process).join("config/temper.json")).expect("cluster document"))
-        .expect("cluster document JSON")
+    serde_json::from_slice(
+        &support::read_start(
+            &cluster.dir(process).join("config").join(temper_config_shell::FILE),
+            if process == "engine" {
+                temper_config_shell::Shape::EngineAlone
+            } else {
+                temper_config_shell::Shape::WorkerAlone
+            },
+        )
+        .document,
+    )
+    .expect("cluster document JSON")
 }
 
 fn cluster_engine(cluster: &support::cluster::Cluster) -> jig_protocol_config::Engine {
@@ -343,7 +359,15 @@ fn the_clusters_documents_check_as_their_shapes() {
             &root.join("data"),
             &root.join("cache"),
         ]);
-        let bytes = std::fs::read(root.join("config/temper.json")).expect("cluster document");
+        let bytes = support::read_start(
+            &root.join("config").join(temper_config_shell::FILE),
+            if process == "engine" {
+                temper_config_shell::Shape::EngineAlone
+            } else {
+                temper_config_shell::Shape::WorkerAlone
+            },
+        )
+        .document;
         let shape = startup::shape(&bytes, &jig_directories(&directories))
             .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
         assert_eq!(shape, expected, "{process}");
@@ -405,7 +429,7 @@ fn the_clusters_workers_admit_the_initial_stock() {
     for process in ["w1", "w2"] {
         let profile = support::owned::deployment_profile(
             &cluster.dir(process),
-            &format!("bin/temper-box/tests/fixtures/cluster/{process}.json"),
+            &format!("bin/temper-box/tests/fixtures/cluster/{process}/{}", temper_config_shell::FILE),
         );
         assert_eq!(
             jig_domain_fleet::shortfall(&needs, &profile.agent.bounds, jig_domain_fleet::HostKind::Worker),

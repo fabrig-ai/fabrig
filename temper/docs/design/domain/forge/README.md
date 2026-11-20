@@ -811,7 +811,7 @@ whole.
 
 ## 11. Open questions
 
-- A workflow that runs on no pull request: `adoption.md`, section 9.
+- A workflow that runs on no pull request: `adoption.md`, section 10.
 
 - A closer's stops on a goal's path: `change/branch-path.md`, section 1.
 
@@ -839,7 +839,7 @@ whole.
   review in the live tier (`../../testing/README.md`, section 7). Default: lower
   setup, link and review checks establish those separate pieces alone.
 - Saved branches outside the task's saved set: `branches.md`, section 4.
-- A clean update's other words: `change/repairs.md`, section 1.
+- A clean update's other words: `change/repairs-later.md`.
 - "The brief on Home" in Settings: `attention.md`, section 7.
 - A status run's kept row: `attention.md`, section 7.
 - A stock project's room, shared: `attention.md`, section 7.
@@ -849,7 +849,7 @@ whole.
   past a settled update would spare it, for a time nothing bounds.
   Default: it holds, and is measured after landing.
 - What lands on a goal's branch and then on main: `attention.md`, section 7.
-- What a refused copy leaves: `adoption.md`, section 9.
+- What a refused copy leaves: `adoption.md`, section 10.
 - A queue's throughput: `queues.md`, section 2.
 - **Conflicts found before either side lands:** temper sees every open
   change, and could try them against each other and warn both goals.
@@ -864,13 +864,13 @@ whole.
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people/README.md`, section 11).
 - A gate's live run past the stall: `change/stalls.md`, section 6.
-- A green head no wake reaches: `change/repairs.md`, section 1.
-- A retry before the read: `change/repairs.md`, section 1.
-- A hold at gating at a green head: `change/repairs.md`, section 1.
+- A green head no wake reaches: `change/repairs-later.md`.
+- A retry before the read: `change/repairs-later.md`.
+- A hold at gating at a green head: `change/repairs-later.md`.
 - A repair of the branch's own CI at a tip since passed: `queues.md`, section 2.
-- A repair held for its brief: `change/repairs.md`, section 1.
-- A forge out of reach or not connected: `change/repairs.md`, section 1.
-- A failing check's repair brief: `change/repairs.md`, section 1.
+- A repair held for its brief: `change/repairs-later.md`.
+- A forge out of reach or not connected: `change/repairs-later.md`.
+- A failing check's repair brief: `change/repairs-later.md`.
 - **A failure that is the runner's, not the change's:** a job whose
   set-up step failed, or whose runner was lost, is a repair like any
   other under the queue, where landing by turn retries it, never
@@ -884,15 +884,15 @@ whole.
   merge is conditional on its head alone (section 4).
 - **Intake:** issues others open as a source of goals.
 - A resource refused as forbidden: `keeping-up.md`, section 6.
-- A merge style per repository,: `adoption.md`, section 9.
-- A change whose forge is not connected,: `adoption.md`, section 9.
-- `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 9.
+- A merge style per repository,: `adoption.md`, section 10.
+- A change whose forge is not connected,: `adoption.md`, section 10.
+- `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 10.
 - Several changes in a forge's merge queue: `queues.md`, section 2.
 - The update before entering a forge's merge queue: `queues.md`, section 2.
-- What failed on a queue's group: `change/repairs.md`, section 1.
+- What failed on a queue's group: `change/repairs-later.md`.
 - Taking a change out of a forge's merge queue: `queues.md`, section 2.
-- Signed commits required: `adoption.md`, section 9.
-- Connecting a forge as another user: `adoption.md`, section 9.
+- Signed commits required: `adoption.md`, section 10.
+- Connecting a forge as another user: `adoption.md`, section 10.
 - Which checks are CI on GitHub, without required checks: `keeping-up.md`, section 6.
 - What ends the Away switch: `attention.md`, section 7.
 - The classes per person: `attention.md`, section 7.

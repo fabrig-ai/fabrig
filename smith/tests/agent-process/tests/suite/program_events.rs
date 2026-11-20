@@ -13,17 +13,13 @@ fn run(steps: Vec<Step>, agents: bool) -> Run {
 fn scripted(story: &Story, agents: bool) -> Run {
     let charter = smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
         smith_agent_process_world::wire::budget(parts, 8, 20);
-        let mut tools = parts.tools.clone().into_parts();
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { inspect: false, modify: false, shell: false, agents },
-        )
-        .expect("bounded event fixture");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("bounded event fixture");
+        let mut tools = parts.tools.clone();
+        tools.families = smith_charter::Families { inspect: false, modify: false, shell: false, agents };
+        parts.tools = tools;
     });
     let run = program_world::run(Case::Events, story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     assert!(
-        matches!(run.answer().expect("bounded event fixture").result(), smith_channel::RunResult::Accepted(_)),
+        matches!(&run.answer().expect("bounded event fixture").result, smith_channel::RunResult::Accepted(_)),
         "{:?} {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -143,9 +139,9 @@ fn the_run_s_tools_offer_sub_agents_and_withhold_no_family() {
 #[test]
 fn a_program_deadline_keeps_unknown_transport_measures() {
     let charter = smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
-        let mut budget = parts.budget.clone().into_parts();
+        let mut budget = parts.budget.clone();
         budget.time = skein_lib::Duration::from_secs(1);
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("short budget");
+        parts.budget = budget;
     });
     let run = program_world::run(
         Case::Events,

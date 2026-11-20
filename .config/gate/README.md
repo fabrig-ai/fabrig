@@ -155,6 +155,12 @@ Each list has one entry per line; `#` starts a comment line.
   On fabrig's own Forgejo, temper dispatches `.forgejo/workflows/tier-main.yml`
   at each move of main: it runs the runner's `$CI_TIER` at `temper_commit`, with
   `temper_tests` as `CI_TIER_TESTS`, and uploads `junit.xml` as the artifact `junit`.
+- **The macOS tiers:** `.forgejo/workflows/tier-macos-e2e.yml` and
+  `tier-macos-suites.yml`, on the runner label `relay`, run the runner's
+  `$CI_TIER --tier macos-e2e` or `macos-suites` as tier main's runs `$CI_TIER`;
+  it hands the run to GitHub's `.github/workflows/macos.yml` at the same commit
+  and brings back its report (`temper/docs/design/testing/macos.md`, 9). A macOS
+  red blocks nothing.
 - **What red means:** a failure observed after landing is red; repair starts in
   the lowest tier that shows it (`skein/docs/foundation/testing-strategy.md`, 9).
   Over a CPU budget is red; past the wall hard limit is starved, a warning; tests

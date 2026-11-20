@@ -2,7 +2,7 @@
 use crate::support;
 
 use serde_json::{Value, json};
-use std::{fs, mem::size_of};
+use std::mem::size_of;
 
 #[derive(Clone, Copy)]
 enum Part {
@@ -129,8 +129,8 @@ fn turn_and_resume_bounds_admit_the_edge_and_refuse_one_byte_short() {
 fn obsolete_owned_organization_members_refuse_startup() {
     let scratch = support::Scratch::startup("machine-moved");
     support::first_repository::generated(scratch.path());
-    let file = scratch.path().join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&file).expect("configuration")).expect("JSON");
+    let file = scratch.path().join(temper_config_shell::FILE);
+    let mut value: Value = support::start_document(&file, temper_config_shell::Shape::Standalone);
     value["application"]["machine"] = json!({});
     let why = temper_box_shell::operations_in(
         &[],

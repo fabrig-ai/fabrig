@@ -63,18 +63,22 @@ pub fn render(part: &CallPart) -> Rendered {
         CallPart::Subscribed { subscription } => text(&[b"Subscribed ", Decimal::of(*subscription).as_bytes()], false),
         CallPart::Delegated(numbers) => delegated(numbers),
         CallPart::NoteDeleted { name } => text(&[b"Deleted note ", Decimal::of(*name).as_bytes()], false),
-        CallPart::NoteWritten { name, revision, lines, .. } => text(
-            &[
-                b"Wrote note ",
-                Decimal::of(*name).as_bytes(),
-                b" revision ",
-                Decimal::of(u64::from(*revision)).as_bytes(),
-                b", ",
-                Decimal::of(u64::from(*lines)).as_bytes(),
-                b" lines",
-            ],
-            false,
-        ),
+        CallPart::WordsRecorded { recorded, unknown } => recording(&[], recorded, unknown),
+        CallPart::NoteWritten { name, revision, lines, recorded, unknown, .. } => {
+            let written = text(
+                &[
+                    b"Wrote note ",
+                    Decimal::of(*name).as_bytes(),
+                    b" revision ",
+                    Decimal::of(u64::from(*revision)).as_bytes(),
+                    b", ",
+                    Decimal::of(u64::from(*lines)).as_bytes(),
+                    b" lines",
+                ],
+                false,
+            );
+            recording(&written.text, recorded, unknown)
+        }
         CallPart::Controlled | CallPart::Introduced | CallPart::Unsubscribed | CallPart::EscalationDecided { .. } => {
             text(&[b"Done"], false)
         }
@@ -121,6 +125,37 @@ pub fn render(part: &CallPart) -> Rendered {
         CallPart::Unavailable => text(&[b"Unavailable"], true),
     }
 }
+fn recording(prefix: &[u8], recorded: &[u64], unknown: &[u64]) -> Rendered {
+    let mut measure = Writer::measure(usize::MAX);
+    recording_into(&mut measure, prefix, recorded, unknown);
+    let mut writer = Writer::new(measure.written());
+    recording_into(&mut writer, prefix, recorded, unknown);
+    Rendered { error: false, text: writer.finish() }
+}
+
+fn recording_into(writer: &mut Writer, prefix: &[u8], recorded: &[u64], unknown: &[u64]) {
+    writer.put(prefix).expect("bounded recording answer");
+    let mut has_line = !prefix.is_empty();
+    for (label, numbers) in
+        [(b"recorded: ".as_slice(), recorded), (b"named none of your unrecorded words: ".as_slice(), unknown)]
+    {
+        if numbers.is_empty() {
+            continue;
+        }
+        if has_line {
+            writer.put(b"\n").expect("measured recording answer");
+        }
+        writer.put(label).expect("measured recording answer");
+        for (at, &number) in numbers.iter().enumerate() {
+            if at != 0 {
+                writer.put(b", ").expect("measured recording answer");
+            }
+            writer.put(Decimal::of(number).as_bytes()).expect("measured recording answer");
+        }
+        has_line = true;
+    }
+}
+
 fn delegated(members: &[core::Made]) -> Rendered {
     let mut parts = List::with_capacity(u32::try_from(members.len()).expect("bounded batch"));
     let mut size = b"Delegated tasks: ".len();
@@ -272,6 +307,7 @@ fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
         jig_domain_tasks::Refusal::Unproposable => b"no proposal could be accepted",
         jig_domain_tasks::Refusal::PersonRevision { .. } => b"person revision",
         jig_domain_tasks::Refusal::ResourceUnavailable => b"resource unavailable",
+        jig_domain_tasks::Refusal::Unreported => b"unreported",
         jig_domain_tasks::Refusal::NotReady => b"not ready",
         jig_domain_tasks::Refusal::Unknown => b"unknown",
         jig_domain_tasks::Refusal::Busy => return task_busy(problem),

@@ -8,6 +8,7 @@ use skein_lib::Duration;
 use skein_llm as shared;
 use skein_llm_connection as connection;
 use skein_tls as tls;
+use smith_channel::Record;
 use smith_domain::{self as domain, run, session, tools};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;

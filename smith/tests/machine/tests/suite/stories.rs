@@ -98,7 +98,8 @@ fn checks_that_pass_fail_and_time_out() {
         let done = world.request(FromDomain::Check {
             owner: Token::new(number),
             program: run::Place { root: world.root(), path: Box::from(name) },
-            deadline: Time::from_nanos(10_000_000),
+            bound: skein_lib::Duration::from_nanos(10_000_000),
+            cap: Time::from_nanos(10_000_000),
             tail: 8,
         });
         assert_eq!(
@@ -241,7 +242,8 @@ fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     let first = world.request(FromDomain::Check {
         owner: Token::new(50),
         program: run::Place { root: world.root(), path: b"check-hang".as_slice().into() },
-        deadline: Time::from_nanos(10_000_000),
+        bound: skein_lib::Duration::from_nanos(10_000_000),
+        cap: Time::from_nanos(10_000_000),
         tail: 8,
     });
     assert!(matches!(first, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
@@ -250,7 +252,8 @@ fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     let second = world.request(FromDomain::Check {
         owner: Token::new(51),
         program: run::Place { root: world.root(), path: b"check-hang".as_slice().into() },
-        deadline: Time::from_nanos(1_000_000),
+        bound: skein_lib::Duration::from_nanos(1_000_000),
+        cap: Time::from_nanos(1_000_000),
         tail: 8,
     });
     assert!(matches!(second, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
@@ -310,7 +313,8 @@ fn the_configured_environment_is_seen_by_commands_and_checks_and_none_by_searche
     let checked = world.request(FromDomain::Check {
         owner: Token::new(52),
         program: run::Place { root: world.root(), path: b"check-ok".as_slice().into() },
-        deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
+        bound: skein_lib::Duration::from_secs(1),
+        cap: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
         tail: 8,
     });
     assert!(matches!(checked, ToDomain::Checked { ran: run::Ran { exit: run::Exit::Code { code: 0 }, .. }, .. }));
@@ -326,14 +330,28 @@ fn the_configured_environment_is_seen_by_commands_and_checks_and_none_by_searche
         deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
     });
     assert!(matches!(searched, ToDomain::Done { done: tools::Done::Found { .. }, .. }));
+    let listed = world.request(FromDomain::Op {
+        owner: Token::new(54),
+        op: tools::Op::List {
+            at: place(world.root(), b""),
+            depth: tools::Depth::Whole,
+            glob: None,
+            max: 8,
+            max_bytes: 256,
+        },
+        deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
+    });
+    assert!(matches!(listed, ToDomain::Done { done: tools::Done::Listed { .. }, .. }));
     let observed = world.spawns();
-    assert_eq!(observed.len(), 4);
+    assert_eq!(observed.len(), 5);
     let expected: &[Box<[u8]>] = &[Box::from(b"BUILD_FLAG=whole=value".as_slice()), Box::from(b"EMPTY=".as_slice())];
     for spawn in &observed[..3] {
         assert_eq!(spawn.environment.as_ref(), expected);
     }
-    assert_eq!(observed[3].program.as_ref(), b"/usr/bin/rg");
-    assert!(observed[3].environment.is_empty());
+    for spawn in &observed[3..] {
+        assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
+        assert!(spawn.environment.is_empty());
+    }
 }
 
 #[test]

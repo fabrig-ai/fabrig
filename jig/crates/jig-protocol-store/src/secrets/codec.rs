@@ -4,6 +4,7 @@ mod tests;
 
 use crate::{CARRIED, CarriedKind, HELD, SecretOwner, SecretValue, secrets_v1 as w};
 use alloc::boxed::Box;
+use skein_codec::Record as _;
 use skein_lib::{Reader, Secret, Writer, sha256};
 
 // The version (u16) and the next number (u64).
@@ -63,8 +64,7 @@ pub(super) fn durable_digest(owner: SecretOwner, number: u64, bytes: &[u8]) -> O
             Some(sha256::digest(payload))
         }
         SecretOwner::SignIn | SecretOwner::Service => {
-            let w::DigestParts { expiry, digest: hash } =
-                w::Digest::decode(&w::CEILINGS, &mut Reader::new(bytes)).ok()?.into_parts();
+            let w::Digest { expiry, digest: hash } = w::Digest::decode(&w::CEILINGS, &mut Reader::new(bytes)).ok()?;
             let value = SecretValue::Digest { expiry, digest: hash };
             if !accepts(owner, number, &value) {
                 return None;
@@ -104,35 +104,24 @@ fn envelope_digest(bytes: &[u8], bounds: &[u32]) -> Option<[u8; 32]> {
 }
 
 pub(crate) fn encode(value: SecretValue, limit: u32) -> Option<Box<[u8]>> {
-    let limits = &w::CEILINGS;
     match value {
         SecretValue::Digest { expiry, digest } => {
-            let row = w::Digest::new(limits, w::DigestParts { expiry, digest }).ok()?;
-            let mut bytes = writer(row.measure(), limit)?;
-            row.encode(&mut bytes).ok()?;
+            let row = w::Digest { expiry, digest };
+            let mut bytes = writer(row.measure(&w::CEILINGS).ok()?, limit)?;
+            row.write(&w::CEILINGS, &mut bytes).ok()?;
             Some(bytes.finish())
         }
-        SecretValue::Record(record) => {
-            source(w::SourceValue::Record(w::SourceRecord::new(limits, w::SourceRecordParts { record }).ok()?), limit)
-        }
-        SecretValue::Key(key) => {
-            source(w::SourceValue::Key(w::SourceKey::new(limits, w::SourceKeyParts { key }).ok()?), limit)
-        }
+        SecretValue::Record(record) => source(w::SourceValue::Record(w::SourceRecord { record }), limit),
+        SecretValue::Key(key) => source(w::SourceValue::Key(w::SourceKey { key }), limit),
         SecretValue::Carried { kind, value } => {
             let value = match kind {
-                CarriedKind::Key => {
-                    w::Carrying::Key(w::CarriedKey::new(limits, w::CarriedKeyParts { key: value }).ok()?)
-                }
-                CarriedKind::Value => {
-                    w::Carrying::Value(w::CarriedValue::new(limits, w::CarriedValueParts { value }).ok()?)
-                }
-                CarriedKind::Moved => {
-                    w::Carrying::Moved(w::CarriedMoved::new(limits, w::CarriedMovedParts { moved: value }).ok()?)
-                }
+                CarriedKind::Key => w::Carrying::Key(w::CarriedKey { key: value }),
+                CarriedKind::Value => w::Carrying::Value(w::CarriedValue { value }),
+                CarriedKind::Moved => w::Carrying::Moved(w::CarriedMoved { moved: value }),
             };
-            let row = w::Carried::new(limits, w::CarriedParts { value }).ok()?;
-            let mut bytes = writer(row.measure(), limit)?;
-            row.encode(&mut bytes).ok()?;
+            let row = w::Carried { value };
+            let mut bytes = writer(row.measure(&w::CEILINGS).ok()?, limit)?;
+            row.write(&w::CEILINGS, &mut bytes).ok()?;
             Some(bytes.finish())
         }
         SecretValue::Application(value) => {
@@ -145,9 +134,9 @@ pub(crate) fn encode(value: SecretValue, limit: u32) -> Option<Box<[u8]>> {
     }
 }
 fn source(value: w::SourceValue, limit: u32) -> Option<Box<[u8]>> {
-    let row = w::Source::new(&w::CEILINGS, w::SourceParts { value }).ok()?;
-    let mut bytes = writer(row.measure(), limit)?;
-    row.encode(&mut bytes).ok()?;
+    let row = w::Source { value };
+    let mut bytes = writer(row.measure(&w::CEILINGS).ok()?, limit)?;
+    row.write(&w::CEILINGS, &mut bytes).ok()?;
     Some(bytes.finish())
 }
 pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Option<SecretValue> {
@@ -155,7 +144,7 @@ pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Optio
     let mut reader = Reader::new(&bytes);
     match owner {
         SecretOwner::SignIn | SecretOwner::Service => {
-            let w::DigestParts { expiry, digest } = w::Digest::decode(limits, &mut reader).ok()?.into_parts();
+            let w::Digest { expiry, digest } = w::Digest::decode(limits, &mut reader).ok()?;
             let value = SecretValue::Digest { expiry, digest };
             if !accepts(owner, number, &value) {
                 return None;
@@ -163,9 +152,9 @@ pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Optio
             Some(value)
         }
         SecretOwner::Source | SecretOwner::PublicNames => {
-            let value = match w::Source::decode(limits, &mut reader).ok()?.into_parts().value {
-                w::SourceValue::Record(row) => SecretValue::Record(row.into_parts().record),
-                w::SourceValue::Key(row) => SecretValue::Key(row.into_parts().key),
+            let value = match w::Source::decode(limits, &mut reader).ok()?.value {
+                w::SourceValue::Record(row) => SecretValue::Record(row.record),
+                w::SourceValue::Key(row) => SecretValue::Key(row.key),
             };
             if !accepts(owner, number, &value) {
                 return None;
@@ -179,23 +168,21 @@ pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Optio
             if number >= HELD {
                 return None;
             }
-            let (kind, value) = match w::Carried::decode(limits, &mut reader).ok()?.into_parts().value {
-                w::Carrying::Key(row) => (CarriedKind::Key, row.into_parts().key),
-                w::Carrying::Value(row) => (CarriedKind::Value, row.into_parts().value),
-                w::Carrying::Moved(row) => (CarriedKind::Moved, row.into_parts().moved),
+            let (kind, value) = match w::Carried::decode(limits, &mut reader).ok()?.value {
+                w::Carrying::Key(row) => (CarriedKind::Key, row.key),
+                w::Carrying::Value(row) => (CarriedKind::Value, row.value),
+                w::Carrying::Moved(row) => (CarriedKind::Moved, row.moved),
             };
             Some(SecretValue::Carried { kind, value })
         }
     }
 }
 pub(super) fn counter(next: u64) -> Box<[u8]> {
-    let row = w::NextCarried::new(&w::CEILINGS, w::NextCarriedParts { next }).expect("fixed next number");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut bytes).expect("measured counter");
-    bytes.finish()
+    let row = w::NextCarried { next };
+    row.encode(&w::CEILINGS).expect("measured counter")
 }
 pub(super) fn next(bytes: &[u8]) -> Option<u64> {
-    Some(w::NextCarried::decode(&w::CEILINGS, &mut Reader::new(bytes)).ok()?.next())
+    Some(w::NextCarried::decode(&w::CEILINGS, &mut Reader::new(bytes)).ok()?.next)
 }
 
 fn writer(bytes: u32, limit: u32) -> Option<Writer> {

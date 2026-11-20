@@ -869,6 +869,22 @@ pub(crate) fn report_owner(domain: &Domain, client: Token) -> Option<Token> {
     Some(domain.workspaces.get(Id::from_token(client))?.run)
 }
 
+/// The hosted owner of a checkout hold, during prepare and throughout its
+/// prepared life (domain/worker/README.md, 4.3).
+pub(crate) fn hold_owner(domain: &Domain, hold: Token) -> Option<Token> {
+    for (_, workspace) in &domain.workspaces {
+        let checkout_hold = match workspace.state {
+            State::Preparing { hold, .. } => hold,
+            State::Ready { hold, .. } => Some(hold),
+            State::Releasing | State::Closed => None,
+        };
+        if checkout_hold == Some(hold) {
+            return Some(workspace.run);
+        }
+    }
+    None
+}
+
 /// A check covers every writable repository of its prepared hold.
 pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action: checkout::git::Reds) -> bool {
     let mut hold = None;
@@ -904,6 +920,7 @@ mod tests {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");
@@ -946,6 +963,7 @@ mod tests {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");

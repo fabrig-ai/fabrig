@@ -104,6 +104,59 @@ pub(crate) fn spawn_dying_with_parent(
     })
 }
 
+/// Unit tests exercise the POSIX watcher over Linux's process-exit handles.
+/// Raw descriptors keep the post-fork watcher free of Rust destructors.
+#[cfg(test)]
+pub(crate) fn open_exit_watch(parent: i32, program: i32) -> Result<(i32, i32), i32> {
+    let open = |pid: i32| {
+        // SAFETY: pidfd_open takes a numeric pid and returns a fresh descriptor.
+        let raw = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
+        if raw < 0 { Err(super::last_errno()) } else { i32::try_from(raw).map_err(|_| libc::EOVERFLOW) }
+    };
+    let first = open(parent)?;
+    match open(program) {
+        Ok(second) => Ok((first, second)),
+        Err(errno) => {
+            // SAFETY: first is uniquely owned here and not transferred on failure.
+            let _closed = unsafe { libc::close(first) };
+            Err(errno)
+        }
+    }
+}
+
+/// Bits 1 and 2 name the parent's and program's exits respectively.
+#[cfg(test)]
+pub(crate) fn wait_exit_watch(first: i32, second: i32, _parent: i32, _program: i32) -> Result<i32, i32> {
+    let mut events = [
+        libc::pollfd { fd: first, events: libc::POLLIN, revents: 0 },
+        libc::pollfd { fd: second, events: libc::POLLIN, revents: 0 },
+    ];
+    loop {
+        // SAFETY: events has two initialized, exclusive records borrowed until
+        // poll returns. Both descriptors belong to this watcher.
+        let count = unsafe { libc::poll(events.as_mut_ptr(), 2, -1) };
+        if count < 0 {
+            let errno = super::last_errno();
+            if errno != libc::EINTR {
+                return Err(errno);
+            }
+            continue;
+        }
+        let mut exits = 0;
+        for (event, bit) in events.iter().zip([1, 2]) {
+            if event.revents & (libc::POLLERR | libc::POLLNVAL) != 0 {
+                return Err(libc::EIO);
+            }
+            if event.revents & (libc::POLLIN | libc::POLLHUP) != 0 {
+                exits |= bit;
+            }
+        }
+        if exits != 0 {
+            return Ok(exits);
+        }
+    }
+}
+
 pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
     // SAFETY: sigemptyset initializes this plain C signal set.
     let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
@@ -269,21 +322,153 @@ fn child_actions(
 }
 
 pub(crate) fn spawn(command: &mut Spawn) -> Result<Done, Error> {
+    if command.reach.is_some() {
+        return spawn_reached(command, &mut crate::helper::Launcher::new());
+    }
     spawn_inner(command).map_err(map_error)
 }
 
-fn spawn_inner(command: &mut Spawn) -> Result<Done, i32> {
-    spawn_prepared(command, None, None)
+pub(crate) fn spawn_reached(command: &mut Spawn, launcher: &mut crate::helper::Launcher) -> Result<Done, Error> {
+    use skein_io::kernel::Unenforced;
+    let reach = command.reach.as_ref().expect("the reached path has a reach");
+    launcher.admit(reach.abi).map_err(Error::Reach)?;
+    let ruleset = super::helper::domain(reach).map_err(Error::Reach)?;
+    let spec = crate::helper::Spec {
+        program: command.program.clone(),
+        args: command.args.clone(),
+        env: command.env.clone(),
+        named: command.pipes.iter().map(|pipe| pipe.child).collect(),
+    };
+    let spec = super::helper::spec_pipe(&spec).map_err(map_error)?;
+    let (read, write) = super::helper::pipe().map_err(map_error)?;
+    let helper = Helper { executable: &launcher.executable, sources: [spec, write, ruleset] };
+    let done = spawn_prepared(command, None, None, Some(helper)).map_err(map_error)?;
+    let Done::Spawned { pidfd, .. } = done else { unreachable!("spawn makes a child") };
+    if let Err(error) = super::helper::report(read) {
+        let _killed = signal_child(pidfd, Signal::Kill, Target::Group);
+        let _reaped = reap_helper(pidfd);
+        close_keeper_fd(pidfd);
+        for pipe in &mut command.pipes {
+            if (pipe.way == Way::In || pipe.way == Way::Out)
+                && let Some(parent) = pipe.parent.take()
+            {
+                close_keeper_fd(parent);
+            }
+        }
+        return Err(error);
+    }
+    // No command means the startup probe: wait for its successful exit too.
+    if command.program.is_empty() {
+        let result = reap_helper(pidfd);
+        close_keeper_fd(pidfd);
+        if result != Ok(true) {
+            return Err(Error::Reach(Unenforced::Helper));
+        }
+    }
+    Ok(done)
 }
 
-fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>, cgroup: Option<Fd>) -> Result<Done, i32> {
-    let path = cstring(&command.program)?;
+fn reap_helper(pidfd: Fd) -> Result<bool, i32> {
+    // SAFETY: siginfo_t is plain C output storage, zero is valid.
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    loop {
+        // SAFETY: pidfd identifies our unreaped child, info lives across the call.
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PIDFD,
+                u32::try_from(pidfd.raw()).expect("positive pidfd"),
+                ptr::from_mut(&mut info),
+                libc::WEXITED,
+            )
+        };
+        if result == 0 {
+            // SAFETY: successful waitid initialized the SIGCHLD union member.
+            let status = unsafe { info.si_status() };
+            return Ok(info.si_code == libc::CLD_EXITED && status == 0);
+        }
+        let errno = super::last_errno();
+        if errno != libc::EINTR {
+            return Err(errno);
+        }
+    }
+}
+
+pub(crate) fn can_restrict(launcher: &mut crate::helper::Launcher) -> Result<(), skein_io::kernel::Unenforced> {
+    use skein_io::kernel::{Reach, Unenforced};
+    let mut command = Spawn {
+        program: Box::new([]),
+        args: Box::new([]),
+        env: Box::new([]),
+        root: Fd::new(libc::AT_FDCWD),
+        dir: Box::new([]),
+        pipes: Box::new([]),
+        reach: Some(Box::new(Reach { abi: Reach::ABI, rules: Box::new([]) })),
+    };
+    match spawn_reached(&mut command, launcher) {
+        Ok(_) => Ok(()),
+        Err(Error::Reach(reason)) => Err(reason),
+        Err(_) => Err(Unenforced::Helper),
+    }
+}
+
+fn spawn_inner(command: &mut Spawn) -> Result<Done, i32> {
+    spawn_prepared(command, None, None, None)
+}
+
+/// The helper's three sources, all close-on-exec in the service.
+struct Helper<'a> {
+    executable: &'a [u8],
+    sources: [OwnedFd; 3],
+}
+
+#[expect(clippy::too_many_lines, reason = "keep the ordered spawn actions and their cleanup together")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "helper sources must close on return, before the parent reads the report"
+)]
+fn spawn_prepared(
+    command: &mut Spawn,
+    terminal: Option<&CString>,
+    cgroup: Option<Fd>,
+    helper: Option<Helper<'_>>,
+) -> Result<Done, i32> {
+    let path = cstring(helper.as_ref().map_or(command.program.as_ref(), |helper| helper.executable))?;
     let (dir, parents, children, nulls) = prepare(command)?;
-    let argv = std::iter::once(&command.program)
-        .chain(command.args.iter())
-        .map(|v| cstring(v))
-        .collect::<Result<Vec<_>, _>>()?;
-    let env = command.env.iter().map(|v| cstring(v)).collect::<Result<Vec<_>, _>>()?;
+    // Put helper targets above every source too, so no dup2 overwrites a
+    // source another action still needs. Ordinary spawns keep their old path.
+    let helper_start = if let Some(helper) = &helper {
+        let maximum = children
+            .iter()
+            .chain(&nulls)
+            .filter_map(Option::as_ref)
+            .map(AsRawFd::as_raw_fd)
+            .chain(helper.sources.iter().map(AsRawFd::as_raw_fd))
+            .chain(std::iter::once(dir.as_raw_fd()))
+            .chain(command.pipes.iter().map(|pipe| i32::try_from(pipe.child).expect("valid child number")))
+            .max()
+            .unwrap_or(2)
+            .max(2);
+        maximum.checked_add(1).ok_or(libc::EINVAL)?
+    } else {
+        0
+    };
+    let argv = if helper.is_some() {
+        let mut args = vec![path.clone(), cstring(crate::helper::MARKER.as_bytes())?];
+        for offset in 0..3 {
+            args.push(cstring(helper_start.checked_add(offset).ok_or(libc::EINVAL)?.to_string().as_bytes())?);
+        }
+        args
+    } else {
+        std::iter::once(&command.program)
+            .chain(command.args.iter())
+            .map(|v| cstring(v))
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    let env = if helper.is_some() {
+        Vec::new()
+    } else {
+        command.env.iter().map(|v| cstring(v)).collect::<Result<Vec<_>, _>>()?
+    };
     let mut argv_ptrs: Vec<*mut libc::c_char> = argv.iter().map(|v| v.as_ptr().cast_mut()).collect();
     argv_ptrs.push(ptr::null_mut());
     let mut env_ptrs: Vec<*mut libc::c_char> = env.iter().map(|v| v.as_ptr().cast_mut()).collect();
@@ -322,7 +507,19 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>, cgroup: Optio
             }
         }
         let after = command.pipes.iter().map(|pipe| pipe.child).max().unwrap_or(2).max(2);
-        let from = i32::try_from(after).map_err(|_| libc::EINVAL)?.checked_add(1).ok_or(libc::EINVAL)?;
+        let from = if let Some(helper) = &helper {
+            for (offset, source) in helper.sources.iter().enumerate() {
+                let target =
+                    helper_start.checked_add(i32::try_from(offset).expect("three descriptors")).ok_or(libc::EINVAL)?;
+                // SAFETY: the source is open and the target is above every source and named descriptor.
+                action(unsafe {
+                    libc::posix_spawn_file_actions_adddup2(ptr::from_mut(&mut actions), source.as_raw_fd(), target)
+                })?;
+            }
+            helper_start.checked_add(3).ok_or(libc::EINVAL)?
+        } else {
+            i32::try_from(after).map_err(|_| libc::EINVAL)?.checked_add(1).ok_or(libc::EINVAL)?
+        };
         // SAFETY: close all inherited descriptors above the requested child
         // targets, including the temporary pipe sources and cwd descriptor.
         action(unsafe { libc::posix_spawn_file_actions_addclosefrom_np(ptr::from_mut(&mut actions), from) })?;
@@ -525,7 +722,7 @@ pub(crate) fn start_binary(command: &mut Spawn, terminal: bool, cgroup: Option<F
     if terminal.is_some() && command.pipes.iter().any(|pipe| pipe.child < 2) {
         return Err(Error::InvalidArgument);
     }
-    let done = spawn_prepared(command, terminal.as_ref().map(|(_, name)| name), cgroup).map_err(map_error)?;
+    let done = spawn_prepared(command, terminal.as_ref().map(|(_, name)| name), cgroup, None).map_err(map_error)?;
     let Done::Spawned { pidfd, .. } = done else { unreachable!("a spawn returns a pidfd") };
     Ok((pidfd, terminal.map(|(master, _)| Fd::new(master.into_raw_fd()))))
 }

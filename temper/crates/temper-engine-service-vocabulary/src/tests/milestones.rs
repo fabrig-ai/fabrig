@@ -3,15 +3,7 @@ use super::*;
 
 #[test]
 fn milestone_reads_keep_their_scope_totals_and_absence() {
-    let reading = w::Reading::new(
-        &w::CEILINGS,
-        w::ReadingParts {
-            read: w::Read::Milestone(
-                w::MilestoneRead::new(&w::CEILINGS, w::MilestoneReadParts { project: 7, task: 812 }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let reading = w::Reading { read: w::Read::Milestone(w::MilestoneRead { project: 7, task: 812 }) };
     let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
         away_family(kit::ToApplication::Read {
             reply: REPLY,
@@ -62,18 +54,15 @@ fn milestone_reads_keep_their_scope_totals_and_absence() {
         spent: 100,
     };
     let bytes = family::forge_read(root::ForgeReadAnswer::Milestone(Some(totals)), b"", &w::CEILINGS).unwrap();
-    let result = wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result;
+    let result = wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().result;
     let w::MilestoneResult::Totals(totals) = result else { panic!("totals") };
-    let totals = totals.into_parts();
+
     assert_eq!(
         (totals.task, totals.done, totals.failed, totals.closed, totals.live, totals.ended, totals.spent),
         (812, 1, 2, 3, 4, Some(89), 100)
     );
-    let landing = totals.last_landing.unwrap().into_parts();
+    let landing = totals.last_landing.unwrap();
     assert_eq!((landing.at, landing.goal, landing.change), (87, 815, 816));
     let bytes = family::forge_read(root::ForgeReadAnswer::Milestone(None), b"", &w::CEILINGS).unwrap();
-    assert_eq!(
-        wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result,
-        w::MilestoneResult::NotMilestone
-    );
+    assert_eq!(wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().result, w::MilestoneResult::NotMilestone);
 }

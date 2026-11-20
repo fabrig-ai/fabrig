@@ -1,6 +1,7 @@
 //! Account list boundaries (jig/docs/design/protocol/channel/records.md, 1).
 use super::fixtures::repeated;
-use crate::{self as wire, v17};
+use crate::v18::Record;
+use crate::{self as wire, v18};
 use skein_lib::{Reader, Writer};
 
 // Channel 5.1's fixed bounds, independent of adjustable codec limits.
@@ -51,23 +52,26 @@ fn list_rows_at_each_bound_round_trip_and_one_past_is_refused() {
     for (rows, name, shown, efforts, effort, problem) in [
         (0, 0, 0, 0, 0, None),
         (ROWS, NAME, SHOWN, EFFORTS, EFFORT, None),
-        (ROWS + 1, NAME, SHOWN, EFFORTS, EFFORT, Some(v17::Path::ListedRowsRows)),
-        (1, NAME + 1, SHOWN, EFFORTS, EFFORT, Some(v17::Path::ListRowName)),
-        (1, NAME, SHOWN + 1, EFFORTS, EFFORT, Some(v17::Path::ListRowShown)),
-        (1, NAME, SHOWN, EFFORTS + 1, EFFORT, Some(v17::Path::ListRowEfforts)),
-        (1, NAME, SHOWN, EFFORTS, EFFORT + 1, Some(v17::Path::ListRowEfforts)),
+        (ROWS + 1, NAME, SHOWN, EFFORTS, EFFORT, Some(v18::paths::LISTED_ROWS_ROWS)),
+        (1, NAME + 1, SHOWN, EFFORTS, EFFORT, Some(v18::paths::LIST_ROW_NAME)),
+        (1, NAME, SHOWN + 1, EFFORTS, EFFORT, Some(v18::paths::LIST_ROW_SHOWN)),
+        (1, NAME, SHOWN, EFFORTS + 1, EFFORT, Some(v18::paths::LIST_ROW_EFFORTS)),
+        (1, NAME, SHOWN, EFFORTS, EFFORT + 1, Some(v18::paths::LIST_ROW_EFFORTS)),
     ] {
         let bytes = list_bytes(rows, name, shown, efforts, effort);
         let result = wire::ListRead::decode(&wire::CEILINGS, &mut Reader::new(&bytes));
         match problem {
             Some(path) => assert_eq!(
                 result.expect_err("one past bound"),
-                v17::Problem { path, reason: skein_codec::Reason::Bound }
+                v18::Problem { path, reason: skein_codec::Reason::Bound }
             ),
             None => {
                 let record = result.expect("within bounds");
-                let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
-                record.encode(&mut writer).expect("encoded");
+                let mut writer = Writer::new(
+                    usize::try_from(record.measure(&crate::CEILINGS).expect("record within limits"))
+                        .expect("bounded record"),
+                );
+                record.write(&crate::CEILINGS, &mut writer).expect("encoded");
                 assert_eq!(writer.finish(), bytes);
             }
         }

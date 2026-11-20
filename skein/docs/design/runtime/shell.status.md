@@ -1,13 +1,14 @@
 # shell: status
 
-2026-11-14. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-19. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop
 test world checks that a 1,024-byte tail retains that closing text when
-it fits; the report exceeds the tail. Sections 3 and 12's parent-death
-exec is Linux's; macOS returns `Unsupported` and its alternative remains
-section 9's question.
+it fits; the report exceeds the tail. Sections 3 and 12's parent death
+on macOS, the watcher of `readiness.md`, 5, runs on Linux in
+skein-shell's unit tests alone, over the wait built for them; its
+kqueue wait has not been seen run on macOS.
 
 Section 6.3 has no known gap in requested hangup handling, preserving a
 hangup ignored at startup, or `Kept::on_abort` restoring the terminal
@@ -33,8 +34,9 @@ are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
-  6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup.
+  6.4: the helper's dispatch and the startup check, `Kernel::can_restrict`.
+  [in flight: change 9014]
+  6.4: the service's own cgroup opened at startup.
   6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`

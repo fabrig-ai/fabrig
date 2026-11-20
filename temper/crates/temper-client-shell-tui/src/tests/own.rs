@@ -1,7 +1,7 @@
 //! Places before their first words and empty sends (client/tui/pages/README.md, 2).
 use super::*;
 
-const WEB_LINK: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const WEB_LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 fn web_host(project: bool, printed: bool) -> (Host, u64) {
     let mut host = super::host();
@@ -32,8 +32,7 @@ fn web_host(project: bool, printed: bool) -> (Host, u64) {
 
 fn web_linked(host: &mut Host, watch: u64, linked: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as f};
-    let record =
-        wire::forges(&f::Forges::new(&f::CEILINGS, f::ForgesParts { forges: List::with_capacity(0), linked }).unwrap());
+    let record = wire::forges(&f::Forges { forges: List::with_capacity(0), linked });
     let event = w::StreamEvent::Delivery(
         w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document: goal::family(record) }).unwrap(),
     );
@@ -68,8 +67,7 @@ fn web_pressed_or_sent_opens_the_live_link_then_home_and_a_fresh_link() {
             assert_eq!(host.words(), b"");
             host.report(Report::Opened { opened: true });
         }
-        let fresh =
-            b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA".as_slice();
+        let fresh = b"http://127.0.0.1:8367/sign-in?secret=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA".as_slice();
         host.report(Report::Front(temper_client_tui::BoxLine::Link { url: Secret::new(fresh.into()) }));
         // A repeated true document must not spend a fresh line.
         web_linked(&mut host, watch, true);

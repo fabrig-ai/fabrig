@@ -1,6 +1,6 @@
 # readiness: status
 
-2026-11-11. Where the tree's code lags or departs from [readiness.md](readiness.md).
+2026-11-19. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
 - **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
    the user's request of 2026-11-04 asked each part of its

@@ -15,6 +15,23 @@ use std::net::SocketAddr;
 #[cfg(unix)]
 use std::net::ToSocketAddrs;
 
+/// Find the first executable rg file in an absolute directory on the commands' PATH.
+/// This reads metadata only; listings and searches run the result with no environment.
+#[cfg(unix)]
+#[must_use]
+pub fn find_rg(path: Option<&[u8]>) -> Option<std::path::PathBuf> {
+    use std::ffi::OsStr;
+    use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
+
+    std::env::split_paths(OsStr::from_bytes(path?))
+        .filter(|directory| directory.is_absolute())
+        .map(|directory| directory.join("rg"))
+        .find(|file| {
+            std::fs::metadata(file)
+                .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+        })
+}
+
 #[cfg(unix)]
 pub(super) fn resolve(address: &str) -> Result<SocketAddr, ConfigurationRefusal> {
     let mut resolved = address.to_socket_addrs().map_err(|error| format!("endpoint address {address:?}: {error}"))?;

@@ -1,15 +1,12 @@
 //! The scripted family and its complete connector values share one wire.
-use super::{Undecodable, d, documents, limits, parts, w};
+use super::{Record, Undecodable, d, documents, limits, parts, w};
 use alloc::boxed::Box;
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 
 #[must_use]
 pub fn document(value: w::FamilyDocument) -> Box<[u8]> {
-    let record = w::FamilyDocumentRecord::new(&w::CEILINGS, w::FamilyDocumentRecordParts { value })
-        .expect("admitted family document");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::FamilyDocumentRecord { value };
+    record.encode(&w::CEILINGS).expect("admitted family document")
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
@@ -23,7 +20,7 @@ pub fn document_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilyDocume
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(record.into_parts().value)
+    Ok(record.value)
 }
 #[must_use]
 pub fn connector_document(value: &d::ClientDocument) -> w::ClientDocument {
@@ -37,11 +34,8 @@ pub fn connector_document_value(value: w::ClientDocument, bound: &d::Limits) -> 
 
 #[must_use]
 pub fn answer(value: w::FamilyAnswer) -> Box<[u8]> {
-    let record =
-        w::FamilyAnswerRecord::new(&w::CEILINGS, w::FamilyAnswerRecordParts { value }).expect("admitted family answer");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::FamilyAnswerRecord { value };
+    record.encode(&w::CEILINGS).expect("admitted family answer")
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
@@ -52,46 +46,38 @@ pub fn answer_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilyAnswer, 
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(record.into_parts().value)
+    Ok(record.value)
 }
 #[must_use]
 pub fn connector_answer(value: &d::ApplicationOutcome) -> w::FamilyConnectorAnswer {
-    w::FamilyConnectorAnswer::new(
-        &w::CEILINGS,
-        w::FamilyConnectorAnswerParts { value: parts::encode_application_outcome(value) },
-    )
-    .expect("admitted connector answer")
+    w::FamilyConnectorAnswer { value: parts::encode_application_outcome(value) }
 }
 #[must_use]
 pub fn connector_answer_value(value: w::FamilyConnectorAnswer, bound: &d::Limits) -> d::ApplicationOutcome {
-    parts::decode_application_outcome(value.into_parts().value, bound)
+    parts::decode_application_outcome(value.value, bound)
 }
 
 /// The complete application request, with optional parameters kept optional.
 #[must_use]
 pub fn request_record(project: u32, value: w::ApplicationRequest) -> Box<[u8]> {
-    let record = w::Request::new(&w::CEILINGS, w::RequestParts { project, value }).expect("fixed family request");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Request { project, value };
+    record.encode(&w::CEILINGS).expect("fixed family request")
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
-pub fn request_value(bytes: &[u8], bound: &d::Limits) -> Result<w::RequestParts, Undecodable> {
+pub fn request_value(bytes: &[u8], bound: &d::Limits) -> Result<w::Request, Undecodable> {
     let bounds = limits(bound).ok_or(Undecodable)?;
     let mut reader = Reader::new(bytes);
     let Ok(record) = w::Request::decode(&bounds, &mut reader) else { return Err(Undecodable) };
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(record.into_parts())
+    Ok(record)
 }
 #[must_use]
 pub fn subject(value: w::FamilySubject) -> Box<[u8]> {
-    let record = w::Subject::new(&w::CEILINGS, w::SubjectParts { value }).expect("fixed family subject");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Subject { value };
+    record.encode(&w::CEILINGS).expect("fixed family subject")
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
@@ -102,14 +88,12 @@ pub fn subject_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilySubject
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(record.into_parts().value)
+    Ok(record.value)
 }
 #[must_use]
 pub fn read(value: w::FamilySubject) -> Box<[u8]> {
-    let record = w::Read::new(&w::CEILINGS, w::ReadParts { value }).expect("fixed family read");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Read { value };
+    record.encode(&w::CEILINGS).expect("fixed family read")
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
@@ -120,7 +104,7 @@ pub fn read_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilySubject, U
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(record.into_parts().value)
+    Ok(record.value)
 }
 /// A fixed-value connector may receive only a request with a supplied value.
 /// # Errors

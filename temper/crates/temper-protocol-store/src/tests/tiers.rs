@@ -1,6 +1,7 @@
 //! Tier families and receipt failures (temper/docs/design/protocol/store.md, 2–4).
 use super::fixtures;
 use crate::{Undecodable, keys, records};
+use skein_codec::Record;
 use temper_engine_domain_forge_tiers as p;
 use temper_engine_domain_forge_vocabulary as d;
 
@@ -419,7 +420,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.shown_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_227);
+    assert_eq!(empty_goals.len(), 120_235);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.hold = Some(d::TierHold {
@@ -440,9 +441,26 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
+    let finding = fixtures::finding();
+    let filing = d::VerdictFiling {
+        project: finding.project,
+        kind: d::FindingKind::Red,
+        severity: finding.severity,
+        title: finding.title,
+        body: finding.body,
+        signature: finding.signature.unwrap(),
+        blame: finding.blame,
+        follow: Some(u32::MAX),
+    };
+    let mut waiting = skein_lib::List::with_capacity(8);
+    for _ in 0_u8..8 {
+        waiting.push(filing.clone()).expect("eight waiting filings");
+    }
+    full.waiting = waiting.into_boxed();
+    full.unkept = u32::MAX;
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 208_614);
+    assert_eq!(row.len(), 3_993_742);
 }
 
 #[test]
@@ -477,6 +495,61 @@ fn a_missing_workflow_kind_round_trips_in_the_flight_and_hold() {
     assert_eq!(decoded.flight.as_ref().unwrap().fault, Some(Fault::MissingWorkflow));
     assert_eq!(records::encode(&d::Stored::Tier(decoded)), bytes);
 }
+#[test]
+fn an_unreported_fault_round_trips_in_the_flight_and_hold() {
+    use temper_engine_domain_forge_landing::Fault;
+    let mut row = fixtures::tier_row();
+    row.held = Some(Fault::Unreported);
+    row.flight.as_mut().unwrap().fault = Some(Fault::Unreported);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier record") };
+    assert_eq!(decoded.held, Some(Fault::Unreported));
+    assert_eq!(decoded.flight.as_ref().unwrap().fault, Some(Fault::Unreported));
+    round_trip(d::Stored::Tier(row), 28);
+}
+
+#[test]
+fn rows_before_the_unreported_arm_keep_their_encoding_and_decode_unchanged() {
+    use temper_engine_domain_forge_landing::Fault;
+    let mut text = None;
+    for family in crate::OWNER_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let text = text.expect("registered application family");
+    let old_text = text.replace(", unreported", "");
+    assert_ne!(old_text, text);
+    let old = skein_codec::schema::parse(old_text.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let root = b"TierRow";
+    let before = skein_codec::layout::Plan::derive_dropping(
+        &new,
+        new.root(root, None).unwrap(),
+        &[],
+        &old,
+        old.root(root, None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for fault in [Fault::SetUp, Fault::MissingWorkflow] {
+        let mut row = fixtures::tier_row();
+        row.held = Some(fault);
+        row.flight.as_mut().unwrap().fault = Some(fault);
+        let row = d::Stored::Tier(row);
+        let bytes = records::encode(&row);
+        let mut workspace = skein_codec::layout::Workspace::new();
+        assert!(workspace.fit(&before));
+        let mut old_bytes = skein_lib::Buffer::with_capacity(131_072);
+        before.convert(&bytes[3..], &mut old_bytes, &mut workspace).unwrap();
+        let old_row = skein_lib::bytes::concat(&[&bytes[..3], old_bytes.as_slice()]);
+        assert!(old_row == bytes, "appending a fault arm preserves earlier tags");
+        assert_eq!(records::decode(&old_row, &bounds), Ok(row));
+    }
+}
+
 #[test]
 fn tier_operation_lists_refuse_one_past_their_configured_bounds() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
@@ -571,4 +644,27 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());
+}
+
+#[test]
+fn waiting_red_filings_round_trip_with_blame_and_heap_accounting() {
+    let mut tier = fixtures::tier_row();
+    let finding = fixtures::finding();
+    let filing = d::VerdictFiling {
+        project: 5,
+        kind: d::FindingKind::Red,
+        severity: d::Severity::High,
+        title: finding.title,
+        body: finding.body,
+        signature: finding.signature.unwrap(),
+        blame: finding.blame,
+        follow: Some(37),
+    };
+    let mut many = filing.clone();
+    many.signature.ids = Box::new([]);
+    many.signature.many = true;
+    many.follow = None;
+    tier.waiting = Box::new([filing, many]);
+    tier.unkept = 12;
+    round_trip(d::Stored::Tier(tier), 28);
 }

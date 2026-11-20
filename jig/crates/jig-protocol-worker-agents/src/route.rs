@@ -2,7 +2,8 @@
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::{CountKind, Form, Grant, Scheme};
-use skein_lib::{List, Reader, Token, Writer};
+use skein_lib::{List, Reader, Token};
+use smith_channel::Record;
 use smith_host_domain as smith;
 use smith_host_protocol::Limits;
 use smith_protocol_channel::Endpoints;
@@ -38,18 +39,10 @@ pub fn encode_turn(turn: smith::Turn, limits: &Limits, endpoints: &Endpoints) ->
 
 #[must_use]
 pub fn encode_call_name(name: smith::CallName, limits: &Limits) -> Option<Box<[u8]>> {
-    let record = smith_channel::CallName::new(
-        &limits.bodies,
-        smith_channel::CallNameParts {
-            activation: name.activation,
-            completion: name.completion,
-            position: name.position,
-        },
-    )
-    .ok()?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    let record =
+        smith_channel::CallName { activation: name.activation, completion: name.completion, position: name.position };
+    let bytes = record.encode(&limits.bodies).ok()?;
+    Some(bytes)
 }
 
 #[must_use]
@@ -120,7 +113,7 @@ pub fn activity(body: &[u8], limits: &Limits) -> Option<hub::AgentActivity> {
     if !reader.is_empty() {
         return None;
     }
-    let kind = match fact.kind() {
+    let kind = match &fact.kind {
         smith_channel::FactKind::Admitted => CountKind::Admitted,
         smith_channel::FactKind::Ended => CountKind::Ended,
         smith_channel::FactKind::LlmStarted => CountKind::LlmStarted,
@@ -132,7 +125,7 @@ pub fn activity(body: &[u8], limits: &Limits) -> Option<hub::AgentActivity> {
         smith_channel::FactKind::CheckFinished => CountKind::CheckFinished,
         smith_channel::FactKind::TextArrived => CountKind::TextArrived,
     };
-    Some(hub::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
+    Some(hub::AgentActivity::Count { kind, elapsed: fact.elapsed, count: fact.count })
 }
 
 pub fn decode(
@@ -176,11 +169,9 @@ pub fn decode(
     for call in source.answered {
         let mut reader = Reader::new(&call.name);
         let name = match smith_channel::CallName::decode(&limits.bodies, &mut reader) {
-            Ok(value) if reader.is_empty() => smith::CallName {
-                activation: value.activation(),
-                completion: value.completion(),
-                position: value.position(),
-            },
+            Ok(value) if reader.is_empty() => {
+                smith::CallName { activation: value.activation, completion: value.completion, position: value.position }
+            }
             Ok(_) | Err(_) => return Err(hub::Undecoded::CallName),
         };
         let reply = match call.answer {
@@ -294,7 +285,7 @@ pub fn process(event: smith_host_protocol::ProcessEvent) -> Option<Processed> {
                         hub::LiveKind::Reasoning
                     }
                     smith_channel::LiveKind::Input => {
-                        let call = call?.into_parts();
+                        let call = call?;
                         hub::LiveKind::Input { call: call.id, tool: call.tool }
                     }
                 };
@@ -340,12 +331,12 @@ fn decoded_delivery(bytes: &[u8]) -> Option<smith::Delivery> {
     if !reader.is_empty() {
         return None;
     }
-    Some(match record.into_parts().value {
+    Some(match record.value {
         smith_channel::Delivery::Delivered(delivered) => {
-            let rows = delivered.into_parts().receipts;
+            let rows = delivered.receipts;
             let mut receipts = List::with_capacity(rows.len());
             for row in rows.into_boxed() {
-                let parts = row.into_parts();
+                let parts = row;
                 receipts.push(smith::Receipt::new(parts.directory, parts.text)?).ok()?;
             }
             smith::Delivery::Delivered(smith::Delivered::new(receipts.into_boxed())?)
@@ -353,10 +344,10 @@ fn decoded_delivery(bytes: &[u8]) -> Option<smith::Delivery> {
         smith_channel::Delivery::Nothing => smith::Delivery::Nothing,
         smith_channel::Delivery::Stale => smith::Delivery::Stale,
         smith_channel::Delivery::Refused(refusal) => {
-            let parts = refusal.into_parts();
+            let parts = refusal;
             let marker = match parts.marker {
                 Some(marker) => {
-                    let fields = marker.into_parts();
+                    let fields = marker;
                     Some(smith::Marker::new(fields.directory, fields.path)?)
                 }
                 None => None,
@@ -364,7 +355,7 @@ fn decoded_delivery(bytes: &[u8]) -> Option<smith::Delivery> {
             smith::Delivery::Refused(smith::DeliveryRefusal::new(marker, parts.explanation)?)
         }
         smith_channel::Delivery::Failed(failure) => {
-            let parts = failure.into_parts();
+            let parts = failure;
             smith::Delivery::Failed(smith::DeliveryFailure {
                 directory: parts.directory,
                 reason: delivery_reason(parts.reason),

@@ -443,20 +443,17 @@ impl Goals {
                     }
                     continue;
                 };
-                let part = part.into_parts();
+
                 let milestone = part.milestone;
                 let report = match part.report {
-                    Some(report) => {
-                        let report = report.into_parts();
-                        Some(report::Report {
-                            headline: report.headline,
-                            at: Some(Wall::from_nanos(report.at)),
-                            paragraphs: List::with_capacity(0),
-                            left: None,
-                            risk: None,
-                            decided: List::with_capacity(0),
-                        })
-                    }
+                    Some(report) => Some(report::Report {
+                        headline: report.headline,
+                        at: Some(Wall::from_nanos(report.at)),
+                        paragraphs: List::with_capacity(0),
+                        left: None,
+                        risk: None,
+                        decided: List::with_capacity(0),
+                    }),
                     None => None,
                 };
                 rows.insert(line.chip.task, Row { milestone, report }).expect("live and ended goal rows fit");
@@ -596,38 +593,7 @@ pub struct Wait {
     pub more: bool,
 }
 
-/// The leading goal id (temper/docs/design/client/pages/work.md, 1, A goal's id).
-#[must_use]
-pub fn id(title: &[u8]) -> Option<&[u8]> {
-    let mut letters = 0_usize;
-    for byte in title {
-        if !byte.is_ascii_uppercase() {
-            break;
-        }
-        letters = letters.checked_add(1).expect("title fits");
-    }
-    if !(1..=3).contains(&letters) {
-        return None;
-    }
-    let rest = title.get(letters..)?;
-    let mut digits = 0_usize;
-    for byte in rest {
-        if !byte.is_ascii_digit() {
-            break;
-        }
-        digits = digits.checked_add(1).expect("title fits");
-    }
-    if !(1..=3).contains(&digits) {
-        return None;
-    }
-    let end = letters.checked_add(digits).expect("goal id fits");
-    if let Some(byte) = title.get(end)
-        && byte.is_ascii_alphanumeric()
-    {
-        return None;
-    }
-    title.get(..end)
-}
+pub use temper_client_protocol_wire::goals::id;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {

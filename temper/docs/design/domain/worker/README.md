@@ -298,11 +298,19 @@ temper's workspace items beside it:
     `refs/temper/landing` for the project's checks (`checkouts.md`); a writable
     item that names none (a repair, a resolution, a merge job, a chat's
     run) has the head its delivery replaces pinned there instead
-    (`checkouts.md`, *The replaced head's pin*). For an
+    (`checkouts.md`, *The replaced head's pin*), unless it names a pin
+    (below). For an
     inherited producer that starts on its push branch it is also the
     comparison for existing work, separate from the checkout start and the
     push's expected head; and on a merge in progress it marks a producer's
     start, as a goal's later run's does (`checkouts.md`);
+  - a pin, for a writable repository that names no landing branch: a
+    commit by its full object id, which prepare points
+    `refs/temper/landing` at in place of the head its delivery replaces.
+    The engine names one on the item of a repair asked by a landing alone,
+    the base that landing used (`checkouts.md`, *A named pin*); an item
+    naming both a pin and a landing branch is refused at the entrance as
+    an invalid start that names it;
   - the task's own delivery, for a writable repository: the head of this
     task's last checked push to its push branch, as the engine recorded
     it (`../forge/change/questions.md`, 1, *A checked head*), or none; a
@@ -487,6 +495,47 @@ worker's notes (`worker_alone`'s `Note`), which its shell writes, as a
 failed preparation's does (`checkouts.md`, 1.3), once per attempt: a
 kept answer sent again after a relink logs none.
 
+**Each fetch and check out** a hold asks is logged by the worker as the
+checkout asks it, one line each, so that a start assigned again and again
+shows in the log with each attempt that fetched it (the user, 2026-11-19):
+
+```
+<binary> worker: run <run> attempt <attempt> fetch <repository> <source> into <into>
+<binary> worker: run <run> attempt <attempt> check out <repository> <commit>
+```
+
+A job's lines put `job <kind> <verb>` after its attempt, its kind's
+number and verb as its failure line prints them (`jobs.md`), so that
+both join by the same words: `temper worker: run 9551 attempt 3 job 1
+prepare fetch fabrig commit <id> into fetched`. `<run>` and `<attempt>` are its assignment's,
+`<repository>` the repository's directory, `<source>` what the fetch
+names (`branch <name>`, `commit <id>` or `default`; `../../protocol/git.md`,
+4.3), `<into>` `fetched` or `landing`, and ids are in full, as
+`../../protocol/git.md`, section 3 writes them. Each line goes through the
+worker's notes, escaped to one line, as the agent's stop line does: operator
+output that no fact or turn holds.
+
+**Each assignment** the engine sends a worker, a run's or a job's, is one
+serve line as it leaves, so that the worker's lines join it by run and
+attempt and show why a start came again (the user, 2026-11-19):
+
+```
+<binary> serve: task <task> run <run> attempt <attempt> assigned to worker <name>: <why>
+```
+
+A job's puts `job <kind>` after `<name>`, its kind as serve's job line
+prints it (`jobs.md`). `<run>` is the worker's `run`. `<name>` is the
+worker's configured name (`workers[].name`), or `channel <n>` for a channel
+no configured worker holds. `<why>` is the claim's cause (jig's
+`domain/tasks/lifecycle.md`, 6): `recheck` where the attempt before ended in
+one; else, with the retry notice the claim cleared, `retry after <class>
+failure <count> of <allowance>` or `retry after refusal <count>`, then
+`: <reason>` where it carries one; else the due reason, `made`, `ready`,
+`message <n>`, `released`, `retry`, `narrowed` or `changed`, as the client's
+activity names it. An attempt placed again after a busy refusal is a
+second line. Escaped to one line as serve's other lines are; nothing
+stores it.
+
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
 `CompletionFailure::Limit { which, bound }` supplies `value` unchanged:
@@ -549,13 +598,20 @@ structured fields alone:
 - **The status** is the evidence's response status where it has one,
   else the report's status, which a program's result gives (smith's
   `protocol/programs.md`, 5.6), else none.
+- **The refusal** is the report's code where the evidence is `Unsent`,
+  the kind `Invalid` or `Unsupported` and no status came: the name smith
+  gave the cause of a call it refused before sending it (smith's
+  `protocol/llm.md`, section 6), which no provider sent. It is kept
+  where it is at most `ModelFailure::REFUSAL_BYTES` of lowercase ASCII
+  letters and hyphens, and is none otherwise, an empty code among them.
 - **Every other model fault** (a provider failed for good, a model that
   kept declining, ran out of tokens or named no tool, a program that
   could not run) carries none, nor does an account's or a bound's
   failure, which have their own (above).
 
 No provider code, request id, detail or diagnostic goes into it: the
-report's other fields, and the bounded detail, stay the operator's.
+report's other fields, a code a provider sent, and the bounded detail,
+stay the operator's.
 
 ## 5. Agent processes
 
@@ -626,6 +682,25 @@ process has exited and its tree is empty. temper's choices:
   the hold its environment names in `TIERS_HOLD` (`tools/tiers/design.md`,
   section 3; `tools/pre-pr/design.md`, section 4), and a deployment that
   lends build directories names its hold there.
+- **Its build places too, and its bound counts only them.** A deployment
+  whose cargo admits builds to a limited number of places, shared by every
+  workspace on the machine, makes a check wait for one per cargo command,
+  behind other runs' builds and tests, and that wait counted against the
+  checks' bound. Its hold takes the check's place once, before its first
+  build, and keeps it to the check's end, so that the check's cargo
+  commands wait for none; while the hold waits it says so, the check tells
+  smith, and the wait is left out of the bound (smith's
+  `smith/docs/design/domain/run.md`, 8.1), whose figure stays the
+  deployment's. A check queued behind others is bounded by its call's
+  deadline and the run's end alone until it holds its places.
+- **The base's build has a target of its own.** A deployment's cargo
+  that gives each workspace one target, by the command's path, would
+  give a check's base worktree (`<git dir>/temper-pre-pr/base`) the
+  head's target, and cargo's freshness by file times can then take one
+  tree's outputs for the other's. The check sets `CARGO_TARGET_DIR` for
+  every program it starts there (`tools/pre-pr/design.md`, section 5),
+  and such a cargo keeps that setting, or keys the worktree to a target
+  of its own.
 - **What a test writes reaches the checkout.** A run's commands and
   checks run in place, in the workspace's checkout (smith's
   `protocol/agent.md`, section 2), and its delivery takes that tree, so a

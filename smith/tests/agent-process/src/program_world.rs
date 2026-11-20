@@ -7,6 +7,7 @@ use skein_io::kernel::{self, Exit, Spawn};
 use skein_lib::{Duration, Queue, Reader, Secret, Time};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
+use smith_channel::Record;
 use smith_fake_claude::{Fake, Story};
 
 use crate::world::{Parent, ParentOptions, Setup};
@@ -224,18 +225,12 @@ fn survey_start(case: Case, charter: &[u8], value: &smith_channel::GrantValue) -
         let mut grants = skein_lib::List::with_capacity(2);
         grants.push(start.grants.as_slice()[0].clone()).expect("main grant");
         grants
-            .push(
-                smith_channel::Grant::new(
-                    &smith_channel::CEILINGS,
-                    smith_channel::GrantParts {
-                        account: 1,
-                        generation: 1,
-                        valid: Duration::from_secs(7200),
-                        value: crate::bearer(b"token"),
-                    },
-                )
-                .expect("direct grant"),
-            )
+            .push(smith_channel::Grant {
+                account: 1,
+                generation: 1,
+                valid: Duration::from_secs(7200),
+                value: crate::bearer(b"token"),
+            })
             .expect("child grant");
         start.grants = grants;
     })
@@ -469,6 +464,7 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
 
 fn fake_launch(spawn: &Spawn) -> Spawn {
     let mut launch = Spawn {
+        reach: None,
         program: spawn.program.clone(),
         args: spawn.args.clone(),
         env: spawn.env.clone(),
@@ -1077,45 +1073,35 @@ fn fixture_file(files: &mut Files, base: Opened, path: &[u8]) -> Option<Vec<u8>>
 }
 
 pub(crate) fn cancel() -> skein_channel::Frame {
-    let record =
-        smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).expect("cancel record");
+    let record = smith_channel::Cancel {};
     crate::frame!(0x0105, record)
 }
 
 fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
     crate::wire::edit_start(&frame, |start| {
-        use smith_transcript::{self as t, CEILINGS};
-        let affinity =
-            t::Affinity::new(&CEILINGS, t::AffinityParts { key: [0; 16], thread: 0 }).expect("affinity fixture");
-        let opening =
-            t::Opening::new(&CEILINGS, t::OpeningParts { affinity, account: None, backend: t::Backend::Direct })
-                .expect("opening fixture");
-        let usage = t::Usage::new(
-            &CEILINGS,
-            t::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-        )
-        .expect("usage fixture");
-        let turn = t::Turn::new(
-            &CEILINGS,
-            t::TurnParts {
-                kind: t::TurnKind::Ordinary,
-                opening: Some(opening),
-                endpoint: Box::default(),
-                model: Box::default(),
-                effort: None,
-                dialect: 0,
-                place: 1,
-                usage,
-                spent: 0,
-                jobs: 0,
-                messages: skein_lib::List::with_capacity(0),
-                system: None,
-            },
-        )
-        .expect("opening turn");
-        start.transcript =
-            smith_protocol_translate::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
+        use smith_transcript::{self as t};
+        let affinity = t::Affinity { key: [0; 16], thread: 0 };
+        let opening = t::Opening { affinity, account: None, backend: t::Backend::Direct };
+        let usage = t::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None };
+        let turn = t::Turn {
+            kind: t::TurnKind::Ordinary,
+            opening: Some(opening),
+            endpoint: Box::default(),
+            model: Box::default(),
+            effort: None,
+            dialect: 0,
+            place: 1,
+            usage,
+            spent: 0,
+            jobs: 0,
+            messages: skein_lib::List::with_capacity(0),
+            system: None,
+        };
+        start.transcript = smith_protocol_translate::transcript_piece(&[turn
+            .encode(&smith_transcript::CEILINGS)
+            .expect("bounded transcript")])
+        .expect("transcript piece");
     })
 }
 
@@ -1143,25 +1129,16 @@ fn tools_start(charter: &[u8], value: &smith_channel::GrantValue) -> skein_chann
             (b"library".as_slice(), b"/library".as_slice(), false),
         ] {
             directories
-                .push(
-                    smith_channel::Directory::new(
-                        &smith_channel::CEILINGS,
-                        smith_channel::DirectoryParts {
-                            name: name.into(),
-                            path: path.into(),
-                            writable,
-                            git: false,
-                            conflicts: skein_lib::List::with_capacity(0),
-                        },
-                    )
-                    .expect("workspace directory"),
-                )
+                .push(smith_channel::Directory {
+                    name: name.into(),
+                    path: path.into(),
+                    writable,
+                    git: false,
+                    conflicts: skein_lib::List::with_capacity(0),
+                })
                 .expect("two roots");
         }
-        start.workspace = Some(
-            smith_channel::Workspace::new(&smith_channel::CEILINGS, smith_channel::WorkspaceParts { directories })
-                .expect("workspace"),
-        );
+        start.workspace = Some(smith_channel::Workspace { directories });
     })
 }
 
@@ -1172,16 +1149,9 @@ pub(crate) fn answer_host(parent: &mut Parent) {
         for frame in calls {
             let call = smith_channel::Call::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body))
                 .expect("host call");
-            let reply = smith_channel::HostReply::new(
-                &smith_channel::CEILINGS,
-                smith_channel::HostReplyParts { error: false, text: b"found".as_slice().into() },
-            )
-            .expect("host reply");
-            let answer = smith_channel::HostAnswer::new(
-                &smith_channel::CEILINGS,
-                smith_channel::HostAnswerParts { name: call.name().clone(), reply: smith_channel::Reply::Host(reply) },
-            )
-            .expect("host answer");
+            let reply = smith_channel::HostReply { error: false, text: b"found".as_slice().into() };
+            let answer =
+                smith_channel::HostAnswer { name: call.name.clone(), reply: smith_channel::Reply::Host(reply) };
             parent.peer.play(crate::frame!(0x0102, answer));
             parent.program_host_answers = Some(parent.program_host_answers.expect("enabled host") + 1);
         }
@@ -1193,20 +1163,13 @@ pub(crate) fn answer_host(parent: &mut Parent) {
 pub fn child_charter() -> Box<[u8]> {
     crate::wire::edit_charter(&crate::charter(), |parts| {
         crate::wire::budget(parts, 8, 20);
-        let mut tools = parts.tools.clone().into_parts();
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { inspect: true, modify: false, shell: false, agents: true },
-        )
-        .expect("child families");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("child tools");
-        let mut child = parts.main.clone().into_parts();
+        let mut tools = parts.tools.clone();
+        tools.families = smith_charter::Families { inspect: true, modify: false, shell: false, agents: true };
+        parts.tools = tools;
+        let mut child = parts.main.clone();
         child.effort = Some(b"high".as_slice().into());
         parts.models = skein_lib::List::with_capacity(1);
-        parts
-            .models
-            .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("child model"))
-            .expect("declared child");
+        parts.models.push(child).expect("declared child");
     })
 }
 

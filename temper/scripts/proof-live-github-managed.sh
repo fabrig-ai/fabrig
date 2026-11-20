@@ -79,6 +79,11 @@ PYBUILD
     tail -n 15 "$scratch/build.log" >&2
     exit 1
 fi
+# The retained configuration is an engine alone's file, served by its own binary.
+if ! ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo build --locked -p temper-engine < /dev/null > "$scratch/engine-build.log" 2>&1; then
+    tail -n 15 "$scratch/engine-build.log" >&2
+    exit 1
+fi
 if [ "$mode" = live ]; then
     # Keep TEMPER_INTERNAL_BUNDLE=none; build a separate, explicit browser bundle in this scratch.
     printf '%s\n' 'building the browser bundle offline'

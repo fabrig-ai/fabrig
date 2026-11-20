@@ -39,12 +39,13 @@ fn declared_read_search_shell_and_check_bounds_reach_the_machine() {
         FromDomain::Check {
             owner,
             program: run::Place { root, path: b".smith-test/check".as_slice().into() },
-            deadline,
+            bound: deadline.saturating_since(Time::ZERO),
+            cap: deadline,
             tail: config.limits.domain.run.check_tail,
         },
     ];
     for request in requests {
-        let mut machine = Component::new(&config.limits.machine, config.environment.clone());
+        let mut machine = Component::new(&config.limits.machine, config.environment.clone(), config.rg.clone());
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
                 host: Box::from(b"/host".as_slice()),

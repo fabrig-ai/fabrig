@@ -241,6 +241,7 @@ fn write(domain: &mut Domain, read: &DocumentRead, entry: Option<notes::Entry>) 
                 author: notes::Author::Task { task: 0, attempt: 0 },
             },
             recalled,
+            records: Box::new([]),
         },
     }));
     Ok(())

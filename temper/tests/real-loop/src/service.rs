@@ -11,6 +11,7 @@ use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
 use std::{
     net::{SocketAddr, TcpListener},
+    os::unix::ffi::OsStrExt,
     path::PathBuf,
 };
 
@@ -134,9 +135,10 @@ impl ServiceHost {
             clients_listener.as_ref().map(|listener| listener.local_addr().expect("reserved clients address"));
         let forge = (fixture.is_none() && github.is_none())
             .then(|| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("held forge listener"));
-        let address = forge
-            .as_ref()
-            .map_or(([127, 0, 0, 1], 0).into(), |listener| listener.local_addr().expect("held forge address"));
+        let address =
+            forge.as_ref().map_or(([127, 0, 0, 1], if github.is_some() { 9 } else { 0 }).into(), |listener| {
+                listener.local_addr().expect("held forge address")
+            });
         let mut configuration =
             fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
         if direct_key {
@@ -149,15 +151,6 @@ impl ServiceHost {
             crate::github::write(&path, address, clients.expect("fixed clients"), fixture, &mut configuration)
                 .expect("GitHub documents");
         }
-        if fixture.is_none() && github.is_none() {
-            configuration.document =
-                serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
-                    .expect("deployment JSON");
-            configuration["world_settings"] =
-                serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
-                    .expect("world settings JSON");
-            fixtures::finish_configuration(&path, &mut configuration).expect("world defaults separated from startup");
-        }
         if let Some(shape) = &cluster {
             shape.write(
                 path.parent().expect("cluster scratch"),
@@ -169,18 +162,37 @@ impl ServiceHost {
             fixtures::sign_in_documents(&path, address, &mut configuration).expect("local issuer registration");
         }
         let roots = Self::directories(&path, cluster.is_some());
-        let config = std::fs::read(roots.document()).expect("standalone document");
-        let operations = temper_box_shell::operations_in_with_limits(
-            "temper",
-            &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
-            b"/",
-            &roots,
-            &config,
-            &fixtures::given(&path, &configuration),
-            &configuration.jig,
-            &configuration.limits,
-        )
-        .expect("standalone operation count");
+        let shape = match &cluster {
+            None => temper_config_shell::Shape::Standalone,
+            Some(crate::cluster::Shape::Engine { .. }) => temper_config_shell::Shape::EngineAlone,
+            Some(crate::cluster::Shape::Worker { .. }) => temper_config_shell::Shape::WorkerAlone,
+        };
+        let config =
+            fixtures::file::read(std::path::Path::new(std::ffi::OsStr::from_bytes(&roots.config)), shape).document;
+        let given = fixtures::given(&path, &configuration);
+        let operations = match shape {
+            temper_config_shell::Shape::Standalone => temper_box_shell::operations_in_with_limits(
+                "temper-box",
+                &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
+                b"/",
+                &roots,
+                &config,
+                &given,
+                &configuration.jig,
+                &configuration.limits,
+            ),
+            temper_config_shell::Shape::EngineAlone | temper_config_shell::Shape::WorkerAlone => {
+                temper_service::startup::operations_with_worker(
+                    &config,
+                    &temper_service_shell::jig_directories(&roots),
+                    &given,
+                    Some((&configuration.jig, &configuration.limits)),
+                    None,
+                )
+                .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())
+            }
+        }
+        .expect("shape's operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
         let records_seeded =
@@ -253,11 +265,10 @@ impl ServiceHost {
     #[cfg(test)]
     pub(crate) fn clients_occupied_by(&mut self, listener: &TcpListener) {
         let address = listener.local_addr().expect("occupied clients address");
-        let path = self.path.join("temper.json");
-        let mut config: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&path).expect("config")).expect("JSON");
-        config["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
-        fixtures::private(&path, &serde_json::to_vec(&config).expect("config JSON")).expect("occupied listener config");
+        let mut file = fixtures::file::read(&self.path, temper_config_shell::Shape::Standalone).file;
+        file.listen = Some(address);
+        fixtures::file::write(&self.path, &file, temper_config_shell::Shape::Standalone)
+            .expect("occupied listener file");
         // This endpoint must fail to bind; no reserved listener belongs to its service.
         self.clients_listener = None;
         self.clients = Some(address);
@@ -333,18 +344,21 @@ impl ServiceHost {
         }
         assert!(matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })));
         let directories = Self::directories(&self.path, true);
-        let document = directories.document();
-        let original = std::fs::read(&document).expect("engine document");
-        let mut invalid: serde_json::Value = serde_json::from_slice(&original).expect("engine JSON");
+        let directory = self.path.parent().expect("cluster scratch").join("config");
+        let document = directory.join(temper_config_shell::FILE);
+        let original = std::fs::read(&document).expect("engine file");
+        let mut invalid = fixtures::file::read(&directory, temper_config_shell::Shape::EngineAlone).file;
         let given = fixtures::given(&self.path, &self.configuration);
-        invalid["engine"]["owners"] = serde_json::Value::Null;
-        fixtures::private(&document, &serde_json::to_vec(&invalid).expect("refused engine JSON"))
+        invalid.workers = None;
+        fixtures::file::write(&directory, &invalid, temper_config_shell::Shape::EngineAlone)
             .expect("misconfigured start");
         for _ in 0..self.start_failures {
-            let Err(failure) = temper_box_shell::prepare_in_with(&[], b"/", &directories, &given) else {
-                panic!("malformed engine owners must refuse the start")
+            let Err(failure) =
+                temper_engine_shell::serve::prepare_in_with("temper-engine", &[], b"/", &directories, &given)
+            else {
+                panic!("missing workers listener must refuse the start")
             };
-            assert!(failure.contains("engine.owners"), "{failure}");
+            assert!(failure.contains("workers"), "{failure}");
             self.failed_starts.push(failure);
         }
         fixtures::private(&document, &original).expect("corrected engine document");
@@ -456,7 +470,11 @@ impl ServiceHost {
         let prepared = if let Some(figures) = &self.figures {
             let directories = Self::directories(&self.path, true);
             let mut part = temper_worker_service::startup::worker_part(
-                &directories.read().expect("worker document"),
+                &fixtures::file::read(
+                    &self.path.parent().expect("cluster scratch").join("config"),
+                    temper_config_shell::Shape::WorkerAlone,
+                )
+                .document,
                 &temper_service_shell::jig_directories(&directories),
                 Some(b"/usr/bin/git"),
                 &fixtures::environment(&self.path),
@@ -473,7 +491,7 @@ impl ServiceHost {
             let files =
                 temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())
                     .expect("worker files");
-            temper_box_shell::Service::Worker(
+            Driven::worker(
                 temper_worker_shell::worker::from_figures(
                     part,
                     figures.clone(),
@@ -484,23 +502,39 @@ impl ServiceHost {
                 )
                 .expect("worker built from figures"),
             )
+        } else if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
+            let (given, projects) = fixtures::given_and_projects(&self.path, &self.configuration);
+            Driven::engine(
+                temper_engine_shell::serve::prepare_in_with_inputs_and_limits(
+                    "temper-engine",
+                    &fixtures::environment(&self.path),
+                    b"/",
+                    &Self::directories(&self.path, true),
+                    &given,
+                    &projects,
+                    Some((&self.configuration.jig, &self.configuration.limits)),
+                )
+                .expect("engine preparation"),
+            )
         } else {
             let (given, projects) = fixtures::given_and_projects(&self.path, &self.configuration);
-            temper_box_shell::prepare_in_with_inputs_and_limits(
-                "temper",
-                &fixtures::environment(&self.path),
-                b"/",
-                &Self::directories(&self.path, self.cluster.is_some()),
-                &given,
-                Some(&self.path.join("temper-agent")),
-                &projects,
-                Some((&self.configuration.jig, &self.configuration.limits)),
+            Driven::new(
+                temper_box_shell::prepare_in_with_inputs_and_limits(
+                    "temper",
+                    &fixtures::environment(&self.path),
+                    b"/",
+                    &Self::directories(&self.path, self.cluster.is_some()),
+                    &given,
+                    Some(&self.path.join("temper-agent")),
+                    &projects,
+                    Some((&self.configuration.jig, &self.configuration.limits)),
+                )
+                .expect("standalone preparation"),
             )
-            .expect("standalone preparation")
         };
-        let mut service = Driven::new(prepared);
+        let mut service = prepared;
         if let Some(blob) = self.blob_address
-            && let temper_box_shell::Service::Joined(joined) = &mut service.service
+            && let driven::Service::Joined(joined) = &mut service.service
         {
             configure_job_logs(joined, self.forge_address.expect("GitHub API"), blob);
         }
@@ -651,16 +685,14 @@ fn record_tries(
 }
 
 fn retain_listener(data: &std::path::Path, listener: temper_service::Listening, addr: SocketAddr) {
-    let path = ServiceHost::directories(data, true).document();
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("engine document")).expect("engine JSON");
-    let socket = serde_json::json!({"socket":addr.to_string()});
+    let directory = data.parent().expect("cluster scratch").join("config");
+    let mut file = fixtures::file::read(&directory, temper_config_shell::Shape::EngineAlone).file;
     match listener {
-        temper_service::Listening::Workers => document["engine"]["hosts"]["listener"] = serde_json::json!([socket]),
-        temper_service::Listening::Clients => document["application"]["clients"]["listener"] = socket,
-        temper_service::Listening::Webhooks => document["application"]["webhooks"]["listener"] = socket,
+        temper_service::Listening::Workers => file.workers = Some(addr),
+        temper_service::Listening::Clients => file.listen = Some(addr),
+        temper_service::Listening::Webhooks => file.webhooks = Some(addr),
     }
-    fixtures::private(&path, &serde_json::to_vec(&document).expect("engine JSON")).expect("retained engine address");
+    fixtures::file::write(&directory, &file, temper_config_shell::Shape::EngineAlone).expect("retained engine address");
 }
 
 fn configure_job_logs(service: &mut temper_service::Service, api: SocketAddr, blob: SocketAddr) {
@@ -729,7 +761,11 @@ impl Host for ServiceHost {
             if matches!(self.cluster, Some(crate::cluster::Shape::Worker { .. })) && self.figures.is_none() {
                 let directories = Self::directories(&self.path, true);
                 let mut part = temper_worker_service::startup::worker_part(
-                    &directories.read().expect("worker document"),
+                    &fixtures::file::read(
+                        &self.path.parent().expect("cluster scratch").join("config"),
+                        temper_config_shell::Shape::WorkerAlone,
+                    )
+                    .document,
                     &temper_service_shell::jig_directories(&directories),
                     Some(b"/usr/bin/git"),
                     &fixtures::environment(&self.path),

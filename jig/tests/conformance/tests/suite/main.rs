@@ -4,8 +4,6 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod application;
-mod client_settings;
-mod client_settings_proposals;
 mod deletion;
 mod faults;
 mod memory;
@@ -22,6 +20,3 @@ mod fuzzy {
     mod scenarios;
     mod snapshot;
 }
-
-#[path = "../../../client-values.rs"]
-mod client_values;

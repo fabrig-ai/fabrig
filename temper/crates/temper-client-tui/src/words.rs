@@ -939,7 +939,7 @@ impl Word {
             Self::SignIn => (&[b"Sign in this terminal to ", b""], &[Slot::Address]),
             Self::Paste => (&[b"Paste the link temper printed, then Enter."], &[]),
             Self::Link => (&[b"Link"], &[]),
-            Self::LinkShape => (&[b"http://", b"/jig/v1/sign-in/link?secret=\xe2\x80\xa6"], &[Slot::Address]),
+            Self::LinkShape => (&[b"http://", b"/sign-in?secret=\xe2\x80\xa6"], &[Slot::Address]),
             Self::NotALink => (&[b"That is not a sign-in link: paste the whole link temper printed."], &[]),
             Self::OtherAddress => (
                 &[b"That link is for ", b". To sign in there, run temper http://", b"."],
@@ -1009,7 +1009,7 @@ impl Word {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Words {
     book: Phrasebook,
     notice_bytes: u32,

@@ -159,7 +159,13 @@ connector says what they apply to:
 - **whether a taken hold refuses or waits** (tasks/holds.md, 2);
 - **what a taking does** to the resource, as effects of its own (4.7):
   a branch made at its base's tip, say;
-- **what a release does** to the resource, per way its task ended (4.6).
+- **what a release does** to the resource, per way its task ended (4.6);
+- **each held resource's report,** its role and hold kind, for every
+  resource a batch member holds, sent before or with its holdings
+  answer (3.1's symbols, tasks/holds.md, 2). The core keeps those a
+  waiting batch names, refuses a batch whose reports its table cannot
+  hold, and refuses one whose reports have not all come within
+  `tasks.hold_wait`, without asking again (tasks/holds.md, 2).
 
 Shared resources take no hold: writing into them is ordered by the
 connector's own mechanics, such as a landing queue. A held resource may

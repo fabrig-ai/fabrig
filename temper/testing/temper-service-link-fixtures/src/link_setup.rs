@@ -46,11 +46,14 @@ pub fn engine_with(jig: jig_protocol_config::Engine) -> settings::Engine {
     let root = limits::engine(&jig.limits, &own).expect("engine fixture values fit their declared bounds");
     let connector = *jig.connectors.first().expect("engine fixture values fit their declared bounds");
     settings::Engine {
+        store_limits: None,
         kinds: crate::stock::kinds(&root, connector),
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -181,6 +184,8 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
@@ -299,6 +304,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
         delivered: None,
+        pin: None,
         identity: 1,
     }
 }

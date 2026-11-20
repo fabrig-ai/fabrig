@@ -1,4 +1,6 @@
 //! Landing verification stories (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
+#[path = "verification/switched.rs"]
+mod switched;
 use super::*;
 use crate::*;
 use skein_lib::{Time, Wall};
@@ -231,6 +233,7 @@ fn opening_row() -> ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -258,9 +261,13 @@ fn opening_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -361,6 +368,7 @@ fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
         delegate_running: false,
         flake: false,
+        no_test: false,
         delegate_live: false,
         review_request: None,
         start_conflict: None,
@@ -410,6 +418,8 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
                 many: None,
                 posting: None,
                 hold: None,
+                waiting: Box::new([]),
+                unkept: 0,
                 observations: Box::new([]),
                 repository: REPO,
                 tier: Box::from(tier),

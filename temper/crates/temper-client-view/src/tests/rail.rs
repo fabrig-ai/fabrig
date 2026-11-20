@@ -109,22 +109,15 @@ fn project_rows(count: u32, repository: &[u8]) -> List<temper_client_protocol_wi
         w::Mode::Owned,
         super::connect_forge::connected(),
         w::Offer::Offered,
-    )
-    .into_parts();
+    );
     row.repositories = List::with_capacity(count);
     for _ in 0..count {
         row.repositories
-            .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts { owner: b"work".as_slice().into(), name: repository.into(), project: f::PROJECT },
-                )
-                .unwrap(),
-            )
+            .push(w::Adoption { owner: b"work".as_slice().into(), name: repository.into(), project: f::PROJECT })
             .unwrap();
     }
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     rows
 }
 
@@ -479,6 +472,8 @@ fn a_chat_is_never_goals() {
 #[expect(clippy::too_many_lines, reason = "one table checks both navigation surfaces across address groups and counts")]
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     use d::WorkFilter;
+    let mut views = f::PageViews::new();
+    let mut page = None;
     for (address, current) in [
         (Address::Home { project: f::PROJECT }, "Home"),
         (Address::Inbox { filter: d::address::Filter::ALL }, "Needs you"),
@@ -506,7 +501,13 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         (Address::ConnectModel { way: None }, "Deployment"),
         (Address::ConnectForge { forge: None }, "Deployment"),
     ] {
-        let (mut root, watch, _, _) = f::root_at_with_needs(address.clone(), &f::domain_limits());
+        let (mut root, watch) = match page.take() {
+            Some(root) => (f::next_page(root, address.clone()), Token::new(0)),
+            None => {
+                let (root, watch, ..) = f::root_at_with_needs(address.clone(), &f::domain_limits());
+                (root, watch)
+            }
+        };
         let me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
         f::deliver_me(&mut root, watch, me);
         let team = current == "Team";
@@ -518,7 +519,8 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         if team {
             with_people(&mut root, 2);
         }
-        for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+        for browser in [false, true] {
+            let mut view = views.page(&root, browser);
             assert_eq!(skein_ui::outline::check(view.tree()), None, "{address:?}");
             assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Banner));
             let rail = styled(view.tree(), look::RAIL);
@@ -610,11 +612,14 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Some(d::Action::Pages(pages::Act::Terminal(pages::terminal::Act::Night)))
                 );
             }
+            views.recover(view);
         }
+        // The people document belongs to the Team rows, not later pages' fixtures.
+        page = if team { None } else { Some(root) };
     }
     let (mut root, _, _) = f::root_at(Address::Home { project: f::PROJECT }, &f::domain_limits());
     for night in [false, true] {
-        let mut view = f::browser_page_view(&root);
+        let mut view = views.page(&root, true);
         let parts = children(styled(view.tree(), look::RAIL));
         let switch = parts.last().unwrap();
         assert_eq!(switch.styles.as_slice(), [look::NIGHT_SWITCH]);
@@ -623,6 +628,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         let id = switch.id;
         let action = crate::act(&mut view, id, Act::Press).unwrap();
         f::root_event(&mut root, Event::Act { action });
+        views.recover(view);
     }
     assert!(!root.pages().look().night);
     let (mut root, watch, _, inbox) =
@@ -635,7 +641,8 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         me.needs_total = count;
         f::deliver_me(&mut root, watch, me);
         deliver_count(&mut root, inbox, inbox_count, cut);
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for browser in [false, true] {
+            let view = views.page(&root, browser);
             for style in [look::RAIL_NAV, look::TABBAR] {
                 if !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&style)) {
                     continue;
@@ -656,6 +663,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     assert_eq!(badges[0].text.get(0).unwrap().text.as_ref(), if cut { b"3+".as_slice() } else { b"3" });
                 }
             }
+            views.recover(view);
         }
     }
     for (address, current, asking) in [
@@ -737,7 +745,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             };
             d::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
         }
-        let mut view = f::browser_page_view(&root);
+        let mut view = views.page(&root, true);
         let tabs = styled(view.tree(), look::TABBAR);
         assert!(
             tabs[0].styles.as_slice().contains(&look::TABBAR_BEGINNING),
@@ -754,6 +762,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         assert_eq!(current_names(view.tree(), look::TABBAR), [current]);
         let deployment = links[2].id;
         assert_eq!(crate::href(&mut view, deployment).as_deref(), Some(b"/accounts".as_slice()));
+        views.recover(view);
     }
 }
 
@@ -882,7 +891,7 @@ fn settings_carries_both_forge_and_account_marks() {
             b"an account is limited".as_slice(),
         ),
         (
-            w::Connection::Stopped(w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::default() }).unwrap()),
+            w::Connection::Stopped(w::Stopped { reason: Box::default() }),
             AccountState::SignInAgain,
             look::NAV_NEEDS,
             b"a forge needs you".as_slice(),
@@ -1317,13 +1326,12 @@ fn repository_pages() -> [Address; 4] {
     ]
 }
 fn linked_rows() -> List<temper_client_protocol_wire::v1::ForgeRow> {
-    use temper_client_protocol_wire::v1 as w;
     let rows = super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made());
-    let mut row = rows.get(0).unwrap().clone().into_parts();
+    let mut row = rows.get(0).unwrap().clone();
     let adopted = project_rows(1, b"hello");
-    row.repositories = adopted.get(0).unwrap().clone().into_parts().repositories;
+    row.repositories = adopted.get(0).unwrap().clone().repositories;
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     rows
 }
 #[test]

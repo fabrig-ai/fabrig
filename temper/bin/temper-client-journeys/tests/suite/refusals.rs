@@ -277,7 +277,7 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
         for (index, report) in [
             Report::Local {
                 link: Some(skein_lib::Secret::new(
-                    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
+                    format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into(),
                 )),
             },
             Report::Stage(temper_client_tui::BoxStage::Running),

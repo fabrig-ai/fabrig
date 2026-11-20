@@ -2,8 +2,8 @@
 use super::*;
 
 const ORIGIN: &[u8] = b"http://127.0.0.1:4101";
-const FIRST: &[u8] = b"http://127.0.0.1:4101/jig/v1/sign-in/link?secret=first";
-const FRESH: &[u8] = b"http://127.0.0.1:4101/jig/v1/sign-in/link?secret=fresh";
+const FIRST: &[u8] = b"http://127.0.0.1:4101/sign-in?secret=first";
+const FRESH: &[u8] = b"http://127.0.0.1:4101/sign-in?secret=fresh";
 
 #[derive(Clone, Copy, Debug)]
 enum Kind {

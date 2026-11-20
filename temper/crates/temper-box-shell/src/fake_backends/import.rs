@@ -1,21 +1,17 @@
-//! Only current init output, with an explicit bundle, is importable in M1.
-use super::{Directories, Json, public, resolved};
+//! Only current init output, with an explicit bundle, is importable.
+use super::{Directories, public};
 use crate::directories::jig_directories;
-use std::{
-    num::NonZeroU16,
-    os::unix::ffi::OsStrExt,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
+use temper_config_shell::{FILE, File, Shape, render};
 
 pub(super) struct Source {
     pub marker: Box<[u8]>,
-    pub documents: Option<Json>,
+    pub file: Option<File>,
     pub bundle: Option<PathBuf>,
     pub bundle_limits: temper_service::limits::Clients,
 }
-const RESOURCES: &[(&str, bool, &str)] = &[("workers/0/secret", false, "worker.secret")];
 impl Source {
-    pub(super) fn read(dirs: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Self, String> {
+    pub(super) fn read(dirs: &Directories, _environment: &[crate::EnvironmentEntry]) -> Result<Self, String> {
         let config = crate::path(&dirs.config);
         let empty = match std::fs::read_dir(config) {
             Ok(mut entries) => entries.next().transpose().map_err(|why| why.to_string())?.is_none(),
@@ -28,101 +24,53 @@ impl Source {
             marker.extend_from_slice(b"empty\n");
             return Ok(Self {
                 marker: marker.into(),
-                documents: None,
+                file: None,
                 bundle: None,
                 bundle_limits: temper_service::limits::stock().clients,
             });
         }
-        let temper_bytes = public(&dirs.document())?;
-        let mut temper = Json::decode(&temper_bytes)?;
-        let mut expected = expected_documents(dirs, &temper, environment)?;
-        let bundle = match temper.at("application/clients/bundle")? {
-            Json::Null => None,
-            Json::String(path) => Some(resolved(config, path)?),
-            Json::Object(_) | Json::Array(_) | Json::Number(_) | Json::Bool(_) => {
-                return Err("application/clients/bundle: expected a directory or null".into());
+        let read = temper_config_shell::read(dirs, Shape::Standalone).map_err(|why| why.to_string())?;
+        // Exact source bytes identify reuse; only the table's reader interprets them.
+        let source = public(&config.join(FILE))?;
+        let file = read.file;
+        let listen = file.listen.ok_or_else(|| format!("{FILE}: listen: expected init's listener"))?;
+        let webhook = file.webhooks.unwrap_or_else(|| {
+            ([127, 0, 0, 1], listen.port().checked_add(1).expect("the reader checked the default port")).into()
+        });
+        let port = |address: std::net::SocketAddr, key: &str| {
+            if address.ip() != std::net::Ipv4Addr::LOCALHOST {
+                return Err(format!("{FILE}: {key}: expected init's IPv4 loopback socket"));
             }
+            std::num::NonZeroU16::new(address.port())
+                .ok_or_else(|| format!("{FILE}: {key}: expected init's nonzero port"))
         };
-        // Bundle is an admitted public override. Its directory is checked before sandbox creation.
-        expected.set("application/clients/bundle", temper.at("application/clients/bundle")?.clone())?;
-        normalize_resources(dirs, &mut temper, &expected)?;
-        temper.same(&expected, "temper.json")?;
-        let checked = crate::setup::check(&temper.encode()?, &jig_directories(dirs))?;
-        marker.extend_from_slice(&skein_lib::sha256::digest(&temper_bytes));
-        Ok(Self { marker: marker.into(), documents: Some(temper), bundle, bundle_limits: checked.named.bundle_limits })
-    }
-    /// Rebase only public paths whose init-equivalence was checked above. Relative data paths
-    /// keep their spelling and resolve against D'; absolute spellings are made relative first.
-    pub(super) fn rebase(&self, _effective: &Directories) -> Result<Option<Box<[u8]>>, String> {
-        self.documents.as_ref().map(Json::encode).transpose()
-    }
-}
-fn expected_documents(
-    dirs: &Directories,
-    temper: &Json,
-    environment: &[crate::EnvironmentEntry],
-) -> Result<Json, String> {
-    let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    let git = temper_shell::lookup::find(environment, b"git");
-    let ports = ports(temper)?;
-    let login = temper
-        .string("engine/owners/0/subject")?
-        .strip_suffix(b"@localhost")
-        .ok_or("engine/owners/0/subject: expected init's LOGIN@localhost")?;
-    let generated = temper_init::files(
-        &temper_init::Facts {
-            sign_in: temper.at("engine/clients/provider")? != &Json::Null,
-            binary: binary.as_os_str().as_bytes(),
-            git: git.as_ref().map(|path| path.as_os_str().as_bytes()),
-            claude: None,
-            ports,
-            login: Some(login),
-        },
-        &temper_init::Directories { config: &dirs.config, data: &dirs.data },
-        &[0; 32],
-    )
-    .map_err(|why| format!("source init shape: {why:?}"))?;
-    documents(generated)
-}
-fn normalize_resources(dirs: &Directories, temper: &mut Json, expected: &Json) -> Result<(), String> {
-    for &(pointer, configuration, name) in RESOURCES {
-        equivalent(
-            temper,
-            expected,
-            pointer,
-            crate::path(if configuration { &dirs.config } else { &dirs.data }),
-            name,
-        )?;
-    }
-    Ok(())
-}
-
-fn equivalent(value: &mut Json, expected: &Json, pointer: &str, root: &Path, name: &str) -> Result<(), String> {
-    if resolved(root, value.string(pointer)?)? != resolved(root, name.as_bytes())? {
-        return Err(format!("{pointer}: only init's {name} resource is supported"));
-    }
-    value.set(pointer, expected.at(pointer)?.clone())
-}
-fn port(value: &Json, pointer: &str) -> Result<NonZeroU16, String> {
-    let socket = std::str::from_utf8(value.string(pointer)?)
-        .ok()
-        .and_then(|s| s.parse::<std::net::SocketAddr>().ok())
-        .filter(|addr| addr.ip() == std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST) && addr.port() != 0)
-        .ok_or_else(|| format!("{pointer}: expected init's IPv4 loopback socket"))?;
-    Ok(NonZeroU16::new(socket.port()).expect("nonzero checked"))
-}
-fn ports(value: &Json) -> Result<temper_init::Ports, String> {
-    Ok(temper_init::Ports {
-        clients: port(value, "application/clients/listener/socket")?,
-        webhooks: port(value, "application/webhooks/listener/socket")?,
-    })
-}
-fn documents(answer: temper_init::Answer) -> Result<Json, String> {
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { unreachable!("init document bytes") };
-            return Json::decode(&bytes);
+        let mut expected = crate::init::configuration(port(listen, "listen")?, port(webhook, "webhooks")?);
+        expected.internal.bundle.clone_from(&file.internal.bundle);
+        if file != expected {
+            let rendered = render(&file, Shape::Standalone);
+            let text = String::from_utf8_lossy(&rendered);
+            let keys = text
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                .map(|line| line.split_once('=').map_or(line, |(key, _)| key.trim()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(format!(
+                "{FILE}: only init's listen, webhooks and [internal] bundle are supported; source keys: {keys}"
+            ));
         }
+        let checked = crate::setup::check(&read.document, &jig_directories(dirs))?;
+        marker.extend_from_slice(&skein_lib::sha256::digest(&source));
+        Ok(Self {
+            marker: marker.into(),
+            bundle: file.internal.bundle.clone(),
+            file: Some(file),
+            bundle_limits: checked.named.bundle_limits,
+        })
     }
-    unreachable!("init temper document")
+    /// The file has no data paths: defaults resolve in the effective directories.
+    pub(super) fn rebase(&self, _effective: &Directories) -> Option<Box<[u8]>> {
+        self.file.as_ref().map(|file| render(file, Shape::Standalone))
+    }
 }

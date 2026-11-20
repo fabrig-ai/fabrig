@@ -235,7 +235,7 @@ impl CardWord {
 }
 #[must_use]
 pub fn say(words: &Words, phrase: CardWord, holes: &[Hole]) -> Box<[u8]> {
-    words.book.say(words.language, phrase.id(), holes).expect("checked temper card phrase").text
+    words.book().say(words.language, phrase.id(), holes).expect("checked temper card phrase").text
 }
 pub fn extend(text: u32, shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
     for word in ALL {

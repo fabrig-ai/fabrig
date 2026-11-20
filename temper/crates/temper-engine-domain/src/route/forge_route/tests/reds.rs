@@ -491,6 +491,9 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
         &mut domain,
         &env,
         forge::Stored::Landing(forge::LandingRow {
+            last_event: None,
+            turn_since: None,
+            waiting: None,
             flake_reruns: Box::new([]),
             room: None,
             job: None,
@@ -504,6 +507,7 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
                 branch: b"temper/8/g7".as_slice().into(),
                 preparation: 0,
                 stale_proofs: 0,
+                last_prepare: None,
                 members: Box::new([landing::Member {
                     round: None,
                     change: 20,
@@ -660,6 +664,7 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
             source: b"check".as_slice().into(),
             ids: Box::new([flake().key]),
             first: Box::new([]),
+            many: false,
         })
     );
     let subscription =

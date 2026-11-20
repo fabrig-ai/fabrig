@@ -500,7 +500,7 @@ fn outcome(io: &mut Io, listener: Id<Entity>, result: Result<Done, kernel::Error
         // A failed accept on Linux may carry the network error of the
         // connection it took (accept(2)): the next may do.
         Err(kernel::Error::Reset | kernel::Error::TimedOut | kernel::Error::Unreachable) => Outcome::Again,
-        Err(kernel::Error::NoBufferSpace | kernel::Error::Other(_)) => Outcome::Backoff,
+        Err(kernel::Error::NoBufferSpace | kernel::Error::Reach(_) | kernel::Error::Other(_)) => Outcome::Backoff,
         Err(kernel::Error::Cancelled) => Outcome::Cancelled,
         Err(
             kernel::Error::Refused

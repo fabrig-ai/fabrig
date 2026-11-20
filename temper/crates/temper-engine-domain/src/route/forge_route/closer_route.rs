@@ -303,6 +303,7 @@ fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8
             | Hold::Retargeted
             | Hold::Failed
             | Hold::Flake
+            | Hold::NoTest
             | Hold::Authority(_)
             | Hold::Questions,
         )
@@ -406,6 +407,7 @@ fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Sho
         | Refusal::Unproposable
         | Refusal::PersonRevision { .. }
         | Refusal::ResourceUnavailable
+        | Refusal::Unreported
         | Refusal::NotReady
         | Refusal::Unknown
         | Refusal::Busy

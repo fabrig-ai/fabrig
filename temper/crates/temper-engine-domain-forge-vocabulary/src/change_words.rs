@@ -335,11 +335,12 @@ pub fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], 
     let mut out = List::with_capacity(u32::try_from(room).ok()?);
     append(&mut out, opening);
     if let Some(result) = result {
+        let result = skein_lib::bytes::utf8_replaced(result);
         let prefix = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
         let remaining = usize::try_from(out.room()).ok()?;
         if prefix.len().checked_add(result.len().min(3))? <= remaining {
             append(&mut out, prefix);
-            let result = forge::text::fit(result, usize::try_from(out.room()).ok()?, b"...");
+            let result = forge::text::fit(&result, usize::try_from(out.room()).ok()?, b"...");
             append(&mut out, &result);
         }
     }
@@ -555,6 +556,24 @@ pub fn repair_flake(why: forge_change::Repair, failure: Option<&forge::LandingFa
     }
 }
 
+/// A no-test choice uses the same failure snapshot as its instruction.
+pub fn repair_no_test(why: forge_change::Repair, failure: Option<&forge::LandingFailure>) -> bool {
+    match why {
+        forge_change::Repair::Landing { .. } | forge_change::Repair::LandingAt { .. } => {
+            let Some(failure) = failure else { return false };
+            match &failure.report {
+                forge::ReceiptReport::Unset | forge::ReceiptReport::Unread => true,
+                forge::ReceiptReport::Tests(tests) => tests.is_empty(),
+                forge::ReceiptReport::Many { .. } => false,
+            }
+        }
+        forge_change::Repair::Ci
+        | forge_change::Repair::Semantic
+        | forge_change::Repair::Gate(_)
+        | forge_change::Repair::Review { .. } => false,
+    }
+}
+
 /// Required failure lines take room before the optional changes below a blamed unit.
 fn repair_failure_lines(
     why: forge_change::Repair,
@@ -574,6 +593,12 @@ fn repair_failure_lines(
             return None;
         }
         append(&mut words, REPAIR_FLAKE_LINE);
+    }
+    if repair_no_test(why, failure) {
+        if skein_lib::len_u64(REPAIR_NO_TEST_LINE.len()) > u64::from(words.room()) {
+            return None;
+        }
+        append(&mut words, REPAIR_NO_TEST_LINE);
     }
     let Some(failure) = failure else {
         let line = b"\nGate run: the landing no longer keeps its failure";
@@ -607,7 +632,7 @@ fn repair_failure_lines(
     for job in &failure.jobs {
         let line = skein_lib::bytes::concat(&[
             b"\nFailed job: ",
-            &job.name,
+            &skein_lib::bytes::utf8_replaced(&job.name),
             b": read_ci what=job commit=",
             &prefix,
             b" run=",
@@ -664,7 +689,13 @@ fn report_lines(report: &forge::ReceiptReport) -> List<Box<[u8]>> {
             for test in tests {
                 let profile = if test.fuzzy { b"fuzzy".as_slice() } else { b"focused".as_slice() };
                 lines
-                    .push(skein_lib::bytes::concat(&[b"\nFailed test: ", &test.key, b" (", profile, b")"]))
+                    .push(skein_lib::bytes::concat(&[
+                        b"\nFailed test: ",
+                        &skein_lib::bytes::utf8_replaced(&test.key),
+                        b" (",
+                        profile,
+                        b")",
+                    ]))
                     .expect("receipt tests bounded");
             }
         }
@@ -769,6 +800,11 @@ const REPAIR_FLAKE_LINE: &[u8] = b"\nFlake: if every failed test below is a flak
 flake finding names it, or it passes when run again at this head) and \
 nothing needs changing, finish with verdict 1, naming each test and how \
 you saw it pass; a person then releases the change to run its gate once \
+more.";
+
+const REPAIR_NO_TEST_LINE: &[u8] = b"\nNo test: if no test failed in the run below \
+and nothing needs changing, finish with verdict 2, saying what its \
+jobs show; a person then releases the change to run its gate once \
 more.";
 
 fn append(out: &mut List<u8>, bytes: &[u8]) {

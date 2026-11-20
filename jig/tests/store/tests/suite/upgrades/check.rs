@@ -152,7 +152,7 @@ fn first_manifest_counts_each_empty_kept_family() {
     world.owner_sets(patches::SETS);
     assert_eq!(world.open_switched(), Some(0));
     let first = manifest(&mut world, 1);
-    let counts: Vec<_> = first.counts.iter().map(|row| (row.family().to_vec(), row.before(), row.after())).collect();
+    let counts: Vec<_> = first.counts.iter().map(|row| (row.family.to_vec(), row.before, row.after)).collect();
     assert_eq!(
         counts,
         vec![
@@ -403,13 +403,25 @@ pub(crate) fn seal_and_switch(complete: &World) -> (u32, u32, u32) {
     (first, after_switch, rename)
 }
 
-pub(crate) fn a_check_cut_recovers(records: &patches::Records, cut: u32) -> bool {
+pub(crate) fn check_cuts(records: &patches::Records, cuts: Vec<u32>) -> Vec<bool> {
     let mut world = records.committed(SEED, patches::BASE);
     let before = patches::source(&mut world);
     world.owner_sets(patches::SETS);
     world.trace_writes();
-    world.cut_at(cut);
-    world.open_switched();
+    let records = records.clone();
+    let sweep = crate::sweep::Sweep::start(&mut world, cuts, move |world, cut| {
+        a_check_cut_recovers(world, &records, &before, cut)
+    });
+    world.open_switched().expect("uncut check and switch");
+    sweep.finish(&mut world)
+}
+
+fn a_check_cut_recovers(
+    world: &mut World,
+    records: &patches::Records,
+    before: &std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+    cut: u32,
+) -> bool {
     assert_eq!(world.operation_count(), cut, "check/switch cut reached");
     world.crash(SEED);
     // The build without the job opens either whole generation at equal levels.
@@ -418,23 +430,23 @@ pub(crate) fn a_check_cut_recovers(records: &patches::Records, cut: u32) -> bool
     if source_active {
         assert_eq!(world.open_switched(), Some(1), "cut {cut}");
         world.accept_recovery(1);
-        records.check_public(&mut world, &cut);
+        records.check_public(world, &cut);
         assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
     } else {
         assert!(world.open_switched().is_some(), "cut {cut}: {:?}", world.refusal());
         assert!(!world.pending);
-        records.check_public(&mut world, &cut);
+        records.check_public(world, &cut);
     }
-    patches::kept(&before, &patches::source(&mut world), &cut);
+    patches::kept(before, &patches::source(world), &cut);
     // Observe recovery before check commits the start's wires to serve secrets (protocol/store/records.md 3).
     if source_active {
-        records.check(&mut world, &cut);
+        records.check(world, &cut);
     }
     world.crash(SEED);
     world.owner_sets(patches::SETS);
     world.open_switched().expect("retry after cut");
-    patches::whole(&mut world);
-    records.check(&mut world, &cut);
+    patches::whole(world);
+    records.check(world, &cut);
     source_active
 }
 
@@ -453,14 +465,19 @@ fn cuts_at_the_seal_the_check_and_the_switch_recover_whole_maps() {
     );
     let mut source_opened = false;
     let mut switched = false;
-    for (why, cut) in [
+    let cuts = [
         ("seal sync", seal_sync),
         ("check read", check_read),
         ("switch rename", rename),
         ("past switch sync", after_switch),
-    ] {
+    ]
+    .into_iter()
+    .map(|(why, cut)| {
         eprintln!("{why}: {cut}");
-        let source_active = a_check_cut_recovers(&records, cut);
+        cut
+    })
+    .collect();
+    for source_active in check_cuts(&records, cuts) {
         source_opened |= source_active;
         switched |= !source_active;
     }
@@ -490,7 +507,7 @@ fn admitted_manifest_bounds_hold_at_first_start() {
         );
         let first = manifest(&mut world, 1);
         assert_eq!(skein_lib::length::usize_of(first.counts.len()), families);
-        assert!(first.counts.iter().all(|row| row.before() == 0 && row.after() == 0));
+        assert!(first.counts.iter().all(|row| row.before == 0 && row.after == 0));
     }
 }
 

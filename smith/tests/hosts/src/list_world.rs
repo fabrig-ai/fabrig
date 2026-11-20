@@ -7,6 +7,7 @@ use skein_io::{self as io, kernel};
 use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
+use smith_channel::Record;
 use smith_channel::{self as wire, CEILINGS};
 use smith_host_domain::ListOutcome;
 use smith_host_protocol::{ListLaunch, ListRead};
@@ -103,11 +104,7 @@ impl Parent {
                 directory: b".".as_slice().into(),
             },
             endpoint,
-            wire::CredentialValue::new(
-                &CEILINGS,
-                wire::CredentialValueParts { scheme: wire::Scheme::Key, bytes: Secret::new(CREDENTIAL.into()) },
-            )
-            .expect("fixture credential"),
+            wire::CredentialValue { scheme: wire::Scheme::Key, bytes: Secret::new(CREDENTIAL.into()) },
             Time::ZERO.saturating_add(DEADLINE),
             &mut requests,
         )

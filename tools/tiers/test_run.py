@@ -174,6 +174,26 @@ class RunnerTests(unittest.TestCase):
                 self.assertIn("/fixture/wrap.log", result.stdout)
                 self.assertIn("Summary: fixture tests", result.stdout)
 
+    def test_build_only_preserves_prerequisites_without_run_flags(self):
+        for tree, tier in (("smith", "qa"), ("temper", "browser")):
+            with self.subTest(tree=tree, tier=tier):
+                result, run_calls = self.invoke(tree, tier)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                result, build_calls = self.invoke(tree, tier, "--", "--no-run")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(build_calls[:-1], run_calls[:-1])
+                self.assertEqual(build_calls[-1]['args'], [
+                    "cargo", "nextest", "run", "-p", "a-package", "-p", "z-package",
+                    "--profile", f"{tier}-{tree}", "--no-run"])
+                if tree == "temper":
+                    self.assertEqual([call['name'] for call in build_calls], [
+                        "cargo", "df", "wrap", "df", "wrap", "skein-ui-bundle",
+                        "df", "wrap", "df", "wrap", "df", "wrap"])
+                    self.assertEqual(build_calls[7]['args'], [
+                        "temper/scripts/bundle.sh", "--playground", str(self.target / "temper-playground")])
+                    self.assertEqual(build_calls[9]['args'], [
+                        "cargo", "build", "-p", "temper-box", "--bin", "temper-box"])
+
     def test_qa_temper_has_native_prerequisites_without_bundle(self):
         result, calls = self.invoke("temper", "qa")
         self.assertEqual(result.returncode, 0, result.stderr)

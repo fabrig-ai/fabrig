@@ -40,7 +40,7 @@ fn check(fields: Vec<Vec<u8>>) {
         limits: Limits { public_calls: 0, calls: 1, streams: 1, body: 1, read: 1, send: 1, event: 1 },
     };
     let mut mount = Mount::new(
-        Settings { prefix: b"/jig".as_slice().into(), max_age: 1, public: Some(PUBLIC.into()) },
+        Settings { prefix: b"/jig".as_slice().into(), max_age: 1, page: None, public: Some(PUBLIC.into()) },
         &env.limits,
     );
     mount.down(

@@ -592,7 +592,10 @@ fn escaped_calls_at_the_input_edge_and_one_over_complete_beside_a_normal_call() 
                 assert_eq!(*bytes, skein_lib::len_u64(arguments.len()));
                 let mut next = input(provider, 2);
                 next.prompt.messages = Box::new([Message { role: Role::Assistant, content: answer.content.clone() }]);
-                assert_eq!(client::Client::prepare(next, &limits()).err(), Some(skein_llm::Error::Invalid));
+                assert_eq!(
+                    client::Client::prepare(next, &limits()).err(),
+                    Some(skein_llm::Error::Invalid { cause: skein_llm::Invalid::Outcome })
+                );
             } else {
                 let Block::ToolCall { arguments: actual, .. } = &answer.content[0] else {
                     panic!("exact edge is a call")
@@ -624,7 +627,10 @@ fn scripted_provider_output_cuts_complete_and_are_refused_in_history() {
         assert_eq!(arguments.as_ref(), br#"{ ""#);
         let mut next = input(provider, 2);
         next.prompt.messages = Box::new([Message { role: Role::Assistant, content: answer.content.clone() }]);
-        assert_eq!(client::Client::prepare(next, &limits()).err(), Some(skein_llm::Error::Invalid));
+        assert_eq!(
+            client::Client::prepare(next, &limits()).err(),
+            Some(skein_llm::Error::Invalid { cause: skein_llm::Invalid::Outcome })
+        );
     }
 }
 
@@ -934,7 +940,10 @@ fn endpoint_affinity_headers_are_reserved_for_both_dialects() {
             let mut input = input(provider, 171);
             input.endpoint.headers =
                 Box::new([skein_http::Header { name: name.into(), value: b"override".as_slice().into() }]);
-            assert!(matches!(client::Client::prepare(input, &limits()), Err(skein_llm::Error::Invalid)));
+            assert!(matches!(
+                client::Client::prepare(input, &limits()),
+                Err(skein_llm::Error::Invalid { cause: skein_llm::Invalid::Header })
+            ));
         }
     }
 }

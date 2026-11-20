@@ -52,6 +52,7 @@ pub(crate) fn launch(spawn: &Spawn) -> Spawn {
     let root = std::fs::read_link(format!("/proc/self/fd/{}", spawn.root.raw())).expect("fake launch root");
     let directory = root.join(std::ffi::OsStr::from_bytes(&spawn.dir));
     Spawn {
+        reach: None,
         program: spawn.program.clone(),
         args: spawn.args.clone(),
         env: spawn.env.clone(),

@@ -9,8 +9,8 @@
 
 use crate::Limits;
 use crate::{
-    Drawing, EntryKind, Fraction, Node, NodeId, Region, Role, Shortcut, Sort, Source, Spans, State, Style, TextRun,
-    Tree, Value,
+    Drawing, EntryKind, Fraction, MenuButton, Node, NodeId, Region, Role, Shortcut, Sort, Source, Spans, State, Style,
+    TextRun, Tree, Value,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Stack};
@@ -28,6 +28,7 @@ pub struct Attribute {
     pub description: Option<Box<[u8]>>,
     pub placeholder: Option<Box<[u8]>>,
     pub hint: Option<Box<[u8]>>,
+    pub button: Option<MenuButton>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub end_request: Option<u64>,
@@ -57,6 +58,7 @@ impl Attribute {
             description: node.description.clone(),
             placeholder: node.placeholder.clone(),
             hint: node.hint.clone(),
+            button: node.button.clone(),
             entry: node.entry,
             focus: node.focus,
             end_request: node.end_request,
@@ -289,6 +291,7 @@ fn attributes(old: &Node, new: &Node, out: &mut Queue<Patch>) {
         || old.description != new.description
         || old.placeholder != new.placeholder
         || old.hint != new.hint
+        || old.button != new.button
         || old.entry != new.entry
         || old.focus != new.focus
         || old.end_request != new.end_request

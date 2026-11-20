@@ -76,6 +76,7 @@ fn result(world: &mut World, failed: bool, passed: bool) {
         cancelled: false,
         no_change: false,
         flake: false,
+        no_test: false,
         words: b"delegate result".as_slice().into(),
     });
 }

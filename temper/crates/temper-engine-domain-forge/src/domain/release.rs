@@ -283,6 +283,7 @@ fn outputs(
             | Request::CancelFollow { .. }
             | Request::TierRun { .. }
             | Request::FileRedFinding { .. }
+            | Request::FileVerdict { .. }
             | Request::TierDecision { .. }
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)
@@ -291,6 +292,7 @@ fn outputs(
             | Request::BoxGroup { .. }
             | Request::BoxRemove { .. }
             | Request::LandingNews { .. }
+            | Request::LandingReady { .. }
             | Request::LandingDecision { .. }
             | Request::Settled { .. }
             | Request::Bound { .. }
@@ -348,6 +350,8 @@ fn outputs(
             | Request::Read { .. }
             | Request::RestartDone { .. }
             | Request::Replace { .. }
+            | Request::LandingUnmade { .. }
+            | Request::HoldDropped { .. }
             | Request::LinkNoted { .. }) => emit(out, other),
         }
     }

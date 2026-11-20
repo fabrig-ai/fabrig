@@ -14,6 +14,7 @@ pub fn one_repository() -> wire::Workspace {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             },
             identity: 1,
             account: None,
@@ -101,22 +102,14 @@ pub fn repository_assignment() -> jig_protocol_worker_link::Request {
 }
 pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_protocol_worker_link::Request {
     let value = identity(token);
-    let record = temper_protocol_worker_wire::v1::Identity::new(
-        &super::wire_limits(),
-        temper_protocol_worker_wire::v1::IdentityParts {
-            kind: temper_protocol_worker_wire::v1::Kind::Forgejo(
-                temper_protocol_worker_wire::v1::Token::new(
-                    &super::wire_limits(),
-                    temper_protocol_worker_wire::v1::TokenParts { token: value.token },
-                )
-                .expect("token record"),
-            ),
-            login: value.login,
-            name: value.name,
-            email: value.email,
-        },
-    )
-    .expect("identity record");
+    let record = temper_protocol_worker_wire::v1::Identity {
+        kind: temper_protocol_worker_wire::v1::Kind::Forgejo(temper_protocol_worker_wire::v1::Token {
+            token: value.token,
+        }),
+        login: value.login,
+        name: value.name,
+        email: value.email,
+    };
     jig_protocol_worker_link::Request::Value {
         account: number,
         generation,
@@ -213,46 +206,29 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let mut repositories = List::with_capacity(1);
     if repository {
         repositories
-            .push(
-                v1::Repository::new(
-                    &super::wire_limits(),
-                    v1::RepositoryParts {
-                        save: Some(b"temper/saved-7".as_slice().into()),
-                        git: None,
-                        tag: (1_u64 << 32) | 3,
-                        name: b"app".as_slice().into(),
-                        remote: b"https://forge.example/acme/app.git".as_slice().into(),
-                        start: v1::Start::Base(
-                            v1::Branch::new(
-                                &super::wire_limits(),
-                                v1::BranchParts { branch: b"main".as_slice().into() },
-                            )
-                            .unwrap(),
-                        ),
-                        access: v1::Access::Writable(
-                            v1::Writable::new(
-                                &super::wire_limits(),
-                                v1::WritableParts {
-                                    push: b"temper/task-7".as_slice().into(),
-                                    expected: None,
-                                    landing: None,
-                                    delivered: None,
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        identity: 1,
-                        account: None,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(v1::Repository {
+                save: Some(b"temper/saved-7".as_slice().into()),
+                git: None,
+                tag: (1_u64 << 32) | 3,
+                name: b"app".as_slice().into(),
+                remote: b"https://forge.example/acme/app.git".as_slice().into(),
+                start: v1::Start::Base(v1::Branch { branch: b"main".as_slice().into() }),
+                access: v1::Access::Writable(v1::Writable {
+                    push: b"temper/task-7".as_slice().into(),
+                    expected: None,
+                    landing: None,
+                    delivered: None,
+                    pin: None,
+                }),
+                identity: 1,
+                account: None,
+            })
             .unwrap();
     }
     let parts = if repository {
         Box::from([jig_protocol_worker_wire::Part {
             token: Token::new(1),
-            bytes: payload::items(&v1::Items::new(&super::wire_limits(), v1::ItemsParts { repositories }).unwrap()),
+            bytes: payload::items(&v1::Items { repositories }),
         }])
     } else {
         Box::default()

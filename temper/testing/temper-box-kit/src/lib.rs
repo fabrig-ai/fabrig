@@ -104,13 +104,63 @@ pub fn own_listeners(document: &mut serde_json::Value) {
     replace(document, &moves);
 }
 
-/// Move an initialized deployment's listeners and its agent's matching demo endpoint together.
+/// Move both initialized listeners; their defaults continue to resolve at startup.
 pub fn own_listener_files(directory: &Path) {
-    let path = directory.join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("init document")).expect("JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let read = read_start(&path, temper_config_shell::Shape::Standalone);
+    let mut document = serde_json::from_slice(&read.document).expect("start document");
     own_listeners(&mut document);
-    write_private(&path, &serde_json::to_vec(&document).expect("deployment JSON"));
+    let listener = |key: &str| {
+        document["application"][key]["listener"]["socket"].as_str().expect("socket").parse().expect("address")
+    };
+    let mut kept = read.file;
+    kept.listen = Some(listener("clients"));
+    kept.webhooks = Some(listener("webhooks"));
+    if kept.public.is_some() {
+        kept.public = document["application"]["clients"]["public"].as_str().map(str::to_owned);
+    }
+    write_file(&path, &kept, temper_config_shell::Shape::Standalone);
+}
+
+/// Read retained file values without losing explicit keys or their absence.
+#[must_use]
+pub fn read_file(path: &Path, shape: temper_config_shell::Shape) -> temper_config_shell::File {
+    read_start(path, shape).file
+}
+
+#[must_use]
+pub fn read_start(path: &Path, shape: temper_config_shell::Shape) -> temper_config_shell::Read {
+    let root = path.parent().expect("configuration directory");
+    let facts = temper_config_shell::Facts {
+        login: "ada".into(),
+        hostname: "fixture".into(),
+        provider_key: temper_agent_fixtures::data(root).join("provider.key").is_file(),
+    };
+    temper_config_shell::parse(&fs::read(path).expect("configuration file"), shape, &facts).expect("configuration")
+}
+
+/// A mixed-shape harness selects the table that accepts its explicit file keys.
+#[must_use]
+pub fn read_file_shape(path: &Path) -> temper_config_shell::Shape {
+    use temper_config_shell::Shape;
+    let bytes = fs::read(path).expect("configuration file");
+    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+    for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+        if temper_config_shell::parse(&bytes, shape, &facts).is_ok() {
+            return shape;
+        }
+    }
+    panic!("fixture file matches no deployment shape: {}", path.display());
+}
+
+pub fn write_file(path: &Path, file: &temper_config_shell::File, shape: temper_config_shell::Shape) {
+    write_private(path, &temper_config_shell::render(file, shape));
+}
+
+/// The start's document stays JSON only in memory (configuration/file.md, 4).
+#[must_use]
+pub fn start_document(path: &Path, shape: temper_config_shell::Shape) -> serde_json::Value {
+    serde_json::from_slice(&read_start(path, shape).document).expect("start document")
 }
 
 pub enum Forge<'a> {
@@ -118,18 +168,7 @@ pub enum Forge<'a> {
     Throwaway { forgejo: &'a Path, api: std::net::SocketAddr, git: String },
 }
 pub fn write_private(path: &Path, bytes: &[u8]) {
-    let mut rendered = None;
-    if path.file_name().is_some_and(|name| name == "temper.json")
-        && let Ok(mut document) = serde_json::from_slice::<serde_json::Value>(bytes)
-        && document.get("world_providers").is_some()
-    {
-        let root = path.parent().expect("fixture root");
-        let data =
-            if root.ends_with("config") { root.parent().expect("fixture parent").join("data") } else { root.into() };
-        temper_agent_fixtures::providers::keep(&mut document, &data);
-        rendered = Some(serde_json::to_vec(&document).expect("deployment JSON"));
-    }
-    fs::write(path, rendered.as_deref().unwrap_or(bytes)).expect("fixture file");
+    fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
 #[expect(clippy::must_use_candidate, reason = "fixture writers are also called just for their file effects")]
@@ -157,7 +196,12 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::
     temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     let composed = temper_agent_fixtures::at(&value, directory);
     configuration::turn_bounds::apply(&mut value, configuration::turn_bounds::turn_body(&composed));
-    write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
+    let mut file = configuration::file();
+    file.listen = value["application"]["clients"]["listener"]["socket"].as_str().map(|v| v.parse().expect("clients"));
+    file.webhooks =
+        value["application"]["webhooks"]["listener"]["socket"].as_str().map(|v| v.parse().expect("webhooks"));
+    write_file(&directory.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
     value.agent_bounds(&temper_agent_fixtures::prepared(directory).agent);
     limit_settings::remember(directory, &value);
     value
@@ -301,7 +345,9 @@ fn is_printed_link(line: &[u8]) -> bool {
     let Some(line) = line.strip_suffix(b"\n") else { return false };
     let Ok(line) = std::str::from_utf8(line) else { return false };
     (line.starts_with("http://") || line.starts_with("https://"))
-        && line.split_once("/jig/v1/sign-in/link?secret=").is_some_and(|(_, secret)| !secret.is_empty())
+        && ["/sign-in?secret=", "/jig/v1/sign-in/link?secret="]
+            .iter()
+            .any(|path| line.split_once(path).is_some_and(|(_, secret)| !secret.is_empty()))
         && !line.bytes().any(|byte| byte.is_ascii_whitespace())
 }
 /// A box's stdout holds its links alone, one to a line (temper/docs/design/testing/process-tier.md).
@@ -334,7 +380,7 @@ pub fn assert_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) {
 
 pub mod printed_link_tests {
     pub fn printed_links_count_and_fail_without_disclosing_secrets() {
-        const LINK: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private";
+        const LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=fixture-private";
         let one = [LINK, b"\n"].concat();
         let two = [one.as_slice(), one.as_slice()].concat();
         let mixed = [one.as_slice(), b"not a link\n"].concat();
@@ -342,6 +388,14 @@ pub mod printed_link_tests {
         let unfinished = [one.as_slice(), LINK].concat();
         for (name, stdout, stderr, count, valid, diagnostic) in [
             ("one", one.as_slice(), b"ready\n".as_slice(), 1, true, "ready\n"),
+            (
+                "route",
+                b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private\n",
+                b"ready\n",
+                1,
+                true,
+                "ready\n",
+            ),
             ("two", two.as_slice(), b"Restarting\n", 2, false, "Restarting\n"),
             ("none", b"", b"serve exited\n", 0, false, "serve exited\n"),
             (
@@ -813,7 +867,6 @@ const HINTED_SETTLE_MS: u64 = 3000;
 /// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,
 /// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
-    let path = directory.join("temper.json");
     let mut value = limit_settings::configuration(directory);
     for name in [
         "forge.client.poll_ms",
@@ -826,7 +879,6 @@ pub fn raise_paces(directory: &Path) {
     }
     value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
     value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
-    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
     limit_settings::remember(directory, &value);
 }
 #[must_use]

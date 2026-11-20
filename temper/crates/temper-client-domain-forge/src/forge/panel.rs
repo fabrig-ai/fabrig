@@ -5,6 +5,7 @@ use crate::delegation::State as DelegationState;
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Watchable, Why, contract as c};
 use skein_lib::Queue;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,10 +97,8 @@ pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>,
         side.serial = side.serial.checked_add(1).expect("forge handles fit");
         let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
         let limits = wire_limits(&limits).expect("checked forge limits");
-        let change =
-            w::ChangeSubject::new(&limits, w::ChangeSubjectParts { task: subject.task }).expect("change subject fits");
-        let record =
-            w::Watching::new(&limits, w::WatchingParts { watch: w::Watch::Change(change) }).expect("change watch fits");
+        let change = w::ChangeSubject { task: subject.task };
+        let record = w::Watching { watch: w::Watch::Change(change) };
         out.push(Request::Client {
             asked: jig_client::Event::Watch {
                 handle,
@@ -110,7 +109,7 @@ pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>,
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::watching(&record),
+                        bytes: record.encode(&limits).expect("change watch fits"),
                     },
                 },
             },
@@ -145,7 +144,7 @@ pub(super) fn watched(side: &mut Side, handle: Handle, watched: Watched, out: &m
     }
     let (state, retry) = match watched {
         Watched::Waiting => return,
-        Watched::Delivered(Some(record)) if record.task() == panel.subject.task => (State::Shown(record), false),
+        Watched::Delivered(Some(record)) if record.task == panel.subject.task => (State::Shown(record), false),
         Watched::Delivered(_) => {
             panel.handle = None;
             out.push(Request::Client { asked: jig_client::Event::Unwatch { handle } });

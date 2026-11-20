@@ -1,6 +1,7 @@
 # deployment: status
 
-2026-11-15. Where the tree's code lags or departs from [deployment.md](deployment.md).
+2026-11-19. Where the tree's code lags or departs from [deployment.md](deployment.md).
+
 
 - **Not yet:**  the native-queue position remains `README.status.md`, 2.1.
   the panel's gate amendment remains `README.status.md`, 2.3.  the counted approval and person-task cards remain `README.status.md`, 4.
@@ -24,4 +25,4 @@
   remains the way back; the panel alone does not repair admission.
 
 
-- **Not yet:** the whole document: The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for .
+- **Departs:** the whole document, Connecting a forge: the panel "A Forgejo elsewhere" gives its numbered steps, each with its Copy, as `temper ctl DIR forge connect forgejo-admin` and `forge connect forgejo` commands (`../ctl/areas.md`; `temper/docs/help/forgejo.md`), as its admin and with its bot's tokens, with no restart: `temper.toml` holds no forges (`../../protocol/configuration/file.md`, 3). The mockup's panel (`../web/mockups/pages.js`) still shows the document's members.

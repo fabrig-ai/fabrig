@@ -167,6 +167,15 @@ Offered where the run's charter names the control family and its authority holds
   - `wake`: object. the `wake` form, under Shared forms.
   - `llm`: object. main {model, effort} names the model, effort optional; subagents and account are optional. the `llm` form, under Shared forms.
 
+## mark_read
+
+Record words your task keeps unread, once a spec or a note you wrote holds them.
+
+A write.
+Offered where the run's charter names the message family and its authority holds it.
+
+- `messages`: array; required. Unrecorded message numbers.
+
 ## message
 
 Send words, a question or an answer to a referenced task; its run reads it next turn.
@@ -288,7 +297,7 @@ Offered where the run's charter names the decide family and its authority holds 
 
 ## note
 
-Write or revise a note, whole or by lines, at the revision read.
+Write or revise a note, whole or by lines; read_docs host-tools.
 
 A write.
 Offered where the run's charter names the note family and its authority holds it.
@@ -296,6 +305,7 @@ Offered where the run's charter names the note family and its authority holds it
 - `scope`: object; required. {kind}: deployment; project:+project; goal:+project,goal; resources:+project,connector,pattern.
 - `description`: text; required. What a search reads.
 - `body`: text; required. New text or range replacement.
+- `records`: array. Words recorded once written: message numbers.
 - `references`: array. Task numbers.
 - `name`: integer >=1. Revise: name; omit: new.
 - `recalled`: integer >=1. Revision read.

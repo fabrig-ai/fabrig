@@ -148,7 +148,7 @@ fn decode_type(ty: &Type, schema: &Context<'_>, bound_name: &str, path: &str, de
                 ),
             };
             format!(
-                "{{ let count = match skein_codec::read_count(reader, limits.{bound_name}.min(CEILINGS.{bound_name})) {{ Ok(count) => count, Err(reason) => return Err(Problem {{ path: Path::{path}, reason }}), }}; {precheck}let mut {list_name} = List::with_capacity(count); for _index in 0_u32..count {{ let item = {item_expr}; {list_name}.push(item).expect(\"count within capacity\"); }} {list_name} }}"
+                "{{ let count = match skein_codec::read_count(reader, limits.{bound_name}.min(CEILINGS.{bound_name})) {{ Ok(count) => count, Err(reason) => return Err(Problem {{ path: Path::{path}, reason }}), }}; {precheck}let mut {list_name} = List::allocated(count); for _index in 0_u32..count {{ let item = {item_expr}; {list_name}.push(item).expect(\"count within capacity\"); }} {list_name} }}"
             )
         }
         Type::Option(item) => {

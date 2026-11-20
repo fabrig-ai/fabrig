@@ -26,9 +26,8 @@ pub use table::TABLE;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
-use fake_backends::json;
 pub mod forge;
-use temper_engine_shell::{address, forge_sign_in, login_passwd};
+use temper_engine_shell::{address, forge_sign_in};
 use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
 mod init;
@@ -43,7 +42,7 @@ pub mod setup;
 pub use serve::{operations_in_with_limits, prepare_in_with_inputs_and_limits, prepare_in_with_limits};
 pub use served::Service;
 mod upgrade;
-use json::CONFIG_BYTES;
+const CONFIG_BYTES: u32 = 1 << 20;
 #[cfg(test)]
 pub(crate) use lines as host;
 use temper_shell::directories::{errno, unread};
@@ -384,7 +383,7 @@ pub fn run(
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
         Command::Serve { directories, boxed, record, fixed_start } => {
-            serve::run("temper", environment, working, &directories, boxed, record, fixed_start.as_ref())?
+            serve::run("temper-box", environment, working, &directories, boxed, record, fixed_start.as_ref())?
         }
         Command::BoxFakeBackends { directories, bundle, scripts, strict, fixed_start, echo, front, record } => {
             fake_backends::run(
@@ -414,7 +413,7 @@ pub fn run(
         }
         Command::ProgramLogin { directories, name } => {
             return program_login::run(&directories, &name, environment)
-                .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
+                .map_err(|why| temper_service_shell::configuration::login_problems("temper-box program-login", &why));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
@@ -424,7 +423,7 @@ pub fn run(
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
             return forge::command(
-                "temper",
+                "temper-box",
                 forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
         }
@@ -468,7 +467,16 @@ fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(Service, Box<[u8]>), String> {
-    serve::prepare_with_store("temper", environment, working, directories, bytes, owned, true)
+    serve::prepare_with_store(
+        "temper",
+        environment,
+        working,
+        directories,
+        bytes,
+        owned,
+        true,
+        &temper_config_shell::Programs::default(),
+    )
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -537,7 +545,7 @@ pub fn operations_in_with(
 }
 /// The effective user's login (protocol/setup/init.md, 2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
-    if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
+    skein_shell::login(user)
 }
 
 #[cfg(test)]

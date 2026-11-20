@@ -208,7 +208,7 @@ impl MilestoneRead {
             Told::Page { handle, page } if *handle == self.totals_read => {
                 self.totals_at = self.reading_totals.take();
                 match forge::milestones::answer(page, &limits.forge) {
-                    Some(w::MilestoneResult::Totals(totals)) if totals.task() == self.task => {
+                    Some(w::MilestoneResult::Totals(totals)) if totals.task == self.task => {
                         self.totals = Some(totals);
                     }
                     Some(w::MilestoneResult::NotMilestone) => self.totals = None,
@@ -592,7 +592,7 @@ impl Milestones {
             return milestone;
         }
         if let Some(part) = parts::goal(line) {
-            return part.into_parts().milestone;
+            return part.milestone;
         }
         for milestone in &self.drawn {
             for goal in &milestone.goals {

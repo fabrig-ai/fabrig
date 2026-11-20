@@ -1,83 +1,53 @@
 //! Completed calls show the worker's job start and end on the person's page.
 use super::*;
+use smith_transcript::Record;
 
 use jig_client_test_domain::DIALECT;
 use skein_fake_person::Target;
 use smith_transcript::v7 as source;
 
 fn call(id: &[u8], name: &[u8]) -> source::Block {
-    source::Block::Call(
-        source::Call::new(
-            &source::CEILINGS,
-            source::CallParts { id: id.into(), name: name.into(), input: b"{}".as_slice().into(), replay: None },
-        )
-        .expect("job story record fits the transcript schema"),
-    )
+    source::Block::Call(source::Call { id: id.into(), name: name.into(), input: b"{}".as_slice().into(), replay: None })
 }
 
 fn result(id: &[u8], value: source::Outcome) -> source::Block {
-    let returned = source::Returned::Outcome(
-        source::OwnedOutcome::new(&source::CEILINGS, source::OwnedOutcomeParts { value })
-            .expect("job story record fits the transcript schema"),
-    );
-    source::Block::Result(
-        source::ToolResult::new(&source::CEILINGS, source::ToolResultParts { id: id.into(), returned })
-            .expect("job story record fits the transcript schema"),
-    )
+    let returned = source::Returned::Outcome(source::OwnedOutcome { value });
+    source::Block::Result(source::ToolResult { id: id.into(), returned })
 }
 
 fn turn() -> Box<[u8]> {
     let limits = source::CEILINGS;
     let (ended, running) = job_outcomes(&limits);
     let messages = crate::test::list([
-        source::Message::new(
-            &limits,
-            source::MessageParts {
-                role: source::Role::Assistant,
-                blocks: crate::test::list([call(b"read-job", b"job"), call(b"start-job", b"shell")]),
-            },
-        )
-        .expect("job story record fits the transcript schema"),
-        source::Message::new(
-            &limits,
-            source::MessageParts {
-                role: source::Role::User,
-                blocks: crate::test::list([result(b"read-job", ended), result(b"start-job", running)]),
-            },
-        )
-        .expect("job story record fits the transcript schema"),
+        source::Message {
+            role: source::Role::Assistant,
+            blocks: crate::test::list([call(b"read-job", b"job"), call(b"start-job", b"shell")]),
+        },
+        source::Message {
+            role: source::Role::User,
+            blocks: crate::test::list([result(b"read-job", ended), result(b"start-job", running)]),
+        },
     ]);
-    let usage = source::Usage::new(
-        &limits,
-        source::UsageParts {
-            input: Some(1),
-            output: Some(1),
-            cache_read: Some(0),
-            cache_write: Some(0),
-            reasoning: None,
-        },
-    )
-    .expect("job story record fits the transcript schema");
-    let value = source::Turn::new(
-        &limits,
-        source::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: source::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fixture".as_slice().into(),
-            dialect: DIALECT,
-            place: 1,
-            usage,
-            spent: 1,
-            jobs: 1,
-            messages,
-        },
-    )
-    .expect("job story record fits the transcript schema");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("writer holds the measured job turn");
+    let usage =
+        source::Usage { input: Some(1), output: Some(1), cache_read: Some(0), cache_write: Some(0), reasoning: None };
+    let value = source::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: source::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fixture".as_slice().into(),
+        dialect: DIALECT,
+        place: 1,
+        usage,
+        spent: 1,
+        jobs: 1,
+        messages,
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        value.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    value.write(&smith_transcript::CEILINGS, &mut writer).expect("writer holds the measured job turn");
     writer.finish()
 }
 
@@ -120,44 +90,26 @@ fn a_job_reads_as_its_calls_outcome() {
     assert!(outcome.judged.0 > 0);
 }
 
-fn job_outcomes(limits: &source::Limits) -> (source::Outcome, source::Outcome) {
-    let exit = source::Exit::Code(
-        source::ExitCode::new(limits, source::ExitCodeParts { code: 0 })
-            .expect("job story record fits the transcript schema"),
-    );
-    let end = source::JobEnd::Ended(
-        source::JobExit::new(limits, source::JobExitParts { exit })
-            .expect("job story record fits the transcript schema"),
-    );
-    let ended = source::Outcome::Job(
-        source::JobRead::new(
-            limits,
-            source::JobReadParts {
-                job: 1,
-                head: Box::from([]),
-                last: Box::from([]),
-                dropped: 0,
-                output: source::BytesClamp::Within,
-                wait: source::TimeoutClamp::Within,
-                end,
-            },
-        )
-        .expect("job story record fits the transcript schema"),
-    );
-    let running = source::Outcome::Running(
-        source::CommandRunning::new(
-            limits,
-            source::CommandRunningParts {
-                job: 2,
-                head: Box::from([]),
-                last: Box::from([]),
-                dropped: 0,
-                timeout: source::TimeoutClamp::Within,
-                output: source::BytesClamp::Within,
-                after: source::TimeoutClamp::Within,
-            },
-        )
-        .expect("job story record fits the transcript schema"),
-    );
+fn job_outcomes(_limits: &source::Limits) -> (source::Outcome, source::Outcome) {
+    let exit = source::Exit::Code(source::ExitCode { code: 0 });
+    let end = source::JobEnd::Ended(source::JobExit { exit });
+    let ended = source::Outcome::Job(source::JobRead {
+        job: 1,
+        head: Box::from([]),
+        last: Box::from([]),
+        dropped: 0,
+        output: source::BytesClamp::Within,
+        wait: source::TimeoutClamp::Within,
+        end,
+    });
+    let running = source::Outcome::Running(source::CommandRunning {
+        job: 2,
+        head: Box::from([]),
+        last: Box::from([]),
+        dropped: 0,
+        timeout: source::TimeoutClamp::Within,
+        output: source::BytesClamp::Within,
+        after: source::TimeoutClamp::Within,
+    });
     (ended, running)
 }

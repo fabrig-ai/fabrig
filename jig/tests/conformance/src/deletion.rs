@@ -283,6 +283,7 @@ fn note_rows(world: &mut World) {
                 author: notes::Author::Task { task, attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     }));
     drain(world);

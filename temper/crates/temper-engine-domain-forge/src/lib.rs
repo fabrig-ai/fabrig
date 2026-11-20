@@ -30,8 +30,10 @@ mod landing_proofs;
 mod milestone_rows;
 mod readiness;
 mod room;
+mod settling;
 mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
+pub use settling::gates_settled;
 pub use temper_engine_domain_forge_vocabulary::boundary;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod brief;
@@ -81,7 +83,7 @@ pub use away::{
 pub use findings::{
     AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
     FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod dismissed;
@@ -145,6 +147,7 @@ use temper_engine_domain_forge_vocabulary::red;
 use temper_engine_domain_forge_vocabulary::result;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod reconcile;
+mod unmade;
 pub use refusal::branch_name;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::refusal;
@@ -193,6 +196,7 @@ pub use verification::LandingRed;
 pub use views::{
     APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, DependencyView, Document,
     FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingRound,
-    LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView, LandingsView, PrefixJudgement,
-    SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject, landings_subject,
+    LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView, LandingWait, LandingWaitFor,
+    LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject,
+    landings_subject,
 };

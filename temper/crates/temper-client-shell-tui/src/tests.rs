@@ -22,7 +22,6 @@ mod named;
 mod playground;
 #[path = "tests/refused.rs"]
 mod refused;
-pub(crate) use lending::terminal_document;
 
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
@@ -34,6 +33,7 @@ use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
+use smith_transcript::Record;
 use temper_client_domain::{
     self as root, Address, Place,
     pages::{
@@ -52,6 +52,30 @@ fn settings() -> Settings {
 
 fn host() -> Host {
     Host::new(&settings(), 7, Time::ZERO, Wall::EPOCH)
+}
+
+/// Fresh hosts sharing only the settings and words checked by the first host.
+struct Hosts {
+    settings: Settings,
+    host: Host,
+    first: bool,
+}
+impl Hosts {
+    fn new() -> Self {
+        let settings = settings();
+        let host = Host::new(&settings, 7, Time::ZERO, Wall::EPOCH);
+        Self { settings, host, first: true }
+    }
+
+    fn next(&mut self) -> &mut Host {
+        if self.first {
+            self.first = false;
+        } else {
+            let words = self.host.view.words().clone();
+            self.host = Host::with_checked_words(&self.settings, words, 7, Time::ZERO, Wall::EPOCH);
+        }
+        &mut self.host
+    }
 }
 
 #[test]
@@ -469,6 +493,7 @@ fn approval_is_asked_once_per_opening() {
 
 #[test]
 fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
+    let mut hosts = Hosts::new();
     for (address, code, tail, opens) in [
         ("127.0.0.1:8367", "WDJB-MJHT", "", true),
         ("127.0.0.1:9000", "WDJB-MJHT", "", true),
@@ -477,7 +502,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         ("127.0.0.1:8367", "WDJB-MJHT&next=http://x", "", false),
         ("127.0.0.1:8367", "WDJB-MJHT", "http://evil.example/", false),
     ] {
-        let mut host = host();
+        let host = hosts.next();
         let duties = host.report(Report::Start(Start {
             set_up: false,
             box_log: Box::default(),
@@ -495,7 +520,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
             credential: None,
         }));
         let exchange = ask(&duties);
-        let duties = reply(&mut host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
+        let duties = reply(host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
         let expected =
             opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
         assert_eq!(duties.open, expected, "{address} {code} {tail}");
@@ -508,6 +533,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
     use jig_client_protocol_wire as w;
+    let mut hosts = Hosts::new();
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -520,9 +546,9 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         w::ApprovalSignInAnswer::Waiting,
     ] {
         let waiting = answer == w::ApprovalSignInAnswer::Waiting;
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
-        let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
+        let duties = reply(host, exchange, approval_bytes(b"WDJBMJHT", b""));
         let take = duties
             .asked
             .iter()
@@ -536,7 +562,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             .expect("approval take");
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("test length"));
         answer.encode(&mut writer).expect("take answer");
-        reply(&mut host, take, writer.finish());
+        reply(host, take, writer.finish());
         host.frame();
         let duties = host.report(Report::Key(Key::Enter));
         if waiting {
@@ -552,7 +578,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             ask(&host.report(Report::Key(Key::Enter)));
         } else {
             let exchange = ask(&duties);
-            let duties = reply(&mut host, exchange, approval_bytes(b"BCDFGHJK", b""));
+            let duties = reply(host, exchange, approval_bytes(b"BCDFGHJK", b""));
             assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/terminal?code=BCDF-GHJK".as_slice()));
             assert!(!host.state().pasted());
         }
@@ -563,12 +589,12 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         Some(w::ApprovalAskAnswer::Busy),
         None,
     ] {
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
         if let Some(answer) = answer {
             let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
             answer.encode(&mut writer).expect("answer");
-            reply(&mut host, exchange, writer.finish());
+            reply(host, exchange, writer.finish());
         } else {
             host.report(Report::Heard(jig_client::Event::Lost { exchange }));
         }
@@ -700,6 +726,10 @@ pub(crate) fn signed_in_answer() -> w::SignInAnswer {
 }
 
 fn local_link(address: &str, secret: &str) -> Secret {
+    Secret::new(format!("http://{address}/sign-in?secret={secret}").into_bytes().into())
+}
+
+fn route_link(address: &str, secret: &str) -> Secret {
     Secret::new(format!("http://{address}/jig/v1/sign-in/link?secret={secret}").into_bytes().into())
 }
 
@@ -743,8 +773,8 @@ struct LocalRow {
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
     use LocalWant::{Ask, Connecting, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
-    let found = || Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET)));
-    let fresh = || Found(Some(local_link("127.0.0.1:8367", FRESH_SECRET)));
+    let found = || Found(Some(route_link("127.0.0.1:8367", LOCAL_SECRET)));
+    let fresh = || Found(Some(route_link("127.0.0.1:8367", FRESH_SECRET)));
     let row = |name, steps| LocalRow { front: false, name, local: true, note: None, held: false, first: Read, steps };
     let mut rows = vec![
         row("fresh", vec![]),
@@ -760,17 +790,12 @@ fn the_engines_link_signs_in_and_falls_back() {
         },
         row("no file", vec![(Found(None), Ask)]),
         row("garbage", vec![(Found(Some(Secret::new(b"garbage".as_slice().into()))), Ask)]),
-        row("other address", vec![(Found(Some(local_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
+        row("other address", vec![(Found(Some(route_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
         row("signed in", vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Until)]),
         row(
             "page signed in",
             vec![
-                (
-                    Found(Some(Secret::new(
-                        format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into(),
-                    ))),
-                    Send,
-                ),
+                (Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET))), Send),
                 (Answer(signed_in_answer()), Keep),
                 (Connect, Until),
             ],
@@ -1066,7 +1091,7 @@ fn local_row(settings: &Settings, row: LocalRow, failures: &mut Vec<String>) {
             LocalAct::Approve => reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b"")),
             LocalAct::Paste => {
                 host.frame();
-                host.report(Report::Key(Key::Paste(local_link("127.0.0.1:8367", LOCAL_SECRET).into_exposed())));
+                host.report(Report::Key(Key::Paste(route_link("127.0.0.1:8367", LOCAL_SECRET).into_exposed())));
                 host.report(Report::Key(Key::Enter))
             }
             LocalAct::Connect => connect(&mut host),
@@ -2019,27 +2044,21 @@ fn reply_host_draft(draft: bool) -> Host {
         let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
-    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
-    let text = s::Block::Text(
-        s::Text::new(
-            &s::CEILINGS,
-            s::TextParts {
-                text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
-                    .as_bytes()
-                    .into(),
-                replay: None,
-            },
-        )
-        .unwrap(),
-    );
-    turn.messages = List::from_boxed(Box::new([s::Message::new(
-        &s::CEILINGS,
-        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
-    )
-    .unwrap()]));
-    let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
-    let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
+    let text = s::Block::Text(s::Text {
+        text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
+            .as_bytes()
+            .into(),
+        replay: None,
+    });
+    turn.messages = List::from_boxed(Box::new([s::Message {
+        role: s::Role::Assistant,
+        blocks: List::from_boxed(Box::new([text])),
+    }]));
+    let turn = turn;
+    let mut writer =
+        Writer::new(usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap());
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     let mut page = records::activity_rows(&[records::turn_line(1, 0, 1, &writer.finish())]).into_parts();
     page.after = None;
     page.cut = false;
@@ -3140,13 +3159,10 @@ fn background_single(request: &Request) -> Option<Report> {
         && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
         && owned.owner() != &w::Owner::Jig
         && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("family read")
-        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
+        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(|record| &record.read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind == 7)
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
-        let record = wire::setting_answer(
-            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { revision: None, value: None })
-                .expect("stock ways"),
-        );
+        let record = wire::setting_answer(&f::SettingAnswer { revision: None, value: None });
         w::ReadAnswer::Value(
             w::Owned::new(
                 &w::CEILINGS,
@@ -3620,7 +3636,7 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
         let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request else { continue };
         let ask = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed ask");
         if ask.owner() != &w::Owner::Jig {
-            let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Looked }).expect("looked");
+            let answer = f::Answer { outcome: f::Outcome::Looked };
             let document = w::Owned::new(
                 &w::CEILINGS,
                 w::OwnedParts {
@@ -3637,33 +3653,23 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
 
 fn brief_document() -> w::Owned {
     use temper_client_protocol_wire::{self as wire, v1 as f};
-    let status = f::ProjectStatus::new(
-        &f::CEILINGS,
-        f::ProjectStatusParts {
-            project: 3,
+    let status = f::ProjectStatus {
+        project: 3,
+        landed: 1,
+        last_landed: Some(1),
+        previous: Some(0),
+        seen: 0,
+        queued: 0,
+        red: false,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: Some(f::StatusBrief {
+            sentence: b"One change landed.".as_slice().into(),
+            lede: b"The CSV export landed.".as_slice().into(),
+            at: 1,
             landed: 1,
-            last_landed: Some(1),
-            previous: Some(0),
-            seen: 0,
-            queued: 0,
-            red: false,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            brief: Some(
-                f::StatusBrief::new(
-                    &f::CEILINGS,
-                    f::StatusBriefParts {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: b"The CSV export landed.".as_slice().into(),
-                        at: 1,
-                        landed: 1,
-                    },
-                )
-                .expect("brief"),
-            ),
-        },
-    )
-    .expect("project status");
+        }),
+    };
     w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {

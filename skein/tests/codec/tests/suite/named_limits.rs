@@ -6,6 +6,7 @@ mod tests {
         self, DeclIx, FieldIx, LimitLevel, Schema, Shape, Type, TypeIx, limit_child, limit_name,
     };
     use skein_codec_tests::{every, every_v2, lints, scalars, secrets, v1};
+    use v1::Record;
 
     struct Family<'a> {
         schema: &'a str,

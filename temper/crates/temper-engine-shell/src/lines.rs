@@ -1,4 +1,5 @@
-//! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7).
+//! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7;
+//! jig/docs/design/domain/engine/settings.md, 7).
 use temper_engine_service::{CommitStop, End, RouteStop, Stop};
 use temper_shell::directories::Directories;
 
@@ -357,11 +358,27 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::History => "history",
     }
 }
+fn numbered_setting(setting: jig_domain_core::settings::Setting) -> (&'static str, u32) {
+    use jig_domain_core::settings::Setting;
+    match setting {
+        Setting::Charter(n) => ("charter", n),
+        Setting::Template(n) => ("template", n),
+        Setting::Policy(n) => ("policy", n),
+        Setting::Model(n) => ("model", n),
+        Setting::Worker(_)
+        | Setting::Provider(_)
+        | Setting::Rules
+        | Setting::Limits
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal or taken refusal"),
+    }
+}
+
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
     use jig_domain_core::start::Failure;
     match failure {
         Failure::Numbers { settings } => {
-            use jig_domain_core::settings::{NUMBERS, STOCK_NUMBERS, Setting};
+            use jig_domain_core::settings::{NUMBERS, STOCK_NUMBERS};
             use std::fmt::Write as _;
             let own = STOCK_NUMBERS.checked_add(1).expect("own numbers follow stock");
             let mut line = format!(
@@ -372,20 +389,24 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
                     line.push_str(", ");
                 }
                 let source = if numbered.changed { "changed" } else { "default" };
-                let (kind, number) = match numbered.setting {
-                    Setting::Charter(n) => ("charter", n),
-                    Setting::Template(n) => ("template", n),
-                    Setting::Policy(n) => ("policy", n),
-                    Setting::Model(n) => ("model", n),
-                    Setting::Worker(_)
-                    | Setting::Provider(_)
-                    | Setting::Rules
-                    | Setting::Limits
-                    | Setting::Application { .. }
-                    | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal"),
-                };
+                let (kind, number) = numbered_setting(numbered.setting);
                 write!(line, "{source} {kind} {number}").expect("format numbered setting");
             }
+            line
+        }
+        Failure::Taken { settings } => {
+            use std::fmt::Write as _;
+            let mut line = String::from(
+                "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): ",
+            );
+            for (at, setting) in settings.iter().enumerate() {
+                if at != 0 {
+                    line.push_str(", ");
+                }
+                let (kind, number) = numbered_setting(*setting);
+                write!(line, "{kind} {number}").expect("format taken setting");
+            }
+            line.push_str("; move each to 33 to 64 on the build that runs now, then start this one");
             line
         }
         Failure::Settings { failure, changed } => {
@@ -452,6 +473,29 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
+            let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended; its changes {changes} wait again\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
+        temper_engine_service::Note::HoldDropped { name, task } => {
+            let branch = match name.what {
+                temper_engine_domain_forge::What::Branch(segments) => {
+                    segments.iter().map(|segment| String::from_utf8_lossy(segment)).collect::<Vec<_>>().join("/")
+                }
+                temper_engine_domain_forge::What::Repository => "repository".to_owned(),
+                temper_engine_domain_forge::What::Pull(number) => format!("pull {number}"),
+                temper_engine_domain_forge::What::Issue(number) => format!("issue {number}"),
+            };
+            format!(
+                "{binary} serve: warning: hold on {branch} of repository {}/{} by task {task}, which has no task: dropped\n",
+                name.forge, name.repository
+            )
+        }
         temper_engine_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -460,6 +504,26 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 temper_engine_domain_forge::LinkNote::Cleared => "cleared",
             };
             format!("forge {forge}'s person: {words}\n")
+        }
+        temper_engine_service::Note::LandingRefused { task, repository, branch, why, changes } => {
+            use std::fmt::Write as _;
+            let why = match why {
+                Some(why) => format!("{why:?}"),
+                None => "unknown".to_owned(),
+            };
+            let mut members = String::new();
+            for (index, change) in changes.iter().enumerate() {
+                if index != 0 {
+                    members.push_str(", ");
+                }
+                write!(members, "{change}").expect("format landing members");
+            }
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} not formed: jig refused its task: {why}; its changes {members} wait\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
         }
         temper_engine_service::Note::RunFailed(diagnostic) => run_failure_line(
             binary,
@@ -884,7 +948,7 @@ fn listener_failed_line(
         Some(skein_io::Error::TimedOut) => "timed out",
         Some(skein_io::Error::Reset) => "reset",
         Some(skein_io::Error::Busy) => "busy",
-        Some(skein_io::Error::Other) => "other",
+        Some(skein_io::Error::Reach(_) | skein_io::Error::Other) => "other",
         None => "closed",
     };
     format!("{binary} serve: {name} listener {address} failed: {why}\n")

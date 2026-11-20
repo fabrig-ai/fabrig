@@ -1,8 +1,7 @@
 # tooling: status
 
-2026-11-18. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-19. Where temper's code lags or departs from [tooling.md](tooling.md).
 
-- **Not yet:** 4.1: the reference's merge job leaves a conflict at a journey's recording, page or file printed beside them to the resolution [in flight: change 8889].
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract (`../domain/worker/jobs.md`): no project names one, and the
   worker's prepare kind is temper's own alone, with no key kind,

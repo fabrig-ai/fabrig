@@ -4,11 +4,9 @@ use skein_fake_forge_domain::api;
 use skein_fake_person::Person;
 use skein_lib::{Duration, Wall};
 use skein_ui_web::log;
+use temper_client_walk_world::web::{Page, Walked};
 use temper_playground::{documents, programs, stories::A, story};
-use temper_playground_world::{
-    page::{Page, Walked},
-    stories,
-};
+use temper_playground_world::stories;
 
 const SEED: u64 = 7;
 const BOUND: Duration = Duration::from_secs(120);
@@ -70,7 +68,7 @@ fn doubled_byte_bounds(mut deployment: documents::Configuration) -> documents::C
 
 #[test]
 fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
-    let mut page = Page::start(&A, SEED, Wall::EPOCH);
+    let mut page = Page::start(A.start(SEED, Wall::EPOCH), b"a").expect("story A starts");
     let script = stories::a();
     let steps = u32::try_from(script.len()).expect("a finite story");
     let mut person = Person::new(script.into_boxed_slice());
@@ -121,7 +119,9 @@ fn the_visitors_exchanges_are_the_pages_fetch_bound() {
     assert_eq!(documents::VISITOR_EXCHANGES, temper_client_shell_web::limits::EXCHANGES + 1);
 }
 
-fn assert_main(world: &temper_playground_world::Playground) {
+fn assert_main<H: programs::Harness>(
+    world: &skein_sim_world::World<programs::Process<H>, temper_playground::machine::Machine>,
+) {
     let transport = story::parameters(world).forge;
     let forge = transport.forge.borrow();
     let api::Answer::Commit(main) = forge

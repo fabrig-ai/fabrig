@@ -1,4 +1,5 @@
 //! Real-loop fixtures on kernel-assigned ports (temper/docs/design/protocol/forge/engine.md, 1).
+pub(crate) mod file;
 mod kept;
 pub(crate) use kept::seed;
 pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
@@ -8,6 +9,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
+use temper_client_protocol_wire::v1::Record;
 pub use temper_playground::documents::turn_bounds;
 /// A second key the fake LLM peer accepts, for the accounts' stories.
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
@@ -109,8 +111,7 @@ pub(crate) fn sign_in_documents(
     issuer: SocketAddr,
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
-    let path = directory.join("temper.json");
-    config.document = serde_json::from_slice(&std::fs::read(&path)?)?;
+    config.document = file::document(directory, temper_config_shell::Shape::Standalone);
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     config["world_settings"]["llm"]["providers"] = serde_json::json!([{
         "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
@@ -170,6 +171,16 @@ pub(crate) fn write_configured(
     finish_configuration(directory, &mut config)?;
     Ok(config)
 }
+/// The places the box fixture builds with, independent of its document slots.
+pub(crate) fn local_places(directory: &Path) -> u32 {
+    let Ok(bytes) = std::fs::read(directory.join("local.setting")) else { return 4 };
+    jig_client_protocol_wire::WorkerSetting::decode(
+        &jig_client_protocol_wire::CEILINGS,
+        &mut skein_lib::Reader::new(&bytes),
+    )
+    .expect("fixture local copy")
+    .places()
+}
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
 pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
@@ -224,7 +235,7 @@ pub(crate) fn bind(
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("world-agent.json"))?)?;
-    config.document = serde_json::from_slice(&std::fs::read(directory.join("temper.json"))?)?;
+    config.document = file::document(directory, temper_config_shell::Shape::Standalone);
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, config, llm, forge);
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
@@ -239,8 +250,13 @@ fn bind_documents(agent: &mut serde_json::Value, config: &mut serde_json::Value,
     let http = format!("http://{address}");
     // These records carry forge destinations and authority patterns. Listeners
     // and the independent LLM destination never participate in this rebinding.
-    for path in ["/world_settings/forge", "/application/machine", "/world_settings/landing", "/world_settings/policies"]
-    {
+    for path in [
+        "/world_settings/forge",
+        "/application/machine",
+        "/application/test/github",
+        "/world_settings/landing",
+        "/world_settings/policies",
+    ] {
         if let Some(value) = config.pointer_mut(path) {
             bind_forge(value, [(&previous, &address), (&previous_http, &http)]);
         }
@@ -500,14 +516,31 @@ pub(crate) fn finish_configuration(
     if directory.join("standing-chats").exists() {
         flags["requester"] = true.into();
     }
+    if let Some(places) = flags["local_places"].as_u64() {
+        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+        let local = WorkerSetting::new(
+            &CEILINGS,
+            WorkerSettingParts {
+                number: 1,
+                name: b"local".as_slice().into(),
+                places: u32::try_from(places).expect("fixture places"),
+                digest: None,
+                withdrawn: false,
+            },
+        )
+        .expect("fixture local setting");
+        let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded local value"));
+        local.encode(&mut writer).expect("fixture local bytes");
+        private(&directory.join("local.setting"), &writer.finish())?;
+    }
     private(&directory.join("world-settings.json"), &serde_json::to_vec(&flags)?)?;
-    private(&directory.join("temper.json"), &serde_json::to_vec(value)?)
+    file::write(directory, &file::standalone(value), temper_config_shell::Shape::Standalone)?;
+    value.document = file::document(directory, temper_config_shell::Shape::Standalone);
+    Ok(())
 }
 #[must_use]
 pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("deployment document"))
-            .expect("deployment JSON");
+    let mut value = file::document(directory, temper_config_shell::Shape::Standalone);
     let flags = if directory.join("world-settings.json").exists() {
         serde_json::from_slice(&std::fs::read(directory.join("world-settings.json")).expect("fixture flags"))
             .expect("fixture flags JSON")
@@ -547,10 +580,17 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
     if flags["listed"] == true {
         template["flags"]["listed"] = true.into();
     }
-    Some(serde_json::json!([
-        crate::settings::item("charter", 1, charter),
-        crate::settings::item("template", 1, template)
-    ]))
+    let mut items = vec![crate::settings::item("charter", 1, charter), crate::settings::item("template", 1, template)];
+    if let Some(places) = flags["local_places"].as_u64() {
+        items.push(crate::settings::item(
+            "worker",
+            1,
+            serde_json::json!({
+                "name":"local", "places":places, "digest":null
+            }),
+        ));
+    }
+    Some(serde_json::Value::Array(items))
 }
 
 /// The final document keeps the project's wide seed; these typed defaults admit it.
@@ -572,9 +612,7 @@ pub fn given_and_projects(
     directory: &Path,
     configuration: &temper_playground::documents::Configuration,
 ) -> (temper_service::stock::Given, Box<[jig_protocol_config::Project]>) {
-    let deployment: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("deployment document"))
-            .expect("deployment JSON");
+    let deployment = file::document(directory, temper_config_shell::Shape::Standalone);
     let flags = if directory.join("world-settings.json").exists() {
         serde_json::from_slice(&std::fs::read(directory.join("world-settings.json")).expect("world flags"))
             .expect("world flags JSON")
@@ -598,7 +636,10 @@ pub fn given_and_projects(
             kind: 21,
             scope: 0,
             number: 1,
-            value: SizedValue { size: agents.measure(), value: Value::AgentFigures(agents) },
+            value: SizedValue {
+                size: agents.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                value: Value::AgentFigures(agents),
+            },
         });
         *forge = values.into_boxed_slice();
     }

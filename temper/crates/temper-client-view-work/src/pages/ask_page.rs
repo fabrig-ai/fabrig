@@ -143,7 +143,7 @@ fn opening(
         b.style(look::WAYS_PANEL);
         crate::common::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
-            && let Some(stop) = tab.path.stops().get(open)
+            && let Some(stop) = tab.path.stops.get(open)
         {
             crate::common::ways::card(b, stop, w, bindings, project);
         }
@@ -152,7 +152,7 @@ fn opening(
         b.close();
     }
     if w.shell == crate::words::Shell::Terminal {
-        crate::common::ways::head_acts(b, ways, w, bindings, project);
+        crate::common::ways::head_acts(b, ways, project_name, w, bindings, project);
     }
     b.open(Role::Paragraph);
     b.style(look::WAY_ASK);

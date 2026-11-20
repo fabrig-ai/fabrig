@@ -1,5 +1,6 @@
 //! Temper's declarations are held against its encoders (protocol/wires.md, 6).
 use super::fixtures;
+use crate::v1::Record;
 use crate::{patches::kept::temper_worker_wire as kept, v1, wire};
 use jig_protocol_worker_wire::{Carried, Spoken};
 use skein_lib::List;
@@ -40,24 +41,14 @@ fn the_application_speaks_from_the_floor_with_its_bridge() {
 #[test]
 fn the_roots_name_the_declarations_temper_encodes() {
     let limits = fixtures::limits();
-    let items = v1::Items::new(&limits, fixtures::items(1)).unwrap();
+    let items = fixtures::items(1);
     let mut landed = List::with_capacity(1);
-    landed
-        .push(v1::Landed::new(&limits, v1::LandedParts { tag: 17, commit: [3; 32], checked: true }).unwrap())
-        .unwrap();
-    let left = v1::Left::new(&limits, v1::LeftParts { landed }).unwrap();
+    landed.push(v1::Landed { tag: 17, commit: [3; 32], checked: true }).unwrap();
+    let left = v1::Left { landed };
     let mut repositories = List::with_capacity(1);
-    repositories
-        .push(
-            v1::SavedRepository::new(
-                &limits,
-                v1::SavedRepositoryParts { tag: 19, from_saved: true, landing: v1::Landing::Moved },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-    let saved = v1::Saved::new(&limits, v1::SavedParts { repositories }).unwrap();
-    let preparation = v1::Preparation::Refused(v1::Tag::new(&limits, v1::TagParts { tag: 23 }).unwrap());
+    repositories.push(v1::SavedRepository { tag: 19, from_saved: true, landing: v1::Landing::Moved }).unwrap();
+    let saved = v1::Saved { repositories };
+    let preparation = v1::Preparation::Refused(v1::Tag { tag: 23 });
     let identity = crate::identity(&fixtures::identity(b"token"));
     let application = crate::application(&limits).unwrap();
     let schema = skein_codec::schema::parse(kept::TEXTS.last().unwrap().as_bytes()).unwrap();
@@ -68,13 +59,7 @@ fn the_roots_name_the_declarations_temper_encodes() {
         (Carried::Preparation, "Preparation", crate::preparation(&preparation)),
         (Carried::Grant, "Identity", identity.expose().into()),
         (Carried::Ask, "Ask", crate::ask(&v1::Ask::Reds)),
-        (
-            Carried::Answer,
-            "Answer",
-            crate::answer(&v1::Answer::Reds(
-                v1::Reds::new(&limits, v1::RedsParts { reds: List::with_capacity(0) }).unwrap(),
-            )),
-        ),
+        (Carried::Answer, "Answer", crate::answer(&v1::Answer::Reds(v1::Reds { reds: List::with_capacity(0) }))),
     ] {
         let mut found = None;
         for root in &application.roots {
@@ -106,14 +91,12 @@ fn left_carries_checked_deliveries_across_six_and_seven() {
     let old = old.finish();
     let up = bridge.translate(6, 7, b"Left", old.clone()).unwrap();
     let left = v1::Left::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
-    let head = left.landed().get(0).unwrap();
-    assert_eq!((head.tag(), head.commit(), head.checked()), (17, &[3; 32], true));
+    let head = left.landed.get(0).unwrap();
+    assert_eq!((head.tag, &head.commit, head.checked), (17, &[3; 32], true));
     assert_eq!(bridge.translate(7, 6, b"Left", up).unwrap().as_ref(), old.as_ref());
     let mut landed = List::with_capacity(1);
-    landed
-        .push(v1::Landed::new(&limits, v1::LandedParts { tag: 17, commit: [3; 32], checked: false }).unwrap())
-        .unwrap();
-    let unchecked = v1::Left::new(&limits, v1::LeftParts { landed }).unwrap();
+    landed.push(v1::Landed { tag: 17, commit: [3; 32], checked: false }).unwrap();
+    let unchecked = v1::Left { landed };
     let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(7, 6, b"Left", crate::left(&unchecked)) else {
         panic!("unchecked delivery cannot be read as checked")
     };
@@ -128,25 +111,51 @@ fn items_bridge_own_delivery_between_ten_and_eleven_without_losing_it() {
     let old = include_bytes!("../../patches/golden/0005/temper-worker-wire/record_items_full.bin");
     assert_eq!(skein_codec::version_of(old), Ok(10));
     let up = bridge.translate(10, 11, b"Items", old.as_slice().into()).unwrap();
-    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
-    let repository = items.repositories().get(0).unwrap();
-    let v1::Access::Writable(writable) = repository.access() else { panic!("writable golden") };
-    assert_eq!(*writable.delivered(), None);
-    let down = bridge.translate(11, 10, b"Items", crate::items(&items)).unwrap();
+    let current = bridge.translate(11, wire::VERSION, b"Items", up.clone()).unwrap();
+    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&current)).unwrap();
+    let repository = items.repositories.get(0).unwrap();
+    let v1::Access::Writable(writable) = &repository.access else { panic!("writable golden") };
+    assert_eq!(writable.delivered, None);
+    let down = bridge.translate(wire::VERSION, 10, b"Items", crate::items(&items)).unwrap();
     assert_eq!(down.as_ref(), old.as_slice());
     assert_eq!(bridge.translate(10, 11, b"Items", down).unwrap(), up);
 
-    let v1::Access::Writable(writable) = repository.clone().into_parts().access else { panic!("writable golden") };
-    let access = v1::Access::Writable(
-        v1::Writable::new(&limits, v1::WritableParts { delivered: Some([7; 32]), ..writable.into_parts() }).unwrap(),
-    );
+    let v1::Access::Writable(writable) = repository.clone().access else { panic!("writable golden") };
+    let access = v1::Access::Writable(v1::Writable { delivered: Some([7; 32]), ..writable });
     let mut repositories = List::with_capacity(1);
-    repositories
-        .push(v1::Repository::new(&limits, v1::RepositoryParts { access, ..repository.clone().into_parts() }).unwrap())
-        .unwrap();
-    let delivered = v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap();
-    let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(11, 10, b"Items", crate::items(&delivered)) else {
+    repositories.push(v1::Repository { access, ..repository.clone() }).unwrap();
+    let delivered = v1::Items { repositories };
+    let Err(skein_codec::patch::Halt::Unheld(_)) =
+        bridge.translate(wire::VERSION, 10, b"Items", crate::items(&delivered))
+    else {
         panic!("a task's own delivery cannot be discarded for a version-10 worker")
+    };
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the bridge test reads the patch's generated version-11 golden")]
+fn items_bridge_named_pins_between_eleven_and_twelve_without_losing_them() {
+    let limits = fixtures::limits();
+    let application = crate::application(&limits).unwrap();
+    let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
+    let old = include_bytes!("../../patches/golden/0006/temper-worker-wire/record_items_full.bin");
+    assert_eq!(skein_codec::version_of(old), Ok(11));
+    let up = bridge.translate(11, 12, b"Items", old.as_slice().into()).unwrap();
+    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
+    let repository = items.repositories.get(0).unwrap();
+    let v1::Access::Writable(writable) = &repository.access else { panic!("writable golden") };
+    assert_eq!(writable.pin, None);
+    let down = bridge.translate(12, 11, b"Items", crate::items(&items)).unwrap();
+    assert_eq!(down.as_ref(), old.as_slice());
+    assert_eq!(bridge.translate(11, 12, b"Items", down).unwrap(), up);
+
+    let v1::Access::Writable(writable) = repository.clone().access else { panic!("writable golden") };
+    let access = v1::Access::Writable(v1::Writable { pin: Some([8; 32]), ..writable });
+    let mut repositories = List::with_capacity(1);
+    repositories.push(v1::Repository { access, ..repository.clone() }).unwrap();
+    let pinned = v1::Items { repositories };
+    let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(12, 11, b"Items", crate::items(&pinned)) else {
+        panic!("a named pin cannot be discarded for a version-11 worker")
     };
 }
 

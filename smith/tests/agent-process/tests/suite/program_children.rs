@@ -4,6 +4,7 @@ use smith_agent_process_world::{
     program,
     program_world::{self, Case, Run},
 };
+use smith_channel::Record;
 use smith_events::{ConversationEnd, ConversationKind, Event};
 use smith_fake_claude::{Decision, Script, Seen, Step, Story, Turn};
 
@@ -43,7 +44,7 @@ fn run(modify: bool) -> Run {
 
 fn accepted(run: &Run) {
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, smith_channel::RunResult::Accepted(_)),
         "answer={:?}, errors={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -57,10 +58,10 @@ fn results(run: &Run) -> Vec<smith_transcript::ToolResult> {
             continue;
         }
         let turn = smith_channel::Turn::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body)).expect("turn");
-        let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(turn.body()))
+        let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(turn.body.as_ref()))
             .expect("transcript");
-        for message in turn.messages().as_slice() {
-            for block in message.blocks().as_slice() {
+        for message in turn.messages.as_slice() {
+            for block in message.blocks.as_slice() {
                 if let smith_transcript::Block::Result(result) = block {
                     results.push(result.clone());
                 }
@@ -103,10 +104,10 @@ fn a_program_main_reads_its_sub_agents_answer() {
         |record| matches!(&record.event, Event::ConversationClosed(close) if close.conversation == child.conversation)
     ));
     let result = results(&run).into_iter().next().expect("sub_agent result is told");
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("child answer") };
-    assert!(!said.error());
-    assert!(skein_lib::bytes::find(said.text(), b"exports run").is_some());
-    assert!(skein_lib::bytes::find(said.text(), b"Child usage:").is_some());
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("child answer") };
+    assert!(!said.error);
+    assert!(skein_lib::bytes::find(said.text.as_ref(), b"exports run").is_some());
+    assert!(skein_lib::bytes::find(said.text.as_ref(), b"Child usage:").is_some());
 }
 
 #[test]
@@ -129,8 +130,10 @@ fn a_program_child_asking_to_write_is_refused() {
         1
     );
     let result = results(&run).into_iter().next().expect("sub_agent result is told");
-    let smith_transcript::Returned::Invalid(invalid) = result.returned() else { panic!("invalid tool result") };
-    assert!(matches!(invalid.problem(), smith_transcript::CallProblem::BadValue(field) if field.field() == b"tools"));
+    let smith_transcript::Returned::Invalid(invalid) = &result.returned else { panic!("invalid tool result") };
+    assert!(
+        matches!( &invalid.problem, smith_transcript::CallProblem::BadValue(field) if field.field.as_ref() == b"tools")
+    );
 }
 
 // The declared room includes main, leaving four child conversations (domain/run.md, 5.3).
@@ -209,9 +212,9 @@ fn a_program_main_reads_a_burst_past_its_room() {
         let results = results(&run);
         assert_eq!(results.len(), count + 1, "each child call and finish are answered");
         for answer in CHILD_ANSWERS.iter().take(opened) {
-            assert!(results.iter().any(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if !said.error() && skein_lib::bytes::find(said.text(), answer.as_bytes()).is_some())), "missing {answer}: {results:?}");
+            assert!(results.iter().any(|result| matches!( &result.returned, smith_transcript::Returned::Said(said) if !said.error && skein_lib::bytes::find(said.text.as_ref(), answer.as_bytes()).is_some())), "missing {answer}: {results:?}");
         }
-        assert_eq!(results.iter().filter(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if said.error() && skein_lib::bytes::find(said.text(), b"refused reason=too-many").is_some())).count(), refused);
+        assert_eq!(results.iter().filter(|result| matches!( &result.returned, smith_transcript::Returned::Said(said) if said.error && skein_lib::bytes::find(said.text.as_ref(), b"refused reason=too-many").is_some())).count(), refused);
         assert_eq!(run.run_directories.len(), 0);
     }
 }
@@ -259,14 +262,11 @@ fn survey_charter(direct: bool) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
         smith_agent_process_world::wire::budget(parts, 32, 80);
         if direct {
-            let mut child = parts.models.as_slice()[0].clone().into_parts();
+            let mut child = parts.models.as_slice()[0].clone();
             child.endpoint = b"direct".as_slice().into();
             child.account = Some(1);
             parts.models = skein_lib::List::with_capacity(1);
-            parts
-                .models
-                .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("direct child"))
-                .expect("model");
+            parts.models.push(child).expect("model");
         }
     })
 }
@@ -279,15 +279,15 @@ fn survey_answers(run: &Run, count: usize, room: usize) {
     let mut names = std::collections::BTreeSet::new();
     let mut answers = std::collections::BTreeSet::new();
     for result in &results {
-        assert!(names.insert(result.id()), "each call answers once");
-        let smith_transcript::Returned::Said(said) = result.returned() else {
-            panic!("unexpected survey result: {:?}", result.returned());
+        assert!(names.insert(result.id.as_ref()), "each call answers once");
+        let smith_transcript::Returned::Said(said) = &result.returned else {
+            panic!("unexpected survey result: {:?}", result.returned);
         };
-        if said.error() {
-            assert!(said.text() == b"busy" || said.text() == b"refused reason=too-many", "{said:?}");
+        if said.error {
+            assert!(said.text.as_ref() == b"busy" || said.text.as_ref() == b"refused reason=too-many", "{said:?}");
         } else {
-            assert!(skein_lib::bytes::find(said.text(), b"survey answer").is_some(), "{said:?}");
-            assert!(answers.insert(said.text()), "each child returns its own survey answer");
+            assert!(skein_lib::bytes::find(said.text.as_ref(), b"survey answer").is_some(), "{said:?}");
+            assert!(answers.insert(said.text.as_ref()), "each child returns its own survey answer");
         }
     }
     assert_eq!(answers.len(), count.min(room), "admitted surveys answer");
@@ -405,7 +405,7 @@ fn two_program_children_run_side_by_side_and_each_answers() {
     }
     let results = results(&run);
     for word in [b"alpha".as_slice(), b"beta".as_slice()] {
-        assert!(results.iter().any(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if !said.error() && skein_lib::bytes::find(said.text(), word).is_some())));
+        assert!(results.iter().any(|result| matches!( &result.returned, smith_transcript::Returned::Said(said) if !said.error && skein_lib::bytes::find(said.text.as_ref(), word).is_some())));
     }
 }
 
@@ -439,10 +439,10 @@ fn a_program_childs_final_turn_answers_for_its_budget() {
         run.received
     );
     let result = results(&run).into_iter().next().expect("child result");
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("child answer") };
-    assert!(!said.error());
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("child answer") };
+    assert!(!said.error);
     for text in [b"final survey".as_slice(), b"stopped for budget: yes".as_slice()] {
-        assert!(skein_lib::bytes::find(said.text(), text).is_some(), "child answer and budget usage are told");
+        assert!(skein_lib::bytes::find(said.text.as_ref(), text).is_some(), "child answer and budget usage are told");
     }
     let child = run
         .events
@@ -476,7 +476,7 @@ fn cancelled_child(step: Step) -> Run {
     };
     let run = program_world::cancel_with_child(&story, &program_world::child_charter());
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Failed(failed) if matches!(failed.reason(), smith_channel::RunFailure::Cancelled))
+        matches!( &run.answer().expect("answer").result, smith_channel::RunResult::Failed(failed) if matches!( &failed.reason, smith_channel::RunFailure::Cancelled))
     );
     assert_eq!(
         run.invocations.iter().filter(|invocation| invocation.arguments.first().is_some_and(|arg| arg == "-p")).count(),
@@ -484,7 +484,7 @@ fn cancelled_child(step: Step) -> Run {
     );
     let results = results(&run);
     assert_eq!(results.len(), 1, "the cancelled child call settles once");
-    assert!(matches!(results[0].returned(), smith_transcript::Returned::Withdrawn));
+    assert!(matches!(&results[0].returned, smith_transcript::Returned::Withdrawn));
     assert!(run.seen.contains(&Seen::Called { tool: "sub_agent".into(), error: true }));
     assert_eq!(run.run_directories.len(), 0);
     run
@@ -508,28 +508,22 @@ fn chat_charter() -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
         parts.mode = smith_charter::Mode::Open;
         parts.resume = true;
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         tools.wait = true;
         tools.deliver = None;
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("chat tools");
+        parts.tools = tools;
         parts.waiting = skein_lib::Duration::from_millis(10);
         smith_agent_process_world::wire::budget(parts, 24, 80);
-        let mut main = parts.main.clone().into_parts();
+        let mut main = parts.main.clone();
         main.effort = Some(b"medium".as_slice().into());
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("main effort");
+        parts.main = main;
         parts.brief = skein_lib::List::with_capacity(1);
         parts
             .brief
-            .push(
-                smith_charter::Section::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::SectionParts {
-                        title: b"Request".as_slice().into(),
-                        body: b"Have two sub-agents read src/main.rs and README.md side by side.".as_slice().into(),
-                    },
-                )
-                .expect("chat brief"),
-            )
+            .push(smith_charter::Section {
+                title: b"Request".as_slice().into(),
+                body: b"Have two sub-agents read src/main.rs and README.md side by side.".as_slice().into(),
+            })
             .expect("one brief");
     })
 }
@@ -574,7 +568,7 @@ fn chat_story() -> Story {
 
 fn chat_parked(run: &Run, children: usize) {
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Parked),
+        matches!(&run.answer().expect("answer").result, smith_channel::RunResult::Parked),
         "answer={:?}, errors={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -583,12 +577,12 @@ fn chat_parked(run: &Run, children: usize) {
     assert_eq!(results.len(), children, "seen={:?}", run.seen);
     for result in results {
         assert!(
-            matches!(result.returned(), smith_transcript::Returned::Said(said)
-            if !said.error() && skein_lib::bytes::find(said.text(), b"unanswered").is_none()
-                && (skein_lib::bytes::find(said.text(), b"README describes a small example").is_some()
-                    || skein_lib::bytes::find(said.text(), b"main contains an empty entry point").is_some())),
+            matches!( &result.returned, smith_transcript::Returned::Said(said)
+            if !said.error && skein_lib::bytes::find(said.text.as_ref(), b"unanswered").is_none()
+                && (skein_lib::bytes::find(said.text.as_ref(), b"README describes a small example").is_some()
+                    || skein_lib::bytes::find(said.text.as_ref(), b"main contains an empty entry point").is_some())),
             "child must return its scripted answer: {:?}; faults={:?}",
-            result.returned(),
+            result.returned,
             program_faults(run)
         );
     }

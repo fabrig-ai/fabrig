@@ -8,5 +8,11 @@ pub fn answer(request: &Request) -> Result<String, String> {
     {
         return Ok(temper_shell::table::commands_page(&crate::TABLE));
     }
+    if let Request::Page(page) = request
+        && page.as_ref() == b"config"
+    {
+        return Ok(String::from_utf8(temper_config_shell::help(temper_config_shell::Shape::Standalone).into_vec())
+            .expect("help UTF-8"));
+    }
     temper_shell::help::answer("temper-box", request)
 }

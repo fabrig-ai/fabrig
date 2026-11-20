@@ -239,6 +239,11 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
     }
 }
 
+/// The shell's commit size check (protocol/store/README.md, 5).
+pub fn check_commits(limits: &Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
+    sizes::check_commits(&limits.core, &APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
+}
+
 #[must_use]
 pub fn limits() -> Limits {
     let commits = sizes::Commits { in_flight: 2, writes: 2000 };
@@ -322,6 +327,8 @@ pub fn live_task(number: u64) -> core::Record {
         started_from: Box::new([]),
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },

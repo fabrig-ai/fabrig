@@ -446,10 +446,9 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
 
 #[test]
 fn init_limits_hold_reference_delegation() {
-    for bytes in [
-        include_bytes!("../../../temper-init/template/temper.json").as_slice(),
-        include_bytes!("../../../../docs/examples/owned.json").as_slice(),
-    ] {
+    for bytes in
+        [&temper_config_shell::init_document(true), include_bytes!("../../../../docs/examples/owned.json").as_slice()]
+    {
         let document: serde_json::Value = serde_json::from_slice(bytes).expect("shipped configuration JSON");
         assert!(document["engine"].get("limits").is_none());
     }

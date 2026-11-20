@@ -496,7 +496,7 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
     b.text(Run::Plain, &start_with);
     b.close();
     for (start, name, detail) in [
-        (Start::Empty, Word::WelcomeForgejoEmpty, Word::WelcomeForgejoEmptyDetail),
+        (Start::Sample, Word::WelcomeForgejoSample, Word::WelcomeForgejoSampleDetail),
         (Start::Copies, Word::WelcomeForgejoCopies, Word::WelcomeForgejoCopiesDetail),
         (Start::Nothing, Word::WelcomeForgejoNothing, Word::WelcomeForgejoNothingDetail),
     ] {
@@ -515,17 +515,6 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
             continue;
         }
         match start {
-            Start::Empty => {
-                b.open(Role::Slot);
-                b.style(look::WELCOME_OPTION_MORE);
-                for (field, word) in [
-                    (SetupField::Organization, Word::SetupOrganization),
-                    (SetupField::Repository, Word::WelcomeForgejoName),
-                ] {
-                    setup_field(b, root, w, forge, field, word, 0, None, Place::Welcome);
-                }
-                b.close();
-            }
             Start::Copies => {
                 let addresses = w.say(Word::WelcomeForgejoAddresses, &[]);
                 b.open(Role::Slot);
@@ -539,7 +528,7 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
                 b.close();
                 b.close();
             }
-            Start::Nothing => {}
+            Start::Empty | Start::Sample | Start::Nothing => {}
         }
     }
     b.close();
@@ -567,9 +556,6 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
     b.close();
 }
 fn sheet_alerts(b: &mut Builder, w: &Words, draft: &forge::forges::Draft) {
-    if draft.blank {
-        text(b, w, Role::Alert, Word::WelcomeSheetBlank);
-    }
     if let Some(refused) = &draft.copies_refused {
         copies_alert(b, w, refused);
     }
@@ -944,30 +930,8 @@ fn elsewhere(
         b.open(Role::Slot);
         b.style(look::CONNECT_PANEL);
         b.name(&w.say(Word::ForgeElsewhere, &[]));
-        instruction(b, w, Word::ForgeConfigLead, b"~/.config/temper/temper.json");
-        b.open(Role::List);
-        b.ordered(1);
-        b.style(look::CONNECT_STEPS);
-        let number = u64::from(connect::next_number(root.forges()));
-        for (word, snippet, key) in [
-            (Word::ForgeConfigStep, Word::ForgeConfigCode, b"application.forges".as_slice()),
-            (Word::ForgeIdentityStep, Word::ForgeIdentityCode, b"application.identities".as_slice()),
-            (Word::ForgeSetupStep, Word::ForgeSetupCode, b"application.setup".as_slice()),
-        ] {
-            b.open(Role::Item);
-            instruction(b, w, word, key);
-            let holes: &[Hole] = if snippet == Word::ForgeIdentityCode {
-                &[Hole::Number(number), Hole::Number(number)]
-            } else {
-                &[Hole::Number(number)]
-            };
-            flow::command(b, root, w, accounts, &w.say(snippet, holes), true);
-            b.close();
-        }
-        b.open(Role::Item);
-        instruction(b, w, Word::ForgeRestart, b"temper box");
-        b.close();
-        b.close();
+        text(b, w, Role::Paragraph, Word::ForgeElsewhereLead);
+        elsewhere_steps(b, root, w, Some(accounts));
         b.open(Role::Slot);
         b.style(look::CONNECT_ACTS);
         flow::connect_control(
@@ -983,25 +947,30 @@ fn elsewhere(
     }
     flow::details(b, &w.say(Word::ForgeElsewhere, &[]));
     text(b, w, Role::Paragraph, Word::ForgeElsewhereDetails);
-    let number = u64::from(connect::next_number(root.forges()));
-    for (word, snippet) in [
-        (Word::ForgeConfig, Word::ForgeConfigCode),
-        (Word::ForgeIdentity, Word::ForgeIdentityCode),
-        (Word::ForgeSetupEntry, Word::ForgeSetupCode),
+    text(b, w, Role::Paragraph, Word::ForgeElsewhereLead);
+    elsewhere_steps(b, root, w, None);
+    b.close();
+}
+fn elsewhere_steps(b: &mut Builder, root: &Domain, w: &Words, mut accounts: Option<&mut crate::accounts::Bindings>) {
+    b.open(Role::List);
+    b.ordered(1);
+    b.style(look::CONNECT_STEPS);
+    for (word, command, verb) in [
+        (Word::ForgeAdminStep, Word::ForgeAdminCommand, b"forge connect forgejo-admin".as_slice()),
+        (Word::ForgeBotStep, Word::ForgeBotCommand, b"forge connect forgejo".as_slice()),
     ] {
-        text(b, w, Role::Paragraph, word);
-        let holes: &[Hole] = if snippet == Word::ForgeIdentityCode {
-            &[Hole::Number(number), Hole::Number(number)]
+        b.open(Role::Item);
+        instruction(b, w, word, verb);
+        if let Some(accounts) = accounts.as_deref_mut() {
+            flow::command(b, root, w, accounts, &w.say(command, &[]), true);
         } else {
-            &[Hole::Number(number)]
-        };
-        code(b, &w.say(snippet, holes));
-    }
-    for word in [Word::ForgeBotOnly, Word::ForgeRestart] {
-        text(b, w, Role::Paragraph, word);
+            code(b, &w.say(command, &[]));
+        }
+        b.close();
     }
     b.close();
 }
+
 pub(crate) fn setup_control(
     b: &mut Builder,
     root: &Domain,
@@ -1200,7 +1169,7 @@ fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Ma
 fn setup_target<'a>(root: &'a Domain, row: &Row) -> Option<(&'a [u8], &'a [u8])> {
     match root.forge().set_up() {
         Some(last) if last.forge == Some(row.number) => match &last.first {
-            forge::forges::SetUpFirst::Empty(first) => Some((first.org(), first.repository())),
+            forge::forges::SetUpFirst::Empty(first) => Some((&first.org, &first.repository)),
             forge::forges::SetUpFirst::Copies(_) | forge::forges::SetUpFirst::Nothing => None,
         },
         Some(_) | None => None,
@@ -1475,11 +1444,10 @@ fn setup_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeB
     for (field, word) in
         [(SetupField::Organization, Word::SetupOrganization), (SetupField::Repository, Word::SetupRepository)]
     {
-        setup_field(b, root, w, bindings, field, word, number, Some(look::FLOW_FIELD), Place::Connect);
+        setup_field(b, root, w, bindings, field, word, number);
     }
     b.close();
 }
-#[expect(clippy::too_many_arguments, reason = "the set up's form and the welcome's sheet share one field")]
 fn setup_field(
     b: &mut Builder,
     root: &Domain,
@@ -1488,8 +1456,6 @@ fn setup_field(
     field: SetupField,
     word: Word,
     number: u16,
-    style: Option<skein_ui::Style>,
-    place: Place,
 ) {
     let draft = root.forge().setup_form();
     let invalid = match root.forge().set_up() {
@@ -1499,9 +1465,7 @@ fn setup_field(
         Some(_) | None => false,
     };
     b.open(Role::Slot);
-    if let Some(style) = style {
-        b.style(style);
-    }
+    b.style(look::FLOW_FIELD);
     b.open(Role::TextField);
     b.name(&w.say(word, &[]));
     b.value(draft.text(field), draft.written(field));
@@ -1510,13 +1474,8 @@ fn setup_field(
         b.state(State::Invalid);
     }
     b.close();
-    match place {
-        Place::Connect => {
-            if draft.required(field) {
-                text(b, w, Role::Alert, Word::SetupRequired);
-            }
-        }
-        Place::Welcome => {}
+    if draft.required(field) {
+        text(b, w, Role::Alert, Word::SetupRequired);
     }
     b.close();
 }

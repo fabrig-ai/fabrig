@@ -5,15 +5,9 @@ use jig_worker_link_world::fixtures as f;
 use skein_lib::{Duration, List, Time};
 
 fn figures(value: u64) -> w::Figures {
-    let limit =
-        w::Limit::new(&w::CEILINGS, w::LimitParts { name: b"hub.slots".as_slice().into(), value }).expect("limit");
-    let agents = w::Agents::new(
-        &w::CEILINGS,
-        w::AgentsParts { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
-    )
-    .expect("agents");
-    w::Figures::new(&w::CEILINGS, w::FiguresParts { places: 999, limits: List::from_boxed(Box::new([limit])), agents })
-        .expect("figures")
+    let limit = w::Limit { name: b"hub.slots".as_slice().into(), value };
+    let agents = w::Agents { profile: List::with_capacity(0), endpoints: List::with_capacity(0) };
+    w::Figures { places: 999, limits: List::from_boxed(Box::new([limit])), agents }
 }
 fn figures_world(secret: &[u8]) -> Joined {
     let mut credential = f::credential();
@@ -36,9 +30,9 @@ fn a_figures_link_reports_once_closes_and_never_redials() {
     world.run();
     let got = received(&world);
     assert_eq!(got.len(), 1);
-    assert_eq!(got[0].limits(), owner.limits());
-    assert_eq!(got[0].agents(), owner.agents());
-    assert_eq!(got[0].places(), 4);
+    assert_eq!((&got[0].limits), (&owner.limits));
+    assert_eq!((&got[0].agents), (&owner.agents));
+    assert_eq!(got[0].places, 4);
     assert!(world.worker_root.iter().any(|r| matches!(r, Request::Closed)));
     assert!(!world.worker_root.iter().any(|r| matches!(r, Request::Ready | Request::Lost)));
     assert!(world.engine_root.is_empty(), "no fleet channel");
@@ -88,10 +82,10 @@ fn a_link_reports_every_figures_at_opening_live_and_after_redial() {
     world.figures(figures(8));
     world.run();
     assert_eq!(received(&world).len(), 2);
-    assert_eq!(received(&world)[1].limits().get(0).expect("limit").value(), 8);
+    assert_eq!(received(&world)[1].limits.get(0).expect("limit").value, 8);
     world.cut();
     world.advance(Duration::from_millis(200));
     assert_eq!(received(&world).len(), 3);
-    assert_eq!(received(&world)[2].limits().get(0).expect("limit").value(), 8);
+    assert_eq!(received(&world)[2].limits.get(0).expect("limit").value, 8);
     world.finish();
 }

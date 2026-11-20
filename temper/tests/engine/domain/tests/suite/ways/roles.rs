@@ -1,6 +1,7 @@
 //! Standing roles and follow producers keep their first charter's place in the reader's view.
 use super::*;
 use jig_domain_tasks as tasks;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_world::oracle;
 
 const CHARTERS: u32 = 20;
@@ -89,7 +90,10 @@ fn driver(producers: &[(u32, Option<&[u8]>)]) -> (Driver, jig_domain_core::Templ
                             slot: settings::SettingSlot::Change,
                         },
                         edit: settings::Edit::Set(settings::SizedValue {
-                            size: settings::follow_record(&value).expect("follow record").measure(),
+                            size: settings::follow_record(&value)
+                                .expect("follow record")
+                                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                                .expect("within ceilings"),
                             value: settings::Value::Follow(value),
                         }),
                     })),

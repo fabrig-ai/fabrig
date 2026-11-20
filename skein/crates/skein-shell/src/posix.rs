@@ -5,7 +5,12 @@
 //! Shutdown, close and fcntl take only integers; close relinquishes descriptor
 //! ownership once. Geteuid takes no arguments and has no preconditions.
 //! Poll borrows one initialized, exclusive pollfd until return, retains no
-//! pointer and takes no descriptor ownership.
+//! pointer and takes no descriptor ownership. The parent-death watcher prepares
+//! its pipe, signal set and integer plan before fork, then makes only
+//! async-signal-safe calls and the system's exit wait until _exit; its module
+//! documents that process boundary. Uname writes one exclusive local utsname;
+//! on success the system NUL-terminates nodename, which is borrowed only while
+//! that local lives.
 
 #![expect(
     unsafe_code,
@@ -14,6 +19,10 @@
 
 pub(crate) mod files;
 pub(crate) mod group;
+#[cfg(any(target_os = "macos", test))]
+pub(crate) mod links;
+#[cfg(any(target_os = "macos", test))]
+pub(crate) mod parent_death;
 pub(crate) mod process;
 pub(crate) mod terminal;
 
@@ -68,6 +77,94 @@ pub(crate) fn close(fd: Fd) -> Result<(), i32> {
 pub fn effective_user() -> u32 {
     // SAFETY: geteuid takes no pointers and has no preconditions.
     unsafe { libc::geteuid() }
+}
+
+/// The host's name, as the kernel gives it (runtime/shell.md, 6.1).
+pub fn host_name() -> Result<Box<[u8]>, i32> {
+    // SAFETY: utsname is a plain C structure of byte arrays, valid when zeroed.
+    let mut name: libc::utsname = unsafe { std::mem::zeroed() };
+    // SAFETY: name is exclusive and writable for one utsname throughout the call.
+    status(unsafe { libc::uname(ptr::from_mut(&mut name)) })?;
+    // SAFETY: successful uname NUL-terminated nodename, which lives across this borrow.
+    let hostname = unsafe { std::ffi::CStr::from_ptr(name.nodename.as_ptr()) };
+    Ok(Box::from(hostname.to_bytes()))
+}
+
+/// A user's login at startup (runtime/shell.md, 6). macOS's directory
+/// service need not list the effective user in `/etc/passwd`.
+pub fn login(user: u32) -> Result<Box<[u8]>, String> {
+    if cfg!(target_os = "macos") { crate::login_id() } else { login_passwd(user) }
+}
+
+/// A user's login from `/etc/passwd`, also used to check the command lookup.
+pub fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
+    let passwd = crate::read_file(std::path::Path::new("/etc/passwd"), 1 << 20).map_err(login_read_error)?;
+    passwd_login(&passwd, user)
+}
+
+fn passwd_login(passwd: &[u8], user: u32) -> Result<Box<[u8]>, String> {
+    for line in passwd.split(|byte| *byte == b'\n') {
+        let mut fields = line.split(|byte| *byte == b':');
+        let name = fields.next();
+        let uid = fields.nth(1).and_then(|id| std::str::from_utf8(id).ok()).and_then(|id| id.parse::<u32>().ok());
+        if uid == Some(user) {
+            return Ok(name.expect("a split has a first field").into());
+        }
+    }
+    Err(format!("user {user}: no login in /etc/passwd"))
+}
+
+fn login_read_error(why: crate::Unread) -> String {
+    use crate::Unread;
+    use skein_io::kernel::Error;
+    match why {
+        Unread::Absent => "user: absent".into(),
+        Unread::NotAFile => "user: not a file".into(),
+        Unread::TooLarge { max } => format!("user: past {max} bytes"),
+        Unread::Unsafe(_) => "user: readable by others or reached through a link".into(),
+        Unread::Kernel(error) => {
+            let errno = match error {
+                Error::Reach(why) => return format!("user: {why}"),
+                Error::Refused => 111,
+                Error::Busy => 11,
+                Error::Reset => 104,
+                Error::BrokenPipe => 32,
+                Error::NotConnected => 107,
+                Error::AddressInUse => 98,
+                Error::AddressNotAvailable => 99,
+                Error::Unreachable => 101,
+                Error::TimedOut => 110,
+                Error::TooManyOpenFiles => 24,
+                Error::NoBufferSpace => 12,
+                Error::Cancelled => 125,
+                Error::TooLate | Error::NotFound => 2,
+                Error::Exists => 17,
+                Error::NotADirectory => 20,
+                Error::IsADirectory => 21,
+                Error::NotEmpty => 39,
+                Error::Permission => 13,
+                Error::NoSpace => 28,
+                Error::ReadOnly => 30,
+                Error::TooManyLinks => 40,
+                Error::NameTooLong => 36,
+                Error::Escape => 18,
+                Error::NotAFile => 6,
+                Error::InvalidArgument => 22,
+                Error::Other(number) => number,
+            };
+            format!("user: errno {errno}")
+        }
+    }
+}
+
+#[cfg(test)]
+mod login_tests {
+    #[test]
+    fn passwd_login_matches_numeric_uid_and_refuses_missing_user() {
+        let passwd = b"root:x:0:0:root:/root:/bin/sh\nmalformed\nbad:x:not-a-uid:42\nalice:x:1042:42::/home/alice:/bin/sh\nbob:x:2042:42::/home/bob:/bin/sh\n";
+        assert_eq!(super::passwd_login(passwd, 1042), Ok(Box::from(b"alice".as_slice())));
+        assert_eq!(super::passwd_login(passwd, 42), Err("user 42: no login in /etc/passwd".into()));
+    }
 }
 
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).

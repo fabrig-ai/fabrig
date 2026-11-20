@@ -117,6 +117,7 @@ pub fn structured_thread() -> Thread {
                     attempt: ATTEMPT,
                     why: jig_client::contract::RunWhy::Made,
                     resumed: false,
+                    fresh: None,
                 },
             ),
         ),
@@ -163,32 +164,47 @@ pub fn asking_task_root(task: c::Task, template: bool, charter: u32) -> temper_c
 
 #[must_use]
 pub fn asking_task_root_owned(
-    mut task: c::Task,
+    task: c::Task,
     template: bool,
     charter: u32,
     owned: bool,
 ) -> temper_client_domain::Domain {
+    asking_task_root_with_watch(task, template, charter, owned).0
+}
+
+#[must_use]
+pub fn asking_task_root_with_watch(
+    mut task: c::Task,
+    template: bool,
+    charter: u32,
+    owned: bool,
+) -> (temper_client_domain::Domain, skein_lib::Token) {
     let (mut root, me_watch, task_watch) =
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
-    let source = messaging_root();
-    let mut me = source.pages().me(source.client()).expect("me").clone();
-    if template {
-        me = fixtures::asking_me(me);
-    }
-    me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
+    let me = asking_chat_me(root.pages().me(root.client()).expect("me").clone(), template);
     fixtures::deliver_me(&mut root, me_watch, me);
     if !owned {
         super::connect_forge::reread_deployment(&mut root, me_watch, owned);
     }
     task.chip.executor = c::ChipExecutor::Agent { charter };
-    deliver_chat(&mut root, task_watch.expect("task watch"), c::Delivery::Task(Box::new(task)));
-    root
+    let task_watch = task_watch.expect("task watch");
+    deliver_chat(&mut root, task_watch, c::Delivery::Task(Box::new(task)));
+    (root, task_watch)
+}
+
+#[must_use]
+pub fn asking_chat_me(me: c::Me, template: bool) -> c::Me {
+    let mut me = messaging_me(me);
+    if template {
+        me = fixtures::asking_me(me);
+    }
+    me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
+    me
 }
 
 #[must_use]
 pub fn asking_task() -> c::Task {
-    let source = messaging_root();
-    let mut task = source.pages().chat().expect("chat").task(source.client()).expect("task").clone();
+    let mut task = messaging_task(true);
     task.chip.title = c::DocumentText::complete(fixtures::first_run::text(b"Hello"));
     task.acts = List::with_capacity(3);
     for act in [c::ActKind::Message, c::ActKind::Stop, c::ActKind::Cancel] {

@@ -223,6 +223,7 @@ fn review(words: &[u8]) -> Event {
         status: change::Status::Passed,
         no_change: false,
         flake: false,
+        no_test: false,
         failed: false,
         cancelled: false,
         words: words.into(),

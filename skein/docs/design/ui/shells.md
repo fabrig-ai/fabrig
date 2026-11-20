@@ -70,6 +70,7 @@ The page part keeps the full mapping (web/elements.md); in brief:
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
 | a placeholder | `placeholder` |
 | a hint | `title` |
+| a menu's button | the text of the menu's `<button>` and its `aria-label`, the menu's own `aria-label` its name (web/elements.md) |
 | an entry kind | `type`: `text`, `number`, `email`, `tel`, `url`, `date`, `time`, `password` |
 | a value, a focus request | `value`; `focus()` |
 | a count, a position | `aria-setsize`, `aria-posinset`; on a table and its rows, `aria-rowcount`, `aria-rowindex` |
@@ -124,6 +125,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | a value | `text`, `accessibilityValue` |
 | a placeholder | a text field's `placeholder`, a `TextField`'s prompt; a text view has none, and the shell lays a label over it, read as the hint |
 | a hint | with a pointer, `UIToolTipInteraction`'s text; `.help(_:)`; never `accessibilityHint`, which is the description's |
+| a menu's button | the `UIButton`'s title and `accessibilityLabel`, its `UIMenu`'s title the menu's name; `Menu`'s label and `.accessibilityLabel(_:)` |
 | a focus request | `becomeFirstResponder()`; `UIAccessibility.post(notification: .layoutChanged, argument:)` naming the node's view; `@FocusState`, `@AccessibilityFocusState` |
 | a count, a position, spans | a data table's `accessibilityRowCount()`, `accessibilityRowRange()`, `accessibilityColumnRange()`; a list has none, and the shell may say it in `accessibilityValue` |
 | an order | no API: the shell draws each item's number before its words, and its `accessibilityLabel` says it |
@@ -187,6 +189,7 @@ semantics.
 | a value | `setText` | `editableText` |
 | a placeholder | `setHint`, which TalkBack reads while the field is empty | `TextField`'s `placeholder` |
 | a hint | `setTooltipText`, never `setHintText`, which is the description's | a `TooltipBox`'s plain tooltip |
+| a menu's button | the `PopupMenu`'s anchor's text and `setContentDescription` | the `DropdownMenu`'s anchor's text and `contentDescription` |
 | a focus request | `requestFocus()`; `ACTION_ACCESSIBILITY_FOCUS` | `FocusRequester.requestFocus()` |
 | a count, a position, spans | `CollectionInfo`'s rows; `CollectionItemInfo`'s row index (from 0: the position less one) and spans | `collectionInfo`, `collectionItemInfo` |
 | an order | no API: the shell draws each item's number before its words, and `setContentDescription` says it | the same, in `semantics`' `contentDescription` |

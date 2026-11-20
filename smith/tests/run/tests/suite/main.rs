@@ -15,6 +15,7 @@ mod support;
 mod wind_down;
 
 mod fuzzy {
+    mod checks;
     mod messages;
     mod simulation;
 }

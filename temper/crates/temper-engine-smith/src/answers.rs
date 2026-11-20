@@ -964,18 +964,23 @@ fn rendered(
             }
             false
         }
+        CallAnswer::WordsRecorded { recorded, unknown } => {
+            recording(&mut text, recorded, unknown, false)?;
+            false
+        }
         CallAnswer::NoteDeleted { name } => {
             text.add(b"Deleted note ")?;
             text.number(*name)?;
             false
         }
-        CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
+        CallAnswer::NoteWritten { name, revision, lines, added, removed, first, recorded, unknown } => {
             note_written(
                 &mut text,
                 *name,
                 *revision,
                 jig_domain_notes::LineChange { lines: *lines, added: *added, removed: *removed, first: *first },
             )?;
+            recording(&mut text, recorded, unknown, true)?;
             false
         }
         CallAnswer::NoteRecalled { entries, more } => {
@@ -1037,6 +1042,28 @@ fn rendered(
 }
 
 /// The client's note line reads this acknowledgement (temper/docs/design/domain/agent/agents.md, 3).
+fn recording(text: &mut Text, recorded: &[u64], unknown: &[u64], mut has_line: bool) -> Result<(), Problem> {
+    for (label, numbers) in
+        [(b"recorded: ".as_slice(), recorded), (b"named none of your unrecorded words: ".as_slice(), unknown)]
+    {
+        if numbers.is_empty() {
+            continue;
+        }
+        if has_line {
+            text.add(b"\n")?;
+        }
+        text.add(label)?;
+        for (at, &number) in numbers.iter().enumerate() {
+            if at != 0 {
+                text.add(b", ")?;
+            }
+            text.number(number)?;
+        }
+        has_line = true;
+    }
+    Ok(())
+}
+
 pub(crate) fn note_written(
     text: &mut Text,
     name: u64,
@@ -1405,6 +1432,16 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::HoldKind => text.add(b"resource hold kind"),
         Refusal::HoldTaken => text.add(b"resource held by"),
         Refusal::ResourceUnavailable => text.add(b"resource unavailable"),
+        Refusal::Unreported => {
+            text.add(b"unreported: no report came within tasks.hold_wait for a resource held by tasks")?;
+            if let Some(members) = &problem.blocked_by {
+                for member in members {
+                    text.add(b" ")?;
+                    text.number(*member)?;
+                }
+            }
+            return text.add(b"; nothing was made; call again");
+        }
         Refusal::Holds => text.add(b"resource hold limit"),
         Refusal::Unproposable => text.add(b"no one may accept this proposal"),
         Refusal::PersonRevision { .. } => text.add(b"older person task revision"),
@@ -1516,13 +1553,17 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
             text.number(u64::from(limit))?;
             text.add(b", counting the topics the engine keeps for a goal); unsubscribe one it made to make room")
         }
+        CapacityCause::ResourceReports { limit } => {
+            text.add(b": the engine keeps reports of at most ")?;
+            text.number(u64::from(limit))?;
+            text.add(b" resources, those live tasks and waiting batches hold, and this batch's do not fit; call again once tasks have ended")
+        }
         CapacityCause::PlacedHolds { .. }
         | CapacityCause::ProjectPlacedHolds { .. }
         | CapacityCause::PartyPlacedHolds { .. }
         | CapacityCause::Exemptions { .. }
         | CapacityCause::Tasks { .. }
         | CapacityCause::CreationFlights { .. }
-        | CapacityCause::ResourceReports { .. }
         | CapacityCause::ProjectTasks { .. }
         | CapacityCause::Tree { .. }
         | CapacityCause::Delegates { .. }
@@ -2274,12 +2315,47 @@ mod tests {
     }
 
     #[test]
+    fn an_unreported_batch_names_every_missing_member_and_the_retry() {
+        let problem =
+            jig_domain_tasks::Problem::naming(Some(9871), jig_domain_tasks::Refusal::Unreported, &[9871, 9873]);
+        let rendered = answer(&CallAnswer::DelegationRefused(problem));
+        assert_eq!(rendered.text(), b"Refused: task 9871 unreported: no report came within tasks.hold_wait for a resource held by tasks 9871 9873; nothing was made; call again");
+        assert!(rendered.error());
+    }
+
+    #[test]
+    fn a_batch_past_the_report_table_names_its_bound_and_the_retry() {
+        use jig_domain_tasks::{Capacity, CapacityAction, CapacityCause, Party, Refusal};
+        let problem = jig_domain_tasks::Problem::capacity(
+            None,
+            Refusal::Busy,
+            Capacity {
+                project: Some(1),
+                by: Party::Task(7),
+                action: CapacityAction::Batch { first: Some(8), members: 4 },
+                cause: CapacityCause::ResourceReports { limit: 256 },
+            },
+        );
+        let rendered = answer(&CallAnswer::DelegationRefused(problem));
+        assert_eq!(rendered.text(), b"Refused: busy: the engine keeps reports of at most 256 resources, those live tasks and waiting batches hold, and this batch's do not fit; call again once tasks have ended");
+        assert!(rendered.error());
+    }
+
+    #[test]
     fn note_answers_give_the_first_writes_line_count() {
         for (lines, expected) in
             [(0, "Note 12 revision 1 written · 0 lines"), (64, "Note 12 revision 1 written · 64 lines")]
         {
-            let rendered =
-                answer(&CallAnswer::NoteWritten { name: 12, revision: 1, lines, added: lines, removed: 0, first: 1 });
+            let rendered = answer(&CallAnswer::NoteWritten {
+                name: 12,
+                revision: 1,
+                lines,
+                added: lines,
+                removed: 0,
+                first: 1,
+                recorded: Box::new([]),
+                unknown: Box::new([]),
+            });
             assert_eq!(rendered.text(), expected.as_bytes());
             assert!(!rendered.error());
         }
@@ -2291,7 +2367,16 @@ mod tests {
             (18, 6, 31, "Note 12 revision 3 written · +18 −6 · line 31 · 64 lines"),
             (0, 0, 1, "Note 12 revision 3 written · +0 −0 · line 1 · 64 lines"),
         ] {
-            let rendered = answer(&CallAnswer::NoteWritten { name: 12, revision: 3, lines: 64, added, removed, first });
+            let rendered = answer(&CallAnswer::NoteWritten {
+                name: 12,
+                revision: 3,
+                lines: 64,
+                added,
+                removed,
+                first,
+                recorded: Box::new([]),
+                unknown: Box::new([]),
+            });
             assert_eq!(rendered.text(), expected.as_bytes());
             assert!(!rendered.error());
         }

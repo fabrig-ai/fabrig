@@ -141,8 +141,8 @@ fn first_run_words(
                     },
             } if temper_client_protocol_wire::decode_watching(&record.bytes, &wire_limits())
                 .expect("forge watch")
-                .watch()
-                == &temper_client_protocol_wire::v1::Watch::Forges =>
+                .watch
+                == temper_client_protocol_wire::v1::Watch::Forges =>
             {
                 Some(jig_client::Up::FamilyDelivered {
                     watch,
@@ -162,7 +162,7 @@ fn first_run_words(
                 && matches!(
                     temper_client_protocol_wire::decode_watching(&record.bytes, &wire_limits())
                         .expect("ways watch")
-                        .watch(),
+                        .watch,
                     temper_client_protocol_wire::v1::Watch::Ways(_)
                 ) =>
             {
@@ -271,26 +271,20 @@ fn first_run_words(
                     },
             } if temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
                 .expect("forge reading")
-                .read()
-                == &temper_client_protocol_wire::v1::Read::Deployment =>
+                .read
+                == temper_client_protocol_wire::v1::Read::Deployment =>
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 Some(jig_client::Up::ReadDone {
                     read,
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
-                        record: Some(wire::deployment_answer(
-                            &w::DeploymentAnswer::new(
-                                &w::CEILINGS,
-                                w::DeploymentAnswerParts {
-                                    push: None,
-                                    welcome: true,
-                                    owned: true,
-                                    program_login: None,
-                                },
-                            )
-                            .expect("deployment answer"),
-                        )),
+                        record: Some(wire::deployment_answer(&w::DeploymentAnswer {
+                            push: None,
+                            welcome: true,
+                            owned: true,
+                            program_login: None,
+                        })),
                     },
                 })
             }
@@ -302,8 +296,8 @@ fn first_run_words(
             } if landed
                 && temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
                     .expect("forge reading")
-                    .read()
-                    == &temper_client_protocol_wire::v1::Read::Playground =>
+                    .read
+                    == temper_client_protocol_wire::v1::Read::Playground =>
             {
                 Some(jig_client::Up::ReadDone {
                     read,
@@ -320,18 +314,12 @@ fn first_run_words(
                     },
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
+                if let w::Read::Setting(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
                     Some(jig_client::Up::ReadDone {
                         read,
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
-                            record: Some(wire::setting_answer(
-                                &w::SettingAnswer::new(
-                                    &w::CEILINGS,
-                                    w::SettingAnswerParts { revision: None, value: None },
-                                )
-                                .unwrap(),
-                            )),
+                            record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value: None })),
                         },
                     })
                 } else {
@@ -393,15 +381,11 @@ fn first_run_words(
 fn settings_ways() -> Box<[u8]> {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
-            who: b"an agent".as_slice().into(),
-            name: b"the reviewer".as_slice().into(),
-            facts: List::with_capacity(0),
-        },
-    )
-    .unwrap();
+    let card = w::Card {
+        who: b"an agent".as_slice().into(),
+        name: b"the reviewer".as_slice().into(),
+        facts: List::with_capacity(0),
+    };
     let stops = [
         (w::Actor::Person, w::PathStep::Ask, "you ask"),
         (w::Actor::Agent, w::PathStep::Produce, "produce"),
@@ -409,31 +393,21 @@ fn settings_ways() -> Box<[u8]> {
         (w::Actor::Bar, w::PathStep::Branch, "main"),
     ]
     .into_iter()
-    .map(|(actor, step, words)| {
-        w::Stop::new(
-            &w::CEILINGS,
-            w::StopParts {
-                actor,
-                step,
-                words: words.as_bytes().into(),
-                needed: false,
-                over: Box::new([]),
-                opens: w::Opens::Nothing,
-                card: card.clone(),
-            },
-        )
-        .unwrap()
+    .map(|(actor, step, words)| w::Stop {
+        actor,
+        step,
+        words: words.as_bytes().into(),
+        needed: false,
+        over: Box::new([]),
+        opens: w::Opens::Nothing,
+        card: card.clone(),
     })
     .collect();
-    let path = w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts {
-            repository: Some(b"playground/widget".as_slice().into()),
-            branch: b"main".as_slice().into(),
-            stops: List::from_boxed(stops),
-        },
-    )
-    .unwrap();
+    let path = w::BranchPath {
+        repository: Some(b"playground/widget".as_slice().into()),
+        branch: b"main".as_slice().into(),
+        stops: List::from_boxed(stops),
+    };
     let ways = [
         ("You approve", "You approve every change", "You approve each change before code lands it."),
         (
@@ -444,41 +418,25 @@ fn settings_ways() -> Box<[u8]> {
         ("Draft first", "Draft first", "You and an agent write a draft; agents build it on its own branch."),
     ]
     .into_iter()
-    .map(|(name, headline, line)| {
-        w::StockWay::new(
-            &w::CEILINGS,
-            w::StockWayParts {
-                name: name.as_bytes().into(),
-                headline: headline.as_bytes().into(),
-                line: line.as_bytes().into(),
-                path: path.clone(),
-                items: List::with_capacity(0),
-                delegation: false,
-                roles: List::with_capacity(0),
-            },
-        )
-        .unwrap()
+    .map(|(name, headline, line)| w::StockWay {
+        name: name.as_bytes().into(),
+        headline: headline.as_bytes().into(),
+        line: line.as_bytes().into(),
+        path: path.clone(),
+        items: List::with_capacity(0),
+        delegation: false,
+        roles: List::with_capacity(0),
     })
     .collect();
-    wire::ways_panel(
-        &w::WaysPanel::new(
-            &w::CEILINGS,
-            w::WaysPanelParts {
-                project: 1,
-                ways: List::from_boxed(ways),
-                current: Some(1),
-                own: path,
-                words: None,
-                may_change: true,
-                rules: w::PathRules::new(
-                    &w::CEILINGS,
-                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-                )
-                .unwrap(),
-            },
-        )
-        .unwrap(),
-    )
+    wire::ways_panel(&w::WaysPanel {
+        project: 1,
+        ways: List::from_boxed(ways),
+        current: Some(1),
+        own: path,
+        words: None,
+        may_change: true,
+        rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
+    })
 }
 
 fn demo_me() -> contract::Me {
@@ -632,59 +590,44 @@ fn demo_answer() -> Box<[u8]> {
     ] {
         cues.push(cue.into()).expect("three demo cues");
     }
-    wire::playground_answer(
-        &w::PlaygroundAnswer::new(
-            &wire_limits(),
-            w::PlaygroundAnswerParts {
-                state: w::PlaygroundState::Running,
-                project: Some(1),
-                forge: 1,
-                provider: 3,
-                owner: b"playground".as_slice().into(),
-                name: b"widget".as_slice().into(),
-                cues,
-            },
-        )
-        .expect("demo answer fits"),
-    )
+    wire::playground_answer(&w::PlaygroundAnswer {
+        state: w::PlaygroundState::Running,
+        project: Some(1),
+        forge: 1,
+        provider: 3,
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        cues,
+    })
 }
 
 fn demo_forges() -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let limits = wire_limits();
+
     let mut forges = skein_lib::List::with_capacity(1);
     forges
-        .push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
-                    starts_with: w::StartsWith::Repository,
-                    makings: skein_lib::List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 1,
-                    kind: w::Kind::Forgejo,
-                    mode: w::Mode::Fake,
-                    connection: w::Connection::Connected(
-                        w::Connected::new(&limits, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                            .expect("demo account"),
-                    ),
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations: skein_lib::List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: skein_lib::List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .expect("demo forge"),
-        )
+        .push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: skein_lib::List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 1,
+            kind: w::Kind::Forgejo,
+            mode: w::Mode::Fake,
+            connection: w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations: skein_lib::List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: skein_lib::List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .expect("one demo forge");
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).expect("demo forges"))
+    wire::forges(&w::Forges { forges, linked: false })
 }
 
 pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {

@@ -36,6 +36,7 @@ fn start(h: &mut Harness, number: u64, budget: u64) {
     let attempt = context.previous_attempt.checked_add(1).expect("fixture attempt");
     h.send(Event::Prepare { reply_to: to(), task: number });
     h.send(Event::Claim {
+        fresh: None,
         reply_to: to(),
         task: number,
         attempt,
@@ -61,6 +62,8 @@ fn start(h: &mut Harness, number: u64, budget: u64) {
             refused: Box::new([]),
             cumulative: 0,
         });
+        // This fixture handles its wake words before returning funds to the closer.
+        h.send(Event::RecordWords { reply_to: to(), task: number, messages: Box::new([word.number]) });
         assert!(h.domain.task(number).expect("read inbox").inbox.is_empty());
     }
 }

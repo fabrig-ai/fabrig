@@ -37,6 +37,7 @@ fn a_documents_whole_body_reads_back() {
                     author: notes::Author::Task { task: key.task, attempt: key.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         );
         let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2
@@ -92,12 +93,13 @@ fn a_note_built_in_parts_is_recalled_and_read_whole() {
             author: notes::Author::Task { task: 0, attempt: 0 },
         };
         let call = if revision == 1 {
-            core::NamedAction::Note { entry, recalled: None }
+            core::NamedAction::Note { entry, recalled: None, records: Box::new([]) }
         } else {
             core::NamedAction::NoteLines {
                 entry,
                 recalled: revision - 1,
                 range: notes::LineRange { first: revision, remove: 0, join: false },
+                records: Box::new([]),
             }
         };
         action(&mut world, revision, call);

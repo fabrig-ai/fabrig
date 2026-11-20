@@ -370,8 +370,26 @@ pub fn reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client
     world.front().next_client_limits(limits);
     world.client_with(PARTY, chat_page(task), limits, reading_root)
 }
+/// The unread-word fixture needs its larger task document, while its history
+/// still refuses a line past the unchanged 1,024-byte long-text bound.
+#[must_use]
+pub fn unread_reading_limits() -> Limits {
+    let mut limits = reading_limits();
+    limits.client.domain.document_bytes = 4096;
+    limits
+}
+pub fn unread_reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client_kit::harness::ClientId {
+    let limits = unread_reading_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, chat_page(task), limits, unread_reading_root)
+}
+fn unread_reading_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    reading_root_with_limits(seed, unread_reading_limits())
+}
 fn reading_root(seed: u64) -> (crate::app::Root, crate::app::View) {
-    let limits = reading_limits();
+    reading_root_with_limits(seed, reading_limits())
+}
+fn reading_root_with_limits(seed: u64, limits: Limits) -> (crate::app::Root, crate::app::View) {
     let mut words = phrasebooks(&limits);
     words.shell = view::words::Shell::Browser;
     let bounds = view_bounds(&limits, &words);

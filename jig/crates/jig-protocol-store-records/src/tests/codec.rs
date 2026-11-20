@@ -20,7 +20,10 @@ fn a_notes_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 2;
     assert_eq!(
         notes::decode(&bytes, &limits),
-        Err(crate::notes_v1::Problem { path: crate::notes_v1::Path::RowVersion, reason: skein_codec::Reason::Version })
+        Err(crate::notes_v1::Problem {
+            path: crate::notes_v1::paths::ROW_VERSION,
+            reason: skein_codec::Reason::Version
+        })
     );
 }
 fn notes_limits_past_the_ceilings_are_refused() {
@@ -225,12 +228,12 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     let mut label = account_fact(FactValue::Count(0));
     label.label = Box::new([b'l'; 33]);
     for (record, path) in [
-        (facts_record(repeated_account_facts(25)), crate::accounts_v2::Path::FactsFacts),
+        (facts_record(repeated_account_facts(25)), crate::accounts_v2::paths::FACTS_FACTS),
         (
             facts_record(Box::new([account_fact(FactValue::Text(Box::new([b't'; 256])))])),
-            crate::accounts_v2::Path::FactTextText,
+            crate::accounts_v2::paths::FACT_TEXT_TEXT,
         ),
-        (facts_record(Box::new([label])), crate::accounts_v2::Path::FactLabel),
+        (facts_record(Box::new([label])), crate::accounts_v2::paths::FACT_LABEL),
     ] {
         assert_eq!(
             accounts::encode(&record),
@@ -239,13 +242,13 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     }
 }
 fn a_share_past_whole_does_not_decode() {
-    use crate::accounts_v2::{Path, Problem};
+    use crate::accounts_v2::{Problem, paths};
     use jig_domain_accounts::{FactValue, FactWindow};
     for (value, path) in [
-        (FactValue::Share(10_001), Path::FactShareBasis),
+        (FactValue::Share(10_001), paths::FACT_SHARE_BASIS),
         (
             FactValue::Window(FactWindow { length: None, used: Some(10_001), resets: None, state: 1 }),
-            Path::FactWindowUsed,
+            paths::FACT_WINDOW_USED,
         ),
     ] {
         let bytes =
@@ -278,7 +281,7 @@ fn a_notes_pattern_past_its_aggregate_limit_is_refused() {
     assert_eq!(
         notes::encode(&domain::Record::Line(line), &limits),
         Err(crate::notes_v1::Problem {
-            path: crate::notes_v1::Path::PatternSegments,
+            path: crate::notes_v1::paths::PATTERN_SEGMENTS,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -317,7 +320,7 @@ fn a_decoded_pattern_past_its_aggregate_limit_is_refused() {
     assert_eq!(
         notes::decode(&bytes, &limits),
         Err(crate::notes_v1::Problem {
-            path: crate::notes_v1::Path::PatternSegments,
+            path: crate::notes_v1::paths::PATTERN_SEGMENTS,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -742,9 +745,7 @@ fn people_round_trip(row: jig_domain_people::Stored) {
 fn ask_round_trip(ask: jig_domain_people::Ask) {
     let limits = people_limits();
     let value = crate::codec::people::encode_ask(&ask, &limits).expect("bounded ask");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured room");
-    let bytes = writer.finish();
+    let bytes = value.encode(&limits).expect("bounded value");
     let read = crate::people_v17::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
@@ -861,7 +862,7 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &fixtures::configured_model_names(&[])
         ),
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::IdentityKeySubject,
+            path: crate::people_v17::paths::IDENTITY_KEY_SUBJECT,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -876,7 +877,7 @@ fn a_people_row_of_another_version_does_not_decode() {
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::RowVersion,
+            path: crate::people_v17::paths::ROW_VERSION,
             reason: skein_codec::Reason::Version
         })
     );
@@ -901,6 +902,12 @@ fn a_refused_delegation_reads_back_with_its_problem() {
         fixtures::calls::problem(),
     )));
 }
+#[test]
+fn an_unreported_batch_reads_back_with_its_missing_members() {
+    let problem = jig_domain_tasks::Problem::naming(Some(9871), jig_domain_tasks::Refusal::Unreported, &[9871, 9873]);
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(problem)));
+}
+
 fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
     use jig_domain_tasks::LlmFault;
     for why in [
@@ -1538,7 +1545,7 @@ fn a_stored_project_name_is_bounded_and_utf8() {
         writer.put(&name).expect("name");
         assert_eq!(
             wire::StoredPolicy::decode(&limits, &mut Reader::new(&writer.finish())),
-            Err(wire::Problem { path: wire::Path::StoredPolicyName, reason }),
+            Err(wire::Problem { path: wire::paths::STORED_POLICY_NAME, reason }),
         );
     }
 }
@@ -1792,7 +1799,7 @@ fn a_stored_member_keeps_its_symbols() {
                 assert_eq!(
                     crate::codec::people::encode(&row, &limits, &names),
                     Err(crate::people_v17::Problem {
-                        path: crate::people_v17::Path::MemberSymbols,
+                        path: crate::people_v17::paths::MEMBER_SYMBOLS,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );
@@ -1806,7 +1813,7 @@ fn a_stored_member_keeps_its_symbols() {
                 assert_eq!(
                     crate::codec::people::decode(&bytes, &narrower, &names),
                     Err(crate::people_v17::Problem {
-                        path: crate::people_v17::Path::MemberSymbols,
+                        path: crate::people_v17::paths::MEMBER_SYMBOLS,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );

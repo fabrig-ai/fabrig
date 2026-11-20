@@ -83,7 +83,7 @@ sys.exit(int(count > 0))
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
                 build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None,
-                metadata_forbidden=False):
+                metadata_forbidden=False, stderr=None):
         calls = []
         events = [] if events is None else events
         data = self.metadata(packages, directories, dependencies)
@@ -135,7 +135,7 @@ sys.exit(int(count > 0))
                 mock.patch.object(PRE_PR, 'clippy', side_effect=clippy_check) as clippy, \
                 mock.patch.object(PRE_PR, 'one_process', side_effect=test_check) as one_process, \
                 mock.patch.object(PRE_PR, 'run', side_effect=run), \
-                contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+                contextlib.redirect_stdout(log), contextlib.redirect_stderr(stderr if stderr is not None else log):
             result = PRE_PR.main()
         self.clippy_mock = clippy
         self.one_process_mock = one_process
@@ -233,6 +233,82 @@ sys.exit(int(count > 0))
                 if row == 'unknown reader':
                     self.assertIn('pre-pr: path reader missing: not a workspace member, skipped', log)
 
+    def test_selection_excludes_merged_inputs(self):
+        for pending in (True, False):
+            with self.subTest(pending=pending):
+                self.setUp()
+                self.write('beta/Cargo.toml', '[package]\nname = "beta"\n')
+                self.write('beta/src/lib.rs', 'pub fn base() {}\n')
+                self.write('.config/gate/always.txt', 'reader beta/\n')
+                self.pin()
+                start = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write('beta/src/lib.rs', 'pub fn merged() {}\n')
+                self.write('guide.md', '# Merged guide\n')
+                self.command('git', 'commit', '-qam', 'merged inputs')
+                merged = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.command('git', 'checkout', '-q', '--detach', start)
+                self.command('git', 'commit', '--allow-empty', '-qm', 'branch')
+                self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
+                self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+                if not pending:
+                    self.command('git', 'commit', '-qm', 'merge inputs')
+                result, log, calls, code = self.deliver(
+                    ('beta', 'dependent', 'reader', 'fabrig-boundary'),
+                    dependencies={'dependent': [{'name': 'beta', 'kind': None}]})
+                self.assertEqual(result, 0, log)
+                self.assertEqual(self.clippy_mock.call_args.args[0] if self.clippy_mock.called else [], [], log)
+                self.assertEqual(self.one_process_mock.call_args.args[0] if self.one_process_mock.called else [], [], log)
+                self.assertEqual(code, (False, False, False), log)
+                self.assertFalse(calls, log)
+                line = f"pre-pr: merged tips: {merged}: what they hold is not the delivery's\n"
+                selection = 'pre-pr: no code or docs inputs changed\n'
+                self.assertEqual(log.count(line), 1, log)
+                self.assertIn(selection, log)
+                self.assertLess(log.index(line), log.index(selection))
+
+    def test_selection_keeps_merge_resolutions_and_later_edits(self):
+        for row in ('resolution', 'later edit'):
+            with self.subTest(row=row):
+                self.setUp()
+                self.write('beta/Cargo.toml', '[package]\nname = "beta"\n')
+                self.write('beta/src/lib.rs', 'pub fn base() {}\n')
+                self.pin()
+                start = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write('beta/src/lib.rs', 'pub fn merged() {}\n')
+                self.command('git', 'commit', '-qam', 'merged source')
+                merged = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.command('git', 'checkout', '-q', '--detach', start)
+                if row == 'resolution':
+                    self.write('beta/src/lib.rs', 'pub fn branch() {}\n')
+                self.command('git', 'commit', '--allow-empty', '-qam', 'branch')
+                self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
+                if row == 'resolution':
+                    with self.assertRaises(subprocess.CalledProcessError) as conflict:
+                        self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+                    self.assertIn('CONFLICT (content)', conflict.exception.stdout)
+                    self.write('beta/src/lib.rs', 'pub fn resolution() {}\n')
+                    self.command('git', 'add', 'beta/src/lib.rs')
+                else:
+                    self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+                self.command('git', 'commit', '-qm', 'merge source')
+                if row == 'later edit':
+                    self.write('beta/src/lib.rs', 'pub fn edited() {}\n')
+                result, log, _, _ = self.deliver(('beta',))
+                self.assertEqual(result, 0, log)
+                self.assertEqual(self.clippy_mock.call_args.args[0] if self.clippy_mock.called else [], ['beta'], log)
+                self.assertEqual(self.one_process_mock.call_args.args[0] if self.one_process_mock.called else [], ['beta'], log)
+                line = f"pre-pr: merged tips: {merged}: what they hold is not the delivery's\n"
+                self.assertEqual(log.count(line), 1, log)
+                self.assertLess(log.index(line), log.index('pre-pr: code only:'))
+
+    def test_selection_path_failure_is_not_empty_change(self):
+        with mock.patch.object(PRE_PR, 'delivery_paths', side_effect=RuntimeError('cannot read paths')):
+            result, log, _, _ = self.deliver()
+        self.assertEqual(result, 1, log)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertIn(dict(name='check selection', key=None, **{'class': 'new'}), record['failures'])
+        self.assertIn('cannot read paths', log)
+
     def test_nested_package_ownership(self):
         data = self.metadata(('A', 'B'), directories={'A': 'a', 'B': 'a/b'})
         for path, package in (('a/b/c.rs', 'B'), ('a/bc/d.rs', 'A'), ('a/x.rs', 'A'),
@@ -326,6 +402,103 @@ sys.exit(int(count > 0))
                     self.assertIn('passed before', log)
                     self.assertFalse(any(code))
                     process.Popen.assert_not_called()
+
+    def test_waiting_hold_delays_metadata_until_held(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        self.write('hold.py', """import os, sys, time
+from pathlib import Path
+assert 'TIERS_HOLD' not in os.environ
+with Path('hold-events').open('a') as events:
+    events.write(f'waiting {time.monotonic()}\\n')
+print('waiting for a build place', flush=True)
+time.sleep(0.3)
+print('waiting for a build place', flush=True)
+time.sleep(0.8)
+with Path('hold-events').open('a') as events:
+    events.write(f'held {time.monotonic()}\\n')
+print('held', flush=True)
+sys.stdin.read()
+""")
+        self.env['TIERS_HOLD'] = 'python3 -I -B hold.py'
+        real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+        stderr = io.StringIO()
+
+        @contextlib.contextmanager
+        def hold(*args, **kwargs):
+            def metadata(*args):
+                with (self.root / 'hold-events').open('a') as events:
+                    events.write(f'metadata {time.monotonic()}\n')
+                return self.metadata(('api',))
+
+            PRE_PR.metadata.side_effect = metadata
+            with mock.patch.dict(real_hold.__wrapped__.__globals__, HOLD_READY_S=1):
+                with real_hold(*args, **kwargs):
+                    yield
+
+        result, log, _, code = self.deliver(hold=hold, stderr=stderr)
+        events = [line.split() for line in (self.root / 'hold-events').read_text().splitlines()]
+        self.assertEqual([event[0] for event in events], ['waiting', 'held', 'metadata'], events)
+        self.assertLessEqual(float(events[1][1]), float(events[2][1]), events)
+        self.assertEqual(result, 0, log)
+        self.assertTrue(all(code))
+        self.assertEqual(stderr.getvalue(), 'smith-check: waiting\nsmith-check: admitted\n')
+        self.assertEqual(log.count('pre-pr: hold: waiting for a build place\n'), 1, log)
+        self.assertRegex(log, r'(?m)^pre-pr: hold: held after [0-9]+ s$')
+        self.assertNotIn('going on unheld', log)
+
+    def test_hold_reads_whole_lines_and_stops_at_held(self):
+        real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+        for chunks, expected in (([b'held\nwaiting ignored\n'], ''),
+                                 ([b'wait', b'ing for a build place\nwaiting again\nheld\nwaiting ignored\n'],
+                                  'pre-pr: hold: waiting for a build place\npre-pr: hold: held after 0 s\n')):
+            with self.subTest(chunks=chunks):
+                output, stderr = io.StringIO(), io.StringIO()
+                process = mock.Mock()
+                process.poll.return_value = None
+                environment = dict(self.env, TIERS_HOLD='hold')
+                with mock.patch.dict(real_hold.__wrapped__.__globals__,
+                                     subprocess=mock.Mock(Popen=mock.Mock(return_value=process)),
+                                     select=mock.Mock(select=mock.Mock(return_value=([process.stdout], [], []))),
+                                     os=mock.Mock(read=mock.Mock(side_effect=chunks)),
+                                     time=mock.Mock(monotonic=mock.Mock(return_value=0))), \
+                        contextlib.redirect_stderr(stderr):
+                    with real_hold(['hold'], 'pre-pr', self.root, environment, output=output):
+                        self.assertFalse(process.stdin.close.called)
+                self.assertEqual(output.getvalue(), expected)
+                self.assertEqual(stderr.getvalue(), 'smith-check: waiting\nsmith-check: admitted\n' if expected else '')
+                process.kill.assert_not_called()
+                process.stdin.close.assert_called_once_with()
+                process.stdout.close.assert_called_once_with()
+
+    def test_waiting_hold_failure_resumes_before_warning(self):
+        for mode in ('silent', 'exit', 'closed'):
+            with self.subTest(mode=mode):
+                self.setUp()
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                self.write('hold.py', """import os, sys, time
+print('waiting for a build place', flush=True)
+if sys.argv[1] == 'silent':
+    time.sleep(5)
+elif sys.argv[1] == 'closed':
+    os.close(1)
+    sys.stdin.read()
+else:
+    sys.exit(3)
+""")
+                self.env['TIERS_HOLD'] = 'python3 -I -B hold.py ' + mode
+                real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+                fault = PRE_PR.failure('format', 'format fault')
+                with mock.patch.dict(real_hold.__wrapped__.__globals__, HOLD_READY_S=0.5):
+                    result, log, _, code = self.deliver(formatting_answer=[fault], hold=real_hold)
+                self.assertEqual(result, 1, log)
+                self.assertEqual(code, (True, True, True))
+                self.assertEqual(log.count('smith-check: waiting\n'), 1, log)
+                self.assertEqual(log.count('smith-check: admitted\n'), 1, log)
+                warning = log.index('; going on unheld')
+                self.assertLess(log.index('smith-check: admitted\n'), log.rfind('pre-pr: hold:', 0, warning))
+                self.assertLess(warning, log.index('pre-pr: format …'))
+                self.assertIn('format fault', log)
+                self.assertFalse((self.root / '.git/pre-pr-passed').exists())
 
     def test_early_hold_exit_keeps_a_refusal(self):
         self.env['TIERS_HOLD'] = "python3 -c __import__('sys').exit(3)"
@@ -1953,6 +2126,94 @@ raise SystemExit({code})
         self.assertEqual(json.loads((self.root / 'target/figures-argv.json').read_text()), argv)
         self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py', *argv], self.root))
 
+    def test_figures_landing_repair_base_and_parent_order(self):
+        """A repair keeps its base, selects its own paths and checks figures (design.md, 2–4)."""
+        budgets = 'tools/tiers/budgets.toml'
+        reasons = ('landed_first', 'landed_second')
+        repair = ['api/src/repair.rs']
+        change = ['api/src/lib.rs', *repair]
+        landed = [*repair, 'client/src/landed.rs', budgets]
+        rows = (('B', 'first', 'skipped', repair, 'api'),
+                ('B', 'second', 'skipped', change, 'api'),
+                ('H', 'second', 'passed', repair, 'api'),
+                ('H', 'first', 'failed', landed, 'api client'))
+        for pin, base_parent, verdict, own_paths, packages in rows:
+            with self.subTest(pin=pin, base_parent=base_parent):
+                self.setUp()
+                self.command('git', 'branch', '-M', 'main')
+                source = Path(__file__).resolve().parents[1] / 'tiers'
+                for name in ('figures.py', 'cpu.py'):
+                    self.write('tools/tiers/' + name, (source / name).read_text())
+                self.write('tools/tiers/layers.toml', 'layers = ["step", "domain", "simulated"]\n')
+                self.write(budgets, '[gate.default]\n')
+                self.write('Cargo.toml', '[workspace]\nmembers = ["api", "client"]\n')
+                self.write('client/Cargo.toml', '[package]\nname = "client"\n')
+                self.write('client/src/lib.rs', 'pub fn client() {}\n')
+                self.pin()
+                fork = self.command('git', 'rev-parse', 'HEAD').strip()
+
+                self.command('git', 'checkout', '-q', '--detach', fork)
+                self.write('api/src/lib.rs', 'pub fn change() {}\n')
+                self.command('git', 'commit', '-qam', 'change head H')
+                old_head = self.command('git', 'rev-parse', 'HEAD').strip()
+
+                self.command('git', 'checkout', '-q', 'main')
+                self.write(budgets, '[gate.default]\n' + ''.join(
+                    f'\n[[gate.default.reasons]]\nbinary = "client::suite"\n'
+                    f'test = "{name}"\ncpu_s = 3\nwhy = "landed test"\n'
+                    for name in reasons))
+                self.write('client/src/landed.rs', 'pub fn landed() {}\n')
+                self.command('git', 'add', '.')
+                self.command('git', 'commit', '-qm', 'landing base B')
+                landing_base = self.command('git', 'rev-parse', 'HEAD').strip()
+
+                parents = ((landing_base, old_head) if base_parent == 'first' else
+                           (old_head, landing_base))
+                self.command('git', 'checkout', '-q', '--detach', parents[0])
+                self.command('git', 'merge', '--no-ff', '-qm', 'repair merge', parents[1])
+                self.write('api/src/repair.rs', 'pub fn repair() {}\n')
+                expected_base = landing_base if pin == 'B' else old_head
+                self.command('git', 'update-ref', 'refs/temper/landing', expected_base)
+
+                with mock.patch.object(PRE_PR, 'code_inputs', wraps=PRE_PR.code_inputs) as inputs:
+                    result, log, calls, _ = self.deliver(packages=('api', 'client'))
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['base'], expected_base, log)
+                self.assertEqual(result, int(verdict == 'failed'), log)
+                delivery_verdict = 'refused' if verdict == 'failed' else 'passed'
+                self.assertIn(f'pre-pr: {delivery_verdict} (base {expected_base}, '
+                              'merge base of refs/temper/landing and HEAD)\n', log)
+                paths = change if pin == 'B' else landed
+                raw_paths = self.command('git', 'diff-tree', '-r', '--no-renames', '--name-only',
+                                         expected_base, record['tree']).splitlines()
+                self.assertEqual(raw_paths, paths)
+                self.assertTrue(inputs.called)
+                for call in inputs.call_args_list:
+                    self.assertEqual(call.args[0], own_paths)
+                self.assertIn(f'\nlints: {packages}\ntests: {packages}\n', log)
+                figure_calls = [args for args, _ in calls if 'tools/tiers/figures.py' in args]
+                if verdict == 'skipped':
+                    self.assertEqual(figure_calls, [])
+                    self.assertNotIn('pre-pr: figures', log)
+                else:
+                    merged = landing_base if base_parent == 'second' else old_head
+                    self.assertEqual(figure_calls, [
+                        ['python3', '-I', '-B', 'tools/tiers/figures.py', '--base', expected_base,
+                         '--head', record['tree'], '--merged', merged]])
+                    self.assertRegex(log, rf'pre-pr: figures: {verdict}, \d+\.\d{{3}} s\n')
+                    count = len(reasons) if verdict == 'failed' else 0
+                    self.assertIn(f'figures: {count} raised or added since {old_head} and {merged}\n', log)
+                    if verdict == 'passed':
+                        self.assertIn(f'figures: {budgets} unchanged since {landing_base}\n', log)
+                if verdict == 'failed':
+                    for name in reasons:
+                        self.assertIn(f'figure added: default reason client::suite {name}: 3\n', log)
+                    self.assertEqual(record['failures'], [dict(name='figures', key=None, **{'class': 'new'})])
+                else:
+                    self.assertEqual(record['failures'], [])
+                    self.assertNotIn('figure added:', log)
+                self.assertEqual(self.command('git', 'rev-parse', 'refs/temper/landing').strip(), expected_base)
+
     def test_figures_refusal_is_not_inherited(self):
         """A figure refusal is the delivery's (tools/pre-pr/design.md, 4)."""
         output = 'figure raised: default temper domain ceiling: 137.5 to 141.5'
@@ -2045,7 +2306,8 @@ raise SystemExit({code})
                 self.assertIn("a journey's recording, pages and the files beside them are written on main by "
                               "the journeys' writer alone (AGENTS.md, 4): restore them with git "
                               f"checkout {repair_base} -- PATH..., and compare pages by cargo run -p "
-                              "temper-client-journeys in your own tree", log)
+                              "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
+                              "by cargo run -p temper-client-walk -- print --out DIR\n", log)
                 record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
                 self.assertEqual(record['counts'], dict(new=1, flake=0, inherited=0), log)
                 self.assertEqual(record['failures'], [dict(name='journeys', key=None, **{'class': 'new'})])
@@ -2255,6 +2517,46 @@ raise SystemExit({code})
         result, log, _, _ = self.deliver()
         self.assertEqual(result, 1, log)
         self.assertIn('old-forms skein old', log)
+
+    def check_base_target(self):
+        with tempfile.TemporaryDirectory(prefix='pre-pr-count-env-') as directory:
+            records = Path(directory) / 'counts.jsonl'
+            script = self.root / 'skein/scripts/old_forms.py'
+            self.write('skein/scripts/old_forms.py', f"""import json
+import os
+from pathlib import Path
+with Path({str(records)!r}).open('a') as output:
+    output.write(json.dumps([str(Path.cwd()), os.environ.get('CARGO_TARGET_DIR')]) + '\\n')
+""" + script.read_text())
+            self.write('skein/count.txt', '2')
+            self.pin()
+            self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+            git_dir = Path(self.command('git', 'rev-parse', '--absolute-git-dir').strip())
+            target = git_dir / 'temper-pre-pr/target'
+            expected = [[str(self.root / 'skein'), self.env.get('CARGO_TARGET_DIR')],
+                        [str(git_dir / 'temper-pre-pr/base/skein'), str(target)]]
+            result, log, _, _ = self.deliver()
+            self.assertEqual(result, 0, log)
+            self.assertIn('inherited: old-forms skein old', log)
+            self.assertEqual([json.loads(line) for line in records.read_text().splitlines()], expected)
+            self.assertTrue(target.is_dir())
+            kept = target / 'kept'
+            kept.write_text('base artifact\n')
+
+            self.write('skein/count.txt', '3')
+            result, log, _, _ = self.deliver()
+            self.assertEqual(result, 1, log)
+            self.assertIn('old-forms skein old', log)
+            self.assertEqual([json.loads(line) for line in records.read_text().splitlines()], expected * 2)
+            self.assertEqual(kept.read_text(), 'base artifact\n')
+
+    def test_base_target_overrides_head_target(self):
+        self.env['CARGO_TARGET_DIR'] = str(self.root / 'target-head')
+        self.check_base_target()
+
+    def test_base_target_when_head_target_unset(self):
+        self.assertNotIn('CARGO_TARGET_DIR', self.env)
+        self.check_base_target()
 
     def test_test_inputs_select_code(self):
         for path in ('api/fixtures/value.golden', 'api/docs/input.txt', 'shared/fixtures/value.bin'):

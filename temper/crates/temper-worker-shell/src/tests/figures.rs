@@ -6,7 +6,7 @@ use std::{
 };
 fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/bare.json")).expect("stock document");
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("stock document");
     configured_figures(&input)
 }
 fn configured_figures(input: &serde_json::Value) -> jig_protocol_worker_wire::Figures {
@@ -29,39 +29,102 @@ fn configured_figures_with(
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
 #[test]
+fn toml_worker_git_wins_over_path_and_absent_key_uses_path() {
+    let scratch = skein_scratch::Scratch::new("worker-program-git");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-git");
+    let found = root.join("git");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    for explicit in [true, false] {
+        let text = if explicit {
+            format!("engine = \"127.0.0.1:7200\"\n[programs]\ngit = {named:?}\n")
+        } else {
+            "engine = \"127.0.0.1:7200\"\n".into()
+        };
+        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
+            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
+                .expect("worker read");
+            let part =
+                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
+                    .expect("worker part");
+            let expected = if explicit {
+                Some(&named)
+            } else if environment.is_empty() {
+                None
+            } else {
+                Some(&found)
+            };
+            assert_eq!(part.worker.git.as_deref(), expected.map(|path| path.as_os_str().as_bytes()));
+        }
+    }
+}
+
+#[test]
+fn toml_worker_claude_wins_then_path_then_fetched_in_written_configuration() {
+    let scratch = skein_scratch::Scratch::new("worker-program-claude");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-claude");
+    let found = root.join("claude");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    for explicit in [true, false] {
+        let text = if explicit {
+            format!("engine = \"127.0.0.1:7200\"\n[programs]\nclaude = {named:?}\n")
+        } else {
+            "engine = \"127.0.0.1:7200\"\n".into()
+        };
+        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
+            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
+                .expect("worker read");
+            let mut part =
+                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
+                    .expect("worker part");
+            let unknown = temper_worker_service::figures::apply(&mut part, stock_figures()).expect("applied figures");
+            assert!(unknown.is_empty());
+            let bytes = worker::configuration(&part, &directories, &environment).expect("agent configuration");
+            let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
+            let expected = if explicit {
+                named.to_str().expect("named path")
+            } else if environment.is_empty() {
+                "fetched"
+            } else {
+                found.to_str().expect("PATH program")
+            };
+            assert_eq!(written["programs"]["claude_code"]["path"], expected);
+        }
+    }
+}
+
+#[test]
 fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
     use jig_protocol_worker_wire as w;
     use skein_lib::Duration;
     let scratch = skein_scratch::Scratch::new("derived-agent-watchdog");
     let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-            .expect("stock box document");
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("stock box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let given = temper_service::stock::Given::Stock.with_providers(
         temper_service::stock::providers(),
         Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
     );
     for (override_ms, expected_seconds) in [(None, 1205), (Some(3_600_000), 3605)] {
-        let mut parts = configured_figures_with(&input, &given).into_parts();
+        let mut parts = configured_figures_with(&input, &given);
         if let Some(value) = override_ms {
-            let mut agents = parts.agents.into_parts();
+            let mut agents = parts.agents;
             let mut profile = skein_lib::List::with_capacity(agents.profile.len() + 1);
             for figure in agents.profile.into_boxed() {
                 profile.push(figure).expect("existing profile figure");
             }
-            profile
-                .push(
-                    w::Limit::new(
-                        &w::CEILINGS,
-                        w::LimitParts { name: b"policy.tool_deadline".as_slice().into(), value },
-                    )
-                    .expect("tool deadline figure"),
-                )
-                .expect("profile room");
+            profile.push(w::Limit { name: b"policy.tool_deadline".as_slice().into(), value }).expect("profile room");
             agents.profile = profile;
-            parts.agents = w::Agents::new(&w::CEILINGS, agents).expect("agent figures");
+            parts.agents = agents;
         }
-        let figures = w::Figures::new(&w::CEILINGS, parts).expect("engine figures");
+        let figures = parts;
         let bytes =
             agent::figures::configuration(&figures, Some(std::path::Path::new("/fixture/claude")), scratch.path(), &[])
                 .expect("agent document from engine figures");
@@ -84,14 +147,14 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
 #[test]
 fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
     let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("box document");
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let given = temper_service::stock::Given::Stock.with_providers(
         temper_service::stock::providers(),
         Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
     );
     let figures = configured_figures_with(&input, &given);
-    assert_eq!(figures.agents().endpoints().get(3).expect("demo endpoint").provider(), b"demo");
+    assert_eq!(figures.agents.endpoints.get(3).expect("demo endpoint").provider.as_ref(), b"demo");
     let scratch = skein_scratch::Scratch::new("demo-agent-endpoint");
     let bytes = agent::figures::configuration(&figures, None, scratch.path(), &[]).expect("written agent");
     let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
@@ -136,7 +199,7 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
     let (_, document) = super::worker_document(data);
     let directories = super::configuration::directories(data);
     let mut part = temper_worker_service::startup::worker_part(
-        &serde_json::to_vec(&document).expect("JSON"),
+        &super::worker_start(&document),
         &temper_service_shell::jig_directories(&directories),
         None,
         &[],
@@ -184,46 +247,29 @@ fn claude_lookup_requires_an_absolute_path_entry_and_executable_file() {
 #[test]
 fn tls_figures_write_smiths_trust_and_keep_endpoint_details() {
     use jig_protocol_worker_wire as w;
-    let mut parts = stock_figures().into_parts();
-    let mut agents = parts.agents.into_parts();
+    let mut parts = stock_figures();
+    let mut agents = parts.agents;
     let endpoint = agents.endpoints.get_mut(0).expect("endpoint");
-    let mut value = endpoint.clone().into_parts();
+    let mut value = endpoint.clone();
     value.host = b"::1".as_slice().into();
     value.port = 1234;
     value.program = Some(b"claude_code".as_slice().into());
     value.headers = skein_lib::List::with_capacity(1);
     value
         .headers
-        .push(
-            w::Header::new(
-                &w::CEILINGS,
-                w::HeaderParts { name: b"x-fixture".as_slice().into(), value: b"given".as_slice().into() },
-            )
-            .expect("header"),
-        )
+        .push(w::Header { name: b"x-fixture".as_slice().into(), value: b"given".as_slice().into() })
         .expect("one header");
-    value.transport = w::Transport::Tls(
-        w::Tls::new(
-            &w::CEILINGS,
-            w::TlsParts {
-                server_name: b"skein.test".as_slice().into(),
-                trust: Some(b"/fixture/root.der".as_slice().into()),
-            },
-        )
-        .expect("TLS"),
-    );
-    let mut limits = value.limits.into_parts();
+    value.transport = w::Transport::Tls(w::Tls {
+        server_name: b"skein.test".as_slice().into(),
+        trust: Some(b"/fixture/root.der".as_slice().into()),
+    });
+    let mut limits = value.limits;
     limits.oversized = w::Oversized::Drop;
-    value.limits = w::EndpointLimits::new(&w::CEILINGS, limits).expect("limits");
-    *endpoint = w::AgentEndpoint::new(&w::CEILINGS, value).expect("endpoint");
-    parts.agents = w::Agents::new(&w::CEILINGS, agents).expect("agents");
-    let bytes = agent::figures::configuration(
-        &w::Figures::new(&w::CEILINGS, parts).expect("figures"),
-        None,
-        std::path::Path::new("/fixture"),
-        &[],
-    )
-    .expect("written agent");
+    value.limits = limits;
+    *endpoint = value;
+    parts.agents = agents;
+    let bytes =
+        agent::figures::configuration(&parts, None, std::path::Path::new("/fixture"), &[]).expect("written agent");
     let _decoded = agent::decoded_bytes(&bytes).expect("smith reads endpoint trust");
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
     let endpoint = &document["endpoints"][0];

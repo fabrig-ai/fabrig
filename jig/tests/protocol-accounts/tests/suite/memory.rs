@@ -63,25 +63,19 @@ fn the_source_inventory_sweeps_unnamed_rows_at_its_limits() {
 
 #[test]
 fn the_moved_codec_at_its_ceilings_fits_its_heap_bound() {
-    use jig_protocol_accounts::v1::{CEILINGS, Moved, MovedParts};
-    use skein_lib::{Reader, Writer};
+    use jig_protocol_accounts::v1::{CEILINGS, Moved, Record};
+    use skein_lib::Reader;
 
     let field = |length| bytes::zeroed(skein_lib::length::usize_of(length));
-    let value = Moved::new(
-        &CEILINGS,
-        MovedParts {
-            application: field(CEILINGS.moved_application),
-            issuer: field(CEILINGS.moved_issuer),
-            client_id: field(CEILINGS.moved_client_id),
-            subject: field(CEILINGS.moved_subject),
-            display: field(CEILINGS.moved_display),
-            record: Secret::new(field(CEILINGS.moved_record)),
-        },
-    )
-    .expect("parts at their ceilings");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured writer");
-    let input = writer.finish();
+    let value = Moved {
+        application: field(CEILINGS.moved_application),
+        issuer: field(CEILINGS.moved_issuer),
+        client_id: field(CEILINGS.moved_client_id),
+        subject: field(CEILINGS.moved_subject),
+        display: field(CEILINGS.moved_display),
+        record: Secret::new(field(CEILINGS.moved_record)),
+    };
+    let input = value.encode(&CEILINGS).expect("parts at their ceilings");
     drop(value);
     let bound = Moved::decoded_bound(&CEILINGS).expect("codec heap bound");
     let meter = Meter::new();

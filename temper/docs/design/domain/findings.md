@@ -39,7 +39,9 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 - **Closed when its fix clears** (section 7): a landing whose change
   says `Fixes #n` closes finding n once the landing is cleared, not
   when it lands. A finding a person closes on the forge is closed in
-  temper.
+  temper. A red finding filed under `wait: landed` is blamed on its
+  landing and cleared by a run that passes its tests instead
+  (`red-findings.md`).
 - **QA after landing** (section 8): marks (`QA:` trailers, a `qa`
   label), a chooser, one pass at a time per project on the newest
   cleared main, a tester with no forge effects whose findings are filed.
@@ -106,7 +108,9 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   a follow change, its follow's owner's area, `forge/follows.md`,
   section 6), its title `Red after landing on
   BRANCH: tier NAME` and its body the red's news words (after-landing.md,
-  section 7), once per landing the verdict reddens; the QA procedure,
+  section 7), once per landing the verdict reddens, and under `wait:
+  landed`, for each red of a landing tier, a red finding blamed on the
+  landing that caused it (`red-findings.md`, section 2); the QA procedure,
   from its tester's report (section 8); verdicts, a flake
   (after-landing.md, 5.2); and the root, for a flake of a delivery's
   check, a test that failed under load and passed when its process ran
@@ -136,14 +140,19 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   filed anew, naming the open ones it overlaps. A delivery's check is a
   source as a tier or gate is, named `check`: its flake's signature is
   the repository, `check`, the test's key as its one id and no first line
-  (`forge/reds.md`, 5.8). Open is any state but `dropped`.
+  (`forge/reds.md`, 5.8). Open is any state but `dropped`; a red
+  finding filed under `wait: landed` is open until cleared, whatever
+  its state, and holds its ids while open (`red-findings.md`, section 7).
 - **Kept on the record** as options appended after its fields
   (`../protocol/store.md`, 2): `signature`, the repository (its forge
   and repository, as a `Change` row names one), the source (1 to 64
   bytes: `check`, a tier's or a gate's name), the ids (1 to 64, each at
-  most 512 bytes, in byte order) and the first line (at most 512 bytes,
-  empty for a check's); and `seen`, the times a flake was seen, from 1. A
-  finding filed otherwise has neither. The ids' two bounds are the
+  most 512 bytes, in byte order), or none and `many` (`red-findings.md`,
+  section 5), and the first line (at most 512 bytes, empty for a
+  check's); and `seen`, the times a flake was seen, from 1. A finding
+  filed otherwise has neither. A red finding filed under `wait: landed`
+  keeps its blame and its clearing too (`red-findings.md`, section 9).
+  The ids' two bounds are the
   signature's own, and a start holds `forge.tiers.failing_tests` and
   `forge.tiers.test_id_bytes` within them, so that a tier's ids always
   fit a signature whole (`../protocol/configuration/limits.md`).
@@ -189,7 +198,16 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
     any goal is made, then routes it there;
   - **to the backlog:** `backlog`, until a later triage;
   - **dropped,** with a reason: `dropped`, the reason kept, and its
-    issue closed with the reason as a comment.
+    issue closed with the reason as a comment;
+  - **repaired,** for red findings filed under `wait: landed`: one
+    repair goal for several, made as the triager's delegate and each
+    routed to it, its attempt counted (`red-repairs.md`, section 4);
+  - **blamed,** for the same: its blame moved to another landing or to
+    none (`red-repairs.md`, section 3).
+
+  A red finding routed to a goal is judged at that goal's end, and goes
+  back to its holder `new` where its tests still fail
+  (`red-repairs.md`, section 5).
 - **News to a goal,** for a route: `Finding P/N for you: TITLE`, then
   its kind, severity and area as `areas.md`, section 5's second line,
   then its body, cut to `tasks.message_bytes` as there, through the
@@ -207,7 +225,10 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   body, names finding n in the project's home. The finding is closed,
   with a comment naming the landing, once that landing is cleared
   (after-landing.md, 5.3), not when it lands; a red landing closes
-  nothing until it is repaired.
+  nothing until it is repaired. A red finding filed under `wait:
+  landed` is closed by no landing: a run that passes its tests clears
+  it, and the landing that names it is named in that run's comments
+  (`red-findings.md`, section 6).
 - **The forge's own keywords** would close it at the merge: an owned
   Forgejo's setup turns its closing keywords off
   (`../protocol/setup/README.md`, `CLOSE_KEYWORDS` empty); GitHub's
@@ -264,7 +285,8 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   name, color }` makes one, `Exists` when the name is taken.
 - **Views and acts** (`../client/ctl/tools.md`, a group `finding` and a
   group `qa`): `finding file`, `finding list`, `finding show`, `finding
-  hand`, `finding route`, `finding backlog` and `finding drop`; `qa
+  hand`, `finding route`, `finding backlog`, `finding drop`, `finding
+  repair` and `finding blame`; `qa
   marks --project PROJECT`, `qa choose LANDING`, `qa passes --project
   PROJECT`. They are the forge's requests `FileFinding`, `HandFinding`
   and `TriageFinding`, its subject `findings` and its read `Finding`
@@ -274,9 +296,11 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   landing), `QaPass` (by its task), through the baseline's rules. A
   project keeps at most `forge.findings_per_project`
   (`../protocol/configuration/limits.md`): a filing past it erases the
-  project's oldest finding that is `routed` or `dropped`, and with none
-  is refused, `the project's findings are full: K new`; a red of no
-  goal's so refused is not filed.
+  project's oldest finding that is `routed` or `dropped`, or cleared,
+  never an uncleared red finding filed under `wait: landed`, and with
+  none is refused, `the project's findings are full: K new`; a red of no
+  goal's so refused is not filed, and a red finding so refused waits on
+  its tier's record (`red-findings.md`, section 7).
 - **Settings:** the project's areas and its triager are kinds 12 and 13
   (`../protocol/configuration/settings.md`, 2). The issue's projection
   on or off, the chooser and the tester charter come with the issue and

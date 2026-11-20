@@ -1493,7 +1493,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
             Box::new([served(b"finish-convention", Ask::Finish { outcome: Declared::Change(change.clone()) })]),
         );
         let [
-            Request::Lower(crate::Lower::Check { owner, program, deadline, tail }),
+            Request::Lower(crate::Lower::Check { owner, program, bound, cap, tail }),
             Request::Long { host_run, operation: crate::Operation::Checks, until: said },
         ] = emitted.as_ref()
         else {
@@ -1502,6 +1502,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
         assert_eq!(program.root, Token::new(900), "readonly mount is never checked");
         assert_eq!(program.path.as_ref(), expected_path);
         assert_eq!(*host_run, Token::new(77));
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!(deadline, said);
         assert_eq!(*tail, LIMITS.run.check_tail);
         assert_eq!(*deadline, Time::ZERO.saturating_add(LIMITS.run.check_timeout));

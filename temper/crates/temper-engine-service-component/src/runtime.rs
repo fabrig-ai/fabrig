@@ -41,8 +41,21 @@ impl engine::Engine {
         let shared = forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
-        let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
-            .ok_or(start_problem(b"limits", What::Bound))?;
+        let store_limits = match settings.store_limits {
+            Some(envelope) => {
+                let application = temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
+                    .ok_or(start_problem(b"limits", What::Bound))?;
+                jig_protocol_store::runtime_limits(
+                    &envelope,
+                    &temper_engine_domain::core_limits(&limits),
+                    application,
+                    limits.journal.transcript_bytes.max(limits.loads.transcript_bytes),
+                )
+                .or(Err(start_problem(b"limits", What::Bound)))?
+            }
+            None => store::limits(&limits, &limits.forge, &settings.jig.limits.store)
+                .ok_or(start_problem(b"limits", What::Bound))?,
+        };
         let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
@@ -170,6 +183,14 @@ impl engine::Engine {
     pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
         self.workers.take_agents_write()
     }
+    /// Keep worker setting 1 in the box's data directory (configuration/figures.md, 4).
+    pub fn keep_local(&mut self, path: Box<[u8]>, initial: Option<jig_client_protocol_wire::WorkerSetting>) {
+        self.workers.keep_local(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_local_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_local_write()
+    }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;
         match engine.clients.playground_read() {
@@ -235,6 +256,24 @@ impl engine::Engine {
             engine.store.installation,
             jig_protocol_store::host::Adoption::Rehearse { scratch, reach },
         )
+    }
+    /// Rehearse over a copy its shell opened at the stock's figures. `settings` are the limits a
+    /// start takes from the copy, which sized this engine (configuration/limit-settings.md, 3);
+    /// none when the copy didn't open and its store keeps the terminal for the report. The
+    /// rehearsal counts from `began`.
+    pub fn rehearse_opened(
+        &mut self,
+        store: store::Store,
+        settings: Option<crate::limit_settings::LimitSettings>,
+        began: Time,
+    ) {
+        let engine = self;
+        engine.domain.rehearse();
+        crate::upgrade::prepare_opened(engine, began);
+        match settings {
+            Some(settings) => engine.take_limit_store(store, settings),
+            None => engine.replace_store(store),
+        }
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {

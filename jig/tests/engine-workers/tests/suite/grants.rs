@@ -5,13 +5,14 @@ mod grants {
     use jig_engine_workers_world::{World, fixtures};
     use jig_protocol_engine_workers::{Event, GrantValue, Request, Scheme};
     use jig_protocol_worker_wire as wire;
+    use jig_protocol_worker_wire::Record;
     use skein_lib::{Reader, Token};
 
     fn world() -> World {
         World::new(&fixtures::limits(), &fixtures::workers(), 1)
     }
     fn assignment_grant(assignment: &wire::Assignment, index: u32) -> &wire::Grant {
-        assignment.grants().get(index).expect("grant")
+        assignment.grants.get(index).expect("grant")
     }
     fn joined() -> (World, Token, Token) {
         let mut world = world();
@@ -22,7 +23,7 @@ mod grants {
         };
         (world, connection, channel)
     }
-    fn codec() -> wire::v17::Limits {
+    fn codec() -> wire::v18::Limits {
         wire::sizes::limits(&fixtures::SIZES).expect("small codec")
     }
     fn received_assignment(world: &World, connection: Token) -> wire::Assignment {
@@ -43,12 +44,12 @@ mod grants {
         fixtures::values()[1].take().expect("application value")
     }
     fn credential(grant: &wire::Grant) -> (&wire::Scheme, &[u8]) {
-        let wire::GrantValue::Credential(value) = grant.value() else { panic!("credential value") };
-        (value.scheme(), value.bytes().expose())
+        let wire::GrantValue::Credential(value) = &grant.value else { panic!("credential value") };
+        ((&value.scheme), value.bytes.expose())
     }
     fn application_secret(grant: &wire::Grant) -> &[u8] {
-        let wire::GrantValue::Application(value) = grant.value() else { panic!("application value") };
-        value.secret().expose()
+        let wire::GrantValue::Application(value) = &grant.value else { panic!("application value") };
+        value.secret.expose()
     }
     fn received_grants(world: &World, connection: Token) -> Vec<wire::Granted> {
         world
@@ -77,14 +78,14 @@ mod grants {
         let grants = received_grants(&world, connection);
         assert_eq!(grants.len(), 3);
         for record in &grants {
-            assert_eq!((record.task(), record.attempt()), (7, 2));
-            let grant = record.grant();
-            assert_eq!((grant.number(), grant.generation()), (1, 4));
-            assert_eq!(grant.valid(), skein_lib::Duration::from_secs(30));
+            assert_eq!((record.task, record.attempt), (7, 2));
+            let grant = &record.grant;
+            assert_eq!((grant.number, grant.generation), (1, 4));
+            assert_eq!(grant.valid, skein_lib::Duration::from_secs(30));
         }
-        assert_eq!(credential(grants[0].grant()), (&wire::Scheme::Bearer, fixtures::TOKEN_ONE));
-        assert_eq!(credential(grants[1].grant()), (&wire::Scheme::Key, fixtures::TOKEN_ONE));
-        assert_eq!(application_secret(grants[2].grant()), fixtures::TOKEN_TWO);
+        assert_eq!(credential(&grants[0].grant), (&wire::Scheme::Bearer, fixtures::TOKEN_ONE));
+        assert_eq!(credential(&grants[1].grant), (&wire::Scheme::Key, fixtures::TOKEN_ONE));
+        assert_eq!(application_secret(&grants[2].grant), fixtures::TOKEN_TWO);
     }
     #[test]
     fn a_grant_whose_value_is_unlike_its_form_is_not_sent() {
@@ -103,14 +104,14 @@ mod grants {
         world.down(fixtures::assignment_down(channel));
         world.run();
         let assignment = received_assignment(&world, connection);
-        assert_eq!((assignment.task(), assignment.attempt()), (7, 2));
-        assert_eq!(assignment.identity(), &fixtures::IDENTITY);
-        assert_eq!(assignment.charter(), b"charter");
-        assert_eq!(assignment.transcript(), &[0, 0, 0, 2, 0, 127, 0, 0, 0, 3, 255, 1, 2]);
-        assert_eq!(assignment.workspace().as_ref().expect("workspace").items(), b"items");
-        assert_eq!(assignment.messages().len(), 1);
-        assert_eq!(assignment.messages().get(0).expect("message").words(), b"message");
-        assert_eq!(assignment.grants().len(), 2);
+        assert_eq!((assignment.task, assignment.attempt), (7, 2));
+        assert_eq!((&assignment.identity), &fixtures::IDENTITY);
+        assert_eq!(assignment.charter.as_ref(), b"charter");
+        assert_eq!(assignment.transcript.as_ref(), &[0, 0, 0, 2, 0, 127, 0, 0, 0, 3, 255, 1, 2]);
+        assert_eq!(assignment.workspace.as_ref().expect("workspace").items.as_ref(), b"items");
+        assert_eq!(assignment.messages.len(), 1);
+        assert_eq!(assignment.messages.get(0).expect("message").words.as_ref(), b"message");
+        assert_eq!(assignment.grants.len(), 2);
         assert_eq!(credential(assignment_grant(&assignment, 0)), (&wire::Scheme::Bearer, fixtures::TOKEN_ONE));
         assert_eq!(application_secret(assignment_grant(&assignment, 1)), fixtures::TOKEN_TWO);
     }
@@ -127,7 +128,7 @@ mod grants {
         });
         world.run();
         let assignment = received_assignment(&world, connection);
-        assert_eq!(assignment.grants().len(), 1);
+        assert_eq!(assignment.grants.len(), 1);
         assert_eq!(application_secret(assignment_grant(&assignment, 0)), fixtures::TOKEN_TWO);
     }
     #[test]

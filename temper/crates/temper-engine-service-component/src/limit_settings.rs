@@ -81,7 +81,7 @@ fn at_once(before: &Resolved, next: &Resolved) -> bool {
 impl Store {
     /// Only the stock is allowed to size the substrate that opens/replays.
     pub fn for_limits(inputs: &LimitInputs, models: &[core::Model]) -> Result<Self, Problems> {
-        let (mut jig, own) = inputs.stock()?;
+        let (mut jig, own) = inputs.store_base()?;
         let root = temper_engine_service_startup::startup::engine_limits(&mut jig, &own, None)?;
         let store = temper_engine_service_startup::startup::checked_store(&root, &jig.store, None)?;
         Ok(Self::new(&root, &store, models, &inputs.seeds))
@@ -305,6 +305,7 @@ fn core_fit(failure: &core::start::Failure) -> Option<(&'static [u8], u64, u64)>
         )),
         Failure::Settings { .. }
         | Failure::Numbers { .. }
+        | Failure::Taken { .. }
         | Failure::Application { .. }
         | Failure::ProjectPolicy { .. }
         | Failure::AccountsPastLimit { .. }

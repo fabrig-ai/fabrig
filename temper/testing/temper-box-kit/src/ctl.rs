@@ -677,6 +677,7 @@ impl Calls {
             op: child.token(SPAWN),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program,
                     args: args.into_boxed_slice(),
                     env: Box::new([]),
@@ -1422,6 +1423,13 @@ pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -
                     serde_json::from_slice(&std::fs::read(&file).expect("limit FILE")).expect("limit JSON");
                 items.extend(change["items"].as_array().expect("limit items").iter().cloned());
             }
+            let local = directory.join("local-worker-settings.json");
+            if local.exists() {
+                let local: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(local).expect("local worker settings"))
+                        .expect("worker settings JSON");
+                items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
+            }
             super::write_private(
                 &file,
                 &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"),
@@ -1793,7 +1801,7 @@ pub mod serve_gate_tests {
         let scratch = super::super::Scratch::new("ctl-serve-gate");
         let mut calls =
             Calls::new(Fd::new(0), vec![Step::Run(Call::sign_in())], None, None).with_serve_data(scratch.path());
-        calls.link = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture\n".to_vec();
+        calls.link = b"http://127.0.0.1:8367/sign-in?secret=fixture\n".to_vec();
         calls.within = Some(WITHIN);
         calls.advance(Time::ZERO);
         assert!(calls.child.is_none(), "an early link starts no sign-in");

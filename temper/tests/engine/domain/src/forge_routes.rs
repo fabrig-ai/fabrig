@@ -16,6 +16,7 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
@@ -252,6 +253,8 @@ pub struct StoryLimits {
     pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
+    /// Cached party requests retained while a full live-task room is exercised.
+    pub party_requests: Option<u32>,
     pub authority_batch: Option<u32>,
     pub tasks_batch: Option<u32>,
     pub task_delegates: Option<u32>,
@@ -677,7 +680,7 @@ impl World {
             }
             if with_change {
                 // One adoption, three chat creations and two Says survive the restart cut.
-                limits.people.requests = 6;
+                limits.people.requests = timing.party_requests.unwrap_or(6);
                 // Adoption stories ask in 128 bytes of words.
                 limits.people.words = 128;
                 limits.tasks.message_bytes = if batch.unwrap_or(1) > 1 { 256 } else { 128 };
@@ -2002,8 +2005,8 @@ impl World {
             &mut skein_lib::Reader::new(&spec),
         )
         .expect("prepare spec");
-        assert_eq!(spec.command(), b"");
-        let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+        assert_eq!(spec.command.as_ref(), b"");
+        let request: serde_json::Value = serde_json::from_slice(&spec.request).expect("prepare request");
         let engine::ForgeStart::Commit(from) = item.start else { panic!("immutable stack start") };
         assert_eq!(request["from"], String::from_utf8(engine::commit_text(&from).into_vec()).expect("from hex"));
         let mut base = fake::commit_count(&from).expect("fake base");
@@ -3771,6 +3774,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,

@@ -5,6 +5,7 @@ use jig_domain_core::{
 };
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
+use smith_transcript::Record;
 use temper_engine_domain::{SeeAnswer, SeeName, SeeNames, SeePerson, SeeRead, SeeWords};
 
 fn text(words: &[u8]) -> d::Text {
@@ -331,6 +332,7 @@ fn task() -> d::Task {
         inputs: List::uncapped(),
         dependencies: List::uncapped(),
         dependency_facts: List::uncapped(),
+        unread: List::uncapped(),
         references: List::uncapped(),
         subscriptions: List::uncapped(),
         wake: tasks::WakePolicy::DEFAULT,
@@ -437,76 +439,46 @@ fn turn_record_with(
 ) -> jig_domain_core::TurnRecord {
     use smith_transcript::v7 as s;
     const BLOCKS: u32 = 5; // Words and two call/result pairs.
-    let bounds = &s::CEILINGS;
+
     let mut blocks = List::with_capacity(BLOCKS);
     blocks
-        .push(s::Block::Text(
-            s::Text::new(
-                bounds,
-                s::TextParts {
-                    text: b"I will read the charter.\nThen propose the settings.".as_slice().into(),
-                    replay: None,
-                },
-            )
-            .unwrap(),
-        ))
+        .push(s::Block::Text(s::Text {
+            text: b"I will read the charter.\nThen propose the settings.".as_slice().into(),
+            replay: None,
+        }))
         .unwrap();
     for (id, tool, input, result) in [
         (b"first".as_slice(), b"see".as_slice(), input, b"charter 4, the reviewer's\nLong settings text".as_slice()),
         (b"second", second_tool, second_input, second_result),
     ] {
         blocks
-            .push(s::Block::Call(
-                s::Call::new(
-                    bounds,
-                    s::CallParts { id: id.into(), name: tool.into(), input: input.into(), replay: None },
-                )
-                .unwrap(),
-            ))
+            .push(s::Block::Call(s::Call { id: id.into(), name: tool.into(), input: input.into(), replay: None }))
             .unwrap();
         blocks
-            .push(s::Block::Result(
-                s::ToolResult::new(
-                    bounds,
-                    s::ToolResultParts {
-                        id: id.into(),
-                        returned: s::Returned::Said(
-                            s::Said::new(bounds, s::SaidParts { text: result.into(), error: false }).unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ))
+            .push(s::Block::Result(s::ToolResult {
+                id: id.into(),
+                returned: s::Returned::Said(s::Said { text: result.into(), error: false }),
+            }))
             .unwrap();
     }
-    let source = s::Turn::new(
-        bounds,
-        s::TurnParts {
-            system: Some(system.into()),
-            model: b"gpt-6".as_slice().into(),
-            effort: None,
-            kind: s::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"unused-endpoint".as_slice().into(),
-            dialect: 1,
-            place: 2,
-            usage: s::Usage::new(
-                bounds,
-                s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-            )
-            .unwrap(),
-            spent: 12,
-            jobs: 0,
-            messages: List::from_boxed(Box::new([s::Message::new(
-                bounds,
-                s::MessageParts { role: s::Role::Assistant, blocks },
-            )
-            .unwrap()])),
-        },
-    )
-    .unwrap();
-    let mut out = skein_lib::Writer::new(usize::try_from(source.measure()).unwrap());
-    source.encode(&mut out).unwrap();
+    let source = s::Turn {
+        system: Some(system.into()),
+        model: b"gpt-6".as_slice().into(),
+        effort: None,
+        kind: s::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"unused-endpoint".as_slice().into(),
+        dialect: 1,
+        place: 2,
+        usage: s::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        spent: 12,
+        jobs: 0,
+        messages: List::from_boxed(Box::new([s::Message { role: s::Role::Assistant, blocks }])),
+    };
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(source.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+    );
+    source.write(&smith_transcript::CEILINGS, &mut out).unwrap();
     jig_domain_core::TurnRecord {
         opens_window: false,
         task: 41,
@@ -597,7 +569,7 @@ fn activity() -> Answer {
                 task: 41,
                 position: 1,
                 at: AT,
-                line: tasks::Line::RunBegan { attempt: 3, why: tasks::Why::Made, resumed: false },
+                line: tasks::Line::RunBegan { attempt: 3, why: tasks::Why::Made, resumed: false, fresh: None },
             },
             turn: None,
         },
@@ -733,9 +705,13 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
 fn landings() -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     Box::new(f::Document::Landings(f::LandingsView {
+        now: Wall::EPOCH,
+        turn_since: None,
         project: 7,
         turn: Some(50),
         landings: Box::new([f::LandingLine {
+            step: None,
+            last_event: None,
             train: None,
             task: 50,
             phase: temper_engine_domain_forge_landing::Phase::Waiting,
@@ -1205,4 +1181,19 @@ fn a_persons_task_names_its_own_question_after_its_phase() {
         found |= part == expected;
     }
     assert!(found, "{bytes:?}");
+}
+
+#[test]
+fn a_no_test_hold_says_its_repair_found_no_failed_test() {
+    let mut document = panel(Some(1));
+    let temper_engine_domain_forge::Document::Change(panel) = document.as_mut() else { panic!("change panel") };
+    panel.hold = Some(temper_engine_domain_forge_change::Hold::NoTest);
+    let answer = SeeAnswer::Person(Box::new(SeePerson {
+        read: SeeRead::Change { number: 41, panel: document },
+        names: names(),
+    }));
+    let (bytes, error) =
+        crate::see_answer(b"change 41", 0, &answer, &catalogue(), 20_000, crate::ForgeReadBounds::STOCK).into_parts();
+    assert!(!error);
+    assert!(skein_lib::bytes::find(&bytes, b"hold: its repair found no failed test").is_some());
 }

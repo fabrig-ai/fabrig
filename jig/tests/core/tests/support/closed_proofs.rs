@@ -1,14 +1,11 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
-use jig_domain_link::{Hello, Hosting};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
 use jig_test_domain as root;
 use jig_test_patches_smith as fixture;
-use skein_lib::{Duration, Token};
 
-pub const SEED: u64 = 118;
 const TURN: KeptFamily = KeptFamily {
     retired: &[],
     current: fixture::patches::kept::fixture_turn::TEXTS[0],
@@ -92,25 +89,6 @@ pub fn restart(world: &mut World) {
     hello(world);
     world.grant_account(1);
 }
-pub fn hello(world: &mut World) {
-    hello_hosting(world, Box::new([]));
-}
-
-pub fn hello_hosting(world: &mut World, hosting: Box<[Hosting]>) {
-    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
-        worker: 0,
-        channel: Token::new(7),
-        hello: Hello {
-            jobs: Box::default(),
-            bounds: jig_test_profile::fixtures::bounds(),
-            stop_bound: Duration::from_millis(100),
-            slots: 1,
-            workstreams: Box::new([]),
-            hosting,
-        },
-    })));
-}
-
 pub fn proof(world: &World) -> &core::RunProof {
     let task = world.assigned.as_ref().expect("chat assignment").task;
     let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)));
@@ -125,16 +103,6 @@ pub fn endpoint(world: &mut World, task: u64, endpoint: Option<u32>) {
     world.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
 }
 
-pub fn tail(world: &World) -> Option<&[u8]> {
-    world.assigned.as_ref().expect("chat assignment").brief.iter().find_map(|section| {
-        if let jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::TranscriptTail, text, .. } = section
-        {
-            Some(text.as_ref())
-        } else {
-            None
-        }
-    })
-}
 pub fn tries(world: &World) -> tasks::Tries {
     let task = proof(world).task;
     let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
@@ -158,6 +126,9 @@ pub fn activity(world: &World) -> Vec<tasks::Line> {
         .collect()
 }
 pub fn fresh(world: &World) {
+    fresh_because(world, Some(tasks::Fresh::Closed));
+}
+pub fn fresh_because(world: &World, expected: Option<tasks::Fresh>) {
     let assignment = world.assigned.as_ref().expect("fresh assignment");
     assert!(!assignment.run.policy.resume);
     assert!(assignment.transcript.is_empty());
@@ -165,5 +136,42 @@ pub fn fresh(world: &World) {
     assert_eq!(proof(world).conversation, assignment.attempt);
     assert_eq!(proof(world).window, None);
     assert!(!proof(world).crossed, "every new claim writes its own uncrossed proof");
-    assert!(matches!(activity(world).last(), Some(tasks::Line::RunBegan { resumed: false, .. })));
+    assert!(matches!(
+        activity(world).last(),
+        Some(tasks::Line::RunBegan { resumed: false, fresh, .. }) if *fresh == expected
+    ));
+}
+
+pub use crate::run_helpers::{SEED, hello, hello_hosting, tail};
+
+#[test]
+fn a_window_resumes_only_on_its_claimed_endpoint() {
+    use crate::closed_proofs as f;
+    for (endpoint, resume) in [(2, false), (1, true)] {
+        let mut world = f::parked();
+        let task = f::proof(&world).task;
+        f::endpoint(&mut world, task, Some(endpoint));
+        f::restart(&mut world);
+        let previous = world.domain.core().proofs.get(&task).expect("restored proof").clone();
+        assert!(!previous.window.expect("saved open window").closed);
+        let tries = f::tries(&world);
+        let refusals = jig_core_world::fixtures::live_row(&world, task).refusals;
+        world.say(87);
+        let assigned = world.assigned.as_ref().expect("prepared run");
+        assert_eq!(assigned.run.policy.resume, resume);
+        assert_eq!(!assigned.transcript.is_empty(), resume);
+        assert_eq!(f::tail(&world), if resume { None } else { Some(f::TAIL) });
+        assert_eq!(f::proof(&world).endpoint, Some(assigned.run.policy.model.endpoint));
+        assert_eq!(f::proof(&world).endpoint, Some(1));
+        assert_eq!(f::tries(&world), tries);
+        assert_eq!(jig_core_world::fixtures::live_row(&world, task).refusals, refusals);
+        assert_eq!(world.domain.take_brief_failure(), None);
+        assert!(
+            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, fresh, .. }) if *resumed == resume && *fresh == if resume { None } else { Some(tasks::Fresh::Moved) })
+        );
+        if !resume {
+            f::fresh_because(&world, Some(tasks::Fresh::Moved));
+        }
+        world.close();
+    }
 }

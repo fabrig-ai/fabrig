@@ -19,7 +19,16 @@ fn place() -> Place {
 }
 fn rendered(name: &str) -> Box<[u8]> {
     let bytes = std::fs::read(root().join("config").join(name)).expect("setup document");
-    deployment::render(name, &bytes, &place()).expect("every place name renders")
+    let rendered = deployment::render(name, &bytes, &place()).expect("every place name renders");
+    let shape = match name {
+        "engine.toml" => Some(Shape::EngineAlone),
+        "worker.toml" => Some(Shape::WorkerAlone),
+        _ => None,
+    };
+    match shape {
+        Some(shape) => crate::support::configuration::parse(&rendered, shape).document,
+        None => rendered,
+    }
 }
 fn json(bytes: &[u8]) -> Value {
     serde_json::from_slice(bytes).expect("rendered JSON")
@@ -33,7 +42,7 @@ fn engine(bytes: &[u8]) -> jig_protocol_config::Engine {
 }
 
 fn figures() -> jig_protocol_worker_wire::Figures {
-    let source = rendered("engine.json");
+    let source = rendered("engine.toml");
     let engine = engine(&source);
     let document = jig_protocol_config::document(&source, &DOCUMENT).expect("engine document");
     let at = jig_protocol_config::read::Object::new(&document, 0)
@@ -57,7 +66,7 @@ fn figures() -> jig_protocol_worker_wire::Figures {
 #[test]
 fn the_turn_landing_documents_check_as_their_shapes() {
     let directories = jig_protocol_config::Directories::working();
-    let bytes = rendered("engine.json");
+    let bytes = rendered("engine.toml");
     let bundle = place().value("bundle").expect("test place bundle");
     assert_eq!(json(&bytes)["application"]["clients"]["bundle"], std::str::from_utf8(&bundle).expect("bundle path"));
     assert_eq!(startup::shape(&bytes, &directories).expect("engine shape"), Shape::EngineAlone);
@@ -70,11 +79,14 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     assert_eq!(engine.limits.core.fleet.engine_slots, 0);
     assert!(json(&bytes)["engine"]["hosts"].get("workers").is_none(), "workers are admitted through settings");
 
-    let bytes = rendered("worker.json");
+    let bytes = rendered("worker.toml");
     assert_eq!(startup::shape(&bytes, &directories).expect("worker shape"), Shape::WorkerAlone);
-    let part =
-        startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("checked worker alone");
-    assert!(part.worker.jig.slots >= 2);
+    let worker_directories =
+        jig_protocol_config::Directories::given(b"/turn/config/worker", b"/turn/data/worker", b"/turn/cache/worker")
+            .expect("worker's place directories");
+    let part = startup::worker_part(&bytes, &worker_directories, Some(b"/turn/data/bin/git"), &[])
+        .expect("checked worker alone");
+    assert_eq!(part.worker.jig.slots, 1, "admission gives two places through the worker's setting");
     assert!(json(&bytes)["workers"][0].get("limits").is_none(), "the engine supplies the worker's limits");
     assert_eq!(part.worker.jig.secret.as_ref(), b"/turn/data/worker/secrets/worker.secret");
     assert!(part.worker.jig.agent.is_none(), "temper pins the engine's agent figures");
@@ -89,8 +101,8 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     let agent = smith_agent_shell::config::from_value(value.clone()).expect("generated agent configuration");
     let turn = temper_playground::documents::turn_bounds::turn_body(&value);
     let figures = figures();
-    let hub = figures.limits().iter().find(|limit| limit.name() == b"hub.turn_bytes").expect("engine turn figure");
-    assert!(hub.value() >= u64::from(turn), "engine figures carry the generated agent's turn");
+    let hub = figures.limits.iter().find(|limit| limit.name.as_ref() == b"hub.turn_bytes").expect("engine turn figure");
+    assert!(hub.value >= u64::from(turn), "engine figures carry the generated agent's turn");
     assert!(agent.service.limits.channel.bodies.turn_body > 0);
 
     let bytes = rendered("forgejo.json");
@@ -129,7 +141,7 @@ fn the_turn_landing_documents_check_as_their_shapes() {
 
 #[test]
 fn the_turn_landing_engine_passes_every_startup_check() {
-    let bytes = rendered("engine.json");
+    let bytes = rendered("engine.toml");
     let directories = jig_protocol_config::Directories::working();
     let named = startup::named(&bytes, &directories).expect("named setup files");
     admission("turn-landing-engine-admission", &bytes, named.files);
@@ -137,7 +149,7 @@ fn the_turn_landing_engine_passes_every_startup_check() {
 
 #[test]
 fn the_turn_landing_worker_passes_every_startup_check() {
-    let bytes = rendered("worker.json");
+    let bytes = rendered("worker.toml");
     let directories = jig_protocol_config::Directories::working();
     let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("setup worker part");
     admission("turn-landing-worker-admission", &bytes, part.files);
@@ -240,7 +252,7 @@ fn the_turn_landing_engine_documents_pass_startup_root_checks() {
     use temper_service::settings::{Files, Seeds};
 
     // The landing's settings reach the engine through ctl (files/landing.json), never by patching its document.
-    let bytes = rendered("engine.json");
+    let bytes = rendered("engine.toml");
     let directories = jig_protocol_config::Directories::working();
     let seeds = Seeds {
         deployment: [7; 16],

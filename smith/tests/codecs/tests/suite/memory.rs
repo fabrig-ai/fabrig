@@ -3,6 +3,7 @@
 
 use skein_heap::Meter;
 use skein_lib::{List, Reader, Writer};
+use smith_charter::Record;
 
 use smith_charter::v5 as charter;
 use smith_transcript::v7 as transcript;
@@ -101,7 +102,7 @@ fn charter_at_its_largest_instruction_payload_stays_within_the_configured_heap_b
     let measured = meter.end();
     assert!(measured.peak() <= bound, "charter decoder peak within generated bound");
     assert!(measured.held() <= bound, "charter decoder retained heap within bound");
-    assert_eq!(decoded.instructions().len(), usize::try_from(size).expect("ceiling fits"));
+    assert_eq!(decoded.instructions.as_ref().len(), usize::try_from(size).expect("ceiling fits"));
     drop(decoded);
     assert_eq!(meter.held(), 0, "charter allocations released");
 }
@@ -117,7 +118,7 @@ fn turn_at_its_largest_text_payload_stays_within_the_configured_heap_bound() {
     let measured = meter.end();
     assert!(measured.peak() <= bound, "turn decoder peak within generated bound");
     assert!(measured.held() <= bound, "turn decoder retained heap within bound");
-    assert_eq!(decoded.messages().len(), 1);
+    assert_eq!(decoded.messages.len(), 1);
     drop(decoded);
     assert_eq!(meter.held(), 0, "turn allocations released");
 }
@@ -160,20 +161,11 @@ fn every_event_at_its_largest_payload_stays_within_its_encoded_and_heap_bounds()
 fn a_resolved_failure_attains_its_configured_path_payload_heap_bound() {
     let limits =
         transcript::Limits { text_text: 0, other_path_directory: 4096, other_path_path: 4096, ..transcript_limits() };
-    let path = transcript::OtherPath::new(
-        &limits,
-        transcript::OtherPathParts { directory: vec![b'd'; 4096].into(), path: vec![b'p'; 4096].into() },
-    )
-    .expect("ceiling descriptor");
-    let value = transcript::Outcome::ReadOnly(
-        transcript::ResolvedFailure::new(
-            &limits,
-            transcript::ResolvedFailureParts { path: transcript::Resolved::Other(path) },
-        )
-        .expect("failure"),
-    );
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire length"));
-    value.encode(&mut writer).expect("measured wire");
+    let path = transcript::OtherPath { directory: vec![b'd'; 4096].into(), path: vec![b'p'; 4096].into() };
+    let value = transcript::Outcome::ReadOnly(transcript::ResolvedFailure { path: transcript::Resolved::Other(path) });
+    let mut writer =
+        Writer::new(usize::try_from(value.measure(&limits).expect("bounded transcript")).expect("wire length"));
+    value.write(&limits, &mut writer).expect("measured wire");
     let wire = writer.finish();
     drop(value);
     let bound = transcript::Outcome::decoded_bound(&limits).expect("configured failure bound");
@@ -189,71 +181,48 @@ fn a_resolved_failure_attains_its_configured_path_payload_heap_bound() {
 
 fn largest_text_turn(limits: &transcript::Limits) -> Box<[u8]> {
     let (messages, usage) = largest_text_messages(limits);
-    let value = transcript::Turn::new(
-        limits,
-        transcript::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: transcript::TurnKind::Ordinary,
-            opening: Some(
-                transcript::Opening::new(
-                    limits,
-                    transcript::OpeningParts {
-                        affinity: transcript::Affinity::new(
-                            limits,
-                            transcript::AffinityParts { key: [0; 16], thread: 0 },
-                        )
-                        .expect("fixture affinity"),
-                        account: None,
-                        backend: transcript::Backend::Direct,
-                    },
-                )
-                .expect("fixture opening"),
-            ),
-            endpoint: Box::from(&b""[..]),
-            dialect: 0,
-            place: 1,
-            usage,
-            spent: 0,
-            jobs: 0,
-            messages,
-        },
-    )
-    .expect("turn");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-    value.encode(&mut writer).expect("measured room");
+    let value = transcript::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: transcript::TurnKind::Ordinary,
+        opening: Some(transcript::Opening {
+            affinity: transcript::Affinity { key: [0; 16], thread: 0 },
+            account: None,
+            backend: transcript::Backend::Direct,
+        }),
+        endpoint: Box::from(&b""[..]),
+        dialect: 0,
+        place: 1,
+        usage,
+        spent: 0,
+        jobs: 0,
+        messages,
+    };
+    let mut writer =
+        Writer::new(usize::try_from(value.measure(limits).expect("bounded transcript")).expect("measured length"));
+    value.write(limits, &mut writer).expect("measured room");
     let wire = writer.finish();
     drop(value);
     wire
 }
 
 fn largest_text_messages(limits: &transcript::Limits) -> (List<transcript::Message>, transcript::Usage) {
-    let text = transcript::Text::new(
-        limits,
-        transcript::TextParts {
-            text: vec![b'x'; usize::try_from(limits.text_text).expect("ceiling fits")].into_boxed_slice(),
-            replay: None,
-        },
-    )
-    .expect("ceiling text");
+    let text = transcript::Text {
+        text: vec![b'x'; usize::try_from(limits.text_text).expect("ceiling fits")].into_boxed_slice(),
+        replay: None,
+    };
     let mut blocks = List::with_capacity(1);
     blocks.push(transcript::Block::Text(text)).expect("one block");
-    let message =
-        transcript::Message::new(limits, transcript::MessageParts { role: transcript::Role::Assistant, blocks })
-            .expect("one message");
+    let message = transcript::Message { role: transcript::Role::Assistant, blocks };
     let mut messages = List::with_capacity(1);
     messages.push(message).expect("one message slot");
-    let usage = transcript::Usage::new(
-        limits,
-        transcript::UsageParts {
-            input: Some(0),
-            output: Some(0),
-            cache_read: Some(0),
-            cache_write: Some(0),
-            reasoning: Some(0),
-        },
-    )
-    .expect("usage");
+    let usage = transcript::Usage {
+        input: Some(0),
+        output: Some(0),
+        cache_read: Some(0),
+        cache_write: Some(0),
+        reasoning: Some(0),
+    };
     (messages, usage)
 }

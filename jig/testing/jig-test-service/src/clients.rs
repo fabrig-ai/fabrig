@@ -570,7 +570,7 @@ pub(super) fn printed(address: ::core::net::SocketAddr, secret: &skein_lib::Secr
 }
 
 pub(super) fn http_settings() -> http::Settings {
-    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public: None }
+    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), page: None, public: None }
 }
 
 #[cfg(test)]

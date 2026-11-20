@@ -2,30 +2,30 @@
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, parse, unpinned};
+use skein_codegen::{form_of, generate_as, unpinned, values};
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
 
 #[test]
 fn charter_schema_matches_generated_code_and_pinned_constructs() {
-    assert_family("charter", 5);
+    assert_family("charter", 5, smith_charter::SCHEMA);
 }
 
 #[test]
 fn transcript_schema_matches_generated_code_and_pinned_constructs() {
-    assert_family("transcript", 7);
+    assert_family("transcript", 7, smith_transcript::SCHEMA);
 }
 
 #[test]
 fn channel_schema_matches_generated_code_and_pinned_constructs() {
-    assert_family("channel", smith_channel::wire::VERSION);
+    assert_family("channel", smith_channel::wire::VERSION, smith_channel::CHANNEL_SCHEMA);
 }
 
-fn assert_family(family: &str, version: u16) {
+fn assert_family(family: &str, version: u16, source: &'static str) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
-    let source = fs::read_to_string(root.join(format!("schema/{family}-v{version}.schema"))).expect("schema source");
-    check_records(&root, family, family, &source);
+    assert_eq!(values(source).schema.version, version, "current family version");
+    check_records(&root, family, family, source);
 }
 
 use crate::support::events;
@@ -68,15 +68,21 @@ fn check_event_goldens(
 #[test]
 fn local_store_schema_matches_generated_code_and_pinned_constructs() {
     let crates = skein_scratch::paths::tree().join("crates");
-    let root = crates.join("smith-local-protocol");
-    let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
-    check_records(&crates.join("smith-local-protocol-codec"), "local_store", "local-store", &source);
+    let source = smith_local_protocol::SCHEMA;
+    check_records(&crates.join("smith-local-protocol-codec"), "local_store", "local-store", source);
 }
 
-fn check_records(root: &Path, file: &str, family: &str, source: &str) {
+fn check_records(root: &Path, file: &str, family: &str, source: &'static str) {
     let missing = unpinned(source).expect("valid family schema");
     assert!(missing.is_empty(), "{family} uses unpinned constructs: {missing:?}");
-    let output = generate(&parse(source).expect("valid family schema"));
+    let owner = match family {
+        "local-store" => root.with_file_name("smith-local-protocol"),
+        "charter" | "channel" | "transcript" => root.to_path_buf(),
+        _ => unreachable!("known smith family"),
+    };
+    let schema = &values(source).schema;
+    let form = form_of(&owner.join("schema"), &schema.family).expect("family lean mark");
+    let output = generate_as(schema, form);
     check_artifact(&root.join(format!("src/generated/{file}.rs")), output.records.as_bytes());
 }
 

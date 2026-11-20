@@ -2,14 +2,14 @@
 //! (protocol/charter.md, section 8; protocol/transcript.md, section 9;
 //! protocol/channel.md, section 10).
 
-use skein_lib::{Reader, Rng, Writer};
+use skein_lib::{Reader, Rng};
+use smith_channel::Record;
 
 macro_rules! check {
     ($bytes:expr, $family:ident, $record:ident) => {
         if let Ok(value) = $family::$record::decode(&$family::CEILINGS, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), $bytes);
+            let bytes = value.encode(&$family::CEILINGS).expect("decoded value encodes");
+            assert_eq!(bytes.as_ref(), $bytes);
         }
     };
 }

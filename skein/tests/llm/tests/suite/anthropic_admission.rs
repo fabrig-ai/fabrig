@@ -21,14 +21,23 @@ fn credentials_and_reserved_headers_cannot_cross_auth_modes() {
     ] {
         let mut input = anthropic_call();
         input.endpoint.headers = Box::new([header(name, b"override")]);
-        assert_eq!(rejection(input, &limits()).expect("expected admission rejection"), Error::Invalid);
+        assert_eq!(
+            rejection(input, &limits()).expect("expected admission rejection"),
+            Error::Invalid { cause: skein_llm::Invalid::Header }
+        );
     }
     let mut input = anthropic_call();
     input.credential.as_mut().expect("fixture credential").value = b"secret\r\nInjected: header".to_vec().into();
-    assert_eq!(rejection(input, &limits()).expect("expected admission rejection"), Error::Invalid);
+    assert_eq!(
+        rejection(input, &limits()).expect("expected admission rejection"),
+        Error::Invalid { cause: skein_llm::Invalid::Credential }
+    );
     let mut input = call(1);
     input.prompt.max_output_tokens = Some(100);
-    assert_eq!(rejection(input, &limits()).expect("expected admission rejection"), Error::Unsupported);
+    assert_eq!(
+        rejection(input, &limits()).expect("expected admission rejection"),
+        Error::Unsupported { cause: skein_llm::Unsupported::OutputCap }
+    );
 }
 #[test]
 fn version_and_beta_overrides_are_single_case_insensitive_fields() {
@@ -43,7 +52,10 @@ fn version_and_beta_overrides_are_single_case_insensitive_fields() {
     assert!(head.contains("fixture-beta,other-beta"));
     let mut input = anthropic_call();
     input.endpoint.headers = Box::new([header(b"anthropic-beta", b"a"), header(b"Anthropic-Beta", b"b")]);
-    assert_eq!(rejection(input, &limits()).expect("expected admission rejection"), Error::Invalid);
+    assert_eq!(
+        rejection(input, &limits()).expect("expected admission rejection"),
+        Error::Invalid { cause: skein_llm::Invalid::Header }
+    );
 }
 #[test]
 fn measured_http_head_accepts_exact_cap_and_rejects_one_byte_less() {

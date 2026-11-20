@@ -84,7 +84,7 @@ fn live(body: Option<&[u8]>, mode: Mode) -> (d::Domain, Token, Token) {
         .push(documents::line(
             2,
             Wall::from_nanos(10_750_000_000),
-            c::Activity::RunBegan { attempt: f::chat::ATTEMPT, why: c::RunWhy::Made, resumed: false },
+            c::Activity::RunBegan { attempt: f::chat::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
         ))
         .unwrap();
     page.rows

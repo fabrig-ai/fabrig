@@ -556,6 +556,7 @@ fn write_chat_document(core: &mut Core, limits: &Limits, task: u64, title: &[u8]
                     author: notes::Author::Party { party: 1 },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         },
     );

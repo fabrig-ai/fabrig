@@ -680,7 +680,7 @@ fn a_tui_in_front_signs_in_by_its_handed_link_and_ticks_the_browsers_sign_in() {
     assert_eq!(tui.approval_asks, 0);
     assert_eq!(tui.opens.len(), 0);
     let text = tui.text();
-    // The 92-byte link wraps at the host's 80 columns.
+    // The 80-byte link wraps at the host's 80 columns.
     let unwrapped: String = text.lines().map(str::trim).collect();
     assert!(
         unwrapped.contains(std::str::from_utf8(&printed).expect("the printed link is UTF-8")),

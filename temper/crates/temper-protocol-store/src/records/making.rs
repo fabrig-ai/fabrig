@@ -1,30 +1,17 @@
 //! Making rows (temper/docs/design/protocol/store.md, 2 and 5).
-use super::FITS;
 use crate::v25 as w;
 use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary as d;
 
 #[expect(clippy::manual_map, reason = "explicit option arms keep store translations closure-free")]
 pub(super) fn encode(row: &d::RepositoryMaking) -> w::RepositoryMaking {
-    let key = w::MakingKey::new(
-        &w::CEILINGS,
-        w::MakingKeyParts { forge: row.key.forge, org: row.key.org.clone(), name: row.key.name.clone() },
-    )
-    .expect(FITS);
+    let key = w::MakingKey { forge: row.key.forge, org: row.key.org.clone(), name: row.key.name.clone() };
     let from = match &row.from {
         d::MakeFrom::Empty => w::MakeFrom::Empty,
-        d::MakeFrom::Copy { address } => w::MakeFrom::Copy(
-            w::CopyFrom::new(&w::CEILINGS, w::CopyFromParts { address: address.clone() }).expect(FITS),
-        ),
+        d::MakeFrom::Copy { address } => w::MakeFrom::Copy(w::CopyFrom { address: address.clone() }),
     };
     let into = match &row.into {
-        Some(into) => Some(
-            w::MakeInto::new(
-                &w::CEILINGS,
-                w::MakeIntoParts { project: into.project, home: into.home, host: into.host.clone() },
-            )
-            .expect(FITS),
-        ),
+        Some(into) => Some(w::MakeInto { project: into.project, home: into.home, host: into.host.clone() }),
         None => None,
     };
     let state = match &row.state {
@@ -32,37 +19,27 @@ pub(super) fn encode(row: &d::RepositoryMaking) -> w::RepositoryMaking {
         d::MakingState::Making => w::MakingState::Making,
         d::MakingState::Made { id, branch } => w::MakingState::Made(made(*id, branch)),
         d::MakingState::Adopting { id, branch } => w::MakingState::Adopting(made(*id, branch)),
-        d::MakingState::Failed(failed) => w::MakingState::Failed(
-            w::MakingFailed::new(
-                &w::CEILINGS,
-                w::MakingFailedParts {
-                    step: encode_step(failed.step),
-                    reason: encode_failure(&failed.reason),
-                    words: failed.words.clone(),
-                },
-            )
-            .expect(FITS),
-        ),
+        d::MakingState::Failed(failed) => w::MakingState::Failed(w::MakingFailed {
+            step: encode_step(failed.step),
+            reason: encode_failure(&failed.reason),
+            words: failed.words.clone(),
+        }),
     };
-    w::RepositoryMaking::new(
-        &w::CEILINGS,
-        w::RepositoryMakingParts { key, from, into, asked: row.asked.as_nanos(), copying: row.copying, state },
-    )
-    .expect(FITS)
+    w::RepositoryMaking { key, from, into, asked: row.asked.as_nanos(), copying: row.copying, state }
 }
 fn made(id: u64, branch: &[u8]) -> w::MakingMade {
-    w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id, branch: branch.into() }).expect(FITS)
+    w::MakingMade { id, branch: branch.into() }
 }
 pub(super) fn decode(row: w::RepositoryMaking) -> d::RepositoryMaking {
-    let w::RepositoryMakingParts { key, from, into, asked, copying, state } = row.into_parts();
-    let w::MakingKeyParts { forge, org, name } = key.into_parts();
+    let w::RepositoryMaking { key, from, into, asked, copying, state } = row;
+    let w::MakingKey { forge, org, name } = key;
     let from = match from {
         w::MakeFrom::Empty => d::MakeFrom::Empty,
-        w::MakeFrom::Copy(row) => d::MakeFrom::Copy { address: row.into_parts().address },
+        w::MakeFrom::Copy(row) => d::MakeFrom::Copy { address: row.address },
     };
     let into = match into {
         Some(row) => {
-            let w::MakeIntoParts { project, home, host } = row.into_parts();
+            let w::MakeInto { project, home, host } = row;
             Some(d::MakeInto { project, home, host })
         }
         None => None,
@@ -71,15 +48,15 @@ pub(super) fn decode(row: w::RepositoryMaking) -> d::RepositoryMaking {
         w::MakingState::Waiting => d::MakingState::Waiting,
         w::MakingState::Making => d::MakingState::Making,
         w::MakingState::Made(row) => {
-            let w::MakingMadeParts { id, branch } = row.into_parts();
+            let w::MakingMade { id, branch } = row;
             d::MakingState::Made { id, branch }
         }
         w::MakingState::Adopting(row) => {
-            let w::MakingMadeParts { id, branch } = row.into_parts();
+            let w::MakingMade { id, branch } = row;
             d::MakingState::Adopting { id, branch }
         }
         w::MakingState::Failed(row) => {
-            let w::MakingFailedParts { step, reason, words } = row.into_parts();
+            let w::MakingFailed { step, reason, words } = row;
             d::MakingState::Failed(d::MakingFailed { step: decode_step(step), reason: decode_failure(reason), words })
         }
     };
@@ -134,9 +111,7 @@ pub(super) fn decode_refusal(value: w::MakeRefusal) -> d::MakeRefusal {
 }
 fn encode_failure(value: &d::MakeFailure) -> w::MakeFailure {
     match value {
-        d::MakeFailure::Refused { status } => w::MakeFailure::Refused(
-            w::MakeStatus::new(&w::CEILINGS, w::MakeStatusParts { status: *status }).expect(FITS),
-        ),
+        d::MakeFailure::Refused { status } => w::MakeFailure::Refused(w::MakeStatus { status: *status }),
         d::MakeFailure::Taken => w::MakeFailure::Taken,
         d::MakeFailure::Empty => w::MakeFailure::Empty,
         d::MakeFailure::TimedOut => w::MakeFailure::TimedOut,
@@ -146,7 +121,7 @@ fn encode_failure(value: &d::MakeFailure) -> w::MakeFailure {
 }
 fn decode_failure(value: w::MakeFailure) -> d::MakeFailure {
     match value {
-        w::MakeFailure::Refused(row) => d::MakeFailure::Refused { status: row.into_parts().status },
+        w::MakeFailure::Refused(row) => d::MakeFailure::Refused { status: row.status },
         w::MakeFailure::Taken => d::MakeFailure::Taken,
         w::MakeFailure::Empty => d::MakeFailure::Empty,
         w::MakeFailure::TimedOut => d::MakeFailure::TimedOut,

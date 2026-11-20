@@ -9,7 +9,7 @@ fn stated(name: &[u8], lowest: u16, layouts: &[[u8; 32]]) -> wire::Wire {
     for layout in layouts {
         list.push(*layout).expect("uncapped");
     }
-    wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: Box::from(name), lowest, layouts: list }).expect("wire")
+    wire::Wire { name: Box::from(name), lowest, layouts: list }
 }
 
 #[test]
@@ -82,8 +82,8 @@ fn agreement_keeps_statement_order_and_passes_over_unknown_wires() {
     assert_eq!(worker, 0);
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(statement.iter()) {
-        assert_eq!(agreed.name.as_bytes(), stated.name());
-        assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
+        assert_eq!(agreed.name.as_bytes(), stated.name.as_ref());
+        assert_eq!(agreed.version, stated.lowest + u16::try_from(stated.layouts.len() - 1).expect("range"));
     }
 }
 #[test]
@@ -176,7 +176,7 @@ fn a_configured_worker_authenticates_with_its_secret() {
     assert_eq!(worker, 0);
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(fixtures::statement(APPLICATION_VERSION).iter()) {
-        assert_eq!(agreed.name.as_bytes(), stated.name());
-        assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
+        assert_eq!(agreed.name.as_bytes(), stated.name.as_ref());
+        assert_eq!(agreed.version, stated.lowest + u16::try_from(stated.layouts.len() - 1).expect("range"));
     }
 }

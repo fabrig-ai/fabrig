@@ -3,7 +3,7 @@
 use super::{Domain, List, Work, append, decimal, forge, forge_change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes::copy_of};
-use temper_protocol_worker_wire::v1;
+use temper_protocol_worker_wire::v1::{self, Record};
 
 pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32) -> Option<Box<[u8]>> {
     let length = repository.len().checked_add(1)?.checked_add(command.len())?;
@@ -11,14 +11,11 @@ pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32
     path.put(repository).ok()?;
     path.put(b"/").ok()?;
     path.put(command).ok()?;
-    let spec =
-        v1::JobSpec::new(&v1::CEILINGS, v1::JobSpecParts { command: path.finish(), request: copy_of(request) }).ok()?;
-    if spec.measure() > bound {
+    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request) };
+    if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }
-    let mut writer = Writer::new(usize::try_from(spec.measure()).ok()?);
-    spec.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    spec.encode(&v1::CEILINGS).ok()
 }
 
 pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'static [u8]> {
@@ -138,6 +135,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
             status: forge_change::Status::Failed,
             no_change: false,
             flake: false,
+            no_test: false,
             failed: true,
             cancelled: false,
             words: words.into(),

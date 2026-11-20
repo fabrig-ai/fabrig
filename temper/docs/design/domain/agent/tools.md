@@ -146,6 +146,17 @@
   names `tasks.subscriptions` as its own room's refusals do. A
   subscription that would leave no room in the task's inbox for its news
   is refused as any call past the inbox is, naming the inbox.
+- **A batch's resource reports** (jig's `jig/docs/design/domain/tasks/holds.md`,
+  2) answer every call that makes tasks, `change` and `delegate` among
+  them, within `tasks.hold_wait`. A batch the reports' table cannot hold
+  answers "Refused: busy: the engine keeps reports of at most 256
+  resources, those live tasks and waiting batches hold, and this batch's
+  do not fit; call again once tasks have ended", 256 the refusal's
+  bound. One whose reports have not all come by then answers "Refused:
+  task 9871 unreported: no report came within tasks.hold_wait for a
+  resource held by tasks 9871 9873; nothing was made; call again",
+  9871 its first member so named and the numbers its `blocked_by`, in
+  its order, each after a space as other refusals' tasks are.
 - **A charter's room** is `room.md`'s: smith's host part's budget, the
   allowance a charter is fitted to, how its brief is cut, what a refusal
   names when the rest alone doesn't fit, and the checks at start and at
@@ -487,6 +498,15 @@
     "number"}` and `{"act": "drop", "number", "reason"}`: "Routed
     finding P/N to task G.", "Finding P/N is in the backlog.", "Dropped
     finding P/N.";
+  - `{"act": "repair", "numbers", "words"}`, `numbers` an array of 1 to
+    16 finding numbers of the task's project, oldest first as given,
+    `words` 1 to 4,096 bytes: "Repair goal G made for findings P/N,
+    P/M." (`../red-repairs.md`, section 4);
+  - `{"act": "blame", "number", "commit", "why"}`, `commit` 40 or 64
+    hex digits, absent for none, `why` as `hand` takes it: "Moved
+    finding P/N's blame to landing COMMIT." or "Moved finding P/N's
+    blame to no landing.", COMMIT its first twelve digits
+    (`../red-repairs.md`, section 3);
   - `{"act": "list", "state", "mine"}`, both optional: the project's
     areas, a line each, `NAME (OWNER, HOLDER): WORDS`, its triager's
     line, then its findings newest first, a line each, `P/N STATE KIND
@@ -496,9 +516,12 @@
     finding show` prints it.
 
   `HOLDER` is `task N`, `party N` or `role N`, by `../areas.md`, section
-  4. Its refusals are `../areas.md`, section 7's words, marked an error,
-  and the run goes on. The writes are named and decided once, as
-  `change`; `list` and `show` are reads.
+  4. Its refusals are `../areas.md`, section 7's words, and
+  `repair`'s and `blame`'s `../red-repairs.md`, 4.2's and section 3's,
+  marked an error, and the run goes on. The writes are named and
+  decided once, as `change`; `list` and `show` are reads. `repair` and
+  `blame` came with the host tools' contract's next version; a
+  `finding` call of the version before is handed on unchanged.
 
 - **`red`,** of the delegate family, declared where `finding` is, so
   that a goal's coordinator records the failures its branch carries

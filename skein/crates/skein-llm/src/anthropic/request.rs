@@ -1,7 +1,7 @@
 //! Measured native Messages requests and shape-derived cache markers.
 //! Keeps no state; replay is never modified. Entrances validate, measure and encode.
 //! Contract: llm/README.md, sections 4.5 and 4.7.
-use crate::{Block, Error, Json, Prompt, Provider, Replay, Role, Tool, wire};
+use crate::{Block, Error, Invalid, Json, Prompt, Provider, Replay, Role, Tool, Unsupported, wire};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer};
 use skein_lib::usize_of;
@@ -36,14 +36,20 @@ pub fn measure_request(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
 
 pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Limits) -> Result<(), Error> {
     if declared_output == 0 {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Invalid::Output });
     }
     if prompt.max_output_tokens.unwrap_or(declared_output) > declared_output {
         return Err(Error::limit(crate::Cap::Output, declared_output));
     }
     let count = usize_of(limits.history_items);
-    if prompt.model.is_empty() || prompt.messages.is_empty() || prompt.max_output_tokens == Some(0) {
-        return Err(Error::Invalid);
+    if prompt.model.is_empty() {
+        return Err(Error::Invalid { cause: Invalid::Model });
+    }
+    if prompt.messages.is_empty() {
+        return Err(Error::Invalid { cause: Invalid::NoMessages });
+    }
+    if prompt.max_output_tokens == Some(0) {
+        return Err(Error::Invalid { cause: Invalid::Output });
     }
     if prompt.tools.len() > usize_of(limits.tools) {
         return Err(Error::limit(crate::Cap::Tools, limits.tools));
@@ -67,7 +73,7 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
         text(effort, &mut budget, limits)?;
         match effort.as_ref() {
             b"low" | b"medium" | b"high" | b"xhigh" | b"max" => {}
-            _ => return Err(Error::Unsupported),
+            _ => return Err(Error::Unsupported { cause: Unsupported::Effort }),
         }
     }
     for tool in &prompt.tools {
@@ -76,13 +82,13 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
         text(&tool.description, &mut budget, limits)?;
         json(&tool.schema, &mut budget, limits)?;
         if wire::json::kind(tool.schema.view(), 0) != Some(Kind::ObjectStart) {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::ToolSchema });
         }
     }
     let mut blocks: usize = 0;
     for message in &prompt.messages {
         if message.content.is_empty() {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::EmptyMessage });
         }
         blocks = blocks
             .checked_add(message.content.len())
@@ -99,25 +105,25 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
 
 fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &wire::Limits) -> Result<(), Error> {
     match block {
-        Block::Oversize { .. } | Block::Cut { .. } => Err(Error::Invalid),
+        Block::Oversize { .. } | Block::Cut { .. } => Err(Error::Invalid { cause: Invalid::Outcome }),
         Block::Dropped { .. } => Ok(()),
         Block::Text { text: value, replay } => {
             if role == Role::User && replay.is_some() {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Role });
             }
             unsupported_replay(replay.as_ref())?;
             text(value, budget, limits)
         }
         Block::Refusal { text: value, replay } => {
             if role != Role::Assistant {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Role });
             }
             unsupported_replay(replay.as_ref())?;
             text(value, budget, limits)
         }
         Block::ToolCall { id, name, arguments, replay } => {
             if role != Role::Assistant {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Role });
             }
             unsupported_replay(replay.as_ref())?;
             identifier(id, 64)?;
@@ -128,7 +134,7 @@ fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &wire::Li
         }
         Block::ToolResult { id, text: value, is_error: _ } => {
             if role != Role::User {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Role });
             }
             identifier(id, 64)?;
             text(id, budget, limits)?;
@@ -136,10 +142,10 @@ fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &wire::Li
         }
         Block::Reasoning { replay } => {
             if role != Role::Assistant {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Role });
             }
             if replay.provider != Provider::Anthropic {
-                return Err(Error::Unsupported);
+                return Err(Error::Unsupported { cause: Unsupported::ReplayProvider });
             }
             json(&replay.value, budget, limits)?;
             let mut next = 0;
@@ -147,7 +153,7 @@ fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &wire::Li
                 let item = match wire::reasoning::replay_item(&replay.value, &mut next) {
                     Ok(Some(item)) => item,
                     Ok(None) => break,
-                    Err(error) => return Err(crate::translate::decode(error)),
+                    Err(error) => return Err(crate::translate::decode_invalid(error, Invalid::Replay)),
                 };
                 let bounded = writer::Limits { depth: limits.depth, length: limits.reasoning };
                 let mut measure = writer::Encoder::measure(&bounded);
@@ -161,16 +167,16 @@ fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &wire::Li
 }
 
 fn unsupported_replay(replay: Option<&Replay>) -> Result<(), Error> {
-    if replay.is_some() { Err(Error::Unsupported) } else { Ok(()) }
+    if replay.is_some() { Err(Error::Unsupported { cause: Unsupported::ReplayBlock }) } else { Ok(()) }
 }
 
 fn identifier(value: &[u8], maximum: usize) -> Result<(), Error> {
     if value.is_empty() || value.len() > maximum {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Invalid::Identifier });
     }
     for byte in value {
         if !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte != b'-' {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::Identifier });
         }
     }
     Ok(())
@@ -182,11 +188,13 @@ fn validate_reasoning(tokens: (&Document, wire::json::Span)) -> Result<(), Error
         b"thinking" => {
             let _thinking = field_text(tokens, b"thinking")?;
             if field_text(tokens, b"signature")?.is_empty() {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Reasoning });
             }
         }
-        b"redacted_thinking" if field_text(tokens, b"data")?.is_empty() => return Err(Error::Invalid),
-        b"" | b"text" | b"tool_use" | b"tool_result" => return Err(Error::Invalid),
+        b"redacted_thinking" if field_text(tokens, b"data")?.is_empty() => {
+            return Err(Error::Invalid { cause: Invalid::Reasoning });
+        }
+        b"" | b"text" | b"tool_use" | b"tool_result" => return Err(Error::Invalid { cause: Invalid::Reasoning }),
         _ => {}
     }
     // Unknown provider-owned extension fields remain in the bounded JSON value.
@@ -200,15 +208,15 @@ fn validate_reasoning(tokens: (&Document, wire::json::Span)) -> Result<(), Error
 fn field_text<'a>(tokens: (&'a Document, wire::json::Span), key: &[u8]) -> Result<&'a [u8], Error> {
     let at = match wire::json::required(tokens, key) {
         Ok(at) => at,
-        Err(error) => return Err(crate::translate::decode(error)),
+        Err(error) => return Err(crate::translate::decode_invalid(error, Invalid::Reasoning)),
     };
     let value = match wire::json::value_at(tokens, at) {
         Ok(value) => value,
-        Err(error) => return Err(crate::translate::decode(error)),
+        Err(error) => return Err(crate::translate::decode_invalid(error, Invalid::Reasoning)),
     };
     match wire::json::text_ref(value) {
         Ok(value) => Ok(value),
-        Err(error) => Err(crate::translate::decode(error)),
+        Err(error) => Err(crate::translate::decode_invalid(error, Invalid::Reasoning)),
     }
 }
 
@@ -257,7 +265,7 @@ fn measured(out: writer::Encoder, limits: writer::Limits, cap: crate::Cap) -> Re
         Ok(length) => Ok(length),
         Err(writer::Refusal::TooLong) => Err(Error::limit(cap, limits.length)),
         Err(writer::Refusal::TooDeep) => Err(Error::limit(crate::Cap::Depth, limits.depth)),
-        Err(writer::Refusal::Text | writer::Refusal::Number) => Err(Error::Invalid),
+        Err(writer::Refusal::Text | writer::Refusal::Number) => Err(Error::Invalid { cause: Invalid::Text }),
     }
 }
 
@@ -415,7 +423,7 @@ fn write_tools(out: &mut writer::Encoder, tools: &[Tool]) {
 
 fn write_block(out: &mut writer::Encoder, block: &Block, marked: bool, limits: &wire::Limits) -> Result<(), Error> {
     match block {
-        Block::Oversize { .. } | Block::Cut { .. } => return Err(Error::Invalid),
+        Block::Oversize { .. } | Block::Cut { .. } => return Err(Error::Invalid { cause: Invalid::Outcome }),
         Block::Dropped { .. } => {}
         Block::Reasoning { replay } => wire::reasoning::write_replay(out, &replay.value),
         Block::Text { text, replay: _ } | Block::Refusal { text, replay: _ } => {
@@ -479,17 +487,17 @@ fn write_arguments(out: &mut writer::Encoder, arguments: &[u8], limits: &wire::L
             | skein_json::tokenizer::Error::Utf8
             | skein_json::tokenizer::Error::Control
             | skein_json::tokenizer::Error::Truncated
-            | skein_json::tokenizer::Error::Stream(_) => Error::Invalid,
+            | skein_json::tokenizer::Error::Stream(_) => Error::Invalid { cause: Invalid::Arguments },
         });
     }
     for byte in arguments {
         match byte {
             b' ' | b'\t' | b'\r' | b'\n' => {}
             b'{' => return Ok(()),
-            _ => return Err(Error::Invalid),
+            _ => return Err(Error::Invalid { cause: Invalid::Arguments }),
         }
     }
-    Err(Error::Invalid)
+    Err(Error::Invalid { cause: Invalid::Arguments })
 }
 
 fn has_native_block(content: &[Block]) -> bool {

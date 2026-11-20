@@ -1176,44 +1176,27 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
 
 fn retired_setting(key: temper_engine_domain_forge::settings::SettingKey) -> (Box<[u8]>, Box<[u8]>) {
     use temper_engine_domain_forge::{Key, settings::SettingSlot};
-    use temper_protocol_store::v25 as w;
+    use temper_protocol_store::v25::{self as w, Record};
     let slot = match key.slot {
         SettingSlot::Default => w::SettingSlot::Default,
         SettingSlot::Change => w::SettingSlot::Change,
-        SettingSlot::Replaced(number) => {
-            w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
-        }
-        SettingSlot::Proposal(number) => {
-            w::SettingSlot::Proposal(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
-        }
+        SettingSlot::Replaced(number) => w::SettingSlot::Replaced(w::Number { number }),
+        SettingSlot::Proposal(number) => w::SettingSlot::Proposal(w::Number { number }),
     };
     // The removed route's tag is 1; the live up route keeps tag 2.
-    let mut tag = skein_lib::Writer::new(1);
-    w::Route::Retired.encode(&mut tag).unwrap();
-    assert_eq!(tag.finish().as_ref(), &[1]);
+    let tag = w::Route::Retired.encode(&w::CEILINGS).unwrap();
+    assert_eq!(tag.as_ref(), &[1]);
     let value = if key.kind == 6 {
-        w::SettingValue::Questions(
-            w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
-        )
+        w::SettingValue::Questions(w::ProjectQuestions { route: w::Route::Retired })
     } else {
-        w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap())
+        w::SettingValue::Charter(w::CharterValue { number: 6 })
     };
-    let value = w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value, size: 1 }).unwrap();
-    let row = w::SettingRow::new(
-        &w::CEILINGS,
-        w::SettingRowParts {
-            kind: key.kind,
-            scope: key.scope,
-            number: key.number,
-            slot,
-            edit: w::SettingEdit::Set(value),
-        },
-    )
-    .unwrap();
-    let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut bytes).unwrap();
-    (temper_protocol_store::keys::encode(&Key::Setting(key), u32::MAX).unwrap(), bytes.finish())
+    let value = w::SizedValue { value, size: 1 };
+    let row =
+        w::SettingRow { kind: key.kind, scope: key.scope, number: key.number, slot, edit: w::SettingEdit::Set(value) };
+    let row = w::Row { value: w::Value::Setting(row) };
+    let bytes = row.encode(&w::CEILINGS).unwrap();
+    (temper_protocol_store::keys::encode(&Key::Setting(key), u32::MAX).unwrap(), bytes)
 }
 
 #[test]

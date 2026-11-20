@@ -2,6 +2,7 @@
 use skein_channel::{Closed, StreamMode};
 use smith_channel::CEILINGS;
 use smith_channel_world::{Observation, World, initial_grant, latest_grant, refreshed_grant, window_turn_fixture};
+use smith_charter::Record;
 
 #[test]
 fn the_halves_open_on_the_highest_version_both_speak() {
@@ -121,13 +122,21 @@ fn the_full_charter_keeps_contracts_tools_and_model_prices() {
     let bytes = &crate::values::charter("full");
     let wire = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(bytes))
         .expect("full charter");
-    let mut entries = skein_lib::List::with_capacity(1 + wire.models().len());
+    let mut entries = skein_lib::List::with_capacity(1 + wire.models.len());
     entries
-        .push(smith_protocol_translate::Endpoint { name: Box::from(wire.main().endpoint()), number: 17, dialect: 23 })
+        .push(smith_protocol_translate::Endpoint {
+            name: Box::from(wire.main.endpoint.as_ref()),
+            number: 17,
+            dialect: 23,
+        })
         .expect("main endpoint");
-    for model in wire.models() {
+    for model in &wire.models {
         entries
-            .push(smith_protocol_translate::Endpoint { name: Box::from(model.endpoint()), number: 17, dialect: 23 })
+            .push(smith_protocol_translate::Endpoint {
+                name: Box::from(model.endpoint.as_ref()),
+                number: 17,
+                dialect: 23,
+            })
             .expect("model endpoint");
     }
     let charter = smith_protocol_translate::decode_charter(
@@ -136,21 +145,18 @@ fn the_full_charter_keeps_contracts_tools_and_model_prices() {
         &smith_protocol_translate::Endpoints::new(entries),
     )
     .expect("translated charter");
-    assert_eq!(charter.instructions.as_ref(), wire.instructions());
-    assert_eq!(charter.brief.sections.len(), usize::try_from(wire.brief().len()).expect("bounded count"));
-    assert_eq!(charter.grants.host_tools.len(), usize::try_from(wire.tools().host().len()).expect("bounded count"));
-    assert_eq!(
-        charter.outcome.verdicts.len(),
-        usize::try_from(wire.contract().verdicts().len()).expect("bounded count")
-    );
-    assert_eq!(charter.models.len(), usize::try_from(wire.models().len()).expect("bounded count"));
-    assert_eq!(charter.llm.prices.input, wire.main().prices().input());
-    assert_eq!(charter.llm.prices.cached, wire.main().prices().cached());
-    assert_eq!(charter.llm.prices.output, wire.main().prices().output());
-    assert_eq!(charter.llm.prices.unit, wire.main().prices().unit());
-    assert_eq!(charter.budget.turns, wire.budget().turns());
-    assert_eq!(charter.budget.spend, wire.budget().spend());
-    assert_eq!(charter.budget.time, wire.budget().time());
+    assert_eq!(charter.instructions.as_ref(), wire.instructions.as_ref());
+    assert_eq!(charter.brief.sections.len(), usize::try_from(wire.brief.len()).expect("bounded count"));
+    assert_eq!(charter.grants.host_tools.len(), usize::try_from(wire.tools.host.len()).expect("bounded count"));
+    assert_eq!(charter.outcome.verdicts.len(), usize::try_from(wire.contract.verdicts.len()).expect("bounded count"));
+    assert_eq!(charter.models.len(), usize::try_from(wire.models.len()).expect("bounded count"));
+    assert_eq!(charter.llm.prices.input, wire.main.prices.input);
+    assert_eq!(charter.llm.prices.cached, wire.main.prices.cached);
+    assert_eq!(charter.llm.prices.output, wire.main.prices.output);
+    assert_eq!(charter.llm.prices.unit, wire.main.prices.unit);
+    assert_eq!(charter.budget.turns, wire.budget.turns);
+    assert_eq!(charter.budget.spend, wire.budget.spend);
+    assert_eq!(charter.budget.time, wire.budget.time);
 }
 
 #[test]
@@ -165,10 +171,10 @@ fn an_accepted_report_keeps_its_fields_in_the_charter() {
     let bytes = smith_protocol_translate::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
     let record = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("result decodes");
-    assert!(matches!(record.form(), smith_charter::Form::Report));
-    assert_eq!(record.text(), b"done");
-    assert_eq!(record.fields().get(0).expect("one field").name(), b"source");
-    assert_eq!(record.fields().get(0).expect("one field").text(), b"agent");
+    assert!(matches!(&record.form, smith_charter::Form::Report));
+    assert_eq!(record.text.as_ref(), b"done");
+    assert_eq!(record.fields.get(0).expect("one field").name.as_ref(), b"source");
+    assert_eq!(record.fields.get(0).expect("one field").text.as_ref(), b"agent");
 }
 
 #[test]
@@ -188,10 +194,10 @@ fn an_accepted_verdict_keeps_its_label_and_items() {
     let bytes = smith_protocol_translate::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
     let record = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("result decodes");
-    assert!(matches!(record.form(), smith_charter::Form::Verdict));
-    assert_eq!(record.label().as_deref(), Some(&b"ready"[..]));
-    assert_eq!(record.items().get(0).expect("one item").kind(), b"path");
-    assert_eq!(record.items().get(0).expect("one item").fields().get(0).expect("one field").text(), b"file");
+    assert!(matches!(&record.form, smith_charter::Form::Verdict));
+    assert_eq!(record.label.as_deref(), Some(&b"ready"[..]));
+    assert_eq!(record.items.get(0).expect("one item").kind.as_ref(), b"path");
+    assert_eq!(record.items.get(0).expect("one item").fields.get(0).expect("one field").text.as_ref(), b"file");
 }
 
 #[test]
@@ -237,19 +243,19 @@ fn a_model_failure_keeps_transport_evidence_and_cooldown() {
         &smith_charter::CEILINGS,
     )
     .expect("bounded failure");
-    assert_eq!(record.turns(), 2);
-    let smith_channel::RunResult::Failed(failed) = record.result() else {
+    assert_eq!(record.turns, 2);
+    let smith_channel::RunResult::Failed(failed) = &record.result else {
         panic!("expected failure");
     };
-    let smith_channel::RunFailure::Model(model) = failed.reason() else {
+    let smith_channel::RunFailure::Model(model) = &failed.reason else {
         panic!("expected model failure");
     };
-    let smith_channel::ModelFault::Completion(fault) = model.value() else {
+    let smith_channel::ModelFault::Completion(fault) = &model.value else {
         panic!("expected completion");
     };
-    assert!(matches!(fault.failure(), smith_channel::CompletionFailure::RateLimited));
-    assert!(matches!(fault.evidence(), smith_channel::CompletionEvidence::Response(_)));
-    assert_eq!(fault.retry_after(), &Some(skein_lib::Duration::from_nanos(42)));
+    assert!(matches!(&fault.failure, smith_channel::CompletionFailure::RateLimited));
+    assert!(matches!(&fault.evidence, smith_channel::CompletionEvidence::Response(_)));
+    assert_eq!((&fault.retry_after), &Some(skein_lib::Duration::from_nanos(42)));
 }
 
 #[test]
@@ -373,55 +379,38 @@ fn a_saved_oversized_answer_reaches_the_agent_as_a_settled_decision() {
 }
 
 fn saved_turn(place: u32, dialect: u32) -> Box<[u8]> {
-    let limits = smith_transcript::CEILINGS;
-    let turn = smith_transcript::Turn::new(
-        &limits,
-        smith_transcript::TurnParts {
-            system: None,
-            model: b"fake-1".as_slice().into(),
-            effort: None,
-            kind: smith_transcript::TurnKind::Ordinary,
-            opening: if place == 1 {
-                Some(
-                    smith_transcript::Opening::new(
-                        &limits,
-                        smith_transcript::OpeningParts {
-                            affinity: smith_transcript::Affinity::new(
-                                &limits,
-                                smith_transcript::AffinityParts { key: [0; 16], thread: 0 },
-                            )
-                            .expect("fixture affinity"),
-                            account: None,
-                            backend: smith_transcript::Backend::Direct,
-                        },
-                    )
-                    .expect("fixture opening"),
-                )
-            } else {
-                None
-            },
-            endpoint: Box::default(),
-            dialect,
-            place,
-            usage: smith_transcript::Usage::new(
-                &limits,
-                smith_transcript::UsageParts {
-                    input: Some(1),
-                    output: Some(2),
-                    cache_read: Some(0),
-                    cache_write: Some(0),
-                    reasoning: None,
-                },
-            )
-            .expect("usage"),
-            spent: 3,
-            jobs: 0,
-            messages: skein_lib::List::with_capacity(0),
+    let turn = smith_transcript::Turn {
+        system: None,
+        model: b"fake-1".as_slice().into(),
+        effort: None,
+        kind: smith_transcript::TurnKind::Ordinary,
+        opening: if place == 1 {
+            Some(smith_transcript::Opening {
+                affinity: smith_transcript::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_transcript::Backend::Direct,
+            })
+        } else {
+            None
         },
-    )
-    .expect("turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn length"));
-    turn.encode(&mut writer).expect("measured turn");
+        endpoint: Box::default(),
+        dialect,
+        place,
+        usage: smith_transcript::Usage {
+            input: Some(1),
+            output: Some(2),
+            cache_read: Some(0),
+            cache_write: Some(0),
+            reasoning: None,
+        },
+        spent: 3,
+        jobs: 0,
+        messages: skein_lib::List::with_capacity(0),
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).expect("turn length"),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     writer.finish()
 }
 
@@ -1061,6 +1050,7 @@ fn a_fact_projects_its_emission_time_relative_to_the_activation_start() {
 #[cfg(test)]
 mod charter_round_trip {
     use skein_lib::{List, Reader};
+    use smith_charter::Record;
     use smith_protocol_translate::{Endpoints, encode_charter};
 
     #[test]
@@ -1070,20 +1060,20 @@ mod charter_round_trip {
             smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes)).expect("full golden");
         let mut names = List::with_capacity(16);
         names
-            .push(smith_protocol_translate::Endpoint { name: Box::from(wire.main().endpoint()), number: 0, dialect: 0 })
+            .push(smith_protocol_translate::Endpoint { name: wire.main.endpoint.clone(), number: 0, dialect: 0 })
             .expect("main endpoint");
-        for model in wire.models() {
-            if model.endpoint() != wire.main().endpoint() {
+        for model in &wire.models {
+            if model.endpoint != wire.main.endpoint {
                 let number = names.len();
                 names
-                    .push(smith_protocol_translate::Endpoint { name: Box::from(model.endpoint()), number, dialect: 0 })
+                    .push(smith_protocol_translate::Endpoint { name: model.endpoint.clone(), number, dialect: 0 })
                     .expect("child endpoint");
             }
         }
         let endpoints = Endpoints::new(names);
         let policy = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints)
             .expect("typed full policy");
-        assert_eq!(policy.grants.contract, wire.tools().contract());
+        assert_eq!(policy.grants.contract, wire.tools.contract);
         let encoded = encode_charter(&policy, &smith_charter::CEILINGS, &endpoints).expect("full policy encodes");
         assert_eq!(
             smith_protocol_translate::decode_charter(&encoded, &smith_charter::CEILINGS, &endpoints),
@@ -1239,10 +1229,10 @@ fn a_limited_account_is_written_with_its_reset_at_the_answer() {
         (None, None),
     ] {
         let record = account_fault_record(smith_domain::run::Fault::Limited { account: 7, reset_at });
-        let smith_channel::RunResult::Failed(failed) = record.result() else { panic!("failed answer") };
-        let smith_channel::RunFailure::Model(model) = failed.reason() else { panic!("model failure") };
-        let smith_channel::ModelFault::Limited(limited) = model.value() else { panic!("limited account") };
-        let received = Some((limited.account(), *limited.reset()));
+        let smith_channel::RunResult::Failed(failed) = &record.result else { panic!("failed answer") };
+        let smith_channel::RunFailure::Model(model) = &failed.reason else { panic!("model failure") };
+        let smith_channel::ModelFault::Limited(limited) = &model.value else { panic!("limited account") };
+        let received = Some((limited.account, limited.reset));
         assert_eq!(received, Some((7, expected)), "{reset_at:?}");
     }
 }
@@ -1252,10 +1242,10 @@ fn a_refused_account_is_written_with_its_code() {
     for (code, expected) in [(b"not-eligible".as_slice(), b"not-eligible".as_slice()), (b"".as_slice(), b"".as_slice())]
     {
         let record = account_fault_record(smith_domain::run::Fault::Refused { account: 7, code: code.into() });
-        let smith_channel::RunResult::Failed(failed) = record.result() else { panic!("failed answer") };
-        let smith_channel::RunFailure::Model(model) = failed.reason() else { panic!("model failure") };
-        let smith_channel::ModelFault::Refused(refused) = model.value() else { panic!("refused account") };
-        let received = Some((refused.account(), refused.code()));
+        let smith_channel::RunResult::Failed(failed) = &record.result else { panic!("failed answer") };
+        let smith_channel::RunFailure::Model(model) = &failed.reason else { panic!("model failure") };
+        let smith_channel::ModelFault::Refused(refused) = &model.value else { panic!("refused account") };
+        let received = Some((refused.account, refused.code.as_ref()));
         assert_eq!(received, Some((7, expected)), "code length {}", code.len());
     }
 }
@@ -1389,7 +1379,7 @@ fn resumed_activation(
         .expect("new activation's first output turn");
     let received = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(body))
         .expect("bounded output turn");
-    assert_eq!(received.place(), 3, "conversation sequence continues after saved history");
+    assert_eq!(received.place, 3, "conversation sequence continues after saved history");
     two.host_acknowledges(1);
     two.settle();
     let mut spent = smith_domain::run::Spend::ZERO;

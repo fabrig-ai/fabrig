@@ -8,9 +8,7 @@ fn drop_copy_and_switch_recover_after_every_mutation() {
         trace.refuse_links(link_error);
         trace.trace_writes();
         let expected_last = trace.open_switched().expect("traced second upgrade with task logs");
-        for &(operation, change) in trace.changes() {
-            patching::a_drop_copy_or_switch_cut_recovers(operation, change, expected_last, link_error);
-        }
+        patching::drop_copy_or_switch_cuts(trace.changes(), expected_last, link_error);
     }
 }
 
@@ -25,8 +23,7 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
     let mut source_opened = false;
     let mut switched = false;
     // Include every check read: the check itself has no writes at which to cut.
-    for cut in first..=after_switch {
-        let source_active = check::a_check_cut_recovers(&records, cut);
+    for source_active in check::check_cuts(&records, (first..=after_switch).collect()) {
         source_opened |= source_active;
         switched |= !source_active;
     }
@@ -38,8 +35,8 @@ fn every_wires_commit_cut_keeps_back_open_or_refuses_as_committed() {
     let (first, sync) = rehearsal::wires_commit_cuts();
     let mut lost = false;
     let mut durable = false;
-    for cut in first..=sync + 1 {
-        let outcome = rehearsal::a_wires_cut_recovers(cut);
+    let cuts: Vec<_> = (first..=sync + 1).collect();
+    for (cut, outcome) in cuts.iter().zip(rehearsal::wires_cuts(&cuts)) {
         eprintln!("wires cut {cut}: {outcome:?}");
         lost |= outcome == rehearsal::WiresOutcome::Lost;
         durable |= outcome == rehearsal::WiresOutcome::Durable;

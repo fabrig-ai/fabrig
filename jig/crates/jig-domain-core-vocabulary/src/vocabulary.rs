@@ -258,9 +258,12 @@ pub enum Ask {
     DropSubscription {
         request: Token,
     },
-    /// Ask a connector whether a refused repair belongs to a held task.
+    /// Tell a connector which deployment make was refused and why (domain/authority.md, 6).
+    /// `repair` keeps the task named by the refusal, where it names one.
     RepairRefused {
         repair: Option<u64>,
+        number: u64,
+        why: tasks::Refusal,
     },
     /// Let a connector settle a refused procedure delegation.
     DelegateRefused {
@@ -1182,6 +1185,10 @@ pub enum NamedAction {
         kind: tasks::MessageKind,
         words: Box<[u8]>,
     },
+    /// Record directing words of this run's own task (domain/tasks/messages.md, 2).
+    MarkRead {
+        messages: Box<[u64]>,
+    },
     Introduce {
         left: u64,
         right: u64,
@@ -1241,12 +1248,14 @@ pub enum NamedAction {
     Note {
         entry: notes::New,
         recalled: Option<u32>,
+        records: Box<[u64]>,
     },
     /// Replace a range of a note's body lines under a revision seen by the run.
     NoteLines {
         entry: notes::New,
         recalled: u32,
         range: notes::LineRange,
+        records: Box<[u64]>,
     },
     /// Drop one scoped note at a revision seen by the run (domain/engine/briefs.md, 2.1).
     NoteDelete {
@@ -1271,6 +1280,8 @@ pub enum ToolKind {
     Message {
         target: u64,
     },
+    /// The message family alone, without a reference to another task.
+    MarkRead,
     Control,
     Decide,
     Propose,
@@ -1307,6 +1318,8 @@ pub enum Timer {
     People,
     /// Task deadlines and standing work.
     Tasks,
+    /// Missing batch reports reach their bound (domain/tasks/holds.md, 2).
+    Resources,
     /// Host, call and attempt deadlines.
     Fleet,
     /// Brief gathering deadline.
@@ -1472,6 +1485,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::DecideEscalation { .. }
         | tasks::Event::ChargeEffect { .. }
+        | tasks::Event::RecordWords { .. }
         | tasks::Event::Turn { .. }
         | tasks::Event::NowWritten { .. }
         | tasks::Event::Refusals { .. }
@@ -1663,7 +1677,7 @@ impl Timer {
     pub const fn new_work(self) -> bool {
         match self {
             Self::Tasks => true,
-            Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention => false,
+            Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention | Self::Resources => false,
         }
     }
 }
@@ -1698,7 +1712,7 @@ impl Timer {
 pub fn waits(timer: Timer) -> bool {
     match timer {
         Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
-        Timer::Account => false,
+        Timer::Account | Timer::Resources => false,
     }
 }
 

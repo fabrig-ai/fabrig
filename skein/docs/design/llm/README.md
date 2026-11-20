@@ -113,7 +113,8 @@ section 5.2). `document_error` retains receiving overflow as
 emits no terminal and supplies no retry policy.
 
 `Client::prepare` validates and measures the whole request before allocating
-its exact body. Admission is fallible and does not touch the stream. An
+its exact body. Admission is fallible and does not touch the stream; a
+refusal names its cause (admission.md). An
 accepted client has one call, named by the caller's opaque token. Every
 accepted call has one terminal: `Completed`, `Failed` or `Cancelled`.
 Completed blocks and deltas are separate events; completion includes all

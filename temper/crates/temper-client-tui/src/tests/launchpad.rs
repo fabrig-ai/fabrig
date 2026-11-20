@@ -35,37 +35,29 @@ const SENTENCE: &str = "3 changes landed overnight.";
 const LEDE: &str = "csv-export is two of three tasks in; one waits on you.";
 
 fn status(brief: bool) -> w::ProjectStatus {
-    w::ProjectStatus::new(
-        &w::CEILINGS,
-        w::ProjectStatusParts {
-            project: PROJECT,
-            landed: 3,
-            seen: if brief { 0 } else { 3 },
-            last_landed: Some(BRIEF_AT),
-            previous: Some(0),
-            queued: 0,
-            red: false,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            brief: if brief {
-                Some({
-                    w::StatusBrief::new(
-                        &w::CEILINGS,
-                        w::StatusBriefParts {
-                            sentence: SENTENCE.as_bytes().into(),
-                            lede: LEDE.as_bytes().into(),
-                            at: BRIEF_AT,
-                            landed: 3,
-                        },
-                    )
-                    .unwrap()
-                })
-            } else {
-                None
-            },
+    w::ProjectStatus {
+        project: PROJECT,
+        landed: 3,
+        seen: if brief { 0 } else { 3 },
+        last_landed: Some(BRIEF_AT),
+        previous: Some(0),
+        queued: 0,
+        red: false,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: if brief {
+            Some({
+                w::StatusBrief {
+                    sentence: SENTENCE.as_bytes().into(),
+                    lede: LEDE.as_bytes().into(),
+                    at: BRIEF_AT,
+                    landed: 3,
+                }
+            })
+        } else {
+            None
         },
-    )
-    .unwrap()
+    }
 }
 fn family(bytes: Box<[u8]>) -> jig_client::Family {
     jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes }
@@ -301,7 +293,7 @@ fn home_team(
             {
                 let Some(brief) = brief else { continue };
                 let status = status(brief);
-                let mut parts = status.into_parts();
+                let mut parts = status;
                 let other = Some(&subject) == d::forge::status::watch(OTHER_PROJECT, &f::limits().forge).as_ref();
                 if other {
                     parts.project = OTHER_PROJECT;
@@ -309,7 +301,7 @@ fn home_team(
                     parts.seen = u64::from(!brief);
                 }
                 if let Some(brief) = parts.brief {
-                    let mut brief = brief.into_parts();
+                    let mut brief = brief;
                     brief.lede =
                         if other { b"Coupons are two of three in. One awaits review.".as_slice() } else { lede }.into();
                     if other {
@@ -317,36 +309,30 @@ fn home_team(
                         brief.at = 480 * MINUTE;
                         brief.landed = 1;
                     }
-                    parts.brief = Some(w::StatusBrief::new(&w::CEILINGS, brief).unwrap());
+                    parts.brief = Some(brief);
                 }
-                let record = family(wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, parts).unwrap()));
+                let record = family(wire::project_status(&parts));
                 assert!(d::forge::status::document(&record, f::limits().forge).is_some(), "status decodes");
                 Up::FamilyDelivered { watch, record }
             }
             jig_client::Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::Unknown },
             jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
-                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Playground =>
+                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Playground =>
             {
                 let Some((project, state)) = playground.take() else { continue };
                 Up::ReadDone {
                     read,
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
-                        record: Some(wire::playground_answer(
-                            &w::PlaygroundAnswer::new(
-                                &w::CEILINGS,
-                                w::PlaygroundAnswerParts {
-                                    state,
-                                    project,
-                                    forge: wire::FORGE,
-                                    provider: 17,
-                                    owner: b"demo".as_slice().into(),
-                                    name: b"demo".as_slice().into(),
-                                    cues: List::with_capacity(0),
-                                },
-                            )
-                            .unwrap(),
-                        )),
+                        record: Some(wire::playground_answer(&w::PlaygroundAnswer {
+                            state,
+                            project,
+                            forge: wire::FORGE,
+                            provider: 17,
+                            owner: b"demo".as_slice().into(),
+                            name: b"demo".as_slice().into(),
+                            cues: List::with_capacity(0),
+                        })),
                     },
                 }
             }
@@ -403,9 +389,9 @@ fn home_team(
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
                     why: None,
-                    answer: Some(jig_client::Answered::Family(family(wire::answer(
-                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked }).unwrap(),
-                    )))),
+                    answer: Some(jig_client::Answered::Family(family(wire::answer(&w::Answer {
+                        outcome: w::Outcome::Looked,
+                    })))),
                 }
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, message }) } => {
@@ -493,7 +479,10 @@ fn append(out: &mut Queue<Request>, mut more: Queue<Request>) {
     }
 }
 fn build(root: &Domain, tui: &Tui) -> crate::View {
-    let mut view = f::view();
+    build_with_words(root, tui, f::words())
+}
+fn build_with_words(root: &Domain, tui: &Tui, words: crate::words::Words) -> crate::View {
+    let mut view = f::view_of(words);
     crate::build(&mut view, tui, root, NOW, &mut Queue::uncapped());
     view
 }
@@ -544,6 +533,7 @@ fn start_lines(lines: &mut List<&'static [u8]>, project: Option<&[u8]>, drafts: 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks launchpad read states, their tick and bindings")]
 fn the_launchpad_says_each_state() {
+    let mut words = f::words();
     let brief = home(Some(true), &[]);
     let headline = home(Some(false), &[]);
     let unanswered = home(None, &[]);
@@ -716,10 +706,10 @@ fn the_launchpad_says_each_state() {
     ];
     let mut failures = List::with_capacity(FAILURES);
     for (name, root, tui, lines, tick) in rows {
-        let view = build(root, tui);
+        let view = build_with_words(root, tui, words);
         let text = body(view.tree());
         let mut expected = List::with_capacity(LINES);
-        let part = launchpad::read(root, tui, &f::words(), NOW);
+        let part = launchpad::read(root, tui, view.words(), NOW);
         if name == "start address" {
             assert!(!part.drafts, "drafts off");
         } else if name == "new brief" {
@@ -753,8 +743,9 @@ fn the_launchpad_says_each_state() {
         if !good || bound != u32::from(!crate::refused(root, tui)) {
             failures.push(name).unwrap();
         }
+        words = view.into_words();
     }
-    let mut ticking = build(&headline, &ordinary);
+    let mut ticking = build_with_words(&headline, &ordinary, words);
     let mut patches = Queue::uncapped();
     crate::build(&mut ticking, &ordinary, &headline, NOW, &mut patches);
     assert!(patches.is_empty(), "an unchanged frame does not rebuild");
@@ -762,6 +753,7 @@ fn the_launchpad_says_each_state() {
     if ticking.tick() != Some(Wall::from_nanos(584 * MINUTE)) {
         failures.push("the headline did not rebuild at its minute").unwrap();
     }
+    words = ticking.into_words();
     for (root, tui, state, style, expected) in [
         (&brief, &ordinary, "● Live", look::LIVE, "● Live · Hello"),
         (&none, &ordinary, "● Live", look::LIVE, "● Live"),
@@ -770,19 +762,21 @@ fn the_launchpad_says_each_state() {
         (&signed_out, &signing, "● Connecting", look::WAITING, "● Connecting"),
         (&offline, &ordinary, "● Offline", look::DOWN, "● Offline · Hello"),
     ] {
-        let view = build(root, tui);
+        let view = build_with_words(root, tui, words);
         let (left, right) = f::bottom_halves(view.tree());
         assert_eq!(f::text(view.tree(), left).as_ref(), expected.as_bytes());
         assert!(f::text(view.tree(), right).is_empty());
         assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
+        words = view.into_words();
     }
-    let view = draw(launchpad::read(&brief, &ordinary, &f::words(), NOW), 80, 0);
+    let part = launchpad::read(&brief, &ordinary, &words, NOW);
+    let view = draw_with_words(part, 80, 0, words);
     let (left, right) = f::bottom_halves(view.tree());
     assert_eq!(f::text(view.tree(), left).as_ref(), "● Live · Hello · Claude Opus 5.5 · high".as_bytes());
     assert!(f::text(view.tree(), right).is_empty());
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Brief);
-    let part = launchpad::read(&brief, &tui, &f::words(), NOW);
+    let part = launchpad::read(&brief, &tui, view.words(), NOW);
     assert_eq!(part.lines.get(2).unwrap().style, Some(look::BYLINE));
     assert_eq!(part.brief.len(), 3);
     for (line, expected) in part.brief.iter().zip([
@@ -793,23 +787,38 @@ fn the_launchpad_says_each_state() {
         assert_eq!(line.words.as_ref(), expected);
         assert_eq!(line.style, Some(look::NOTE));
     }
-    draw_states(&mut failures);
+    draw_states(&mut failures, view.into_words());
     assert!(failures.is_empty(), "launchpad rows: {failures:?}");
 }
-fn draw(mut part: launchpad::Launchpad, columns: u16, needs: u32) -> crate::View {
-    part.columns = columns;
+fn draw(part: launchpad::Launchpad, columns: u16, needs: u32) -> crate::View {
+    draw_with_words(part, columns, needs, f::words())
+}
+fn draw_with_words(part: launchpad::Launchpad, columns: u16, needs: u32, words: crate::words::Words) -> crate::View {
     let (root, _) = f::live(Some(f::me(if part.project.is_some() { &[b"Hello"] } else { &[] })));
+    draw_for(&root, part, columns, needs, words)
+}
+fn draw_for(
+    root: &Domain,
+    mut part: launchpad::Launchpad,
+    columns: u16,
+    needs: u32,
+    words: crate::words::Words,
+) -> crate::View {
+    part.columns = columns;
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Went);
-    let mut foot = foot::read(&root, &tui, &f::words(), NOW);
+    let mut foot = foot::read(root, &tui, &words, NOW);
     foot.columns = columns;
     foot.needs = d::pages::needs::Count { count: needs, cut: false };
     foot.closed = if part.project.is_some() { Some("Claude Opus 5.5 · high".as_bytes().into()) } else { None };
-    let mut view = f::view();
+    let mut view = f::view_of(words);
     view::signed(&mut view, &view::Signed { body: view::Body::Launchpad(part), foot }, &mut Queue::uncapped());
     view
 }
-fn draw_states(failures: &mut List<&'static str>) {
+fn draw_states(failures: &mut List<&'static str>, mut words: crate::words::Words) {
+    let root = home(None, &[]);
+    let (foot_root, _) = f::live(Some(f::me(&[b"Hello"])));
+    let tui = Tui::new(f::ADDRESS);
     // Money, sign-off and proposal cards, and the six-card bound, are drawn from data.
     for (name, count, expected) in [
         ("zero needs", 0_u32, &[][..]),
@@ -821,8 +830,7 @@ fn draw_states(failures: &mut List<&'static str>) {
             &["? Hello need 0", "$ Hello need 1", "✓ Hello need 2", "• Hello need 3", "• Hello need 4 n walks them"][..],
         ),
     ] {
-        let root = home(None, &[]);
-        let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        let mut part = launchpad::read(&root, &tui, &words, NOW);
         let mut needs = List::with_capacity(count);
         for number in 0..count {
             needs
@@ -840,7 +848,7 @@ fn draw_states(failures: &mut List<&'static str>) {
                 .unwrap();
         }
         part.needs = needs.into_boxed();
-        let view = draw(part, 80, count);
+        let view = draw_for(&foot_root, part, 80, count, words);
         let mut lines = List::with_capacity(count);
         let mut heads = 0_usize;
         let mut signals = 0_usize;
@@ -868,6 +876,7 @@ fn draw_states(failures: &mut List<&'static str>) {
         if !good {
             failures.push(name).unwrap();
         }
+        words = view.into_words();
     }
 }
 

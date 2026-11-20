@@ -204,7 +204,7 @@ and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
   its kind as the kit names it, its text, which for a refused resource
   holds its status, and the resource, its URL with the query and the
   fragment dropped, since a link's URL carries its secret
-  (`/jig/v1/sign-in/link?secret=…`) and a link is never in an answer (step
+  (`/sign-in?secret=…`, or at the route as a build before printed it) and a link is never in an answer (step
   2). For example `Log: Failed to load resource: the server responded
   with a status of 404 (Not Found) (http://127.0.0.1:8367/app.js)`. A
   trouble with no URL is `KIND: TEXT`.
@@ -371,7 +371,10 @@ it in at once, as a walk's `approve` does (`tui/journeys.md`, 8.1): a
 save that holds a `browse`, whose address the browser opens and whose
 "Approve" it presses, then the browser loads again the address it was
 on; within 30 seconds, before the line is carried out. So no line
-approves, and a recipe holds none.
+approves, and a recipe holds none. `tui approve`, `tui mark` and
+`web mark` are a journey's lines (`journey-walks.md`, 2.2): the session
+answers each `failed: line N: tui approve is a journey's line`, with
+its own words, keeps none, and starts no TUI for it.
 
 | Line | What the session does | Bound |
 |---|---|---|
@@ -548,10 +551,11 @@ deployment line`, and is not kept.
 ## 5. Its code
 
 - **In `temper-client-journeys-tool`,** beside `again`: a `drive`
-  module for the session and a `line` module for the lines' grammar,
-  `Line`'s parse and print, which `recipe.md`'s reader shares. A line
-  prints as it parses, field for field, so a kept line is the line
-  given.
+  module for the session. The lines' grammar, `Line`'s parse and print,
+  is `temper-client-walk-lines`' `line` module
+  (`journey-walks.md`, 3.1), which `recipe.md`'s reader and a journey's
+  walk share. A line prints as it parses, field for field, so a kept
+  line is the line given.
 - **One place, of either kind,** behind one interface
   (`../testing/qa/kinds.md`, 5): the box or the deployment's processes
   started, given their lines, asked for their values and stopped, and

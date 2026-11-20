@@ -32,6 +32,9 @@ fn client_crates_carry_the_client_prefix() {
             // The playground's page is the playground's entry crate (temper/docs/design/playground.md, 3).
             "temper-playground-page",
             "temper-playground-world",
+            // The native journey world composes the service and box peer
+            // (temper/docs/design/client/journey-walks.md, 3.2 and 4.4).
+            "temper-client-walk-world",
         ],
     );
     assert!(breaches.is_empty(), "client crates without the temper-client- prefix: {}", breaches.join(", "));

@@ -16,10 +16,15 @@
 //! async-signal-safe functions), plus Darwin's TIOCSCTTY ioctl on its own
 //! freshly opened terminal and the thread-local errno slot. No Rust library
 //! formatting, allocation or synchronization runs between fork and execve.
+//!
+//! Parent-death exec and spawn call posix's watcher with integers prepared
+//! before spawn. Its post-fork path is documented in posix::parent_death;
+//! the exit wait here uses local kevent records and a raw kqueue descriptor,
+//! without allocation, locks or destructors in the watcher.
 
 #![expect(
     clippy::disallowed_types,
-    reason = "OwnedFd closes temporary spawn descriptors on every failure path inside the system boundary"
+    reason = "the system boundary owns temporary descriptors and startup Command/Child handles for parent-death exec and spawn"
 )]
 
 use super::{kqueue, last_errno, retry, signals};
@@ -65,6 +70,121 @@ fn fd(raw: i32) -> Result<OwnedFd, i32> {
     } else {
         // SAFETY: this syscall just made `raw`, uniquely owned here.
         Ok(unsafe { OwnedFd::from_raw_fd(raw) })
+    }
+}
+
+pub(crate) fn exec_dying_with_parent(
+    mut command: std::process::Command,
+    parent: u32,
+    signal: Signal,
+) -> std::io::Error {
+    use crate::posix::parent_death::{close_bound, parent_error, watch_parent};
+    use std::os::unix::process::CommandExt;
+
+    let setup = (|| {
+        let parent = i32::try_from(parent).map_err(|_| libc::ESRCH)?;
+        watch_parent(parent, signal_number(signal), close_bound()?)
+    })();
+    if let Err(errno) = setup {
+        return parent_error(errno);
+    }
+    // SAFETY: getppid takes no arguments and borrows no memory.
+    if u32::try_from(unsafe { libc::getppid() }).ok() != Some(parent) {
+        return parent_error(libc::ESRCH);
+    }
+    command.exec()
+}
+
+pub(crate) fn spawn_dying_with_parent(
+    command: &mut std::process::Command,
+    signal: Signal,
+) -> std::io::Result<std::process::Child> {
+    use crate::posix::parent_death::{close_bound, parent_error, watch_parent};
+    use std::os::unix::process::CommandExt;
+
+    let parent = i32::try_from(std::process::id()).map_err(|_| parent_error(libc::ESRCH))?;
+    let number = signal_number(signal);
+    let until = close_bound().map_err(parent_error)?;
+    let before_exec = move || {
+        watch_parent(parent, number, until).map_err(std::io::Error::from_raw_os_error)?;
+        // SAFETY: getppid takes no arguments and is async-signal-safe.
+        if unsafe { libc::getppid() } != parent {
+            return Err(std::io::Error::from_raw_os_error(libc::ESRCH));
+        }
+        Ok(())
+    };
+    // SAFETY: only prepared integers are captured. The hook and watcher make
+    // only async-signal-safe calls and kqueue calls, with no allocation or locks.
+    unsafe { command.pre_exec(before_exec) };
+    command.spawn().map_err(
+        |error| {
+            if error.raw_os_error() == Some(libc::ESRCH) { parent_error(libc::ESRCH) } else { error }
+        },
+    )
+}
+
+/// Register both identities before acknowledging the watcher handshake.
+/// The second integer is unused on Darwin: the queue holds both exits.
+pub(crate) fn open_exit_watch(parent: i32, program: i32) -> Result<(i32, i32), i32> {
+    // SAFETY: kqueue takes no arguments and returns a new descriptor.
+    let queue = unsafe { libc::kqueue() };
+    if queue < 0 {
+        return Err(last_errno());
+    }
+    let result = (|| {
+        // SAFETY: queue is newly owned; fcntl takes integers only.
+        super::status(unsafe { libc::fcntl(queue, libc::F_SETFD, libc::FD_CLOEXEC) })?;
+        for pid in [parent, program] {
+            let event = kqueue::event(
+                usize::try_from(pid).map_err(|_| libc::EINVAL)?,
+                libc::EVFILT_PROC,
+                libc::EV_ADD,
+                libc::NOTE_EXIT,
+            );
+            kqueue::change(queue, event)?;
+        }
+        Ok((queue, -1))
+    })();
+    if result.is_err() {
+        // SAFETY: queue is uniquely owned and not transferred on failure.
+        let _closed = unsafe { libc::close(queue) };
+    }
+    result
+}
+
+/// Bits 1 and 2 name the parent's and program's exits respectively.
+pub(crate) fn wait_exit_watch(queue: i32, _second: i32, parent: i32, program: i32) -> Result<i32, i32> {
+    let parent = usize::try_from(parent).map_err(|_| libc::EINVAL)?;
+    let program = usize::try_from(program).map_err(|_| libc::EINVAL)?;
+    let mut events = [kqueue::event(0, 0, 0, 0); 2];
+    loop {
+        // SAFETY: events is exclusive storage for two initialized records;
+        // no changes or timeout are borrowed and queue belongs to the watcher.
+        let count = unsafe { libc::kevent(queue, ptr::null(), 0, events.as_mut_ptr(), 2, ptr::null()) };
+        if count < 0 {
+            let errno = last_errno();
+            if errno != libc::EINTR {
+                return Err(errno);
+            }
+            continue;
+        }
+        let mut exits = 0;
+        for event in events.iter().take(usize::try_from(count).map_err(|_| libc::EIO)?) {
+            if event.flags & libc::EV_ERROR != 0 {
+                return Err(i32::try_from(event.data).unwrap_or(libc::EIO));
+            }
+            if event.filter == libc::EVFILT_PROC && event.fflags & libc::NOTE_EXIT != 0 {
+                if event.ident == parent {
+                    exits |= 1;
+                }
+                if event.ident == program {
+                    exits |= 2;
+                }
+            }
+        }
+        if exits != 0 {
+            return Ok(exits);
+        }
     }
 }
 
@@ -188,6 +308,9 @@ fn child_actions(
 }
 
 pub(crate) fn spawn(command: &mut Spawn) -> Result<Done, Error> {
+    if command.reach.is_some() {
+        return Err(Error::Reach(skein_io::kernel::Unenforced::Unsupported));
+    }
     spawn_prepared(command, None).map_err(map_error)
 }
 
@@ -438,13 +561,25 @@ pub(crate) fn signal_child(handle: Fd, signal: Signal, to: Target) -> Result<Don
         return Err(Error::Other(libc::ESRCH));
     }
     let number = signal_number(signal);
-    let rc = match to {
-        // SAFETY: the lock keeps this pid unreaped throughout kill.
-        Target::Child => unsafe { libc::kill(child.pid, number) },
-        // SAFETY: this unreaped child leads its own group; killpg takes integers.
-        Target::Group => unsafe { libc::killpg(child.pid, number) },
-    };
-    super::status(rc).map_err(map_error)?;
+    match to {
+        Target::Child => {
+            // SAFETY: the lock keeps this pid unreaped throughout kill.
+            let rc = unsafe { libc::kill(child.pid, number) };
+            super::status(rc).map_err(map_error)?;
+        }
+        Target::Group => {
+            // SAFETY: this unreaped child leads its own group; killpg takes integers.
+            let rc = unsafe { libc::killpg(child.pid, number) };
+            if rc != 0 {
+                let errno = last_errno();
+                crate::posix::group::refused_group_signal(errno, || {
+                    // The table lock also keeps the leader unreaped during this reading.
+                    let group = u32::try_from(child.pid).map_err(|_| Error::InvalidArgument)?;
+                    super::group::group_has_running_member(group)
+                })?;
+            }
+        }
+    }
     Ok(Done::Nothing)
 }
 
@@ -631,11 +766,7 @@ fn fork_terminal(
     let high_writer = high_fd(&writer, from)?;
     drop(writer);
     let writer = high_writer;
-    // SAFETY: rlimit is a C integer record initialized by getrlimit.
-    let mut limit: libc::rlimit = unsafe { std::mem::zeroed() };
-    // SAFETY: limit is exclusive writable output storage.
-    super::status(unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, ptr::from_mut(&mut limit)) })?;
-    let until = i32::try_from(limit.rlim_cur.min(65_536)).map_err(|_| libc::EINVAL)?;
+    let until = crate::posix::parent_death::close_bound()?;
     // SAFETY: sigset_t is writable C storage initialized by sigemptyset.
     let mut empty: libc::sigset_t = unsafe { std::mem::zeroed() };
     // SAFETY: empty remains exclusive until this initialization returns.

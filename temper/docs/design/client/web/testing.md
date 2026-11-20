@@ -383,8 +383,9 @@ setup across desktop and phone widths. The twelve test functions in
     composer and model picker end above the three tabs' top (`look.md`, *The
     project's frame*), and whose ways show their head, the way the
     project runs, Agents review, shown; "Draft first" chosen from the
-    head's "Stock ways" menu, as a person chooses it, shows its path and
-    "Use this" and "Back" (`../pages/ask-temper.md`, 1, *Ask temper's
+    head's drop-down, as a person chooses it, shows its path and
+    "Use this", the drop-down then reading "Draft first", and choosing
+    "Agents review" from it shows that way again (`../pages/ask-temper.md`, 1, *Ask temper's
     page*).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../../playground.md`, 9).

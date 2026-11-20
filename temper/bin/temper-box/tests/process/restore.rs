@@ -36,11 +36,10 @@ fn a_checkpoint_restores_earlier_state_and_its_safety_restores_the_later_state()
     support::configuration(root, &support::Forge::Unreached);
     // Keep the signed-in directory's address usable across each restart.
     let [clients] = support::free_addresses::<1>(&[]);
-    let path = root.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["clients"]["listener"] = serde_json::json!({"socket": clients.to_string()});
-    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    let path = root.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.listen = Some(clients);
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     let before = projects(root, true, None);
     let taken = stopped(root, "checkpoint", None);
     let name = taken

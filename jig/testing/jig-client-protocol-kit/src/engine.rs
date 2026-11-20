@@ -9,6 +9,31 @@ use jig_protocol_engine_clients_http as http;
 use jig_test_domain as root;
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 use std::collections::{BTreeMap, BTreeSet};
+/// A default fixture need not be built when the story supplies another seed.
+pub(super) struct Fixture {
+    value: std::cell::OnceCell<Engine>,
+    seed: u64,
+}
+impl Fixture {
+    pub fn new(seed: u64) -> Self {
+        Self { value: std::cell::OnceCell::new(), seed }
+    }
+    pub fn ready(engine: Engine) -> Self {
+        Self { seed: engine.seed, value: std::cell::OnceCell::from(engine) }
+    }
+}
+impl std::ops::Deref for Fixture {
+    type Target = Engine;
+    fn deref(&self) -> &Engine {
+        self.value.get_or_init(|| Engine::bounded(self.seed, &crate::fixtures::owner_limits()))
+    }
+}
+impl std::ops::DerefMut for Fixture {
+    fn deref_mut(&mut self) -> &mut Engine {
+        let _ = &**self;
+        self.value.get_mut().expect("prepared engine")
+    }
+}
 pub(super) struct Engine {
     pub driver: Driver,
     pub account_sign_in_burst: Option<Vec<root::Event>>,
