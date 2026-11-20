@@ -216,7 +216,8 @@ fn approval_waiting(
     expires: Wall,
     wall: Wall,
 ) -> Option<Wall> {
-    let address = approval_address(tui.address(), code);
+    let code_in_address = if tui.address().at_name() { None } else { Some(code) };
+    let address = approval_address(tui.address(), code_in_address);
     if tui.address().at_name() {
         approval_name_waiting(b, tui, words, code, &address);
     } else {
@@ -265,6 +266,31 @@ fn approval_name_waiting(b: &mut Builder, tui: &Tui, words: &Words, code: Approv
         }
     }
 }
+fn approval_name_one_click(
+    b: &mut Builder,
+    tui: &Tui,
+    words: &Words,
+    code: ApprovalCode,
+    expires: Wall,
+    wall: Wall,
+) -> Option<Wall> {
+    let fallback = match tui.browser() {
+        Some(Browser::None) => {
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameOpen, &[]), None);
+            clipped_line(b, Role::Paragraph, &approval_address(tui.address(), Some(code)));
+            text(b, Role::Paragraph, &words.say(Word::ApprovalClickOpen, &[]), None);
+            Word::ApprovalClickOr
+        }
+        None | Some(Browser::Opening | Browser::Opened) => {
+            text(b, Role::Paragraph, &words.say(Word::ApprovalClickTab, &[]), None);
+            text(b, Role::Paragraph, &words.say(Word::ApprovalClickCode, &[Hole::Name(copy_of(&code.shown()))]), None);
+            Word::ApprovalClickNoTab
+        }
+    };
+    let tick = approval_expiry(b, words, expires, wall);
+    text(b, Role::Paragraph, &words.say(fallback, &[]), None);
+    tick
+}
 fn approval_expiry(b: &mut Builder, words: &Words, expires: Wall, wall: Wall) -> Option<Wall> {
     // The shared span counts up from its first wall to its second; here they
     // describe the remaining time. The countdown crosses each bound just after it.
@@ -280,6 +306,10 @@ fn approval_expiry(b: &mut Builder, words: &Words, expires: Wall, wall: Wall) ->
     Some(Wall::from_nanos(next))
 }
 fn approval(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall) -> Option<Wall> {
+    if tui.listener_opening() {
+        text(b, Role::Paragraph, &words.say(Word::ApprovalAsking, &[]), Some(look::WAITING));
+        return None;
+    }
     if tui.pasted() {
         return None;
     }
@@ -288,7 +318,10 @@ fn approval(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall
         return None;
     }
     match root.asked() {
-        Some(asked::State::Asked { code, expires }) => approval_waiting(b, tui, words, code, expires, wall),
+        Some(asked::State::Asked { code, expires, port: Some(_) }) if tui.address().at_name() => {
+            approval_name_one_click(b, tui, words, code, expires, wall)
+        }
+        Some(asked::State::Asked { code, expires, .. }) => approval_waiting(b, tui, words, code, expires, wall),
         None | Some(asked::State::Asking | asked::State::NotAsked(_)) => None,
     }
 }
@@ -307,6 +340,12 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall,
             b.open(Role::Button);
             b.name(&words.say(Word::AskAgain, &[]));
             b.bind(Binding { owner: look::OWNER, token: look::ASK_AGAIN });
+            b.focus(focus);
+            b.close();
+        } else if crate::may_type_instead(tui, root) {
+            b.open(Role::Button);
+            b.name(&words.say(Word::TypeCode, &[]));
+            b.bind(Binding { owner: look::OWNER, token: look::TYPE_CODE });
             b.focus(focus);
             b.close();
         }
@@ -596,6 +635,9 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
         Act::Press => {
             if bound.binding.token == look::ASK_AGAIN {
                 return Some(Event::SignIn);
+            }
+            if bound.binding.token == look::TYPE_CODE {
+                return Some(Event::TypeCode);
             }
             let index = u32::try_from(bound.binding.token.raw().checked_sub(4)?).ok()?;
             view.binds.events.get(index).cloned()

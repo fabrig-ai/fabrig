@@ -21,8 +21,14 @@ fn the_tuis_screens_are_their_goldens() {
     signing_in.step(Told::Refused { refusal: Refusal::OtherAddress { address: Box::from(*b"127.0.0.1:9000") } });
 
     let approval = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        port: None,
         code: super::approval::code(),
         expires: Wall::from_nanos(600_000_000_000),
+    }));
+    let one_click = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        code: super::approval::code(),
+        expires: Wall::from_nanos(600_000_000_000),
+        port: Some(43210),
     }));
     let mut opened = Tui::new(f::ADDRESS);
     opened.step(Told::Browse);
@@ -38,6 +44,7 @@ fn the_tuis_screens_are_their_goldens() {
     name_no_tab.step(Told::Browse);
     name_no_tab.step(Told::Opened { opened: false });
     let mut expired = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        port: None,
         code: super::approval::code(),
         expires: Wall::from_nanos(600_000_000_000),
     }));
@@ -48,6 +55,38 @@ fn the_tuis_screens_are_their_goldens() {
     let mut refused_tui = Tui::new(f::ADDRESS);
     refused_tui.header(false, super::refused::VERSION.into());
     let rows = [
+        (
+            "sign-in-one-click-tab-80x24-dark",
+            &one_click,
+            &name_tab,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/sign-in-one-click-tab-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "sign-in-one-click-tab-80x24-light",
+            &one_click,
+            &name_tab,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/sign-in-one-click-tab-80x24-light.txt").as_slice(),
+        ),
+        (
+            "sign-in-one-click-no-tab-80x24-dark",
+            &one_click,
+            &name_no_tab,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/sign-in-one-click-no-tab-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "sign-in-one-click-no-tab-80x24-light",
+            &one_click,
+            &name_no_tab,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/sign-in-one-click-no-tab-80x24-light.txt").as_slice(),
+        ),
         (
             "sign-in-name-tab-80x24-dark",
             &approval,
@@ -145,13 +184,14 @@ fn the_tuis_screens_are_their_goldens() {
             include_bytes!("golden/sign-in-80x24-dark.txt").as_slice(),
         ),
     ];
-    let mut views = List::with_capacity(12);
+    let count = u32::try_from(rows.len()).unwrap();
+    let mut views = List::with_capacity(count);
     for (_, root, tui, _, _, _) in &rows {
         let mut view = f::view();
         f::build(&mut view, tui, root);
         views.push(view).unwrap();
     }
-    let mut checks = List::with_capacity(12);
+    let mut checks = List::with_capacity(count);
     for ((name, _, _, scheme, size, want), view) in rows.iter().zip(views.iter()) {
         checks
             .push(Golden {

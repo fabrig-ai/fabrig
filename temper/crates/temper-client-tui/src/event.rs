@@ -6,6 +6,7 @@ use temper_client_domain::pages::terminal::Command;
 pub enum Event {
     Typed { value: Box<[u8]> },
     SignIn,
+    TypeCode,
     Send,
     Command { command: Command },
     Act { act: temper_client_domain::pages::Act },

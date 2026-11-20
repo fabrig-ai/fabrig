@@ -20,6 +20,7 @@ const SPAN: Duration = Duration::from_secs(600);
 
 struct Probe {
     root: Root,
+    linked: bool,
     out: Queue<client::Request>,
     reads: Vec<jig_client::ApprovalState>,
     read_acts: usize,
@@ -35,6 +36,7 @@ fn event(probe: &mut Probe, now: Time, event: client::Event) {
 fn probe(seed: u64) -> Probe {
     let mut probe = Probe {
         root: Root::Person(Box::new(client::unlinked(&fixtures::domain_limits(), seed))),
+        linked: false,
         out: Queue::uncapped(),
         reads: Vec::new(),
         read_acts: 0,
@@ -56,7 +58,10 @@ fn pump(front: &mut Joint, probes: &mut [Probe], now: Time) {
             if Temper::next_deadline(&probe.root).is_some_and(|deadline| deadline <= now) {
                 Temper::fire(&mut probe.root, &env, &mut probe.out);
             }
-            Temper::take(&mut probe.root, &env, &mut probe.out);
+            if probe.linked {
+                Temper::settle(&mut probe.root, &env, &mut probe.out);
+                Temper::take(&mut probe.root, &env, &mut probe.out);
+            }
             while let Some(request) = probe.out.pop() {
                 if let client::Request::Unlinked { request: jig_client::UnlinkedRequest::ApprovalAct(act) } = &request {
                     match act {
@@ -69,7 +74,19 @@ fn pump(front: &mut Joint, probes: &mut [Probe], now: Time) {
                     probe.leaves.push((to.clone(), *replace));
                 }
                 if let Duty::Wire(request) = Temper::duty(request) {
-                    front.wire(ClientId(index), env.now, env.wall, request);
+                    if probe.linked {
+                        let client::Request::Client { request } = request else { panic!("linked terminal request") };
+                        front.carry(ClientId(index), now, request);
+                    } else {
+                        front.wire(ClientId(index), env.now, env.wall, request);
+                    }
+                }
+            }
+        }
+        for (index, probe) in probes.iter_mut().enumerate() {
+            if probe.linked {
+                for answer in front.heard(ClientId(index), now) {
+                    event(probe, now, client::Event::Client { event: answer });
                 }
             }
         }
@@ -124,9 +141,9 @@ fn me(probe: &Probe) -> &jig_client::contract::Me {
 fn a_terminal_approved_by_a_browser_is_signed_in_as_the_browsers_party() {
     let (mut front, mut probes) = setup(false);
     let browsers_me = me(&probes[BROWSER.0]).clone();
-    event(&mut probes[TERMINAL.0], Time::ZERO, client::Event::AskApproval);
+    event(&mut probes[TERMINAL.0], Time::ZERO, client::Event::AskApproval { port: None });
     pump(&mut front, &mut probes, Time::ZERO);
-    let Some(client::asked::State::Asked { code, expires }) = probes[TERMINAL.0].root.person().asked() else {
+    let Some(client::asked::State::Asked { code, expires, .. }) = probes[TERMINAL.0].root.person().asked() else {
         panic!("the signed-out root holds the approval code and expiry");
     };
     assert_eq!(expires, Wall::from_nanos(SPAN.as_nanos()));
@@ -205,7 +222,27 @@ fn type_code(probe: &mut Probe, code: jig_client::ApprovalCode) {
 fn one_press_returns_a_grant_to_the_terminals_loopback_before_it_can_sign_in() {
     let (mut front, mut probes) = setup(false);
     let source = Some("203.0.113.7".parse().expect("terminal source"));
-    let (code, _) = front.ask_approval(TERMINAL, Some(43210), Via::Public, source);
+    front.link_client(TERMINAL, fixtures::domain_limits().client.domain);
+    front.exchange_from(TERMINAL, Via::Public, source);
+    probes[TERMINAL.0].root = Root::Person(Box::new(client::new(&fixtures::domain_limits(), fixtures::SEED)));
+    probes[TERMINAL.0].linked = true;
+    event(
+        &mut probes[TERMINAL.0],
+        Time::ZERO,
+        client::Event::Start { address: fixtures::inbox(), kept: skein_lib::List::with_capacity(0), with: None },
+    );
+    pump(&mut front, &mut probes, Time::ZERO);
+    assert_eq!(probes[TERMINAL.0].root.person().client().link().state, jig_client::Link::SignedOut);
+    event(&mut probes[TERMINAL.0], Time::ZERO, client::Event::AskApproval { port: Some(43210) });
+    pump(&mut front, &mut probes, Time::ZERO);
+    let asked = probes[TERMINAL.0].root.person().asked();
+    let Some(client::asked::State::Asked { code, port: Some(43210), .. }) = asked else {
+        panic!("the terminal root's port ask was not answered: {asked:?}");
+    };
+    assert_eq!(
+        probes[TERMINAL.0].root.person().client().link().not_signed_in,
+        Some(jig_client::NotSignedIn::Approval(jig_client::Taking::Waiting))
+    );
     front.exchange_from(BROWSER, Via::Public, source);
     // Extra address parameters cannot choose the hand-off host or port.
     let mut path = client::address::print_approve(Some(code)).into_vec();
@@ -235,18 +272,23 @@ fn one_press_returns_a_grant_to_the_terminals_loopback_before_it_can_sign_in() {
     assert_eq!(encoded.len(), 43);
     let grant = base64::decode(base64::Alphabet::Url, encoded, 32).expect("base64url grant");
     assert_eq!(grant.len(), 32);
-    front.take_approval(TERMINAL, None);
-    assert_eq!(front.taking(TERMINAL), Some(jig_client::Taking::Waiting));
-    pump(&mut front, &mut probes, Time::ZERO);
+    let again = Time::ZERO.saturating_add(jig_client::APPROVAL_AGAIN);
+    pump(&mut front, &mut probes, again);
     assert_eq!(probes[TERMINAL.0].root.person().client().link().state, jig_client::Link::SignedOut);
-    front.take_approval(TERMINAL, Some(Secret::new(grant)));
-    pump(&mut front, &mut probes, Time::ZERO);
+    assert_eq!(
+        probes[TERMINAL.0].root.person().client().link().not_signed_in,
+        Some(jig_client::NotSignedIn::Approval(jig_client::Taking::Waiting))
+    );
+    event(&mut probes[TERMINAL.0], again, client::Event::Granted { grant: Secret::new(grant) });
+    pump(&mut front, &mut probes, again);
     assert_eq!(probes[TERMINAL.0].root.person().client().link().state, jig_client::Link::Live);
     assert_eq!(me(&probes[TERMINAL.0]).party.number, browsers_me.party.number);
+    assert_eq!(probes[TERMINAL.0].root.person().asked(), None);
     assert_eq!(me(&probes[BROWSER.0]), &browsers_me);
     assert_eq!(probes[BROWSER.0].decisions, 1);
     assert_eq!(probes[BROWSER.0].leaves.len(), 1);
-    assert_eq!(probes[BROWSER.0].read_acts, 1);
+    // The wait for the terminal's next take allowed one more browser read.
+    assert_eq!(probes[BROWSER.0].read_acts, 2);
 }
 
 #[test]

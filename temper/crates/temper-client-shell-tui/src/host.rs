@@ -699,6 +699,7 @@ impl Host {
                 }
             }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
+            tui::Event::TypeCode => {}
             tui::Event::SignIn if self.state().address().at_name() => {
                 if tui::may_ask_again(self.state(), &self.root) {
                     self.ask();
@@ -1304,7 +1305,7 @@ impl Host {
     }
 
     fn ask(&mut self) {
-        self.step(Event::AskApproval);
+        self.step(Event::AskApproval { port: None });
         self.asked_opening = Some(self.state().openings());
         self.browse = true;
     }
@@ -1320,6 +1321,7 @@ impl Host {
         if self.browse {
             match self.root.asked() {
                 Some(root::asked::State::Asked { code, .. }) => {
+                    let code = if self.state().address().at_name() { None } else { Some(code) };
                     duties.open = Some(tui::approval_address(self.state().address(), code));
                     self.opens.push(Opening::Approval);
                     self.tell(Told::Browse);
