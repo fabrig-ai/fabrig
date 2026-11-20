@@ -96,7 +96,8 @@ impl World {
                 limits.brief.budgets.ci = 384;
                 // A repair retains its named pull beside the failed check.
                 limits.brief.budgets.pull = 384;
-                limits.brief.brief_bytes = 1024;
+                limits.brief.budgets.task = 2048;
+                limits.brief.brief_bytes = 4096;
                 // Both sections complete their sequential reads within the stock gather deadline.
                 limits.brief.gather = temper_limits_fixtures::small().root.brief.gather;
                 limits.tasks.tasks = 12;
@@ -105,7 +106,7 @@ impl World {
                 limits.tasks.tree_tasks = 12;
                 limits.tasks.depth = 3;
                 limits.tasks.parameters = 8;
-                limits.tasks.spec_bytes = 512;
+                limits.tasks.spec_bytes = 4096;
                 change_charters(&mut config, &mut limits);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;

@@ -867,8 +867,8 @@ fn a_squashed_landing_keeps_its_train_round_and_prefix_judgement_after_landing()
         eager: false,
     }]);
     change.verdicts = Box::new([
-        change::GateReport { number: 3, head: [9; 32], status: change::Status::Passed },
-        change::GateReport { number: 3, head: fixtures::HEAD, status: change::Status::Failed },
+        change::GateReport { revision: 0, number: 3, head: [9; 32], status: change::Status::Passed },
+        change::GateReport { revision: 0, number: 3, head: fixtures::HEAD, status: change::Status::Failed },
     ]);
     outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
     let got = view(&d, 61);
@@ -1070,7 +1070,7 @@ fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
     assert_eq!(view(&d, 61).step, LandingStep::Judging);
     assert_eq!(view(&d, 61).members[0].judgement.as_ref().unwrap().verdict, change::Status::Pending);
     d.changes.get_mut(&fixtures::CHANGE).unwrap().verdicts =
-        Box::new([change::GateReport { number: 3, head: fixtures::HEAD, status: change::Status::Passed }]);
+        Box::new([change::GateReport { revision: 0, number: 3, head: fixtures::HEAD, status: change::Status::Passed }]);
     assert_eq!(view(&d, 61).step, LandingStep::Proving);
     d.landing.rows.get_mut(&61).unwrap().landing.round.ending = Some(policy::RoundEnd::Stale);
     assert_eq!(view(&d, 61).step, LandingStep::Leaving);

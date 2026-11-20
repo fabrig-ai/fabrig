@@ -194,7 +194,7 @@ record Judging { head: fixed 32 ready_since: u64 target: Judgement asked: list 1
 enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer, judging: Judging, taking: Producing }
 record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
-record GateReport { number: u64 head: fixed 32 status: ChangeStatus }
+record GateReport { number: u64 head: fixed 32 status: ChangeStatus revision: u64 = 0 }
 record GateFailure { number: u64 count: u32 }
 record GateRemark { number: u64 head: fixed 32 words: bytes 1048576 }
 enum Way { queue, turn }
@@ -220,8 +220,9 @@ record Held { answer: bytes 262144 }
 enum Stands { taken, retired, asked, held: Held }
 record Open { asker: u64 number: u64 line: bytes 256 words: bytes 262144 stands: Stands }
 record Waiting { from: u64 number: u64 words: bytes 262144 passed: option u64 }
-record Answered { asker: u64 number: u64 line: bytes 256 answer: bytes 262144 }
-record Questions { route: Route taken: u32 open: list 128 Open waiting: list 16 Waiting = [] answered: list 16 Answered = [] }
+record Answered { asker: u64 number: u64 line: bytes 256 answer: bytes 262144 revision: u64 = 0 }
+record Amended { revision: u64 reason: bytes 262144 }
+record Questions { route: Route taken: u32 open: list 128 Open waiting: list 16 Waiting = [] answered: list 16 Answered = [] amended: list 16 Amended = [] }
 record ChangeFailure { line: bytes 1048576 }
 enum ChangeEnding { landed, no_change, cancelled, failed: ChangeFailure }
 record SignOff { person: u64 head: fixed 32 at: u64 }
@@ -566,7 +567,7 @@ enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participat
 record ChangeSource { branch: bytes 4096 at: option fixed 32 }
 record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none milestone: option u64 = none source: option ChangeSource = none goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
 record Regate { receipt: ReceiptKey run: u64 }
-record ChangeHot { room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory }
+record ChangeHot { room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus spec_revision: u64 = 0 gate_revision: u64 = 0 verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory }
 
 record Subscriber { task: u64 number: u64 topic: Topic own_change: option u64 goal_tasks: option list 65536 u64 paths: list 1024 bytes 4096 }
 
@@ -653,5 +654,3 @@ record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 aut
 enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow, person_brief: PersonBrief, limit_hold: LimitHold }
 
 versioned record Row { value: Value }
-
-

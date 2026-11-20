@@ -124,7 +124,7 @@ fn reviewed_step(world: &mut World, entry: u64, head: skein_forge::api::Commit, 
         FIRST,
         entry,
         change::Status::Unknown,
-        Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]),
+        Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]),
         false,
         kept,
     )
