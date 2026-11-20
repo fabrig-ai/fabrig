@@ -1,6 +1,6 @@
 //! A registry and job upgrade at the build's levels (temper/docs/design/draft/store-floor.md, 4.4).
 pub mod check;
-pub(crate) mod maps;
+mod maps;
 pub mod rehearsal;
 pub mod story;
 use jig_protocol_store::core_v6::Record as _;

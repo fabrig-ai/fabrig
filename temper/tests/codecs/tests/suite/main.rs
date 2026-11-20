@@ -13,7 +13,6 @@ mod drift;
 mod records;
 mod store_protection;
 mod store_queue;
-mod stored_layouts;
 mod values;
 mod worker_wire;
 

@@ -5,7 +5,6 @@ mod admission;
 mod census;
 mod checkpoints;
 mod commits;
-mod dev_store;
 mod directory;
 mod erase_reads;
 pub(crate) mod fixtures;

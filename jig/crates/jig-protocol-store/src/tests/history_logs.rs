@@ -15,7 +15,7 @@ pub(super) fn append(store: &mut Store, task: u64, rows: Box<[logs::record::Row]
     let ops = append_operations(store, task, rows, erase_map);
     raw_commit(store, ops);
 }
-pub(super) fn append_operations(
+fn append_operations(
     store: &mut Store,
     task: u64,
     rows: Box<[logs::record::Row]>,
@@ -291,7 +291,6 @@ fn log_places_ids_extents_and_census_names_round_trip() {
 }
 
 mod disk;
-mod failures;
 
 #[test]
 fn every_generated_family_routes_only_its_history_keys() {

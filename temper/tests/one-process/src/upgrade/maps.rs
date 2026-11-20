@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 type Rows = BTreeMap<Vec<u8>, Vec<u8>>;
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Maps {
+pub(super) struct Maps {
     pub active: u64,
     pub store: Rows,
     pub secrets: Rows,

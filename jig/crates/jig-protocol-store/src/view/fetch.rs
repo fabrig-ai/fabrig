@@ -1,12 +1,9 @@
 //! Forward fetches retain only requested intervals; ended gets use their named frame.
 use super::{Failure, Fetch, Task, covered, fail, raw_get};
-use crate::{Below, Event, Store, codec, keys, logs, pages, restore::HistoryFailure};
+use crate::{Below, Event, Store, codec, keys, logs, pages};
 use alloc::boxed::Box;
 use skein_kv::{Direction, LogRecord, Range};
 use skein_lib::{List, Queue, Token, length::len_u64};
-fn failure(task: u64, failure: HistoryFailure) -> Failure {
-    Failure::History { task, failure }
-}
 const OWNER: Token = Token::new(0x4849);
 
 fn contains(range: &Range, key: &[u8]) -> bool {
@@ -44,17 +41,12 @@ pub(super) fn prepare(store: &mut Store) -> Result<(), Failure> {
         }
     }
     let task = selected.expect("missing interval");
-    let log = logs::history(task).ok_or(failure(task, HistoryFailure::LogId))?;
-    let extent = raw_get(store, logs::extent_key(log))
-        .or(Err(failure(task, HistoryFailure::ExtentMalformed)))?
-        .ok_or(failure(task, HistoryFailure::ExtentMissing))?;
-    let extent = logs::extent(&extent).ok_or(failure(task, HistoryFailure::ExtentMalformed))?;
-    let place = keys::encode_own(&keys::Own::History { task }, store.limits.store.key)
-        .ok_or(failure(task, HistoryFailure::PlaceMalformed))?;
-    let place = raw_get(store, place)
-        .or(Err(failure(task, HistoryFailure::PlaceMalformed)))?
-        .ok_or(failure(task, HistoryFailure::PlaceMissing))?;
-    let place = codec::component::HistoryLog::decode(&place).or(Err(failure(task, HistoryFailure::PlaceMalformed)))?;
+    let log = logs::history(task).ok_or(Failure::Corrupt)?;
+    let extent = raw_get(store, logs::extent_key(log)).or(Err(Failure::Corrupt))?.ok_or(Failure::Corrupt)?;
+    let extent = logs::extent(&extent).ok_or(Failure::Corrupt)?;
+    let place = keys::encode_own(&keys::Own::History { task }, store.limits.store.key).ok_or(Failure::Corrupt)?;
+    let place = raw_get(store, place).or(Err(Failure::Corrupt))?.ok_or(Failure::Corrupt)?;
+    let place = codec::component::HistoryLog::decode(&place).or(Err(Failure::Corrupt))?;
     let active = store.view.active.as_mut().expect("held read");
     let known = active.tasks.get(&task).expect("missing task");
     let mut direct = true;
@@ -80,19 +72,15 @@ pub(super) fn prepare(store: &mut Store) -> Result<(), Failure> {
         let value = active.rows.remove(key.as_ref()).expect("selected row");
         active.bytes = active
             .bytes
-            .checked_sub(
-                len_u64(key.len())
-                    .checked_add(len_u64(value.len()))
-                    .ok_or(failure(task, HistoryFailure::Arithmetic))?,
-            )
-            .ok_or(failure(task, HistoryFailure::Arithmetic))?;
+            .checked_sub(len_u64(key.len()).checked_add(len_u64(value.len())).ok_or(Failure::Corrupt)?)
+            .ok_or(Failure::Corrupt)?;
     }
     if direct && place.record.is_none() {
-        return cover(task, active.tasks.get_mut(&task).expect("missing task"), ranges, true);
+        return cover(active.tasks.get_mut(&task).expect("missing task"), ranges, true);
     }
-    let at = if direct { place.record.expect("direct fetch has an ended frame") } else { 0 };
+    let at = if direct { place.record.ok_or(Failure::Corrupt)? } else { 0 };
     if at >= extent {
-        return Err(failure(task, HistoryFailure::FramePastExtent));
+        return Err(Failure::Corrupt);
     }
     store.view.fetch = Some(Fetch { task, at, extent, ended: place.record, direct, ranges, waiting: false });
     Ok(())
@@ -124,7 +112,7 @@ pub(super) fn advance(store: &mut Store, above: &mut Queue<Event>, below: &mut B
         let Some(event) = events.pop() else { break };
         match event {
             skein_kv::Event::LogRead { records, next, .. } => read(store, records, next, above),
-            skein_kv::Event::LogUnread { .. } | skein_kv::Event::Refused { .. } => unread(store, above),
+            skein_kv::Event::LogUnread { .. } | skein_kv::Event::Refused { .. } => fail(store, Failure::Corrupt, above),
             skein_kv::Event::Opened { .. }
             | skein_kv::Event::Committed { .. }
             | skein_kv::Event::Failed { .. }
@@ -150,14 +138,11 @@ pub(crate) fn read(store: &mut Store, records: Box<[LogRecord]>, next: Option<u6
     }
 }
 pub(crate) fn unread(store: &mut Store, above: &mut Queue<Event>) {
-    let task = store.view.fetch.as_ref().expect("fetch in progress").task;
-    fail(store, failure(task, HistoryFailure::Unread), above);
+    fail(store, Failure::Corrupt, above);
 }
-fn cover(number: u64, task: &mut Task, ranges: Box<[Range]>, keep: bool) -> Result<(), Failure> {
-    let count = u32::try_from(ranges.len()).or(Err(failure(number, HistoryFailure::Arithmetic)))?;
-    let count = count
-        .checked_add(if keep { task.covered.len() } else { 0 })
-        .ok_or(failure(number, HistoryFailure::Arithmetic))?;
+fn cover(task: &mut Task, ranges: Box<[Range]>, keep: bool) -> Result<(), Failure> {
+    let count = u32::try_from(ranges.len()).or(Err(Failure::Corrupt))?;
+    let count = count.checked_add(if keep { task.covered.len() } else { 0 }).ok_or(Failure::Corrupt)?;
     let old = core::mem::replace(&mut task.covered, List::with_capacity(count));
     if keep {
         for range in old.into_boxed() {
@@ -170,25 +155,21 @@ fn cover(number: u64, task: &mut Task, ranges: Box<[Range]>, keep: bool) -> Resu
     Ok(())
 }
 fn accept(store: &mut Store, records: Box<[LogRecord]>, next: Option<u64>) -> Result<(), Failure> {
-    let fetch = store.view.fetch.as_mut().expect("fetch in progress");
-    let task = fetch.task;
+    let fetch = store.view.fetch.as_mut().ok_or(Failure::Corrupt)?;
     fetch.waiting = false;
     if records.is_empty() {
-        return Err(failure(task, HistoryFailure::Empty));
+        return Err(Failure::Corrupt);
     }
-    let active = store.view.active.as_mut().expect("held read");
+    let active = store.view.active.as_mut().ok_or(Failure::Corrupt)?;
     for record in records {
-        if record.at != fetch.at || record.end <= record.at {
-            return Err(failure(task, HistoryFailure::FramePosition));
+        if record.at != fetch.at || record.end <= record.at || record.end > fetch.extent {
+            return Err(Failure::Corrupt);
         }
-        if record.end > fetch.extent {
-            return Err(failure(task, HistoryFailure::FramePastExtent));
-        }
-        let body = record.record.ok_or(failure(task, HistoryFailure::FramePastPage))?;
-        let rows = logs::record::decode(&body).ok_or(failure(task, HistoryFailure::Record))?;
+        let body = record.record.ok_or(Failure::Corrupt)?;
+        let rows = logs::record::decode(&body).ok_or(Failure::Corrupt)?;
         for (key, value) in rows {
             if keys::logged(&key) != Some(fetch.task) {
-                return Err(failure(task, HistoryFailure::RecordTask));
+                return Err(Failure::Corrupt);
             }
             if !wanted(&fetch.ranges, &key) {
                 continue;
@@ -199,20 +180,16 @@ fn accept(store: &mut Store, records: Box<[LogRecord]>, next: Option<u64>) -> Re
             if let Some(old) = active.rows.remove(key.as_ref()) {
                 active.bytes = active
                     .bytes
-                    .checked_sub(
-                        len_u64(key.len())
-                            .checked_add(len_u64(old.len()))
-                            .ok_or(failure(task, HistoryFailure::Arithmetic))?,
-                    )
-                    .ok_or(failure(task, HistoryFailure::Arithmetic))?;
+                    .checked_sub(len_u64(key.len()).checked_add(len_u64(old.len())).ok_or(Failure::Corrupt)?)
+                    .ok_or(Failure::Corrupt)?;
             }
             if let Some(value) = value {
                 let needs = active
                     .bytes
                     .checked_add(len_u64(key.len()))
-                    .ok_or(failure(task, HistoryFailure::Arithmetic))?
+                    .ok_or(Failure::Corrupt)?
                     .checked_add(len_u64(value.len()))
-                    .ok_or(failure(task, HistoryFailure::Arithmetic))?;
+                    .ok_or(Failure::Corrupt)?;
                 if needs > store.limits.fetch {
                     return Err(Failure::Bounds { needs, key });
                 }
@@ -227,13 +204,13 @@ fn accept(store: &mut Store, records: Box<[LogRecord]>, next: Option<u64>) -> Re
     }
     if fetch.direct || next.is_none() {
         if !fetch.direct && fetch.at != fetch.extent {
-            return Err(failure(task, HistoryFailure::Incomplete));
+            return Err(Failure::Corrupt);
         }
         let fetch = store.view.fetch.take().expect("completed fetch");
-        let known = active.tasks.get_mut(&fetch.task).expect("registered task");
-        cover(task, known, fetch.ranges, fetch.direct)?;
+        let task = active.tasks.get_mut(&fetch.task).expect("registered task");
+        cover(task, fetch.ranges, fetch.direct)?;
     } else if next != Some(fetch.at) {
-        return Err(failure(task, HistoryFailure::Continuation));
+        return Err(Failure::Corrupt);
     }
     Ok(())
 }

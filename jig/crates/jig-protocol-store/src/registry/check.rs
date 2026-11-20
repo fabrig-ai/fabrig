@@ -8,9 +8,6 @@ use skein_codec::{
 };
 use skein_lib::List;
 
-mod held;
-pub use held::{HeldLayout, judge_held_layout};
-
 fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
     let mut count = 0_u64;
     for space in store.stores.store.census().keyspaces() {
@@ -114,16 +111,15 @@ fn derive(
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
-fn conversion(job: &crate::Job, family: &str, number: u16) -> Option<crate::Layouts> {
-    let converts = job.converts.as_ref()?;
-    if converts.family == family && converts.value_type == number { Some(converts.from) } else { None }
-}
 fn job(store: &mut Store, key: &RowKey, row: &Row) -> Result<Option<&'static str>, OpenRefusal> {
     let mut one = None;
     for set in store.owner_sets.sets {
         for job in set.jobs {
-            if let Some(from) = conversion(job, &key.0, key.1) {
-                match from {
+            if let Some(converts) = &job.converts
+                && key.0.as_ref() == converts.family
+                && key.1 == converts.value_type
+            {
+                match converts.from {
                     crate::Layouts::One(from) if row.value.layout == from => one = Some(job.name),
                     crate::Layouts::Unplanned if !crate::jobs::kept::done(store, set.owner, job)? => {
                         return Ok(Some(job.name));

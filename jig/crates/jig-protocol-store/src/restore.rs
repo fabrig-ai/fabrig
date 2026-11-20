@@ -1,8 +1,7 @@
 //! Restart pages, including the inbox census joins (protocol/store/loads.md, 2).
 mod diagnostic;
 pub use diagnostic::{
-    Arithmetic, Cause, DecodeFailure, Failure, HistoryFailure, JoinFailure, OpenFailure, RangeFailure, RowSite,
-    WalkFailure,
+    Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, OpenFailure, RangeFailure, RowSite, WalkFailure,
 };
 pub(crate) use diagnostic::{ready, site};
 pub(crate) mod reader;

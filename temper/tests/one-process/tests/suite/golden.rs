@@ -1,9 +1,4 @@
-//! The floor's making story and the permanent deployment readers.
-#[test]
-fn dev_image_opens_and_serves_on_this_build() {
-    temper_one_process_world::golden::read_dev(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/dev"));
-}
-
+//! The floor's making story and its permanent reader.
 #[test]
 fn floor_golden_store_opens_and_serves_the_kept_person() {
     temper_one_process_world::golden::read(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"));

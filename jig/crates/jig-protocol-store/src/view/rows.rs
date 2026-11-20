@@ -28,10 +28,8 @@ fn register(store: &mut Store, range: &Range) -> Result<(), restore::JoinFailure
     let Some(log) = logs::history(task) else { return Ok(()) };
     if !store.view.active.as_ref().expect("held read").tasks.contains_key(&task) {
         let key = logs::extent_key(log);
-        let Some(_) = raw_get(store, key)? else { return Ok(()) };
-        // The fetch validates the extent with the task's history-place site,
-        // so a restore refusal names the failed history check.
-
+        let Some(extent) = raw_get(store, key.clone())? else { return Ok(()) };
+        logs::extent_row(&key, &extent).ok_or(restore::JoinFailure::Decode(restore::DecodeFailure::Value))?;
         store
             .view
             .active
