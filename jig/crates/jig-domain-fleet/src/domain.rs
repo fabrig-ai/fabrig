@@ -254,6 +254,7 @@ impl Domain {
     }
 
     /// Read-only bounded placement over this run's requirements, preserving affinity.
+    /// `worker`, when present, restricts it to that worker's position (executors.md, 6.4).
     #[must_use]
     pub fn probe(
         &self,
@@ -262,8 +263,9 @@ impl Domain {
         version: crate::Version,
         models: &[crate::ModelNeed],
         excluded: &[Token],
+        worker: Option<u32>,
     ) -> Option<crate::PlacementConstraint> {
-        channel::probe(self, workstream, kinds, version, models, excluded)
+        channel::probe(self, workstream, kinds, version, models, excluded, worker)
     }
 
     /// Latest observed refusal of an allowed kind, while no admitted, connected,

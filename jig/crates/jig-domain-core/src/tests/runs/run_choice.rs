@@ -130,6 +130,237 @@ fn ready(none: bool) -> (Core, Limits) {
     (core, limits)
 }
 
+const RESUME_UNTIL: Wall = Wall::from_nanos(100);
+
+fn suspended_on_second(core: &mut Core, limits: &Limits) {
+    let mut row = core.tasks.task(TASK).unwrap().clone();
+    row.suspension = Some(tasks::Suspension { worker: 2, since: Wall::EPOCH, until: RESUME_UNTIL });
+    let ledger = *core.tasks.funding(row.funder).unwrap();
+    fixtures::restore(core, limits, Box::new([row]));
+    send_task(core, limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(core, limits, tasks::Event::Check);
+    send_task(core, limits, tasks::Event::Restored);
+}
+
+fn placement_worker(core: &mut Core, limits: &Limits, worker: u32, channel: Token, slots: u32, workstreams: &[u64]) {
+    fleet_event(
+        core,
+        limits,
+        core.run_wall,
+        fleet::Event::Hello {
+            worker,
+            channel,
+            hello: Hello {
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots,
+                workstreams: workstreams.into(),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    inventory(core, limits, channel, Box::new([]));
+}
+
+#[test]
+fn a_suspension_overrides_affinity_and_free_room_only_before_its_until() {
+    for affinity in [false, true] {
+        let (mut core, mut limits) = ready(false);
+        limits.fleet.slots = 2;
+        core.fleet = placement_fleet(&core, &limits);
+        let mut configuration = config(41);
+        for worker in &mut configuration.defaults.workers {
+            worker.places = 2;
+        }
+        core.fleet.configure_workers(crate::limits::problems(&configuration.defaults.workers, &limits).unwrap());
+        placement_worker(&mut core, &limits, 0, FIRST, 2, if affinity { &[TASK] } else { &[] });
+        placement_worker(&mut core, &limits, 1, SECOND, 1, &[]);
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "ordinary placement");
+        suspended_on_second(&mut core, &limits);
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
+        core.run_wall = RESUME_UNTIL;
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "the window excludes equality");
+        assert_eq!(document_wait(&core, &limits), None);
+        core.run_wall = Wall::from_nanos(101);
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "expired suspension");
+    }
+}
+
+#[test]
+fn a_suspended_task_waits_for_its_workers_new_admitted_channel_and_logins() {
+    const RETURNED: Token = Token::new(23);
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel: SECOND });
+    core.fleet.reclaim();
+    let wait = RunWait::Worker { worker: 2, until: RESUME_UNTIL };
+    assert_eq!(core.run_choice(TASK), Err(wait));
+    assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }));
+    fleet_event(
+        &mut core,
+        &limits,
+        Wall::EPOCH,
+        fleet::Event::Hello {
+            worker: 1,
+            channel: RETURNED,
+            hello: Hello {
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    assert_eq!(core.run_choice(TASK), Err(wait), "hello alone is not ready");
+    inventory(&mut core, &limits, RETURNED, Box::new([]));
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, RETURNED);
+    assert_eq!(document_wait(&core, &limits), None);
+}
+
+#[test]
+fn an_unavailable_suspension_worker_is_not_replaced_or_explained_by_another_host() {
+    #[derive(Clone, Copy, Debug)]
+    enum Unavailable {
+        Away,
+        Draining,
+        Mismatched,
+        Untranslated,
+        Full,
+        RefusedHello,
+    }
+    for unavailable in [
+        Unavailable::Away,
+        Unavailable::Draining,
+        Unavailable::Mismatched,
+        Unavailable::Untranslated,
+        Unavailable::Full,
+        Unavailable::RefusedHello,
+    ] {
+        let (mut core, limits) = ready(false);
+        suspended_on_second(&mut core, &limits);
+        match unavailable {
+            Unavailable::Away => fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel: SECOND }),
+            Unavailable::Draining => {
+                fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Draining { channel: SECOND });
+            }
+            Unavailable::Mismatched => {
+                fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Mismatch { channel: SECOND });
+            }
+            Unavailable::Untranslated | Unavailable::Full => {
+                let version = core.charter_version(TASK).unwrap();
+                fleet_event(
+                    &mut core,
+                    &limits,
+                    Wall::EPOCH,
+                    fleet::Event::Start {
+                        placement: Some(fleet::PlacementConstraint { channel: SECOND, kind: fleet::HostKind::Worker }),
+                        version,
+                        grants: Box::new([]),
+                        reply_to: ReplyTo::new(SECOND),
+                        run: Token::new(TASK),
+                        attempt: Token::new(42),
+                        workstream: TASK,
+                        kinds: fleet::Kinds::Workers,
+                        assignment: fleet::Assignment { turns: FIRST, answered: SECOND },
+                    },
+                );
+                fleet::resume(
+                    &mut core.fleet,
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
+                    true,
+                    &mut Queue::uncapped(),
+                );
+                if let Unavailable::Untranslated = unavailable {
+                    fleet_event(
+                        &mut core,
+                        &limits,
+                        Wall::EPOCH,
+                        fleet::Event::Answer {
+                            channel: SECOND,
+                            run: Token::new(TASK),
+                            attempt: Token::new(42),
+                            answer: fleet::Answer::Untranslated,
+                            payload: SECOND,
+                        },
+                    );
+                }
+            }
+            Unavailable::RefusedHello => {
+                for channel in [FIRST, SECOND] {
+                    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel });
+                }
+                let mut bounds = fixtures::bounds();
+                bounds.turns = 0;
+                fleet_event(
+                    &mut core,
+                    &limits,
+                    Wall::EPOCH,
+                    fleet::Event::Hello {
+                        worker: 1,
+                        channel: SECOND,
+                        hello: Hello {
+                            bounds,
+                            jobs: Box::new([]),
+                            stop_bound: Duration::ZERO,
+                            slots: 1,
+                            workstreams: Box::new([]),
+                            hosting: Box::new([]),
+                        },
+                    },
+                );
+            }
+        }
+        assert_eq!(core.run_choice(TASK), Err(RunWait::Worker { worker: 2, until: RESUME_UNTIL }), "{unavailable:?}");
+        assert_eq!(
+            document_wait(&core, &limits),
+            Some(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }),
+            "{unavailable:?}"
+        );
+        core.run_wall = RESUME_UNTIL;
+        if let Unavailable::RefusedHello = unavailable {
+            let Some(TaskRunWait::Refused(_)) = document_wait(&core, &limits) else {
+                panic!("the expired window permits the hello refusal");
+            };
+        } else {
+            assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "{unavailable:?}");
+            assert_eq!(document_wait(&core, &limits), None);
+        }
+    }
+}
+
+#[test]
+fn a_suspended_tasks_account_and_credential_waits_still_name_their_cause() {
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
+    assert_eq!(
+        core.run_choice(TASK),
+        Err(RunWait::Account {
+            account: Some(0),
+            source: Some(1),
+            why: accounts::WaitWhy::Source(accounts::State::Limited { until: None }),
+        })
+    );
+    assert_eq!(
+        document_wait(&core, &limits),
+        Some(TaskRunWait::Account {
+            account: Some(0),
+            source: Some(1),
+            why: TaskWaitWhy::Source(TaskSourceState::Limited { until: None }),
+        })
+    );
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
+    assert_eq!(core.workspace_credentials.insert(TASK, Box::new([7])), Ok(None));
+    let context = core.tasks.run_context(TASK).unwrap();
+    assert_eq!(core.run_admission(&context, core.run_wall, Box::new([])), RunAdmission::Wait(RunWait::Credential));
+    assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Credential));
+}
+
 #[test]
 fn a_due_agent_s_readiness_is_its_admission_in_every_state() {
     #[derive(Clone, Copy, Debug)]

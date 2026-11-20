@@ -99,7 +99,8 @@ fn a_need_on_no_served_endpoint_leaves_the_charter_ineligible() {
             1,
             crate::Version { charter: 1, revision: 1 },
             &needs_window(8192).charters[0].models,
-            &[]
+            &[],
+            None
         ),
         None
     );
@@ -186,7 +187,9 @@ fn a_model_on_a_served_endpoint_is_admitted_by_any_name() {
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
     assert_eq!(h.domain.workers(), 1);
     assert_eq!(h.place(R1, A1, 1), C1);
-    assert!(h.domain.probe(Kinds::Workers, 1, needs.charters[0].version, &needs.charters[0].models, &[]).is_some());
+    assert!(
+        h.domain.probe(Kinds::Workers, 1, needs.charters[0].version, &needs.charters[0].models, &[], None).is_some()
+    );
 }
 #[test]
 fn the_engines_first_hello_is_checked_against_its_charters() {
@@ -446,7 +449,7 @@ fn a_run_of_an_older_version_is_placed_by_its_own_needs() {
     {
         let version = crate::Version { charter: 1, revision };
         assert_eq!(
-            h.domain.probe(Kinds::Both, 1, version, &[], &[]),
+            h.domain.probe(Kinds::Both, 1, version, &[], &[], None),
             Some(crate::PlacementConstraint { channel, kind })
         );
         assert!(h.step(start_version(run, attempt, revision)).is_empty());
@@ -505,8 +508,8 @@ fn probes_check_the_selected_versions_turn_time_and_waiting_bounds() {
             _ => unreachable!(),
         }
         h.step(Event::Needs(Needs { charters: Box::new([old.clone(), newest.clone()]), ..needs_window(8192) }));
-        assert!(h.domain.probe(Kinds::Workers, 1, old.version, &[], &[]).is_some());
-        assert!(h.domain.probe(Kinds::Workers, 1, newest.version, &[], &[]).is_none());
+        assert!(h.domain.probe(Kinds::Workers, 1, old.version, &[], &[], None).is_some());
+        assert!(h.domain.probe(Kinds::Workers, 1, newest.version, &[], &[], None).is_none());
         newest = old.clone();
         newest.version.revision = 2;
     }

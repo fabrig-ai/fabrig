@@ -651,13 +651,11 @@ fn a_draining_workers_next_channel_is_placed_on() {
 }
 
 #[test]
-fn a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused() {
-    for another in [false, true] {
+fn a_checked_channel_loss_returns_the_queued_claim_for_recheck() {
+    for loss in [Event::Draining { channel: C1 }, Event::Mismatch { channel: C1 }, Event::Lost { channel: C1 }] {
         let mut h = Harness::new(LIMITS);
         h.hello(C1, 1, &[], &[]);
-        if another {
-            h.hello(C2, 1, &[], &[]);
-        }
+        h.hello(C2, 1, &[], &[]);
         h.step(Event::Start {
             placement: Some(crate::PlacementConstraint { channel: C1, kind: HostKind::Worker }),
             version: crate::Version { charter: 1, revision: 1 },
@@ -669,14 +667,47 @@ fn a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused() {
             kinds: Kinds::Workers,
             assignment: references(),
         });
-        h.step(Event::Draining { channel: C1 });
-        if another {
-            assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
-        } else {
-            assert!(h.settle().is_empty(), "the chosen attempt waits without a recheck refusal");
-            h.hello(C2, 1, &[], &[]);
-            assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
-        }
+        h.step(loss);
+        assert_eq!(
+            &*h.settle(),
+            &[Request::Refused { to: to(A1), run: R1, attempt: A1, refusal: Refusal::Recheck }],
+            "another host cannot replace the checked channel"
+        );
+        assert_eq!(h.domain.waiting(), 0);
+    }
+}
+
+#[test]
+fn a_worker_restricted_probe_ignores_other_hosts_affinity_and_room() {
+    let version = crate::Version { charter: 1, revision: 1 };
+    for affinity in [false, true] {
+        let mut h = Harness::new(Limits { engine_slots: 2, ..LIMITS });
+        h.hello(Token::new(0), 2, &[], &[]);
+        h.hello(C1, 2, if affinity { &[1] } else { &[] }, &[]);
+        h.hello(C2, 1, &[], &[]);
+        let restricted = h.domain.probe(Kinds::Both, 1, version, &[], &[], Some(38));
+        assert_eq!(restricted, Some(crate::PlacementConstraint { channel: C2, kind: HostKind::Worker }));
+        assert_eq!(h.domain.probe(Kinds::Both, 1, version, &[], &[C2], Some(38)), None);
+        assert_eq!(h.domain.probe(Kinds::Engine, 1, version, &[], &[], Some(38)), None);
+        h.step(Event::Lost { channel: C2 });
+        assert_eq!(h.domain.probe(Kinds::Both, 1, version, &[], &[], Some(38)), None);
+        assert!(h.domain.probe(Kinds::Both, 1, version, &[], &[], None).is_some());
+        h.step(Event::Hello {
+            worker: 38,
+            channel: C3,
+            hello: Hello {
+                slots: 1,
+                stop_bound: Duration::ZERO,
+                bounds: fixtures::bounds(),
+                jobs: Box::new([]),
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        });
+        assert_eq!(
+            h.domain.probe(Kinds::Both, 1, version, &[], &[], Some(38)),
+            Some(crate::PlacementConstraint { channel: C3, kind: HostKind::Worker })
+        );
     }
 }
 
@@ -1509,7 +1540,7 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
     assert_eq!(h.place(R2, A2, 2), C1);
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Version, 1), &[answered(C1, A1, R1, Answer::Version, 1)]);
     assert!(h.acknowledge(R1, A1).is_empty());
-    assert!(h.domain.probe(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }, &[], &[]).is_none());
+    assert!(h.domain.probe(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }, &[], &[], None).is_none());
     h.start(R1, A3, 1);
     let job_run = Token::new(4);
     let job_attempt = Token::new(4);

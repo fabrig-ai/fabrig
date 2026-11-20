@@ -1157,11 +1157,13 @@ fn raise_run_funding(world: &mut World) {
     );
 }
 
-fn funding_wait(world: &mut World, task: u64) -> Option<core::documents::TaskRunWait> {
+pub(super) fn funding_wait(world: &mut World, task: u64) -> Option<core::documents::TaskRunWait> {
     use jig_core_world::reads;
     world.reads = Some(reads::Parties::new(world.store.applied));
     reads::ask(world, 160, core::reads::Read::Task { task });
-    let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("task document") };
+    let core::reads::Answer::Document(document) = reads::latest(world) else {
+        panic!("task document: {:?}", reads::latest(world))
+    };
     let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
     document.run_wait
 }

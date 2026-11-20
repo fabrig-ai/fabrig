@@ -360,26 +360,13 @@ pub(crate) fn draining(domain: &mut Domain, channel: Token) {
         return;
     };
     domain.channels.get_mut(id).expect("named channel").shutting_down = true;
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// A wire mismatch lasts for this channel, while hosted attempts continue.
 pub(crate) fn mismatch(domain: &mut Domain, channel: Id<Channel>) {
     let entry = domain.channels.get_mut(channel).expect("named channel");
     entry.mismatched = true;
-    let token = entry.token;
-    exclude_waiting(domain, token);
-}
-
-fn exclude_waiting(domain: &mut Domain, channel: Token) {
-    for (_, &id) in &domain.waiting {
-        let entry = domain.attempts.get_mut(id).expect("queued attempt");
-        if let Some(placement) = entry.placement
-            && placement.channel == channel
-        {
-            entry.placement = None;
-        }
-    }
     domain.placing = !domain.waiting.is_empty();
 }
 
@@ -427,6 +414,7 @@ pub(crate) fn choose(
 }
 
 /// Candidate hosts in affinity/free-room order, checking only retained run models.
+/// A suspension restricts candidates to its worker's position (domain/engine/executors.md, 6.4).
 pub(crate) fn probe(
     domain: &Domain,
     workstream: u64,
@@ -434,13 +422,15 @@ pub(crate) fn probe(
     version: crate::Version,
     models: &[crate::ModelNeed],
     excluded: &[Token],
+    worker: Option<u32>,
 ) -> Option<crate::PlacementConstraint> {
     let run = Token::new(workstream);
     let mut best: Option<(&Channel, u32)> = None;
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected host");
         let free = channel.slots.saturating_sub(channel.hosts.len());
-        if !channel.sources.ready()
+        if (worker.is_some() && channel.worker != worker)
+            || !channel.sources.ready()
             || free == 0
             || channel.draining
             || channel.shutting_down
