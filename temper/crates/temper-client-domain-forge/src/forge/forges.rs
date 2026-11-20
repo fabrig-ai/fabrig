@@ -375,7 +375,7 @@ pub enum Act {
     SetUpOwned,
     Start(Start),
     RunOwned,
-    GitHub { back: Box<[u8]> },
+    GitHub,
     Managed { place: Managed },
     Connected { place: Managed },
     PlaceWrite { field: super::admin::PlaceField, text: Box<[u8]> },
@@ -388,7 +388,7 @@ pub enum Act {
     ConfirmRemove,
     CancelRemove,
     StartOver { forge: u16, end: StartOverEnd },
-    GoOn { forge: u16, back: Box<[u8]> },
+    GoOn { forge: u16 },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Managed {
@@ -472,7 +472,7 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
         }
         Act::RunOwned => run_owned(side, limits, out),
 
-        Act::GitHub { back } => {
+        Act::GitHub => {
             if !can_make(side)
                 || side.party.is_none()
                 || side.playground_running()
@@ -486,7 +486,7 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
                 return;
             }
             new_record(side, Kind::GitHub, Mode::Connected);
-            super::github::manifest(side, limits, 0, back, out);
+            super::github::manifest(side, limits, 0, out);
         }
         Act::Managed { place } => super::admin::send_new(side, limits, place, out),
         Act::Connected { place } => super::tokens::send_new(side, limits, place, out),
@@ -508,14 +508,14 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
             side.changed();
         }
         Act::StartOver { forge, end } => start_over(side, limits, forge, end, out),
-        Act::GoOn { forge, back } => {
+        Act::GoOn { forge } => {
             let Some(row) = super::connect::row(forge, &side.forges, super::connect::playground(side)) else { return };
             if row.kind != Kind::GitHub {
                 return;
             }
             match row.app {
-                Some(AppWay::Manifest) => super::github::manifest(side, limits, forge, back, out),
-                Some(AppWay::Pasted) => super::github::send(side, limits, forge, Some(back), out),
+                Some(AppWay::Manifest) => super::github::manifest(side, limits, forge, out),
+                Some(AppWay::Pasted) => super::github::send(side, limits, forge, true, out),
                 None => {}
             }
         }
@@ -994,6 +994,11 @@ pub fn told(
         new.accepted = true;
     }
     bind_new(side, out);
+    if let Told::Changed { handle: changed } = value
+        && *changed == handle()
+    {
+        super::github::watched(side, out);
+    }
     super::admin::stopped(side);
     super::tokens::stopped(side);
     super::replace::stopped(side);

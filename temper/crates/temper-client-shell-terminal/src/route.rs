@@ -44,7 +44,7 @@ pub fn down(request: client::Request) -> Down {
         | client::Request::KeepLook { .. }
         | client::Request::KeepSignIn { .. } => Down::Notice(Notice::Unasked),
         client::Request::Tab { tab } => match tab {
-            client::Tab::Point { to } => Down::Notice(Notice::Leave { to }),
+            client::Tab::Point { to } | client::Tab::PointOnOrigin { to } => Down::Notice(Notice::Leave { to }),
             client::Tab::Open { .. } | client::Tab::Close => Down::Notice(Notice::Unasked),
         },
         client::Request::Leave { to, .. } => Down::Notice(Notice::Leave { to }),

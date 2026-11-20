@@ -540,8 +540,11 @@
   `Adopt`'s), whether it is suspended and whether it is a stray, never
   accepted through temper's link (booleans); its last connect's end,
   `ended`: none, or `ConnectStopped`, why the run of a `Connect` or an
-  `Install` stopped, text of at most 256 bytes, in the setup host's
-  words (`deployment.md`); on GitHub, its App's way, `app`: none,
+  `Install` stopped, or, on GitHub, how the way in its new tab ended
+  without an installation accepted (`served.md`, 1, *Each way's end
+  reaches the forge's row*), text of at most 256 bytes, in the setup
+  host's or the routing's words (`deployment.md`), its shape unchanged;
+  on GitHub, its App's way, `app`: none,
   `Manifest` or `Pasted`, how the App its records hold was connected
   since the engine started, the forge domain's memory alone, so none
   after a restart and while no App is connected (`deployment.md`,

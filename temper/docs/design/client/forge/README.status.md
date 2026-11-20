@@ -1,6 +1,9 @@
 # forge: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-20. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 1, the browser's steps of a connect: a browser's tab
+  still goes to the link and comes back [in flight: change 10579].
 
 
 

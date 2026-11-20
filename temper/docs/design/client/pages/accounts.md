@@ -711,9 +711,9 @@ The words for each offered source are:
 - **The new tab closing itself** (1, `ConnectModel`, *Its end*): temper's page
   could keep its hold on a tab it pointed and close it at the sign-in's end,
   but a provider's opener policy may sever that hold. Default: the page lets a
-  pointed tab go, and the person closes it. **A forge's departures** (`README.md`,
-  `ConnectForge`): GitHub's App and install still leave in this tab, and may
-  want the same. Default: as they are (`../../draft/sign-in-new-tab.md`, 6).
+  pointed tab go, and the person closes it, GitHub's tab as a sign-in's
+  (`../forge/deployment.md`, *GitHub's way, in a new tab*;
+  `../../draft/sign-in-new-tab.md`, 6).
 - **A box with no `owned` part** (`../forge/records.md`, `accounts.md`, 2): `temper box` on a document with
   no `application.machine.owned` reads `owned` false, so a wait for a host
   there keeps the words for many hosts. `temper-box init`'s box document has the

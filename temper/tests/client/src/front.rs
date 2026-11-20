@@ -2552,7 +2552,9 @@ impl Joint {
                     forge: *forge,
                     request: *request,
                     answer: temper_engine_domain_forge::ConnectAnswer::Link(
-                        b"https://github.test/settings/apps/new".as_slice().into(),
+                        format!("http://127.0.0.1:8367/forges/{forge}/github/manifest?state=fixture")
+                            .into_bytes()
+                            .into_boxed_slice(),
                     ),
                 })));
             }

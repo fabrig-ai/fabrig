@@ -1775,6 +1775,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        Event::WayEnded { forge, why } => crate::connect::way_ended(d, forge, &why, out),
         Event::Owner { party } => crate::link::owner(d, party, out),
         Event::PersonOf { forge, answer } => crate::link::person_of(d, forge, answer, out),
         Event::BotLogin { forge, login } => crate::connect::bot_login(d, forge, login, out),

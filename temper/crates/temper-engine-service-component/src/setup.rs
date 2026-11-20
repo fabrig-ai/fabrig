@@ -34,6 +34,8 @@ pub(crate) struct Layer {
     runs: Map<Token, Run>,
     public: Map<Token, public::Caller>,
     backs: Queue<public::ReturnTo>,
+    // Retain the latest state after it is consumed, so older ways stay superseded even at equal lives.
+    latest: Map<u16, Box<[u8]>>,
     pastes: Map<u64, u16>,
     erases: Map<Token, u16>,
     lifecycle: lifecycle::Lifecycle,
@@ -69,6 +71,7 @@ struct Waiting {
     installation: core::num::NonZeroU64,
     state: Box<[u8]>,
     back: Option<Box<[u8]>>,
+    held: Option<Box<[u8]>>,
     until: Time,
 }
 /// A person's Install that met only the engine's own run on its forge, held until that run ends
@@ -186,6 +189,7 @@ impl Layer {
             runs: Map::with_capacity(limits.runs),
             public: Map::with_capacity(limits.runs),
             backs: Queue::with_capacity(limits.states),
+            latest: Map::with_capacity(limits.forges),
             pastes: Map::with_capacity(limits.forges),
             erases: Map::with_capacity(limits.forges),
             lifecycle: lifecycle::Lifecycle::new(limits.forges, installations),
@@ -238,6 +242,7 @@ impl Layer {
         self.waiting = Queue::with_capacity(self.env.limits.states);
         self.held = Queue::with_capacity(self.env.limits.forges);
         self.backs = Queue::with_capacity(self.env.limits.states);
+        self.latest = Map::with_capacity(self.env.limits.forges);
         self.public = Map::with_capacity(self.env.limits.runs);
         self.staged = Map::with_capacity(self.env.limits.runs);
         if self.component.is_some() {
@@ -259,6 +264,9 @@ impl Layer {
                 None => None,
             },
         );
+        for back in &self.backs {
+            next = skein_lib::earliest(next, Some(back.until));
+        }
         for waiting in &self.waiting {
             next = skein_lib::earliest(next, Some(waiting.until));
         }
@@ -444,6 +452,7 @@ pub(crate) fn forget(engine: &mut crate::engine::Engine, forge: u16) {
             layer.held.push(held);
         }
     }
+    layer.latest.remove(&forge);
     for _ in 0..layer.backs.len() {
         let back = layer.backs.pop().expect("back count");
         if back.forge != forge {
@@ -642,6 +651,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     engine.setup.env.wall = engine.env.wall;
     begin(engine);
     release(engine);
+    public::expire(engine);
     routes::advance(engine);
     for _ in 0..engine.setup.pages.len() {
         if !due(

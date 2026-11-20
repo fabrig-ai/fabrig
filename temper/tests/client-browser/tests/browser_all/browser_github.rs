@@ -19,9 +19,8 @@ fn the_manifest_posts_once_and_history_waits_for_continue() {
         |role, name: &[u8]| Step::Person(PersonStep::See { find: Find::exactly_named(role, name), within: WITHIN });
     steps.extend([
         Step::Back,
-        see(Role::Heading { level: 2 }, "temper’s App, on GitHub".as_bytes()),
+        see(Role::Heading { level: 1 }, "temper’s App, on GitHub".as_bytes()),
         see(Role::Button, b"Continue to GitHub"),
-        see(Role::Link, b"Back to temper"),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Continue to GitHub") }),
         see(Role::Link, b"Create GitHub App"),
     ]);

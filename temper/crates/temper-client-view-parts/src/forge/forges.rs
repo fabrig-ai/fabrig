@@ -266,6 +266,10 @@ fn personal(
         crate::cards::text(b, Role::Paragraph, &line);
     }
     if row.kind == Kind::GitHub {
+        if connect::github_wait(b, root, w, Some(row.number), crate::away::Form::Connection, forge) {
+            b.close();
+            return;
+        }
         github(b, root, w, bindings, forge, row);
     }
     tokens(b, root, w, bindings, forge, row);
@@ -374,7 +378,17 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
                 if accepted { Word::ForgeInstallAnother } else { Word::ForgeInstall },
                 Some(Address::Forges),
             );
-            if !accepted {
+            if accepted {
+                connect::app_control(
+                    b,
+                    root,
+                    w,
+                    forge,
+                    row.number,
+                    Word::GitHubChooseRepositories,
+                    Some(Address::Forges),
+                );
+            } else {
                 b.close();
             }
         }

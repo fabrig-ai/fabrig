@@ -27,7 +27,7 @@ impl Clients {
     pub(super) fn github_call(&mut self, call: Token, head: http::Call) {
         self.github.insert(call, Reply { body: None, offset: 0 }).expect("bounded HTTP calls");
         if self.github_calls.room() == 0 {
-            crate::setup::busy(self, call, &head.target);
+            crate::setup::busy(self, call);
             return;
         }
         self.github_calls.push((call, head));

@@ -210,7 +210,7 @@ fn page_request(root: &mut Domain, env: &Env<Limits>, request: crate::pages::Req
         crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
         crate::pages::Request::OpenTab { provider } => {
             root.tab = root.pages.sign_in_key();
-            out.push(Request::Tab { tab: crate::Tab::Open { provider } });
+            out.push(Request::Tab { tab: crate::Tab::Open { opening: crate::Opening::SignIn { provider } } });
         }
         crate::pages::Request::Client(event) => client(root, env, event, out),
         crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
@@ -274,6 +274,27 @@ pub(crate) fn route_forge(
             forge::Request::PanelEnded { subject } => refresh_panel(root, env, subject, true, out),
             forge::Request::Client { asked } => client(root, env, asked, out),
             forge::Request::Leave { to } => out.push(Request::Leave { to, replace: false }),
+            forge::Request::OpenTab { key } => {
+                root.tab = Some(key);
+                out.push(Request::Tab { tab: crate::Tab::Open { opening: crate::Opening::GitHub } });
+            }
+            forge::Request::PointTab { key, to, on_origin } => {
+                if root.tab == Some(key) {
+                    root.tab = None;
+                    out.push(Request::Tab {
+                        tab: if on_origin { crate::Tab::PointOnOrigin { to } } else { crate::Tab::Point { to } },
+                    });
+                }
+            }
+            forge::Request::CloseTab { key } => {
+                if root.tab == Some(key) {
+                    root.tab = None;
+                    out.push(Request::Tab { tab: crate::Tab::Close });
+                }
+            }
+            forge::Request::GitHubEnded { forge } => {
+                crate::pages::forge_ended(&mut Routed { root, out }, env, forge);
+            }
             forge::Request::PlaygroundReset => {
                 root.pages.playground_choice = crate::pages::PlaygroundChoice::Idle;
                 out.push(Request::Show {
@@ -603,6 +624,11 @@ fn page_needs_model(root: &Domain) -> bool {
 
 /// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/pages/README.md).
 pub(crate) fn welcome_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if let Some(pending) = root.forge.app()
+        && pending.way.is_some()
+    {
+        return;
+    }
     crate::pages::forge_progress(&mut Routed { root, out }, env);
     if let Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } } =
         root.pages.address()

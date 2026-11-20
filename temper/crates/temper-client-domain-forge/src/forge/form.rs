@@ -57,8 +57,9 @@ pub enum Act {
     ConnectTokens { forge: u16 },
     AppWrite { text: Box<[u8]> },
     ConnectApp { forge: u16 },
-    ConnectManifest { forge: u16, back: Box<[u8]> },
-    Install { forge: u16, back: Box<[u8]> },
+    ConnectManifest { forge: u16 },
+    Install { forge: u16 },
+    OpenGitHub { to: Box<[u8]> },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Typed {

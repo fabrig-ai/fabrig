@@ -154,6 +154,7 @@ fn dropped_work_goes_to_the_shell_with_its_count() {
 mod connect;
 
 mod github_app;
+mod github_tab;
 
 #[test]
 fn budget_hold_words_name_the_task_and_explain_the_available_actions() {

@@ -2264,6 +2264,11 @@ pub enum Event {
         answer: InstallAnswer,
         stopped: Option<Box<[u8]>>,
     },
+    /// The latest held GitHub way ended without an installation (client/forge/served.md, 1).
+    WayEnded {
+        forge: u16,
+        why: Box<[u8]>,
+    },
     ConnectEnded {
         stop: Option<AdminStop>,
         forge: u16,

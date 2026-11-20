@@ -1,7 +1,18 @@
 # deployment: status
 
-2026-11-19. Where the tree's code lags or departs from [deployment.md](deployment.md).
+2026-11-20. Where the tree's code lags or departs from [deployment.md](deployment.md).
 
+- **Not yet:** *GitHub's way, in a new tab*, with the GitHub card's line,
+  Connecting's and the actions' table's Connect and Install: every
+  departure to GitHub leaves in the page's own tab with `back`, under
+  "In this tab, on GitHub · about two minutes", and Connecting draws no
+  last connect's line [in flight: change 10579].
+- **Not yet:** the row's table, the last connect's line: GitHub's way
+  ending in its tab without a run's stop says nothing there [in flight:
+  change 10577].
+- **Not yet:** *GitHub's way, in a new tab*, *"Open it again ›" follows
+  the way*: a connect's note keeps the manifest's page's link once the
+  App is made [in flight: change 10762].
 
 - **Not yet:**  the native-queue position remains `README.status.md`, 2.1.
   the panel's gate amendment remains `README.status.md`, 2.3.  the counted approval and person-task cards remain `README.status.md`, 4.

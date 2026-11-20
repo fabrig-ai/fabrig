@@ -37,8 +37,8 @@
     at `/deployment/members`; and "Limits", to `Limits`, at
     `/deployment/limits`. Models and Workers name the open project, as the
     rail does.
-  - *`Forges` and `Accounts`* keep their addresses and paths, so that a
-    connect's `back`, To begin's links and their tests hold, and so do
+  - *`Forges` and `Accounts`* keep their addresses and paths, so that
+    To begin's links and their tests hold, and so do
     `Models` and `Builders`. Whenever the
     page has a project, as the rail does (`../view.md`, 3), they draw inside Deployment's frame,
     with no level-1 heading of their own and no page bar; their rows follow

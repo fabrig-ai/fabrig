@@ -1,7 +1,9 @@
 # records: status
 
-2026-11-19. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-20. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** the forges document's `ended`: GitHub's way ending in its
+  new tab, by the routing, never sets it [in flight: change 10577].
 
 
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left

@@ -1,7 +1,9 @@
 # browser: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2.1, `host`: the root's `Leave` still takes GitHub's way,
+  and its `Tab` opens for a sign-in alone [in flight: change 10579].
 
 - **Not yet:** 2.1: no `internal-fixed-start` [in flight: change 7721].
 

@@ -230,10 +230,7 @@ fn install_on_another_account_follows_an_accepted_installation() {
             .unwrap();
         let style = if accepted { look::FLOW_SECONDARY } else { look::FLOW_PRIMARY };
         assert!(install.styles.as_slice().contains(&style));
-        assert_eq!(
-            action(&root, Role::Button, name),
-            d::Action::Forge(d::forge::Act::Install { forge: 2, back: b"/forges".as_slice().into() })
-        );
+        assert_eq!(action(&root, Role::Button, name), d::Action::Forge(d::forge::Act::Install { forge: 2 }));
     }
 }
 #[test]
@@ -982,8 +979,5 @@ fn a_settings_connection_lives_in_its_row_and_confirms_only_this_visit() {
     let mut view = f::browser_page_view(&github);
     assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_LIVE)));
     let install = f::find(view.tree(), Role::Button, b"Install on GitHub").unwrap();
-    assert_eq!(
-        crate::act(&mut view, install, Act::Press),
-        Some(d::Action::Forge(d::forge::Act::Install { forge: 2, back: b"/forges".as_slice().into() }))
-    );
+    assert_eq!(crate::act(&mut view, install, Act::Press), Some(d::Action::Forge(d::forge::Act::Install { forge: 2 })));
 }
