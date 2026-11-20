@@ -275,7 +275,7 @@ impl Decoded {
         );
         #[cfg(not(unix))]
         let rg = {
-            let _path = path;
+            drop(path);
             Box::from(b"/usr/bin/rg".as_slice())
         };
         let llm_endpoints =
