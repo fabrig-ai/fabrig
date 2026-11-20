@@ -16,9 +16,9 @@ const FULL_SCOPE: &[u8] = b"openid profile email offline_access resource.invoke 
 fn settings(scratch: &Scratch, extra: &str) {
     let path = scratch.path().join("config/smith");
     std::fs::create_dir_all(&path).expect("credential fixture");
-    let host = smith_real_world::loopback();
+    let origin = smith_real_world::address(34_444);
     std::fs::write(path.join("config.toml"), format!(
-        "[accounts.test]\nprovider='openai'\nsource='sign_in'\nissuer='http://{host}:34444'\nauthorization_url='http://{host}:34444/authorize'\ntoken_url='http://{host}:34444/token'\nkeys_url='http://{host}:34444/keys'\nrevocation_url='http://{host}:34444/revoke'\nredirect_port={}\n{extra}", smith_real_world::redirect_port())).expect("credential fixture");
+        "[accounts.test]\nprovider='openai'\nsource='sign_in'\nissuer='http://{origin}'\nauthorization_url='http://{origin}/authorize'\ntoken_url='http://{origin}/token'\nkeys_url='http://{origin}/keys'\nrevocation_url='http://{origin}/revoke'\nredirect_port={}\n{extra}", smith_real_world::redirect_port())).expect("credential fixture");
 }
 
 fn limits() -> skein_oauth::Limits {
@@ -91,17 +91,18 @@ fn refresh_fixture(scratch: &Scratch, earliest_refresh_at: Option<Wall>) -> (Box
         &skein_oauth::encode_record(&record, &limits()).expect("current fixture encoding"),
     )
     .expect("current fixture kept");
-    let host = smith_real_world::loopback();
+    let origin = smith_real_world::address(34_444);
     let configuration = format!(
         "model='openai/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n\
          [accounts.test]\nsource='sign_in'\nclient_id='client'\nscope='{scope}'\n\
-         authorization_url='http://{host}:34444/authorize'\ntoken_url='http://{host}:34444/token'\n\
+         authorization_url='http://{origin}/authorize'\ntoken_url='http://{origin}/token'\n\
          redirect_uri='http://127.0.0.1:{}/callback'\ntoken_format='form'\n\
-         [endpoints.openai]\naccount='test'\naddress='{host}:34443'\nserver_name='skein.test'\n\
+         [endpoints.openai]\naccount='test'\naddress='{provider}'\nserver_name='skein.test'\n\
          trust.system=false\ntrust.der=['{}']\n",
         smith_real_world::redirect_port(),
         scratch.path().join("root.der").display(),
         scope = std::str::from_utf8(FULL_SCOPE).expect("fixture scope text"),
+        provider = smith_real_world::address(34_443),
     );
     let _file = support::user_layer(scratch, configuration.as_bytes());
     (held, issued)
@@ -128,10 +129,10 @@ fn exec_on_raised_lead(scratch: &Scratch, accepted: Box<[u8]>, refreshed: Box<[u
     world.spawn_with_fds(descriptors, || {
         Process::Script(Proc::Terminal(Box::new(Terminal::piped(input, output, vec![Action::Eof]))))
     });
-    world.spawn(|| {
+    world.spawn_with_fds(smith_real_world::listener_fds(34_443), || {
         Process::Script(Proc::Peer(Box::new(world::headless_provider(false, skein_llm::Credential::bearer(accepted)))))
     });
-    world.spawn(|| {
+    world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
         Process::Script(Proc::Issuer(Box::new(IssuerProcess::with_token(
             skein_fake_peers::Transport::Plaintext,
             34_444,

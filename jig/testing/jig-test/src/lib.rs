@@ -14,6 +14,7 @@ use std::{
 
 mod bundle;
 mod host;
+mod stopped;
 pub use host::Host;
 const CONFIG_BYTES: u32 = 1 << 20;
 const USAGE: &str = "usage: jig-test serve CONFIG.json | jig-test agent AGENT.json";
@@ -454,7 +455,10 @@ fn serve(path: &Path) -> Result<Exit, String> {
             return Err(why);
         }
     };
-    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut Host::new(service)))
+    let mut host = Host::new(service);
+    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
+    host.report_stop();
+    Ok(exit)
 }
 
 #[cfg(test)]
