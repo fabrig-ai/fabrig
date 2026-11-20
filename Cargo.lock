@@ -6170,7 +6170,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
- "skein-shell",
  "skein-ui-screen",
  "skein-ui-web",
  "temper-client-journeys-tool",

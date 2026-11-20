@@ -217,16 +217,6 @@ fn exchange(asks: Vec<Asked>) -> u32 {
         })
         .expect("keyed request left the linked host")
 }
-pub(super) fn project_frame() -> Box<[u8]> {
-    let mut walk = linked();
-    let value = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
-    walk.streamed(&w::StreamEvent::Delivery(w::Delivery {
-        watch: 0,
-        document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
-    }));
-    walk.turn(vec![Report::Place { path: b"/projects/3/work".as_slice().into() }]);
-    walk.recorder.save(&walk.page)
-}
 pub(super) fn walked() -> Box<[u8]> {
     walked_with_no_event(false)
 }
@@ -235,7 +225,6 @@ pub(super) fn walked_with_no_event(no_event: bool) -> Box<[u8]> {
 }
 pub(super) struct Saves {
     pub recording: Box<[u8]>,
-    pub before_press: Box<[u8]>,
     pub first: Box<[u8]>,
     pub later: Box<[u8]>,
 }
@@ -292,8 +281,8 @@ fn linked() -> Walk {
 pub(super) fn walked_with_saves(no_event: bool) -> Saves {
     let mut snapshots = Vec::new();
     let recording = sign_in(no_event, false, &mut |walk| snapshots.push(walk.recorder.save(&walk.page)));
-    let [before_press, first, later] = snapshots.try_into().expect("the three sign-in snapshots");
-    Saves { recording, before_press, first, later }
+    let [_, first, later] = snapshots.try_into().expect("the three sign-in snapshots");
+    Saves { recording, first, later }
 }
 pub(super) fn walked_with_refused_tab() -> Box<[u8]> {
     sign_in(false, true, &mut |_| {})

@@ -6,7 +6,6 @@ use std::{
 };
 use temper_client_shell_web::journey::{self, Stale};
 
-mod isolation;
 mod run;
 mod table;
 pub use run::main;
@@ -14,13 +13,10 @@ pub use table::TABLE;
 
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
-pub mod again;
 pub mod drive;
 pub use temper_client_walk_lines::{line, named, print};
-mod pages;
 pub mod recipe;
 pub mod tui;
-pub mod tui_again;
 mod tui_driver;
 /// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
 pub const TUI_JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/tui/journeys");
@@ -34,13 +30,6 @@ pub enum Refusal {
     Moved { name: String },
     TuiProof { name: String, refusal: temper_client_shell_tui::journey::Refusal },
     TuiFound { name: String, found: temper_client_shell_tui::journey::Found, file: Option<String> },
-    TuiWalk { name: String, unreadable: temper_client_shell_tui::journey::Unreadable },
-    TuiAgain { name: String, step: u32, report: String },
-    SetupUnreadable { name: String, unreadable: journey::Unreadable },
-    SetupAfter { name: String, after: String, why: &'static str },
-    SetupTimeout { name: String, setup: String, line: u32, sought: String },
-    MarkTimeout { name: String, mark: u32, text: Box<[u8]> },
-    PageState { why: Box<Refusal>, address: Box<[u8]>, text: Box<[u8]> },
     Undecoded { name: String, line: u32 },
     Found { name: String, line: u32, record: &'static str, place: journey::Place, what: journey::What },
     FoundDrawn { name: String, turn: u32, what: journey::What },
@@ -48,12 +37,6 @@ pub enum Refusal {
     Proof { name: String, refusal: journey::Refusal },
     Unreadable { name: String, unreadable: journey::Unreadable },
     Io { path: PathBuf },
-    Unwalkable { name: String, unwalkable: journey::Unwalkable },
-    NotStill { name: String, step: u32 },
-    NoControl { name: String, step: u32 },
-    WalkDiffers { name: String, step: u32 },
-    Save { name: String, step: u32, refusal: journey::Refusal },
-    Harness { name: String, step: u32, report: String },
 }
 
 /// Counts of the originals and replacements (client/web/journey-redaction.md).
@@ -200,7 +183,7 @@ fn proof_refusal(name: &str, mut refusal: journey::Refusal) -> Refusal {
 /// pages are left as they were; it is returned with where it went stale.
 /// # Errors
 /// Refuses an unreadable committed recording or a filesystem failure.
-pub fn reprint(journeys: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refusal> {
+fn reprint(journeys: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refusal> {
     let mut stale = Vec::new();
     for name in names(journeys)? {
         let path = journeys.join(&name).join("recording");

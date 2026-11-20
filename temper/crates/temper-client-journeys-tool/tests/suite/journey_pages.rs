@@ -21,7 +21,8 @@ root = pathlib.Path(os.environ['WRITER_FAKE'])
 with (root / 'cargo.log').open('a') as log:
     log.write(json.dumps({'args': sys.argv[1:], 'bundle': os.environ.get('TEMPER_INTERNAL_BUNDLE')}) + '\n')
 package = sys.argv[sys.argv.index('-p') + 1]
-configuration = {'temper-client-journeys': 'print.json', 'temper-client-walk': 'walk-print.json'}[package]
+assert package == 'temper-client-walk', package
+configuration = 'print.json'
 config = json.loads((root / configuration).read_text())
 for name, contents in config['writes']:
     path = pathlib.Path(name)
@@ -72,7 +73,7 @@ impl Repositories {
         repos.write(PAGE, "<p>Main's page</p>\n");
         repos.write(README, "Journey source\n");
         fs::create_dir_all(repos.person.join(TUI_ROOT).join("terminal")).expect("TUI directory");
-        repos.write(&format!("{TUI_ROOT}/terminal/walk"), "walk 1\nmark\n");
+
         repos.git(&repos.person, &["add", "."]);
         repos.git(&repos.person, &["commit", "--quiet", "-m", "Main's journeys"]);
         repos.git(&repos.person, &["push", "--quiet", "origin", "main"]);
@@ -131,12 +132,8 @@ impl Repositories {
     }
 
     fn print(&self, writes: &[(&str, Option<&str>)], stdout: &str, status: i32) {
-        self.engine_print("print.json", writes, stdout, status);
-    }
-
-    fn engine_print(&self, configuration: &str, writes: &[(&str, Option<&str>)], stdout: &str, status: i32) {
         let config = serde_json::json!({"writes": writes, "stdout": stdout, "exit": status});
-        fs::write(self.scratch.path().join(configuration), config.to_string()).expect("engine's answer");
+        fs::write(self.scratch.path().join("print.json"), config.to_string()).expect("engine's answer");
     }
 
     fn moved(&self) -> String {
@@ -264,82 +261,55 @@ fn unchanged_pages_start_no_change() {
     assert_eq!(
         repos.calls("cargo"),
         vec![
-            serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-journeys", "--", "pages"], "bundle": "none"});
+            serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"});
             2
         ]
     );
 }
 
 #[test]
-fn moved_walk_prints_first_and_commits_removed_recording_with_both_reports() {
-    for (walk_status, journeys_status, exit, walk_lines, journeys_lines, report) in [
-        (0, 0, 0, "printed welcome\n", "fresh terminal\n", ""),
-        (
-            1,
-            0,
-            1,
-            "printed welcome\nstopped moved-blocked: line 2: missing mark\n",
-            "fresh terminal\n",
-            "stopped moved-blocked: line 2: missing mark",
-        ),
-        (
-            1,
-            1,
-            1,
-            "printed welcome\nstopped moved-blocked: line 2: missing mark\n",
-            "fresh terminal\nstopped legacy: still stale after its walk\n",
-            "stopped moved-blocked: line 2: missing mark\nstopped legacy: still stale after its walk",
-        ),
-    ] {
+fn one_walk_print_commits_removed_recording_and_stopped_report() {
+    for status in [0, 1] {
         let repos = Repositories::new("journey-pages-moved");
         let tip = repos.moved();
-        repos.engine_print(
-            "walk-print.json",
-            &[(PAGE, Some("<p>Walk's print</p>\n")), (RECORDING, None)],
-            walk_lines,
-            walk_status,
-        );
-        repos.print(&[], journeys_lines, journeys_status);
-        let output =
-            repos.run(&["--project", "P", "--as-allowed", "--prepared", "prepared inputs", "--within", "0s"], exit);
+        let report = if status == 0 { "" } else { "stopped blocked: line 2: missing mark" };
+        let lines = format!("printed welcome\n{report}\n");
+        repos.print(&[(PAGE, Some("<p>Walk's print</p>\n")), (RECORDING, None)], &lines, status);
+        let output = repos.run(ARGS, status);
         let head = repos.git(&repos.person, &["rev-parse", "HEAD"]);
-        assert_eq!(
-            String::from_utf8_lossy(&output.stdout),
-            format!("{walk_lines}{journeys_lines}wrote journey-pages {head}\n")
-        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), format!("{lines}wrote journey-pages {head}\n"));
         repos.assert_offered_paths(&tip, report, &["--as-allowed"], &format!("{PAGE}\n{RECORDING}"));
         assert_eq!(
             repos.git(&repos.origin, &["diff-tree", "--no-commit-id", "--name-status", "-r", "journey-pages"]),
             format!("M\t{PAGE}\nD\t{RECORDING}")
         );
-        assert_eq!(repos.git(&repos.origin, &["show", &format!("journey-pages:{PAGE}")]), "<p>Walk's print</p>");
-        assert_eq!(
-            repos.calls("cargo"),
-            vec![
-                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"}),
-                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-journeys", "--", "pages", "--prepared", "prepared inputs", "--within", "0s"], "bundle": "none"}),
-            ]
-        );
-    }
-}
-
-#[test]
-fn incomplete_walk_print_ends_before_journeys_and_offers_nothing() {
-    for status in [2, 3] {
-        let repos = Repositories::new("journey-pages-moved-incomplete");
-        let tip = repos.moved();
-        repos.engine_print("walk-print.json", &[], "stopped welcome: unreadable root\n", status);
-        repos.print(&[(PAGE, Some("Should not print\n"))], "fresh legacy\n", 0);
-        let output = repos.run(ARGS, 1);
-        assert_eq!(output.stdout, b"stopped welcome: unreadable root\n");
-        repos.assert_nothing_offered(&tip);
-        assert_eq!(repos.git(&repos.person, &["status", "--porcelain"]), "", "nothing written");
         assert_eq!(
             repos.calls("cargo"),
             vec![
                 serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"})
             ]
         );
+    }
+}
+
+#[test]
+fn incomplete_walk_print_offers_nothing_with_or_without_a_walk() {
+    for moved in [false, true] {
+        for status in [2, 3] {
+            let repos = Repositories::new("journey-pages-incomplete");
+            let tip = if moved { repos.moved() } else { repos.git(&repos.person, &["rev-parse", "HEAD"]) };
+            repos.print(&[], "stopped welcome: unreadable root\n", status);
+            let output = repos.run(ARGS, 1);
+            assert_eq!(output.stdout, b"stopped welcome: unreadable root\n");
+            repos.assert_nothing_offered(&tip);
+            assert_eq!(repos.git(&repos.person, &["status", "--porcelain"]), "", "nothing written");
+            assert_eq!(
+                repos.calls("cargo"),
+                vec![
+                    serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"})
+                ]
+            );
+        }
     }
 }
 
@@ -356,7 +326,7 @@ fn changed_pages_offer_the_fetched_tip_with_the_given_budget() {
         repos.git(&repos.person, &["checkout", "--quiet", "--detach", &old]);
         assert_eq!(repos.git(&repos.person, &["rev-parse", "origin/main"]), old, "stale until fetched");
         repos.occupy("origin", "journey-pages");
-        repos.print(&[(PAGE, Some("<p>Printed</p>\n"))], "walked again welcome\nfresh other\n", 0);
+        repos.print(&[(PAGE, Some("<p>Printed</p>\n"))], "printed welcome\nfresh other\n", 0);
         let mut arguments = vec!["--project", "P"];
         arguments.extend_from_slice(&budget);
         arguments.extend_from_slice(&["--prepared", "prepared inputs"]);
@@ -364,15 +334,15 @@ fn changed_pages_offer_the_fetched_tip_with_the_given_budget() {
         let head = repos.git(&repos.person, &["rev-parse", "HEAD"]);
         assert_eq!(
             String::from_utf8_lossy(&output.stdout),
-            format!("walked again welcome\nfresh other\nwrote journey-pages {head}\n")
+            format!("printed welcome\nfresh other\nwrote journey-pages {head}\n")
         );
-        repos.assert_offered(&tip, "walked again welcome", &budget);
+        repos.assert_offered(&tip, "", &budget);
         assert_eq!(repos.git(&repos.origin, &["show", &format!("journey-pages:{PAGE}")]), "<p>Printed</p>");
         assert_eq!(repos.calls("temper").len(), 1, "opened once");
         assert_eq!(
             repos.calls("cargo"),
             vec![
-                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-journeys", "--", "pages", "--prepared", "prepared inputs"], "bundle": "none"})
+                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"})
             ]
         );
     }
@@ -382,7 +352,7 @@ fn changed_pages_offer_the_fetched_tip_with_the_given_budget() {
 fn a_live_change_waits_and_every_ended_phase_releases_it() {
     let repos = Repositories::new("journey-pages-one-at-a-time");
     let tip = repos.git(&repos.origin, &["rev-parse", "main"]);
-    repos.print(&[(PAGE, Some("<p>Printed</p>\n"))], "walked again welcome\n", 0);
+    repos.print(&[(PAGE, Some("<p>Printed</p>\n"))], "printed welcome\n", 0);
     repos.run(ARGS, 0);
     let head = repos.git(&repos.origin, &["rev-parse", "journey-pages"]);
     // A fetch would fail: waiting must precede fetching, printing and pushing.
@@ -402,10 +372,10 @@ fn a_live_change_waits_and_every_ended_phase_releases_it() {
         repos.phase(phase);
         // Each replacement is a different child of main: only a forced push
         // can replace the script's previous offer after its task has ended.
-        repos.print(&[(PAGE, Some(phase))], "walked again welcome\n", 0);
+        repos.print(&[(PAGE, Some(phase))], "printed welcome\n", 0);
         repos.run(ARGS, 0);
         assert_eq!(repos.calls("cargo").len(), before + 1, "{phase} must release the writer");
-        repos.assert_offered(&tip, "walked again welcome", &["--as-allowed"]);
+        repos.assert_offered(&tip, "", &["--as-allowed"]);
     }
     // An ended task is forgotten even when the next print changes no byte.
     repos.phase("ended");
@@ -469,8 +439,9 @@ fn written_additions_and_deletions_are_committed_together() {
 fn a_stopped_walk_offers_other_pages_but_an_incomplete_print_does_not() {
     let repos = Repositories::new("journey-pages-stopped");
     let tip = repos.git(&repos.origin, &["rev-parse", "main"]);
-    let report = "walked again welcome\nstopped blocked: line 7: missing control";
-    let lines = "fresh current\nwalked again welcome\nstopped blocked: line 7: missing control; scratch kept at /private/scratch\n";
+    let report = "stopped blocked: line 7: missing control";
+    let lines =
+        "fresh current\nprinted welcome\nstopped blocked: line 7: missing control; scratch kept at /private/scratch\n";
     repos.print(&[(PAGE, Some("<p>Other pages printed</p>\n"))], lines, 1);
     let output = repos.run(ARGS, 1);
     let head = repos.git(&repos.person, &["rev-parse", "HEAD"]);
@@ -730,13 +701,41 @@ fn a_live_lock_is_left_alone_and_a_gone_process_is_replaced() {
 }
 
 #[test]
-fn the_print_gets_the_whole_runs_remaining_bound() {
-    let repos = Repositories::new("journey-pages-bound");
-    repos.run(&["--within", "90m"], 0);
-    let call = repos.calls("cargo").pop().expect("print called");
-    let args = call["args"].as_array().expect("arguments");
-    assert_eq!(args.get(6), Some(&serde_json::json!("--within")));
-    let rest = args.get(7).and_then(serde_json::Value::as_str).expect("remaining bound");
-    let seconds: u32 = rest.strip_suffix('s').expect("whole seconds").parse().expect("digits");
-    assert!((5395..=5400).contains(&seconds), "{rest}");
+fn prepared_and_within_are_validated_but_affect_neither_print_nor_commit() {
+    let mut commits = Vec::new();
+    for arguments in [
+        vec![],
+        vec!["--prepared", "prepared inputs"],
+        vec!["--within", "90m"],
+        vec!["--prepared", "inputs", "--within", "0s"],
+    ] {
+        let repos = Repositories::new("journey-pages-no-effect");
+        repos.print(&[(PAGE, Some("Printed\n"))], "printed welcome\n", 0);
+        let output = repos.run(&arguments, 0);
+        commits.push(repos.git(&repos.person, &["rev-parse", "HEAD"]));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let warnings: Vec<_> = stderr.lines().filter(|line| line.starts_with("journey-pages.sh:")).collect();
+        let expected: Vec<_> = ["--prepared", "--within"]
+            .into_iter()
+            .filter(|option| arguments.contains(option))
+            .map(|option| format!("journey-pages.sh: {option} has no effect: temper-client-walk pages walks no box"))
+            .collect();
+        assert_eq!(warnings, expected);
+        assert_eq!(
+            repos.calls("cargo"),
+            vec![
+                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"})
+            ]
+        );
+    }
+    assert!(commits.windows(2).all(|pair| pair[0] == pair[1]), "ignored options change no commit byte");
+}
+
+#[test]
+fn help_names_the_ignored_options_without_starting() {
+    let repos = Repositories::new("journey-pages-help");
+    let output = repos.run(&["--help"], 0);
+    assert_eq!(output.stderr, b"");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--prepared DIR and --within DURATION have no effect"));
+    assert_eq!(repos.calls("cargo"), Vec::<serde_json::Value>::new());
 }

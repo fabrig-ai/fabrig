@@ -1,9 +1,5 @@
 //! Whole-tool admission, normalisation and filesystem results (testing/tools.md, 6).
-use fixtures::{
-    TuiWorld, absent, assert_normalised, fixture_recording, stale_recording, tree_bytes, tui_approval_recording,
-    tui_recording, tui_written,
-};
-use skein_lib::Time;
+use fixtures::{TuiWorld, absent, fixture_recording, tree_bytes, tui_approval_recording, tui_recording, tui_written};
 use skein_scratch::Scratch;
 use std::fs;
 use temper_client_journeys_kit as fixtures;
@@ -148,59 +144,6 @@ fn add_gives_both_clients_placeholders_after_proving() {
             }
         }
     }
-}
-
-#[test]
-fn normalise_rewrites_scratch_copies_and_keeps_stale_recordings() {
-    use temper_client_shell_tui::journey as tj;
-    let scratch = Scratch::new("journeys-normalise");
-    let web = scratch.path().join("web");
-    let tui = scratch.path().join("tui");
-    for root in [&web, &tui] {
-        fs::create_dir_all(root).expect("scratch directory");
-    }
-    let browser = journey::prove(&fixture_recording()).expect("browser proof");
-    let terminal = tj::prove(&tui_recording()).expect("TUI proof");
-    for (root, good, stale) in [
-        (&web, browser.clone(), stale_recording(&browser)),
-        (&tui, terminal.clone(), {
-            let mut lines = tj::lines(&terminal).expect("TUI lines");
-            let at = lines.iter().position(|line| matches!(line, tj::Line::Deadline(_))).expect("deadline");
-            lines[at] = tj::Line::Deadline(Some(Time::ZERO));
-            tui_written(&lines).into()
-        }),
-    ] {
-        for (name, recording) in [("a-stale", stale), ("z-good", good)] {
-            fs::create_dir(root.join(name)).expect("fixture directory");
-            fs::write(root.join(name).join("recording"), recording).expect("fixture recording");
-            fs::write(root.join(name).join("01.html"), b"old print").expect("previous print");
-            fs::write(root.join(name).join("README.md"), b"Description").expect("description");
-        }
-    }
-    let before_web = tree_bytes(&web.join("a-stale"));
-    let before_tui = tree_bytes(&tui.join("a-stale"));
-    let (written, stale) = tool::normalise(&web, &tui).expect("normalise both scratch directories");
-    assert_eq!(written.iter().filter(|(name, _)| name == "z-good").count(), 2, "continue past both stale recordings");
-    assert_eq!(stale.len(), 2);
-    assert!(matches!(&stale[0], tool::Refusal::Proof { name, refusal: journey::Refusal::Stale(why) }
-        if name == "a-stale" && why.turn == 1 && why.recorded == "deadline" && why.asked == "deadline"));
-    assert!(matches!(&stale[1], tool::Refusal::TuiProof { name, refusal: tj::Refusal::Stale(why) }
-        if name == "a-stale" && why.turn == 1 && why.recorded.as_ref() == b"deadline" && why.asked.as_ref() == b"deadline"));
-    assert_eq!(before_web, tree_bytes(&web.join("a-stale")));
-    assert_eq!(before_tui, tree_bytes(&tui.join("a-stale")));
-    assert_eq!(tool::reprint(&web, &web).expect("reprint browser").len(), 1);
-    assert_eq!(tool::tui::reprint(&tui, &tui).expect("reprint TUI").len(), 1);
-    assert_eq!(before_web, tree_bytes(&web.join("a-stale")));
-    assert_eq!(before_tui, tree_bytes(&tui.join("a-stale")));
-    for root in [&web, &tui] {
-        assert_ne!(fs::read(root.join("z-good/01.html")).expect("new print"), b"old print");
-        fs::remove_dir_all(root.join("a-stale")).expect("remove stale fixture");
-        assert_normalised(root, root == &tui);
-    }
-    let before = tree_bytes(scratch.path());
-    let (written, stale) = tool::normalise(&web, &tui).expect("normalise again");
-    assert!(written.is_empty() && stale.is_empty(), "already normalised recordings aren't written again");
-    assert_eq!(before, tree_bytes(scratch.path()));
 }
 
 #[test]

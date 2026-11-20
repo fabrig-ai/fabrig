@@ -1,7 +1,7 @@
 //! Record and replay the shipped host's seam (client/web/journeys.md, 2–4).
 use crate::host::{self, Host};
 use skein_lib::{Time, Wall};
-use skein_ui::{Act, NodeId, Role, Tree};
+use skein_ui::{Act, NodeId, Tree};
 use skein_ui_web::{mapping::Primary, page::Page};
 mod fields;
 mod line;
@@ -11,9 +11,7 @@ mod record;
 mod redact;
 mod replay;
 pub mod scan;
-mod setup;
 mod stream;
-mod walk;
 pub use fields::fields_mut;
 pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, lines};
 pub use normalise::{normalise, normalise_lines};
@@ -23,10 +21,8 @@ pub use redact::{Redacted, Unredacted, redact, redact_lines, saved, saved_lines}
 pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove, prove_lines};
 pub use scan::{Found, Place, Shape, What, original, shape};
-pub use setup::{MarkWait, Setup, SetupStep, setup};
 pub use stream::{Event, Plain, Streams, Undecoded};
 pub use temper_client_redaction::{Framing, Kind, Normalised, Original, Originals, Varying, placeholder, redact_field};
-pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
 mod tests;
 
@@ -103,46 +99,4 @@ pub enum Lead {
     Press,
     Submit,
     Toggle,
-}
-
-/// A control's role, accessible name and order among exact matches, from zero
-/// (client/web/journeys.md, 8.1).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Control {
-    pub role: Role,
-    pub name: Box<[u8]>,
-    pub order: u32,
-}
-impl Control {
-    #[must_use]
-    pub fn of(tree: &Tree, node: NodeId) -> Option<Self> {
-        let index = tree.nodes().iter().position(|candidate| candidate.id == node)?;
-        let role = tree.nodes()[index].role;
-        let name = self::name(tree, node);
-        let order = tree.nodes()[..index]
-            .iter()
-            .filter(|candidate| candidate.role == role && self::name(tree, candidate.id) == name)
-            .count();
-        Some(Self { role, name, order: u32::try_from(order).expect("tree count fits u32") })
-    }
-}
-/// Replay a save to its end, then find the first control giving the act's event
-/// outside a menu, which no journey opens (client/web/journeys.md, 8.1).
-/// # Errors
-/// Returns the save's unreadable or stale refusal.
-pub fn control(save: &[u8], act: &Act, event: &[u8]) -> Result<Option<Control>, Refusal> {
-    let mut replay = Replay::new(save)?;
-    while replay.next().map_err(Refusal::Stale)?.is_some() {}
-    let host = replay.host();
-    let tree = host.tree();
-    Ok(giving(host, act, event)
-        .into_iter()
-        .find(|node| {
-            let index =
-                tree.nodes().iter().position(|candidate| candidate.id == *node).expect("event's node is in tree");
-            !tree.nodes()[..index].iter().enumerate().any(|(at, ancestor)| {
-                ancestor.role == Role::Menu && index - at < usize::try_from(ancestor.size).expect("subtree fits usize")
-            })
-        })
-        .and_then(|node| Control::of(tree, node)))
 }
