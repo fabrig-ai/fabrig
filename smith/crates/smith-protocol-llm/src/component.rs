@@ -671,7 +671,8 @@ impl Component {
             | DomainEvent::Drain { .. }
             | DomainEvent::Delivered { .. }
             | DomainEvent::Below(
-                smith_domain::Below::Done { .. }
+                smith_domain::Below::Usage { .. }
+                | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
                 | smith_domain::Below::Checked { .. }

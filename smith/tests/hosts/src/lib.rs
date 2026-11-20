@@ -448,6 +448,7 @@ impl HostService {
                 | host::parent::Request::Withdrawn { .. }
                 | host::parent::Request::Unauthorized { .. }
                 | host::parent::Request::Refused { .. }
+                | host::parent::Request::Usage { .. }
                 | host::parent::Request::Limited { .. }
                 | host::parent::Request::Told { .. }
                 | host::parent::Request::Faulted { .. }

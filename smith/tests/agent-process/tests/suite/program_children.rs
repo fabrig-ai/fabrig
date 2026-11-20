@@ -111,6 +111,47 @@ fn a_program_main_reads_its_sub_agents_answer() {
 }
 
 #[test]
+fn a_program_child_reports_usage_for_its_account() {
+    let story = Story {
+        turns: vec![
+            Turn::new(vec![inspect_child("CUE-USAGE", true)]),
+            Turn::new(vec![Step::Outcome { input: json!({"outcome":{"form":"report","text":"done","fields":{}}}) }]),
+        ],
+        cued: vec![Script {
+            cue: "CUE-USAGE".into(),
+            turns: vec![Turn::new(vec![
+                Step::RateLimitWindow {
+                    status: "allowed_warning".into(),
+                    rate_limit_type: Some("seven_day_opus".into()),
+                    resets_at: Some(1_781_845_200),
+                    utilization: Some(json!(0.81)),
+                },
+                Step::Text("exports run".into()),
+            ])],
+        }],
+        ..Default::default()
+    };
+    let run = program_world::run(
+        Case::Events,
+        &story,
+        Some(b"claude.ai"),
+        &program_world::child_charter(),
+        &program(b"source"),
+        None,
+    );
+    accepted(&run);
+    let notices: Vec<_> = run.frames.iter().filter(|frame| frame.kind == smith_channel::kind::USAGE).collect();
+    assert_eq!(notices.len(), 1, "only the child emitted a usage event");
+    let notice = smith_channel::Usage::decode(&smith_channel::CEILINGS, &mut Reader::new(&notices[0].body))
+        .expect("child usage");
+    assert_eq!(notice.account, 0, "the child uses the granted program account");
+    assert_eq!(notice.window.label.as_ref(), b"seven_day_opus");
+    assert_eq!(notice.window.state, smith_channel::UsageState::Warned);
+    assert_eq!(notice.window.used, Some(8100));
+    assert_eq!(notice.window.resets, Some(1_781_845_200));
+}
+
+#[test]
 fn a_program_childs_program_ends_with_its_conversation() {
     let run = run(false);
     accepted(&run);

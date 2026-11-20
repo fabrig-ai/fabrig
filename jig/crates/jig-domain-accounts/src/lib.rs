@@ -19,10 +19,12 @@ mod lists;
 mod ordering;
 pub mod programs;
 mod providers;
+mod rates;
 mod records;
 mod restore;
 mod selection;
 mod signing;
+mod usage;
 pub use boundary::{
     ADDRESS, Answer, Change, Deadline, End, Ended, Event, Fact, Failure, FromComponent, KeyFailure, Pending, Place,
     Program, ProgramFailure, ProgramHost, ProgramResult, Request, Said, Signing, State, ToComponent, Turned, Unread,
@@ -38,6 +40,7 @@ pub use keys::{KEY_VALID, PROGRAM_VALID};
 pub use lending::{LentEnd, LoginEnd, LoginExit, TerminalLogin};
 pub use limits::{Limits, TERMINALS, valid};
 pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};
+pub use rates::WindowReading;
 pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
 pub use restore::{RestoreLimit, RestoreLink, RestoreSet};
 pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy, Ways};

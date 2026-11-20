@@ -4,12 +4,12 @@
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Civil, Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
-use smith_host_domain::SourceName;
-use smith_host_protocol::{ProgramSource, SourceAnswer, SourceAsk, SourceInspection};
+use smith_host_domain::{ProgramCheck, ProgramUsage, SourceName};
+use smith_host_protocol::{ProgramSource, SourceAnswer, SourceAsk, SourceInspection, UsageRead};
 use smith_protocol_program::Programs;
 
 const OWNER: Token = Token::new(100);
@@ -40,6 +40,9 @@ struct Parent {
     io: io::Io,
     env: Env<io::Limits>,
     source: Option<ProgramSource>,
+    usage: Option<UsageRead>,
+    read_usage: bool,
+    usage_answers: Vec<ProgramUsage>,
     inspection: Option<SourceInspection>,
     files: file_layer::FileIo,
     file_requests: Queue<file::Request>,
@@ -52,6 +55,7 @@ struct Parent {
     root_closing: bool,
     launches: u32,
     deadline: Time,
+    asked: Wall,
     root_closed: bool,
     events: Queue<io::Event>,
     requests: Queue<io::Request>,
@@ -60,7 +64,7 @@ struct Parent {
 }
 
 impl Parent {
-    fn new(root: kernel::Fd, asks: &[SourceAsk], base: &[Box<[u8]>], missing: bool) -> Self {
+    fn new(root: kernel::Fd, asks: &[SourceAsk], base: &[Box<[u8]>], missing: bool, read_usage: bool) -> Self {
         let limits = limits();
         let mut pending = Queue::with_capacity(u32::try_from(asks.len()).expect("short scenario"));
         for ask in asks {
@@ -70,6 +74,9 @@ impl Parent {
             io: io::Io::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             source: None,
+            usage: None,
+            read_usage,
+            usage_answers: Vec::new(),
             inspection: None,
             files: file_layer::FileIo::with_limits(&file_limits()),
             file_requests: Queue::uncapped(),
@@ -82,6 +89,7 @@ impl Parent {
             root_closing: false,
             launches: 0,
             deadline: Time::ZERO,
+            asked: Wall::EPOCH,
             root_closed: false,
             events: Queue::with_capacity(32),
             requests: Queue::with_capacity(32),
@@ -91,6 +99,24 @@ impl Parent {
     }
     fn launch(&mut self, ask: SourceAsk) {
         self.launches = self.launches.checked_add(1).expect("bounded source asks");
+        if self.read_usage {
+            self.usage = Some(
+                UsageRead::new(
+                    OWNER,
+                    &Programs { directory: b"/programs".as_slice().into(), claude: self.program.clone() },
+                    SourceName::new(b"alice").expect("source name"),
+                    &self.base,
+                    self.root,
+                    b".".as_slice().into(),
+                    self.deadline,
+                    self.asked,
+                    32,
+                    &mut self.requests,
+                )
+                .expect("source binding"),
+            );
+            return;
+        }
         self.source = Some(
             ProgramSource::new(
                 OWNER,
@@ -120,7 +146,19 @@ impl Parent {
             self.inspection = None;
             match answer {
                 Ok(()) => self.launch(SourceAsk::Check),
-                Err(check) => self.answers.push(SourceAnswer::Check(check)),
+                Err(check) => {
+                    if self.read_usage {
+                        self.usage_answers.push(match check {
+                            ProgramCheck::NotSignedIn => ProgramUsage::NotSignedIn,
+                            ProgramCheck::Failed(failure) => ProgramUsage::Failed(failure),
+                            ProgramCheck::Usable { .. } | ProgramCheck::SignedInOtherwise(_) => {
+                                unreachable!("inspection has no status")
+                            }
+                        });
+                    } else {
+                        self.answers.push(SourceAnswer::Check(check));
+                    }
+                }
             }
         }
         let env = self.env.with(file_limits());
@@ -132,9 +170,10 @@ impl Parent {
         }
     }
     fn issue(&mut self, now: Time) {
-        if self.source.is_none() && self.inspection.is_none() && !self.root_closing {
+        if self.source.is_none() && self.usage.is_none() && self.inspection.is_none() && !self.root_closing {
             if let Some(ask) = self.asks.pop() {
                 self.deadline = now.saturating_add(DEADLINE);
+                self.asked = self.env.wall;
                 match ask {
                     SourceAsk::Check => {
                         self.inspection = Some(SourceInspection::new(
@@ -181,7 +220,6 @@ impl Host for Parent {
         }
         io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
-            let source = self.source.as_mut().expect("source issued before I/O");
             let owner = match &event {
                 io::Event::Spawned { owner, .. }
                 | io::Event::Exited { owner, .. }
@@ -198,8 +236,14 @@ impl Host for Parent {
                 | io::Event::Window { .. }
                 | io::Event::Shutdown { .. } => unreachable!("source events only"),
             };
-            assert!(source.owns(owner), "route only owned source events");
-            source.from_io(event, &mut self.requests);
+            if let Some(usage) = &mut self.usage {
+                assert!(usage.owns(owner), "route only owned usage events");
+                usage.from_io(event, &mut self.requests);
+            } else {
+                let source = self.source.as_mut().expect("source issued before I/O");
+                assert!(source.owns(owner), "route only owned source events");
+                source.from_io(event, &mut self.requests);
+            }
         }
         if let Some(source) = &mut self.source {
             source.fire(now, &mut self.requests);
@@ -207,6 +251,14 @@ impl Host for Parent {
                 assert!(source.answer().is_none(), "one answer right");
                 self.answers.push(answer);
                 self.source = None;
+            }
+        }
+        if let Some(usage) = &mut self.usage {
+            usage.fire(now, &mut self.requests);
+            if let Some(answer) = usage.answer() {
+                assert!(usage.answer().is_none(), "one usage answer right");
+                self.usage_answers.push(answer);
+                self.usage = None;
             }
         }
         self.inspect(now);
@@ -229,12 +281,13 @@ impl Host for Parent {
             || !self.completions.is_empty()
             || !self.events.is_empty()
             || !self.requests.is_empty()
-            || (self.source.is_none() && self.inspection.is_none() && !self.root_closing)
+            || (self.source.is_none() && self.usage.is_none() && self.inspection.is_none() && !self.root_closing)
             || !self.file_events.is_empty()
             || (!self.file_requests.is_empty() && self.files.takes())
             || self.files.is_due(now)
             || self.inspection.as_ref().and_then(SourceInspection::next_deadline).is_some_and(|at| at <= now)
             || self.source.as_ref().and_then(ProgramSource::next_deadline).is_some_and(|at| at <= now)
+            || self.usage.as_ref().and_then(UsageRead::next_deadline).is_some_and(|at| at <= now)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
         [self.io.next_deadline(), self.files.next_deadline()].into_iter().flatten().min()
@@ -242,6 +295,7 @@ impl Host for Parent {
     fn next_policy_deadline(&self) -> Option<Time> {
         [
             self.source.as_ref().and_then(ProgramSource::next_deadline),
+            self.usage.as_ref().and_then(UsageRead::next_deadline),
             self.inspection.as_ref().and_then(SourceInspection::next_deadline),
         ]
         .into_iter()
@@ -257,6 +311,7 @@ impl Host for Parent {
             && self.file_events.is_empty()
             && self.file_requests.is_empty()
             && self.source.is_none()
+            && self.usage.is_none()
             && self.asks.is_empty()
             && self.events.is_empty()
             && self.requests.is_empty()
@@ -341,10 +396,11 @@ struct Judge {
 impl Referee<Process> for Judge {
     fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
         let Process::Parent(parent) = procs.first().ok_or("parent")? else { return Err(String::from("parent first")) };
-        if parent.answers.len() > self.expected {
+        let answered = parent.answers.len().checked_add(parent.usage_answers.len()).expect("short scenario");
+        if answered > self.expected {
             return Err(String::from("one answer per ask"));
         }
-        self.met = parent.answers.len() == self.expected;
+        self.met = answered == self.expected;
         Ok(())
     }
     fn overdue(&self, now: Time) -> Option<String> {
@@ -365,6 +421,13 @@ fn make_fake(spawn: &kernel::Spawn, inherited: &Inherited) -> Process {
         [b"ANTHROPIC_CONFIG_DIR=/programs/alice/anthropic".as_slice()],
         "source commands use only the source's Anthropic profiles"
     );
+    if spawn.args.iter().any(|argument| argument.as_ref() == b"/usage") {
+        assert_eq!(
+            spawn.env.iter().filter(|entry| entry.starts_with(b"TZ=")).map(AsRef::as_ref).collect::<Vec<_>>(),
+            [b"TZ=UTC".as_slice()],
+            "the usage fake receives UTC, replacing the caller's time zone"
+        );
+    }
     Process::Fake(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
 
@@ -372,6 +435,7 @@ fn make_fake(spawn: &kernel::Spawn, inherited: &Inherited) -> Process {
 #[derive(Debug)]
 pub struct Run {
     pub answers: Vec<SourceAnswer>,
+    pub usage_answers: Vec<ProgramUsage>,
     pub observations: Vec<smith_fake_claude::Observation>,
     pub login: Option<Vec<u8>>,
     pub trace: Vec<String>,
@@ -392,6 +456,37 @@ pub fn run(
     extra_environment: &[Box<[u8]>],
     directories: [Option<u32>; 2],
 ) -> Run {
+    run_mode(seed, story, login, asks, missing, extra_environment, directories, false)
+}
+
+/// Read local usage after the same directory inspection used by source checks.
+#[must_use]
+pub fn usage(
+    seed: u64,
+    story: Story,
+    missing: bool,
+    extra_environment: &[Box<[u8]>],
+    directories: [Option<u32>; 2],
+) -> Run {
+    let login = if directories.iter().all(Option::is_some) { Some(b"claude.ai".as_slice()) } else { None };
+    let story = if directories.iter().all(Option::is_some) { Some(story) } else { None };
+    run_mode(seed, story, login, &[SourceAsk::Check], missing, extra_environment, directories, true)
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "source and usage stories share the existing source world's fixture and driver"
+)]
+fn run_mode(
+    seed: u64,
+    story: Option<Story>,
+    login: Option<&[u8]>,
+    asks: &[SourceAsk],
+    missing: bool,
+    extra_environment: &[Box<[u8]>],
+    directories: [Option<u32>; 2],
+    read_usage: bool,
+) -> Run {
     // Peak across every program_source test: source checks and sign-out with the hosted fake.
     // The signed-in-otherwise check's hosted fake is largest.
     // Measured peak: 203_129 bytes on 2026-10-29; a quarter of headroom, rounded up.
@@ -401,9 +496,16 @@ pub fn run(
     let root = machine.open_root(b".").expect("parent root");
     let mut environment = vec![Box::from(b"HOME=/home".as_slice())];
     environment.extend_from_slice(extra_environment);
+    let mut config = skein_sim::Config::calm();
+    if read_usage {
+        let midnight = (Civil { year: 2026, month: 11, day: 19 }).wall().expect("fixture date");
+        config.wall = Wall::from_nanos(
+            midnight.as_nanos().checked_add(Duration::from_secs(14_400).as_nanos()).expect("fixture wall time"),
+        );
+    }
     let mut world = skein_world::World::new(
         seed,
-        skein_sim::Config::calm(),
+        config,
         Judge { expected: asks.len(), met: false },
         skein_world::Memory::Within(SOURCE_PARENT_CEILING),
     )
@@ -419,7 +521,7 @@ pub fn run(
         |spawn| smith_fake_claude::config_root(spawn).into_iter().chain(smith_fake_claude::mcp_root(spawn)).collect(),
         |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
     );
-    world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, asks, &environment, missing))));
+    world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, asks, &environment, missing, read_usage))));
     collect(world.run())
 }
 
@@ -475,6 +577,7 @@ fn collect(mut outcome: skein_world::Outcome<Process, MachineFiles>) -> Run {
     assert_eq!(outcome.machine.files.open_handles(), 0, "all source descriptors settle");
     Run {
         answers,
+        usage_answers: parent.usage_answers.clone(),
         observations,
         login,
         directories,

@@ -345,6 +345,7 @@ fn agent_terminal(domain: &mut Domain, env: &Env<Limits>, agent: Token, terminal
         | smith_inline_agent::Below::Checked { .. }
         | smith_inline_agent::Below::Aborted { .. }
         | smith_inline_agent::Below::ReadVersion { .. }
+        | smith_inline_agent::Below::Usage { .. }
         | smith_inline_agent::Below::BuiltinResult { .. } => false,
     };
     if completion && domain.turns.unsaved.room() == 0 {
@@ -535,7 +536,8 @@ fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request
                 },
             ),
         },
-        parent::Request::Withdrawn { .. } | parent::Request::Told { .. } => {}
+        // The local host draws no usage; the account observation needs no action.
+        parent::Request::Usage { .. } | parent::Request::Withdrawn { .. } | parent::Request::Told { .. } => {}
         parent::Request::Unread { names, .. } => {
             for name in names {
                 observe(domain, Fact::Unread { name });
@@ -648,6 +650,7 @@ fn held_completion(domain: &Domain, owner: Token) -> bool {
             | smith_inline_agent::Below::Checked { .. }
             | smith_inline_agent::Below::Aborted { .. }
             | smith_inline_agent::Below::ReadVersion { .. }
+            | smith_inline_agent::Below::Usage { .. }
             | smith_inline_agent::Below::BuiltinResult { .. } => unreachable!("only completion terminals are held"),
         };
         if pending == owner {

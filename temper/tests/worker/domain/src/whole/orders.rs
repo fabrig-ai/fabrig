@@ -92,7 +92,8 @@ fn collect(
             | Request::Unprepared { .. }
             | Request::Hello(_)
             | Request::Link(_) => {}
-            other @ (Request::ReadList { .. }
+            other @ (Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }

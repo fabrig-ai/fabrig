@@ -6,6 +6,7 @@
 #![expect(clippy::match_like_matches_macro, reason = "the no_std test harness uses explicit record filters")]
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use alloc::format;
 use fixtures::window as active;
 use fixtures::{connect_server, env, request, server_reply};
 use serde_json::json;
@@ -13,6 +14,77 @@ use serde_json::json;
 fn feed(backend: &mut Backend, value: serde_json::Value, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
     backend.line(&env(0), &serde_json::to_vec(&value).expect("fixture JSON"), up, below);
 }
+#[test]
+fn usage_events_validate_labels_and_statuses() {
+    for (info, expected) in [
+        (json!({"status":"allowed"}), None),
+        (json!({"status":"allowed", "rateLimitType":""}), None),
+        (json!({"status":"allowed", "rateLimitType":"a".repeat(33)}), None),
+        (json!({"status":"allowed", "rateLimitType":"bad\u{7f}"}), None),
+        (json!({"status":"allowed", "rateLimitType":"bad\n"}), None),
+        (json!({"status":"allowed", "rateLimitType":"é"}), None),
+        (json!({"status":"other", "rateLimitType":"five_hour"}), None),
+        (json!({"rateLimitType":"five_hour"}), None),
+        (
+            json!({"status":"allowed", "rateLimitType":"five_hour"}),
+            Some((Some(18_000), smith_domain::UsageState::Open)),
+        ),
+        (
+            json!({"status":"allowed_warning", "rateLimitType":"seven_day_opus"}),
+            Some((Some(604_800), smith_domain::UsageState::Warned)),
+        ),
+        (json!({"status":"allowed", "rateLimitType":" ~".repeat(16)}), Some((None, smith_domain::UsageState::Open))),
+    ] {
+        let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+        // Equal observations are each forwarded, not coalesced in the backend.
+        for _ in 0_u8..2_u8 {
+            feed(&mut backend, json!({"type":"rate_limit_event", "rate_limit_info":info}), &mut up, &mut below);
+            match expected {
+                Some((seconds, state)) => {
+                    let Some(ToDomain::Usage { owner, window }) = up.pop() else { panic!("usage for {info}") };
+                    assert_eq!(owner, COMPLETION);
+                    assert_eq!(window.label.as_ref(), info["rateLimitType"].as_str().expect("label").as_bytes());
+                    assert_eq!(window.length, seconds.map(Duration::from_secs));
+                    assert_eq!(window.state, state);
+                }
+                None => assert!(up.is_empty(), "invalid window: {info}"),
+            }
+        }
+    }
+}
+
+#[test]
+fn usage_events_read_decimal_shares_and_integer_resets() {
+    for (fields, used, resets) in [
+        ("", None, None),
+        (",\"utilization\":1.2", None, None),
+        (",\"utilization\":-0.1", None, None),
+        (",\"utilization\":8.1e-1", None, None),
+        (",\"utilization\":\"0.81\"", None, None),
+        (",\"utilization\":1", Some(10_000), None),
+        (",\"utilization\":1.0", Some(10_000), None),
+        (",\"utilization\":0.00005", Some(0), None),
+        (",\"utilization\":0.123456", Some(1234), None),
+        (",\"utilization\":1.00001", None, None),
+        (",\"resetsAt\":-1", None, None),
+        (",\"resetsAt\":1.0", None, None),
+        (",\"resetsAt\":1e2", None, None),
+        (",\"resetsAt\":\"123\"", None, None),
+        (",\"resetsAt\":0", None, Some(0)),
+        (",\"resetsAt\":1781845200", None, Some(1_781_845_200)),
+    ] {
+        let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+        let record = format!(
+            "{{\"type\":\"rate_limit_event\",\"rate_limit_info\":{{\"status\":\"allowed\",\"rateLimitType\":\"five_hour\"{fields}}}}}"
+        );
+        backend.line(&env(0), record.as_bytes(), &mut up, &mut below);
+        let Some(ToDomain::Usage { owner, window }) = up.pop() else { panic!("usage for {fields}") };
+        assert_eq!(owner, COMPLETION);
+        assert_eq!((window.used, window.resets), (used, resets), "{fields}");
+        assert!(up.is_empty(), "an allowed notice does not end the call");
+    }
+}
+
 fn text() -> serde_json::Value {
     json!({"type":"assistant","message":{"id":"text","content":[{"type":"text","text":"thinking"}]}})
 }

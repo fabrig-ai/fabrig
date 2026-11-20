@@ -3806,6 +3806,10 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
 /// Held facts for the usage gallery; no account read is simulated (client/pages/accounts.md, 2, Usage).
+#[expect(
+    clippy::type_complexity,
+    reason = "literal gallery windows keep their served rate beside the held fact fields"
+)]
 pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
     doc.accounts.truncate(1);
     let account = doc.accounts.get_mut(0).expect("reference Claude account");
@@ -3825,20 +3829,21 @@ pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
             origin: 5,
         })
         .expect("sample email");
-    let windows: &[(&[u8], u64, u64, u16, u16)] = match name {
-        "accounts-usage-filling" => &[(b"seven_day", 168, 48 * 60, 8300, 1), (b"five_hour", 5, 120, 7500, 1)],
-        "accounts-usage-calm" => &[(b"seven_day", 168, 48 * 60, 4200, 1), (b"five_hour", 5, 60, 1000, 1)],
-        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED)],
-        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1)],
+    let windows: &[(&[u8], u64, u64, u16, u16, u32)] = match name {
+        "accounts-usage-filling" => &[(b"seven_day", 168, 48 * 60, 8300, 1, 70), (b"five_hour", 5, 120, 7500, 1, 2500)],
+        "accounts-usage-calm" => &[(b"seven_day", 168, 48 * 60, 4200, 1, 35), (b"five_hour", 5, 60, 1000, 1, 250)],
+        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED, 0)],
+        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1, 50)],
         other => panic!("not a usage sample: {other}"),
     };
-    for &(label, hours, remaining, used, state) in windows {
+    for &(label, hours, remaining, used, state, rate) in windows {
         account
             .facts
             .push(c::AccountFact {
                 kind: c::FACT_USAGE,
                 label: Box::from(label),
                 value: c::AccountFactValue::Window(c::AccountWindow {
+                    rate: Some(rate),
                     length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).expect("sample hours"))),
                     used: Some(used),
                     resets: Some(Wall::from_nanos(

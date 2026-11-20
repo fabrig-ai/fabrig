@@ -435,7 +435,9 @@ impl Joined {
                     | host::LinkUp::Piece { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }
+                    | host::LinkUp::Usage { .. }
                     | host::LinkUp::Limited { .. }
+                    | host::LinkUp::UsageRead { .. }
                     | host::LinkUp::ListRead { .. }
                     | host::LinkUp::Draining
                     | host::LinkUp::Logins { .. }

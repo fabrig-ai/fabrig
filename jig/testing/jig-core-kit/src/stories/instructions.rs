@@ -45,6 +45,7 @@ pub fn sign_in(w: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),

@@ -335,6 +335,7 @@ impl Application for OpsApplication {
                 | core::Held::Drained
                 | core::Held::Restarting { .. }
                 | core::Held::Cancel { .. }
+                | core::Held::ReadUsage { .. }
                 | core::Held::ReadList { .. }
                 | core::Held::Sources { .. }
                 | core::Held::CheckSource { .. }

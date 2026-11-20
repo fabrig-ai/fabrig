@@ -17,7 +17,7 @@ fn fresh_agreement() -> skein_channel::Frame {
             .expect("four jig wires");
     }
     wires.push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 }).expect("application wire");
-    let record = wire::v18::Agreed { wires };
+    let record = wire::v19::Agreed { wires };
     let mut body = Writer::new(skein_lib::length::usize_of(
         record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     ));

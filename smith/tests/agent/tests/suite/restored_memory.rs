@@ -598,6 +598,7 @@ impl Counted {
                 | Request::Deliver { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
+                | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::MessageRefused { .. }
                 | Request::Lower(

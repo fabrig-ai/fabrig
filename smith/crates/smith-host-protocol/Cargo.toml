@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 smith-protocol-program.workspace = true
 skein-lib.workspace = true
+skein-json.workspace = true
 skein-channel.workspace = true
 skein-io.workspace = true
 smith-channel.workspace = true

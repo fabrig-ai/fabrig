@@ -76,21 +76,14 @@ fn window_line(label: &[u8], window: c::AccountWindow, now: Wall, w: &Words) -> 
         None => None,
     };
     let limited = window.state == c::WINDOW_LIMITED;
-    let elapsed = match (window.length, remaining) {
-        (Some(length), Some(remaining)) => match length.as_nanos().checked_sub(remaining) {
-            Some(0) | None => None,
-            Some(elapsed) => Some(elapsed),
-        },
-        (None, Some(_) | None) | (Some(_), None) => None,
-    };
-    let full = match (elapsed, remaining) {
-        (Some(elapsed), Some(remaining)) if used != 0 => {
+    let full = match (window.rate, remaining) {
+        (Some(rate), Some(remaining)) if rate != 0 => {
             let until = u128::from(10_000_u16.saturating_sub(used))
-                .checked_mul(u128::from(elapsed))
-                .expect("share times span fits u128");
-            let reset = u128::from(used).checked_mul(u128::from(remaining)).expect("share times span fits u128");
+                .checked_mul(u128::from(HOUR))
+                .expect("share times hour fits u128");
+            let reset = u128::from(rate).checked_mul(u128::from(remaining)).expect("rate times span fits u128");
             if until < reset {
-                Some(u64::try_from(until.checked_div(u128::from(used)).expect("nonzero share")).expect("before reset"))
+                Some(u64::try_from(until.checked_div(u128::from(rate)).expect("nonzero rate")).expect("before reset"))
             } else {
                 None
             }
@@ -111,16 +104,19 @@ fn window_line(label: &[u8], window: c::AccountWindow, now: Wall, w: &Words) -> 
         None => Box::new([]),
     };
     let mut fills: Box<[u8]> = Box::new([]);
-    if !limited && let Some(elapsed) = elapsed {
-        pace = words::join(&[&pace, SEPARATOR, &rate(w, used, elapsed), SEPARATOR]);
+    if !limited && let Some(hourly) = window.rate {
+        pace = words::join(&[&pace, if pace.is_empty() { b"" } else { SEPARATOR }, &rate(w, hourly)]);
         if let Some(full) = full {
+            pace = words::join(&[&pace, SEPARATOR]);
             fills = words::join(&[b"full in ", &span(w, full)]);
-        } else if let Some(length) = window.length {
-            let projected =
-                u128::from(used).checked_mul(u128::from(length.as_nanos())).expect("share times span fits u128");
-            let percent =
-                rounded(projected, u128::from(elapsed).checked_mul(100).expect("span times percent fits u128"));
-            pace = words::join(&[&pace, b"about ", &number(w, percent), b"% at reset"]);
+        } else if let Some(remaining) = remaining {
+            let projected = u128::from(hourly)
+                .checked_mul(u128::from(remaining))
+                .expect("rate times span fits u128")
+                .checked_add(u128::from(used).checked_mul(u128::from(HOUR)).expect("share times hour fits u128"))
+                .expect("bounded projection");
+            let percent = rounded(projected, u128::from(HOUR).checked_mul(100).expect("hour times percent fits u128"));
+            pace = words::join(&[&pace, SEPARATOR, b"about ", &number(w, percent), b"% at reset"]);
         }
     }
     let look = if limited {
@@ -147,12 +143,9 @@ fn rounded(numerator: u128, denominator: u128) -> u64 {
     )
     .expect("bounded rate or projection")
 }
-fn rate(w: &Words, used: u16, elapsed: u64) -> Box<[u8]> {
-    let numerator = u128::from(used).checked_mul(u128::from(HOUR)).expect("share times hour fits u128");
-    let denominator = u128::from(elapsed).checked_mul(100).expect("span times percent fits u128");
-    let ten = denominator.checked_mul(10).expect("span times ten percent fits u128");
-    if numerator < ten {
-        let tenths = rounded(numerator.checked_mul(10).expect("share times ten hours fits u128"), denominator);
+fn rate(w: &Words, hourly: u32) -> Box<[u8]> {
+    if hourly < 1000 {
+        let tenths = rounded(u128::from(hourly), 10);
         words::join(&[
             &number(w, tenths.checked_div(10).expect("nonzero ten")),
             b".",
@@ -160,7 +153,7 @@ fn rate(w: &Words, used: u16, elapsed: u64) -> Box<[u8]> {
             b"%/h",
         ])
     } else {
-        words::join(&[&number(w, rounded(numerator, denominator)), b"%/h"])
+        words::join(&[&number(w, rounded(u128::from(hourly), 100)), b"%/h"])
     }
 }
 fn span(w: &Words, nanos: u64) -> Box<[u8]> {

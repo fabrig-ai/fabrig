@@ -681,6 +681,8 @@ impl Owner {
                     self.answers.push(answer);
                 }
                 child::Request::Programs { .. }
+                | child::Request::CancelUsage { .. }
+                | child::Request::ReadUsage { .. }
                 | child::Request::ReadList { .. }
                 | child::Request::CheckProgram { .. }
                 | child::Request::SignOutProgram { .. }
