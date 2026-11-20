@@ -204,6 +204,65 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+const REPAIR_SETTING: &[u8] = br#"{"kind":"project-landing","project":7}"#;
+fn repair_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLanding {
+    use temper_client_protocol_wire::v1 as w;
+    let items = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).expect("repair setting file");
+    let item = items.get(0).unwrap();
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("kind 4 bytes") };
+    let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+    let mut measure = Encoder::measure(&JsonLimits { depth: 32, length: 8192 });
+    assert!(crate::kinds::render(4, bytes, &mut measure));
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    assert!(crate::kinds::render(4, bytes, &mut out));
+    assert_eq!(out.finish().as_ref(), json);
+    landing
+}
+#[test]
+fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
+    let landing = repair_round_trip(
+        br#"{"wait":"landed","repairs":{"goal":{"charter":5,"llm":null,"priority":0,"budget":2000000}}}"#,
+    );
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (2, 2, 86_400_000));
+    assert!(repairs.goal.llm.is_none());
+}
+#[test]
+fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
+    let landing = repair_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
+    assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
+}
+#[test]
+fn repair_settings_refuse_unknown_and_missing_members_by_path() {
+    for (json, why) in [
+        (
+            br#"{"repairs":{"goal":{"charter":5,"priority":0,"budget":2},"other":0}}"#.as_slice(),
+            b"repairs.other: unknown member".as_slice(),
+        ),
+        (
+            br#"{"repairs":{"goal":{"charter":5,"priority":0,"budget":2,"other":0}}}"#,
+            b"repairs.goal.other: unknown member",
+        ),
+        (br#"{"repairs":{}}"#, b"repairs.goal: missing member"),
+        (br#"{"repairs":{"goal":{"priority":0,"budget":2}}}"#, b"repairs.goal.charter: missing member"),
+        (br#"{"repairs":{"goal":{"charter":5,"budget":2}}}"#, b"repairs.goal.priority: missing member"),
+        (br#"{"repairs":{"goal":{"charter":5,"priority":0}}}"#, b"repairs.goal.budget: missing member"),
+    ] {
+        let error = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).unwrap_err();
+        assert_eq!(error.as_ref(), joined(&[b"settings file item 1: ", why]).as_ref());
+    }
+    // llm alone is optional, as for a template's default choice.
+    file::decode(
+        &kind_file(REPAIR_SETTING, br#"{"wait":"landed","repairs":{"goal":{"charter":5,"priority":0,"budget":2}}}"#),
+        &Limits::standard(),
+    )
+    .expect("llm may be absent");
+}
+
 #[test]
 fn landing_wait_refuses_another_word_at_wait() {
     let bytes = kind_file(br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"soon"}"#);

@@ -24,6 +24,8 @@ fn stopping_keeps_the_printed_link_live_and_unspent() {
     component.down(
         &env,
         Event::Transport(crate::FromTransport::Exchange {
+            via: crate::Via::Listener,
+            source: None,
             browser: false,
             exchange: owner,
             credential: None,

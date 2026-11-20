@@ -30,7 +30,7 @@ impl Recovery {
             | Event::Send { .. }
             | Event::Carry { .. }
             | Event::AskLink
-            | Event::AskApproval
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }

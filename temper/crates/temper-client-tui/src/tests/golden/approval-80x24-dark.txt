@@ -5,7 +5,7 @@
 │ No tab? Open http://127.0.0.1:8367/terminal?code=WDJB-MJHT                   │
 │ The code expires in 10 min.                                                  │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:8367/jig/v1/sign-in/link?secret=… (enter sends)     │
+│ ❯ Link: http://127.0.0.1:8367/sign-in?secret=… (enter sends)                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 
@@ -30,7 +30,7 @@ a..............................................................................a
 a..............................................................................a
 a.ccccccccccccccccccccccccccc..................................................a
 a.cccccccccccccccccccccccccccccccccccccccccc...................................a
-a.ddddddddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddd.....a
+a.ddddddddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddd.................a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................

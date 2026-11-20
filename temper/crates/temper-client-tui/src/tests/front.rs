@@ -283,11 +283,12 @@ fn the_web_note_wraps_the_latest_link_at_its_own_column() {
     let root = launchpad::home_read(None, &[], false, None);
     let mut tui = front();
     tui.step(Told::BoxLine {
-        line: BoxLine::Link { url: skein_lib::Secret::new(b"http://127.0.0.1:8367/old-link".as_slice().into()) },
+        line: BoxLine::Link {
+            url: skein_lib::Secret::new(b"http://127.0.0.1:8367/sign-in?secret=old".as_slice().into()),
+        },
     });
     tui.step(Told::LinkNotOpened);
-    let link =
-        b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice();
+    let link = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice();
     tui.step(Told::BoxLine { line: BoxLine::Link { url: skein_lib::Secret::new(link.into()) } });
     let mut view = f::view();
     f::build(&mut view, &tui, &root);
@@ -314,7 +315,9 @@ fn the_web_note_wraps_the_latest_link_at_its_own_column() {
     let root = launchpad::home_read(Some(true), &[], false, None);
     tui.step(Told::Brief);
     tui.step(Told::BoxLine {
-        line: BoxLine::Link { url: skein_lib::Secret::new(b"http://127.0.0.1:9367/fresh".as_slice().into()) },
+        line: BoxLine::Link {
+            url: skein_lib::Secret::new(b"http://127.0.0.1:9367/sign-in?secret=fresh".as_slice().into()),
+        },
     });
     f::build(&mut view, &tui, &root);
     f::find(view.tree(), Role::Paragraph, b"From another machine, tunnel port 9367 to this one first.");

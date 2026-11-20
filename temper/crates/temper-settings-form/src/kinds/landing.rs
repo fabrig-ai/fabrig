@@ -5,6 +5,7 @@ use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 use temper_client_protocol_wire::v1::Record;
+mod repairs;
 const MOST: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
 fn number(d: &Decoder<'_>, fields: &Fields, name: &[u8], default: u64) -> Result<u64, Error> {
     match optional(fields, name) {
@@ -68,6 +69,7 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             b"tier_retries",
             b"verification_bound_ms",
             b"wait",
+            b"repairs",
         ],
     )?;
     let by = match text(d, &f, b"by")?.as_deref() {
@@ -95,6 +97,7 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
         let value = w::ProjectLanding {
             by,
             wait,
+            repairs: repairs::read(d, &f)?,
             batch: u16::try_from(number(d, &f, b"batch", 1)?).or(Err(error(b"batch", b"u16 bound")))?,
             combine_main,
             combine_other,
@@ -324,6 +327,10 @@ pub(super) fn render_landing(v: &w::ProjectLanding, out: &mut Encoder) {
     }
     if v.wait != w::SettingsLandingWait::Cleared {
         string(out, b"wait", b"landed");
+    }
+    if let Some(repairs) = &v.repairs {
+        out.key(b"repairs");
+        repairs::render(repairs, out);
     }
     out.object_end();
 }

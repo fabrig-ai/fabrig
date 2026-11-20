@@ -1,5 +1,5 @@
 //! One listener's connections and routed calls (jig/docs/design/protocol/service.md, 11.4).
-use core::net::SocketAddr;
+use core::net::{IpAddr, SocketAddr};
 use skein_http::server as http;
 use skein_io as io;
 use skein_lib::{
@@ -27,18 +27,19 @@ pub enum PeerEnd {
 }
 pub enum Routed {
     Io(io::Request),
-    Call { call: Token, head: http::Call },
+    Call { call: Token, head: http::Call, peer: Option<IpAddr> },
     Http { call: Token, event: http::Event },
 }
 struct Connection {
     socket: Token,
+    peer: Option<IpAddr>,
     http: http::Server,
     events: Queue<http::Event>,
     requests: Queue<http::Request>,
     below: Queue<Down>,
     call: Option<Token>,
     begun: bool,
-    replacement: Option<Token>,
+    replacement: Option<(Token, Option<IpAddr>)>,
     reuse: Option<http::Reuse>,
     closing: bool,
     draining: bool,
@@ -129,7 +130,11 @@ impl Server {
                     self.end_listener(out);
                 }
             }
-            io::Event::Accepted { owner, socket, .. } => {
+            io::Event::Accepted { owner, socket, peer } => {
+                let peer = match peer {
+                    io::Addr::Ip(socket) => Some(socket.ip().to_canonical()),
+                    io::Addr::InProcess(_) => None,
+                };
                 if owner != LISTENER || self.phase != Phase::Active {
                     out.push(Routed::Io(io::Request::Reject { socket }));
                 } else if self.connections.len() == self.connections.capacity() {
@@ -142,13 +147,13 @@ impl Server {
                     }
                     if let Some(owner) = idle {
                         let connection = self.connections.get_mut(&owner).expect("idle connection");
-                        connection.replacement = Some(socket);
+                        connection.replacement = Some((socket, peer));
                         end(connection, false, out);
                     } else {
                         out.push(Routed::Io(io::Request::Reject { socket }));
                     }
                 } else {
-                    self.admit(socket, out);
+                    self.admit(socket, peer, out);
                 }
             }
             io::Event::Stream { owner, up } => {
@@ -181,9 +186,9 @@ impl Server {
                     if let Some(call) = connection.call {
                         out.push(Routed::Http { call, event: http::Event::Closed });
                     }
-                    if let Some(socket) = connection.replacement {
+                    if let Some((socket, peer)) = connection.replacement {
                         if self.phase == Phase::Active {
-                            self.admit(socket, out);
+                            self.admit(socket, peer, out);
                         } else {
                             out.push(Routed::Io(io::Request::Reject { socket }));
                         }
@@ -209,7 +214,7 @@ impl Server {
             | io::Event::Shutdown { .. } => {}
         }
     }
-    fn admit(&mut self, socket: Token, out: &mut Queue<Routed>) {
+    fn admit(&mut self, socket: Token, peer: Option<IpAddr>, out: &mut Queue<Routed>) {
         let owner = self.name();
         let mut requests = Queue::uncapped();
         requests.push(http::Request::Next);
@@ -218,6 +223,7 @@ impl Server {
                 owner,
                 Connection {
                     socket,
+                    peer,
                     http: http::Server::new(&self.env.limits.http),
                     events: Queue::uncapped(),
                     requests,
@@ -394,7 +400,7 @@ impl Server {
             match event {
                 http::Event::Call(head) => {
                     connection.call = Some(call);
-                    out.push(Routed::Call { call, head });
+                    out.push(Routed::Call { call, head, peer: connection.peer });
                 }
                 event @ (http::Event::Ended
                 | http::Event::Body(_)
