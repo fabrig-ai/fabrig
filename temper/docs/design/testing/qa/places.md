@@ -1,6 +1,6 @@
 # Places and copies
 
-Provisional, 2026-11-12, revised 2026-11-16, from
+Provisional, 2026-11-12, revised 2026-11-20, from
 `../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4,
 Q6 and Q7 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
 deployments run, and what each case starts from: a place, a fixed
