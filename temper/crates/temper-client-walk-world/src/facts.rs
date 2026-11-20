@@ -1,7 +1,7 @@
 //! Fixed journey inputs (temper/docs/design/client/journey-walks.md, 3.2).
 
 use skein_lib::Wall;
-use temper_fake::{llm, oauth, backends, credential};
+use temper_fake::{backends, credential, llm, oauth};
 use temper_playground::{documents, stories, story::Start};
 
 pub const SEED: u64 = 7;
@@ -32,11 +32,15 @@ pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     configuration.added_keys = Box::new([skein_lib::Secret::new(bearer.as_slice().into())]);
     start.fakes.llm = llm::recording_peer(configuration).map_err(|why| format!("{why:?}"))?;
     let issuer = serde_json::json!({"listen":{"socket":ISSUER},"redirect_port":1455,"redirect_path":"auth/callback"});
-    start.fakes.issuer = Some(oauth::Document::decode(&serde_json::to_vec(&issuer).expect("issuer JSON"))
-        .map_err(|why| format!("{why:?}"))?);
+    start.fakes.issuer = Some(
+        oauth::Document::decode(&serde_json::to_vec(&issuer).expect("issuer JSON"))
+            .map_err(|why| format!("{why:?}"))?,
+    );
     let peers = backends::Peers {
-        github: documents::FORGE, forgejo: documents::FORGE,
-        oauth: ISSUER.parse().expect("issuer socket"), llm: document.listen(),
+        github: documents::FORGE,
+        forgejo: documents::FORGE,
+        oauth: ISSUER.parse().expect("issuer socket"),
+        llm: document.listen(),
     };
     let providers = backends::providers(&peers).map_err(|why| format!("{why:?}"))?;
     start.deployment["world_settings"]["providers"] = serde_json::from_slice(&providers).expect("providers JSON");

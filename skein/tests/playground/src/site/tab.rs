@@ -38,24 +38,53 @@ impl Host for Browser {
         }
         self.tab.iterate(now, wall);
     }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> { self.tab.completions() }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> { self.tab.submissions() }
-    fn work_pending(&self, now: Time) -> bool { self.allowed || self.tab.work_pending(now) }
-    fn next_mechanism_deadline(&self) -> Option<Time> { self.tab.next_mechanism_deadline() }
-    fn next_policy_deadline(&self) -> Option<Time> { self.tab.next_policy_deadline() }
-    fn is_empty(&self) -> bool { !self.allowed && self.points.is_empty() && self.tab.is_empty() }
-    fn operations(&self) -> u32 { self.tab.operations() }
+    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
+        self.tab.completions()
+    }
+    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
+        self.tab.submissions()
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.allowed || self.tab.work_pending(now)
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.tab.next_mechanism_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.tab.next_policy_deadline()
+    }
+    fn is_empty(&self) -> bool {
+        !self.allowed && self.points.is_empty() && self.tab.is_empty()
+    }
+    fn operations(&self) -> u32 {
+        self.tab.operations()
+    }
 }
-enum Process { Browser(Box<Browser>), Server(Box<Server>) }
+enum Process {
+    Browser(Box<Browser>),
+    Server(Box<Server>),
+}
 impl Delegate for Process {
     fn host(&self) -> &dyn Host {
-        match self { Self::Browser(browser) => browser.as_ref(), Self::Server(server) => server.as_ref() }
+        match self {
+            Self::Browser(browser) => browser.as_ref(),
+            Self::Server(server) => server.as_ref(),
+        }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
-        match self { Self::Browser(browser) => browser.as_mut(), Self::Server(server) => server.as_mut() }
+        match self {
+            Self::Browser(browser) => browser.as_mut(),
+            Self::Server(server) => server.as_mut(),
+        }
     }
 }
-struct Judge<'a> { script: &'a Script, points: VecDeque<usize>, passed: bool, now: Time, wake: bool }
+struct Judge<'a> {
+    script: &'a Script,
+    points: VecDeque<usize>,
+    passed: bool,
+    now: Time,
+    wake: bool,
+}
 fn browser(processes: &[Process]) -> &Browser {
     processes.iter().find_map(|p| if let Process::Browser(b) = p { Some(b.as_ref()) } else { None }).expect("tab")
 }
@@ -65,17 +94,22 @@ fn requests(processes: &[Process]) -> usize {
 impl Referee<Process> for Judge<'_> {
     fn act(&mut self, _: Time, processes: &mut [Process]) {
         let ready = processes.iter().all(|p| match p {
-            Process::Server(server) => server.listening(), Process::Browser(_) => true,
+            Process::Server(server) => server.listening(),
+            Process::Browser(_) => true,
         });
         if ready && self.points.front().is_some_and(|count| *count <= requests(processes)) {
             self.points.pop_front();
             for process in processes.iter_mut() {
-                if let Process::Browser(browser) = process { browser.allowed = true; }
+                if let Process::Browser(browser) = process {
+                    browser.allowed = true;
+                }
             }
         }
         if self.passed {
             for process in processes {
-                if let Process::Server(server) = process { server.stop = true; }
+                if let Process::Server(server) = process {
+                    server.stop = true;
+                }
             }
         }
     }
@@ -85,9 +119,12 @@ impl Referee<Process> for Judge<'_> {
         let seen = requests(processes);
         self.wake = self.points.front().is_some_and(|count| *count <= seen)
             && processes.iter().all(|p| match p {
-                Process::Server(server) => server.listening(), Process::Browser(_) => true,
+                Process::Server(server) => server.listening(),
+                Process::Browser(_) => true,
             });
-        if seen > self.script.requests { return Err(format!("unexpected request {seen}")); }
+        if seen > self.script.requests {
+            return Err(format!("unexpected request {seen}"));
+        }
         if self.points.is_empty() && browser.is_empty() {
             if browser.tab.shown() != self.script.expected.as_ref() {
                 return Err(format!("shown {:?}, expected {:?}", browser.tab.shown(), self.script.expected));
@@ -97,19 +134,31 @@ impl Referee<Process> for Judge<'_> {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.passed || self.wake { Some(self.now) }
-        else if self.script.until > self.now { Some(self.script.until) }
-        else { Some(Time::from_nanos(2_000_000_000)) }
+        if self.passed || self.wake {
+            Some(self.now)
+        } else if self.script.until > self.now {
+            Some(self.script.until)
+        } else {
+            Some(Time::from_nanos(2_000_000_000))
+        }
     }
     fn overdue(&self, now: Time) -> Option<String> {
         (now >= Time::from_nanos(2_000_000_000) && !self.passed).then(|| "tab expectations unmet".into())
     }
-    fn passed(&self) -> bool { self.passed }
+    fn passed(&self) -> bool {
+        self.passed
+    }
 }
 
 /// Runs only simulated sockets, with the same memory checks as the visitor's tests.
 pub fn run(script: &Script) {
-    let judge = Judge { script, points: script.points.iter().map(|p| p.requests).collect(), passed: false, now: Time::ZERO, wake: false };
+    let judge = Judge {
+        script,
+        points: script.points.iter().map(|p| p.requests).collect(),
+        passed: false,
+        now: Time::ZERO,
+        wake: false,
+    };
     let mut world = World::new(7, skein_sim::Config::calm(), judge, Memory::Checked);
     for (address, routes) in &script.hosts {
         world.spawn(|| {
@@ -122,7 +171,8 @@ pub fn run(script: &Script) {
         let config = config();
         Process::Browser(Box::new(Browser {
             tab: Tab::new(&config.io, &config.http, script.bound),
-            points: script.points.iter().map(|p| p.to.clone()).collect(), allowed: false,
+            points: script.points.iter().map(|p| p.to.clone()).collect(),
+            allowed: false,
         }))
     });
     let outcome = world.run();

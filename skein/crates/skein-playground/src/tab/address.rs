@@ -9,7 +9,9 @@ pub(super) struct Address {
 
 pub(super) fn parse(address: &[u8]) -> Option<Address> {
     let text = core::str::from_utf8(address).ok()?;
-    if text.bytes().any(|b| b.is_ascii_control() || b == b' ' || b == b'\\') { return None; }
+    if text.bytes().any(|b| b.is_ascii_control() || b == b' ' || b == b'\\') {
+        return None;
+    }
     let rest = text.strip_prefix("http://")?;
     let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
     let authority = rest.get(..end).expect("authority ends inside address");
@@ -34,10 +36,13 @@ pub(super) fn resolve(base: &[u8], location: &[u8]) -> Option<Box<[u8]>> {
         let origin = format!("http://{}", rest.get(..end).expect("authority ends inside address"));
         let path = rest.get(end..).expect("path starts inside address").split('#').next()?;
         let path = if path.is_empty() { "/" } else { path };
-        if location.starts_with('/') { format!("{origin}{location}") }
-        else if location.starts_with('?') { format!("{origin}{}{location}", path.split('?').next()?) }
-        else if location.starts_with('#') || location.is_empty() { format!("{origin}{path}{location}") }
-        else {
+        if location.starts_with('/') {
+            format!("{origin}{location}")
+        } else if location.starts_with('?') {
+            format!("{origin}{}{location}", path.split('?').next()?)
+        } else if location.starts_with('#') || location.is_empty() {
+            format!("{origin}{path}{location}")
+        } else {
             let directory = path.split('?').next()?.rsplit_once('/').map_or("", |(dir, _)| dir);
             format!("{origin}{directory}/{location}")
         }
@@ -50,13 +55,27 @@ pub(super) fn resolve(base: &[u8], location: &[u8]) -> Option<Box<[u8]>> {
     let mut parts = path.split('/').peekable();
     while let Some(part) = parts.next() {
         match part {
-            "." => { if parts.peek().is_none() { segments.push(""); } }
-            ".." => { if segments.len() > 1 { segments.pop(); }
-                if parts.peek().is_none() { segments.push(""); } }
+            "." => {
+                if parts.peek().is_none() {
+                    segments.push("");
+                }
+            }
+            ".." => {
+                if segments.len() > 1 {
+                    segments.pop();
+                }
+                if parts.peek().is_none() {
+                    segments.push("");
+                }
+            }
             part => segments.push(part),
         }
     }
     let path = segments.join("/");
     let query = query.map_or_else(String::new, |q| format!("?{q}"));
-    Some(format!("http://{}{path}{query}", core::str::from_utf8(&parsed.authority).ok()?).into_bytes().into_boxed_slice())
+    Some(
+        format!("http://{}{path}{query}", core::str::from_utf8(&parsed.authority).ok()?)
+            .into_bytes()
+            .into_boxed_slice(),
+    )
 }

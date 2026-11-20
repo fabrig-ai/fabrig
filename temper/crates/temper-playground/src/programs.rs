@@ -10,8 +10,8 @@ use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
 use skein_sim_world::{HostedProgram, Inherited, StartupRoot, StartupRoots};
 use std::{cell::RefCell, rc::Rc};
-mod shell;
 mod issuer;
+mod shell;
 pub use issuer::Issuer;
 pub use shell::Shell;
 
@@ -280,10 +280,18 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     let mut given = H::given(&document);
     if let Some(providers) = document["world_settings"].get("providers") {
         let bytes = serde_json::to_vec(providers).expect("walk providers");
-        let parsed = jig_protocol_config::document(&bytes, &jig_protocol_config::DocumentLimits { bytes: temper_fake::DOCUMENT_BYTES, tokens: 65_536, depth: 32 }).expect("walk provider document");
+        let parsed = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: temper_fake::DOCUMENT_BYTES, tokens: 65_536, depth: 32 },
+        )
+        .expect("walk provider document");
         let values = jig_protocol_config::llm::providers_setting(
-            &parsed, 0, &jig_protocol_config::Path::root(), &mut jig_protocol_config::Problems::empty(),
-        ).expect("walk providers");
+            &parsed,
+            0,
+            &jig_protocol_config::Path::root(),
+            &mut jig_protocol_config::Problems::empty(),
+        )
+        .expect("walk providers");
         given = given.with_providers(values, Box::new([]));
     }
     let typed_document = document.clone();

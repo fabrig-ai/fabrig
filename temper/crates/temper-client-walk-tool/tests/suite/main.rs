@@ -284,7 +284,9 @@ web mark
 #[test]
 fn sign_in_reaches_ready_and_prints_the_same_bytes_twice() {
     let f = Fixture::new();
-    f.journey("sign-in", r#"walk 2
+    f.journey(
+        "sign-in",
+        r#"walk 2
 web press link "Set up temper"
 web press link "Run on this machine"
 web press button "Run on this machine"
@@ -292,7 +294,8 @@ web press button "Continue with ChatGPT"
 web see "Ready"
 web see "Everything is connected."
 web mark
-"#);
+"#,
+    );
     let a = f.root().join("a");
     let b = f.root().join("b");
     ok(&f.print(&a, &["sign-in"]));

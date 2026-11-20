@@ -532,7 +532,9 @@ impl Page {
                     let config = temper_playground::documents::visitor(&parameters.deployment);
                     self.tab = Some(self.memory.slices_mut().world_mut().spawn(|| {
                         Process::Other(Native::Tab(Box::new(skein_playground::tab::Tab::new(
-                            &config.io, &config.http, config.http.head,
+                            &config.io,
+                            &config.http,
+                            config.http.head,
                         ))))
                     }));
                 }
@@ -553,7 +555,9 @@ impl Page {
         let duties = self.host.report(report);
         // As in the shipped carrier, tab acts precede the sign-in transport.
         // Opening a simulated tab is never refused, so no TabRefused is reported.
-        for act in duties.tab { self.carry_tab(act); }
+        for act in duties.tab {
+            self.carry_tab(act);
+        }
         if let Some(look) = duties.keep_look {
             // The native page keeps the look in its small store, alongside the session.
             self.store.write(temper_client_shell_web::records::LOOK_KEY, &look, &mut self.memory).ok();

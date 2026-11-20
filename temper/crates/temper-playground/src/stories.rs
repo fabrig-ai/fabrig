@@ -59,7 +59,13 @@ impl Story {
         let (peer, shared) = forge::peer(&forge, &token, seeds.forge).expect("story's forge peer");
         let (_, table) = forge.seed(seeds.forge);
         let forge = temper_fake_git::Typed::new(shared, &table);
-        Start { seed, wall, deployment: self.configuration(), fakes: Fakes { llm, forge, peer, issuer: None }, links: Links::Print }
+        Start {
+            seed,
+            wall,
+            deployment: self.configuration(),
+            fakes: Fakes { llm, forge, peer, issuer: None },
+            links: Links::Print,
+        }
     }
 }
 

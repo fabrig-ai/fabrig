@@ -2,12 +2,12 @@
 mod address;
 mod connection;
 
+use alloc::collections::BTreeMap;
 use connection::Connection;
 use skein_http::client as http;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_shell::Host;
-use alloc::collections::BTreeMap;
 
 /// The last answer, including a visit that failed before receiving an HTTP status (zero).
 #[derive(Debug, PartialEq, Eq)]
@@ -44,10 +44,20 @@ impl Tab {
         assert!(http::largest_room(http) <= io.largest_room(), "HTTP writes fit io");
         let operations = io::operations(io).expect("bounded io");
         Self {
-            io: io::Io::new(io), limits: *io, http: *http, bound: body,
-            events: Queue::uncapped(), requests: Queue::uncapped(),
-            submissions: Queue::with_capacity(operations), completions: Queue::with_capacity(operations),
-            connections: BTreeMap::new(), serial: 0, current: None, pending: None, shown: None, redirects: 0,
+            io: io::Io::new(io),
+            limits: *io,
+            http: *http,
+            bound: body,
+            events: Queue::uncapped(),
+            requests: Queue::uncapped(),
+            submissions: Queue::with_capacity(operations),
+            completions: Queue::with_capacity(operations),
+            connections: BTreeMap::new(),
+            serial: 0,
+            current: None,
+            pending: None,
+            shown: None,
+            redirects: 0,
         }
     }
 
@@ -78,7 +88,7 @@ impl Tab {
             return;
         };
         // Replacement waits for its predecessor's abort to reclaim the socket.
-        if self.connections.len() >= usize::try_from(self.limits.sockets).expect("socket count") {
+        if self.connections.len() >= skein_lib::length::usize_of(self.limits.sockets) {
             self.pending = Some(self.shown.take().expect("visit").address);
             return;
         }
@@ -113,9 +123,15 @@ impl Tab {
                 self.failed(owner);
                 self.connections.remove(&owner);
             }
-            io::Event::Listening { .. } | io::Event::Accepted { .. } | io::Event::Output { .. }
-            | io::Event::Spawned { .. } | io::Event::Exited { .. } | io::Event::Usage { .. }
-            | io::Event::Resized | io::Event::Window { .. } | io::Event::Shutdown { .. } => {}
+            io::Event::Listening { .. }
+            | io::Event::Accepted { .. }
+            | io::Event::Output { .. }
+            | io::Event::Spawned { .. }
+            | io::Event::Exited { .. }
+            | io::Event::Usage { .. }
+            | io::Event::Resized
+            | io::Event::Window { .. }
+            | io::Event::Shutdown { .. } => {}
         }
     }
 }
@@ -125,7 +141,9 @@ impl Host for Tab {
         let http_env = Env { now, wall, limits: self.http };
         io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..self.events.len() {
-            if let Some(event) = self.events.pop() { self.event(event, &http_env); }
+            if let Some(event) = self.events.pop() {
+                self.event(event, &http_env);
+            }
         }
         if let Some(owner) = self.current {
             let connection = self.connections.get_mut(&owner).expect("current connection");
@@ -149,21 +167,42 @@ impl Host for Tab {
                 }
             }
         }
-        if let Some(address) = self.pending.take() { self.open(address); }
+        if let Some(address) = self.pending.take() {
+            self.open(address);
+        }
         io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> { &mut self.completions }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> { &mut self.submissions }
+    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
+        &mut self.completions
+    }
+    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
+        &mut self.submissions
+    }
     fn work_pending(&self, _: Time) -> bool {
-        self.io.is_ready() || !self.events.is_empty() || !self.requests.is_empty() || !self.completions.is_empty()
-            || self.pending.is_some() || self.connections.values().any(Connection::work_pending)
+        self.io.is_ready()
+            || !self.events.is_empty()
+            || !self.requests.is_empty()
+            || !self.completions.is_empty()
+            || self.pending.is_some()
+            || self.connections.values().any(Connection::work_pending)
     }
-    fn next_mechanism_deadline(&self) -> Option<Time> { self.io.next_deadline() }
-    fn next_policy_deadline(&self) -> Option<Time> { None }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        None
+    }
     fn is_empty(&self) -> bool {
-        self.io.is_empty() && self.events.is_empty() && self.requests.is_empty() && self.submissions.is_empty()
-            && self.completions.is_empty() && self.connections.is_empty() && self.pending.is_none()
+        self.io.is_empty()
+            && self.events.is_empty()
+            && self.requests.is_empty()
+            && self.submissions.is_empty()
+            && self.completions.is_empty()
+            && self.connections.is_empty()
+            && self.pending.is_none()
     }
-    fn operations(&self) -> u32 { io::operations(&self.limits).expect("bounded io") }
+    fn operations(&self) -> u32 {
+        io::operations(&self.limits).expect("bounded io")
+    }
 }
