@@ -189,7 +189,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
   - *`Start { kept }`:* the small store's records, as the host loaded
     them, before any other event (section 8);
   - *`SignIn { with }` and `SignOut`* (section 9);
-  - *`AskApproval`, `ReadApproval { code }` and `DecideApproval { code,
+  - *`AskApproval { port }`, `ReadApproval { code }` and `DecideApproval { code,
     approve }`:* an approval's ask, read and decision (section 9);
   - *`AskLink`:* an asked link's ask (section 9);
   - *`Watch { handle, subject, window }` and `Unwatch { handle }`:* a
@@ -521,12 +521,16 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
     waits for no room, and is never answered full;
   - *`Service(credential)`:* a service's credential, sent the same way,
     and answered with a sign-in's credential, held the same way;
-  - *`Approval { secret }`:* an approval's take, its secret the one
-    `Asked` gave (below), sent with no credential. Answered signed in,
+  - *`Approval { secret, grant }`:* an approval's take, its secret the
+    one `Asked` gave (below), and `grant` the grant its loopback return
+    brought, or none, sent with no credential. Answered signed in,
     the client holds the credential the answer gives, as a link's. While
     it is answered waiting, the client sends the same take again by
     itself after a second, `APPROVAL_AGAIN`, and tells `not_signed_in`
-    `Approval(Waiting)`; not ready, busy and lost take the backoff a
+    `Approval(Waiting)`; answered `not_granted`, a grant that doesn't
+    match, it tells `not_signed_in` `Approval(NotGranted)` and sends the
+    take again after a second without the grant, as while it waits, the
+    approval left as it was or ended by then; not ready, busy and lost take the backoff a
     link's sign-in takes, and `not_signed_in` says not ready for not
     ready and busy for busy and for lost, so its application tells a
     lost take from one not yet answered. Any other answer ends it,
@@ -551,18 +555,24 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
 - **An approval, asked and decided** (`../../../protocol/client/sign-in.md`
   ), each one exchange whose one answer the client tells the
   application, `Approval`, and keeps nothing of:
-  - *`AskApproval`,* sent with no credential, by a client signed out:
+  - *`AskApproval { port }`,* sent with no credential, by a client
+    signed out, `port` its loopback return, `Option<u16>`, or none:
     `Asked { secret, code, expires }`, the secret the application's to
-    give back in `Approval { secret }` and never show, the code to
-    show; or `NotAsked`, refused, not ready, busy or lost;
+    give back in `Approval { secret, grant }` and never show, the code
+    to show; or `NotAsked`, refused, not ready, busy or lost;
   - *`ReadApproval { code }` and `DecideApproval { code, approve }`,*
     sent with the credential held, or none under `Transport`, by a
-    browser's client: `Read { code, state }`, the approval waiting
-    with when it was asked, approved, taken, refused, expired or
-    unknown; `Decided { code, decided }`, approved, refused, used,
-    expired or unknown; either not a browser, signed out, not ready,
-    busy or lost. Answered signed out, the client is signed out, as by
-    any exchange (below);
+    browser's client: `Read { code, state }`, the approval waiting,
+    `Waiting { asked, kind, source, reader }`, with when it was asked,
+    its kind, the wire's `ApprovalKind`, its source and the reader's,
+    each an `Option<IpAddr>`, an IPv4-mapped address read as its IPv4
+    one; approved, taken, refused, expired or unknown; `Decided { code,
+    decided }`, approved, `Approved { loopback }`, its loopback return's
+    `Loopback { port, grant }` where the ask named one, the grant a
+    `Secret` the application hands to the deciding browser alone and
+    never shows or logs, refused, used, expired or unknown; either not
+    a browser, signed out, not ready, busy or lost. Answered signed
+    out, the client is signed out, as by any exchange (below);
   - *the code* is `ApprovalCode`, the wire's (`../../../protocol/client/sign-in.md`
     ): eight letters of its alphabet, read from what a person
     types or an address carries, either case, hyphens and spaces

@@ -3,7 +3,7 @@ use super::fixtures::{FILE_PARENT, Frame, TOKEN_BYTES};
 use jig_client_protocol_wire::LinkAskAnswer;
 use skein_io::kernel::{Error, Exit, Kind, OpenHow};
 use skein_lib::Duration;
-const URL: &[u8] = b"http://127.0.0.1:4000/jig/v1/sign-in/link?secret=__________________________________________8\n";
+const URL: &[u8] = b"http://127.0.0.1:4000/sign-in?secret=__________________________________________8\n";
 fn link() -> Frame {
     Frame::read(&["link", "--out", "record"])
 }
@@ -44,6 +44,25 @@ fn link_writes_the_private_url_and_waits_for_durable_success() {
         }
         no_leak(&f);
     }
+}
+#[test]
+fn an_asked_link_signs_in_another_directory() {
+    let mut asked = link();
+    asked.answer_sign_in_then_me();
+    assert_eq!(asked.record_data, URL);
+    let mut signed = Frame::sign_in(URL);
+    signed.answer_sign_in_then_me();
+    signed.store_token_with_address();
+    assert_eq!(signed.exit(), Some(Exit::Code(0)));
+    assert_eq!(signed.stored(b"token"), Some(TOKEN_BYTES));
+    assert_eq!(signed.stored(b"address"), Some(b"http://127.0.0.1:4000\n".as_slice()));
+    assert_eq!(signed.link_posts.len(), 1);
+    let record = jig_client_protocol_wire::LinkSignIn::decode(
+        &jig_client_protocol_wire::CEILINGS,
+        &mut skein_lib::Reader::new(&signed.link_posts[0]),
+    )
+    .expect("sign-in record");
+    assert_eq!(record.secret().expose(), &[255; 32]);
 }
 #[test]
 fn link_refuses_an_existing_output_before_sending() {
@@ -96,10 +115,7 @@ fn link_uses_the_directory_address_including_ipv6() {
     f.address = b"http://[::1]:4100\n";
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
-    assert_eq!(
-        f.record_data,
-        b"http://[::1]:4100/jig/v1/sign-in/link?secret=__________________________________________8\n"
-    );
+    assert_eq!(f.record_data, b"http://[::1]:4100/sign-in?secret=__________________________________________8\n");
     no_leak(&f);
 }
 #[test]

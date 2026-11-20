@@ -8,6 +8,7 @@ use crate::{Address, ModelWay, Step, WayKind};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 mod login;
 pub use login::LoginState;
@@ -241,8 +242,7 @@ impl ConnectModel {
         *next = next.checked_add(1).expect("pages handles fit");
         self.environment_read = Some(handle);
         self.environment_asked = true;
-        let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::ProgramEnvironment })
-            .expect("fieldless program environment read");
+        let record = w::Reading { read: w::Read::ProgramEnvironment };
         out.push(Output::Client(jig_client::Event::Read {
             handle,
             read: Readable::Family {
@@ -251,7 +251,7 @@ impl ConnectModel {
                 record: jig_client::Family {
                     family: wire::FORGE,
                     version: wire::CLIENT_VERSION,
-                    bytes: wire::reading(&record),
+                    bytes: record.encode(&w::CEILINGS).expect("fieldless program environment read"),
                 },
             },
         }));
@@ -263,7 +263,7 @@ impl ConnectModel {
                 self.program_environment = match page {
                     Readout::Family { family, record: Some(record) } if *family == wire::FORGE => {
                         match wire::decode_program_environment_answer(record, &w::CEILINGS) {
-                            Some(record) => Some(record.into_parts().environment),
+                            Some(record) => Some(record.environment),
                             None => None,
                         }
                     }

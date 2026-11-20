@@ -799,8 +799,8 @@ fn history_is_project_private_survives_change_eviction_and_adds_nothing_public()
             )
             .expect("encoded history");
             let page = wire::decode_history_answer(&bytes, &wire::v1::CEILINGS).expect("wire history");
-            let wire::v1::HistoryReply::Page(page) = page.result() else { panic!("wire page") };
-            assert_eq!(page.events().len(), 1);
+            let wire::v1::HistoryReply::Page(page) = &page.result else { panic!("wire page") };
+            assert_eq!(page.events.len(), 1);
         } else {
             assert_eq!(
                 *answer,

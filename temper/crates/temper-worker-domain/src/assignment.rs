@@ -89,7 +89,10 @@ fn repository(repository: &Repository, limits: &Limits) -> Result<(), &'static [
             }
             Ok(())
         }
-        Access::Writable { push, landing, .. } => {
+        Access::Writable { push, landing, pin, .. } => {
+            if pin.is_some() && landing.is_some() {
+                return Err(b"repository pin and landing");
+            }
             if let Some(branch) = landing
                 && !name(branch, limits)
             {

@@ -344,6 +344,7 @@ fn amend(world: &mut World, task: u64, dependencies: &[u64], seen: &mut BTreeSet
         | Reply::Lifted { .. }
         | Reply::Acknowledged(_)
         | Reply::Turn(_)
+        | Reply::WordsRecorded { .. }
         | Reply::WriterWaiting(_)) => {
             panic!("unexpected amendment reply: {reply:?}");
         }
@@ -378,6 +379,7 @@ fn control(world: &mut World, operation: TaskOperation) {
         | Reply::Refused(_)
         | Reply::Acknowledged(_)
         | Reply::Turn(_)
+        | Reply::WordsRecorded { .. }
         | Reply::WriterWaiting(_)) => {
             panic!("unexpected control reply: {reply:?}");
         }
@@ -430,6 +432,7 @@ fn compound(world: &mut World, operations: Vec<TaskOperation>, seen: &mut BTreeS
         | Reply::Lifted { .. }
         | Reply::Acknowledged(_)
         | Reply::Turn(_)
+        | Reply::WordsRecorded { .. }
         | Reply::WriterWaiting(_)) => {
             panic!("unexpected compound reply: {reply:?}");
         }
@@ -459,6 +462,7 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
                     | Reply::Refused(_)
                     | Reply::Acknowledged(_)
                     | Reply::Turn(_)
+                    | Reply::WordsRecorded { .. }
                     | Reply::WriterWaiting(_)) => {
                         panic!("unexpected claim reply: {reply:?}");
                     }
@@ -504,6 +508,7 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
                     | Reply::Refused(_)
                     | Reply::Acknowledged(_)
                     | Reply::Turn(_)
+                    | Reply::WordsRecorded { .. }
                     | Reply::WriterWaiting(_)) => {
                         panic!("unexpected terminal reply: {reply:?}");
                     }

@@ -249,6 +249,15 @@ impl Record for WorkerOpening {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::WORKER_OPENING_VERSION)?;
         field::write(field::Text { limit: limits.worker_opening_worker.min(CEILINGS.worker_opening_worker) }, &self.worker, limits, out, paths::WORKER_OPENING_WORKER)?;

@@ -12,7 +12,7 @@ pub(super) fn take_answer(answer: &w::ApprovalSignInAnswer) -> Box<[u8]> {
     bytes.finish()
 }
 pub(super) fn taking() -> With {
-    With::Approval { secret: Secret::new(Box::new([7; 32])) }
+    With::Approval { secret: Secret::new(Box::new([7; 32])), grant: None }
 }
 #[test]
 fn an_approval_is_asked_read_and_decided_once_each() {
@@ -23,16 +23,23 @@ fn an_approval_is_asked_read_and_decided_once_each() {
         if let Some(with) = with {
             c.step(Event::SignIn { with });
         }
-        for (event, expected) in [
-            (Event::AskApproval, Approval::NotAsked(NotAsked::Refused)),
-            (Event::ReadApproval { code: code() }, Approval::Read { code: code(), state: ApprovalState::Approved }),
+        for (event, expected, port) in [
+            (Event::AskApproval { port: None }, Approval::NotAsked(NotAsked::Refused), None),
+            (Event::AskApproval { port: Some(43210) }, Approval::NotAsked(NotAsked::Refused), Some(43210)),
+            (
+                Event::ReadApproval { code: code() },
+                Approval::Read { code: code(), state: ApprovalState::Approved },
+                None,
+            ),
             (
                 Event::DecideApproval { code: code(), approve: true },
-                Approval::Decided { code: code(), decided: Decided::Approved },
+                Approval::Decided { code: code(), decided: Decided::Approved { loopback: None } },
+                None,
             ),
             (
                 Event::DecideApproval { code: code(), approve: false },
                 Approval::Decided { code: code(), decided: Decided::Refused },
+                None,
             ),
         ] {
             c.step(event);
@@ -41,7 +48,9 @@ fn an_approval_is_asked_read_and_decided_once_each() {
             };
             let exchange = *exchange;
             let body = match message {
-                Message::ApprovalAsk(_) => {
+                Message::ApprovalAsk(body) => {
+                    let record = w::ApprovalAsk::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
+                    assert_eq!(record.port(), &port);
                     assert_eq!(credential, &None);
                     Box::from([1])
                 }
@@ -54,9 +63,9 @@ fn an_approval_is_asked_read_and_decided_once_each() {
                     let record = w::ApprovalDecide::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
                     assert_eq!(
                         record.approve(),
-                        expected == (Approval::Decided { code: code(), decided: Decided::Approved })
+                        expected == (Approval::Decided { code: code(), decided: Decided::Approved { loopback: None } })
                     );
-                    if record.approve() { Box::from([0]) } else { Box::from([1]) }
+                    if record.approve() { Box::from([0, 0]) } else { Box::from([1]) }
                 }
                 other @ (Message::LinkAsk(_)
                 | Message::Authorize(_)
@@ -129,14 +138,20 @@ fn an_approval_lost_or_signed_out_has_one_answer() {
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the canary exercises compact and pretty Debug on client boundaries")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one canary visits compact and pretty approval prints across the client boundaries"
+)]
 fn no_print_of_an_approval_shows_its_secret() {
     const CANARY: &[u8] = b"approval-secret-canary-0123456789";
+    const GRANT_CANARY: &[u8; 32] = b"approval-grant-canary-0123456789";
     const CREDENTIAL_CANARY: &[u8; 40] = b"approval-credential-canary-0123456789abc";
-    // At most forty compact and pretty boundary snapshots.
-    const PRINTS: u32 = 40;
+    // Compact and pretty boundary snapshots, including a returned grant.
+    const PRINTS: u32 = 60;
     let secret = || Secret::new(Box::from(CANARY));
     let mut c = Client::new();
-    let event = Event::SignIn { with: With::Approval { secret: secret() } };
+    let event =
+        Event::SignIn { with: With::Approval { secret: secret(), grant: Some(Secret::new(Box::new(*GRANT_CANARY))) } };
     let mut prints = skein_lib::List::with_capacity(PRINTS);
     prints.push(format!("{event:?}")).unwrap();
     prints.push(format!("{event:#?}")).unwrap();
@@ -186,7 +201,9 @@ fn no_print_of_an_approval_shows_its_secret() {
     )
     .unwrap();
     let mut out = skein_lib::Queue::uncapped();
-    let event = jig_client_protocol_link::Event::SignIn { with: With::Approval { secret: secret() } };
+    let event = jig_client_protocol_link::Event::SignIn {
+        with: With::Approval { secret: secret(), grant: Some(Secret::new(Box::new(*GRANT_CANARY))) },
+    };
     for print in [format!("{event:?}"), format!("{event:#?}")] {
         prints.push(print).unwrap();
     }
@@ -208,12 +225,63 @@ fn no_print_of_an_approval_shows_its_secret() {
     for print in [format!("{heard:?}"), format!("{heard:#?}")] {
         prints.push(print).unwrap();
     }
+    let returned = || Approval::Decided {
+        code: code(),
+        decided: Decided::Approved {
+            loopback: Some(Loopback { port: 43210, grant: Secret::new(Box::new(*GRANT_CANARY)) }),
+        },
+    };
+    let event = Event::ApprovalAnswer { answer: returned() };
+    let request = Request::Approval(returned());
+    let unlinked = UnlinkedRequest::Approval(returned());
+    let link_request = jig_client_protocol_link::Request::Approval(returned());
+    for print in [
+        format!("{event:?}"),
+        format!("{event:#?}"),
+        format!("{request:?}"),
+        format!("{request:#?}"),
+        format!("{unlinked:?}"),
+        format!("{unlinked:#?}"),
+        format!("{link_request:?}"),
+        format!("{link_request:#?}"),
+    ] {
+        prints.push(print).unwrap();
+    }
     for print in &prints {
-        for canary in [CANARY, CREDENTIAL_CANARY.as_slice()] {
+        for canary in [CANARY, CREDENTIAL_CANARY.as_slice(), GRANT_CANARY.as_slice()] {
             assert!(skein_lib::bytes::find(print.as_bytes(), canary).is_none(), "{print}");
             let normalized = print.replace([' ', '\n', '\r', '\t'], "");
             let numbers = format!("{canary:?}").replace(' ', "");
             assert!(!normalized.contains(numbers.trim_matches(['[', ']'])), "secret bytes in {print}");
         }
+    }
+}
+
+#[test]
+fn a_waiting_take_keeps_its_grant_and_not_granted_drops_only_the_grant() {
+    let mut c = Client::new();
+    c.step(Event::SignIn {
+        with: With::Approval { secret: Secret::new(Box::new([7; 32])), grant: Some(Secret::new(Box::new([9; 32]))) },
+    });
+    for (turn, answer, grant) in [
+        (0, w::ApprovalSignInAnswer::Waiting, Some(Secret::new(Box::new([9; 32])))),
+        (1, w::ApprovalSignInAnswer::NotGranted, None),
+        (2, w::ApprovalSignInAnswer::Waiting, None),
+    ] {
+        let now = Time::ZERO.saturating_add(APPROVAL_AGAIN.saturating_mul(turn));
+        let taking = if answer == w::ApprovalSignInAnswer::NotGranted { Taking::NotGranted } else { Taking::Waiting };
+        c.step_at(now, Event::Reply { exchange: c.exchange(), message: take_answer(&answer) });
+        assert_eq!(c.machine.link().not_signed_in, Some(NotSignedIn::Approval(taking)));
+        let until = now.saturating_add(APPROVAL_AGAIN);
+        assert_eq!(c.machine.next_deadline(), Some(until));
+        c.fire(Time::from_nanos(until.as_nanos().checked_sub(1).unwrap()));
+        assert_eq!(c.requests(), []);
+        c.fire(until);
+        let [Request::Exchange { message: Message::SignInApproval(body), credential: None, .. }] = c.requests() else {
+            panic!("one unsigned repeated take")
+        };
+        let record = w::ApprovalSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
+        assert_eq!(record.secret().expose(), &[7; 32]);
+        assert_eq!(record.grant(), &grant);
     }
 }

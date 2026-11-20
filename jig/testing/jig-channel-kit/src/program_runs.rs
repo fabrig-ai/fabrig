@@ -9,6 +9,7 @@ use crate::{
 };
 use jig_domain_core as core;
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_fake_machine::{How, Item};
 use skein_io::kernel;
 use skein_lib::{Duration, Reader, Secret, Time};
@@ -277,16 +278,16 @@ impl Run {
             if *kind == wire::Kind::Assignment.number() {
                 let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(body))
                     .map_err(|why| format!("assignment: {why:?}"))?;
-                for message in assignment.messages() {
-                    self.messages.push((assignment.attempt(), message.name(), message.words().to_vec()));
+                for message in &assignment.messages {
+                    self.messages.push((assignment.attempt, message.name, message.words.as_ref().to_vec()));
                 }
-                for grant in assignment.grants() {
-                    if let wire::GrantValue::Program(value) = grant.value() {
+                for grant in &assignment.grants {
+                    if let wire::GrantValue::Program(value) = &grant.value {
                         self.grants.push((
-                            assignment.attempt(),
-                            grant.number(),
-                            grant.generation(),
-                            value.name().to_vec(),
+                            assignment.attempt,
+                            grant.number,
+                            grant.generation,
+                            value.name.as_ref().to_vec(),
                         ));
                     }
                 }
@@ -553,8 +554,8 @@ fn waiting_on(procs: &[Proc], attempt: u64) -> Result<bool, String> {
                 if *kind == wire::Kind::Fact.number() {
                     let fact = wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body))
                         .map_err(|why| format!("fact: {why:?}"))?;
-                    if fact.attempt() == attempt
-                        && matches!(fact.value(),wire::FactValue::Phase(phase) if *phase.value()==wire::Phase::Waiting)
+                    if fact.attempt == attempt
+                        && matches!( &fact.value,wire::FactValue::Phase(phase) if phase.value==wire::Phase::Waiting)
                     {
                         return Ok(true);
                     }

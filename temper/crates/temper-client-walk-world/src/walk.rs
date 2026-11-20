@@ -1,18 +1,28 @@
 //! Walk a root-first chain in one world (temper/docs/design/client/journey-walks.md, 4).
 use crate::{
     facts,
+    tui::Terminal,
     web::{Failed, Page},
 };
 use skein_fake_person::{Face, Find, Found, TreeFace};
 use skein_lib::Duration;
 use skein_ui::{Act, Role, Tree};
+use skein_ui_screen_terminal::Key;
+use temper_client_shell_tui::journey;
+use temper_client_tui::Event;
 use temper_client_walk_lines::{
-    line::{Record, Web},
+    line::{Record, Tui, Web},
     print::{self, Lead, Mark},
-    walk::{Numbered, Walk},
+    walk::{Client, Numbered, Walk},
 };
 
 const WITHIN: Duration = Duration::from_secs(60);
+const TUI_WITHIN: Duration = Duration::from_secs(30);
+
+pub enum Marks {
+    Web(Vec<Mark>),
+    Tui(Vec<journey::Mark>),
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Stopped {
@@ -27,7 +37,7 @@ impl std::fmt::Display for Stopped {
 }
 
 /// Execute all lines; a stop returns no marks.
-pub fn walk(walk: &Walk) -> Result<Vec<Mark>, Stopped> {
+pub fn walk(walk: &Walk) -> Result<Marks, Stopped> {
     let Some(last) = walk.chain.last() else {
         return Err(Stopped { journey: String::new(), line: 0, why: "empty walk".into() });
     };
@@ -49,24 +59,60 @@ pub fn walk(walk: &Walk) -> Result<Vec<Mark>, Stopped> {
         facts::start(any.then_some(scripts.as_ref())).map_err(|why| stop(format!("the world failed: {why}")))?;
     let mut page = Page::start(start, last.name.as_bytes())
         .map_err(|why| stop(failed(why, "the main region not drawn within 60 s")))?;
-    let mut marks = Vec::new();
+    let mut web_marks = Vec::new();
+    let mut tui_marks = Vec::new();
     for (index, journey) in walk.chain.iter().enumerate() {
         for (at, numbered) in journey.lines.iter().enumerate() {
-            if numbered.line.record() == &Record::Web(Web::Mark) {
-                if index + 1 == walk.chain.len() {
-                    let (acted, lead) = link(page.tree(), &journey.lines[at + 1..]);
-                    marks.push(Mark { html: page.html(), heading: print::heading(page.tree()), acted, lead });
+            let result = match numbered.line.record() {
+                Record::Web(Web::Mark) => {
+                    if index + 1 == walk.chain.len() {
+                        let (acted, lead) = link(page.tree(), &journey.lines[at + 1..]);
+                        web_marks.push(Mark { html: page.html(), heading: print::heading(page.tree()), acted, lead });
+                    }
+                    Ok(())
                 }
-            } else {
-                step(&mut page, numbered.line.record()).map_err(|why| Stopped {
-                    journey: journey.name.clone(),
-                    line: numbered.number,
-                    why,
-                })?;
-            }
+                Record::Tui(Tui::Mark) => {
+                    if index + 1 == walk.chain.len() {
+                        tui_mark(&mut page, &journey.lines[at + 1..]).map(|mark| tui_marks.push(mark))
+                    } else {
+                        Ok(())
+                    }
+                }
+                record => step(&mut page, record),
+            };
+            result.map_err(|why| Stopped { journey: journey.name.clone(), line: numbered.number, why })?;
         }
     }
-    Ok(marks)
+    Ok(match last.client {
+        Client::Web => Marks::Web(web_marks),
+        Client::Tui => Marks::Tui(tui_marks),
+    })
+}
+
+fn tui_mark(page: &mut Page, following: &[Numbered]) -> Result<journey::Mark, String> {
+    page.tui_start().map_err(|why| failed(why, "the TUI not drawn within 30 s"))?;
+    let terminal = page.tui().expect("started terminal");
+    let frame = terminal.frame().clone();
+    let key = tui_link(terminal, following);
+    Ok(journey::Mark { frame, live: None, key })
+}
+
+// Resolve the first key on the frame as marked, not on a later frame.
+fn tui_link(terminal: &Terminal, following: &[Numbered]) -> Option<Key> {
+    let mut key = None;
+    for numbered in following {
+        match numbered.line.record() {
+            Record::Tui(Tui::Mark) => return key,
+            Record::Tui(Tui::Key(next)) if key.is_none() => match terminal.event_of(next) {
+                Some(Event::Typed { .. }) | None => return None,
+                Some(_) => key = Some(next.clone()),
+            },
+            Record::Tui(Tui::See(_) | Tui::Key(_)) | Record::Web(Web::See(_)) => {}
+            _ if key.is_some() => {}
+            _ => return None,
+        }
+    }
+    None
 }
 
 fn find(role: Role, name: &[u8], order: u32) -> Find {
@@ -131,6 +177,18 @@ fn step(page: &mut Page, record: &Record) -> Result<(), String> {
         }
         Record::Web(Web::Reload(path)) => {
             page.reload(path, WITHIN).map_err(|why| failed(why, "the main region not drawn within 60 s"))
+        }
+        Record::Tui(Tui::Key(key)) => page.tui_key(key.clone()).map_err(|why| failed(why, "the TUI key failed")),
+        Record::Tui(Tui::See(text)) => {
+            let bound = format!("{:?} not seen in the TUI within 30 s", String::from_utf8_lossy(text));
+            page.tui_wait(text, TUI_WITHIN).map_err(|why| failed(why, &bound))
+        }
+        Record::Tui(Tui::Stop) => {
+            page.tui_stop();
+            Ok(())
+        }
+        Record::Tui(Tui::Approve) => {
+            page.tui_approve(TUI_WITHIN).map_err(|why| failed(why, "the TUI approval not completed within 30 s"))
         }
         _ => Err("not a journey's walk line".into()),
     }

@@ -11,4 +11,4 @@ waiting on: Nothing awaited
 acts:
   task stop 41 --key KEY
   task cancel 41 REASON --key KEY
-digest: task da9a63a2553712a2
+digest: task 80bcfa0e42c13a91

@@ -36,17 +36,17 @@ pub struct AreaPart {
 }
 
 pub(super) fn gather(document: &w::Findings) -> Areas {
-    let mut rows = List::with_capacity(document.areas().len());
-    for row in document.areas() {
+    let mut rows = List::with_capacity(document.areas.len());
+    for row in &document.areas {
         rows.push(Area {
-            name: row.name().into(),
-            words: row.words().into(),
-            owner: row.owner().clone(),
-            holder: row.holder().clone(),
+            name: row.name.clone(),
+            words: row.words.clone(),
+            owner: row.owner.clone(),
+            holder: row.holder.clone(),
         })
         .expect("one area per document row");
     }
-    Areas { rows, triager: document.triager().clone(), holder: document.holder().clone() }
+    Areas { rows, triager: document.triager.clone(), holder: document.holder.clone() }
 }
 
 pub(super) fn parts(facts: &Facts, parts: &mut Parts) {
@@ -91,7 +91,7 @@ pub(super) fn parts(facts: &Facts, parts: &mut Parts) {
     for row in parts.area_rows.iter_mut() {
         if let Some(w::Holder::Task(task)) = &row.holder {
             for role in &facts.roles {
-                if role.task == task.number() {
+                if role.task == task.number {
                     row.role = Some(role.task);
                     row.first = seen.insert(role.task).expect("one key per table row");
                     row.current = row.first && parts.card == Some(role.task);
@@ -115,7 +115,7 @@ pub(super) fn parts(facts: &Facts, parts: &mut Parts) {
         let mut names = List::with_capacity(parts.area_rows.len());
         for row in &parts.area_rows {
             if let Some(w::Holder::Party(party)) = &row.holder
-                && party.number() == person.party
+                && party.number == person.party
             {
                 names.push(row.name.clone()).expect("at most every row");
             }

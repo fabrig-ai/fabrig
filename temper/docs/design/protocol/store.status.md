@@ -12,10 +12,6 @@
   9327].
 - **Not yet:** 4: `ApplicationAdopted`'s `landing` [in flight: change
   8088].
-- **Not yet:** 2: family 30, `LandingLog`: its members keep no goal or
-  milestone, its landings no tiers' entries, and it holds its last
-  `landings_kept` landings whether or not a tier has judged them
-  [in flight: change 8589].
 - **Not yet:** 4: a failing test's id is refused at start only past the
   store's 1,024, not past a finding's signature's 512, and a tier's lists
   of failing tests are bounded at the stock's 16 [in flight: change

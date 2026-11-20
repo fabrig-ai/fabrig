@@ -204,7 +204,7 @@ fn a_hidden_line_says_when_a_run_began() {
             task: 1,
             position: 2,
             at: Wall::from_nanos(3_612_000_000_000),
-            line: c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
+            line: c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false, fresh: None },
         }),
         decoded: None,
     })

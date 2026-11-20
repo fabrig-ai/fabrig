@@ -123,7 +123,8 @@ skein-io socket
     at each `Check` done (2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (5);
   - for a first set up, its intent, and no project (../setup/owned.md, 7):
-    `Empty`'s organization, name and runner label, kept so that a restart
+    `Empty`'s organization, name, runner label and whether it is the
+    playground's copy or the sample (../setup/owned.md, 7), kept so that a restart
     before the repository is made makes it at the next connect; `Copies`'
     addresses, kept for the client to ask them at Ready and after a restart;
     or `Nothing`;

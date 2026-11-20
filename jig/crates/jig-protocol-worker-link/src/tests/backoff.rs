@@ -30,6 +30,15 @@ fn two_seeds_draw_different_spans() {
     assert_ne!(first.next(), second.next());
 }
 #[test]
+fn an_encoded_credential_stays_redacted_in_component_debug() {
+    let component =
+        crate::Component::new(&fixtures::LIMITS, jig_protocol_worker_wire::spoken(), fixtures::credential(), 1)
+            .expect("valid credential");
+    let debug = alloc::fmt::format(format_args!("{component:?}"));
+    assert!(debug.contains("credential: Secret { len: "), "{debug}");
+}
+
+#[test]
 fn an_oversized_credential_is_refused_before_dialling() {
     let mut credential = fixtures::credential();
     credential.name = b"a-name-beyond-sixteen-bytes".as_slice().into();

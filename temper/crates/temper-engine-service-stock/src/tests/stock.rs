@@ -6,6 +6,7 @@
 )]
 use super::fixtures;
 use jig_protocol_config as config;
+use temper_client_protocol_wire::v1::Record;
 
 /// The complete startup document emitted by init for fixed machine facts.
 pub(super) fn generated() -> Box<[u8]> {
@@ -895,6 +896,36 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         include_str!("../stock/chat.txt")
             .contains("If they tell you a decision was overturned, ask it with message, as a question, and wait.")
     );
+}
+
+// temper/docs/design/domain/red-repairs.md, 2 and 9.
+#[test]
+fn the_triager_sorts_reds_before_repairing() {
+    let words = include_str!("../stock/triager.md");
+    let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+    let reds =
+        shared.split("\n\n").find(|paragraph| paragraph.starts_with("A red after landing")).expect("reds paragraph");
+    for rule in [
+        "each finding, or each group one act settles",
+        "one culprit together where you can, those with no culprit together",
+        "Routine: a bug with a clear repair within what the culprit was asked to do",
+        "`decided` with kind `findings` and `under` the project's classes item whose words are \"a repair goal for a routine red after landing\"",
+        "On Decided, start a repair goal with the `finding` tool's `repair`, `numbers` the findings and `words` your sort",
+        "On Ask, ask your person as for any finding",
+        "Product decision:",
+        "the culprit goal's person, `Person N` in the finding's body, with a person task",
+        "the question in one sentence, each choice on its own line, the recommended first",
+        "Ask your own person if that delegate is refused or no person is named",
+        "a repair goal whose `words` carry the decision, the backlog or a drop",
+        "A repair goal's product question goes the same way",
+        "Flake: a failure of load or of the machine that failed again alone; drop it, saying so",
+        "Blamed wrongly: move it with `blame`, `commit` the landing or absent for none and `why` your reason",
+        "Confirm or move suspected blame before any repair",
+        "A culprit still live may have its red routed to it",
+        "Where `repair` refuses, including `ask before repairing finding P/N again` or the cap on live repair goals, ask your person, backlog or drop",
+    ] {
+        assert!(reds.contains(rule), "{rule}");
+    }
 }
 
 // temper/docs/design/domain/areas.md, 6, Its groups; domain/agent/agents.md, 2.

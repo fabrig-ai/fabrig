@@ -26,6 +26,7 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
             other @ (Op::Reds { .. }
             | Op::Look { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Create { .. }
             | Op::IsAncestor { .. }

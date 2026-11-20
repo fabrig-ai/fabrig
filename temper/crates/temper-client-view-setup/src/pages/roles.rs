@@ -35,8 +35,8 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bindings,
             None => Read::Reading,
         };
         match read {
-            Read::Drawn(w::View::Charter(view)) => card(b, view.card()),
-            Read::Drawn(w::View::Rule(view)) => card(b, view.card()),
+            Read::Drawn(w::View::Charter(view)) => card(b, &view.card),
+            Read::Drawn(w::View::Rule(view)) => card(b, &view.card),
             Read::Reading => message(b, root.pages().address(), words, true),
             Read::Unreadable
             | Read::Drawn(
@@ -53,7 +53,7 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bindings,
 fn card(b: &mut Builder, card: &w::Card) {
     b.open(Role::Group);
     b.style(look::VIEW_CARD);
-    let mut name = skein_lib::bytes::copy_of(card.name());
+    let mut name = skein_lib::bytes::copy_of(&card.name);
     if let Some(first) = name.first_mut() {
         first.make_ascii_uppercase();
     }
@@ -64,8 +64,8 @@ fn card(b: &mut Builder, card: &w::Card) {
     b.close();
     b.open(Role::Paragraph);
     b.style(look::VIEW_MUTED);
-    b.name(card.who());
-    b.text(Run::Plain, card.who());
+    b.name(&card.who);
+    b.text(Run::Plain, &card.who);
     b.close();
     crate::views::facts(b, card);
     b.close();

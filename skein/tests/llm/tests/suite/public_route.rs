@@ -165,7 +165,7 @@ fn no_drawn_prompt_carries_a_refused_field() {
 fn an_explicit_output_cap_is_unsupported() {
     let mut input = public_call(1);
     input.prompt.max_output_tokens = Some(1);
-    assert_eq!(rejection(input, &limits()), Some(Error::Unsupported));
+    assert_eq!(rejection(input, &limits()), Some(Error::Unsupported { cause: skein_llm::Unsupported::OutputCap }));
 }
 
 #[test]

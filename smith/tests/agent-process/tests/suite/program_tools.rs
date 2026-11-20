@@ -4,9 +4,9 @@ use smith_agent_process_world::{
     charter, program,
     program_world::{self, Case, Run},
 };
+use smith_channel::Record;
 use smith_channel::{ModelFault, RunFailure, RunResult};
 use smith_fake_claude::{Decision, End, Seen, Step, Story, Turn};
-use smith_transcript::Record;
 
 fn charter_tools() -> Box<[u8]> {
     charter_mode(smith_charter::Mode::Finite)
@@ -19,35 +19,25 @@ fn charter_mode(mode: smith_charter::Mode) -> Box<[u8]> {
             parts.waiting = skein_lib::Duration::from_millis(10);
         }
         smith_agent_process_world::wire::budget(parts, 8, 20);
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         if parts.mode == smith_charter::Mode::Open {
             tools.wait = true;
             tools.deliver = None;
         }
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { inspect: true, modify: true, shell: true, agents: false },
-        )
-        .expect("workspace families");
+        tools.families = smith_charter::Families { inspect: true, modify: true, shell: true, agents: false };
         tools.host = List::with_capacity(1);
         tools
             .host
-            .push(
-                smith_charter::HostTool::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::HostToolParts {
-                        reserve: false,
-                        name: b"lookup".as_slice().into(),
-                        description: b"Look up".as_slice().into(),
-                        input: br#"{"type":"object","properties":{}}"#.as_slice().into(),
-                        effect: smith_charter::Effect::Read,
-                        deadline: skein_lib::Duration::from_secs(1),
-                    },
-                )
-                .expect("host descriptor"),
-            )
+            .push(smith_charter::HostTool {
+                reserve: false,
+                name: b"lookup".as_slice().into(),
+                description: b"Look up".as_slice().into(),
+                input: br#"{"type":"object","properties":{}}"#.as_slice().into(),
+                effect: smith_charter::Effect::Read,
+                deadline: skein_lib::Duration::from_secs(1),
+            })
             .expect("host tool");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+        parts.tools = tools;
     })
 }
 
@@ -69,7 +59,7 @@ fn steps(steps: Vec<Step>) -> Run {
 
 fn accepted(run: &Run) {
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)),
         "answer={:?} stderr={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -83,7 +73,7 @@ fn turns(run: &Run) -> Vec<smith_transcript::Turn> {
         .map(|frame| {
             let turn = smith_channel::Turn::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body))
                 .expect("channel turn");
-            smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(turn.body()))
+            smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(turn.body.as_ref()))
                 .expect("turn body")
         })
         .collect()
@@ -197,10 +187,10 @@ fn an_ungranted_built_in_in_init_fails_the_start() {
     story.init.extra_tools.push("WebFetch".into());
     let run = run(&story);
     let answer = run.answer().expect("failure");
-    let RunResult::Failed(failed) = answer.result() else { panic!("program failure: {answer:?}") };
-    let RunFailure::Model(model) = failed.reason() else { panic!("model failure") };
+    let RunResult::Failed(failed) = &answer.result else { panic!("program failure: {answer:?}") };
+    let RunFailure::Model(model) = &failed.reason else { panic!("model failure") };
     assert!(
-        matches!(model.value(), ModelFault::Program(fault) if fault.exit().is_none() && fault.detail() == b"smith: the program offers a built-in tool the run did not grant: WebFetch")
+        matches!( &model.value, ModelFault::Program(fault) if fault.exit.is_none() && fault.detail.as_ref() == b"smith: the program offers a built-in tool the run did not grant: WebFetch")
     );
 }
 
@@ -317,8 +307,8 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
                 let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host answer") };
                 assert_eq!(calls.len(), 1);
                 // The host boundary receives the whole JSON, including its framing.
-                let smith_channel::Ask::Host(host) = calls[0].ask() else { panic!("host lookup") };
-                assert_eq!(host.input(), encoded);
+                let smith_channel::Ask::Host(host) = &calls[0].ask else { panic!("host lookup") };
+                assert_eq!(host.input.as_ref(), encoded);
                 assert_eq!(said.text.as_ref(), b"found");
                 assert!(!said.error);
             }
@@ -327,11 +317,11 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
                 match limit {
                     ArgumentLimit::ProgramInput(bound) => {
                         let answer = run.answer().expect("failure");
-                        let RunResult::Failed(failed) = answer.result() else { panic!("program input failure") };
-                        let RunFailure::Model(model) = failed.reason() else { panic!("model failure") };
-                        let ModelFault::Program(fault) = model.value() else { panic!("program failure") };
+                        let RunResult::Failed(failed) = &answer.result else { panic!("program input failure") };
+                        let RunFailure::Model(model) = &failed.reason else { panic!("model failure") };
+                        let ModelFault::Program(fault) = &model.value else { panic!("program failure") };
                         assert_eq!(
-                            fault.detail(),
+                            fault.detail.as_ref(),
                             format!("smith: program assistant: tool input bytes: value {argument}, bound {bound}")
                                 .as_bytes()
                         );
@@ -383,8 +373,8 @@ fn thinking_story() -> Story {
 }
 
 fn thinking_reply(run: &Run, messages: u32, spend: u64) {
-    assert_eq!(run.answer().expect("answer").turns(), messages);
-    assert_eq!(run.answer().expect("answer").spent(), spend);
+    assert_eq!(run.answer().expect("answer").turns, messages);
+    assert_eq!(run.answer().expect("answer").spent, spend);
     assert!(run.seen.contains(&Seen::Called { tool: "lookup".into(), error: false }));
     let result = told_result(run, b"lookup", &json!({}));
     let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host answer") };
@@ -424,19 +414,15 @@ fn a_finite_thinking_turn_calls_then_replies_once() {
 #[test]
 fn an_open_thinking_turn_calls_then_replies_once() {
     let run = program_world::open(&thinking_story(), &charter_mode(smith_charter::Mode::Open), &[]);
-    assert!(matches!(run.answer().expect("answer").result(), RunResult::Parked), "{:?}", run.answer());
+    assert!(matches!(&run.answer().expect("answer").result, RunResult::Parked), "{:?}", run.answer());
     thinking_reply(&run, THINKING_MESSAGES, THINKING_SPEND);
 }
 
 fn coder_charter(modify: bool) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter_tools(), |parts| {
-        let mut tools = parts.tools.clone().into_parts();
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { inspect: true, modify, shell: false, agents: false },
-        )
-        .expect("coder families");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("coder tools");
+        let mut tools = parts.tools.clone();
+        tools.families = smith_charter::Families { inspect: true, modify, shell: false, agents: false };
+        parts.tools = tools;
     })
 }
 

@@ -6,6 +6,22 @@ use skein_lib::bytes::{count, find_from};
 use skein_lib_tests::search::{fill, naive, naive_count, up_to};
 
 #[test]
+fn random_ip_text_matches_core_display() {
+    use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    let mut rng = Rng::new(0x1F_AD_D2);
+    for round in 0..20_000 {
+        let v4 = Ipv4Addr::from(u32::try_from(rng.below(1_u64 << 32)).expect("four octets"));
+        let mut groups = [0_u16; 8];
+        for group in &mut groups {
+            *group = if rng.chance(500) { 0 } else { u16::try_from(rng.below(1_u64 << 16)).expect("one group") };
+        }
+        for ip in [IpAddr::V4(v4), IpAddr::V6(Ipv6Addr::from(groups)), IpAddr::V6(v4.to_ipv6_mapped())] {
+            assert_eq!(skein_lib::bytes::ip_text(ip).as_ref(), format!("{ip}").as_bytes(), "round {round}");
+        }
+    }
+}
+
+#[test]
 fn the_search_agrees_with_a_naive_one() {
     let mut rng = Rng::new(0x5EA2_C4ED);
     let mut haystack_buffer = [0_u8; 64];

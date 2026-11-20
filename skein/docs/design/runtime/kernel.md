@@ -320,7 +320,8 @@ documentation, with each operation's errors; the decisions behind it:
   existing file or directory), `Directory` (an existing directory: a
   root, or one to list), `Create` (a new file, exclusively, to write) or
   `Write` (an existing regular file, to read and write, never created),
-  each with a form that refuses a symbolic link, as `Read`'s does.
+  each with a form that refuses a symbolic link, as `Read`'s does: on
+  macOS, every link but the system's own (readiness.md, 5).
   Each is one well-defined case for the simulator and the suite to hold,
   and more come when a user pulls them.
 - **Cutting a file** is `Truncate` on a descriptor opened to write
@@ -974,6 +975,11 @@ its own since it outgrew this one's size.
 
 - **Fixed files** change what an `Fd` names: a slot in the ring's table
   instead of a descriptor. Decide when it has been measured.
+- **Root's links on Linux** (6.1): whether Linux's no-follow opens and
+  startup reads pass the system's own links as macOS's do
+  (readiness.md, 5), such as `/var/run -> /run`. Default: no; Linux's
+  refuse every link (`RESOLVE_NO_SYMLINKS`), and its temporary and home
+  directories lie through none.
 
 ## 10. Not built yet
 

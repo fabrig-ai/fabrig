@@ -1,6 +1,7 @@
 //! The pages and forge share jig's receiving and request bounds.
 use crate::forge;
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub forge: forge::Limits,

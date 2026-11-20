@@ -53,7 +53,7 @@ pub(crate) fn category(kind: &MessageKind) -> u8 {
     }
 }
 
-fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
+pub(crate) fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
     let task = record(domain, number).expect("inbox task live");
     let live_run = match task.phase {
         Phase::Active(Active::Claimed { .. } | Active::Running { .. }) => true,

@@ -1,6 +1,7 @@
 //! Seeded visitor record decoding (temper/docs/design/client/forge/README.md, 9.4).
 use skein_lib::{List, Reader, Rng, Writer};
 use temper_client_protocol_wire::public_v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 // Match client_wire.rs's 2,000 draws, with each draw independently replayable.
 const SEEDS: u64 = 2_000;
@@ -30,14 +31,19 @@ macro_rules! decode {
     ($record:ident, $reader:ident, $refuse:ident, $path:ident) => {{
         let result = w::$record::decode(&w::CEILINGS, &mut $reader);
         if $refuse {
-            assert_eq!(result.as_ref().expect_err("length past ceiling must be refused").path, w::Path::$path);
+            assert_eq!(result.as_ref().expect_err("length past ceiling must be refused").path, w::paths::$path);
         }
         if let Ok(record) = result {
             if !$reader.is_empty() {
                 return None;
             }
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length"));
-            record.encode(&mut writer).expect("measured room");
+            let mut writer = Writer::new(
+                usize::try_from(
+                    record.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings"),
+                )
+                .expect("measured length"),
+            );
+            record.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("measured room");
             Some(writer.finish())
         } else {
             None
@@ -48,9 +54,9 @@ macro_rules! decode {
 fn decode(kind: Kind, bytes: &[u8], refuse: bool) -> Option<Box<[u8]>> {
     let mut reader = Reader::new(bytes);
     match kind {
-        Kind::Change => decode!(PublicChange, reader, refuse, PublicChangeGates),
-        Kind::Landings => decode!(PublicLandings, reader, refuse, PublicLandingsLandings),
-        Kind::Landing => decode!(PublicLanding, reader, refuse, PublicLandingMembers),
+        Kind::Change => decode!(PublicChange, reader, refuse, PUBLIC_CHANGE_GATES),
+        Kind::Landings => decode!(PublicLandings, reader, refuse, PUBLIC_LANDINGS_LANDINGS),
+        Kind::Landing => decode!(PublicLanding, reader, refuse, PUBLIC_LANDING_MEMBERS),
     }
 }
 
@@ -116,16 +122,25 @@ fn fixed(kind: Kind, golden: &[u8], length_at: usize, ceiling: u32) {
 fn bound_records() -> [(Kind, Box<[u8]>, usize, u32); 3] {
     let limits = &w::CEILINGS;
     let change = change(limits);
-    let mut writer = Writer::new(usize::try_from(change.measure()).expect("seed 1: measured length"));
-    change.encode(&mut writer).expect("seed 1: measured room");
+    let mut writer = Writer::new(
+        usize::try_from(change.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings"))
+            .expect("seed 1: measured length"),
+    );
+    change.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("seed 1: measured room");
     let change = writer.finish();
     let landings = landings(limits);
-    let mut writer = Writer::new(usize::try_from(landings.measure()).expect("seed 1: measured length"));
-    landings.encode(&mut writer).expect("seed 1: measured room");
+    let mut writer = Writer::new(
+        usize::try_from(landings.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings"))
+            .expect("seed 1: measured length"),
+    );
+    landings.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("seed 1: measured room");
     let landings = writer.finish();
     let landing = landing(limits);
-    let mut writer = Writer::new(usize::try_from(landing.measure()).expect("seed 1: measured length"));
-    landing.encode(&mut writer).expect("seed 1: measured room");
+    let mut writer = Writer::new(
+        usize::try_from(landing.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings"))
+            .expect("seed 1: measured length"),
+    );
+    landing.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("seed 1: measured room");
     let landing = writer.finish();
     [
         (Kind::Change, change, CHANGE_LENGTH, limits.public_change_gates),
@@ -135,21 +150,11 @@ fn bound_records() -> [(Kind, Box<[u8]>, usize, u32); 3] {
 }
 
 fn gate() -> w::PublicGate {
-    w::PublicGate::new(
-        &w::CEILINGS,
-        w::PublicGateParts {
-            number: u64::MAX,
-            kind: w::PublicGateKind::Check,
-            blocks: true,
-            verdict: w::PublicVerdict::Changes,
-        },
-    )
-    .expect("seed 1: fixture within ceilings")
+    w::PublicGate { number: u64::MAX, kind: w::PublicGateKind::Check, blocks: true, verdict: w::PublicVerdict::Changes }
 }
 
 fn used() -> w::PublicUsed {
-    w::PublicUsed::new(&w::CEILINGS, w::PublicUsedParts { used: u32::MAX, limit: u32::MAX })
-        .expect("seed 1: fixture within ceilings")
+    w::PublicUsed { used: u32::MAX, limit: u32::MAX }
 }
 
 fn change(limits: &w::Limits) -> w::PublicChange {
@@ -157,29 +162,22 @@ fn change(limits: &w::Limits) -> w::PublicChange {
     for _ in 0..limits.public_change_gates {
         gates.push(gate()).expect("seed 1: fixture within ceilings");
     }
-    w::PublicChange::new(
-        limits,
-        w::PublicChangeParts {
-            task: u16::MAX,
-            head: Some([255; 32]),
-            step: w::PublicStep::Repairing,
-            repair: Some(w::PublicRepair::Gate(
-                w::PublicGateNumber::new(limits, w::PublicGateNumberParts { gate: u64::MAX })
-                    .expect("seed 1: fixture within ceilings"),
-            )),
-            merge: Some([255; 32]),
-            tiers: u32::MAX,
-            hold: Some(w::PublicHold::Authority),
-            ci: w::PublicCi::Failed,
-            gates,
-            repairs: used(),
-            resolutions: used(),
-            updates: used(),
-            way: w::PublicWay::Turn,
-            in_landing: true,
-        },
-    )
-    .expect("seed 1: fixture within ceilings")
+    w::PublicChange {
+        task: u16::MAX,
+        head: Some([255; 32]),
+        step: w::PublicStep::Repairing,
+        repair: Some(w::PublicRepair::Gate(w::PublicGateNumber { gate: u64::MAX })),
+        merge: Some([255; 32]),
+        tiers: u32::MAX,
+        hold: Some(w::PublicHold::Authority),
+        ci: w::PublicCi::Failed,
+        gates,
+        repairs: used(),
+        resolutions: used(),
+        updates: used(),
+        way: w::PublicWay::Turn,
+        in_landing: true,
+    }
 }
 
 fn line(limits: &w::Limits) -> w::PublicLandingLine {
@@ -191,16 +189,11 @@ fn line(limits: &w::Limits) -> w::PublicLandingLine {
     for _ in 0..limits.public_landing_line_landed {
         landed.push([255; 32]).expect("seed 1: fixture within ceilings");
     }
-    w::PublicLandingLine::new(
-        limits,
-        w::PublicLandingLineParts { members, phase: w::PublicLandingPhase::Landed, landed },
-    )
-    .expect("seed 1: fixture within ceilings")
+    w::PublicLandingLine { members, phase: w::PublicLandingPhase::Landed, landed }
 }
 
 fn queued() -> w::PublicQueued {
-    w::PublicQueued::new(&w::CEILINGS, w::PublicQueuedParts { task: u16::MAX, goal: u16::MAX, ready_since: u64::MAX })
-        .expect("seed 1: fixture within ceilings")
+    w::PublicQueued { task: u16::MAX, goal: u16::MAX, ready_since: u64::MAX }
 }
 
 fn queue(limits: &w::Limits) -> w::PublicQueue {
@@ -208,7 +201,7 @@ fn queue(limits: &w::Limits) -> w::PublicQueue {
     for _ in 0..limits.public_queue_changes {
         changes.push(queued()).expect("seed 1: fixture within ceilings");
     }
-    w::PublicQueue::new(limits, w::PublicQueueParts { changes }).expect("seed 1: fixture within ceilings")
+    w::PublicQueue { changes }
 }
 
 fn landings(limits: &w::Limits) -> w::PublicLandings {
@@ -220,22 +213,17 @@ fn landings(limits: &w::Limits) -> w::PublicLandings {
     for _ in 0..limits.public_landings_queues {
         queues.push(queue(limits)).expect("seed 1: fixture within ceilings");
     }
-    w::PublicLandings::new(limits, w::PublicLandingsParts { turn: Some(u16::MAX), landings, queues })
-        .expect("seed 1: fixture within ceilings")
+    w::PublicLandings { turn: Some(u16::MAX), landings, queues }
 }
 
 fn proof() -> w::PublicGateProof {
-    w::PublicGateProof::new(
-        &w::CEILINGS,
-        w::PublicGateProofParts {
-            faults: 0,
-            number: u64::MAX,
-            kind: w::PublicGateKind::Check,
-            blocks: true,
-            proof: w::PublicProof::Failed,
-        },
-    )
-    .expect("seed 1: fixture within ceilings")
+    w::PublicGateProof {
+        faults: 0,
+        number: u64::MAX,
+        kind: w::PublicGateKind::Check,
+        blocks: true,
+        proof: w::PublicProof::Failed,
+    }
 }
 
 fn member(limits: &w::Limits) -> w::PublicMember {
@@ -243,20 +231,16 @@ fn member(limits: &w::Limits) -> w::PublicMember {
     for _ in 0..limits.public_member_gates {
         gates.push(proof()).expect("seed 1: fixture within ceilings");
     }
-    w::PublicMember::new(
-        limits,
-        w::PublicMemberParts {
-            head: None,
-            left: None,
-            judgement: None,
-            task: u16::MAX,
-            base: Some([255; 32]),
-            candidate: Some([255; 32]),
-            landed: Some([255; 32]),
-            gates,
-        },
-    )
-    .expect("seed 1: fixture within ceilings")
+    w::PublicMember {
+        head: None,
+        left: None,
+        judgement: None,
+        task: u16::MAX,
+        base: Some([255; 32]),
+        candidate: Some([255; 32]),
+        landed: Some([255; 32]),
+        gates,
+    }
 }
 
 fn landing(limits: &w::Limits) -> w::PublicLanding {
@@ -264,19 +248,15 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
     for _ in 0..limits.public_landing_members {
         members.push(member(limits)).expect("seed 1: fixture within ceilings");
     }
-    w::PublicLanding::new(
-        limits,
-        w::PublicLandingParts {
-            search: None,
-            combined: None,
-            step: None,
-            phase: w::PublicLandingPhase::Held,
-            hold: Some(w::PublicLandingHold::Faults),
-            preparation: u32::MAX,
-            members,
-            stale_proofs: u32::MAX,
-            holds_turn: true,
-        },
-    )
-    .expect("seed 1: fixture within ceilings")
+    w::PublicLanding {
+        search: None,
+        combined: None,
+        step: None,
+        phase: w::PublicLandingPhase::Held,
+        hold: Some(w::PublicLandingHold::Faults),
+        preparation: u32::MAX,
+        members,
+        stale_proofs: u32::MAX,
+        holds_turn: true,
+    }
 }

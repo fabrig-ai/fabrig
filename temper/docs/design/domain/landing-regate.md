@@ -1,10 +1,11 @@
 # A landing's gate run once more
 
-Provisional, 2026-11-17. When a landing's gate, red at a key, is run
+Provisional, 2026-11-19. When a landing's gate, red at a key, is run
 once more at the same content rather than repaired: a red made only of
 known flakes, rerun before its receipt is published (section 2), and a
-failed receipt a change's repair found to be flakes alone, superseded
-by a fresh run once a person releases the change (section 3). It
+failed receipt a change's repair found to be flakes alone, or caused by
+no test, superseded by a fresh run once a person releases the change
+(section 3). It
 carries `../draft/flake-regate.md` on the landing of `landing.md`,
 whose words it uses: keys and receipts (section 6), proof by dispatch
 (7.1), a real failure (7.3) and a fault of the runner (7.4); flake
@@ -24,6 +25,15 @@ findings are `findings.md`'s, and a repair, its result and its release
   tests are known may end with a verdict saying every failure is a
   flake, rather than a no-change taken as a failure. Its change holds
   on that verdict for a person.
+- **A repair's no-test verdict** (`forge/change/repairs.md`, *A landing
+  repair that finds no failed test*): a landing repair whose failure
+  names no failed test (its gate names no report, its report was not
+  read, or it names none) may end with verdict 2, saying no test failed
+  and nothing needs changing, rather than a no-change taken as a
+  failure. Its change holds on that verdict for a person, as on a
+  flake's, and its release regates as a flake's does (section 3): a red
+  no test caused is run once more, never repaired again for nothing
+  (the requester, 2026-11-19).
 - **A superseded receipt** (section 3): released from that hold, the
   change names the failed receipt, by its key and its run, on its row,
   and goes on as at an unchanged head. A landing that meets that key
@@ -80,7 +90,8 @@ findings are `findings.md`'s, and a repair, its result and its release
 
 - **A change's regate:** a change released from its hold on its
   repair's flake verdict (`forge/change/repairs.md`, *A landing repair
-  that finds only flakes*) names, on its row, the failed receipt its
+  that finds only flakes*) or its no-test verdict (*A landing repair
+  that finds no failed test*) names, on its row, the failed receipt its
   repair's reason resolves to, as the repair's brief resolves it
   (`forge/change/repairs.md`, *A landing's repair*): its key (the
   project, the repository, the gate and the 32-byte key, as
@@ -100,8 +111,8 @@ findings are `findings.md`'s, and a repair, its result and its release
   flight, another landing at the key waits for it as for any key in
   flight; a landing none of whose members names the regate meets the
   failed receipt and fails at once, as before.
-- **The change keeps one regate at most:** a release from a flake hold
-  sets it, and it is cleared when the change's head moves or a repair
+- **The change keeps one regate at most:** a release from a flake or a
+  no-test hold sets it, and it is cleared when the change's head moves or a repair
   is asked for it. Spent, it is kept until then and changes nothing.
 - **Shown:** the gate's status on the candidate is pending once
   dispatched, then the fresh receipt's verdict (`landing.md`, section
@@ -120,9 +131,9 @@ findings are `findings.md`'s, and a repair, its result and its release
   has another run.
 - **Bounded as before:** a red from either is a failed receipt,
   repaired (7.3) and counted against the change's repairs
-  (`forge/change/repairs.md`, *Bounded apart*); a flake verdict holds
-  the change until a person releases it, every time, so no flake loops
-  without one. No dummy commit is made or needed.
+  (`forge/change/repairs.md`, *Bounded apart*); a flake or no-test
+  verdict holds the change until a person releases it, every time, so
+  no red loops without one. No dummy commit is made or needed.
 
 ## 5. In the store
 
@@ -140,8 +151,15 @@ findings are `findings.md`'s, and a repair, its result and its release
   ReceiptKey, run: u64 }`, the receipt's whole key as `Receipt` is
   keyed and its run's id (`ReceiptRun::id`); a registered layout's
   added field, none by default.
-- **No version moves:** both are registered families' added fields
-  (`../protocol/store.md`, section 4).
+- **A no-test verdict,** on the change's row beside the flake's
+  (`delegate_flake`): its delegate's verdict 2, a registered layout's
+  added field, false by default; and its hold, `ChangeHold`'s added
+  arm `no_test` after `flake`, as `Hold::NoTest` in the change's
+  policy. The hold reaches the client's wire and the public one as an
+  arm `no_test` of `Hold` and `PublicHold`: each moves its version,
+  unbridged (`../draft/redeploys.md`).
+- **No store version moves:** each is a registered family's added
+  field or arm (`../protocol/store.md`, section 4).
 
 ## 6. The world
 
@@ -160,7 +178,17 @@ compiled, not run.
 - **In the change's policy** (`temper-engine-domain-forge-change`'s
   empty-repair tests): a flake verdict holds, its release goes on at
   the head with no repair asked, and a plain no-change still holds as
-  a failure whose release asks a fresh repair.
+  a failure whose release asks a fresh repair; a no-test verdict holds
+  as `NoTest` at its unchanged head and its release goes on as a
+  flake's.
+- **A no-test verdict** (`temper-engine-domain-forge`'s and the
+  engine's route tests): offered only to a landing repair whose
+  failure names no failed test, never beside the flake's, nor to one
+  naming tests or more than N, nor to a CI repair; read from the inbox
+  and recovered alike; its release regating once, across a restart,
+  the same candidate dispatched afresh and green proving with no
+  commit, and a red regate repaired and counted, whose next no-test
+  verdict waits for another release.
 - **In the engine's world** (`temper-engine-domain-world`): the loop
   of 2026-11-16 ends in a landing: a gate red on a fuzzy test, a
   landing repair ending with the flake verdict, the change held and

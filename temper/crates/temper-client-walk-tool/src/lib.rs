@@ -7,10 +7,13 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 use temper_client_walk_lines::{
-    print,
-    walk::{self, Roots},
+    print, tui_print,
+    walk::{self, Client, Roots},
 };
-use temper_client_walk_world::walk::{Stopped, walk as execute};
+use temper_client_walk_world::{
+    facts,
+    walk::{Marks, Stopped, walk as execute},
+};
 
 pub const WEB: &str = "temper/docs/design/client/web/journeys";
 pub const TUI: &str = "temper/docs/design/client/tui/journeys";
@@ -92,7 +95,12 @@ fn perform(
     use std::fmt::Write;
     let repository = fs::canonicalize(repository)?;
     let roots = roots(&repository);
-    let available = moved(&roots.web)?;
+    let mut available = moved(&roots.web)?;
+    for name in moved(&roots.tui)? {
+        if !available.contains(&name) {
+            available.push(name);
+        }
+    }
     for name in names {
         if !available.contains(name) {
             answer.code = 2;
@@ -119,7 +127,8 @@ fn perform(
     };
     fs::create_dir_all(&destination)?;
     let names = if names.is_empty() { &available } else { names };
-    let mut assets = None;
+    let mut web_assets = None;
+    let mut tui_assets = None;
     for name in names {
         let marks = walk::read(&roots, name)
             .map_err(|why| Stopped { journey: why.journey, line: why.line, why: why.why })
@@ -130,15 +139,21 @@ fn perform(
                 writeln!(answer.stdout, "stopped {name}: {why}").expect("write string");
             }
             Ok(marks) => {
-                let assets_changed = if let Some(changed) = assets {
+                let (root, client, pages, assets) = match marks {
+                    Marks::Web(marks) => (WEB, Client::Web, print::pages(&marks), &mut web_assets),
+                    Marks::Tui(marks) => {
+                        (TUI, Client::Tui, tui_print::pages(name, facts::SCHEME, &marks), &mut tui_assets)
+                    }
+                };
+                let assets_changed = if let Some(changed) = *assets {
                     changed
                 } else {
-                    let changed = files::assets(&repository, &destination)?;
-                    assets = Some(changed);
+                    let changed = files::assets(&repository, &destination, client)?;
+                    *assets = Some(changed);
                     changed
                 };
-                let directory = destination.join(WEB).join(name);
-                let changed = files::pages(&directory, &print::pages(&marks), in_place)?;
+                let directory = destination.join(root).join(name);
+                let changed = files::pages(&directory, &pages, in_place)?;
                 let word = if in_place && !changed && !assets_changed { "fresh" } else { "printed" };
                 writeln!(answer.stdout, "{word} {name}").expect("write string");
             }

@@ -129,7 +129,9 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
         None => 1,
     });
     match follow.outcome {
-        Some(policy::Verdict::Fault(policy::Fault::SetUp | policy::Fault::Completion | policy::Fault::NoStep)) => {
+        Some(policy::Verdict::Fault(
+            policy::Fault::SetUp | policy::Fault::Completion | policy::Fault::NoStep | policy::Fault::Unreported,
+        )) => {
             if let Some(run) = &follow.run {
                 for job in &run.jobs {
                     if job.conclusion == Some(api::Conclusion::Failure) {

@@ -53,9 +53,8 @@ fn a_channel_back_just_within_the_grace_stops_its_clock() {
     assert!(world.has_channel());
 }
 fn sources() -> skein_channel::Frame {
-    let record = wire::Sources::new(&fixtures::codec(), wire::SourcesParts { sources: List::with_capacity(0) })
-        .expect("empty sources");
-    fixtures::frame(0x0188, &fixtures::encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::Sources { sources: List::with_capacity(0) };
+    fixtures::frame(0x0188, &fixtures::encoded(&record))
 }
 fn reconnect_after(world: &mut World, span: Duration) {
     world.advance(span);

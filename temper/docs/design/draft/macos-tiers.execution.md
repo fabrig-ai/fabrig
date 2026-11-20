@@ -18,6 +18,6 @@
 
 - **T1 first,** landed: until the one story runs again, nothing on macOS is checked but its build.
 - **T2 next,** and **T3 beside it** against T2's inputs; **T4** from T2's first run by hand, the trees in parallel.
-- **T5 tier by tier:** `macos-e2e` once `process` and `browser` are green; `macos-suites` with the parts of the trees that are.
+- **T5 tier by tier:** `macos-e2e` once `process`, `browser` and `browser-temper` are green; `macos-suites` with the parts of the trees that are.
 - **T6 once the key is in,** after T2 and T3.
 - **Section 11's Later items** are no milestone's.

@@ -25,7 +25,6 @@ pub fn landings_subject(project: u32, ended: bool) -> u64 {
     (1 << 62) | (u64::from(ended) << 32) | u64::from(project)
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "the change document carries its bounded source panel inline")]
 pub enum Document {
     Findings(crate::Findings),
     Change(Panel),
@@ -43,6 +42,7 @@ pub enum Document {
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingView {
+    pub waits: Option<LandingWait>,
     pub task: u64,
     pub project: u32,
     pub phase: policy::Phase,
@@ -54,6 +54,36 @@ pub struct LandingView {
     pub round: LandingRound,
     pub step: LandingStep,
     pub probe: Option<[u8; 32]>,
+}
+/// Resolved names for a wait (domain/landing-waits.md, 2, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingWait {
+    pub on: LandingWaitFor,
+    pub change: Option<u64>,
+    pub gate: Option<Box<[u8]>>,
+    pub run: Option<u64>,
+    pub landing: Option<u64>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LandingWaitFor {
+    Nothing,
+    Release,
+    Ready,
+    Turn,
+    Prepare,
+    Prefixes,
+    Open,
+    Close,
+    Delete,
+    Post,
+    Run,
+    Receipt,
+    Judgement,
+    Merge,
+    Record,
+    Ancestry,
+    Read,
+    Room,
 }
 /// A train is one repository and landing branch (domain/landing.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -124,12 +154,16 @@ pub enum GateProof {
 /// A project's retained landings, live first, newest task first within each group.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingsView {
+    pub now: skein_lib::Wall,
+    pub turn_since: Option<skein_lib::Wall>,
     pub project: u32,
     pub turn: Option<u64>,
     pub landings: Box<[LandingLine]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingLine {
+    pub step: Option<LandingStep>,
+    pub last_event: Option<skein_lib::Wall>,
     pub task: u64,
     pub phase: policy::Phase,
     pub changes: Box<[u64]>,
@@ -257,6 +291,11 @@ impl Document {
                 }
             }
             Self::Landing(view) => {
+                if let Some(wait) = &view.waits
+                    && let Some(gate) = &wait.gate
+                {
+                    size = size.saturating_add(gate.len());
+                }
                 size = size
                     .saturating_add(phase_bytes(&view.phase))
                     .saturating_add(size_of_val(view.members.as_ref()))

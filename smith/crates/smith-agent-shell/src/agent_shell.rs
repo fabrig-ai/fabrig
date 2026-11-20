@@ -375,17 +375,7 @@ impl Host for Agent {
             }
             match service::last(&self.service) {
                 Some(service::Last::Failed { failure, detail }) => {
-                    let words = smith_events::words(&failure, None, None);
-                    let mut line = format!(
-                        "run failed: {}",
-                        String::from_utf8(words.into_vec()).expect("operator words are UTF-8")
-                    );
-                    let detail = smith_events::clip(&detail);
-                    if !detail.is_empty() {
-                        line.push_str(": ");
-                        line.push_str(core::str::from_utf8(detail).expect("clipped detail is UTF-8"));
-                    }
-                    diagnostic(self.errors.as_mut(), &line);
+                    diagnostic(self.errors.as_mut(), &run_failure_line(&failure, &detail));
                 }
                 Some(service::Last::Quiet | service::Last::Unanswered(_)) | None => {}
             }
@@ -544,6 +534,17 @@ fn program_diagnostic_line(owner: Token, fault: smith_domain::run::Fault) -> Str
     )
 }
 
+fn run_failure_line(failure: &smith_events::AnswerFailure, detail: &[u8]) -> String {
+    let words = smith_events::words(failure, None, None);
+    let mut line = format!("run failed: {}", String::from_utf8(words.into_vec()).expect("operator words are UTF-8"));
+    let detail = smith_events::clip(detail);
+    if !detail.is_empty() {
+        line.push_str(": ");
+        line.push_str(core::str::from_utf8(detail).expect("clipped detail is UTF-8"));
+    }
+    line
+}
+
 pub(super) fn diagnostic(errors: &mut dyn Write, line: &str) {
     // Diagnostics are best effort, as trace records are; a broken operator
     // output cannot prevent the channel's answer or its lower settlement.
@@ -657,6 +658,37 @@ pub fn identity() -> smith_events::Agent {
 mod tests {
     use super::given_up_line;
     use smith_protocol_events::{Destination, GivenUp, Why};
+
+    #[test]
+    fn operator_stderr_names_a_refused_completion_without_capture() {
+        use smith_domain::{Below, Event, run};
+        use smith_protocol_llm::{Error, refusal};
+        let Event::Below(Below::Failed { detail, report, .. }) = refusal(
+            skein_lib::Token::new(7),
+            Error::from_client(skein_llm::Error::Unsupported { cause: skein_llm::Unsupported::Effort }),
+            128,
+        ) else {
+            panic!("refused completion");
+        };
+        let failure = smith_protocol_events::failure_record(
+            run::RunFailure::Model(run::Fault::Completion {
+                failure: run::CompletionFailure::Invalid,
+                evidence: run::CompletionEvidence::Unsent,
+                model: 0,
+                attempts: 1,
+                report: run::Report {
+                    status: report.status,
+                    code: report.code,
+                    request: report.request,
+                    field: report.field,
+                },
+            }),
+            skein_lib::Time::ZERO,
+        );
+        let mut stderr = Vec::new();
+        super::diagnostic(&mut stderr, &super::run_failure_line(&failure, &detail));
+        assert_eq!(stderr, b"smith: run failed: invalid: refused before sending: effort\n");
+    }
 
     #[test]
     fn program_lines_keep_correlation_and_escape_operator_detail() {

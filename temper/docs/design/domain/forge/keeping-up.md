@@ -321,6 +321,16 @@ A change that has landed or ended gathers no brief, and no comparison of its sav
 
 **A change reads its own pull request** (2026-11-15). A change with no pull request number looks one up by its branches (`PullFor`) and takes it only open: a closed match, merged or not, is an ended change's (`change/README.md`, 2, step 2), and the change opens its own. The number it takes, or the one its opening's answer names, is stored on its row in the step that settles it; from then on every read and write of its pull request is by that number, a restart included, and it never looks it up by its branches again.
 
+**A gather keeps its reads through a refusal for room** (2026-11-19). A
+change step's fresh read that the client refuses `Busy` at its admission
+(skein's `forge/client.md`, 5–6) is asked again a second later, that
+same read, the gather keeping every fact it has read, its step due
+meanwhile. Only what invalidates a gather (1) starts its reads again
+from its branch; the read of its paths, refused, is left unread, as
+before. A gather begun again at each refusal would lose its reads to
+every other caller's while the client is full, keeping a train's
+waiting changes due for minutes (`../landing.md`, 9).
+
 An agent's fresh read refused `Busy` by the client's local admission
 returns the host's predecision Busy reply, never a rendered forge-read
 error. The root releases that attempt's read correlation and rendering

@@ -9,7 +9,7 @@ use smith_domain::{Event, llm, run};
 
 use crate::types::Context;
 
-use crate::Error;
+use crate::{Cause, Error, Refusal};
 
 /// Decode the client's blocks under the retained charter and receiving contract.
 /// Original provider bytes and replay survive decoding. Decoded ownership beyond
@@ -107,7 +107,7 @@ fn block_value(block: skein_llm::Block, context: &Context, decoded_bytes: &mut u
             let bytes = skein_lib::len_u64(arguments.len());
             Ok(invalid_call(id, name, llm::Problem::CutOff { bytes }))
         }
-        skein_llm::Block::ToolResult { .. } => Err(Error::Invalid),
+        skein_llm::Block::ToolResult { .. } => Err(Error::Invalid { cause: Cause::Smith(Refusal::CompletionResult) }),
         skein_llm::Block::Dropped { .. } => unreachable!("drops are separate metadata"),
     }
 }
@@ -171,7 +171,7 @@ fn host(declaration: &run::HostTool, input: &[u8], context: &Context, remaining:
         Err(Error::Limit | Error::PathLimit { .. }) => {
             return llm::Decoded::Invalid { problem: llm::Problem::TooLarge };
         }
-        Err(Error::Invalid | Error::Unsupported) => {
+        Err(Error::Invalid { .. } | Error::Unsupported { .. }) => {
             return llm::Decoded::Invalid { problem: llm::Problem::NotAnObject };
         }
     };

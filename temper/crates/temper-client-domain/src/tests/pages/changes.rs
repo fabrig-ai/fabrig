@@ -45,75 +45,53 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
     let mut changes = List::with_capacity(32);
     for task in tasks {
         changes
-            .push(
-                w::ChangesQueued::new(
-                    &w::CEILINGS,
-                    w::ChangesQueuedParts {
-                        goal: None,
-                        chat: None,
-                        milestone: None,
-                        task: *task,
-                        title: b"Queued change".as_slice().into(),
-                        ready_since: 0,
-                        checks_since: None,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::ChangesQueued {
+                goal: None,
+                chat: None,
+                milestone: None,
+                task: *task,
+                title: b"Queued change".as_slice().into(),
+                ready_since: 0,
+                checks_since: None,
+            })
             .unwrap();
     }
     let mut queues = List::with_capacity(32);
     queues
-        .push(
-            w::ChangesQueue::new(
-                &w::CEILINGS,
-                w::ChangesQueueParts {
-                    way: w::Way::Queue,
-                    in_flight: None,
-                    repository: b"owner/repo".as_slice().into(),
-                    branch: b"main".as_slice().into(),
-                    red: false,
-                    changes,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::ChangesQueue {
+            way: w::Way::Queue,
+            in_flight: None,
+            repository: b"owner/repo".as_slice().into(),
+            branch: b"main".as_slice().into(),
+            red: false,
+            changes,
+        })
         .unwrap();
     let mut rows = List::with_capacity(32);
     for task in landed {
-        rows.push(
-            w::ChangesLanded::new(
-                &w::CEILINGS,
-                w::ChangesLandedParts {
-                    goal: None,
-                    chat: None,
-                    milestone: None,
-                    signed: List::with_capacity(8),
-                    commit: [0xab; 32],
-                    default_branch: true,
-                    task: *task,
-                    title: b"Landed change".as_slice().into(),
-                    at: 0,
-                },
-            )
-            .unwrap(),
-        )
+        rows.push(w::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
+            signed: List::with_capacity(8),
+            commit: [0xab; 32],
+            default_branch: true,
+            task: *task,
+            title: b"Landed change".as_slice().into(),
+            at: 0,
+        })
         .unwrap();
     }
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
-            landed_default: List::with_capacity(0),
-            landed_default_more: 0,
-            project: f::PROJECT,
-            landing: b"main".as_slice().into(),
-            queues,
-            more: 19,
-            landed: rows,
-            landed_more: 13,
-        },
-    )
-    .unwrap()
+    w::ChangesPanel {
+        landed_default: List::with_capacity(0),
+        landed_default_more: 0,
+        project: f::PROJECT,
+        landing: b"main".as_slice().into(),
+        queues,
+        more: 19,
+        landed: rows,
+        landed_more: 13,
+    }
 }
 fn show(root: &mut Domain, watch: Token, panel: &w::ChangesPanel) -> Queue<Request> {
     up(
@@ -159,10 +137,8 @@ fn changes_watch_is_project_scoped_and_leaves_with_the_page() {
     assert_eq!(scope, c::Scope::Project(f::PROJECT));
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!(
-        wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(),
-        &w::Watch::Changes(
-            w::ChangesSubject::new(&w::CEILINGS, w::ChangesSubjectParts { project: f::PROJECT }).unwrap()
-        )
+        &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch,
+        &w::Watch::Changes(w::ChangesSubject { project: f::PROJECT })
     );
     let (mut root, watch) = fixture();
     match root.pages().changes().unwrap().state() {
@@ -223,45 +199,39 @@ fn row_origins_arrive_in_the_panel_without_task_reads() {
         (None, Some(origin(CHAT)), Some(From::Chat(CHAT))),
         (None, None, None),
     ] {
-        let mut parts = panel(&[FIRST], &[SECOND]).into_parts();
-        let mut queue = parts.queues.get(0).unwrap().clone().into_parts();
-        let mut row = queue.changes.get(0).unwrap().clone().into_parts();
+        let mut parts = panel(&[FIRST], &[SECOND]);
+        let mut queue = parts.queues.get(0).unwrap().clone();
+        let mut row = queue.changes.get(0).unwrap().clone();
         row.goal = goal.clone();
         row.chat = chat.clone();
-        queue.changes = List::from_boxed(Box::new([w::ChangesQueued::new(&w::CEILINGS, row).unwrap()]));
-        queue.in_flight = Some(
-            w::TrainLanding::new(
-                &w::CEILINGS,
-                w::TrainLandingParts {
-                    task: 100,
-                    member: 42,
-                    round: 1,
-                    step: w::LandingStep::Proving,
-                    title: b"In flight".as_slice().into(),
-                    ready_since: 0,
-                    probe: None,
-                    goal: goal.clone(),
-                    chat: chat.clone(),
-                    milestone: None,
-                },
-            )
-            .unwrap(),
-        );
-        parts.queues = List::from_boxed(Box::new([w::ChangesQueue::new(&w::CEILINGS, queue).unwrap()]));
-        let mut row = parts.landed.get(0).unwrap().clone().into_parts();
+        queue.changes = List::from_boxed(Box::new([row]));
+        queue.in_flight = Some(w::TrainLanding {
+            task: 100,
+            member: 42,
+            round: 1,
+            step: w::LandingStep::Proving,
+            title: b"In flight".as_slice().into(),
+            ready_since: 0,
+            probe: None,
+            goal: goal.clone(),
+            chat: chat.clone(),
+            milestone: None,
+        });
+        parts.queues = List::from_boxed(Box::new([queue]));
+        let mut row = parts.landed.get(0).unwrap().clone();
         row.goal = goal.clone();
         row.chat = chat;
-        parts.landed = List::from_boxed(Box::new([w::ChangesLanded::new(&w::CEILINGS, row).unwrap()]));
-        let mut row = parts.landed.get(0).unwrap().clone().into_parts();
+        parts.landed = List::from_boxed(Box::new([row]));
+        let mut row = parts.landed.get(0).unwrap().clone();
         row.task = 99;
-        parts.landed_default = List::from_boxed(Box::new([w::ChangesLanded::new(&w::CEILINGS, row).unwrap()]));
-        assert!(reads(&show(&mut root, watch, &w::ChangesPanel::new(&w::CEILINGS, parts).unwrap())).is_empty());
+        parts.landed_default = List::from_boxed(Box::new([row]));
+        assert!(reads(&show(&mut root, watch, &parts)).is_empty());
         for task in [FIRST, SECOND, 42, 99] {
             assert_eq!(root.pages().changes().unwrap().from(task), expected);
             assert_eq!(
                 root.pages().changes().unwrap().goal(task),
                 match &goal {
-                    Some(goal) => Some(goal.task()),
+                    Some(goal) => Some(goal.task),
                     None => None,
                 }
             );
@@ -270,41 +240,35 @@ fn row_origins_arrive_in_the_panel_without_task_reads() {
     }
 }
 fn origin(task: u64) -> w::ChangeFrom {
-    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: b"Store shape".as_slice().into() }).unwrap()
+    w::ChangeFrom { task, title: b"Store shape".as_slice().into() }
 }
 
 #[test]
 fn default_branch_rows_need_no_task_reads() {
     let (mut root, watch) = fixture();
-    let mut parts = panel(&[], &[SECOND]).into_parts();
+    let mut parts = panel(&[], &[SECOND]);
     parts.landed_default = list_for_default(&[SECOND, 99]);
-    let panel = w::ChangesPanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     assert!(reads(&show(&mut root, watch, &panel)).is_empty());
-    let mut parts = panel.into_parts();
+    let mut parts = panel;
     parts.landed = List::with_capacity(0);
-    let panel = w::ChangesPanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     assert!(reads(&show(&mut root, watch, &panel)).is_empty(), "default history needs no reads");
 }
 fn list_for_default(tasks: &[u64]) -> List<w::ChangesLanded> {
     let mut rows = List::with_capacity(32);
     for task in tasks {
-        rows.push(
-            w::ChangesLanded::new(
-                &w::CEILINGS,
-                w::ChangesLandedParts {
-                    goal: None,
-                    chat: None,
-                    milestone: None,
-                    signed: List::with_capacity(8),
-                    task: *task,
-                    title: b"Main landing".as_slice().into(),
-                    at: 0,
-                    commit: [0xab; 32],
-                    default_branch: true,
-                },
-            )
-            .unwrap(),
-        )
+        rows.push(w::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
+            signed: List::with_capacity(8),
+            task: *task,
+            title: b"Main landing".as_slice().into(),
+            at: 0,
+            commit: [0xab; 32],
+            default_branch: true,
+        })
         .unwrap();
     }
     rows

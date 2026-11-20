@@ -140,12 +140,25 @@ boundary (smith's run.md, 8.1).
 - **A repair's pin is the head it repairs.** A repair, a resolution and a
   merge job name no landing branch, and the worker pins the head their
   delivery replaces instead (`temper/docs/design/domain/worker/checkouts.md`
-  ): the base is that head, so a repair of a goal's landing into main
+  ): the base is that head, so a CI repair of a goal's landing into main
   checks what its own edits changed, not the goal's packages. A resolution's
   base is its branch's head before the merge, so its check selects what the
   merge and its edits change on the branch against both parents: a path
   as the merged tip holds it was checked there (section 3, *Changed
   paths*).
+- **A landing's repair is pinned at that landing's base.** A repair asked
+  by a landing's gate names a pin, the base that landing's round used
+  (`temper/docs/design/domain/worker/checkouts.md`, *A named pin*), and is
+  judged as the landing judged its change: the base is that commit once
+  the repair has merged it, whichever parent of the merge it is. The
+  whole diff against that base holds what the change and the repair bring
+  onto it, never what the base gained since the change's source. Selection
+  then sets aside merged tips' entries (section 3, *Changed paths*): an
+  unchanged path from the change's head is excluded when that head is a
+  merged tip. Check 7 starts from the whole diff and sets aside figures
+  itself (section 4). A repair that leaves the pin unmerged is judged from
+  where its branch meets it, with the same selection rule. Every other
+  repair keeps the head it repairs.
 - **An unchecked save is stepped past.** Where the base is temper's
   unchecked save, a commit whose subject is `Unchecked: work in progress,
   saved before a question` (`temper/docs/design/domain/agent/README.md`,

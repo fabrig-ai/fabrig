@@ -55,7 +55,7 @@ pub(crate) fn settings_conversation(payloads: bool) -> c::ReadResult {
         rows.push(crate::tests::documents::line(
             start,
             Wall::EPOCH,
-            c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: false },
+            c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: false, fresh: None },
         ))
         .expect("run start");
         rows.push(crate::tests::documents::turn(

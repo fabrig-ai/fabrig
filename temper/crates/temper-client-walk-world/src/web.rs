@@ -104,7 +104,8 @@ impl Page {
                     Report::World(Heard::Printed(printed)) => {
                         if printed.process.as_ref() == b"temper serve"
                             && printed.stream == bridge::Stream::Output
-                            && skein_lib::bytes::find(&printed.line, b"/jig/v1/sign-in/link?secret=").is_some()
+                            && (skein_lib::bytes::find(&printed.line, b"/sign-in?secret=").is_some()
+                                || skein_lib::bytes::find(&printed.line, b"/jig/v1/sign-in/link?secret=").is_some())
                         {
                             link = Some(printed.line);
                         }
@@ -133,7 +134,11 @@ impl Page {
         let (_, path) = link.strip_prefix("http://").and_then(|link| link.split_once('/')).ok_or(Failed::NoLink)?;
         let path = format!("/{path}");
         let taken = sign_in::take(
-            &sign_in::Route { path: b"/jig/v1/sign-in/link", page: None, home: b"/welcome" },
+            &sign_in::Route {
+                path: b"/jig/v1/sign-in/link",
+                page: Some(temper_client_domain::sign_in::LINK_PAGE),
+                home: b"/welcome",
+            },
             path.as_bytes(),
         )
         .ok_or(Failed::NoLink)?;

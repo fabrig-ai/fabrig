@@ -1,6 +1,7 @@
 //! Browser approvals, their refusals and durable takes (jig/docs/design/protocol/client/sign-in.md).
 use super::fixtures::{self as f, Exchange};
-use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings};
+use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings, Via};
+use ::core::net::{Ipv4Addr, Ipv6Addr};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::ApprovalCode;
 use jig_domain_people as people;
@@ -11,7 +12,10 @@ fn new() -> Exchange {
     Exchange::configured(f::env(), Settings { approval: true, ..f::settings() })
 }
 fn ask_message() -> Message {
-    let value = w::ApprovalAsk::new(&f::wire(), w::ApprovalAskParts {}).expect("ask");
+    ask_port(None)
+}
+fn ask_port(port: Option<u16>) -> Message {
+    let value = w::ApprovalAsk::new(&f::wire(), w::ApprovalAskParts { port }).expect("ask");
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("ask bytes");
     Message::ApprovalAsk(bytes.finish())
@@ -29,8 +33,14 @@ fn decide_message(code: [u8; 8], approve: bool) -> Message {
     Message::ApprovalDecide(bytes.finish())
 }
 fn take_message(secret: &[u8]) -> Message {
-    let value = w::ApprovalSignIn::new(&f::wire(), w::ApprovalSignInParts { secret: Secret::new(secret.into()) })
-        .expect("take");
+    take_grant(secret, None)
+}
+fn take_grant(secret: &[u8], grant: Option<&Secret>) -> Message {
+    let value = w::ApprovalSignIn::new(
+        &f::wire(),
+        w::ApprovalSignInParts { secret: Secret::new(secret.into()), grant: grant.cloned() },
+    )
+    .expect("take");
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("take bytes");
     Message::SignInApproval(bytes.finish())
@@ -43,8 +53,17 @@ fn finish(e: &mut Exchange, owner: Token) {
     assert_eq!(exchange, owner);
     assert!(e.out.is_empty());
 }
+fn ask_answer(e: &mut Exchange, port: Option<u16>) -> w::ApprovalAskAnswer {
+    let owner = e.send(ask_port(port));
+    let answer = w::ApprovalAskAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("ask answer");
+    finish(e, owner);
+    answer
+}
 fn asked(e: &mut Exchange) -> w::ApprovalAsked {
-    let owner = e.send(ask_message());
+    asked_port(e, None)
+}
+fn asked_port(e: &mut Exchange, port: Option<u16>) -> w::ApprovalAsked {
+    let owner = e.send(ask_port(port));
     let value = w::ApprovalAskAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("ask answer");
     let w::ApprovalAskAnswer::Asked(value) = value else { panic!("approval asked: {value:?}") };
     assert_eq!(value.secret().expose().len(), 32);
@@ -72,7 +91,10 @@ fn decide(e: &mut Exchange, code: [u8; 8], approve: bool) -> w::ApprovalDecided 
     value
 }
 fn take_answer(e: &mut Exchange, secret: &[u8]) -> w::ApprovalSignInAnswer {
-    let owner = e.send(take_message(secret));
+    grant_answer(e, secret, None)
+}
+fn grant_answer(e: &mut Exchange, secret: &[u8], grant: Option<&Secret>) -> w::ApprovalSignInAnswer {
+    let owner = e.send(take_grant(secret, grant));
     let value =
         w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("take answer");
     finish(e, owner);
@@ -109,8 +131,209 @@ fn signed_in(e: &mut Exchange, to: ReplyTo, owner: Token) -> w::SignedIn {
 }
 fn approved(e: &mut Exchange) -> w::ApprovalAsked {
     let value = asked(e);
-    assert_eq!(decide(e, *value.code(), true), w::ApprovalDecided::Approved);
+    assert_eq!(
+        decide(e, *value.code(), true),
+        w::ApprovalDecided::Approved(
+            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None }).expect("approval")
+        )
+    );
     value
+}
+
+fn loopback(e: &mut Exchange, a: &w::ApprovalAsked) -> w::ApprovalLoopback {
+    let answer = decide(e, *a.code(), true);
+    let w::ApprovalDecided::Approved(answer) = answer else { panic!("approved") };
+    let returned = answer.loopback().as_ref().expect("loopback return");
+    assert_eq!(returned.port(), 43210);
+    assert_eq!(returned.grant().expose().len(), 32);
+    returned.clone()
+}
+fn waiting(e: &mut Exchange, a: &w::ApprovalAsked) -> w::ApprovalWaiting {
+    let state = read(e, *a.code());
+    let w::ApprovalState::Waiting(value) = state else { panic!("waiting: {state:?}") };
+    value
+}
+const SOURCE: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
+const READER: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(198, 51, 100, 9));
+
+#[test]
+fn the_exchange_and_port_choose_the_kind() {
+    for (via, port, kind) in [
+        (Via::Listener, None, Some(w::ApprovalKind::Listener)),
+        (Via::Public, None, Some(w::ApprovalKind::Typed)),
+        (Via::Public, Some(43210), Some(w::ApprovalKind::Returned)),
+        (Via::Listener, Some(43210), None),
+        (Via::Public, Some(80), None),
+        (Via::Public, Some(1023), None),
+        (Via::Public, Some(1024), Some(w::ApprovalKind::Returned)),
+        (Via::Public, Some(65535), Some(w::ApprovalKind::Returned)),
+    ] {
+        let mut e = new();
+        e.via = via;
+        let answer = ask_answer(&mut e, port);
+        match kind {
+            Some(kind) => {
+                let w::ApprovalAskAnswer::Asked(a) = answer else { panic!("asked") };
+                assert_eq!(waiting(&mut e, &a).kind(), &kind);
+            }
+            None => assert_eq!(answer, w::ApprovalAskAnswer::Refused),
+        }
+    }
+}
+
+#[test]
+fn a_waiting_read_carries_the_ask_and_reader_sources() {
+    let ipv6 = Ipv6Addr::new(0x2001, 0xdb8, 0, 1, 0, 0, 0, 7);
+    for (source, expected) in [
+        (Some(SOURCE), Some(Ipv4Addr::new(203, 0, 113, 7).to_ipv6_mapped().octets())),
+        (Some(core::net::IpAddr::V6(ipv6)), Some(ipv6.octets())),
+        (None, None),
+    ] {
+        let mut e = new();
+        e.via = Via::Public;
+        e.source = source;
+        e.env.wall = Wall::from_nanos(123);
+        let a = asked(&mut e);
+        e.source = Some(READER);
+        e.env.wall = Wall::from_nanos(456);
+        let state = waiting(&mut e, &a);
+        assert_eq!(state.asked(), 123);
+        assert_eq!(state.kind(), &w::ApprovalKind::Typed);
+        assert_eq!(state.source(), &expected);
+        assert_eq!(state.reader(), &Some(Ipv4Addr::new(198, 51, 100, 9).to_ipv6_mapped().octets()));
+        e.source = Some(core::net::IpAddr::V6(ipv6));
+        assert_eq!(waiting(&mut e, &a).reader(), &Some(ipv6.octets()));
+        e.source = None;
+        assert_eq!(waiting(&mut e, &a).reader(), &None);
+    }
+}
+
+#[test]
+fn two_public_waiters_per_source_replace_nothing() {
+    for source in [Some(SOURCE), None] {
+        let mut e = new();
+        e.via = Via::Public;
+        e.source = source;
+        let first = asked(&mut e);
+        let second = asked_port(&mut e, Some(43210));
+        assert_eq!(ask_answer(&mut e, None), w::ApprovalAskAnswer::Busy);
+        waiting(&mut e, &first);
+        waiting(&mut e, &second);
+        e.source = Some(READER);
+        asked(&mut e);
+        e.source = source;
+        decide(&mut e, *first.code(), true);
+        let third = asked(&mut e);
+        waiting(&mut e, &third);
+        assert_eq!(read(&mut e, *first.code()), w::ApprovalState::Approved);
+        assert_eq!(ask_answer(&mut e, None), w::ApprovalAskAnswer::Busy, "four live still bound all kinds");
+    }
+}
+
+#[test]
+fn listener_asks_share_only_the_deployments_room() {
+    let mut e = new();
+    e.source = Some(SOURCE);
+    asked(&mut e);
+    asked(&mut e);
+    e.via = Via::Public;
+    asked(&mut e);
+    asked_port(&mut e, Some(43210));
+    e.via = Via::Listener;
+    assert_eq!(ask_answer(&mut e, None), w::ApprovalAskAnswer::Busy);
+    e.via = Via::Public;
+    e.source = Some(READER);
+    assert_eq!(ask_answer(&mut e, Some(43210)), w::ApprovalAskAnswer::Busy);
+}
+
+#[test]
+fn two_terminals_at_one_source_take_apart_without_losing_a_reservation() {
+    let mut e = new();
+    e.via = Via::Public;
+    e.source = Some(SOURCE);
+    let first = asked_port(&mut e, Some(43210));
+    let second = asked(&mut e);
+    let grant = loopback(&mut e, &first);
+    let owner = e.send(take_grant(first.secret().expose(), Some(grant.grant())));
+    let whose = e.approval_whose();
+    let third = asked(&mut e);
+    waiting(&mut e, &second);
+    waiting(&mut e, &third);
+    assert_eq!(ask_answer(&mut e, None), w::ApprovalAskAnswer::Busy);
+    assert_eq!(read(&mut e, *first.code()), w::ApprovalState::Approved);
+    assert_eq!(grant_answer(&mut e, first.secret().expose(), Some(grant.grant())), w::ApprovalSignInAnswer::Busy);
+    e.reply(whose, people::Reply::Signer(Some(people::Signer { kind: people::Kind::Person, identity: identity() })));
+    let to = e.approval_sign_in(&identity());
+    let credential = signed_in(&mut e, to, owner);
+    decide(&mut e, *second.code(), true);
+    let owner = e.send(take_message(second.secret().expose()));
+    let to = signer(&mut e);
+    let other = signed_in(&mut e, to, owner);
+    assert_ne!(credential.token(), other.token());
+    assert_eq!(take_answer(&mut e, first.secret().expose()), w::ApprovalSignInAnswer::Used);
+    assert_eq!(read(&mut e, *second.code()), w::ApprovalState::Taken);
+}
+
+#[test]
+fn the_grant_is_answered_in_the_first_decision_alone() {
+    let mut e = new();
+    e.via = Via::Public;
+    let a = asked_port(&mut e, Some(43210));
+    loopback(&mut e, &a);
+    assert_eq!(decide(&mut e, *a.code(), true), w::ApprovalDecided::Used);
+    assert_eq!(decide(&mut e, *a.code(), false), w::ApprovalDecided::Used);
+    assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Approved);
+}
+
+#[test]
+fn a_returned_take_needs_its_grant_and_recovers_from_a_wrong_one() {
+    let mut e = new();
+    e.via = Via::Public;
+    let a = asked_port(&mut e, Some(43210));
+    let wrong = Secret::new(Box::new([8; 32]));
+    assert_eq!(grant_answer(&mut e, a.secret().expose(), Some(&wrong)), w::ApprovalSignInAnswer::Waiting);
+    let grant = loopback(&mut e, &a);
+    assert_ne!(grant.grant(), &wrong);
+    for _ in 0_u32..3 {
+        assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Waiting);
+    }
+    assert_eq!(grant_answer(&mut e, a.secret().expose(), Some(&wrong)), w::ApprovalSignInAnswer::NotGranted);
+    assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Approved);
+    let owner = e.send(take_grant(a.secret().expose(), Some(grant.grant())));
+    let to = signer(&mut e);
+    signed_in(&mut e, to, owner);
+    assert_eq!(grant_answer(&mut e, a.secret().expose(), Some(grant.grant())), w::ApprovalSignInAnswer::Used);
+}
+
+#[test]
+fn the_third_wrong_grant_ends_the_approval_refused() {
+    let mut e = new();
+    e.via = Via::Public;
+    let a = asked_port(&mut e, Some(43210));
+    let grant = loopback(&mut e, &a);
+    let wrong = Secret::new(Box::new([8; 32]));
+    assert_ne!(grant.grant(), &wrong);
+    for attempt in 1_u32..=3 {
+        assert_eq!(grant_answer(&mut e, a.secret().expose(), Some(&wrong)), w::ApprovalSignInAnswer::NotGranted);
+        assert_eq!(
+            read(&mut e, *a.code()),
+            if attempt == 3 { w::ApprovalState::Refused } else { w::ApprovalState::Approved }
+        );
+    }
+    assert_eq!(grant_answer(&mut e, a.secret().expose(), Some(grant.grant())), w::ApprovalSignInAnswer::Refused);
+}
+
+#[test]
+fn a_take_without_a_return_reads_no_grant() {
+    for via in [Via::Listener, Via::Public] {
+        let mut e = new();
+        e.via = via;
+        let a = approved(&mut e);
+        let grant = Secret::new(Box::new([8; 32]));
+        let owner = e.send(take_grant(a.secret().expose(), Some(&grant)));
+        let to = signer(&mut e);
+        signed_in(&mut e, to, owner);
+    }
 }
 
 #[test]
@@ -209,7 +432,11 @@ fn a_read_says_what_the_approval_is() {
         let code = *a.code();
         let expected = match case {
             "waiting" => w::ApprovalState::Waiting(
-                w::ApprovalWaiting::new(&f::wire(), w::ApprovalWaitingParts { asked: 123 }).expect("waiting"),
+                w::ApprovalWaiting::new(
+                    &f::wire(),
+                    w::ApprovalWaitingParts { asked: 123, kind: w::ApprovalKind::Listener, source: None, reader: None },
+                )
+                .expect("waiting"),
             ),
             "approved" => {
                 decide(&mut e, code, true);
@@ -258,7 +485,14 @@ fn the_first_decision_spends_the_approval() {
         let a = asked(&mut e);
         assert_eq!(
             decide(&mut e, *a.code(), first),
-            if first { w::ApprovalDecided::Approved } else { w::ApprovalDecided::Refused }
+            if first {
+                w::ApprovalDecided::Approved(
+                    w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None })
+                        .expect("approval"),
+                )
+            } else {
+                w::ApprovalDecided::Refused
+            }
         );
         assert_eq!(decide(&mut e, *a.code(), next), expected);
     }
@@ -398,10 +632,19 @@ fn an_approved_take_signs_in_the_approvers_party_once() {
     assert_eq!(
         read(&mut e, *a.code()),
         w::ApprovalState::Waiting(
-            w::ApprovalWaiting::new(&f::wire(), w::ApprovalWaitingParts { asked: 0 }).expect("waiting")
+            w::ApprovalWaiting::new(
+                &f::wire(),
+                w::ApprovalWaitingParts { asked: 0, kind: w::ApprovalKind::Listener, source: None, reader: None }
+            )
+            .expect("waiting")
         )
     );
-    assert_eq!(decide(&mut e, *a.code(), true), w::ApprovalDecided::Approved);
+    assert_eq!(
+        decide(&mut e, *a.code(), true),
+        w::ApprovalDecided::Approved(
+            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None }).expect("approval")
+        )
+    );
     let owner = e.send(take_message(a.secret().expose()));
     let to = signer(&mut e);
     let first = signed_in(&mut e, to, owner);
@@ -442,7 +685,8 @@ fn an_approval_never_taken_makes_no_sign_in() {
 #[expect(clippy::disallowed_macros, reason = "ordinary canary test inspects Debug at each secret boundary")]
 fn no_print_of_the_component_shows_a_secret() {
     let mut e = new();
-    let owner = e.send(ask_message());
+    e.via = Via::Public;
+    let owner = e.send(ask_port(Some(43210)));
     let w::ApprovalAskAnswer::Asked(a) =
         w::ApprovalAskAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("ask")
     else {
@@ -453,8 +697,20 @@ fn no_print_of_the_component_shows_a_secret() {
     assert_hidden(&format!("{:?}", e.out), a.secret().expose());
     e.out.pop().expect("asked answer");
     assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
-    decide(&mut e, *a.code(), true);
-    let owner = e.send(take_message(a.secret().expose()));
+    let decision = browser(&mut e, decide_message(*a.code(), true));
+    let w::ApprovalDecided::Approved(answer) =
+        w::ApprovalDecided::decode(&f::wire(), &mut Reader::new(e.response(decision).1)).expect("decision")
+    else {
+        panic!("approved")
+    };
+    let grant = answer.loopback().as_ref().expect("loopback").grant();
+    assert_hidden(&format!("{answer:?}"), grant.expose());
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), grant.expose());
+    e.component.up(&e.env, &mut e.out);
+    assert_hidden(&format!("{:?}", e.out), grant.expose());
+    e.out.pop().expect("decision answer");
+    let owner = e.send(take_grant(a.secret().expose(), Some(grant)));
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), grant.expose());
     assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
     let whose = e.approval_whose();
     e.reply(whose, people::Reply::Signer(Some(people::Signer { kind: people::Kind::Person, identity: identity() })));
@@ -473,6 +729,7 @@ fn no_print_of_the_component_shows_a_secret() {
     };
     for printed in [before, after] {
         assert_hidden(&printed, a.secret().expose());
+        assert_hidden(&printed, grant.expose());
         assert_hidden(&printed, value.token().as_ref().expect("token").expose());
     }
     e.component.up(&e.env, &mut e.out);

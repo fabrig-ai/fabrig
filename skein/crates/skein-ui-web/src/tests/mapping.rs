@@ -514,6 +514,20 @@ fn a_disclosures_description_follows_its_name_in_the_summary() {
 }
 
 #[test]
+fn a_menu_button_has_its_own_words_and_name() {
+    let mut made = fixtures::made(Role::Menu);
+    made.attribute.name = Some(b"Stock ways".as_slice().into());
+    made.attribute.button = Some(skein_ui::MenuButton {
+        words: b"You approve".as_slice().into(),
+        name: b"Way shown: You approve".as_slice().into(),
+    });
+    assert_eq!(
+        dom::print(&mapping::element(&made, &fixtures::look(), b"/", Primary::Control, &Words::ENGLISH)),
+        include_str!("golden/menu-button-closed.html").trim_end()
+    );
+}
+
+#[test]
 fn a_menu_item_shows_its_description_in_a_span_of_its_own() {
     let mut made = fixtures::made(Role::MenuItem);
     made.attribute.name = Some(b"Chat & <b>".as_slice().into());

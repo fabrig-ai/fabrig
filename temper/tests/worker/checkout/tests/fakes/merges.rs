@@ -6,6 +6,11 @@ fn a_repair_replaces_the_cached_producers_pin_and_freezes_it_for_deliveries() {
 }
 
 #[test]
+fn a_named_pin_overwrites_the_cached_pin_and_stays_frozen_through_two_deliveries() {
+    merges::replaced_pin(PinCase::Named);
+}
+
+#[test]
 fn a_saved_repair_pins_the_push_head_not_its_saved_start() {
     merges::replaced_pin(PinCase::Saved);
 }

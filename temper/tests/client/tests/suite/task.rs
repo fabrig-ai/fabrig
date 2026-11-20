@@ -5,6 +5,7 @@ use jig_client_kit::{
 use skein_fake_person::{Face, Find, Found, Step, Target, TreeFace};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 
 fn running_delegate_page() -> (jig_client_kit::harness::World<Temper, Joint>, jig_client_kit::harness::ClientId, u64) {
@@ -601,7 +602,7 @@ fn goals_query_carries_report_headlines_through_the_joined_engine() {
     let row = rows.rows.iter().find(|row| row.chip.task == goal.task).expect("goal row");
     let Some(c::RowPart::Value(part)) = row.parts.get(0) else { panic!("goal part: {:?}", row.parts) };
     let part = w::GoalPart::decode(&w::CEILINGS, &mut Reader::new(&part.bytes)).expect("joined goal part");
-    assert_eq!(part.report().as_ref().expect("joined goal part").headline(), b"Two of three landed");
+    assert_eq!(part.report.as_ref().expect("joined goal part").headline.as_ref(), b"Two of three landed");
 }
 
 fn report_text(words: &[u8]) -> Find {

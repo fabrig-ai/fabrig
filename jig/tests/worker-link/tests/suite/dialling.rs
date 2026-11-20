@@ -1,4 +1,5 @@
 use jig_protocol_worker_link::{Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request};
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::{Trace, World, fixtures};
 use skein_channel::Closed;
 use skein_lib::Duration;
@@ -40,8 +41,8 @@ fn the_worker_opens_with_its_credential() {
     let credential =
         jig_protocol_worker_wire::Credential::decode(&limits, &mut skein_lib::Reader::new(world.credential()))
             .expect("wire credential");
-    assert_eq!(credential.name(), fixtures::WORKER_A);
-    assert_eq!(credential.secret().expose(), fixtures::SECRET_A);
+    assert_eq!(credential.name.as_ref(), fixtures::WORKER_A);
+    assert_eq!(credential.secret.expose(), fixtures::SECRET_A);
     let mut expected = Vec::new();
     for spoken in &jig_protocol_worker_wire::spoken() {
         expected.push(spoken.clone());
@@ -49,11 +50,11 @@ fn the_worker_opens_with_its_credential() {
     for spoken in &fixtures::application() {
         expected.push(spoken.clone());
     }
-    assert_eq!(credential.wires().len(), u32::try_from(expected.len()).expect("wire count"));
-    for (stated, spoken) in credential.wires().iter().zip(&expected) {
-        assert_eq!(stated.name(), spoken.name.as_bytes());
-        assert_eq!(stated.lowest(), spoken.lowest);
-        assert_eq!(stated.layouts(), &spoken.layouts);
+    assert_eq!(credential.wires.len(), u32::try_from(expected.len()).expect("wire count"));
+    for (stated, spoken) in credential.wires.iter().zip(&expected) {
+        assert_eq!(stated.name.as_ref(), spoken.name.as_bytes());
+        assert_eq!(stated.lowest, spoken.lowest);
+        assert_eq!((&stated.layouts), &spoken.layouts);
     }
 }
 #[test]

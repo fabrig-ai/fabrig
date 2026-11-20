@@ -386,7 +386,9 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
                     &bounds,
                     scripts()
                 ),
-                Err(codec::Error::Unsupported)
+                Err(codec::Error::Unsupported {
+                    cause: smith_protocol_llm::Cause::Smith(smith_protocol_llm::Refusal::ResultReplay)
+                })
             ),
             "restored metadata cannot silently disappear into a ToolResult without replay support"
         );

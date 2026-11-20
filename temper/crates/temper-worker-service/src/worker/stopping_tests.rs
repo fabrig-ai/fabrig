@@ -47,6 +47,7 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         expected: None,
         landing: None,
         delivered: None,
+        pin: None,
     };
     stand.worker.events.push(root::Event::Assign { assignment, items: Ok(items) });
     for _ in 0_u32..2000 {

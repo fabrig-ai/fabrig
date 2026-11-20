@@ -24,8 +24,8 @@ fn an_answered_agent_exits_0_with_no_signal_from_its_host() {
     assert!(world.peer_replied(), "the fake LLM served a plaintext response: {:?}", world.peer_observations());
     assert_eq!(world.peer_queries().len(), 1, "the independent peer decoded one model request");
     let answer = world.answer().expect("host saw final answer");
-    assert_eq!(answer.turns(), 1);
-    assert!(matches!(answer.result(), RunResult::Failed(_)), "one-turn budget ended the run");
+    assert_eq!(answer.turns, 1);
+    assert!(matches!(&answer.result, RunResult::Failed(_)), "one-turn budget ended the run");
     assert_eq!(world.exit(), Some(skein_io::kernel::Exit::Code(0)));
     assert!(!world.signalled(), "answered process exits without a host signal");
     assert!(!String::from_utf8(world.errors()).expect("diagnostic UTF-8").contains("could not answer"));
@@ -52,7 +52,7 @@ fn a_termination_signal_in_the_middle_of_a_turn_answers_cancelled() {
     assert!(world.settle(), "cancellation was answered");
     assert!(world.observed().iter().any(|frame| frame.kind == 0x0106), "run admitted before signal");
     let answer = world.answer().expect("host saw final answer");
-    assert!(matches!(answer.result(), RunResult::Failed(failed) if failed.reason() == &RunFailure::Cancelled));
+    assert!(matches!( &answer.result, RunResult::Failed(failed) if failed.reason == RunFailure::Cancelled));
     world.assert_agent_clean();
 }
 
@@ -234,16 +234,16 @@ fn a_provider_refusal_ends_standard_error_with_its_clipped_text() {
 
 fn stopped_reasoning_charter() -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
-        let mut main = parts.main.clone().into_parts();
+        let mut main = parts.main.clone();
         main.window = 272_000;
         main.output = 16_384;
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
+        parts.main = main;
         smith_agent_process_world::wire::budget(parts, 8, 1_000_000);
-        let mut tools = parts.tools.clone().into_parts();
-        let mut families = tools.families.into_parts();
+        let mut tools = parts.tools.clone();
+        let mut families = tools.families;
         families.inspect = true;
-        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
+        tools.families = families;
+        parts.tools = tools;
     })
 }
 
@@ -272,8 +272,8 @@ fn a_reasoning_turn_that_stops_after_a_read_is_told_and_nudged() {
         );
     }
     let answer = world.answer().expect("the finish answered");
-    assert!(matches!(answer.result(), RunResult::Accepted(_)));
-    assert_eq!(answer.turns(), 3);
+    assert!(matches!(&answer.result, RunResult::Accepted(_)));
+    assert_eq!(answer.turns, 3);
     assert_eq!(world.exit(), Some(skein_io::kernel::Exit::Code(0)));
     assert!(!world.signalled());
     world.assert_agent_clean();
@@ -314,7 +314,7 @@ fn a_hosted_agent_refuses_a_relative_root() {
     assert!(world.peer_queries().is_empty(), "a root refusal precedes the provider");
     let answer = world.answer().expect("the host receives the refusal");
     assert!(
-        matches!(answer.result(), RunResult::Refused(refused) if matches!(refused.reason(), smith_channel::StartRefusal::Invalid(invalid) if invalid.value() == &smith_channel::InvalidStart::Workspace)),
+        matches!( &answer.result, RunResult::Refused(refused) if matches!( &refused.reason, smith_channel::StartRefusal::Invalid(invalid) if invalid.value == smith_channel::InvalidStart::Workspace)),
         "the Start's workspace was refused: {answer:?}"
     );
     assert_eq!(world.exit(), Some(skein_io::kernel::Exit::Code(0)));

@@ -114,7 +114,9 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   the parent process exits; with io, that thread runs the shell's kernel
   and lives as long as the loop. `parent` must be the PID the caller's
   parent gave it (for example as an argument), so the re-check detects
-  death before the signal was installed. macOS returns `Unsupported`.
+  death before the signal was installed. macOS, which has no such
+  signal, forks a watcher before the exec that sends it when the parent
+  **process** exits (`readiness.md`, 5); the re-check is the same.
 - **A parent-side spawn,** `spawn_dying_with_parent(command: &mut
   std::process::Command, signal) -> std::io::Result<std::process::Child>`,
   for a test kit with no binary of its own to exec through
@@ -122,10 +124,10 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   test"): the same parent-death signal and parent re-check, installed in
   the forked child before its exec, the parent being the spawning
   process. A re-check that fails refuses the spawn as the child-side
-  exec does. The signal fires when the spawning thread exits, as above,
-  so a kit spawns on the thread that keeps the process. Off Linux it
-  spawns without the signal, as smith's program child starts its program
-  directly on macOS.
+  exec does. On Linux the signal fires when the spawning thread exits,
+  as above, so a kit spawns on the thread that keeps the process; on
+  macOS the watcher, forked in the child's pre-exec hook, sends it when
+  the spawning process exits.
 - **Its checks:** the first two broken invariants of the kernel boundary
   (an invalid record, a token already in flight) at submit.
 
@@ -246,7 +248,7 @@ io's private-file checks (io/files.md, 3) on what it opened before it reads a
 byte:
 
 - a regular file, reached through no link: no component of its path is
-  one;
+  one, but for macOS's own among its parents (`readiness.md`, 5);
 - no group or other permission bits;
 - one link;
 - owned by the process's effective user, which startup reads once
@@ -259,6 +261,14 @@ private fails its open for want of permission; the read names it as io
 does, by a path-only open whose stat decides nothing (io/files.md, 3). The
 bytes are a secret's: the caller keeps them out of logs, traces and
 `Debug` (lib.md, section 6).
+
+**The system's links, for a caller's own check.** A caller that checks
+a path's components for links itself first takes
+`resolve_system_links(path: &Path) -> PathBuf`, the path with the
+system's own links among its parents passed by the walk the no-follow
+opens make (`readiness.md`, 5), always, not only on a refusal; on
+Linux, the path as given. What it answers is checked as before, so the
+caller refuses what the shell's opens refuse, and no other link.
 
 **The process's own identity** is read the same way, once, at startup,
 through the ring adapter:
@@ -697,10 +707,14 @@ and changes no code above io:
 
 ## 9. Open questions
 
-- **A child dying with its parent on macOS** (3, 13): whether to provide
-  an alternative to Linux's parent-death signal. Default:
-  `exec_dying_with_parent` returns `Unsupported` there; a supervisor
-  ends the crashed service's whole tree before restarting it.
+- **A child dying with its parent on macOS** (3, 13): the watcher
+  (`readiness.md`, 5) is written without a macOS machine to run it, so
+  whether a consumer that would start every program through it takes it
+  before a macOS run has shown it. Default: no; smith's agent still
+  starts its programs directly on macOS
+  (`smith/docs/design/protocol/programs.md`, 5.1), and jig-test's
+  program-child test (`jig/testing/jig-test/tests/process.rs`) is the
+  watcher's first proof there.
 - **The remaining identical helpers** (`readiness.md`, 5): `linux` and `darwin` each
   keep `count`, `process::fd` and `files::truncate`, whose only differences
   are a panic's words or a path. Moving them to `posix` waits for a round
@@ -825,10 +839,11 @@ every service's `main`.
 - **A crash closes nothing.** A process killed, or aborted by a panic
   (section 6), runs none of this end: the children it started stay in
   their own groups (io/processes.md) and outlive it, since io kills a child's
-  group only when it closes the child. On Linux, a child that execs its
-  program through `exec_dying_with_parent` (`shell.md`, section 3) is the exception: the
-  kernel sends it its signal when the thread that started it ends, so a
-  service whose crash must not leave a child running starts it that way.
+  group only when it closes the child. A child that execs its
+  program through `exec_dying_with_parent` (`shell.md`, section 3) is the exception: it
+  is sent its signal when the thread that started it ends, on Linux, or
+  its process, on macOS, so a service whose crash must not leave a child
+  running starts it that way.
   A supervisor that restarts a crashed service first ends its whole tree,
   every descendant at once, as a systemd unit's control group is by
   default, and starts it again on the same state only once nothing of

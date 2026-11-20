@@ -83,9 +83,9 @@ fn domain_facts_reach_the_sink_before_the_next_entrance() {
 // The first text turn leaves a second completion request behind its Turn output.
 fn two_turn_charter() -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
-        let mut budget = parts.budget.clone().into_parts();
+        let mut budget = parts.budget.clone();
         budget.turns = REQUEST_TURNS;
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two-turn budget");
+        parts.budget = budget;
     })
 }
 

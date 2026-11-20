@@ -731,14 +731,8 @@ fn fixture_root(
     }
     if let WelcomeForge::Playground { running: true, .. } = forge {
         let running = true;
-        let playground = playground_answer(running).into_parts();
-        front.playground = Some(
-            temper_client_protocol_wire::v1::PlaygroundAnswer::new(
-                &temper_client_protocol_wire::v1::CEILINGS,
-                playground,
-            )
-            .expect("playground fixture"),
-        );
+        let playground = playground_answer(running);
+        front.playground = Some(playground);
     }
     if matches!(forge, WelcomeForge::Playground { printed: true, .. }) {
         front.offer_printed_link(limits);
@@ -1021,19 +1015,15 @@ pub(super) fn playground_answer(running: bool) -> temper_client_protocol_wire::v
     use temper_client_protocol_wire::v1 as w;
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    w::PlaygroundAnswer::new(
-        &w::CEILINGS,
-        w::PlaygroundAnswerParts {
-            project: Some(1),
-            forge: 2,
-            provider: PROVIDER,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::Starting },
-            cues,
-        },
-    )
-    .expect("playground fixture")
+    w::PlaygroundAnswer {
+        project: Some(1),
+        forge: 2,
+        provider: PROVIDER,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::Starting },
+        cues,
+    }
 }
 
 /// Fresh page on the same engine and person.

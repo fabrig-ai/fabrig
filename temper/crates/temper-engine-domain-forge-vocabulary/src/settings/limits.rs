@@ -5,31 +5,21 @@ use skein_lib::{Decimal, List};
 use temper_client_protocol_wire::v1 as w;
 
 #[must_use]
-pub fn limits_record(values: &[Override]) -> w::TemperLimits {
+pub fn limits_record(values: &[Override]) -> w::LimitOverrides {
     let mut overrides = List::with_capacity(OVERRIDES);
     for value in values {
         overrides
-            .push(
-                w::LimitOverride::new(
-                    &w::CEILINGS,
-                    w::LimitOverrideParts {
-                        name: value.name.clone(),
-                        value: value.value,
-                        reason: value.reason.clone(),
-                    },
-                )
-                .expect("admitted override fits wire"),
-            )
+            .push(w::LimitOverride { name: value.name.clone(), value: value.value, reason: value.reason.clone() })
             .expect("admitted override count");
     }
-    w::TemperLimits::new(&w::CEILINGS, w::TemperLimitsParts { overrides }).expect("admitted override list fits wire")
+    w::LimitOverrides { overrides }
 }
 
 #[must_use]
-pub fn limits_from(record: w::TemperLimits) -> Box<[Override]> {
+pub fn limits_from(record: w::LimitOverrides) -> Box<[Override]> {
     let mut overrides = List::with_capacity(OVERRIDES);
-    for value in record.into_parts().overrides.into_boxed() {
-        let w::LimitOverrideParts { name, value, reason } = value.into_parts();
+    for value in record.overrides.into_boxed() {
+        let w::LimitOverride { name, value, reason } = value;
         overrides.push(Override { name, value, reason }).expect("decoded override count");
     }
     overrides.into_boxed()

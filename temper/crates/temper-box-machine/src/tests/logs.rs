@@ -62,7 +62,7 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
     h.run_until_idle();
     h.write_child(forge, 1, b"third\n");
     h.write_child(h.serve_index(), 2, b"serve diagnostic\n");
-    h.write_child(h.serve_index(), 1, b"http://local/sign-in/link?secret=private\n");
+    h.write_child(h.serve_index(), 1, b"http://local/sign-in?secret=private\n");
     h.run_until_idle();
     let stderr = h.stderr();
     assert!(Harness::contains(
@@ -98,7 +98,7 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
     for item in &items {
         assert_ne!(item.path, b"box/logs.previous/forge-1.log");
         if let skein_fake_machine::Made::File(data) = &item.made {
-            assert!(!Harness::contains(data, b"/sign-in/link"));
+            assert!(!Harness::contains(data, b"/sign-in?secret="));
         }
     }
 }

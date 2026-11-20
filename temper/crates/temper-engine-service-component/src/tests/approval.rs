@@ -18,7 +18,7 @@ fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
         fixtures::listening(&mut service);
         let engine = service.engine.as_mut().expect("engine");
         let limits = &engine.clients.env.limits.wire;
-        let ask = w::ApprovalAsk::new(limits, w::ApprovalAskParts {}).unwrap();
+        let ask = w::ApprovalAsk::new(limits, w::ApprovalAskParts { port: None }).unwrap();
         let mut body = Writer::new(usize::try_from(ask.measure()).unwrap());
         ask.encode(&mut body).unwrap();
         let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/approval/ask", &body.finish(), None);

@@ -194,7 +194,12 @@ fn a_pool_the_period_cannot_carve_refuses_the_repair_make() {
     let number = seed.number();
     let out = step(&mut core, &env, repair(seed));
     assert!(out.into_iter().any(|request| {
-        let Request::Ask { connector: 1, ask: Ask::RepairRefused { repair: None } } = request else { return false };
+        let Request::Ask { connector: 1, ask: Ask::RepairRefused { repair: None, number: refused, why } } = request
+        else {
+            return false;
+        };
+        assert_eq!(*refused, number);
+        assert_eq!(*why, tasks::Refusal::Funding);
         true
     }));
     assert!(core.tasks.task(number).is_none());

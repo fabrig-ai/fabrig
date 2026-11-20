@@ -74,7 +74,7 @@ fn invalid_and_oversized_requests_are_refused() {
     invalid.model = Box::new([]);
     assert_eq!(
         component.admit(Token::new(7), 0, invalid, Some(credential()), false).err(),
-        Some(Refusal::Client(skein_llm::Error::Invalid))
+        Some(Refusal::Client(skein_llm::Error::Invalid { cause: skein_llm::Invalid::Model }))
     );
     let mut oversized = prompt();
     oversized.instructions = Box::new([b'x'; 9000]);

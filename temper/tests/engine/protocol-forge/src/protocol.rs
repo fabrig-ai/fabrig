@@ -642,10 +642,12 @@ impl Protocol {
     fn take_top(&mut self) {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
-        for _ in 0..self.top_out.len() {
-            let request = self.top_out.pop().expect("counted top output");
+        while let Some(request) = self.top_out.pop() {
             self.secrets_kept &= fixtures::token_absent(&request);
             match request {
+                top::Request::LandingReady { task } => {
+                    self.top.decide_landing(&self.env, task, true, &mut self.top_out);
+                }
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
@@ -705,6 +707,8 @@ impl Protocol {
                 | top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }

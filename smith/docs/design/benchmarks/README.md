@@ -778,6 +778,21 @@ answer is a warning on a completed attempt.
   plus that grace. Accounting of a whole tree (a cgroup scope, its CPU
   and peak memory) is skein's; without it each attempt runs
   in its own process group, and its resources carry the narrower scope.
+- **A tree's containment by platform.** A request's `force_walk` asks
+  for the walk, Linux's subreaper, which finds and ends every
+  descendant, whatever group or session it makes
+  (skein/docs/design/examples.md, 6). smith-bench reads it as the walk
+  where the platform has one: on Linux, `true` starts the tree under
+  `Containment::Walk` and `false` under `Containment::Best`, as before;
+  elsewhere both start it under `Containment::Best`, which on macOS is
+  the binary's process group, the most macOS has. The request's format
+  is unchanged, so a request written on one platform starts on the
+  other. Under the group the tree is the group: its members are
+  signalled and waited for, a descendant that leaves it is neither seen
+  nor ended, none is named at the leader's exit, so `tree-ended` reads
+  the group alone, and resources carry the group's scope. smith-bench's
+  own tests run so on macOS (section 13); whether `run` and `probe` do
+  is section 14's.
 - **Setup is not the agent's.** A seed digest that differs, a failed
   warm-up, a refused configuration or missing credentials end the attempt
   as `Refused(setup)`, and mark the suite incomplete.
@@ -863,10 +878,30 @@ The offline tier runs in the focused suite, with no agent and no network:
   temporary directory its request names is a write outside (10); that a
   planned request names `/tmp` is read from the request, without listing
   `/tmp`.
+- **A tree's containment:** section 10's choice as a table, each
+  platform with each `force_walk`, run on Linux; and a replay's counts
+  name the platform's method, the walk on Linux and the group elsewhere.
 - **Fuzzy:** parsers fed truncated and corrupted lines never panic and
   never count a response twice.
 
 Each runs in milliseconds, within the focused and fuzzy budgets.
+
+**Linux's own tests, by name.** A test that only Linux can run is built
+for Linux alone, `cfg(target_os = "linux")` on the test with its reason
+beside it, and listed here, as skein's are
+(skein/docs/design/runtime/shell.md, 8); none is dropped silently. A
+helper only they use takes the gate too, so each test binary builds on
+macOS with nothing unused. A fixture naming a command or path macOS
+lacks (`head -n -1`, `/bin/true`) is ported instead. Every other test
+runs on both.
+
+| Test | Its reason |
+|---|---|
+| `benchmarks/tests/suite/runner.rs`: `an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown` | only the walk names a descendant alive at the leader's exit (section 10) |
+| `benchmarks/tests/suite/runner.rs`: `a_file_left_in_tmp_by_an_attempt_is_a_write_outside`; `benchmarks/tests/suite/pipeline.rs`: `grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer` and `login_shells_keep_machine_path_in_setup_agent_and_grading` | an attempt copies its caches by GNU `cp --reflink` and reads the shared temporary directory's owner through `/proc/self` (section 14) |
+| `benchmarks/tests/suite/probe_command.rs`: `a_replay_arm_runs_through_the_probe_command_and_prints_one_line` | the probe's plan reads `/proc`, its attempts are the row above's, and its arm needs the source's history |
+| `benchmarks/tests/suite/smith_adapter.rs`: `the_current_source_arm_selects_the_chat_face` | it reads the source's history, which macOS's run lacks: its checkout holds the tested commit alone (`temper/docs/design/testing/macos.md`, 1) |
+| `benchmarks/tests/suite/smith_adapter.rs`: `a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup` | its peer reads the hangup's disposition from `/proc/self/status` |
 
 ## 14. Open questions
 
@@ -902,6 +937,12 @@ Each runs in milliseconds, within the focused and fuzzy budgets.
   shown again (`codex-parity.md`, 4).
 - **Concurrency:** attempts run serially; parallel ones would need
   disjoint CPUs.
+- **The harness on macOS:** whether `run` and `probe` run there. An
+  attempt copies its caches by GNU `cp --reflink`, reads the shared
+  temporary directory's owner and the probe's machine through `/proc`,
+  and under the process group `tree-ended` cannot see a descendant that
+  left the group (section 10). Default: they stay Linux's, and macOS
+  runs smith-bench's tests alone (section 13).
 - **Task kinds beyond code,** such as chat, research or review, with
   graders of their own; and **audits:** how many attempts a run samples,
   and who audits them.

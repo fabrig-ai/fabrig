@@ -42,7 +42,7 @@ fn direct() -> World {
     let mut world = World::new(7, &charter());
     world.script(Box::new([finish()]));
     assert!(world.settle());
-    assert!(matches!(world.answer().expect("answer").result(), RunResult::Accepted(_)));
+    assert!(matches!(&world.answer().expect("answer").result, RunResult::Accepted(_)));
     world
 }
 
@@ -53,7 +53,7 @@ fn a_conversation_is_carried_over_from_the_direct_backend() {
     assert_ne!(turns.len(), 0);
     let run = program_world::run_with_window(&story(), &charter(), &turns);
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)),
         "{:?} {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -86,7 +86,7 @@ fn a_conversation_is_carried_over_from_the_direct_backend() {
 #[test]
 fn a_conversation_is_carried_over_to_the_direct_backend() {
     let old = program_world::run(Case::Turns, &story(), Some(b"claude.ai"), &charter(), &program(b"source"), None);
-    assert!(matches!(old.answer().expect("answer").result(), RunResult::Accepted(_)));
+    assert!(matches!(&old.answer().expect("answer").result, RunResult::Accepted(_)));
     let turns = program_world::from_frames(&old.frames);
     assert_ne!(turns.len(), 0);
     let mut world = World::new(7, &charter());
@@ -96,7 +96,7 @@ fn a_conversation_is_carried_over_to_the_direct_backend() {
         smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"direct summary".as_slice().into() }]), 1),
     ]));
     assert!(world.settle());
-    assert!(matches!(world.answer().expect("answer").result(), RunResult::Accepted(_)), "{:?}", world.answer());
+    assert!(matches!(&world.answer().expect("answer").result, RunResult::Accepted(_)), "{:?}", world.answer());
     assert_eq!(world.peer_queries().len(), 2, "summary precedes ordinary completion");
 }
 
@@ -106,7 +106,7 @@ fn a_compaction_runs_its_own_program() {
     let turns = program_world::from_frames(old.observed());
     let run = program_world::run_with_window(&story(), &charter(), &turns);
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)),
         "{:?} {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -136,9 +136,9 @@ fn a_compaction_runs_its_own_program() {
 fn a_waiting_program_run_reads_its_message() {
     let charter = smith_agent_process_world::wire::edit_charter(&smith_agent_process_world::charter(), |parts| {
         parts.waiting = skein_lib::Duration::from_secs(1);
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         tools.wait = true;
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait granted");
+        parts.tools = tools;
         smith_agent_process_world::wire::budget(parts, 8, 20);
     });
     let story = Story {
@@ -154,7 +154,7 @@ fn a_waiting_program_run_reads_its_message() {
     };
     let run = program_world::run(Case::Waiting, &story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, smith_channel::RunResult::Accepted(_)),
         "answer={:?}; frames={:?}; errors={}",
         run.answer(),
         run.frames.iter().map(|frame| frame.kind).collect::<Vec<_>>(),
@@ -172,9 +172,9 @@ fn a_waiting_program_run_reads_its_message() {
 fn waiting_charter() -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
         parts.waiting = skein_lib::Duration::from_millis(10);
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         tools.wait = true;
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait");
+        parts.tools = tools;
     })
 }
 
@@ -194,7 +194,7 @@ fn a_parked_run_resumes_its_session() {
     };
     let old = program_world::run(Case::ParkWaiting, &waiting, Some(b"claude.ai"), &charter, &program(b"source"), None);
     assert!(
-        matches!(old.answer().expect("answer").result(), RunResult::Parked),
+        matches!(&old.answer().expect("answer").result, RunResult::Parked),
         "{:?} {}",
         old.answer(),
         String::from_utf8_lossy(&old.errors)
@@ -204,7 +204,7 @@ fn a_parked_run_resumes_its_session() {
     let first = old.invocations.iter().find(|call| call.arguments[0] == "-p").expect("first print");
     let run = program_world::run_with_window(&story(), &charter, &program_world::from_frames(&old.frames));
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)),
         "{:?} {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -228,7 +228,7 @@ fn a_gone_session_is_carried_over() {
         &program_world::from_frames(&old.frames),
     );
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, RunResult::Accepted(_)),
         "{:?} {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -256,32 +256,15 @@ fn document_charter(instructions: &[u8], document: Option<&[u8]>) -> Box<[u8]> {
         parts.brief = skein_lib::List::with_capacity(2);
         parts
             .brief
-            .push(
-                smith_charter::Section::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::SectionParts {
-                        title: b"Request".as_slice().into(),
-                        body: b"Quote the last line of your instructions and the current rules document."
-                            .as_slice()
-                            .into(),
-                    },
-                )
-                .expect("question"),
-            )
+            .push(smith_charter::Section {
+                title: b"Request".as_slice().into(),
+                body: b"Quote the last line of your instructions and the current rules document.".as_slice().into(),
+            })
             .expect("request section");
         if let Some(body) = document {
             parts
                 .brief
-                .push(
-                    smith_charter::Section::new(
-                        &smith_charter::CEILINGS,
-                        smith_charter::SectionParts {
-                            title: b"Document rules.md".as_slice().into(),
-                            body: body.into(),
-                        },
-                    )
-                    .expect("document"),
-                )
+                .push(smith_charter::Section { title: b"Document rules.md".as_slice().into(), body: body.into() })
                 .expect("one document");
         }
     })
@@ -289,7 +272,7 @@ fn document_charter(instructions: &[u8], document: Option<&[u8]>) -> Box<[u8]> {
 
 fn parked_chat(run: &program_world::Run) {
     assert!(
-        matches!(run.answer().expect("answer").result(), RunResult::Parked),
+        matches!(&run.answer().expect("answer").result, RunResult::Parked),
         "{:?} {}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)

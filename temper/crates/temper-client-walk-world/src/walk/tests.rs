@@ -30,6 +30,30 @@ fn lines(source: &[&str]) -> Vec<Numbered> {
         .collect()
 }
 #[test]
+fn tui_links_use_the_marked_event_and_only_see_lines_before_the_first_key() {
+    use crate::tui::{Connection, Held};
+    use skein_lib::Time;
+
+    let mut terminal = Terminal::new(0, Held::default(), facts::tui_seed(0), Time::ZERO, facts::WALL);
+    terminal.start(&mut Connection::new()).expect("start host without a world");
+    terminal.frame();
+    assert_eq!(terminal.event_of(&Key::Enter), Some(Event::SignIn));
+    for (following, want) in [
+        (vec!["tui see \"Sign in\"", "web see \"welcome\"", "tui key enter", "tui mark"], Some(Key::Enter)),
+        (vec!["tui key char \"x\"", "tui key enter", "tui mark"], None),
+        (vec!["tui key control \"c\"", "tui mark"], None),
+        (vec!["tui approve", "tui key enter", "tui mark"], None),
+        (vec!["web press button \"Try the playground\"", "tui key enter", "tui mark"], None),
+        (vec!["tui stop", "tui key enter", "tui mark"], None),
+        (vec!["tui key enter"], None),
+        (vec!["tui mark", "tui key enter", "tui mark"], None),
+        (vec!["tui key enter", "tui approve", "tui mark"], Some(Key::Enter)),
+    ] {
+        assert_eq!(tui_link(&terminal, &lines(&following)), want, "{following:?}");
+    }
+}
+
+#[test]
 fn links_use_the_marked_tree_first_act_exact_role_name_order_and_lead() {
     let marked = tree(false);
     let typed = tree(true);

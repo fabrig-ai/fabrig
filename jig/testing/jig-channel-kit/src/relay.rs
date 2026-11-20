@@ -1,4 +1,5 @@
 //! A deterministic hold at the kernel boundary, with independent deadlines per side.
+use jig_protocol_worker_wire::Record;
 use skein_io::kernel::{Complete, Fd, Op};
 use skein_lib::{Queue, Time};
 
@@ -92,17 +93,11 @@ impl Peer {
                 spoken.lowest = spoken.highest().checked_add(1).expect("another version");
             }
             wires
-                .push(
-                    wire::Wire::new(
-                        &wire::CEILINGS,
-                        wire::WireParts {
-                            name: spoken.name.as_bytes().into(),
-                            lowest: spoken.lowest,
-                            layouts: spoken.layouts,
-                        },
-                    )
-                    .expect("wire"),
-                )
+                .push(wire::Wire {
+                    name: spoken.name.as_bytes().into(),
+                    lowest: spoken.lowest,
+                    layouts: spoken.layouts,
+                })
                 .expect("four wire slots");
         }
         wires
@@ -132,27 +127,19 @@ impl Peer {
                 }
             }
         }
-        let credential = wire::Credential::new(
-            &wire::CEILINGS,
-            wire::CredentialParts {
-                opening: if matches!(case, Some(Opening::Figures)) {
-                    wire::Opening::Figures
-                } else {
-                    wire::Opening::Link
-                },
-                name: b"worker-a".as_slice().into(),
-                secret: Secret::new(if matches!(case, Some(Opening::Secret)) {
-                    b"wrong-secret".as_slice().into()
-                } else {
-                    b"worker-secret".as_slice().into()
-                }),
-                wires: Self::statement(case),
-                output: jig_protocol_config_fixtures::small().io.output,
-            },
-        )
-        .expect("peer credential");
-        let mut writer = Writer::new(credential.measure() as usize);
-        credential.encode(&mut writer).expect("credential");
+        let credential = wire::Credential {
+            opening: if matches!(case, Some(Opening::Figures)) { wire::Opening::Figures } else { wire::Opening::Link },
+            name: b"worker-a".as_slice().into(),
+            secret: Secret::new(if matches!(case, Some(Opening::Secret)) {
+                b"wrong-secret".as_slice().into()
+            } else {
+                b"worker-secret".as_slice().into()
+            }),
+            wires: Self::statement(case),
+            output: jig_protocol_config_fixtures::small().io.output,
+        };
+        let mut writer = Writer::new(credential.measure(&wire::CEILINGS).expect("record within limits") as usize);
+        credential.write(&wire::CEILINGS, &mut writer).expect("credential");
         let mut peer = skein_fake_channel::ScriptedPeer::new(
             schema,
             skein_channel::Role::Initiator,
@@ -267,12 +254,10 @@ impl Peer {
                 use jig_protocol_worker_wire as wire;
                 let sources = wire::Sources::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(&self.input[8..end]))
                     .expect("sources fixture");
-                assert!(sources.sources().is_empty(), "recorded key-run fixture");
-                let logins =
-                    wire::Logins::new(&wire::CEILINGS, wire::LoginsParts { logins: skein_lib::List::with_capacity(0) })
-                        .expect("empty inventory");
+                assert!(sources.sources.is_empty(), "recorded key-run fixture");
+                let logins = wire::Logins { logins: skein_lib::List::with_capacity(0) };
                 let mut body = skein_lib::Writer::new(4);
-                logins.encode(&mut body).expect("empty inventory bytes");
+                logins.write(&wire::CEILINGS, &mut body).expect("empty inventory bytes");
                 self.play(0x0108, &body.finish());
             }
             if header.kind == 0x0181 && self.refusal.is_some() {
@@ -281,7 +266,7 @@ impl Peer {
                     &mut skein_lib::Reader::new(&self.input[8..end]),
                 )
                 .expect("refused inbound");
-                self.report_refusal(message.task(), message.attempt(), message.name());
+                self.report_refusal(message.task, message.attempt, message.name);
             }
             self.scripted.feed(&self.input[..end]).expect("independent peer decodes service");
             self.input.drain(..end);
@@ -296,29 +281,23 @@ impl Peer {
     fn report_refusal(&mut self, task: u64, attempt: u64, name: u64) {
         use jig_protocol_worker_wire as wire;
         let recorded = self.recorded.take().expect("one recorded native response");
-        let mut turn = recorded.turn.into_parts();
+        let mut turn = recorded.turn;
         turn.task = task;
         turn.attempt = attempt;
         turn.refused = skein_lib::List::with_capacity(1);
         turn.refused
-            .push(
-                wire::Refused::new(
-                    &wire::CEILINGS,
-                    wire::RefusedParts { name, reason: self.refusal.take().expect("one refusal") },
-                )
-                .expect("typed refusal"),
-            )
+            .push(wire::Refused { name, reason: self.refusal.take().expect("one refusal") })
             .expect("one refused message");
-        let turn = wire::Turn::new(&wire::CEILINGS, turn).expect("recorded refused turn");
-        let mut body = skein_lib::Writer::new(turn.measure() as usize);
-        turn.encode(&mut body).expect("refusal with native turn");
+
+        let mut body = skein_lib::Writer::new(turn.measure(&wire::CEILINGS).expect("record within limits") as usize);
+        turn.write(&wire::CEILINGS, &mut body).expect("refusal with native turn");
         self.play(0x0101, &body.finish());
-        let mut answer = recorded.answer.into_parts();
+        let mut answer = recorded.answer;
         answer.task = task;
         answer.attempt = attempt;
-        let answer = wire::Answer::new(&wire::CEILINGS, answer).expect("recorded native result");
-        let mut body = skein_lib::Writer::new(answer.measure() as usize);
-        answer.encode(&mut body).expect("native result");
+
+        let mut body = skein_lib::Writer::new(answer.measure(&wire::CEILINGS).expect("record within limits") as usize);
+        answer.write(&wire::CEILINGS, &mut body).expect("native result");
         self.play(0x0103, &body.finish());
     }
     fn play(&mut self, kind: u16, body: &[u8]) {

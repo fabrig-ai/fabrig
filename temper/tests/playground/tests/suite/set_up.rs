@@ -44,13 +44,14 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
     press(&mut page, Role::Link, "Set up temper");
     page.wait(&Find::text(b"Forgejo"), None, WITHIN).expect("Forgejo card");
     press(&mut page, Role::Link, "Run on this machine");
-    let empty =
-        page.wait(&Find::exactly_named(Role::Choice, b"An empty repository"), None, WITHIN).expect("sheet defaults");
-    assert!(page.tree().find(empty).expect("empty choice").states.as_slice().contains(&skein_ui::State::Selected));
+    let sample =
+        page.wait(&Find::exactly_named(Role::Choice, b"A sample project"), None, WITHIN).expect("sheet defaults");
+    assert!(page.tree().find(sample).expect("sample choice").states.as_slice().contains(&skein_ui::State::Selected));
+    assert!(!page.tree().nodes().iter().any(|node| node.role == Role::TextField));
     for value in [b"work".as_slice(), b"hello"] {
         assert!(
-            page.tree().nodes().iter().any(|node| node.value.as_ref().is_some_and(|v| v.text.as_ref() == value)),
-            "default {}",
+            !page.tree().nodes().iter().any(|node| node.value.as_ref().is_some_and(|v| v.text.as_ref() == value)),
+            "sample name stays hidden: {}",
             String::from_utf8_lossy(value)
         );
     }
@@ -87,6 +88,7 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
         }
         let drawn = steps(&page);
         assert_eq!(drawn.len(), 5);
+        assert_eq!(drawn[4].0, "Making work/hello");
         assert_eq!(drawn[current].0, words);
         for (at, (_, status)) in drawn.iter().enumerate() {
             let wanted = match at.cmp(&current) {

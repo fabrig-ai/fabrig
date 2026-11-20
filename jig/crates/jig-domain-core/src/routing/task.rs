@@ -92,7 +92,7 @@ pub(crate) fn route_connector_repair(
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         maker: None,
         places: Box::new([]),
-        reply_to: ReplyTo::new(core.internal(Internal::Repair)),
+        reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
             deadline: jig_domain_tasks::Deadline::Named,
@@ -134,7 +134,7 @@ pub(crate) fn route_person_task(
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         maker: None,
         places: Box::new([]),
-        reply_to: ReplyTo::new(core.internal(Internal::Repair)),
+        reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
         creator: tasks::Party::Deployment { project: jig_domain_people::DEPLOYMENT },
         batch: Box::new([tasks::New {
             deadline: tasks::Deadline::Named,
@@ -380,6 +380,7 @@ fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive dispatch routes each task-child answer")]
 fn tag_tasks(
     core: &mut Core,
     env: &Env<Limits>,
@@ -393,6 +394,34 @@ fn tag_tasks(
         }
         tasks::Request::Lifted { reply_to, released } => terminals::lifted(core, env, reply_to, released, out),
         tasks::Request::MovedToNewest { .. } => unreachable!("settings move consumes its counts"),
+        tasks::Request::WordsRecorded { reply_to, task, recorded, unknown } => {
+            let (request, key, part) = match core.land_task(reply_to.into_token()) {
+                Some(Flight::Call { request, route: crate::RoutedCall::MarkRead(key), .. }) => {
+                    (request, key, crate::CallPart::WordsRecorded { recorded, unknown })
+                }
+                Some(Flight::Call {
+                    request,
+                    route: crate::RoutedCall::RecordNote { key, name, revision, change },
+                    ..
+                }) => (
+                    request,
+                    key,
+                    crate::CallPart::NoteWritten {
+                        name,
+                        revision,
+                        lines: change.lines,
+                        added: change.added,
+                        removed: change.removed,
+                        first: change.first,
+                        recorded,
+                        unknown,
+                    },
+                ),
+                Some(_) | None => unreachable!("recording belongs to a run's call"),
+            };
+            assert!(task == key.task, "a run records only its task's words");
+            super::run::calls::call_decision(core, out, ReplyTo::new(request), key, part);
+        }
         tasks::Request::Released { revision } => terminals::released(core, env, revision, out),
         tasks::Request::Erase { key } => terminals::erase(key, out),
         tasks::Request::Relay { task, .. } => terminals::relay(core, env, task, out),

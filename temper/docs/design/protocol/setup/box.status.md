@@ -1,6 +1,6 @@
 # box: status
 
-2026-11-15. Where the tree's code lags or departs from [box.md](box.md).
+2026-11-19. Where the tree's code lags or departs from [box.md](box.md).
 
 - **Not yet:** 5, *A fixed start*: no `--fixed-start` [in flight: change 7720].
 

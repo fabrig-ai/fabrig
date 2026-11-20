@@ -75,7 +75,8 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
 - **What the policy does with it** is unchanged (`landing.md`, 5.2):
   `Running` waits; `Idle` waits, while the suffix is marked asked in this
   round, only until the step takes a prefix, which clears the marks;
-  `Absent` asks; `Failed` holds where the suffix was asked; a conflict
+  `Absent` asks, within section 5's bound; `Failed` holds where the
+  suffix was asked; a conflict
   leaves. A round that ends waits on `Running` before its cleanup
   (`landing.md`, 5.1).
 
@@ -131,7 +132,19 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
   with no person. Before it delegates, the members' branches are read,
   and the prefixes found are taken (`landing.md`, 5.2, *Lost or
   partial*), so that the replacement prepares only the members above
-  them: prefixes already recovered are kept.
+  them: prefixes already recovered are kept. The same prepare, its
+  member, head, main and suffix unchanged, is asked again only once,
+  and no sooner than one `poll` after the step that read its absence:
+  that step waits `prefixes` (`landing-waits.md`, 2) until then, and
+  the members' branches are read again at the deadline. A third ask of
+  the same prepare holds the landing instead, as a prepare failed past
+  its tries does (`landing.md`, 4.2, *No silent wait*), until a
+  person's release, which asks again from a fresh count. A different
+  prepare, after a head move, main moving, a cut or prefixes taken, is
+  asked at once. The landing keeps the prepare it last asked across
+  rounds, since a stale round re-forms its round
+  (`Landing.last_prepare`, a field of the landing's row with a
+  default).
 - **Fenced by jig's step:** the forge's step that saves the marks asks
   the root, within the same root decision, to answer the step jig
   offered with the prepare child in its batch; jig accepts one decision

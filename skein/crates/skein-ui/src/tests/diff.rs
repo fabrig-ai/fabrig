@@ -403,6 +403,44 @@ fn a_changed_sort_is_one_attribute_patch() {
     }
 }
 
+#[test]
+fn a_changed_menu_button_patches_only_the_menus_attribute() {
+    let limits = Limits { text_per_node: 64, ..LIMITS };
+    let mut view = View::new(&limits);
+    let mut out = Queue::with_capacity(limits.patches);
+    for (turn, words, name, patches) in [
+        (0, b"You approve".as_slice(), b"Way shown: You approve".as_slice(), 1),
+        (1, b"Agents review".as_slice(), b"Way shown: Agents review".as_slice(), 1),
+        (2, b"Agents review".as_slice(), b"Way shown: Agents review".as_slice(), 0),
+    ] {
+        let mut b = view.builder();
+        b.open(Role::Menu);
+        b.name(b"Stock ways");
+        b.menu_button(words, name);
+        b.close();
+        view.finish(b, turn, &mut out);
+        assert_eq!(out.len(), patches);
+        if turn == 1 {
+            match out.pop().unwrap() {
+                Patch::Attribute { node, attribute } => {
+                    assert_eq!(node, view.tree().get(0).unwrap().id);
+                    assert_eq!(attribute.role, Role::Menu);
+                    assert_eq!(attribute.name.as_deref(), Some(b"Stock ways".as_slice()));
+                    let button = attribute.button.as_ref().unwrap();
+                    assert_eq!(button.words.as_ref(), words);
+                    assert_eq!(button.name.as_ref(), name);
+                }
+                Patch::Insert { .. }
+                | Patch::Remove { .. }
+                | Patch::Move { .. }
+                | Patch::Text { .. }
+                | Patch::Value { .. } => unreachable!("only the menu button changed"),
+            }
+        }
+        out.clear();
+    }
+}
+
 #[derive(Clone, Copy)]
 enum WordsAttribute {
     Placeholder,

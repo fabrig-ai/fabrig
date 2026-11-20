@@ -655,8 +655,10 @@ recipient.
   queued before nothing more is handed out, the heartbeat's span, mints
   in flight; and the public reads' own: in flight, per second and its
   burst, their answers' bytes per second and its burst, and the answer
-  ceiling (`public-reads.md`); and the approvals', fixed: 4 live, 8 ended
-  remembered, each 10 minutes long (`sign-in.md`).
+  ceiling (`public-reads.md`); and the approvals', fixed: 4 live, 2 of
+  them waiting per source by the public name, 8 ended remembered, each
+  10 minutes long, and 3 takes with a grant that doesn't match
+  (`sign-in.md`).
 - **The public answers' `max-age`,** the deployment's, at most a bound
   of jig's (`default-http.md`, 5).
 - **The default mapping's,** at each end: its HTTP machines', TLS's, and
@@ -829,11 +831,6 @@ Each within jig's suites' budgets.
   sign in through a standard server writes no flow of its own (`sign-in.md`
   ). It is sugar over `Mint`, which jig adopts once a second
   application needs it (`../../client/domain/client/helpers.md`).
-- **A browser's approval between hosts** (8): over TLS, at a public
-  name, a client asking from another machine, the code typed in the
-  browser rather than carried in its address, and the page saying where
-  the ask came from and how long ago. Default: loopback alone, as the
-  printed link.
 - **A person's sign-ins listed and each ended** from a browser, the
   approved ones among them. Default: none; signing out ends one's own.
 

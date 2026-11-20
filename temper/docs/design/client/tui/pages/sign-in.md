@@ -22,8 +22,9 @@ Illustrative:
 
 - **The paste:** one text field, "Link", a secret, drawn masked (skein's
   `ui/screen.md`, 5.4), that submits on Enter, its placeholder the
-  link's shape at the TUI's address, and the focus asked for it as the
-  screen opens. A paste fills it whole (skein's `ui/screen.md`, 6.2). A
+  link's shape at the TUI's address, in the form temper prints it,
+  `http://HOST:PORT/sign-in?secret=…` (`../../README.md`, section 4),
+  and the focus asked for it as the screen opens. A paste fills it whole (skein's `ui/screen.md`, 6.2). A
   `q` types in it, so the bottom row says "Ctrl+C to quit".
 - **Enter** checks the field with jig's parser of the printed link
   (`jig-client-protocol-http`'s `printed`, under the default mapping's

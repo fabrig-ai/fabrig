@@ -745,9 +745,7 @@ fn people_round_trip(row: jig_domain_people::Stored) {
 fn ask_round_trip(ask: jig_domain_people::Ask) {
     let limits = people_limits();
     let value = crate::codec::people::encode_ask(&ask, &limits).expect("bounded ask");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured room");
-    let bytes = writer.finish();
+    let bytes = value.encode(&limits).expect("bounded value");
     let read = crate::people_v17::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
@@ -864,7 +862,7 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &fixtures::configured_model_names(&[])
         ),
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::IdentityKeySubject,
+            path: crate::people_v17::paths::IDENTITY_KEY_SUBJECT,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -879,7 +877,7 @@ fn a_people_row_of_another_version_does_not_decode() {
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::RowVersion,
+            path: crate::people_v17::paths::ROW_VERSION,
             reason: skein_codec::Reason::Version
         })
     );
@@ -1547,7 +1545,7 @@ fn a_stored_project_name_is_bounded_and_utf8() {
         writer.put(&name).expect("name");
         assert_eq!(
             wire::StoredPolicy::decode(&limits, &mut Reader::new(&writer.finish())),
-            Err(wire::Problem { path: wire::Path::StoredPolicyName, reason }),
+            Err(wire::Problem { path: wire::paths::STORED_POLICY_NAME, reason }),
         );
     }
 }
@@ -1801,7 +1799,7 @@ fn a_stored_member_keeps_its_symbols() {
                 assert_eq!(
                     crate::codec::people::encode(&row, &limits, &names),
                     Err(crate::people_v17::Problem {
-                        path: crate::people_v17::Path::MemberSymbols,
+                        path: crate::people_v17::paths::MEMBER_SYMBOLS,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );
@@ -1815,7 +1813,7 @@ fn a_stored_member_keeps_its_symbols() {
                 assert_eq!(
                     crate::codec::people::decode(&bytes, &narrower, &names),
                     Err(crate::people_v17::Problem {
-                        path: crate::people_v17::Path::MemberSymbols,
+                        path: crate::people_v17::paths::MEMBER_SYMBOLS,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );

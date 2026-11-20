@@ -380,10 +380,12 @@ fn document(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("rendered deployment document")).expect("deployment JSON")
 }
 fn no_link(bytes: &[u8]) {
-    assert!(
-        !bytes.windows(b"/jig/v1/sign-in/link".len()).any(|part| part == b"/jig/v1/sign-in/link"),
-        "sign-in link must not be printed, answered or logged"
-    );
+    for path in [b"/sign-in?secret=".as_slice(), b"/jig/v1/sign-in/link"] {
+        assert!(
+            !bytes.windows(path.len()).any(|part| part == path),
+            "sign-in link must not be printed, answered or logged"
+        );
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
