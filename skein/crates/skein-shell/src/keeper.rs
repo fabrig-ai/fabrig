@@ -21,12 +21,32 @@ pub use crate::process::{
     wait_cgroup_change,
 };
 
+/// CPU consumed by the calling thread, or `None` when its clock is unavailable
+/// (skein/docs/design/testing/README.md, 5).
+#[must_use]
+pub fn thread_cpu() -> Option<skein_lib::Duration> {
+    crate::system::clock_nanos(libc::CLOCK_THREAD_CPUTIME_ID).map(skein_lib::Duration::from_nanos)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Error, close_keeper_fd, descriptor_path};
     use crate::{open_append, open_root};
     use skein_scratch::Scratch;
     use std::os::unix::ffi::OsStrExt;
+
+    #[test]
+    fn the_thread_clock_grows_with_the_calling_threads_work() {
+        let before = super::thread_cpu().expect("the calling thread has a CPU clock");
+        let mut value = 1_u64;
+        for _ in 0..100_000 {
+            value = std::hint::black_box(value.wrapping_mul(3).wrapping_add(1));
+        }
+        std::hint::black_box(value);
+        let after = super::thread_cpu().expect("the calling thread still has a CPU clock");
+        assert!(after > before, "busy work consumes this thread's CPU");
+        assert_eq!(crate::system::clock_nanos(-1), None, "an unavailable clock is not an assertion");
+    }
 
     #[test]
     fn a_directory_descriptor_names_its_canonical_path() {

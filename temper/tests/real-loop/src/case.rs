@@ -308,8 +308,9 @@ pub fn fixture_placed() -> forge::Fixture {
             (fixture().configure)(value, agent, forge);
             // The chat and A both use charter 1 in the base fixture. A waiting
             // run keeps its one slot until a message resumes it, so give only
-            // the director a charter whose wait exceeds PATIENCE (10 s).
-            value["world_settings"]["second_wait_ms"] = 60000.into();
+            // the director a charter whose wait exceeds PATIENCE.
+            let wait = crate::PATIENCE.saturating_mul(3);
+            value["world_settings"]["second_wait_ms"] = wait.as_millis().into();
             // Creating offers the landing charters 1 and 4 plus this director's charter 2.
             value.jig_over("documents.lines", 3);
             value.jig_over("tasks.charters", 2);
@@ -880,7 +881,7 @@ pub fn fixture_6_4() -> forge::Fixture {
             // 1). Tools 423 = 391 | 32 adds timer subscription tools, with
             // 5.4's six forge grants unchanged. Forge statuses 3 (State::new)
             // retain a4's head, the red tip and repair head; 2 omits repair CI.
-            // Listing polls stay PATIENCE + 1 ms (20001): adoption/hooks supply
+            // Listing polls stay PATIENCE + 1 ms: adoption/hooks supply
             // changes. This timing bound and every oracle bound stay unchanged.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);

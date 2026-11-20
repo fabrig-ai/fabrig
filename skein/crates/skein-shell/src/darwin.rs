@@ -259,7 +259,9 @@ pub(crate) fn clock_nanos(id: libc::clockid_t) -> Option<u64> {
     let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     // SAFETY: time is a writable timespec alive until return.
     let rc = unsafe { libc::clock_gettime(id, ptr::from_mut(&mut time)) };
-    assert_eq!(rc, 0, "the shell's clocks exist");
+    if rc != 0 {
+        return None;
+    }
     u64::try_from(time.tv_sec).ok()?.checked_mul(1_000_000_000)?.checked_add(u64::try_from(time.tv_nsec).ok()?)
 }
 pub(crate) fn random(bytes: &mut [u8]) -> Result<(), i32> {
