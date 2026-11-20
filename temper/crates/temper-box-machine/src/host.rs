@@ -210,6 +210,7 @@ struct GroupLoad {
     restored: bool,
     admitted: bool,
     address: Option<core::net::SocketAddr>,
+    closing_listener: Option<Token>,
     kind: Option<temper_forge_setup::machine::BoxKind>,
     wall: Wall,
     notice: Box<[u8]>,
@@ -248,7 +249,7 @@ pub struct Service {
     failure: Option<(Fact, Wall)>,
     deferred: Queue<Item>,
     listeners: List<(core::net::SocketAddr, Token)>,
-    group_listeners: Map<u16, Token>,
+    group_listeners: Map<u16, Option<Token>>,
     removed_listeners: Map<u16, Wall>,
     loading_group: Option<GroupLoad>,
     open_group: Option<(u16, core::net::SocketAddr)>,
@@ -539,9 +540,16 @@ impl Service {
                 }
             }
             Event::Closed { owner } => {
+                if let Some(load) = &self.loading_group
+                    && load.closing_listener == Some(owner)
+                {
+                    let address = load.address.expect("loaded listener");
+                    self.bind_group(None, address);
+                    return;
+                }
                 let mut group = None;
                 for (forge, token) in &self.group_listeners {
-                    if *token == owner {
+                    if *token == Some(owner) {
                         group = Some(*forge);
                         break;
                     }
@@ -978,12 +986,18 @@ impl Service {
                 {
                     self.loading_group = None;
                 }
-                if let Said::Removed { forge } = said
-                    && let Some(token) = self.group_listeners.get(&forge)
-                {
-                    self.removed_listeners.insert(forge, wall).expect("one removed listener per group");
-                    self.requests.push(Request::Close { entity: *token });
-                    return;
+                if let Said::Removed { forge } = said {
+                    match self.group_listeners.get(&forge) {
+                        Some(Some(token)) => {
+                            self.removed_listeners.insert(forge, wall).expect("one removed listener per group");
+                            self.requests.push(Request::Close { entity: *token });
+                            return;
+                        }
+                        Some(None) => {
+                            self.group_listeners.remove(&forge);
+                        }
+                        None => {}
+                    }
                 }
                 let source = match said {
                     Said::Started { forge } => self.source_line(forge, wall),
@@ -1410,6 +1424,7 @@ impl Service {
             restored,
             admitted: restored || kind.is_some(),
             address: None,
+            closing_listener: None,
             wall: self.env.wall,
             notice: Box::new([]),
         });
@@ -1455,8 +1470,11 @@ impl Service {
         let load = self.loading_group.as_ref().expect("admitted setup");
         self.open_group = Some((load.forge, load.address.expect("loaded listener")));
     }
-    /// The shell opens this held listener with `open_listener`; worlds supply its descriptor.
+    /// The shell opens this group's listener with `open_listener`; worlds supply its descriptor.
     pub fn take_group_listener(&mut self) -> Option<(u16, core::net::SocketAddr)> {
+        if self.requests.room() == 0 {
+            return None;
+        }
         self.open_group.take()
     }
     pub fn group_listener_opened(&mut self, forge: u16, descriptor: Option<Fd>) {
@@ -1466,7 +1484,12 @@ impl Service {
         match descriptor {
             Some(fd) => {
                 let listener = self.io.adopt_listener(fd, address).expect("group listener slot");
-                self.group_listening(listener, address);
+                if self.group_takes_listener() {
+                    self.group_listening(listener, address);
+                } else {
+                    self.loading_group.as_mut().expect("one listener open").closing_listener = Some(listener);
+                    self.requests.push(Request::Close { entity: listener });
+                }
             }
             None => {
                 let why = lines::joined(&[b"listener ", Decimal::of(u64::from(address.port())).as_bytes(), b" taken"]);
@@ -1474,11 +1497,26 @@ impl Service {
             }
         }
     }
+    fn group_takes_listener(&self) -> bool {
+        let kind = self.loading_group.as_ref().expect("loading group").kind.expect("loaded kind");
+        for template in &self.templates {
+            if let Some(asked) = template.asked
+                && asked.kind == Some(kind)
+                && template.step.takes_group_listener()
+            {
+                return true;
+            }
+        }
+        false
+    }
     fn group_listening(&mut self, listener: Token, address: core::net::SocketAddr) {
+        self.listeners.push((address, listener)).expect("startup plus box.groups listeners");
+        self.bind_group(Some(listener), address);
+    }
+    fn bind_group(&mut self, listener: Option<Token>, address: core::net::SocketAddr) {
         let load = self.loading_group.take().expect("one listener open");
         let kind = load.kind.expect("loaded kind");
-        self.listeners.push((address, listener)).expect("startup plus box.groups listeners");
-        self.group_listeners.insert(load.forge, listener).expect("kept group listener");
+        self.group_listeners.insert(load.forge, listener).expect("loaded group");
         for index in 0..self.templates.len() {
             let template = self.templates.get_mut(index).expect("step template");
             if let Some(asked) = template.asked
@@ -1520,7 +1558,7 @@ impl Service {
         }
     }
     fn group_listener_closed(&mut self, forge: u16) {
-        if let Some(token) = self.group_listeners.remove(&forge) {
+        if let Some(Some(token)) = self.group_listeners.remove(&forge) {
             for index in 0..self.listeners.len() {
                 if self.phase != Phase::Closing && self.listeners.get(index).expect("listener").1 == token {
                     self.listeners.swap_remove(index).expect("held listener removed");
