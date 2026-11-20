@@ -1,7 +1,7 @@
 # launchpad-drawn
 
-On a fresh `temper box --fake-backends`, with `launchpad-chat`'s setup
-following `project-landing` to Hello with the ChatGPT plan and
+On a fresh `temper box --fake-backends`, with its setup taking
+`project-landing`'s steps to Hello with the ChatGPT plan and
 "work/hello is in Hello". The browser approves the terminal. The person
 asks `/change Add a CSV export to the report`; the chat delegates a goal,
 then says "A CSV export question waits for you." The goal asks the
