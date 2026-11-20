@@ -55,7 +55,7 @@ impl Delegate for Process {
         match self { Self::Browser(browser) => browser.as_mut(), Self::Server(server) => server.as_mut() }
     }
 }
-struct Judge<'a> { script: &'a Script, points: VecDeque<usize>, passed: bool }
+struct Judge<'a> { script: &'a Script, points: VecDeque<usize>, passed: bool, now: Time, wake: bool }
 fn browser(processes: &[Process]) -> &Browser {
     processes.iter().find_map(|p| if let Process::Browser(b) = p { Some(b.as_ref()) } else { None }).expect("tab")
 }
@@ -80,8 +80,13 @@ impl Referee<Process> for Judge<'_> {
         }
     }
     fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
+        self.now = now;
         let browser = browser(processes);
         let seen = requests(processes);
+        self.wake = self.points.front().is_some_and(|count| *count <= seen)
+            && processes.iter().all(|p| match p {
+                Process::Server(server) => server.listening(), Process::Browser(_) => true,
+            });
         if seen > self.script.requests { return Err(format!("unexpected request {seen}")); }
         if self.points.is_empty() && browser.is_empty() && now >= self.script.until {
             if browser.tab.shown() != self.script.expected.as_ref() {
@@ -92,7 +97,10 @@ impl Referee<Process> for Judge<'_> {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.passed { None } else { Some(self.script.until.max(Time::from_nanos(1_000_000_000))) }
+        if self.passed { None }
+        else if self.wake { Some(self.now) }
+        else if self.script.until > self.now { Some(self.script.until) }
+        else { Some(Time::from_nanos(2_000_000_000)) }
     }
     fn overdue(&self, now: Time) -> Option<String> {
         (now >= Time::from_nanos(2_000_000_000) && !self.passed).then(|| "tab expectations unmet".into())
@@ -102,7 +110,7 @@ impl Referee<Process> for Judge<'_> {
 
 /// Runs only simulated sockets, with the same memory checks as the visitor's tests.
 pub fn run(script: &Script) {
-    let judge = Judge { script, points: script.points.iter().map(|p| p.requests).collect(), passed: false };
+    let judge = Judge { script, points: script.points.iter().map(|p| p.requests).collect(), passed: false, now: Time::ZERO, wake: false };
     let mut world = World::new(7, skein_sim::Config::calm(), judge, Memory::Checked);
     for (address, routes) in &script.hosts {
         world.spawn(|| {
