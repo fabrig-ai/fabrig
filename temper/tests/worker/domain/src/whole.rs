@@ -226,7 +226,7 @@ impl World {
                 });
             }
             note @ Request::Git { .. } => self.report.notes.push(note),
-            Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
+            Request::AgentSignalled { .. } | Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
             Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }
@@ -332,6 +332,7 @@ impl World {
             agent::process::Request::Wait { owner, process } | agent::process::Request::Reap { owner, process } => {
                 assert_eq!((Some(owner), process), (self.process, PROCESS));
             }
+            agent::process::Request::CloseChannel { .. } => {}
             agent::process::Request::Signal { owner, signal, .. } => {
                 if signal == agent::Signal::Terminate {
                     self.report.drops += 1;

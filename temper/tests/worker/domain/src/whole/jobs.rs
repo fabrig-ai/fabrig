@@ -173,6 +173,7 @@ impl World {
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
             Request::Git { .. }
+            | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
             | Request::Link(host::LinkUp::Draining) => {}

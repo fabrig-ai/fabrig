@@ -415,18 +415,30 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
         }
         channel::Heard::Cancel => super::admission::cancel(service),
         channel::Heard::Drain => super::admission::drain(service),
-        channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
-        channel::Heard::Ended { why: _ } => match service.teardown {
-            Teardown::Live { .. } => {
-                service.mark_failed(Failure::ChannelEnded);
-                if let Some(run) = service.admission.run() {
-                    service.domain_events.push(domain::Event::Cancel { run });
-                } else {
-                    teardown::answered(service);
+        channel::Heard::WriteFailed => {
+            service.host_word_closed = true;
+            service.mark_failed(Failure::WriteFailed);
+            if service.signalled {
+                match service.teardown {
+                    Teardown::Live { .. } => super::admission::cancel(service),
+                    Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
                 }
             }
-            Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
-        },
+        }
+        channel::Heard::Ended { why: _ } => {
+            service.host_word_closed = true;
+            match service.teardown {
+                Teardown::Live { .. } => {
+                    service.mark_failed(Failure::ChannelEnded);
+                    if let Some(run) = service.admission.run() {
+                        service.domain_events.push(domain::Event::Cancel { run });
+                    } else {
+                        teardown::answered(service);
+                    }
+                }
+                Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
+            }
+        }
     }
 }
 

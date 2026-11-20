@@ -289,6 +289,7 @@ impl World {
             }
             Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn)?,
             Request::Git { .. }
+            | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
             | Request::Link(host::LinkUp::Draining) => {}
@@ -378,7 +379,9 @@ impl World {
             agent::process::Request::Wait { owner, process } | agent::process::Request::Reap { owner, process } => {
                 assert_eq!((Some(owner), process), (self.agent, PROCESS));
             }
-            agent::process::Request::Signal { .. } => panic!("unscripted signal"),
+            agent::process::Request::CloseChannel { .. } | agent::process::Request::Signal { .. } => {
+                panic!("unscripted signal")
+            }
         }
     }
 

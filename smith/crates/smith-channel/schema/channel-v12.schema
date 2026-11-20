@@ -1,4 +1,4 @@
-family smith-channel 11
+family smith-channel 12
 
 # The receiving host/agent additionally checks aggregate ownership and counts
 # against its configured domain Limits. Bytes carried from other codec families
@@ -201,3 +201,7 @@ record Answer { turns: u32 spent: u64 last_read: option u64 result: RunResult }
 enum LiveKind { text, reasoning, input }
 record LiveCall { id: text 256 tool: text 64 }
 record Live { turn: u32 retry: u32 kind: LiveKind offset: u64 bytes: bytes 4096 call: option LiveCall }
+
+# A live agent leaves a termination signal to its host.
+enum Signal { interrupt, terminate }
+record Signalled { signal: Signal from: option u32 }

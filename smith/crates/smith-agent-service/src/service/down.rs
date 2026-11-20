@@ -29,6 +29,11 @@ pub(super) fn domain_down(service: &mut Stages, mut frame: Option<&mut Frame>) {
             service.domain_events.push(domain::Event::Message { finish_requested, run, name, label, text });
         }
     }
+    if let Some(frame) = frame.as_deref_mut()
+        && !super::admission::tell_signal(service, frame)
+    {
+        return;
+    }
     for _ in 0..service.limits.queue {
         if !super::domain_request_credit(service, frame.as_deref()) {
             break;
@@ -38,6 +43,11 @@ pub(super) fn domain_down(service: &mut Stages, mut frame: Option<&mut Frame>) {
         }
         let Some(request) = service.domain_requests.pop() else { break };
         domain_request(service, frame.as_deref_mut(), request);
+        if let Some(frame) = frame.as_deref_mut()
+            && !super::admission::tell_signal(service, frame)
+        {
+            break;
+        }
     }
     super::admission::follow(service);
     drain_facts(service, frame);

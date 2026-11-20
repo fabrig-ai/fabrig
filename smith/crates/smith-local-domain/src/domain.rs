@@ -470,6 +470,7 @@ fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request
             domain.child.started(agent);
             domain.long = crate::long::Long::new();
         }
+        parent::Request::Signalled { signal, from, .. } => out.push(Request::Log { text: signal_line(signal, from) }),
         parent::Request::Admitted { .. } => {
             send_line(domain, env, out);
         }
@@ -717,3 +718,29 @@ mod program_check_tests;
 
 #[cfg(test)]
 mod child_backlog_tests;
+
+fn signal_line(signal: parent::Signal, from: Option<u32>) -> Box<[u8]> {
+    let signal = match signal {
+        parent::Signal::Interrupt => b"SIGINT".as_slice(),
+        parent::Signal::Terminate => b"SIGTERM".as_slice(),
+    };
+    let pid = skein_lib::Decimal::of(u64::from(from.unwrap_or(0)));
+    let sender = match from {
+        Some(_) => b" from pid ".as_slice(),
+        None => b" from an unknown sender".as_slice(),
+    };
+    let number = match from {
+        Some(_) => pid.as_bytes(),
+        None => b"".as_slice(),
+    };
+    let pieces = [b"its agent heard ".as_slice(), signal, sender, number, b"; its stop is the host's\n".as_slice()];
+    let mut length = 0_usize;
+    for piece in pieces {
+        length = length.checked_add(piece.len()).expect("bounded signal line");
+    }
+    let mut text = skein_lib::Writer::new(length);
+    for piece in pieces {
+        text.put(piece).expect("measured signal line");
+    }
+    text.finish()
+}

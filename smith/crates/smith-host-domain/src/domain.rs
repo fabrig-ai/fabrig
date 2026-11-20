@@ -83,6 +83,10 @@ pub(crate) enum Sent {
 }
 
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent control, signal and progress notices are retained per run"
+)]
 pub(crate) struct Agent {
     client: Token,
     logical_run: Token,
@@ -97,6 +101,8 @@ pub(crate) struct Agent {
     reading: reading::State,
     sending: Option<Sent>,
     signals: u32,
+    signalled: bool,
+    cancel_sent: bool,
     forced: Forced,
     outbox: Queue<Down>,
     busy: Queue<BusyCall>,
@@ -446,6 +452,8 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, client: Token, start: Start, ou
         reading: reading::State::Idle,
         sending: None,
         signals: 0,
+        signalled: false,
+        cancel_sent: false,
         forced: Forced::No,
         outbox: Queue::with_capacity(crate::limits::outbox(&env.limits).expect("validated outbox")),
         busy: Queue::with_capacity(2),
@@ -640,6 +648,10 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
     }
     agent.supervision.progress(env.now);
     match message {
+        Up::Signalled { signal, from } => {
+            agent.signalled = true;
+            out.push(Output::Parent(parent::Request::Signalled { host_run: agent.client, signal, from }));
+        }
         Up::Admitted => {
             agent.word.admit();
             out.push(Output::Parent(parent::Request::Admitted { client: agent.client }));
@@ -731,6 +743,7 @@ fn discarded_work(agent: &Agent, message: &Up) -> bool {
             | Up::Fact { .. }
             | Up::Long { .. }
             | Up::LongDone
+            | Up::Signalled { .. }
             | Up::Waiting { .. }
             | Up::Unauthorized { .. }
             | Up::Refused { .. }
@@ -842,6 +855,19 @@ fn drop_run(agent: &mut Agent, owner: Token, env: &Env<Limits>, out: &mut Queue<
 }
 
 fn terminate(agent: &mut Agent, owner: Token, env: &Env<Limits>, out: &mut Queue<Output>) {
+    if !agent.word.last_word() && !agent.cancel_sent {
+        if agent.sending.is_none() && listens(agent) {
+            agent.cancel_sent = true;
+            agent.sending = Some(Sent::Cancel);
+            out.push(Output::Process(process::Request::Send {
+                owner,
+                process: agent.tree.process(),
+                message: Down::Cancel,
+            }));
+        } else {
+            out.push(Output::Process(process::Request::CloseChannel { owner, process: agent.tree.process() }));
+        }
+    }
     signal(agent, owner, Signal::Terminate, out);
     agent.supervision.terminate(env.now, env.limits.kill_after);
 }
@@ -906,7 +932,10 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                     Sent::Grant
                 }
                 Down::Renewals { .. } => Sent::Renewals,
-                Down::Cancel => Sent::Cancel,
+                Down::Cancel => {
+                    agent.cancel_sent = true;
+                    Sent::Cancel
+                }
                 Down::Drain => Sent::Drain,
             };
             (sent, message)
@@ -1056,6 +1085,7 @@ fn observations(domain: &mut Domain, out: &Queue<Output>, before: u32) {
                     parent::Request::Called { .. }
                     | parent::Request::Withdrawn { .. }
                     | parent::Request::Turn { .. }
+                    | parent::Request::Signalled { .. }
                     | parent::Request::Waiting { .. }
                     | parent::Request::Long { .. }
                     | parent::Request::LongDone { .. }
@@ -1070,6 +1100,7 @@ fn observations(domain: &mut Domain, out: &Queue<Output>, before: u32) {
                     process::Request::Spawn { .. }
                     | process::Request::Send { .. }
                     | process::Request::Read { .. }
+                    | process::Request::CloseChannel { .. }
                     | process::Request::Signal { .. }
                     | process::Request::Wait { .. }
                     | process::Request::Reap { .. },

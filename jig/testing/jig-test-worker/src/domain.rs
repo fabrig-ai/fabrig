@@ -405,6 +405,7 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
             let old = domain.agents.insert(client, agent).expect("the hub bounds agents");
             assert!(old.is_none(), "one started agent per hosted owner");
         }
+        smith::parent::Request::Signalled { .. } => {}
         smith::parent::Request::Admitted { client } => {
             let agent = *domain.agents.get(&client).expect("started before admitted");
             hub(domain, env, HubEvent::Agent(FromAgent::Started { owner: client, agent }));

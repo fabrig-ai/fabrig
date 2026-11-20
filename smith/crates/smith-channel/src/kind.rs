@@ -1,4 +1,4 @@
-//! Version-eleven kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
+//! Version-twelve kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
 use alloc::boxed::Box;
 
@@ -67,6 +67,9 @@ pub const DRAIN: u16 = 0x0114;
 
 /// The `Renewals` body kind.
 pub const RENEWALS: u16 = 0x0115;
+
+/// The `Signalled` body kind.
+pub const SIGNALLED: u16 = 0x0116;
 
 /// The supported channel version.
 pub const VERSION: u16 = crate::wire::VERSION;

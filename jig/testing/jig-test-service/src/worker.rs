@@ -461,6 +461,9 @@ impl Worker {
         match request {
             smith::process::Request::Spawn { owner, deadline, .. } => self.process_spawn(owner, deadline),
             smith::process::Request::Send { owner, message, .. } => self.process_send(owner, message),
+            smith::process::Request::CloseChannel { owner, .. } => {
+                self.processes.get(&owner).expect("root owns process").close_channel(&mut self.io);
+            }
             smith::process::Request::Signal { owner, signal, .. } => self.process_signal(owner, signal),
             smith::process::Request::Read { owner, .. } => self.process_read(owner),
             smith::process::Request::Wait { .. } => Self::process_wait(),

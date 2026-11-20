@@ -189,6 +189,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
+            | agent::Up::Signalled { .. }
             | agent::Up::Answer { .. } => unreachable!(),
         };
         let mut h = Harness::new();
@@ -213,6 +214,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
+            | agent::Up::Signalled { .. }
             | agent::Up::Answer { .. } => unreachable!(),
         };
         assert!(h.say(again).contains(&Request::Link(expected)), "{notice:?}");
@@ -574,5 +576,32 @@ fn refusal_encoding_failure_keeps_cleanup_diagnostic() {
                 why: b"refusal\nsetup diagnostic tail".as_slice().into(),
             }))
         ));
+    }
+}
+
+#[test]
+fn an_agents_signal_is_not_a_workers_cancel() {
+    for from in [Some(42), None] {
+        let mut h = Harness::new();
+        h.run(Event::Assign { assignment: assignment(true, Box::new([])), items: Ok(items(&[])) });
+        h.say(agent::Up::Admitted);
+        let rows = h.say(agent::Up::Signalled { signal: agent::parent::Signal::Terminate, from });
+        let mut notes = 0_u32;
+        for row in rows {
+            if let Request::AgentSignalled { run, attempt, signal, from: sender } = row {
+                assert_eq!(run, RUN);
+                assert_eq!(attempt, ATTEMPT);
+                assert_eq!(signal, agent::parent::Signal::Terminate);
+                assert_eq!(sender, from);
+                notes = notes.checked_add(1).expect("one note");
+            } else if let Request::Process(process) = row {
+                let agent::process::Request::Read { .. } = process.as_ref() else {
+                    panic!("a signal cannot cancel, close or signal the run")
+                };
+            } else {
+                panic!("the agent signal has no hub effect")
+            }
+        }
+        assert_eq!(notes, 1, "the signal becomes one worker note");
     }
 }

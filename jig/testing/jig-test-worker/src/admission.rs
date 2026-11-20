@@ -36,7 +36,8 @@ pub fn class(event: &Event) -> Class {
         Event::Process(event) => match event.as_ref() {
             process::Event::Received { message, .. } => match message {
                 Up::Call { .. } => Class::New,
-                Up::Admitted
+                Up::Signalled { .. }
+                | Up::Admitted
                 | Up::MessageRefused { .. }
                 | Up::Answer { .. }
                 | Up::Turn { .. }

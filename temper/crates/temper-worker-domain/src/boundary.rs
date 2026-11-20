@@ -139,7 +139,9 @@ pub enum Request {
         repository: Box<[u8]>,
         what: Git,
     },
-    /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
+    /// An agent left its signal to this worker to decide (domain/worker/README.md, 2).
+    AgentSignalled { run: Token, attempt: Token, signal: smith_host_domain::parent::Signal, from: Option<u32> },
+    /// An agent fault reported once per attempt.
     AgentStopped { run: Token, attempt: Token, failure: host::AgentFailure },
     /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
     Unprepared { run: Token, attempt: Token, failure: host::Preparation, detail: Box<[u8]> },

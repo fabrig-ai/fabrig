@@ -902,6 +902,18 @@ impl Worker {
             root::Request::Git { run, attempt, job, repository, what } => {
                 self.note_git(run, attempt, job, repository, what);
             }
+            root::Request::AgentSignalled { run, attempt, signal, from } => {
+                let signal = match signal {
+                    smith::parent::Signal::Interrupt => "SIGINT",
+                    smith::parent::Signal::Terminate => "SIGTERM",
+                };
+                self.notes.push(crate::worker_alone::Note::AgentSignalled {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    signal,
+                    from,
+                });
+            }
             root::Request::AgentStopped { run, attempt, failure } => {
                 self.note_agent_stopped(run, attempt, failure);
             }
@@ -1004,6 +1016,9 @@ impl Worker {
         match request {
             smith::process::Request::Spawn { owner, deadline, .. } => self.process_spawn(owner, deadline),
             smith::process::Request::Send { owner, message, .. } => self.process_send(owner, message),
+            smith::process::Request::CloseChannel { owner, .. } => {
+                self.processes.get(&owner).expect("root owns process").close_channel(&mut self.io);
+            }
             smith::process::Request::Signal { owner, signal, .. } => self.process_signal(owner, signal),
             smith::process::Request::Read { owner, .. } => self.process_read(owner),
             smith::process::Request::Wait { .. } => Self::process_wait(),

@@ -31,6 +31,13 @@ pub enum Note {
     Restarting {
         keep: skein_lib::Duration,
     },
+    /// An agent signal left to this worker to decide; no stop follows it.
+    AgentSignalled {
+        run: u64,
+        attempt: u64,
+        signal: &'static str,
+        from: Option<u32>,
+    },
     /// An agent fault, when reported, once per attempt (domain/worker/README.md, 4.3).
     AgentStopped {
         run: u64,

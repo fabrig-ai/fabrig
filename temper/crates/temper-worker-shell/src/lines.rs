@@ -79,6 +79,9 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::StopBoundPassed { abandoned } => {
             format!("{binary} worker: stop bound passed; abandoned {abandoned} turns and answers\n")
         }
+        service::Note::AgentSignalled { run, attempt, signal, from } => {
+            signalled_line(binary, run, attempt, signal, from)
+        }
         service::Note::AgentStopped { run, attempt, failure, no_progress_ms } => {
             let failure = jig_domain_host::Failure::Agent(failure);
             let prefix = format!("{binary} worker: run {run} attempt {attempt} agent stopped {failure:?}");
@@ -241,3 +244,13 @@ fn refusal(reason: temper_worker_service::Refusal) -> String {
 #[cfg(test)]
 #[path = "worker_lines_tests.rs"]
 mod tests;
+
+fn signalled_line(binary: &str, run: u64, attempt: u64, signal: &str, from: Option<u32>) -> String {
+    let sender = match from {
+        Some(pid) => format!("pid {pid}"),
+        None => "an unknown sender".into(),
+    };
+    format!(
+        "{binary} worker: run {run} attempt {attempt}: its agent heard {signal} from {sender}; its stop is the worker's\n"
+    )
+}

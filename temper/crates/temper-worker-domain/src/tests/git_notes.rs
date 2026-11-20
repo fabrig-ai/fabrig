@@ -83,7 +83,8 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
             }
             request @ Request::Git { .. } => notes.push(request).expect("four prepare notes"),
             Request::Decode { .. } | Request::Job { .. } | Request::Link(_) => {}
-            Request::AgentStopped { .. }
+            Request::AgentSignalled { .. }
+            | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
             | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }

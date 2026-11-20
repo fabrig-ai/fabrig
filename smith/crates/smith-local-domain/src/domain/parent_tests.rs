@@ -666,6 +666,7 @@ fn shown_requests(out: &mut Queue<Request>) -> u32 {
             }
             Some(
                 Request::Input { .. }
+                | Request::Log { .. }
                 | Request::Notice { .. }
                 | Request::Answered { .. }
                 | Request::Unanswered { .. }
@@ -1140,4 +1141,32 @@ fn an_alien_save_ask_is_refused_without_touching_the_local_tree() {
     };
     assert_eq!(refused.explanation(), b"this host does not save");
     assert!(out.is_empty(), "no git or plain-tree operation starts");
+}
+
+#[test]
+fn an_agents_signal_is_logged_without_stopping_the_local_run() {
+    for (signal, from, line) in [
+        (
+            parent::Signal::Terminate,
+            Some(42),
+            b"its agent heard SIGTERM from pid 42; its stop is the host's\n".as_slice(),
+        ),
+        (
+            parent::Signal::Interrupt,
+            None,
+            b"its agent heard SIGINT from an unknown sender; its stop is the host's\n".as_slice(),
+        ),
+    ] {
+        let (mut domain, env, mut out) = running(crate::tests::config());
+        parent_request(
+            &mut domain,
+            &env,
+            parent::Request::Signalled { host_run: Token::new(1), signal, from },
+            &mut out,
+        );
+        let Some(Request::Log { text }) = out.pop() else { panic!("log the agent's signal") };
+        assert_eq!(text.as_ref(), line);
+        assert!(out.is_empty(), "a log owes no stop");
+        let State::Running { .. } = domain.chat.phase else { panic!("the run continues") };
+    }
 }

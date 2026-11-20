@@ -217,6 +217,7 @@ fn framed_event(service: &mut Stages, frame: &mut Frame, event: io::Event) -> Op
             ),
             stream::Up::Bytes(_) | stream::Up::Room | stream::Up::End => {}
         },
+        io::Event::Shutdown { signal, from } => super::admission::signalled(service, signal, from),
         io::Event::Closed { owner } if Some(owner) == service.input => {
             service.input = None;
             frame.channel.from_below(
@@ -238,7 +239,6 @@ fn framed_event(service: &mut Stages, frame: &mut Frame, event: io::Event) -> Op
         | io::Event::Usage { .. }
         | io::Event::Resized
         | io::Event::Window { .. }
-        | io::Event::Shutdown { .. }
         | io::Event::Failed { .. }
         | io::Event::Closed { .. }) => return Some(event),
     }

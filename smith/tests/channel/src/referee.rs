@@ -201,6 +201,7 @@ pub fn review(observations: &[Observation], credential: Box<[u8]>) -> Referee<Me
             Observation::HostOpened(_)
             | Observation::AgentOpened(_)
             | Observation::HostEnded(_)
+            | Observation::HostSignalled { .. }
             | Observation::HostSent(_)
             | Observation::HostUnsent(..)
             | Observation::AgentEnded(_)

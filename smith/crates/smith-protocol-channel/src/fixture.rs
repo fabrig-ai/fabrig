@@ -27,7 +27,7 @@ pub fn small() -> Limits {
             skip: 8,
             output_bytes: u32::MAX,
             output_frames: 2,
-            kinds: 22,
+            kinds: 23,
         },
     }
 }

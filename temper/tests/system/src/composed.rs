@@ -1477,6 +1477,7 @@ impl World {
             }
             // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
             worker::Request::Git { .. }
+            | worker::Request::AgentSignalled { .. }
             | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }
             | worker::Request::ResultsIgnored { .. }

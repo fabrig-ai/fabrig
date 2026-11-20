@@ -371,3 +371,15 @@ fn restart_words_name_how_long_runs_are_kept_after_loss() {
         "custom worker: the engine said it restarts: runs kept up to 1200000 ms after the link drops\n"
     );
 }
+
+#[test]
+fn an_agents_signal_line_leaves_its_stop_to_the_worker() {
+    for (from, sender) in [(Some(42), "pid 42"), (None, "an unknown sender")] {
+        assert_eq!(
+            worker_note_words(BINARY, worker::Note::AgentSignalled { run: 7, attempt: 2, signal: "SIGTERM", from }),
+            format!(
+                "{BINARY} worker: run 7 attempt 2: its agent heard SIGTERM from {sender}; its stop is the worker's\n"
+            )
+        );
+    }
+}

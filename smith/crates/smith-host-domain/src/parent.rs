@@ -7,6 +7,15 @@ use crate::{Answer, Ask, CallName, End, Fault, Grant, MessageRefusal, Reply, Sta
 use alloc::boxed::Box;
 use skein_lib::{Time, Token};
 
+/// A termination signal heard by the agent, left to its parent to decide.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Signal {
+    /// The agent heard SIGINT.
+    Interrupt,
+    /// The agent heard SIGTERM.
+    Terminate,
+}
+
 /// Commands sent by a parent to either kind of agent capability.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
@@ -63,6 +72,8 @@ pub enum Request {
     Started { client: Token, agent: Token },
     /// Agent independently accepted run.
     Admitted { client: Token },
+    /// The live agent heard a signal; no terminal or stop is owed.
+    Signalled { host_run: Token, signal: Signal, from: Option<u32> },
     /// One parent operation; exact Answer required.
     Called {
         client: Token,
