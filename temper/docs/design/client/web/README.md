@@ -108,10 +108,13 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   - `host`: the client host: temper's client root and view, and the
     view's patch queue, reserved at start at the view's limit on
     patches and drained each turn (skein's `ui/web/README.md`, 4.2); the root's
-    `Leave`, a forge's or an authorization's departure, as skein's
+    `Leave`, an authorization's departure or a removed forge's start
+    over, as skein's
     transport's navigation away, in the turn that asked it (skein's
     `ui/web/README.md`, section 8); the root's `Tab`, a sign-in's tab
-    (`../pages/README.md`, `ConnectModel`, The sign-in's tab), as skein's
+    or GitHub's way's (`../pages/accounts.md`, 1, `ConnectModel`, *The
+    sign-in's tab*; `../forge/deployment.md`, *GitHub's way, in a new
+    tab*), as skein's
     platform's, the opening before the turn's transport, and a refusal
     given back as a report of that turn; jig's
     mapping under `/jig` and its stream; the root's requests to jig's

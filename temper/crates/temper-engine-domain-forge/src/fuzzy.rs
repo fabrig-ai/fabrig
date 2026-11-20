@@ -125,8 +125,8 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
             for people in [0, 1, 2, 8] {
                 let criterion = Criterion::Approval { role: *role, people, freshness: *freshness };
                 assert_eq!(
-                    judge::judge(criterion, &repository, head, &clean, &evidence, &reviewers),
-                    judge::judge(criterion, &repository, head, &clean, &evidence, &retimed),
+                    judge::judge(criterion, &repository, head, &clean, &evidence, &reviewers, (&[], 0)),
+                    judge::judge(criterion, &repository, head, &clean, &evidence, &retimed, (&[], 0)),
                     "seed {seed}: timestamps cannot change approval verdicts"
                 );
             }

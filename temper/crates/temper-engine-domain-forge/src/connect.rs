@@ -669,6 +669,14 @@ pub(crate) fn ended(
     }
 }
 
+/// The routing's latest held way ends like a stopped run (client/forge/served.md, 1).
+pub(crate) fn way_ended(d: &mut Domain, forge: u16, why: &[u8], out: &mut Queue<Request>) {
+    if d.connect.running.contains_key(&forge) || !d.configured.contains_key(&forge) || d.forge_ended(forge) {
+        return;
+    }
+    stopped_end(d, forge, why, None, out);
+}
+
 /// Volatile per-forge diagnostics, bounded in bytes without splitting UTF-8 (client/forge/deployment.md).
 fn stopped_end(d: &mut Domain, forge: u16, why: &[u8], stop: Option<crate::AdminStop>, out: &mut Queue<Request>) {
     // The host supplies UTF-8. Back over continuation bytes at the cut;

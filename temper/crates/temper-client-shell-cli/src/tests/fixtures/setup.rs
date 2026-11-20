@@ -16,12 +16,12 @@ impl Frame {
         frame
     }
     pub(super) fn setup_reply(&mut self, fd: Fd, keyed: &w::Keyed) -> bool {
-        if !matches!(keyed.owner(), w::Owner::Family(_)) {
+        if !matches!(&keyed.owner, w::Owner::Family(_)) {
             return false;
         }
-        let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request()))
+        let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref()))
             .expect("family envelope");
-        let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
+        let request = wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).expect("forge request");
         let outcome = match request.request {
             f::Request::SetUp(_) => f::Outcome::SettingUp,
             f::Request::Adopt(_) if self.wait_task.is_some() => f::Outcome::Adopted(f::Adopted {
@@ -118,23 +118,10 @@ impl Frame {
             })
             .expect("valid setup fixture");
         let document = owned(wire::forges(&f::Forges { forges, linked: false }));
-        let event = w::StreamEvent::Delivery(
-            w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: self.wait_task.expect("forge watch"), document })
-                .expect("valid setup fixture"),
-        );
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("forge watch"), document });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("valid setup fixture").reply.extend(sse(&event));
     }
 }
 fn owned(record: Box<[u8]>) -> w::Owned {
-    w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("valid setup fixture"),
-            ),
-            version: wire::CLIENT_VERSION,
-            record,
-        },
-    )
-    .expect("valid setup fixture")
+    w::Owned { owner: w::Owner::Family(w::Family { number: wire::FORGE }), version: wire::CLIENT_VERSION, record }
 }

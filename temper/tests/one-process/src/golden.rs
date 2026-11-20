@@ -1,4 +1,5 @@
 //! The once-made floor deployment (temper/docs/design/protocol/floor.md, 5).
+mod dev;
 pub(crate) mod files;
 use crate::{
     ctl, fixtures,
@@ -6,6 +7,7 @@ use crate::{
     stories,
     world::{self, HarnessProcess, Person, ServiceObserver, Story},
 };
+pub use dev::read_dev;
 use jig_domain_core::{CoreRecord, Record};
 use jig_domain_tasks::{self as tasks, TaskRecord};
 use skein_fake_person::{Find, Step};
@@ -157,7 +159,7 @@ fn live(store: &Store) -> impl Iterator<Item = &TaskRecord> {
 }
 pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
     live(store).find(|task| {
-        task.spec.words.as_ref() == b"Golden coding in flight"
+        task.spec.words.starts_with(b"Golden coding in flight")
             && task.turn > 0
             && matches!(task.phase, tasks::Phase::Active(tasks::Active::Running { .. }))
     })
@@ -567,30 +569,9 @@ pub fn read(directory: &Path) {
     stories::setup_settings(world::Phase::Story);
     UPGRADED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
-    let configuration = read_configuration(directory);
-    let mut document = configuration;
-    // The reader holds the playground reset while inspecting the permanent history.
-    document["world_settings"] = temper_playground::documents::world_document()["world_settings"].clone();
-    document["world_settings"]["adopt_only"] = true.into();
-    let configuration = document.clone();
-    let mut disk = files::load(directory);
-    // The pre-N5 floor has no setup file; supply the operator's prepare step to this copy.
-    let directories =
-        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
-    let setup = temper_forge_setup::setup_file::chosen(
-        temper_forge_setup::machine::BoxKind::Fake,
-        temper_playground::documents::FORGE.port(),
-        b"owner",
-        false,
-        &directories,
-    )
-    .expect("kept fake forge setup");
-    let setup_path = directories
-        .join(jig_protocol_config::Directory::Data, &temper_forge_setup::setup_file::path(1, setup.kind()))
-        .expect("world setup path");
-    machine::lay_handover(&mut disk, &setup_path, &temper_forge_setup::setup_file::encode(&setup));
+    let (mut disk, configuration) = load_reader(directory);
+    let document = configuration.clone();
     let active = files::active(&mut disk);
-    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let machine = Machine::new(disk);
     let store = Rc::new(RefCell::new(Store::new()));
     store.borrow_mut().recovering();
@@ -745,6 +726,32 @@ fn assert_served(caller: &ctl::Caller) {
     assert_eq!(task["chip"]["task"], 2);
     assert_eq!(task["chip"]["phase"], "ended");
     assert_eq!(task["chip"]["title"]["bytes"], "Export widget's table as CSV");
+}
+
+/// The readers share the floor's loaded configuration and operator prepare step.
+fn load_reader(directory: &Path) -> (skein_fake_machine::Machine, temper_playground::documents::Configuration) {
+    let mut document = read_configuration(directory);
+    // The reader holds the playground reset while inspecting the permanent history.
+    document["world_settings"] = temper_playground::documents::world_document()["world_settings"].clone();
+    document["world_settings"]["adopt_only"] = true.into();
+    let mut disk = files::load(directory);
+    // Kept deployments use the current operator's prepare step in the loaded copy only.
+    let directories =
+        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+    let setup = temper_forge_setup::setup_file::chosen(
+        temper_forge_setup::machine::BoxKind::Fake,
+        temper_playground::documents::FORGE.port(),
+        b"owner",
+        false,
+        &directories,
+    )
+    .expect("kept fake forge setup");
+    let setup_path = directories
+        .join(jig_protocol_config::Directory::Data, &temper_forge_setup::setup_file::path(1, setup.kind()))
+        .expect("world setup path");
+    machine::lay_handover(&mut disk, &setup_path, &temper_forge_setup::setup_file::encode(&setup));
+    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
+    (disk, document)
 }
 
 /// The kept world configuration with current admission bounds for its defaults.

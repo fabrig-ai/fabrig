@@ -122,7 +122,7 @@ fn an_unwritable_record_retires_only_its_key_and_preserves_the_pending_write() {
     for request in &harness.out {
         if let Request::Exchange { message: Message::Request(bytes), .. } = request {
             let keyed = w::Keyed::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-            assert_eq!(keyed.key(), &fixtures::KEY);
+            assert_eq!((&keyed.key), &fixtures::KEY);
         }
     }
     assert!(!harness.has(&Request::NotKept { attempt: fixtures::ATTEMPT }));
@@ -257,7 +257,7 @@ fn held_exchanges_leave_in_order_after_the_write() {
             panic!("only held keyed exchanges leave: {request:?}")
         };
         let keyed = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).unwrap();
-        keys.push(*keyed.key()).unwrap();
+        keys.push(keyed.key).unwrap();
     }
     assert_eq!(keys.as_slice(), &[[1; 16], [2; 16], [3; 16]]);
     harness.written();

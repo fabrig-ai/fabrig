@@ -47,32 +47,20 @@ impl Frame {
                 open: skein_lib::List::with_capacity(0),
             },
         };
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts {
-                owner: w::Owner::Family(
-                    w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge"),
-                ),
-                version: wire::CLIENT_VERSION,
-                record: wire::change_panel(&panel),
-            },
-        )
-        .expect("change document");
-        let event = w::StreamEvent::Delivery(
-            w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: self.wait_task.expect("change watch"), document })
-                .expect("delivery"),
-        );
+        let document = w::Owned {
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            version: wire::CLIENT_VERSION,
+            record: wire::change_panel(&panel),
+        };
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("change watch"), document });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("stream socket").reply.extend(sse(&event));
     }
     pub fn change_task_not_ready(&mut self) {
         self.read_unreachable = true;
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded::new(
-                &w::CEILINGS,
-                w::WatchEndedParts { watch: self.wait_task.expect("change watch"), why: w::WatchEnd::Unknown },
-            )
-            .expect("ended"),
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded {
+            watch: self.wait_task.expect("change watch"),
+            why: w::WatchEnd::Unknown,
+        });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("stream socket").reply.extend(sse(&event));
         self.run();
     }

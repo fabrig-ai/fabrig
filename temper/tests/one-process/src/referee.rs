@@ -460,6 +460,7 @@ impl Referee {
             | Proc::Agent(_)
             | Proc::List(_)
             | Proc::Peer(_)
+            | Proc::Issuer(_)
             | Proc::GitRoute(_)
             | Proc::Git(_)
             | Proc::Shell(_)
@@ -820,6 +821,7 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
 pub(crate) fn shutdown_peer(proc: &mut Proc) {
     match proc {
         Proc::Peer(peer) => peer.shutdown(),
+        Proc::Issuer(issuer) => issuer.shutdown(),
         Proc::Forge(forge) => forge.shutdown(),
         Proc::Other(HarnessProcess::Push(push)) => push.shutdown(),
         Proc::Service(_)

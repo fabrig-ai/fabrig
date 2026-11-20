@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 mod client_store;
 mod tls;
 use super::*;
@@ -651,10 +652,12 @@ fn a_full_stream_refusal_without_a_line_ending_reaches_the_link() {
         client::Request::OpenStream { credential: None, replaces: None, version: jig_client_protocol_wire::VERSION },
         &mut peer.below,
     );
-    let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: w::StreamBound::Transport, size: 2 })
-        .expect("full record");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("fixed record"));
-    record.encode(&mut writer).expect("full bytes");
+    let record = w::StreamsFull { bound: w::StreamBound::Transport, size: 2 };
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("fixed record"),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("full bytes");
     let body = writer.finish();
     assert!(!body.contains(&b'\n'));
     let mut response = format!("HTTP/1.1 409 Conflict\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();

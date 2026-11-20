@@ -3,6 +3,7 @@
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
 use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_world::fixtures::{self, PROJECT};
 use skein_lib::{Duration, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
 use std::collections::BTreeMap;
@@ -59,7 +60,7 @@ impl World {
         for request in &world.out {
             if let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request {
                 let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed output");
-                if keyed.key() == &[CANCELLED; 16] {
+                if keyed.key == [CANCELLED; 16] {
                     cancelled = Some(*exchange);
                 }
             }
@@ -94,8 +95,8 @@ impl World {
                 }
                 Request::Exchange { exchange, message: Message::Request(bytes), .. } => {
                     let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("keyed wire bytes");
-                    assert!(self.durable.contains_key(keyed.key().as_slice()), "no keyed send before durability");
-                    self.sent.push(*keyed.key());
+                    assert!(self.durable.contains_key(keyed.key.as_slice()), "no keyed send before durability");
+                    self.sent.push(keyed.key);
                     self.exchanges.push(exchange);
                 }
                 Request::Exchange { message: Message::Read(_), .. } => {}
@@ -132,8 +133,10 @@ impl World {
 
     fn answer(&mut self, exchange: Token) {
         let answer = w::KeyedAnswer::Busy;
-        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
-        answer.encode(&mut bytes).expect("measured busy answer");
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
+        answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured busy answer");
         self.event(Event::Reply { exchange, message: bytes.finish() });
     }
 }

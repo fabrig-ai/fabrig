@@ -1,4 +1,5 @@
 //! Public HTTP integration (jig/docs/design/protocol/client/public-reads.md).
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1;
 use jig_client_protocol_world::public;
 use skein_lib::Reader;
@@ -13,9 +14,9 @@ fn a_public_board_is_read_over_http_bytes_through_the_service() {
         let mut bytes = Reader::new(&shown.body);
         let board = public_v1::PublicBoard::decode(&public_v1::CEILINGS, &mut bytes).expect("public board body");
         assert_eq!(bytes.remaining(), 0);
-        assert_eq!(board.project(), project);
-        assert_eq!(board.live().len(), 1);
-        assert_eq!(board.live().get(0).expect("goal").line().title(), public::TITLE);
+        assert_eq!(board.project, project);
+        assert_eq!(board.live.len(), 1);
+        assert_eq!(board.live.get(0).expect("goal").line.title.as_ref(), public::TITLE);
         let cache = shown.headers.iter().find(|h| h.is(b"cache-control")).expect("cache-control");
         let cache = std::str::from_utf8(&cache.value).expect("ASCII header");
         assert!(cache.contains("must-revalidate"));

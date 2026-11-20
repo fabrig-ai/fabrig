@@ -48,9 +48,11 @@ fn batch(h: &fixtures::Harness) -> (Token, w::Batch) {
 }
 
 fn part(h: &mut fixtures::Harness, exchange: Token, member: u16, reply: Option<Box<[u8]>>) {
-    let record = w::BatchReply::new(h.link.limits.receiving(), w::BatchReplyParts { member, reply }).unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let record = w::BatchReply { member, reply };
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     h.link.step(Time::ZERO, Event::Part { exchange, message: writer.finish() }, &mut h.out);
 }
 fn result(h: &fixtures::Harness, token: u64) -> Option<&Readout> {
@@ -183,13 +185,13 @@ fn cancelling_a_held_read_keeps_later_reads_openings_and_closings_in_asked_order
     h.link.step(Time::ZERO, Event::Lost { exchange: blocker }, &mut h.out);
     h.link.settle(&mut h.out);
     let (exchange, record) = batch(&h);
-    let [w::Member::Open(_), w::Member::Close(_), w::Member::Read(read)] = record.members().as_slice() else {
+    let [w::Member::Open(_), w::Member::Close(_), w::Member::Read(read)] = record.members.as_slice() else {
         panic!("remaining asked order")
     };
-    let w::Read::Project(read) = w::Read::decode(limits.wire(), &mut Reader::new(read.record())).unwrap() else {
+    let w::Read::Project(read) = w::Read::decode(limits.wire(), &mut Reader::new(read.record.as_ref())).unwrap() else {
         panic!("project read")
     };
-    assert_eq!(read.project(), 3);
+    assert_eq!(read.project, 3);
     h.clear();
     h.link.cancel_read(Token::new(3));
     assert_eq!(h.link.in_flight(), 1, "a sent member keeps credit");
@@ -208,17 +210,17 @@ fn three_reads_and_an_opening_leave_as_one_ordered_batch() {
     assert_eq!(h.exchanges(), 0);
     h.link.settle(&mut h.out);
     let (_, b) = batch(&h);
-    let [w::Member::Read(_), w::Member::Read(_), w::Member::Read(_), w::Member::Open(_)] = b.members().as_slice()
-    else {
+    let [w::Member::Read(_), w::Member::Read(_), w::Member::Read(_), w::Member::Open(_)] = b.members.as_slice() else {
         panic!("ordered members")
     };
-    for (place, member) in b.members().as_slice().iter().take(3).enumerate() {
+    for (place, member) in b.members.as_slice().iter().take(3).enumerate() {
         let w::Member::Read(record) = member else { panic!("read prefix") };
-        let w::Read::Project(read) = w::Read::decode(h.link.limits.wire(), &mut Reader::new(record.record())).unwrap()
+        let w::Read::Project(read) =
+            w::Read::decode(h.link.limits.wire(), &mut Reader::new(record.record.as_ref())).unwrap()
         else {
             panic!("project read")
         };
-        assert_eq!(read.project(), u32::try_from(place).unwrap() + 1);
+        assert_eq!(read.project, u32::try_from(place).unwrap() + 1);
     }
     assert_eq!(h.link.in_flight(), 1);
     h.clear();
@@ -237,7 +239,7 @@ fn sixty_four_members_take_one_credit_and_the_rest_wait_in_order() {
     }
     h.link.settle(&mut h.out);
     let (exchange, b) = batch(&h);
-    assert_eq!(b.members().len(), 64);
+    assert_eq!(b.members.len(), 64);
     assert_eq!(h.link.in_flight(), 1);
     h.clear();
     part(&mut h, exchange, 0, Some(fixtures::read_none_answer(w::ReadNone::Busy)));
@@ -247,7 +249,7 @@ fn sixty_four_members_take_one_credit_and_the_rest_wait_in_order() {
     h.link.step(Time::ZERO, Event::Done { exchange }, &mut h.out);
     h.clear();
     h.link.settle(&mut h.out);
-    assert_eq!(batch(&h).1.members().len(), 3);
+    assert_eq!(batch(&h).1.members.len(), 3);
     assert_eq!(h.link.in_flight(), 1);
 }
 
@@ -285,7 +287,7 @@ fn batch_bytes_split_before_the_bound_and_an_oversize_read_leaves_alone() {
     else {
         panic!("split: {messages:?}")
     };
-    assert_eq!(w::Batch::decode(limits.wire(), &mut Reader::new(b)).unwrap().members().len(), 2);
+    assert_eq!(w::Batch::decode(limits.wire(), &mut Reader::new(b)).unwrap().members.len(), 2);
     assert!(b.len() <= usize::try_from(BATCH_BYTES).unwrap());
     assert!(small.len() < usize::try_from(BATCH_BYTES).unwrap());
     assert!(large.len() > usize::try_from(BATCH_BYTES).unwrap());
@@ -411,16 +413,7 @@ fn an_unanswered_opening_or_closing_drops_only_its_stream_not_answered_reads() {
 #[test]
 fn a_batched_opening_refused_or_not_served_is_that_watchs_alone() {
     for (answer, expected) in [
-        (
-            w::OpenAnswer::Refused(
-                w::OpenAnswerRefused::new(
-                    fixtures::limits().wire(),
-                    w::OpenAnswerRefusedParts { why: w::WatchRefusal::NotAllowed },
-                )
-                .unwrap(),
-            ),
-            c::WatchEnd::NotAllowed,
-        ),
+        (w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::NotAllowed }), c::WatchEnd::NotAllowed),
         (w::OpenAnswer::NotServed(fixtures::not_served()), c::WatchEnd::NotServed),
     ] {
         let mut h = fixtures::Harness::admitted_stream();
@@ -461,13 +454,11 @@ fn every_stream_opening_names_the_last_known_stream_without_a_gone_exchange() {
         w::StreamEvent::decode(h.link.limits.wire(), &mut Reader::new(&fixtures::hello_event(fixtures::HEARTBEAT)))
             .unwrap();
     let w::StreamEvent::Opened(opened) = hello else { panic!("opened") };
-    let mut fields = opened.into_parts();
-    let mut hello = fields.hello.into_parts();
+    let mut fields = opened;
+    let mut hello = fields.hello;
     hello.stream = [9; 16];
-    fields.hello = w::Hello::new(h.link.limits.wire(), hello).unwrap();
-    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(
-        w::Opened::new(h.link.limits.wire(), fields).unwrap(),
-    )));
+    fields.hello = hello;
+    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(fields)));
     h.clear();
     h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
     h.open(Token::new(99), fixtures::application_subject());

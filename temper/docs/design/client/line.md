@@ -124,8 +124,10 @@ command.
   the page shows the sign-in's end when the `accounts` watch tells it. A browser opens the address
   in a new tab instead (`pages/accounts.md`, 1, `ConnectModel`).
 - **A forge's connect or install link** is printed the same way, as
-  `TEXT <URL>` with no number, and never opened; the terminal names no
-  `back`, so the setup route ends on its own page. A connect link's
+  `TEXT <URL>` with no number, and never opened; no client names a
+  `back`, so the setup route ends on its own page, and a browser opens
+  the link in a new tab instead (`forge/deployment.md`, *GitHub's way,
+  in a new tab*). A connect link's
   address is on the clients' listener (`forge/served.md`, 1), for example
   `http://127.0.0.1:PORT/forges/1/github/manifest?state=STATE`; an
   install link's is GitHub's,

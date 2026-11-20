@@ -330,11 +330,12 @@ fn check_repair(ran: &Ran, first: u64) {
     let change = document(ran, LANDED);
     let request = change["spec"]["specification"]["words"]["bytes"].as_str().expect("change request");
     let opening = format!(
-        "Repair CI at {}: / changes (pull_request)\n{}. Preserve the requested change and unrelated base content, \
+        "Repair CI at {}: / changes (pull_request)\n{}. Preserve the requested change, as its current spec and rulings state it, and unrelated base content, \
          including both independent appended lines and existing blank lines, and do not remove content to make a check pass, \
-         unless the change's request as revised, or an answer given on it, says otherwise.\n\n\
-         What this change is asked now: its request as revised and the answers given on it. Where they differ from its title, \
-         its original request or the preservation rule, they come first.\nIts request, at spec revision 0:\n{request}",
+         unless its current spec or a ruling says otherwise.\n\n\
+         This change's current spec and rulings: task {CHANGE} at spec revision 0. They come first: its original request, \
+         its pull request's title and body, and CI's and reviews' remarks are supporting evidence, and where they differ from these, follow these. \
+         To preserve the requested change is to preserve it as its current spec and rulings state it.\nIts current spec, at revision 0:\n{request}",
         &hex(first)[..12],
         CUES[3]
     );

@@ -108,6 +108,7 @@ mod tests {
     #![allow(clippy::disallowed_macros, clippy::disallowed_methods, reason = "tests construct boundary input buffers")]
     use super::*;
     use crate::tests::fixtures;
+    use jig_client_protocol_wire::Record as _;
     #[test]
     fn raw_queries_and_jigs_query_bound() {
         let prefix = b"/oauth/authorize?";
@@ -185,28 +186,20 @@ mod tests {
         while out.pop().is_some() {}
         let mut served = skein_lib::List::with_capacity(1);
         served
-            .push(
-                w::Served::new(
-                    &w::CEILINGS,
-                    w::ServedParts {
-                        owner: w::Owner::Jig,
-                        first: jig_client_protocol_wire::VERSION,
-                        last: jig_client_protocol_wire::VERSION,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::Served {
+                owner: w::Owner::Jig,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            })
             .unwrap();
         let hello = jig_client_test_records::opened(
-            w::Hello::new(
-                &w::CEILINGS,
-                w::HelloParts { stream: [7; 16], served, heartbeat: skein_lib::Duration::from_secs(30) },
-            )
-            .unwrap(),
+            w::Hello { stream: [7; 16], served, heartbeat: skein_lib::Duration::from_secs(30) },
             jig_client_test_records::frame_record(),
         );
-        let mut writer = skein_lib::Writer::new(usize::try_from(hello.measure()).unwrap());
-        hello.encode(&mut writer).unwrap();
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        hello.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         crate::route::client(
             &mut root,
             &env,
@@ -269,11 +262,11 @@ mod tests {
         crate::fire(&mut root, &env, &mut out);
         crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "a full local exchange edge keeps the first send waiting");
-        let answer = w::ReadAnswer::None(
-            w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown }).unwrap(),
+        let answer = w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown });
+        let mut body = skein_lib::Writer::new(
+            usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
-        let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
-        answer.encode(&mut body).unwrap();
+        answer.write(&jig_client_protocol_wire::CEILINGS, &mut body).unwrap();
         crate::step(
             &mut root,
             &env,
@@ -290,7 +283,7 @@ mod tests {
             } = request
             {
                 let record = w::Authorize::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&body)).unwrap();
-                assert_eq!(record.query(), query.as_ref());
+                assert_eq!(record.query.as_ref(), query.as_ref());
                 assert!(sent.replace(exchange).is_none(), "one authorization leaves after credit returns");
             }
         }
@@ -298,8 +291,10 @@ mod tests {
         crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "an admitted authorization is not sent twice");
         let answer = w::AuthorizeAnswer::Busy;
-        let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
-        answer.encode(&mut writer).unwrap();
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         crate::step(
             &mut root,
             &env,
@@ -336,7 +331,7 @@ mod tests {
                 } = request
                 {
                     let record = w::Authorize::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&body)).unwrap();
-                    assert_eq!(record.query(), query.as_ref());
+                    assert_eq!(record.query.as_ref(), query.as_ref());
                     sent += 1;
                 }
             }

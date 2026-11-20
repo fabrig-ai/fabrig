@@ -1,4 +1,5 @@
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
 use temper_engine_service::Engine;
@@ -153,15 +154,15 @@ impl Peer {
     }
 }
 pub use temper_service_link_fixtures::address;
-pub fn link_body(engine: &Engine, link: &[u8]) -> Box<[u8]> {
+pub fn link_body(_engine: &Engine, link: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let at = skein_lib::bytes::find(link, b"secret=").unwrap().checked_add(7).unwrap();
     let secret = base64::decode(Alphabet::Url, link.get(at..).unwrap(), 32).unwrap();
-    let record =
-        wire::LinkSignIn::new(engine.client_wire(), wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-            .unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }
 

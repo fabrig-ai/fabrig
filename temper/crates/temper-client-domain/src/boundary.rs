@@ -23,7 +23,13 @@ pub enum Action {
 pub enum Event {
     Push(crate::pages::told::Report),
     /// The native client's ask for an approval (client/README.md, 4.1).
-    AskApproval,
+    AskApproval {
+        port: Option<u16>,
+    },
+    /// The grant returned by the native client's loopback listener (client/README.md, 4.1).
+    Granted {
+        grant: skein_lib::Secret,
+    },
     /// The TUI's reads across projects (client/tui/pages/launchpad.md, 2).
     Launchpad,
     /// Offer the terminal once, keeping its watch for the client's lifetime.
@@ -74,13 +80,22 @@ pub enum Event {
         refused: bool,
     },
 }
-/// What the shell does with a sign-in's tab (client/pages/README.md, `ConnectModel`, The sign-in's tab).
+/// The words in a tab opened by a press (client/forge/deployment.md, GitHub's way, in a new tab).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opening {
+    SignIn { provider: u32 },
+    GitHub,
+}
+/// What the shell does with the press's tab (client/pages/accounts.md, The sign-in's tab).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Tab {
-    /// In the press's own turn, before the sign-in is carried; the provider names its words.
-    Open { provider: u32 },
+    /// In the press's own turn, before the request is sent.
+    Open { opening: Opening },
     /// The answer's address, its opener cut: once, from that answer.
     Point { to: Box<[u8]> },
+    /// The whole manifest link: the browser points at its checked path on its own origin;
+    /// the terminal prints it whole (client/forge/deployment.md, GitHub's way, in a new tab).
+    PointOnOrigin { to: Box<[u8]> },
     /// An answer with no address, or one the page has left.
     Close,
 }

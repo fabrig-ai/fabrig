@@ -7,6 +7,11 @@ use jig_domain_accounts as accounts;
 use skein_lib::{List, Wall};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct AccountFactLine {
+    pub fact: accounts::AccountFact,
+    pub rate: Option<u32>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SourceLine {
     pub name: Option<Box<[u8]>>,
     pub place: u32,
@@ -31,7 +36,7 @@ pub struct AccountLine {
     pub display: Text,
     pub holder: accounts::Holder,
     pub sources: List<SourceLine>,
-    pub facts: List<accounts::AccountFact>,
+    pub facts: List<AccountFactLine>,
     pub cut: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -70,7 +75,7 @@ pub struct Accounts {
 
 /// Whole fact labels and text beside their fixed-size values (domain/accounts.md, 3.7).
 pub fn facts_bound() -> Option<u64> {
-    List::<accounts::AccountFact>::price(accounts::FACTS)?.checked_add(
+    List::<AccountFactLine>::price(accounts::FACTS)?.checked_add(
         u64::from(accounts::FACTS)
             .checked_mul(u64::from(accounts::FACT_LABEL).checked_add(u64::from(accounts::FACT_TEXT))?)?,
     )

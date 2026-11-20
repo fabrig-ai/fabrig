@@ -2,6 +2,7 @@
 use super::*;
 use jig_client::{contract as c, shapes};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::{documents as d, reads};
 use jig_protocol_engine_clients as clients;
 use temper_engine_domain_world::{fixtures, walking};
@@ -215,21 +216,22 @@ pub(crate) fn client_request_with_models(
     let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("encoded client ask");
     let mut settings = jig_engine_clients_kit::fixtures::settings();
     settings.models = models;
-    let mut out = skein_lib::Writer::new(usize::try_from(ask.measure()).expect("ask size"));
-    ask.encode(&mut out).expect("ask bytes");
-    let keyed = w::Keyed::new(
-        &w::CEILINGS,
-        w::KeyedParts {
-            key: [1; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: out.finish(),
-            value: None,
-        },
-    )
-    .expect("keyed request");
-    let mut out = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("request size"));
-    keyed.encode(&mut out).expect("keyed bytes");
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("ask size"),
+    );
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("ask bytes");
+    let keyed = w::Keyed {
+        key: [1; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: out.finish(),
+        value: None,
+    };
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("request size"),
+    );
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("keyed bytes");
     let mut bounds = jig_engine_clients_kit::fixtures::limits();
     bounds.message_bytes = 1_048_576;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds };
@@ -479,6 +481,7 @@ fn an_open_chat_on_a_program_endpoint_starts() {
     let mut program_bounds = protocol::bounds();
     program_bounds.program_endpoints = Box::new([charter().policy.model.endpoint]);
     let program_hello = jig_domain_link::Hello {
+        reads_usage: true,
         jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_millis(100),

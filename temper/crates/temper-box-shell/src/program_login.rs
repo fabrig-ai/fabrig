@@ -14,7 +14,7 @@ pub(crate) fn command(
     read.prepare(|bytes| {
         let local =
             crate::serve::local_setting(&crate::path(&directories.data).join("local.setting"), &mut std::io::stderr());
-        let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
+        let places = local.as_ref().map_or(4, |value| value.places);
         let mut part = temper_service::startup::box_worker(
             bytes,
             &temper_service_shell::jig_directories(directories),

@@ -3,33 +3,23 @@ use super::{List, chip_record, fact_bytes, task_record, w};
 
 #[must_use]
 pub fn read_ending_record() -> w::Ending {
-    let lim = w::CEILINGS;
-    let row = w::Fact::Ending(
-        w::EndingRow::new(&lim, w::EndingRowParts { parent: None, value: w::EndingFields::Done })
-            .expect("literal fixture fits"),
-    );
-    w::Ending::new(&lim, w::EndingParts { rows: fact_bytes(&row) }).expect("literal fixture fits")
+    let row = w::Fact::Ending(w::EndingRow { parent: None, value: w::EndingFields::Done });
+    w::Ending { rows: fact_bytes(&row) }
 }
 
 #[must_use]
 pub fn read_wire_document_specification() -> w::DocumentSpecification {
-    let lim = w::CEILINGS;
-    w::DocumentSpecification::new(
-        &lim,
-        w::DocumentSpecificationParts {
-            asks: false,
-            words: read_wire_document_text(),
-            parameters: List::with_capacity(0),
-            inputs: List::with_capacity(0),
-        },
-    )
-    .expect("literal fixture fits")
+    w::DocumentSpecification {
+        asks: false,
+        words: read_wire_document_text(),
+        parameters: List::with_capacity(0),
+        inputs: List::with_capacity(0),
+    }
 }
 
 #[must_use]
 pub fn read_wire_document_text() -> w::DocumentText {
-    let lim = w::CEILINGS;
-    w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false }).expect("literal fixture fits")
+    w::DocumentText { bytes: Box::from([]), cut: false }
 }
 
 #[must_use]
@@ -39,25 +29,17 @@ pub fn read_wire_object_key() -> w::ObjectKey {
 
 #[must_use]
 pub fn read_wire_object_key_task() -> w::ObjectKeyTask {
-    let lim = w::CEILINGS;
-    w::ObjectKeyTask::new(&lim, w::ObjectKeyTaskParts { value: 7 }).expect("literal fixture fits")
+    w::ObjectKeyTask { value: 7 }
 }
 
 #[must_use]
 pub fn read_wire_owner_escalation() -> w::Escalation {
-    let lim = w::CEILINGS;
-    w::Escalation::new(&lim, w::EscalationParts { acts: Box::from([]), task: task_record() })
-        .expect("literal fixture fits")
+    w::Escalation { acts: Box::from([]), task: task_record() }
 }
 
 #[must_use]
 pub fn read_wire_owner_ended() -> w::Ended {
-    let lim = w::CEILINGS;
-    w::Ended::new(
-        &lim,
-        w::EndedParts { key: read_wire_object_key(), value: read_wire_owner_ended_value(), at: None, by: None },
-    )
-    .expect("literal fixture fits")
+    w::Ended { key: read_wire_object_key(), value: read_wire_owner_ended_value(), at: None, by: None }
 }
 
 #[must_use]
@@ -67,9 +49,7 @@ pub fn read_wire_owner_ended_value() -> w::EndedValue {
 
 #[must_use]
 pub fn read_wire_owner_ended_value_task() -> w::EndedValueTask {
-    let lim = w::CEILINGS;
-    w::EndedValueTask::new(&lim, w::EndedValueTaskParts { document: task_record(), result: read_wire_result() })
-        .expect("literal fixture fits")
+    w::EndedValueTask { document: task_record(), result: read_wire_result() }
 }
 
 #[must_use]
@@ -79,18 +59,12 @@ pub fn read_wire_owner_history_holder() -> w::HistoryHolder {
 
 #[must_use]
 pub fn read_wire_owner_history_holder_task() -> w::HistoryHolderTask {
-    let lim = w::CEILINGS;
-    w::HistoryHolderTask::new(&lim, w::HistoryHolderTaskParts { value: 7 }).expect("literal fixture fits")
+    w::HistoryHolderTask { value: 7 }
 }
 
 #[must_use]
 pub fn read_wire_owner_part() -> w::Part {
-    let lim = w::CEILINGS;
-    w::Part::new(
-        &lim,
-        w::PartParts { connector: 7, kind: read_wire_owner_part_kind(), key: read_wire_owner_part_key() },
-    )
-    .expect("literal fixture fits")
+    w::Part { connector: 7, kind: read_wire_owner_part_kind(), key: read_wire_owner_part_key() }
 }
 
 #[must_use]
@@ -100,8 +74,7 @@ pub fn read_wire_owner_part_key() -> w::PartKey {
 
 #[must_use]
 pub fn read_wire_owner_part_key_path() -> w::PartKeyPath {
-    let lim = w::CEILINGS;
-    w::PartKeyPath::new(&lim, w::PartKeyPathParts { value: List::with_capacity(0) }).expect("literal fixture fits")
+    w::PartKeyPath { value: List::with_capacity(0) }
 }
 
 #[must_use]
@@ -111,46 +84,36 @@ pub fn read_wire_owner_part_kind() -> w::PartKind {
 
 #[must_use]
 pub fn read_wire_owner_person_task() -> w::PersonTask {
-    let lim = w::CEILINGS;
-    w::PersonTask::new(
-        &lim,
-        w::PersonTaskParts {
-            task: chip_record(),
-            revision: read_wire_revision(),
-            requester: read_wire_owner_requester(),
-            spec: read_wire_specification_document(),
-            address: read_wire_person_address(),
-            taken_by: None,
-            since: None,
-            stall: None,
-            deadline: None,
-            contract: read_wire_task_contract_document(),
-            results: Box::from([]),
-            cut: false,
-            acts: Box::from([]),
-        },
-    )
-    .expect("literal fixture fits")
+    w::PersonTask {
+        task: chip_record(),
+        revision: read_wire_revision(),
+        requester: read_wire_owner_requester(),
+        spec: read_wire_specification_document(),
+        address: read_wire_person_address(),
+        taken_by: None,
+        since: None,
+        stall: None,
+        deadline: None,
+        contract: read_wire_task_contract_document(),
+        results: Box::from([]),
+        cut: false,
+        acts: Box::from([]),
+    }
 }
 
 #[must_use]
 pub fn read_wire_owner_proposal() -> w::Proposal {
-    let lim = w::CEILINGS;
-    w::Proposal::new(
-        &lim,
-        w::ProposalParts {
-            projects: List::with_capacity(0),
-            key: read_wire_proposal_key(),
-            project: 7,
-            reason: read_wire_document_text(),
-            action: read_wire_owner_proposal_action(),
-            as_holder: false,
-            waiting: read_wire_owner_proposal_waiting(),
-            funding: List::with_capacity(0),
-            acts: Box::from([]),
-        },
-    )
-    .expect("literal fixture fits")
+    w::Proposal {
+        projects: List::with_capacity(0),
+        key: read_wire_proposal_key(),
+        project: 7,
+        reason: read_wire_document_text(),
+        action: read_wire_owner_proposal_action(),
+        as_holder: false,
+        waiting: read_wire_owner_proposal_waiting(),
+        funding: List::with_capacity(0),
+        acts: Box::from([]),
+    }
 }
 
 #[must_use]
@@ -160,16 +123,12 @@ pub fn read_wire_owner_proposal_action() -> w::ProposalAction {
 
 #[must_use]
 pub fn read_wire_owner_proposal_action_batch() -> w::ProposalActionBatch {
-    let lim = w::CEILINGS;
-    w::ProposalActionBatch::new(&lim, w::ProposalActionBatchParts { value: Box::from([]) })
-        .expect("literal fixture fits")
+    w::ProposalActionBatch { value: Box::from([]) }
 }
 
 #[must_use]
 pub fn read_wire_owner_proposal_waiting() -> w::ProposalWaiting {
-    let lim = w::CEILINGS;
-    w::ProposalWaiting::new(&lim, w::ProposalWaitingParts { holder: read_wire_owner_history_holder(), since: 7 })
-        .expect("literal fixture fits")
+    w::ProposalWaiting { holder: read_wire_owner_history_holder(), since: 7 }
 }
 
 #[must_use]
@@ -179,8 +138,7 @@ pub fn read_wire_owner_requester() -> w::Requester {
 
 #[must_use]
 pub fn read_wire_owner_requester_task() -> w::RequesterTask {
-    let lim = w::CEILINGS;
-    w::RequesterTask::new(&lim, w::RequesterTaskParts { value: 7 }).expect("literal fixture fits")
+    w::RequesterTask { value: 7 }
 }
 
 #[must_use]
@@ -190,15 +148,12 @@ pub fn read_wire_person_address() -> w::PersonAddress {
 
 #[must_use]
 pub fn read_wire_person_address_party() -> w::PersonAddressParty {
-    let lim = w::CEILINGS;
-    w::PersonAddressParty::new(&lim, w::PersonAddressPartyParts { value: 7 }).expect("literal fixture fits")
+    w::PersonAddressParty { value: 7 }
 }
 
 #[must_use]
 pub fn read_wire_proposal_key() -> w::ProposalKey {
-    let lim = w::CEILINGS;
-    w::ProposalKey::new(&lim, w::ProposalKeyParts { proposer: read_wire_proposer(), number: 7 })
-        .expect("literal fixture fits")
+    w::ProposalKey { proposer: read_wire_proposer(), number: 7 }
 }
 
 #[must_use]
@@ -208,59 +163,42 @@ pub fn read_wire_proposer() -> w::Proposer {
 
 #[must_use]
 pub fn read_wire_proposer_task() -> w::ProposerTask {
-    let lim = w::CEILINGS;
-    w::ProposerTask::new(&lim, w::ProposerTaskParts { value: 7 }).expect("literal fixture fits")
+    w::ProposerTask { value: 7 }
 }
 
 #[must_use]
 pub fn read_wire_question() -> w::Question {
-    let lim = w::CEILINGS;
-    w::Question::new(
-        &lim,
-        w::QuestionParts {
-            task: chip_record(),
-            from: None,
-            message: 7,
-            words: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false }).expect("text"),
-            since: 7,
-            acts: Box::from([]),
-            ending: None,
-        },
-    )
-    .expect("literal fixture fits")
+    w::Question {
+        task: chip_record(),
+        from: None,
+        message: 7,
+        words: w::DocumentText { bytes: Box::from([]), cut: false },
+        since: 7,
+        acts: Box::from([]),
+        ending: None,
+    }
 }
 
 #[must_use]
 pub fn read_wire_result() -> w::ResultDocument {
-    let lim = w::CEILINGS;
-    w::ResultDocument::new(
-        &lim,
-        w::ResultDocumentParts {
-            task: chip_record(),
-            ending: read_ending_record(),
-            value: None,
-            at: None,
-            details: None,
-            acts: Box::from([]),
-        },
-    )
-    .expect("literal fixture fits")
+    w::ResultDocument {
+        task: chip_record(),
+        ending: read_ending_record(),
+        value: None,
+        at: None,
+        details: None,
+        acts: Box::from([]),
+    }
 }
 
 #[must_use]
 pub fn read_wire_revision() -> w::Revision {
-    let lim = w::CEILINGS;
-    w::Revision::new(&lim, w::RevisionParts { value: 7 }).expect("literal fixture fits")
+    w::Revision { value: 7 }
 }
 
 #[must_use]
 pub fn read_wire_specification_document() -> w::SpecificationDocument {
-    let lim = w::CEILINGS;
-    w::SpecificationDocument::new(
-        &lim,
-        w::SpecificationDocumentParts { specification: read_wire_document_specification(), cut: false },
-    )
-    .expect("literal fixture fits")
+    w::SpecificationDocument { specification: read_wire_document_specification(), cut: false }
 }
 
 #[must_use]
@@ -270,10 +208,5 @@ pub fn read_wire_task_contract_document() -> w::TaskContractDocument {
 
 #[must_use]
 pub fn read_wire_task_contract_document_approval() -> w::TaskContractDocumentApproval {
-    let lim = w::CEILINGS;
-    w::TaskContractDocumentApproval::new(
-        &lim,
-        w::TaskContractDocumentApprovalParts { state: Box::from([]), part: read_wire_owner_part() },
-    )
-    .expect("literal fixture fits")
+    w::TaskContractDocumentApproval { state: Box::from([]), part: read_wire_owner_part() }
 }

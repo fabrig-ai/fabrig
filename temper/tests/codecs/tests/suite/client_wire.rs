@@ -8,11 +8,13 @@ use temper_client_protocol_wire::v1::Record;
 #[test]
 fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
     let refusal = jig::Refusal::NotWaiting;
-    let mut writer = Writer::new(usize::try_from(refusal.measure()).expect("measured length"));
-    refusal.encode(&mut writer).expect("measured room");
+    let mut writer = Writer::new(
+        usize::try_from(refusal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("measured length"),
+    );
+    refusal.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
     let carried = v1::CoreRefused { refusal: writer.finish() };
-    let parts = v1::Answer { outcome: v1::Outcome::CoreRefused(carried) };
-    let answer = parts;
+    let answer = v1::Answer { outcome: v1::Outcome::CoreRefused(carried) };
     let bytes = temper_client_protocol_wire::answer(&answer);
     let decoded = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).expect("decodes");
     let v1::Outcome::CoreRefused(kept) = decoded.outcome else { panic!("a core refusal") };

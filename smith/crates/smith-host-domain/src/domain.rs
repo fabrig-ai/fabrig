@@ -709,6 +709,9 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
         Up::Unauthorized { account, generation } => {
             out.push(Output::Parent(parent::Request::Unauthorized { client: agent.client, account, generation }));
         }
+        Up::Usage { account, window } => {
+            out.push(Output::Parent(parent::Request::Usage { client: agent.client, account, window }));
+        }
         Up::Limited { account, reset } => {
             out.push(Output::Parent(parent::Request::Limited { client: agent.client, account, reset }));
         }
@@ -734,6 +737,7 @@ fn discarded_work(agent: &Agent, message: &Up) -> bool {
             | Up::Waiting { .. }
             | Up::Unauthorized { .. }
             | Up::Refused { .. }
+            | Up::Usage { .. }
             | Up::Limited { .. } => true,
         },
         State::Spawning
@@ -1061,6 +1065,7 @@ fn observations(domain: &mut Domain, out: &Queue<Output>, before: u32) {
                     | parent::Request::LongDone { .. }
                     | parent::Request::Unauthorized { .. }
                     | parent::Request::Refused { .. }
+                    | parent::Request::Usage { .. }
                     | parent::Request::Limited { .. }
                     | parent::Request::Told { .. }
                     | parent::Request::MessageRefused { .. }

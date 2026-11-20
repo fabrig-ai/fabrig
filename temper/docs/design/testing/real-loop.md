@@ -299,7 +299,12 @@ in the lower world that owns it, never here.
 - **Checks between iterations** are the strategy's for the real loop
   (skein/docs/foundation/testing-strategy.md, 2.8 and section 6), with the lower worlds'
   outside expectations; real deadlines bound waits, and the fake peers
-  stay available until their clients have settled. Each check returns
+  stay available until their clients have settled. A story's patience is
+  20 s on Linux and twice that on macOS, the slower host, through skein's
+  `real::host_bound` (`skein/docs/design/testing/README.md`, 5); the
+  judge's early diagnostic stays one second before it, and every poll,
+  wait or link deadline a story sets beyond or within the patience is
+  derived from it, so both move together. Each check returns
   its finding (`README.md`, 4.2): the judge's `watch` returns a broken
   check, and an overdue deadline seen in its `act` with the early
   diagnostic, the report and the scheduler figures, kept for that

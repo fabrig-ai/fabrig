@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::CLIENT_SCHEMA,
-        jig_client_protocol_wire::v39, sealed,
+        jig_client_protocol_wire::v40,
         limits [
             keyed_request,
             keyed_value_some,
@@ -485,7 +485,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::PUBLIC_SCHEMA,
-        jig_client_protocol_wire::public_v1, sealed,
+        jig_client_protocol_wire::public_v1,
         limits [
             public_line_title,
             public_project_name,
@@ -513,7 +513,7 @@ fn test_client_largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_test_protocol_wire::SCHEMA,
-        jig_client_test_protocol_wire::v2, lean,
+        jig_client_test_protocol_wire::v2,
         limits [
             segment_bytes,
             resource_path_segments,

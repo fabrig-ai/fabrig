@@ -85,7 +85,7 @@ fn an_export_writes_the_record_private_and_synced_before_written() {
     assert_eq!(f.stderr(), b"");
     let (holder, w::AccountChange::Written(written)) = &f.move_requests[1] else { panic!("written") };
     assert_eq!(*holder, w::AskAccountHolder::Own);
-    assert_eq!(written.number(), NUMBER);
+    assert_eq!(written.number, NUMBER);
     assert_ne!(f.act_keys()[0], f.act_keys()[1]);
 }
 #[test]
@@ -285,7 +285,7 @@ fn a_later_call_resends_written_before_importing() {
     next.sign_in_then_deliver_me();
     done(&next, 0, true);
     assert_eq!(next.act_keys()[0], key);
-    assert!(matches!(&next.move_requests[0].1, w::AccountChange::Written(written) if written.number() == NUMBER));
+    assert!(matches!(&next.move_requests[0].1, w::AccountChange::Written(written) if written.number == NUMBER));
     assert!(matches!(&next.move_requests[1].1, w::AccountChange::MoveIn(_)));
 }
 #[test]

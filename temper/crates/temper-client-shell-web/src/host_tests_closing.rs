@@ -22,23 +22,15 @@ fn the_playground_start_warns_only_until_its_answer_is_carried() {
     assert!(records::closing_loses(&stored), "sending is not an answer");
 
     let answer = wire::v1::Answer { outcome: wire::v1::Outcome::Running };
-    let answer = w::KeyedAnswer::FinalAnswer(
-        w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts {
-                owner: w::Owner::Family(
-                    w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge"),
-                ),
-                version: wire::CLIENT_VERSION,
-                record: wire::answer(&answer),
-            },
-        )
-        .expect("owned answer"),
-    );
+    let answer = w::KeyedAnswer::FinalAnswer(w::Owned {
+        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        record: wire::answer(&answer),
+    });
     let answered = host.report(Report::Heard(Heard::Answered {
         exchange: *id,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
         headers: Vec::new(),
     }));
     let [Asked::Erase { key }] = answered.asked.as_slice() else { panic!("erase the answered start") };

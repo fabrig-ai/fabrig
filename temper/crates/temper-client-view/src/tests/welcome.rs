@@ -123,7 +123,7 @@ fn the_forge_step_shows_choices_after_reset() {
         assert!(!styled(view.tree(), github, crate::look::FLOW_PRIMARY));
         node(view.tree(), Role::Heading { level: 2 }, "Local");
         node(view.tree(), Role::Paragraph, FORGEJO_CARD);
-        node(view.tree(), Role::Paragraph, "In this tab, on GitHub · about two minutes");
+        node(view.tree(), Role::Paragraph, "In a new tab, on GitHub · about two minutes");
         assert!(f::find(view.tree(), Role::Link, b"Or connect your deployment").is_none());
         assert!(f::find(view.tree(), Role::Dialog, b"Local forge").is_none());
     }

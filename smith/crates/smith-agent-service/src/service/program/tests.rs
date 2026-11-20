@@ -280,7 +280,8 @@ fn a_tools_file_answer_never_reaches_a_program() {
         for event in &service.stages.llm_events {
             match event {
                 llm::ToDomain::Failed { .. } => panic!("no program completion fails"),
-                llm::ToDomain::BuiltinResult { .. }
+                llm::ToDomain::Usage { .. }
+                | llm::ToDomain::BuiltinResult { .. }
                 | llm::ToDomain::Completed { .. }
                 | llm::ToDomain::Cancelled { .. }
                 | llm::ToDomain::Text { .. }

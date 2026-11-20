@@ -2,11 +2,14 @@
 
 use alloc::boxed::Box;
 use skein_lib::List;
+use skein_codec::field;
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
-/// This family's schema version.
 pub const VERSION: u16 = 1;
 
-/// The family's adjustable limits, each no larger than its ceiling.
+// Limits: the owner's values, checked once against ceilings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub public_line_title: u32,
@@ -22,7 +25,6 @@ pub struct Limits {
     pub public_application_record: u32,
 }
 
-/// The schema's maximum limits.
 pub const CEILINGS: Limits = Limits {
     public_line_title: 256,
     public_project_name: 64,
@@ -37,7 +39,6 @@ pub const CEILINGS: Limits = Limits {
     public_application_record: 16_777_216,
 };
 
-/// The limits' field names, in field order.
 pub const LIMIT_NAMES: &[&str] = &[
     "public_line_title",
     "public_project_name",
@@ -53,1991 +54,878 @@ pub const LIMIT_NAMES: &[&str] = &[
 ];
 
 impl Limits {
-    /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
     pub fn values(&self) -> List<u32> {
         let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        self.values_for_public_line_record(&mut values);
+        values.push(self.public_line_title).expect("room for every named limit");
+        values.push(self.public_project_name).expect("room for every named limit");
+        values.push(self.public_projects_projects).expect("room for every named limit");
+        values.push(self.public_goal_tree).expect("room for every named limit");
+        values.push(self.public_board_name).expect("room for every named limit");
+        values.push(self.public_board_live).expect("room for every named limit");
+        values.push(self.public_board_ended).expect("room for every named limit");
+        values.push(self.public_card_lineage).expect("room for every named limit");
+        values.push(self.public_card_delegates).expect("room for every named limit");
+        values.push(self.public_application_tasks).expect("room for every named limit");
+        values.push(self.public_application_record).expect("room for every named limit");
         values
     }
 }
 
-/// A field or tag that caused a codec problem.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Path {
-    /// The tag of `PublicExecutor`.
-    PublicExecutorTag,
-    /// The tag of `PublicPhase`.
-    PublicPhaseTag,
-    /// The tag of `PublicHold`.
-    PublicHoldTag,
-    /// The `working` field of `PublicCounts`.
-    PublicCountsWorking,
-    /// The `waiting` field of `PublicCounts`.
-    PublicCountsWaiting,
-    /// The `held` field of `PublicCounts`.
-    PublicCountsHeld,
-    /// The `closing` field of `PublicCounts`.
-    PublicCountsClosing,
-    /// The `ended` field of `PublicCounts`.
-    PublicCountsEnded,
-    /// Bytes after `PublicCounts`.
-    PublicCountsTail,
-    /// The `task` field of `PublicLine`.
-    PublicLineTask,
-    /// The `title` field of `PublicLine`.
-    PublicLineTitle,
-    /// The `title_cut` field of `PublicLine`.
-    PublicLineTitleCut,
-    /// The `parent` field of `PublicLine`.
-    PublicLineParent,
-    /// The `goal` field of `PublicLine`.
-    PublicLineGoal,
-    /// The `priority` field of `PublicLine`.
-    PublicLinePriority,
-    /// The `executor` field of `PublicLine`.
-    PublicLineExecutor,
-    /// The `phase` field of `PublicLine`.
-    PublicLinePhase,
-    /// The `hold` field of `PublicLine`.
-    PublicLineHold,
-    /// The `made` field of `PublicLine`.
-    PublicLineMade,
-    /// The `changed` field of `PublicLine`.
-    PublicLineChanged,
-    /// The `active` field of `PublicLine`.
-    PublicLineActive,
-    /// The `ended` field of `PublicLine`.
-    PublicLineEnded,
-    /// The `spent` field of `PublicLine`.
-    PublicLineSpent,
-    /// The `delegates` field of `PublicLine`.
-    PublicLineDelegates,
-    /// Bytes after `PublicLine`.
-    PublicLineTail,
-    /// The `project` field of `PublicProject`.
-    PublicProjectProject,
-    /// The `name` field of `PublicProject`.
-    PublicProjectName,
-    /// Bytes after `PublicProject`.
-    PublicProjectTail,
-    /// The `projects` field of `PublicProjects`.
-    PublicProjectsProjects,
-    /// The `max_age` field of `PublicProjects`.
-    PublicProjectsMaxAge,
-    /// Bytes after `PublicProjects`.
-    PublicProjectsTail,
-    /// The `line` field of `PublicGoal`.
-    PublicGoalLine,
-    /// The `tree` field of `PublicGoal`.
-    PublicGoalTree,
-    /// The `folded` field of `PublicGoal`.
-    PublicGoalFolded,
-    /// Bytes after `PublicGoal`.
-    PublicGoalTail,
-    /// The `project` field of `PublicBoard`.
-    PublicBoardProject,
-    /// The `name` field of `PublicBoard`.
-    PublicBoardName,
-    /// The `live` field of `PublicBoard`.
-    PublicBoardLive,
-    /// The `live_folded` field of `PublicBoard`.
-    PublicBoardLiveFolded,
-    /// The `ended` field of `PublicBoard`.
-    PublicBoardEnded,
-    /// Bytes after `PublicBoard`.
-    PublicBoardTail,
-    /// The `line` field of `PublicCard`.
-    PublicCardLine,
-    /// The `lineage` field of `PublicCard`.
-    PublicCardLineage,
-    /// The `delegates` field of `PublicCard`.
-    PublicCardDelegates,
-    /// The `folded` field of `PublicCard`.
-    PublicCardFolded,
-    /// Bytes after `PublicCard`.
-    PublicCardTail,
-    /// The `tasks` field of `PublicApplication`.
-    PublicApplicationTasks,
-    /// The `record` field of `PublicApplication`.
-    PublicApplicationRecord,
-    /// Bytes after `PublicApplication`.
-    PublicApplicationTail,
-}
+const LIMIT_PATHS: &[Path] = &[
+    paths::PUBLIC_LINE_TITLE,
+    paths::PUBLIC_PROJECT_NAME,
+    paths::PUBLIC_PROJECTS_PROJECTS,
+    paths::PUBLIC_GOAL_TREE,
+    paths::PUBLIC_BOARD_NAME,
+    paths::PUBLIC_BOARD_LIVE,
+    paths::PUBLIC_BOARD_ENDED,
+    paths::PUBLIC_CARD_LINEAGE,
+    paths::PUBLIC_CARD_DELEGATES,
+    paths::PUBLIC_APPLICATION_TASKS,
+    paths::PUBLIC_APPLICATION_RECORD,
+];
 
-impl Path {
-    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::PublicExecutorTag => "PublicExecutor (tag)",
-            Self::PublicPhaseTag => "PublicPhase (tag)",
-            Self::PublicHoldTag => "PublicHold (tag)",
-            Self::PublicCountsWorking => "PublicCounts.working",
-            Self::PublicCountsWaiting => "PublicCounts.waiting",
-            Self::PublicCountsHeld => "PublicCounts.held",
-            Self::PublicCountsClosing => "PublicCounts.closing",
-            Self::PublicCountsEnded => "PublicCounts.ended",
-            Self::PublicCountsTail => "PublicCounts (tail)",
-            Self::PublicLineTask => "PublicLine.task",
-            Self::PublicLineTitle => "PublicLine.title",
-            Self::PublicLineTitleCut => "PublicLine.title_cut",
-            Self::PublicLineParent => "PublicLine.parent",
-            Self::PublicLineGoal => "PublicLine.goal",
-            Self::PublicLinePriority => "PublicLine.priority",
-            Self::PublicLineExecutor => "PublicLine.executor",
-            Self::PublicLinePhase => "PublicLine.phase",
-            Self::PublicLineHold => "PublicLine.hold",
-            Self::PublicLineMade => "PublicLine.made",
-            Self::PublicLineChanged => "PublicLine.changed",
-            Self::PublicLineActive => "PublicLine.active",
-            Self::PublicLineEnded => "PublicLine.ended",
-            Self::PublicLineSpent => "PublicLine.spent",
-            Self::PublicLineDelegates => "PublicLine.delegates",
-            Self::PublicLineTail => "PublicLine (tail)",
-            Self::PublicProjectProject => "PublicProject.project",
-            Self::PublicProjectName => "PublicProject.name",
-            Self::PublicProjectTail => "PublicProject (tail)",
-            Self::PublicProjectsProjects => "PublicProjects.projects",
-            Self::PublicProjectsMaxAge => "PublicProjects.max_age",
-            Self::PublicProjectsTail => "PublicProjects (tail)",
-            Self::PublicGoalLine => "PublicGoal.line",
-            Self::PublicGoalTree => "PublicGoal.tree",
-            Self::PublicGoalFolded => "PublicGoal.folded",
-            Self::PublicGoalTail => "PublicGoal (tail)",
-            Self::PublicBoardProject => "PublicBoard.project",
-            Self::PublicBoardName => "PublicBoard.name",
-            Self::PublicBoardLive => "PublicBoard.live",
-            Self::PublicBoardLiveFolded => "PublicBoard.live_folded",
-            Self::PublicBoardEnded => "PublicBoard.ended",
-            Self::PublicBoardTail => "PublicBoard (tail)",
-            Self::PublicCardLine => "PublicCard.line",
-            Self::PublicCardLineage => "PublicCard.lineage",
-            Self::PublicCardDelegates => "PublicCard.delegates",
-            Self::PublicCardFolded => "PublicCard.folded",
-            Self::PublicCardTail => "PublicCard (tail)",
-            Self::PublicApplicationTasks => "PublicApplication.tasks",
-            Self::PublicApplicationRecord => "PublicApplication.record",
-            Self::PublicApplicationTail => "PublicApplication (tail)",
-        }
-    }
-}
-
-/// A decoding or bound failure at a schema path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Problem {
-    pub path: Path,
-    pub reason: skein_codec::Reason,
-}
-
-/// Checks the family limits, naming the first limit past its ceiling.
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_public_line_record_limits(limits)
-}
-
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    public_executor_encoded_bound_family(limits, 0)
-}
-
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    public_executor_decoded_bound_family(limits, 0)
-}
-
-/// `PublicExecutor` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PublicExecutor {
-    /// `agent` without a payload.
-    Agent,
-    /// `procedure` without a payload.
-    Procedure,
-    /// `person` without a payload.
-    Person,
-    /// `job` without a payload.
-    Job,
-}
-
-impl PublicExecutor {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-impl PublicExecutor {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Agent | Self::Procedure | Self::Person | Self::Job => 1,
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
         }
     }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Agent => writer.put(&[0_u8])?,
-            Self::Procedure => writer.put(&[1_u8])?,
-            Self::Person => writer.put(&[2_u8])?,
-            Self::Job => writer.put(&[3_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicExecutorTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::PublicExecutorTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Agent,
-            1 => Self::Procedure,
-            2 => Self::Person,
-            3 => Self::Job,
-            _ => return Err(Problem { path: Path::PublicExecutorTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl PublicExecutor {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-fn public_executor_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicExecutor::encoded_bound_within(limits)?);
-    public_phase_encoded_bound_family(limits, biggest)
-}
-
-fn public_executor_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicExecutor::decoded_bound_within(limits)?);
-    public_phase_decoded_bound_family(limits, biggest)
-}
-
-/// `PublicPhase` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PublicPhase {
-    /// `waiting` without a payload.
-    Waiting,
-    /// `idle` without a payload.
-    Idle,
-    /// `due` without a payload.
-    Due,
-    /// `preparing` without a payload.
-    Preparing,
-    /// `claimed` without a payload.
-    Claimed,
-    /// `running` without a payload.
-    Running,
-    /// `backing_off` without a payload.
-    BackingOff,
-    /// `active` without a payload.
-    Active,
-    /// `closing` without a payload.
-    Closing,
-    /// `held` without a payload.
-    Held,
-    /// `done` without a payload.
-    Done,
-    /// `failed` without a payload.
-    Failed,
-    /// `cancelled` without a payload.
-    Cancelled,
-}
-
-impl PublicPhase {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-impl PublicPhase {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Waiting | Self::Idle | Self::Due | Self::Preparing | Self::Claimed | Self::Running | Self::BackingOff | Self::Active | Self::Closing | Self::Held | Self::Done | Self::Failed | Self::Cancelled => 1,
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Waiting => writer.put(&[0_u8])?,
-            Self::Idle => writer.put(&[1_u8])?,
-            Self::Due => writer.put(&[2_u8])?,
-            Self::Preparing => writer.put(&[3_u8])?,
-            Self::Claimed => writer.put(&[4_u8])?,
-            Self::Running => writer.put(&[5_u8])?,
-            Self::BackingOff => writer.put(&[6_u8])?,
-            Self::Active => writer.put(&[7_u8])?,
-            Self::Closing => writer.put(&[8_u8])?,
-            Self::Held => writer.put(&[9_u8])?,
-            Self::Done => writer.put(&[10_u8])?,
-            Self::Failed => writer.put(&[11_u8])?,
-            Self::Cancelled => writer.put(&[12_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicPhaseTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::PublicPhaseTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Waiting,
-            1 => Self::Idle,
-            2 => Self::Due,
-            3 => Self::Preparing,
-            4 => Self::Claimed,
-            5 => Self::Running,
-            6 => Self::BackingOff,
-            7 => Self::Active,
-            8 => Self::Closing,
-            9 => Self::Held,
-            10 => Self::Done,
-            11 => Self::Failed,
-            12 => Self::Cancelled,
-            _ => return Err(Problem { path: Path::PublicPhaseTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl PublicPhase {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-fn public_phase_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicPhase::encoded_bound_within(limits)?);
-    public_hold_encoded_bound_family(limits, biggest)
-}
-
-fn public_phase_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicPhase::decoded_bound_within(limits)?);
-    public_hold_decoded_bound_family(limits, biggest)
-}
-
-/// `PublicHold` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PublicHold {
-    /// `failures` without a payload.
-    Failures,
-    /// `stalled` without a payload.
-    Stalled,
-    /// `dependency` without a payload.
-    Dependency,
-    /// `stopped` without a payload.
-    Stopped,
-    /// `placed` without a payload.
-    Placed,
-    /// `drift` without a payload.
-    Drift,
-    /// `effects` without a payload.
-    Effects,
-    /// `effect_failed` without a payload.
-    EffectFailed,
-    /// `uncertain` without a payload.
-    Uncertain,
-    /// `budget` without a payload.
-    Budget,
-    /// `deadline` without a payload.
-    Deadline,
-    /// `holds_waited` without a payload.
-    HoldsWaited,
-    /// `resource_unavailable` without a payload.
-    ResourceUnavailable,
-    /// `resource_access` without a payload.
-    ResourceAccess,
-    /// `pool_lost` without a payload.
-    PoolLost,
-    /// `procedure` without a payload.
-    Procedure,
-    /// `circle` without a payload.
-    Circle,
-    /// `exceeded` without a payload.
-    Exceeded,
-}
-
-impl PublicHold {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-impl PublicHold {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Failures | Self::Stalled | Self::Dependency | Self::Stopped | Self::Placed | Self::Drift | Self::Effects | Self::EffectFailed | Self::Uncertain | Self::Budget | Self::Deadline | Self::HoldsWaited | Self::ResourceUnavailable | Self::ResourceAccess | Self::PoolLost | Self::Procedure | Self::Circle | Self::Exceeded => 1,
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Failures => writer.put(&[0_u8])?,
-            Self::Stalled => writer.put(&[1_u8])?,
-            Self::Dependency => writer.put(&[2_u8])?,
-            Self::Stopped => writer.put(&[3_u8])?,
-            Self::Placed => writer.put(&[4_u8])?,
-            Self::Drift => writer.put(&[5_u8])?,
-            Self::Effects => writer.put(&[6_u8])?,
-            Self::EffectFailed => writer.put(&[7_u8])?,
-            Self::Uncertain => writer.put(&[8_u8])?,
-            Self::Budget => writer.put(&[9_u8])?,
-            Self::Deadline => writer.put(&[10_u8])?,
-            Self::HoldsWaited => writer.put(&[11_u8])?,
-            Self::ResourceUnavailable => writer.put(&[12_u8])?,
-            Self::ResourceAccess => writer.put(&[13_u8])?,
-            Self::PoolLost => writer.put(&[14_u8])?,
-            Self::Procedure => writer.put(&[15_u8])?,
-            Self::Circle => writer.put(&[16_u8])?,
-            Self::Exceeded => writer.put(&[17_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicHoldTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::PublicHoldTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Failures,
-            1 => Self::Stalled,
-            2 => Self::Dependency,
-            3 => Self::Stopped,
-            4 => Self::Placed,
-            5 => Self::Drift,
-            6 => Self::Effects,
-            7 => Self::EffectFailed,
-            8 => Self::Uncertain,
-            9 => Self::Budget,
-            10 => Self::Deadline,
-            11 => Self::HoldsWaited,
-            12 => Self::ResourceUnavailable,
-            13 => Self::ResourceAccess,
-            14 => Self::PoolLost,
-            15 => Self::Procedure,
-            16 => Self::Circle,
-            17 => Self::Exceeded,
-            _ => return Err(Problem { path: Path::PublicHoldTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl PublicHold {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-fn public_hold_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicHold::encoded_bound_within(limits)?);
-    public_counts_encoded_bound_family(limits, biggest)
-}
-
-fn public_hold_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicHold::decoded_bound_within(limits)?);
-    public_counts_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `PublicCounts`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicCountsParts {
-    /// The `working` field.
-    pub working: u32,
-    /// The `waiting` field.
-    pub waiting: u32,
-    /// The `held` field.
-    pub held: u32,
-    /// The `closing` field.
-    pub closing: u32,
-    /// The `ended` field.
-    pub ended: u32,
-}
-
-/// `PublicCounts` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicCounts {
-    working: u32,
-    waiting: u32,
-    held: u32,
-    closing: u32,
-    ended: u32,
-}
-
-impl PublicCounts {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: PublicCountsParts) -> Result<Self, Problem> {
-        let PublicCountsParts { working, waiting, held, closing, ended } = parts;
-        let value = Self { working, waiting, held, closing, ended };
-        Ok(value)
-    }
-
-    /// Reads the `working` field.
-    #[must_use]
-    pub fn working(&self) -> u32 { self.working }
-
-    /// Reads the `waiting` field.
-    #[must_use]
-    pub fn waiting(&self) -> u32 { self.waiting }
-
-    /// Reads the `held` field.
-    #[must_use]
-    pub fn held(&self) -> u32 { self.held }
-
-    /// Reads the `closing` field.
-    #[must_use]
-    pub fn closing(&self) -> u32 { self.closing }
-
-    /// Reads the `ended` field.
-    #[must_use]
-    pub fn ended(&self) -> u32 { self.ended }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicCountsParts { PublicCountsParts { working: self.working, waiting: self.waiting, held: self.held, closing: self.closing, ended: self.ended } }
-
-}
-
-impl PublicCounts {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_working = &self.working;
-        writer.put(&field_working.to_be_bytes())?;
-        let field_waiting = &self.waiting;
-        writer.put(&field_waiting.to_be_bytes())?;
-        let field_held = &self.held;
-        writer.put(&field_held.to_be_bytes())?;
-        let field_closing = &self.closing;
-        writer.put(&field_closing.to_be_bytes())?;
-        let field_ended = &self.ended;
-        writer.put(&field_ended.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicCountsTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_working = reader.u32().ok_or(Problem { path: Path::PublicCountsWorking, reason: skein_codec::Reason::Short })?;
-        let decoded_waiting = reader.u32().ok_or(Problem { path: Path::PublicCountsWaiting, reason: skein_codec::Reason::Short })?;
-        let decoded_held = reader.u32().ok_or(Problem { path: Path::PublicCountsHeld, reason: skein_codec::Reason::Short })?;
-        let decoded_closing = reader.u32().ok_or(Problem { path: Path::PublicCountsClosing, reason: skein_codec::Reason::Short })?;
-        let decoded_ended = reader.u32().ok_or(Problem { path: Path::PublicCountsEnded, reason: skein_codec::Reason::Short })?;
-        Ok(Self { working: decoded_working, waiting: decoded_waiting, held: decoded_held, closing: decoded_closing, ended: decoded_ended })
-    }
-}
-
-impl PublicCounts {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_counts_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicCounts::encoded_bound_within(limits)?);
-    public_line_encoded_bound_family(limits, biggest)
-}
-
-fn public_counts_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicCounts::decoded_bound_within(limits)?);
-    public_line_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `PublicLine`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicLineParts {
-    /// The `task` field.
-    pub task: u64,
-    /// The `title` field.
-    pub title: Box<[u8]>,
-    /// The `title_cut` field.
-    pub title_cut: bool,
-    /// The `parent` field.
-    pub parent: Option<u64>,
-    /// The `goal` field.
-    pub goal: bool,
-    /// The `priority` field.
-    pub priority: Option<u32>,
-    /// The `executor` field.
-    pub executor: PublicExecutor,
-    /// The `phase` field.
-    pub phase: PublicPhase,
-    /// The `hold` field.
-    pub hold: Option<PublicHold>,
-    /// The `made` field.
-    pub made: u64,
-    /// The `changed` field.
-    pub changed: u64,
-    /// The `active` field.
-    pub active: Option<u64>,
-    /// The `ended` field.
-    pub ended: Option<u64>,
-    /// The `spent` field.
-    pub spent: Option<u64>,
-    /// The `delegates` field.
-    pub delegates: PublicCounts,
-}
-
-/// `PublicLine` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicLine {
-    task: u64,
-    title: Box<[u8]>,
-    title_cut: bool,
-    parent: Option<u64>,
-    goal: bool,
-    priority: Option<u32>,
-    executor: PublicExecutor,
-    phase: PublicPhase,
-    hold: Option<PublicHold>,
-    made: u64,
-    changed: u64,
-    active: Option<u64>,
-    ended: Option<u64>,
-    spent: Option<u64>,
-    delegates: PublicCounts,
-}
-
-impl PublicLine {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicLineParts) -> Result<Self, Problem> {
-        let PublicLineParts { task, title, title_cut, parent, goal, priority, executor, phase, hold, made, changed, active, ended, spent, delegates } = parts;
-        let value = Self { task, title, title_cut, parent, goal, priority, executor, phase, hold, made, changed, active, ended, spent, delegates };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `title` field.
-    #[must_use]
-    pub fn title(&self) -> &[u8] { &self.title }
-
-    /// Reads the `title_cut` field.
-    #[must_use]
-    pub fn title_cut(&self) -> bool { self.title_cut }
-
-    /// Reads the `parent` field.
-    #[must_use]
-    pub fn parent(&self) -> &Option<u64> { &self.parent }
-
-    /// Reads the `goal` field.
-    #[must_use]
-    pub fn goal(&self) -> bool { self.goal }
-
-    /// Reads the `priority` field.
-    #[must_use]
-    pub fn priority(&self) -> &Option<u32> { &self.priority }
-
-    /// Reads the `executor` field.
-    #[must_use]
-    pub fn executor(&self) -> &PublicExecutor { &self.executor }
-
-    /// Reads the `phase` field.
-    #[must_use]
-    pub fn phase(&self) -> &PublicPhase { &self.phase }
-
-    /// Reads the `hold` field.
-    #[must_use]
-    pub fn hold(&self) -> &Option<PublicHold> { &self.hold }
-
-    /// Reads the `made` field.
-    #[must_use]
-    pub fn made(&self) -> u64 { self.made }
-
-    /// Reads the `changed` field.
-    #[must_use]
-    pub fn changed(&self) -> u64 { self.changed }
-
-    /// Reads the `active` field.
-    #[must_use]
-    pub fn active(&self) -> &Option<u64> { &self.active }
-
-    /// Reads the `ended` field.
-    #[must_use]
-    pub fn ended(&self) -> &Option<u64> { &self.ended }
-
-    /// Reads the `spent` field.
-    #[must_use]
-    pub fn spent(&self) -> &Option<u64> { &self.spent }
-
-    /// Reads the `delegates` field.
-    #[must_use]
-    pub fn delegates(&self) -> &PublicCounts { &self.delegates }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicLineParts { PublicLineParts { task: self.task, title: self.title, title_cut: self.title_cut, parent: self.parent, goal: self.goal, priority: self.priority, executor: self.executor, phase: self.phase, hold: self.hold, made: self.made, changed: self.changed, active: self.active, ended: self.ended, spent: self.spent, delegates: self.delegates } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.title.len() > usize::try_from(limits.public_line_title.min(CEILINGS.public_line_title)).expect("u32 fits usize") { return Err(Problem { path: Path::PublicLineTitle, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.title.as_ref()) { return Err(Problem { path: Path::PublicLineTitle, reason: skein_codec::Reason::Utf8 }); }
-        Ok(())
-    }
-}
-
-impl PublicLine {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_title = &self.title;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_title.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_parent = &self.parent;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_parent.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_priority = &self.priority;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_priority.is_some() {
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_hold = &self.hold;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_hold.is_some() {
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_active = &self.active;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_active.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        let field_ended = &self.ended;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_ended.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        let field_spent = &self.spent;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_spent.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(20).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_task = &self.task;
-        writer.put(&field_task.to_be_bytes())?;
-        let field_title = &self.title;
-        writer.put(&u32::try_from(field_title.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_title.as_ref())?;
-        let field_title_cut = &self.title_cut;
-        writer.put(&[u8::from(*field_title_cut)])?;
-        let field_parent = &self.parent;
-        match field_parent {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_goal = &self.goal;
-        writer.put(&[u8::from(*field_goal)])?;
-        let field_priority = &self.priority;
-        match field_priority {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_executor = &self.executor;
-        field_executor.encode(writer)?;
-        let field_phase = &self.phase;
-        field_phase.encode(writer)?;
-        let field_hold = &self.hold;
-        match field_hold {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        some_0.encode(writer)?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_made = &self.made;
-        writer.put(&field_made.to_be_bytes())?;
-        let field_changed = &self.changed;
-        writer.put(&field_changed.to_be_bytes())?;
-        let field_active = &self.active;
-        match field_active {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_ended = &self.ended;
-        match field_ended {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_spent = &self.spent;
-        match field_spent {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_delegates = &self.delegates;
-        field_delegates.encode(writer)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicLineTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_task = reader.u64().ok_or(Problem { path: Path::PublicLineTask, reason: skein_codec::Reason::Short })?;
-        let decoded_title = match skein_codec::read_text(reader, limits.public_line_title.min(CEILINGS.public_line_title)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::PublicLineTitle, reason }), };
-        let decoded_title_cut = match reader.u8().ok_or(Problem { path: Path::PublicLineTitleCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::PublicLineTitleCut, reason: skein_codec::Reason::Bool }) };
-        let decoded_parent = match reader.u8().ok_or(Problem { path: Path::PublicLineParent, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::PublicLineParent, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::PublicLineParent, reason: skein_codec::Reason::Tag }) };
-        let decoded_goal = match reader.u8().ok_or(Problem { path: Path::PublicLineGoal, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::PublicLineGoal, reason: skein_codec::Reason::Bool }) };
-        let decoded_priority = match reader.u8().ok_or(Problem { path: Path::PublicLinePriority, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::PublicLinePriority, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::PublicLinePriority, reason: skein_codec::Reason::Tag }) };
-        let decoded_executor = PublicExecutor::decode_from(limits, reader)?;
-        let decoded_phase = PublicPhase::decode_from(limits, reader)?;
-        let decoded_hold = match reader.u8().ok_or(Problem { path: Path::PublicLineHold, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(PublicHold::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::PublicLineHold, reason: skein_codec::Reason::Tag }) };
-        let decoded_made = reader.u64().ok_or(Problem { path: Path::PublicLineMade, reason: skein_codec::Reason::Short })?;
-        let decoded_changed = reader.u64().ok_or(Problem { path: Path::PublicLineChanged, reason: skein_codec::Reason::Short })?;
-        let decoded_active = match reader.u8().ok_or(Problem { path: Path::PublicLineActive, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::PublicLineActive, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::PublicLineActive, reason: skein_codec::Reason::Tag }) };
-        let decoded_ended = match reader.u8().ok_or(Problem { path: Path::PublicLineEnded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::PublicLineEnded, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::PublicLineEnded, reason: skein_codec::Reason::Tag }) };
-        let decoded_spent = match reader.u8().ok_or(Problem { path: Path::PublicLineSpent, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::PublicLineSpent, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::PublicLineSpent, reason: skein_codec::Reason::Tag }) };
-        let decoded_delegates = PublicCounts::decode_from(limits, reader)?;
-        Ok(Self { task: decoded_task, title: decoded_title, title_cut: decoded_title_cut, parent: decoded_parent, goal: decoded_goal, priority: decoded_priority, executor: decoded_executor, phase: decoded_phase, hold: decoded_hold, made: decoded_made, changed: decoded_changed, active: decoded_active, ended: decoded_ended, spent: decoded_spent, delegates: decoded_delegates })
-    }
-}
-
-impl PublicLine {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(4_u64.checked_add(u64::from(limits.public_line_title))?)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(4_u64)?)?;
-        size = size.checked_add(PublicExecutor::encoded_bound_within(limits)?)?.checked_add(PublicPhase::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(PublicHold::encoded_bound_within(limits)?)?)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(PublicCounts::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.public_line_title))?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(PublicExecutor::decoded_bound_within(limits)?)?.checked_add(PublicPhase::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(PublicHold::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(PublicCounts::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_line_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicLine::encoded_bound_within(limits)?);
-    public_project_encoded_bound_family(limits, biggest)
-}
-
-fn public_line_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicLine::decoded_bound_within(limits)?);
-    public_project_decoded_bound_family(limits, biggest)
-}
-
-fn check_public_line_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_line_title > CEILINGS.public_line_title { return Err(Problem { path: Path::PublicLineTitle, reason: skein_codec::Reason::Bound }); }
-    check_public_project_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_public_line_record(&self, values: &mut List<u32>) {
-        values.push(self.public_line_title).expect("room for every named limit");
-        self.values_for_public_project_record(values);
-    }
-}
-
-/// Movable fields of `PublicProject`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicProjectParts {
-    /// The `project` field.
-    pub project: u64,
-    /// The `name` field.
-    pub name: Box<[u8]>,
-}
-
-/// `PublicProject` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicProject {
-    project: u64,
-    name: Box<[u8]>,
-}
-
-impl PublicProject {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicProjectParts) -> Result<Self, Problem> {
-        let PublicProjectParts { project, name } = parts;
-        let value = Self { project, name };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u64 { self.project }
-
-    /// Reads the `name` field.
-    #[must_use]
-    pub fn name(&self) -> &[u8] { &self.name }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicProjectParts { PublicProjectParts { project: self.project, name: self.name } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.name.len() > usize::try_from(limits.public_project_name.min(CEILINGS.public_project_name)).expect("u32 fits usize") { return Err(Problem { path: Path::PublicProjectName, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::PublicProjectName, reason: skein_codec::Reason::Utf8 }); }
-        Ok(())
-    }
-}
-
-impl PublicProject {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_name = &self.name;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_project = &self.project;
-        writer.put(&field_project.to_be_bytes())?;
-        let field_name = &self.name;
-        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_name.as_ref())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicProjectTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_project = reader.u64().ok_or(Problem { path: Path::PublicProjectProject, reason: skein_codec::Reason::Short })?;
-        let decoded_name = match skein_codec::read_text(reader, limits.public_project_name.min(CEILINGS.public_project_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::PublicProjectName, reason }), };
-        Ok(Self { project: decoded_project, name: decoded_name })
-    }
-}
-
-impl PublicProject {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(4_u64.checked_add(u64::from(limits.public_project_name))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.public_project_name))?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_project_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicProject::encoded_bound_within(limits)?);
-    public_projects_encoded_bound_family(limits, biggest)
-}
-
-fn public_project_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicProject::decoded_bound_within(limits)?);
-    public_projects_decoded_bound_family(limits, biggest)
-}
-
-fn check_public_project_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_project_name > CEILINGS.public_project_name { return Err(Problem { path: Path::PublicProjectName, reason: skein_codec::Reason::Bound }); }
-    check_public_projects_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_public_project_record(&self, values: &mut List<u32>) {
-        values.push(self.public_project_name).expect("room for every named limit");
-        self.values_for_public_projects_record(values);
-    }
-}
-
-/// Movable fields of `PublicProjects`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicProjectsParts {
-    /// The `projects` field.
-    pub projects: List<PublicProject>,
-    /// The `max_age` field.
-    pub max_age: u32,
-}
-
-/// `PublicProjects` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicProjects {
-    projects: List<PublicProject>,
-    max_age: u32,
-}
-
-impl PublicProjects {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicProjectsParts) -> Result<Self, Problem> {
-        let PublicProjectsParts { projects, max_age } = parts;
-        let value = Self { projects, max_age };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `projects` field.
-    #[must_use]
-    pub fn projects(&self) -> &List<PublicProject> { &self.projects }
-
-    /// Reads the `max_age` field.
-    #[must_use]
-    pub fn max_age(&self) -> u32 { self.max_age }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicProjectsParts { PublicProjectsParts { projects: self.projects, max_age: self.max_age } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.projects.capacity() > limits.public_projects_projects.min(CEILINGS.public_projects_projects) { return Err(Problem { path: Path::PublicProjectsProjects, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.projects.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-impl PublicProjects {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_projects = &self.projects;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_projects.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_projects = &self.projects;
-        writer.put(&field_projects.len().to_be_bytes())?;
-        for item_0 in field_projects.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_max_age = &self.max_age;
-        writer.put(&field_max_age.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicProjectsTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_projects = { let count = match skein_codec::read_count(reader, limits.public_projects_projects.min(CEILINGS.public_projects_projects)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicProjectsProjects, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::PublicProjectsProjects, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PublicProject::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_max_age = reader.u32().ok_or(Problem { path: Path::PublicProjectsMaxAge, reason: skein_codec::Reason::Short })?;
-        Ok(Self { projects: decoded_projects, max_age: decoded_max_age })
-    }
-}
-
-impl PublicProjects {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.public_projects_projects).checked_mul(PublicProject::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(List::<PublicProject>::price(limits.public_projects_projects)?.checked_add(u64::from(limits.public_projects_projects).checked_mul(PublicProject::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_projects_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicProjects::encoded_bound_within(limits)?);
-    public_goal_encoded_bound_family(limits, biggest)
-}
-
-fn public_projects_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicProjects::decoded_bound_within(limits)?);
-    public_goal_decoded_bound_family(limits, biggest)
-}
-
-fn check_public_projects_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_projects_projects > CEILINGS.public_projects_projects { return Err(Problem { path: Path::PublicProjectsProjects, reason: skein_codec::Reason::Bound }); }
-    check_public_goal_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_public_projects_record(&self, values: &mut List<u32>) {
-        values.push(self.public_projects_projects).expect("room for every named limit");
-        self.values_for_public_goal_record(values);
-    }
-}
-
-/// Movable fields of `PublicGoal`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicGoalParts {
-    /// The `line` field.
-    pub line: PublicLine,
-    /// The `tree` field.
-    pub tree: List<PublicLine>,
-    /// The `folded` field.
-    pub folded: u32,
-}
-
-/// `PublicGoal` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicGoal {
-    line: PublicLine,
-    tree: List<PublicLine>,
-    folded: u32,
-}
-
-impl PublicGoal {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicGoalParts) -> Result<Self, Problem> {
-        let PublicGoalParts { line, tree, folded } = parts;
-        let value = Self { line, tree, folded };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `line` field.
-    #[must_use]
-    pub fn line(&self) -> &PublicLine { &self.line }
-
-    /// Reads the `tree` field.
-    #[must_use]
-    pub fn tree(&self) -> &List<PublicLine> { &self.tree }
-
-    /// Reads the `folded` field.
-    #[must_use]
-    pub fn folded(&self) -> u32 { self.folded }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicGoalParts { PublicGoalParts { line: self.line, tree: self.tree, folded: self.folded } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.line.check(limits)?;
-        if self.tree.capacity() > limits.public_goal_tree.min(CEILINGS.public_goal_tree) { return Err(Problem { path: Path::PublicGoalTree, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.tree.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-impl PublicGoal {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_line = &self.line;
-        size = size.checked_add(field_line.measure()).expect("schema ceilings fit u32");
-        let field_tree = &self.tree;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_tree.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_line = &self.line;
-        field_line.encode(writer)?;
-        let field_tree = &self.tree;
-        writer.put(&field_tree.len().to_be_bytes())?;
-        for item_0 in field_tree.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_folded = &self.folded;
-        writer.put(&field_folded.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicGoalTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_line = PublicLine::decode_from(limits, reader)?;
-        let decoded_tree = { let count = match skein_codec::read_count(reader, limits.public_goal_tree.min(CEILINGS.public_goal_tree)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicGoalTree, reason }), }; if count > reader.remaining() / 58 { return Err(Problem { path: Path::PublicGoalTree, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PublicLine::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_folded = reader.u32().ok_or(Problem { path: Path::PublicGoalFolded, reason: skein_codec::Reason::Short })?;
-        Ok(Self { line: decoded_line, tree: decoded_tree, folded: decoded_folded })
-    }
-}
-
-impl PublicGoal {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(PublicLine::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.public_goal_tree).checked_mul(PublicLine::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(PublicLine::decoded_bound_within(limits)?)?.checked_add(List::<PublicLine>::price(limits.public_goal_tree)?.checked_add(u64::from(limits.public_goal_tree).checked_mul(PublicLine::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_goal_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicGoal::encoded_bound_within(limits)?);
-    public_board_encoded_bound_family(limits, biggest)
-}
-
-fn public_goal_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicGoal::decoded_bound_within(limits)?);
-    public_board_decoded_bound_family(limits, biggest)
-}
-
-fn check_public_goal_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_goal_tree > CEILINGS.public_goal_tree { return Err(Problem { path: Path::PublicGoalTree, reason: skein_codec::Reason::Bound }); }
-    check_public_board_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_public_goal_record(&self, values: &mut List<u32>) {
-        values.push(self.public_goal_tree).expect("room for every named limit");
-        self.values_for_public_board_record(values);
-    }
-}
-
-/// Movable fields of `PublicBoard`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicBoardParts {
-    /// The `project` field.
-    pub project: u64,
-    /// The `name` field.
-    pub name: Box<[u8]>,
-    /// The `live` field.
-    pub live: List<PublicGoal>,
-    /// The `live_folded` field.
-    pub live_folded: u32,
-    /// The `ended` field.
-    pub ended: List<PublicGoal>,
-}
-
-/// `PublicBoard` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicBoard {
-    project: u64,
-    name: Box<[u8]>,
-    live: List<PublicGoal>,
-    live_folded: u32,
-    ended: List<PublicGoal>,
-}
-
-impl PublicBoard {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicBoardParts) -> Result<Self, Problem> {
-        let PublicBoardParts { project, name, live, live_folded, ended } = parts;
-        let value = Self { project, name, live, live_folded, ended };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u64 { self.project }
-
-    /// Reads the `name` field.
-    #[must_use]
-    pub fn name(&self) -> &[u8] { &self.name }
-
-    /// Reads the `live` field.
-    #[must_use]
-    pub fn live(&self) -> &List<PublicGoal> { &self.live }
-
-    /// Reads the `live_folded` field.
-    #[must_use]
-    pub fn live_folded(&self) -> u32 { self.live_folded }
-
-    /// Reads the `ended` field.
-    #[must_use]
-    pub fn ended(&self) -> &List<PublicGoal> { &self.ended }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicBoardParts { PublicBoardParts { project: self.project, name: self.name, live: self.live, live_folded: self.live_folded, ended: self.ended } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.name.len() > usize::try_from(limits.public_board_name.min(CEILINGS.public_board_name)).expect("u32 fits usize") { return Err(Problem { path: Path::PublicBoardName, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::PublicBoardName, reason: skein_codec::Reason::Utf8 }); }
-        if self.live.capacity() > limits.public_board_live.min(CEILINGS.public_board_live) { return Err(Problem { path: Path::PublicBoardLive, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.live.as_slice() {
-        item_0.check(limits)?;
-        }
-        if self.ended.capacity() > limits.public_board_ended.min(CEILINGS.public_board_ended) { return Err(Problem { path: Path::PublicBoardEnded, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.ended.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-impl PublicBoard {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_name = &self.name;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_live = &self.live;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_live.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        let field_ended = &self.ended;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_ended.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_project = &self.project;
-        writer.put(&field_project.to_be_bytes())?;
-        let field_name = &self.name;
-        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_name.as_ref())?;
-        let field_live = &self.live;
-        writer.put(&field_live.len().to_be_bytes())?;
-        for item_0 in field_live.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_live_folded = &self.live_folded;
-        writer.put(&field_live_folded.to_be_bytes())?;
-        let field_ended = &self.ended;
-        writer.put(&field_ended.len().to_be_bytes())?;
-        for item_0 in field_ended.as_slice() {
-        item_0.encode(writer)?;
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicBoardTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_project = reader.u64().ok_or(Problem { path: Path::PublicBoardProject, reason: skein_codec::Reason::Short })?;
-        let decoded_name = match skein_codec::read_text(reader, limits.public_board_name.min(CEILINGS.public_board_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::PublicBoardName, reason }), };
-        let decoded_live = { let count = match skein_codec::read_count(reader, limits.public_board_live.min(CEILINGS.public_board_live)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicBoardLive, reason }), }; if count > reader.remaining() / 66 { return Err(Problem { path: Path::PublicBoardLive, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PublicGoal::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_live_folded = reader.u32().ok_or(Problem { path: Path::PublicBoardLiveFolded, reason: skein_codec::Reason::Short })?;
-        let decoded_ended = { let count = match skein_codec::read_count(reader, limits.public_board_ended.min(CEILINGS.public_board_ended)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicBoardEnded, reason }), }; if count > reader.remaining() / 66 { return Err(Problem { path: Path::PublicBoardEnded, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PublicGoal::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { project: decoded_project, name: decoded_name, live: decoded_live, live_folded: decoded_live_folded, ended: decoded_ended })
-    }
-}
-
-impl PublicBoard {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(4_u64.checked_add(u64::from(limits.public_board_name))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.public_board_live).checked_mul(PublicGoal::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.public_board_ended).checked_mul(PublicGoal::encoded_bound_within(limits)?)?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.public_board_name))?;
-        heap = heap.checked_add(List::<PublicGoal>::price(limits.public_board_live)?.checked_add(u64::from(limits.public_board_live).checked_mul(PublicGoal::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<PublicGoal>::price(limits.public_board_ended)?.checked_add(u64::from(limits.public_board_ended).checked_mul(PublicGoal::decoded_bound_within(limits)?)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_board_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicBoard::encoded_bound_within(limits)?);
-    public_card_encoded_bound_family(limits, biggest)
-}
-
-fn public_board_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicBoard::decoded_bound_within(limits)?);
-    public_card_decoded_bound_family(limits, biggest)
-}
-
-fn check_public_board_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_board_name > CEILINGS.public_board_name { return Err(Problem { path: Path::PublicBoardName, reason: skein_codec::Reason::Bound }); }
-    if limits.public_board_live > CEILINGS.public_board_live { return Err(Problem { path: Path::PublicBoardLive, reason: skein_codec::Reason::Bound }); }
-    if limits.public_board_ended > CEILINGS.public_board_ended { return Err(Problem { path: Path::PublicBoardEnded, reason: skein_codec::Reason::Bound }); }
-    check_public_card_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_public_board_record(&self, values: &mut List<u32>) {
-        values.push(self.public_board_name).expect("room for every named limit");
-        values.push(self.public_board_live).expect("room for every named limit");
-        values.push(self.public_board_ended).expect("room for every named limit");
-        self.values_for_public_card_record(values);
-    }
-}
-
-/// Movable fields of `PublicCard`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicCardParts {
-    /// The `line` field.
-    pub line: PublicLine,
-    /// The `lineage` field.
-    pub lineage: List<u64>,
-    /// The `delegates` field.
-    pub delegates: List<PublicLine>,
-    /// The `folded` field.
-    pub folded: u32,
-}
-
-/// `PublicCard` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicCard {
-    line: PublicLine,
-    lineage: List<u64>,
-    delegates: List<PublicLine>,
-    folded: u32,
-}
-
-impl PublicCard {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicCardParts) -> Result<Self, Problem> {
-        let PublicCardParts { line, lineage, delegates, folded } = parts;
-        let value = Self { line, lineage, delegates, folded };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `line` field.
-    #[must_use]
-    pub fn line(&self) -> &PublicLine { &self.line }
-
-    /// Reads the `lineage` field.
-    #[must_use]
-    pub fn lineage(&self) -> &List<u64> { &self.lineage }
-
-    /// Reads the `delegates` field.
-    #[must_use]
-    pub fn delegates(&self) -> &List<PublicLine> { &self.delegates }
-
-    /// Reads the `folded` field.
-    #[must_use]
-    pub fn folded(&self) -> u32 { self.folded }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicCardParts { PublicCardParts { line: self.line, lineage: self.lineage, delegates: self.delegates, folded: self.folded } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.line.check(limits)?;
-        if self.lineage.capacity() > limits.public_card_lineage.min(CEILINGS.public_card_lineage) { return Err(Problem { path: Path::PublicCardLineage, reason: skein_codec::Reason::Bound }); }
-        if self.delegates.capacity() > limits.public_card_delegates.min(CEILINGS.public_card_delegates) { return Err(Problem { path: Path::PublicCardDelegates, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.delegates.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-impl PublicCard {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_line = &self.line;
-        size = size.checked_add(field_line.measure()).expect("schema ceilings fit u32");
-        let field_lineage = &self.lineage;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_lineage.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        let field_delegates = &self.delegates;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_delegates.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_line = &self.line;
-        field_line.encode(writer)?;
-        let field_lineage = &self.lineage;
-        writer.put(&field_lineage.len().to_be_bytes())?;
-        for item_0 in field_lineage.as_slice() {
-        writer.put(&item_0.to_be_bytes())?;
-        }
-        let field_delegates = &self.delegates;
-        writer.put(&field_delegates.len().to_be_bytes())?;
-        for item_0 in field_delegates.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_folded = &self.folded;
-        writer.put(&field_folded.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicCardTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_line = PublicLine::decode_from(limits, reader)?;
-        let decoded_lineage = { let count = match skein_codec::read_count(reader, limits.public_card_lineage.min(CEILINGS.public_card_lineage)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicCardLineage, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::PublicCardLineage, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::PublicCardLineage, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_delegates = { let count = match skein_codec::read_count(reader, limits.public_card_delegates.min(CEILINGS.public_card_delegates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicCardDelegates, reason }), }; if count > reader.remaining() / 58 { return Err(Problem { path: Path::PublicCardDelegates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PublicLine::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_folded = reader.u32().ok_or(Problem { path: Path::PublicCardFolded, reason: skein_codec::Reason::Short })?;
-        Ok(Self { line: decoded_line, lineage: decoded_lineage, delegates: decoded_delegates, folded: decoded_folded })
-    }
-}
-
-impl PublicCard {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(PublicLine::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.public_card_lineage).checked_mul(8_u64)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.public_card_delegates).checked_mul(PublicLine::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(PublicLine::decoded_bound_within(limits)?)?.checked_add(List::<u64>::price(limits.public_card_lineage)?.checked_add(u64::from(limits.public_card_lineage).checked_mul(0_u64)?)?)?;
-        heap = heap.checked_add(List::<PublicLine>::price(limits.public_card_delegates)?.checked_add(u64::from(limits.public_card_delegates).checked_mul(PublicLine::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_card_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicCard::encoded_bound_within(limits)?);
-    public_application_encoded_bound_family(limits, biggest)
-}
-
-fn public_card_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicCard::decoded_bound_within(limits)?);
-    public_application_decoded_bound_family(limits, biggest)
-}
-
-fn check_public_card_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_card_lineage > CEILINGS.public_card_lineage { return Err(Problem { path: Path::PublicCardLineage, reason: skein_codec::Reason::Bound }); }
-    if limits.public_card_delegates > CEILINGS.public_card_delegates { return Err(Problem { path: Path::PublicCardDelegates, reason: skein_codec::Reason::Bound }); }
-    check_public_application_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_public_card_record(&self, values: &mut List<u32>) {
-        values.push(self.public_card_lineage).expect("room for every named limit");
-        values.push(self.public_card_delegates).expect("room for every named limit");
-        self.values_for_public_application_record(values);
-    }
-}
-
-/// Movable fields of `PublicApplication`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicApplicationParts {
-    /// The `tasks` field.
-    pub tasks: List<u64>,
-    /// The `record` field.
-    pub record: Box<[u8]>,
-}
-
-/// `PublicApplication` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PublicApplication {
-    tasks: List<u64>,
-    record: Box<[u8]>,
-}
-
-impl PublicApplication {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: PublicApplicationParts) -> Result<Self, Problem> {
-        let PublicApplicationParts { tasks, record } = parts;
-        let value = Self { tasks, record };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `tasks` field.
-    #[must_use]
-    pub fn tasks(&self) -> &List<u64> { &self.tasks }
-
-    /// Reads the `record` field.
-    #[must_use]
-    pub fn record(&self) -> &[u8] { &self.record }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PublicApplicationParts { PublicApplicationParts { tasks: self.tasks, record: self.record } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.tasks.capacity() > limits.public_application_tasks.min(CEILINGS.public_application_tasks) { return Err(Problem { path: Path::PublicApplicationTasks, reason: skein_codec::Reason::Bound }); }
-        if self.record.len() > usize::try_from(limits.public_application_record.min(CEILINGS.public_application_record)).expect("u32 fits usize") { return Err(Problem { path: Path::PublicApplicationRecord, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-impl PublicApplication {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_tasks = &self.tasks;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_tasks.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        let field_record = &self.record;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_record.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_tasks = &self.tasks;
-        writer.put(&field_tasks.len().to_be_bytes())?;
-        for item_0 in field_tasks.as_slice() {
-        writer.put(&item_0.to_be_bytes())?;
-        }
-        let field_record = &self.record;
-        writer.put(&u32::try_from(field_record.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_record.as_ref())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PublicApplicationTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tasks = { let count = match skein_codec::read_count(reader, limits.public_application_tasks.min(CEILINGS.public_application_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PublicApplicationTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::PublicApplicationTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::PublicApplicationTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_record = { let length = match skein_codec::read_len(reader, limits.public_application_record.min(CEILINGS.public_application_record)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PublicApplicationRecord, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PublicApplicationRecord, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { tasks: decoded_tasks, record: decoded_record })
-    }
-}
-
-impl PublicApplication {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.public_application_tasks).checked_mul(8_u64)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.public_application_record))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(List::<u64>::price(limits.public_application_tasks)?.checked_add(u64::from(limits.public_application_tasks).checked_mul(0_u64)?)?)?.checked_add(u64::from(limits.public_application_record))?;
-        heap.checked_add(0)
-    }
-}
-
-fn public_application_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicApplication::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn public_application_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(PublicApplication::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn check_public_application_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.public_application_tasks > CEILINGS.public_application_tasks { return Err(Problem { path: Path::PublicApplicationTasks, reason: skein_codec::Reason::Bound }); }
-    if limits.public_application_record > CEILINGS.public_application_record { return Err(Problem { path: Path::PublicApplicationRecord, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
-impl Limits {
-    fn values_for_public_application_record(&self, values: &mut List<u32>) {
-        values.push(self.public_application_tasks).expect("room for every named limit");
-        values.push(self.public_application_record).expect("room for every named limit");
+// Paths: declaration and part positions, with one naming table.
+pub mod paths {
+    use super::Path;
+    pub const PUBLIC_EXECUTOR_TAG: Path = Path::new(0, 0);
+    pub const PUBLIC_PHASE_TAG: Path = Path::new(1, 0);
+    pub const PUBLIC_HOLD_TAG: Path = Path::new(2, 0);
+    pub const PUBLIC_COUNTS_WORKING: Path = Path::new(3, 0);
+    pub const PUBLIC_COUNTS_WAITING: Path = Path::new(3, 1);
+    pub const PUBLIC_COUNTS_HELD: Path = Path::new(3, 2);
+    pub const PUBLIC_COUNTS_CLOSING: Path = Path::new(3, 3);
+    pub const PUBLIC_COUNTS_ENDED: Path = Path::new(3, 4);
+    pub const PUBLIC_COUNTS_TAIL: Path = Path::new(3, 5);
+    pub const PUBLIC_LINE_TASK: Path = Path::new(4, 0);
+    pub const PUBLIC_LINE_TITLE: Path = Path::new(4, 1);
+    pub const PUBLIC_LINE_TITLE_CUT: Path = Path::new(4, 2);
+    pub const PUBLIC_LINE_PARENT: Path = Path::new(4, 3);
+    pub const PUBLIC_LINE_GOAL: Path = Path::new(4, 4);
+    pub const PUBLIC_LINE_PRIORITY: Path = Path::new(4, 5);
+    pub const PUBLIC_LINE_EXECUTOR: Path = Path::new(4, 6);
+    pub const PUBLIC_LINE_PHASE: Path = Path::new(4, 7);
+    pub const PUBLIC_LINE_HOLD: Path = Path::new(4, 8);
+    pub const PUBLIC_LINE_MADE: Path = Path::new(4, 9);
+    pub const PUBLIC_LINE_CHANGED: Path = Path::new(4, 10);
+    pub const PUBLIC_LINE_ACTIVE: Path = Path::new(4, 11);
+    pub const PUBLIC_LINE_ENDED: Path = Path::new(4, 12);
+    pub const PUBLIC_LINE_SPENT: Path = Path::new(4, 13);
+    pub const PUBLIC_LINE_DELEGATES: Path = Path::new(4, 14);
+    pub const PUBLIC_LINE_TAIL: Path = Path::new(4, 15);
+    pub const PUBLIC_PROJECT_PROJECT: Path = Path::new(5, 0);
+    pub const PUBLIC_PROJECT_NAME: Path = Path::new(5, 1);
+    pub const PUBLIC_PROJECT_TAIL: Path = Path::new(5, 2);
+    pub const PUBLIC_PROJECTS_PROJECTS: Path = Path::new(6, 0);
+    pub const PUBLIC_PROJECTS_MAX_AGE: Path = Path::new(6, 1);
+    pub const PUBLIC_PROJECTS_TAIL: Path = Path::new(6, 2);
+    pub const PUBLIC_GOAL_LINE: Path = Path::new(7, 0);
+    pub const PUBLIC_GOAL_TREE: Path = Path::new(7, 1);
+    pub const PUBLIC_GOAL_FOLDED: Path = Path::new(7, 2);
+    pub const PUBLIC_GOAL_TAIL: Path = Path::new(7, 3);
+    pub const PUBLIC_BOARD_PROJECT: Path = Path::new(8, 0);
+    pub const PUBLIC_BOARD_NAME: Path = Path::new(8, 1);
+    pub const PUBLIC_BOARD_LIVE: Path = Path::new(8, 2);
+    pub const PUBLIC_BOARD_LIVE_FOLDED: Path = Path::new(8, 3);
+    pub const PUBLIC_BOARD_ENDED: Path = Path::new(8, 4);
+    pub const PUBLIC_BOARD_TAIL: Path = Path::new(8, 5);
+    pub const PUBLIC_CARD_LINE: Path = Path::new(9, 0);
+    pub const PUBLIC_CARD_LINEAGE: Path = Path::new(9, 1);
+    pub const PUBLIC_CARD_DELEGATES: Path = Path::new(9, 2);
+    pub const PUBLIC_CARD_FOLDED: Path = Path::new(9, 3);
+    pub const PUBLIC_CARD_TAIL: Path = Path::new(9, 4);
+    pub const PUBLIC_APPLICATION_TASKS: Path = Path::new(10, 0);
+    pub const PUBLIC_APPLICATION_RECORD: Path = Path::new(10, 1);
+    pub const PUBLIC_APPLICATION_TAIL: Path = Path::new(10, 2);
+}
+
+const PATH_NAMES: &[&[&str]] = &[
+    &[
+        "PublicExecutor (tag)",
+    ],
+    &[
+        "PublicPhase (tag)",
+    ],
+    &[
+        "PublicHold (tag)",
+    ],
+    &[
+        "PublicCounts.working",
+        "PublicCounts.waiting",
+        "PublicCounts.held",
+        "PublicCounts.closing",
+        "PublicCounts.ended",
+        "PublicCounts (tail)",
+    ],
+    &[
+        "PublicLine.task",
+        "PublicLine.title",
+        "PublicLine.title_cut",
+        "PublicLine.parent",
+        "PublicLine.goal",
+        "PublicLine.priority",
+        "PublicLine.executor",
+        "PublicLine.phase",
+        "PublicLine.hold",
+        "PublicLine.made",
+        "PublicLine.changed",
+        "PublicLine.active",
+        "PublicLine.ended",
+        "PublicLine.spent",
+        "PublicLine.delegates",
+        "PublicLine (tail)",
+    ],
+    &[
+        "PublicProject.project",
+        "PublicProject.name",
+        "PublicProject (tail)",
+    ],
+    &[
+        "PublicProjects.projects",
+        "PublicProjects.max_age",
+        "PublicProjects (tail)",
+    ],
+    &[
+        "PublicGoal.line",
+        "PublicGoal.tree",
+        "PublicGoal.folded",
+        "PublicGoal (tail)",
+    ],
+    &[
+        "PublicBoard.project",
+        "PublicBoard.name",
+        "PublicBoard.live",
+        "PublicBoard.live_folded",
+        "PublicBoard.ended",
+        "PublicBoard (tail)",
+    ],
+    &[
+        "PublicCard.line",
+        "PublicCard.lineage",
+        "PublicCard.delegates",
+        "PublicCard.folded",
+        "PublicCard (tail)",
+    ],
+    &[
+        "PublicApplication.tasks",
+        "PublicApplication.record",
+        "PublicApplication (tail)",
+    ],
+];
+
+/// The path as the schema spells it, or None outside this family's table.
+#[must_use]
+pub fn name(path: Path) -> Option<&'static str> {
+    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
+}
+
+// Table: postordered shapes, with compiler-known heap slot sizes.
+const TABLE: &[skein_codec::bounds::Node] = &[
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[38, 39, 40, 41, 42] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Bytes { limit: 0 },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 47 },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 50 },
+    skein_codec::bounds::Node::Option { item: 37 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 55 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 57 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 59 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[44, 45, 46, 48, 49, 51, 4, 18, 52, 53, 54, 56, 58, 60, 43] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Bytes { limit: 1 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[62, 63] },
+    skein_codec::bounds::Node::List { limit: 2, item: 64, size: size_of::<PublicProject>() },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[65, 66] },
+    skein_codec::bounds::Node::List { limit: 3, item: 61, size: size_of::<PublicLine>() },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[61, 68, 69] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Bytes { limit: 4 },
+    skein_codec::bounds::Node::List { limit: 5, item: 70, size: size_of::<PublicGoal>() },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::List { limit: 6, item: 70, size: size_of::<PublicGoal>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[71, 72, 73, 74, 75] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::List { limit: 7, item: 77, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 8, item: 61, size: size_of::<PublicLine>() },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[61, 78, 79, 80] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::List { limit: 9, item: 82, size: size_of::<u64>() },
+    skein_codec::bounds::Node::Bytes { limit: 10 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[83, 84] },
+];
+
+const DECLARATIONS: &[u32] = &[
+    4,
+    18,
+    37,
+    43,
+    61,
+    64,
+    67,
+    70,
+    76,
+    81,
+    85,
+];
+
+const CEILING_VALUES: &[u32] = &[
+    256,
+    64,
+    4_096,
+    256,
+    64,
+    256,
+    256,
+    64,
+    256,
+    1_024,
+    16_777_216,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+}
+
+// Type: PublicExecutor.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum PublicExecutor {
+    Agent,
+    Procedure,
+    Person,
+    Job,
+}
+
+// Record: PublicExecutor.
+impl Record for PublicExecutor {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_EXECUTOR_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.decoded)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Agent => field::put(out, &[0], paths::PUBLIC_EXECUTOR_TAG),
+            Self::Procedure => field::put(out, &[1], paths::PUBLIC_EXECUTOR_TAG),
+            Self::Person => field::put(out, &[2], paths::PUBLIC_EXECUTOR_TAG),
+            Self::Job => field::put(out, &[3], paths::PUBLIC_EXECUTOR_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::PUBLIC_EXECUTOR_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Agent),
+            1 => Ok(Self::Procedure),
+            2 => Ok(Self::Person),
+            3 => Ok(Self::Job),
+            4..=u8::MAX => Err(Problem { path: paths::PUBLIC_EXECUTOR_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: PublicPhase.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum PublicPhase {
+    Waiting,
+    Idle,
+    Due,
+    Preparing,
+    Claimed,
+    Running,
+    BackingOff,
+    Active,
+    Closing,
+    Held,
+    Done,
+    Failed,
+    Cancelled,
+}
+
+// Record: PublicPhase.
+impl Record for PublicPhase {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_PHASE_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.decoded)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Waiting => field::put(out, &[0], paths::PUBLIC_PHASE_TAG),
+            Self::Idle => field::put(out, &[1], paths::PUBLIC_PHASE_TAG),
+            Self::Due => field::put(out, &[2], paths::PUBLIC_PHASE_TAG),
+            Self::Preparing => field::put(out, &[3], paths::PUBLIC_PHASE_TAG),
+            Self::Claimed => field::put(out, &[4], paths::PUBLIC_PHASE_TAG),
+            Self::Running => field::put(out, &[5], paths::PUBLIC_PHASE_TAG),
+            Self::BackingOff => field::put(out, &[6], paths::PUBLIC_PHASE_TAG),
+            Self::Active => field::put(out, &[7], paths::PUBLIC_PHASE_TAG),
+            Self::Closing => field::put(out, &[8], paths::PUBLIC_PHASE_TAG),
+            Self::Held => field::put(out, &[9], paths::PUBLIC_PHASE_TAG),
+            Self::Done => field::put(out, &[10], paths::PUBLIC_PHASE_TAG),
+            Self::Failed => field::put(out, &[11], paths::PUBLIC_PHASE_TAG),
+            Self::Cancelled => field::put(out, &[12], paths::PUBLIC_PHASE_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::PUBLIC_PHASE_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Waiting),
+            1 => Ok(Self::Idle),
+            2 => Ok(Self::Due),
+            3 => Ok(Self::Preparing),
+            4 => Ok(Self::Claimed),
+            5 => Ok(Self::Running),
+            6 => Ok(Self::BackingOff),
+            7 => Ok(Self::Active),
+            8 => Ok(Self::Closing),
+            9 => Ok(Self::Held),
+            10 => Ok(Self::Done),
+            11 => Ok(Self::Failed),
+            12 => Ok(Self::Cancelled),
+            13..=u8::MAX => Err(Problem { path: paths::PUBLIC_PHASE_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: PublicHold.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum PublicHold {
+    Failures,
+    Stalled,
+    Dependency,
+    Stopped,
+    Placed,
+    Drift,
+    Effects,
+    EffectFailed,
+    Uncertain,
+    Budget,
+    Deadline,
+    HoldsWaited,
+    ResourceUnavailable,
+    ResourceAccess,
+    PoolLost,
+    Procedure,
+    Circle,
+    Exceeded,
+}
+
+// Record: PublicHold.
+impl Record for PublicHold {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_HOLD_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 37)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 37)?.decoded)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Failures => field::put(out, &[0], paths::PUBLIC_HOLD_TAG),
+            Self::Stalled => field::put(out, &[1], paths::PUBLIC_HOLD_TAG),
+            Self::Dependency => field::put(out, &[2], paths::PUBLIC_HOLD_TAG),
+            Self::Stopped => field::put(out, &[3], paths::PUBLIC_HOLD_TAG),
+            Self::Placed => field::put(out, &[4], paths::PUBLIC_HOLD_TAG),
+            Self::Drift => field::put(out, &[5], paths::PUBLIC_HOLD_TAG),
+            Self::Effects => field::put(out, &[6], paths::PUBLIC_HOLD_TAG),
+            Self::EffectFailed => field::put(out, &[7], paths::PUBLIC_HOLD_TAG),
+            Self::Uncertain => field::put(out, &[8], paths::PUBLIC_HOLD_TAG),
+            Self::Budget => field::put(out, &[9], paths::PUBLIC_HOLD_TAG),
+            Self::Deadline => field::put(out, &[10], paths::PUBLIC_HOLD_TAG),
+            Self::HoldsWaited => field::put(out, &[11], paths::PUBLIC_HOLD_TAG),
+            Self::ResourceUnavailable => field::put(out, &[12], paths::PUBLIC_HOLD_TAG),
+            Self::ResourceAccess => field::put(out, &[13], paths::PUBLIC_HOLD_TAG),
+            Self::PoolLost => field::put(out, &[14], paths::PUBLIC_HOLD_TAG),
+            Self::Procedure => field::put(out, &[15], paths::PUBLIC_HOLD_TAG),
+            Self::Circle => field::put(out, &[16], paths::PUBLIC_HOLD_TAG),
+            Self::Exceeded => field::put(out, &[17], paths::PUBLIC_HOLD_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::PUBLIC_HOLD_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Failures),
+            1 => Ok(Self::Stalled),
+            2 => Ok(Self::Dependency),
+            3 => Ok(Self::Stopped),
+            4 => Ok(Self::Placed),
+            5 => Ok(Self::Drift),
+            6 => Ok(Self::Effects),
+            7 => Ok(Self::EffectFailed),
+            8 => Ok(Self::Uncertain),
+            9 => Ok(Self::Budget),
+            10 => Ok(Self::Deadline),
+            11 => Ok(Self::HoldsWaited),
+            12 => Ok(Self::ResourceUnavailable),
+            13 => Ok(Self::ResourceAccess),
+            14 => Ok(Self::PoolLost),
+            15 => Ok(Self::Procedure),
+            16 => Ok(Self::Circle),
+            17 => Ok(Self::Exceeded),
+            18..=u8::MAX => Err(Problem { path: paths::PUBLIC_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: PublicCounts.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicCounts {
+    pub working: u32,
+    pub waiting: u32,
+    pub held: u32,
+    pub closing: u32,
+    pub ended: u32,
+}
+
+// Record: PublicCounts.
+impl Record for PublicCounts {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_COUNTS_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 43)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 43)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.working, limits, out, paths::PUBLIC_COUNTS_WORKING)?;
+        field::write(field::U32, &self.waiting, limits, out, paths::PUBLIC_COUNTS_WAITING)?;
+        field::write(field::U32, &self.held, limits, out, paths::PUBLIC_COUNTS_HELD)?;
+        field::write(field::U32, &self.closing, limits, out, paths::PUBLIC_COUNTS_CLOSING)?;
+        field::write(field::U32, &self.ended, limits, out, paths::PUBLIC_COUNTS_ENDED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            working: field::read(field::U32, limits, reader, paths::PUBLIC_COUNTS_WORKING)?,
+            waiting: field::read(field::U32, limits, reader, paths::PUBLIC_COUNTS_WAITING)?,
+            held: field::read(field::U32, limits, reader, paths::PUBLIC_COUNTS_HELD)?,
+            closing: field::read(field::U32, limits, reader, paths::PUBLIC_COUNTS_CLOSING)?,
+            ended: field::read(field::U32, limits, reader, paths::PUBLIC_COUNTS_ENDED)?,
+        })
+    }
+}
+
+// Type: PublicLine.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicLine {
+    pub task: u64,
+    pub title: Box<[u8]>,
+    pub title_cut: bool,
+    pub parent: Option<u64>,
+    pub goal: bool,
+    pub priority: Option<u32>,
+    pub executor: PublicExecutor,
+    pub phase: PublicPhase,
+    pub hold: Option<PublicHold>,
+    pub made: u64,
+    pub changed: u64,
+    pub active: Option<u64>,
+    pub ended: Option<u64>,
+    pub spent: Option<u64>,
+    pub delegates: PublicCounts,
+}
+
+// Record: PublicLine.
+impl Record for PublicLine {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_LINE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 61)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 61)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.task, limits, out, paths::PUBLIC_LINE_TASK)?;
+        field::write(field::Text { limit: limits.public_line_title.min(CEILINGS.public_line_title) }, &self.title, limits, out, paths::PUBLIC_LINE_TITLE)?;
+        field::write(field::Boolean, &self.title_cut, limits, out, paths::PUBLIC_LINE_TITLE_CUT)?;
+        field::write(field::Optional { item: field::U64 }, &self.parent, limits, out, paths::PUBLIC_LINE_PARENT)?;
+        field::write(field::Boolean, &self.goal, limits, out, paths::PUBLIC_LINE_GOAL)?;
+        field::write(field::Optional { item: field::U32 }, &self.priority, limits, out, paths::PUBLIC_LINE_PRIORITY)?;
+        field::write(field::Nested, &self.executor, limits, out, paths::PUBLIC_LINE_EXECUTOR)?;
+        field::write(field::Nested, &self.phase, limits, out, paths::PUBLIC_LINE_PHASE)?;
+        field::write(field::Optional { item: field::Nested }, &self.hold, limits, out, paths::PUBLIC_LINE_HOLD)?;
+        field::write(field::U64, &self.made, limits, out, paths::PUBLIC_LINE_MADE)?;
+        field::write(field::U64, &self.changed, limits, out, paths::PUBLIC_LINE_CHANGED)?;
+        field::write(field::Optional { item: field::U64 }, &self.active, limits, out, paths::PUBLIC_LINE_ACTIVE)?;
+        field::write(field::Optional { item: field::U64 }, &self.ended, limits, out, paths::PUBLIC_LINE_ENDED)?;
+        field::write(field::Optional { item: field::U64 }, &self.spent, limits, out, paths::PUBLIC_LINE_SPENT)?;
+        field::write(field::Nested, &self.delegates, limits, out, paths::PUBLIC_LINE_DELEGATES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            task: field::read(field::U64, limits, reader, paths::PUBLIC_LINE_TASK)?,
+            title: field::read(field::Text { limit: limits.public_line_title.min(CEILINGS.public_line_title) }, limits, reader, paths::PUBLIC_LINE_TITLE)?,
+            title_cut: field::read(field::Boolean, limits, reader, paths::PUBLIC_LINE_TITLE_CUT)?,
+            parent: field::read(field::Optional { item: field::U64 }, limits, reader, paths::PUBLIC_LINE_PARENT)?,
+            goal: field::read(field::Boolean, limits, reader, paths::PUBLIC_LINE_GOAL)?,
+            priority: field::read(field::Optional { item: field::U32 }, limits, reader, paths::PUBLIC_LINE_PRIORITY)?,
+            executor: field::read(field::Nested, limits, reader, paths::PUBLIC_LINE_EXECUTOR)?,
+            phase: field::read(field::Nested, limits, reader, paths::PUBLIC_LINE_PHASE)?,
+            hold: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PUBLIC_LINE_HOLD)?,
+            made: field::read(field::U64, limits, reader, paths::PUBLIC_LINE_MADE)?,
+            changed: field::read(field::U64, limits, reader, paths::PUBLIC_LINE_CHANGED)?,
+            active: field::read(field::Optional { item: field::U64 }, limits, reader, paths::PUBLIC_LINE_ACTIVE)?,
+            ended: field::read(field::Optional { item: field::U64 }, limits, reader, paths::PUBLIC_LINE_ENDED)?,
+            spent: field::read(field::Optional { item: field::U64 }, limits, reader, paths::PUBLIC_LINE_SPENT)?,
+            delegates: field::read(field::Nested, limits, reader, paths::PUBLIC_LINE_DELEGATES)?,
+        })
+    }
+}
+
+// Type: PublicProject.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicProject {
+    pub project: u64,
+    pub name: Box<[u8]>,
+}
+
+// Record: PublicProject.
+impl Record for PublicProject {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_PROJECT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 64)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 64)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.project, limits, out, paths::PUBLIC_PROJECT_PROJECT)?;
+        field::write(field::Text { limit: limits.public_project_name.min(CEILINGS.public_project_name) }, &self.name, limits, out, paths::PUBLIC_PROJECT_NAME)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U64, limits, reader, paths::PUBLIC_PROJECT_PROJECT)?,
+            name: field::read(field::Text { limit: limits.public_project_name.min(CEILINGS.public_project_name) }, limits, reader, paths::PUBLIC_PROJECT_NAME)?,
+        })
+    }
+}
+
+// Type: PublicProjects.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicProjects {
+    pub projects: List<PublicProject>,
+    pub max_age: u32,
+}
+
+// Record: PublicProjects.
+impl Record for PublicProjects {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_PROJECTS_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.public_projects_projects.min(CEILINGS.public_projects_projects), minimum: 12, item: field::Nested }, &self.projects, limits, out, paths::PUBLIC_PROJECTS_PROJECTS)?;
+        field::write(field::U32, &self.max_age, limits, out, paths::PUBLIC_PROJECTS_MAX_AGE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            projects: field::read(field::Sequence { limit: limits.public_projects_projects.min(CEILINGS.public_projects_projects), minimum: 12, item: field::Nested }, limits, reader, paths::PUBLIC_PROJECTS_PROJECTS)?,
+            max_age: field::read(field::U32, limits, reader, paths::PUBLIC_PROJECTS_MAX_AGE)?,
+        })
+    }
+}
+
+// Type: PublicGoal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicGoal {
+    pub line: PublicLine,
+    pub tree: List<PublicLine>,
+    pub folded: u32,
+}
+
+// Record: PublicGoal.
+impl Record for PublicGoal {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_GOAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 70)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 70)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.line, limits, out, paths::PUBLIC_GOAL_LINE)?;
+        field::write(field::Sequence { limit: limits.public_goal_tree.min(CEILINGS.public_goal_tree), minimum: 58, item: field::Nested }, &self.tree, limits, out, paths::PUBLIC_GOAL_TREE)?;
+        field::write(field::U32, &self.folded, limits, out, paths::PUBLIC_GOAL_FOLDED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            line: field::read(field::Nested, limits, reader, paths::PUBLIC_GOAL_LINE)?,
+            tree: field::read(field::Sequence { limit: limits.public_goal_tree.min(CEILINGS.public_goal_tree), minimum: 58, item: field::Nested }, limits, reader, paths::PUBLIC_GOAL_TREE)?,
+            folded: field::read(field::U32, limits, reader, paths::PUBLIC_GOAL_FOLDED)?,
+        })
+    }
+}
+
+// Type: PublicBoard.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicBoard {
+    pub project: u64,
+    pub name: Box<[u8]>,
+    pub live: List<PublicGoal>,
+    pub live_folded: u32,
+    pub ended: List<PublicGoal>,
+}
+
+// Record: PublicBoard.
+impl Record for PublicBoard {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_BOARD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 76)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 76)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.project, limits, out, paths::PUBLIC_BOARD_PROJECT)?;
+        field::write(field::Text { limit: limits.public_board_name.min(CEILINGS.public_board_name) }, &self.name, limits, out, paths::PUBLIC_BOARD_NAME)?;
+        field::write(field::Sequence { limit: limits.public_board_live.min(CEILINGS.public_board_live), minimum: 66, item: field::Nested }, &self.live, limits, out, paths::PUBLIC_BOARD_LIVE)?;
+        field::write(field::U32, &self.live_folded, limits, out, paths::PUBLIC_BOARD_LIVE_FOLDED)?;
+        field::write(field::Sequence { limit: limits.public_board_ended.min(CEILINGS.public_board_ended), minimum: 66, item: field::Nested }, &self.ended, limits, out, paths::PUBLIC_BOARD_ENDED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U64, limits, reader, paths::PUBLIC_BOARD_PROJECT)?,
+            name: field::read(field::Text { limit: limits.public_board_name.min(CEILINGS.public_board_name) }, limits, reader, paths::PUBLIC_BOARD_NAME)?,
+            live: field::read(field::Sequence { limit: limits.public_board_live.min(CEILINGS.public_board_live), minimum: 66, item: field::Nested }, limits, reader, paths::PUBLIC_BOARD_LIVE)?,
+            live_folded: field::read(field::U32, limits, reader, paths::PUBLIC_BOARD_LIVE_FOLDED)?,
+            ended: field::read(field::Sequence { limit: limits.public_board_ended.min(CEILINGS.public_board_ended), minimum: 66, item: field::Nested }, limits, reader, paths::PUBLIC_BOARD_ENDED)?,
+        })
+    }
+}
+
+// Type: PublicCard.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicCard {
+    pub line: PublicLine,
+    pub lineage: List<u64>,
+    pub delegates: List<PublicLine>,
+    pub folded: u32,
+}
+
+// Record: PublicCard.
+impl Record for PublicCard {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_CARD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 81)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 81)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.line, limits, out, paths::PUBLIC_CARD_LINE)?;
+        field::write(field::Sequence { limit: limits.public_card_lineage.min(CEILINGS.public_card_lineage), minimum: 8, item: field::U64 }, &self.lineage, limits, out, paths::PUBLIC_CARD_LINEAGE)?;
+        field::write(field::Sequence { limit: limits.public_card_delegates.min(CEILINGS.public_card_delegates), minimum: 58, item: field::Nested }, &self.delegates, limits, out, paths::PUBLIC_CARD_DELEGATES)?;
+        field::write(field::U32, &self.folded, limits, out, paths::PUBLIC_CARD_FOLDED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            line: field::read(field::Nested, limits, reader, paths::PUBLIC_CARD_LINE)?,
+            lineage: field::read(field::Sequence { limit: limits.public_card_lineage.min(CEILINGS.public_card_lineage), minimum: 8, item: field::U64 }, limits, reader, paths::PUBLIC_CARD_LINEAGE)?,
+            delegates: field::read(field::Sequence { limit: limits.public_card_delegates.min(CEILINGS.public_card_delegates), minimum: 58, item: field::Nested }, limits, reader, paths::PUBLIC_CARD_DELEGATES)?,
+            folded: field::read(field::U32, limits, reader, paths::PUBLIC_CARD_FOLDED)?,
+        })
+    }
+}
+
+// Type: PublicApplication.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicApplication {
+    pub tasks: List<u64>,
+    pub record: Box<[u8]>,
+}
+
+// Record: PublicApplication.
+impl Record for PublicApplication {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_APPLICATION_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 85)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 85)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.public_application_tasks.min(CEILINGS.public_application_tasks), minimum: 8, item: field::U64 }, &self.tasks, limits, out, paths::PUBLIC_APPLICATION_TASKS)?;
+        field::write(field::Bytes { limit: limits.public_application_record.min(CEILINGS.public_application_record) }, &self.record, limits, out, paths::PUBLIC_APPLICATION_RECORD)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            tasks: field::read(field::Sequence { limit: limits.public_application_tasks.min(CEILINGS.public_application_tasks), minimum: 8, item: field::U64 }, limits, reader, paths::PUBLIC_APPLICATION_TASKS)?,
+            record: field::read(field::Bytes { limit: limits.public_application_record.min(CEILINGS.public_application_record) }, limits, reader, paths::PUBLIC_APPLICATION_RECORD)?,
+        })
     }
 }
 

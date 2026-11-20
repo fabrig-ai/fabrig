@@ -90,6 +90,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::ReachableAnswered { .. }
             | forge::Event::AcceptAnswered { .. }
             | forge::Event::InstallAnswered { .. }
+            | forge::Event::WayEnded { .. }
             | forge::Event::ConnectEnded { .. }
             | forge::Event::Owner { .. }
             | forge::Event::PersonOf { .. }

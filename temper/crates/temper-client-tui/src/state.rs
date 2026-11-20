@@ -17,6 +17,7 @@ pub struct Tui {
     signing: Signing,
     local: Local,
     browser: Option<Browser>,
+    listener_opening: bool,
     pasted: bool,
     signed_out: bool,
     unkept: bool,
@@ -210,6 +211,9 @@ pub enum Told {
     },
     Asked,
     Browse,
+    Listener {
+        opening: bool,
+    },
     Opened {
         opened: bool,
     },
@@ -276,6 +280,7 @@ impl Tui {
             signing: Signing::Idle,
             local: Local::Idle,
             browser: None,
+            listener_opening: false,
             pasted: false,
             signed_out: false,
             unkept: false,
@@ -351,6 +356,10 @@ impl Tui {
     #[must_use]
     pub const fn local(&self) -> Local {
         self.local
+    }
+    #[must_use]
+    pub(crate) const fn listener_opening(&self) -> bool {
+        self.listener_opening
     }
     #[must_use]
     pub const fn browser(&self) -> Option<Browser> {
@@ -991,6 +1000,11 @@ impl Tui {
                 }
                 self.signing = Signing::Asked;
                 self.pasted = true;
+                changed
+            }
+            Told::Listener { opening } => {
+                let changed = self.listener_opening != opening;
+                self.listener_opening = opening;
                 changed
             }
             Told::Browse => {

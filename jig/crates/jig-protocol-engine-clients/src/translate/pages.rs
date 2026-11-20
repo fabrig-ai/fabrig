@@ -1,6 +1,7 @@
 //! Whole selected page rows and their owner continuations (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{cursor, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
 mod documents;
 mod rows;
@@ -12,7 +13,7 @@ pub fn page(
     private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag };
     check_edges(read, page)?;
     let before = match &page.before {
         Some(value) => Some(wire_cursor(value, limits)?),
@@ -59,7 +60,7 @@ pub fn page(
 }
 
 fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem> {
-    let invalid = w::Problem { path: w::Path::CursorValue, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::paths::CURSOR_VALUE, reason: skein_codec::Reason::Tag };
     for cursor in [&page.before, &page.next] {
         let Some(cursor) = cursor else { continue };
         let matches = match cursor {
@@ -109,8 +110,8 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
 
 fn wire_cursor(value: &reads::Cursor, limits: &w::Limits) -> Result<w::Cursor, w::Problem> {
     let bytes = cursor::encode(value, limits.cursor_value.min(w::CEILINGS.cursor_value))
-        .ok_or(w::Problem { path: w::Path::CursorValue, reason: skein_codec::Reason::Bound })?;
-    w::Cursor::new(limits, w::CursorParts { value: bytes })
+        .ok_or(w::Problem { path: w::paths::CURSOR_VALUE, reason: skein_codec::Reason::Bound })?;
+    Ok(w::Cursor { value: bytes })
 }
 
 pub(super) fn tasks(
@@ -121,30 +122,24 @@ pub(super) fn tasks(
 ) -> Result<w::ReadValue, w::Problem> {
     let ended = match &page.ended {
         reads::EndedGroup::None => w::EndedGroup::None,
-        reads::EndedGroup::Rows { rows, next, cut } => w::EndedGroup::Rows(w::EndedRows::new(
-            limits,
-            w::EndedRowsParts {
-                rows: task_pieces(rows, slots, limits, limits.ended_rows_rows, w::Path::EndedRowsRows)?,
-                after: match next {
-                    Some(v) => Some(task_cursor(v, query, limits)?),
-                    None => None,
-                },
-                cut: *cut,
-            },
-        )?),
-    };
-    Ok(w::ReadValue::Tasks(w::TaskPage::new(
-        limits,
-        w::TaskPageParts {
-            ended_mark: page.ended_mark,
-            live: task_pieces(&page.live, slots, limits, limits.task_page_live, w::Path::TaskPageLive)?,
-            live_after: match &page.live_next {
+        reads::EndedGroup::Rows { rows, next, cut } => w::EndedGroup::Rows(w::EndedRows {
+            rows: task_pieces(rows, slots, limits, limits.ended_rows_rows, w::paths::ENDED_ROWS_ROWS)?,
+            after: match next {
                 Some(v) => Some(task_cursor(v, query, limits)?),
                 None => None,
             },
-            ended,
+            cut: *cut,
+        }),
+    };
+    Ok(w::ReadValue::Tasks(w::TaskPage {
+        ended_mark: page.ended_mark,
+        live: task_pieces(&page.live, slots, limits, limits.task_page_live, w::paths::TASK_PAGE_LIVE)?,
+        live_after: match &page.live_next {
+            Some(v) => Some(task_cursor(v, query, limits)?),
+            None => None,
         },
-    )?))
+        ended,
+    }))
 }
 fn task_pieces(
     lines: &skein_lib::List<jig_domain_core_vocabulary::documents::TaskLine>,
@@ -156,8 +151,8 @@ fn task_pieces(
     let mut pieces = skein_lib::List::with_capacity(lines.len());
     for line in lines {
         let line = super::queries::line_parts(line, slots, limits)?;
-        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(line.measure()));
-        line.encode(&mut writer).expect("measured line");
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(line.measure(limits)?));
+        line.write(limits, &mut writer).expect("measured line");
         pieces.push(writer.finish()).expect("same line count");
     }
     super::pieces(&pieces, bound, path)

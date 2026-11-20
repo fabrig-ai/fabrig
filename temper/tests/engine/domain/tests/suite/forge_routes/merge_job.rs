@@ -214,7 +214,7 @@ fn a_conflict_the_merge_job_leaves_goes_to_a_resolution() {
         .as_bytes()
     ));
     assert_eq!(change_row(&world, task).change.resolutions, 1);
-    assert!(words.ends_with(b"Its request, at spec revision 0:\nSmall fix"));
+    assert!(words.ends_with(b"Its current spec, at revision 0:\nSmall fix"));
     assert!(change_row(&world, task).merge_result.is_none(), "making the resolution consumes the account");
     let merged = push_merge(&mut world, task, head, base);
     finish_resolution(&mut world, &resolution);
@@ -258,7 +258,7 @@ fn assert_preserving_resolution(words: &[u8]) {
         "unrelated content already landed on the base",
         "both independent appended lines and existing blank lines",
         "Do not remove content just to make a check pass",
-        "unless the change's request as revised, or an answer given on it, says otherwise",
+        "unless its current spec or a ruling says otherwise",
         "The worker commits and pushes the resolved merge",
     ] {
         assert!(text.contains(expected), "{text}");

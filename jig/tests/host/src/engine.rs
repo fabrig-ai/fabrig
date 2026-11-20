@@ -204,17 +204,23 @@ impl Engine {
             Request::Up(LinkUp::JobAnswer { run, attempt, answer: _ }) => {
                 vec![Self::host(Event::Down(LinkDown::Acknowledge { run, attempt }), false)]
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
-                LinkUp::ListRead { .. }
+                LinkUp::UsageRead { .. }
+                | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. },
             ) => Vec::new(),

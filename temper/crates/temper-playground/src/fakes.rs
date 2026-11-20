@@ -12,7 +12,10 @@ const TOKENS: u32 = 5;
 /// The managed forge's table.
 #[must_use]
 pub fn table() -> skein_fake_forge_forgejo::Config {
-    let mut table = documents::hosted_git::table(b"acme/app", None);
+    table_at(documents::FORGE)
+}
+fn table_at(address: core::net::SocketAddr) -> skein_fake_forge_forgejo::Config {
+    let mut table = documents::hosted_git::table_at(b"acme/app", None, address);
     table.users.get_mut(0).expect("bot user").1 = b"temper".as_slice().into();
     let mut tokens = skein_lib::List::with_capacity(TOKENS);
     for token in table.tokens.into_boxed() {
@@ -43,10 +46,19 @@ pub fn setup_peer(peer: &mut skein_fake_peers::forge::Peer) {
 /// The composition's default Forgejo peer, sharing `forge` with the git transport.
 #[must_use]
 pub fn forge_peer(forge: &temper_fake_git::Typed, seed: u64) -> skein_fake_peers::forge::Peer {
+    forge_peer_at(forge, seed, documents::FORGE)
+}
+/// The composition's Forgejo peer at the start's address, sharing its git transport.
+#[must_use]
+pub fn forge_peer_at(
+    forge: &temper_fake_git::Typed,
+    seed: u64,
+    address: core::net::SocketAddr,
+) -> skein_fake_peers::forge::Peer {
     let mut peer = skein_fake_peers::forge::Peer::new(
-        documents::FORGE,
+        address,
         peer_limits(),
-        forge_table(),
+        table_at(address),
         forge_limits(),
         forge.forge.clone(),
         seed,

@@ -12,12 +12,12 @@ use temper_engine_domain_forge as domain;
 #[derive(Debug)]
 pub(super) enum Caller {
     Manifest { forge: u16, request: Token, back: Option<Box<[u8]>> },
-    Redirect { forge: u16, call: Token, back: Option<Box<[u8]>> },
+    Redirect { forge: u16, call: Token, back: Option<Box<[u8]>>, held: Option<Box<[u8]>> },
     // Admin runs start with Other for local failures; skein failures replace it.
     Connect { forge: u16, request: Token, number: u64, pasted: Option<Pasted>, stop: Option<domain::AdminStop> },
     Install { forge: u16, request: Token, back: Option<Box<[u8]>> },
     AcceptAsked { forge: u16, request: Token, installation: u64, stop: domain::AdoptionRefusal },
-    Accept { forge: u16, call: Token, back: Option<Box<[u8]>> },
+    Accept { forge: u16, call: Token, back: Option<Box<[u8]>>, held: Option<Box<[u8]>> },
     Access { forge: u16, request: Token },
     Reachable { forge: u16, request: Token },
 }
@@ -450,12 +450,19 @@ pub(super) fn ended(engine: &mut Engine, run: Token, end: &root::SetupEnd) -> bo
             };
             event(engine, domain::Event::ConnectAnswered { forge, request, answer });
         }
-        Caller::Redirect { forge, call, back } => match end {
+        Caller::Redirect { forge, call, back, held } => match end {
             root::SetupEnd::Done { outcome: root::SetupOutcome::Install { state, url }, .. } => {
                 hold(engine, forge, state.clone(), back);
                 engine.clients.github_answer(call, 302, Some(url), b"");
             }
-            root::SetupEnd::Done { .. } | root::SetupEnd::Stopped { .. } => super::routes::ended(engine, call, forge),
+            root::SetupEnd::Done { .. } => {
+                way_ended(engine, forge, held.as_deref(), b"the setup host answered no install link");
+                super::routes::ended(engine, call);
+            }
+            root::SetupEnd::Stopped { reason, .. } => {
+                way_ended(engine, forge, held.as_deref(), reason);
+                super::routes::ended(engine, call);
+            }
         },
         Caller::Connect { forge, request, number, pasted, stop } => {
             if done(end) && matches_app(pasted.as_ref()) {
@@ -506,7 +513,7 @@ pub(super) fn ended(engine: &mut Engine, run: Token, end: &root::SetupEnd) -> bo
             };
             event(engine, domain::Event::ReachableAnswered { forge, request, answer });
         }
-        Caller::Accept { forge, call, back } => match end {
+        Caller::Accept { forge, call, back, held } => match end {
             root::SetupEnd::Done { .. } => {
                 if let Some(back) = back {
                     engine.clients.github_answer(
@@ -516,17 +523,13 @@ pub(super) fn ended(engine: &mut Engine, run: Token, end: &root::SetupEnd) -> bo
                         b"temper has the installation; you may close this tab.",
                     );
                 } else {
-                    super::routes::page(
-                        &mut engine.clients,
-                        call,
-                        200,
-                        b"GitHub is connected",
-                        b"temper has the installation; you may close this tab.",
-                        b"/forges",
-                    );
+                    super::routes::connected(&mut engine.clients, call);
                 }
             }
-            root::SetupEnd::Stopped { .. } => super::routes::ended(engine, call, forge),
+            root::SetupEnd::Stopped { reason, .. } => {
+                way_ended(engine, forge, held.as_deref(), reason);
+                super::routes::ended(engine, call);
+            }
         },
     }
     true
@@ -549,16 +552,41 @@ pub(super) fn hold(engine: &mut Engine, forge: u16, state: Box<[u8]>, back: Opti
     if engine.setup.backs.room() == 0 {
         let _oldest = engine.setup.backs.pop();
     }
-    engine.setup.backs.push(ReturnTo { forge, state, back, until: engine.env.now.saturating_add(engine.setup.life) });
+    let until = engine.env.now.saturating_add(engine.setup.life);
+    engine.setup.latest.insert(forge, state.clone()).expect("configured forge's latest way");
+    engine.setup.backs.push(ReturnTo { forge, state, back, until });
+}
+pub(super) const EXPIRED_WHY: &[u8] = b"the link to GitHub expired before it was finished";
+pub(super) const REQUEST_WHY: &[u8] = b"GitHub sent an organization member's request, not an installation";
+pub(super) const BUSY_WHY: &[u8] = b"temper was busy, and the link to GitHub ended";
+
+/// A consumed later state still supersedes an older one (client/forge/served.md, 1).
+pub(super) fn way_ended(engine: &mut Engine, forge: u16, held: Option<&[u8]>, why: &[u8]) {
+    if let Some(state) = held
+        && let Some(latest) = engine.setup.latest.get(&forge)
+        && latest.as_ref() == state
+    {
+        event(engine, domain::Event::WayEnded { forge, why: Box::from(why) });
+    }
+}
+pub(super) fn expire(engine: &mut Engine) {
+    for _ in 0..engine.setup.backs.len() {
+        if engine.events.room() == 0 {
+            break;
+        }
+        let back = engine.setup.backs.pop().expect("back count");
+        if back.until <= engine.env.now {
+            way_ended(engine, back.forge, Some(&back.state), EXPIRED_WHY);
+        } else {
+            engine.setup.backs.push(back);
+        }
+    }
 }
 pub(super) fn take_back(engine: &mut Engine, forge: u16, state: &[u8]) -> Option<ReturnTo> {
     let mut found = None;
     for _ in 0..engine.setup.backs.len() {
         let back = engine.setup.backs.pop().expect("back count");
-        if back.until <= engine.env.now {
-            continue;
-        }
-        if back.forge == forge && back.state.as_ref() == state {
+        if back.until > engine.env.now && back.forge == forge && back.state.as_ref() == state {
             found = Some(back);
         } else {
             engine.setup.backs.push(back);

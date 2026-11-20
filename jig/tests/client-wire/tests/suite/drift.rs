@@ -1,4 +1,5 @@
 //! The client records' drift and pinned constructs (skein's data/codec/README.md, 6).
+use jig_client_protocol_wire::Record as _;
 #[path = "../../../codec-families.rs"]
 mod families;
 
@@ -12,8 +13,8 @@ fn codec_families_match_their_schemas_and_are_pinned() {
 fn current_client_layout() {
     use std::{fmt::Write, fs};
     let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/schema");
-    let text = fs::read_to_string(root.join("client-v39.schema")).expect("schema")
-        + &fs::read_to_string(root.join("client-v39-part1.schema")).expect("schema fragment");
+    let text = fs::read_to_string(root.join("client-v40.schema")).expect("schema")
+        + &fs::read_to_string(root.join("client-v40-part1.schema")).expect("schema fragment");
     let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
     let mut line = format!("{} ", schema.version());
     for byte in schema.fingerprints().family().digest() {
@@ -52,8 +53,14 @@ fn the_hello_alone_keeps_version_27_bytes() {
         assert_eq!(golden, expected);
         let value = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(expected)).expect("version 27 hello");
         assert!(matches!(value, w::StreamEvent::Hello(_)));
-        let mut writer = Writer::new(value.measure().try_into().expect("short hello"));
-        value.encode(&mut writer).expect("hello fits");
+        let mut writer = Writer::new(
+            value
+                .measure(&jig_client_protocol_wire::CEILINGS)
+                .expect("bounded fixture")
+                .try_into()
+                .expect("short hello"),
+        );
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("hello fits");
         assert_eq!(writer.finish().as_ref(), expected);
     }
 }

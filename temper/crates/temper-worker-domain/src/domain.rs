@@ -150,13 +150,15 @@ impl Domain {
                         (run, attempt)
                     }
                     Some(
-                        host::LinkUp::ListRead { .. }
+                        host::LinkUp::UsageRead { .. }
+                        | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Piece { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
                         | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Turn { .. }

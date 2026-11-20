@@ -743,7 +743,7 @@ fn the_questions_select_sends_its_route() {
                 w::ProjectQuestions::decode(&w::CEILINGS, &mut skein_lib::Reader::new(sent_value(&change, 6))).unwrap();
             assert_eq!(decoded.route, route);
             // The binding table also accepts a route supplied as whole select input.
-            let mut bindings = crate::forge::bindings::Bindings::new(1, 1, f::FORGE);
+            let mut bindings = crate::forge::bindings::Bindings::new(1, 1, f::FORGE, f::tree_limits().text_per_node);
             let bound = bindings.insert(crate::forge::bindings::Meaning::Ways(d::forge::ways::Act::Set {
                 project: f::PROJECT,
                 asked: Asked::Questions(Route::None),

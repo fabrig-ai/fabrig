@@ -30,7 +30,7 @@ pub fn small() -> Limits {
             skip: 8,
             output_bytes: u32::MAX,
             output_frames: 2,
-            kinds: 20,
+            kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
         },
     }
 }

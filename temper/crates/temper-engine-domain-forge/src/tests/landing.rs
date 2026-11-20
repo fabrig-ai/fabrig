@@ -1684,7 +1684,8 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
             row.change.last_head = Some(NEW);
         }
         if why == (policy::Leave::Refused { gate: 9 }) {
-            row.verdicts = Box::new([c::GateReport { number: 9, head: fixtures::HEAD, status: c::Status::Failed }]);
+            row.verdicts =
+                Box::new([c::GateReport { revision: 0, number: 9, head: fixtures::HEAD, status: c::Status::Failed }]);
         }
         if judging {
             row.change.state = c::State::Judging {

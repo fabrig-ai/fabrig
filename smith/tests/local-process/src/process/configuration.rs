@@ -370,7 +370,7 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         "head":10000,"idle":30000});
     let mut endpoint = serde_json::json!({"name":if launch.choices {"main"} else {"fake"},"number":0,"dialect":3,
         "provider":"openai","connect":1000,"handshake":1000,"limits":limits,
-        "address":format!("{}:{}", smith_agent_process_world::fake::loopback(), if launch.tls {34_443} else {443}),
+        "address":smith_agent_process_world::fake::address(if launch.tls {34_443} else {443}).to_string(),
         "transport":if launch.tls {"tls"} else {"plaintext"},
         "headers":[{"name":"originator","value":"skein-world"}]});
     if launch.lending == Some(crate::world::Lending::Key) {
@@ -414,13 +414,13 @@ pub fn prepared_accounts(
     let mut sources = skein_lib::List::with_capacity(1);
     let source = if authenticated {
         let port = if tls { 34_444 } else { 444 };
-        let host = smith_agent_process_world::fake::loopback();
+        let address = smith_agent_process_world::fake::address(port);
         let registration = skein_oauth::Registration {
             terms: None,
-            authorization_url: format!("{}://{host}:{port}/authorize", if tls { "https" } else { "http" })
+            authorization_url: format!("{}://{address}/authorize", if tls { "https" } else { "http" })
                 .into_bytes()
                 .into(),
-            token_endpoint: format!("{}://{host}:{port}/token", if tls { "https" } else { "http" }).into_bytes().into(),
+            token_endpoint: format!("{}://{address}/token", if tls { "https" } else { "http" }).into_bytes().into(),
             client_id: b"client".as_slice().into(),
             redirect_uri: format!("http://127.0.0.1:{}/callback", smith_agent_process_world::fake::redirect_port())
                 .into_bytes()
@@ -439,7 +439,7 @@ pub fn prepared_accounts(
             file: b"0.json".as_slice().into(),
             registration,
             endpoint: skein_oauth_accounts::Endpoint {
-                address: (host, port).into(),
+                address,
                 transport: if tls {
                     skein_oauth_accounts::Transport::Tls {
                         server_name: skein_tls_kit::pki::name(),

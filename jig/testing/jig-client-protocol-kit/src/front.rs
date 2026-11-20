@@ -5,6 +5,7 @@ use crate::{
     net::Net,
 };
 use jig_client_kit::{ClientId, Front, FrontFault, Test, harness::Observed};
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_native::{Conn, Connections};
 use jig_client_test_domain::{self as client, Event, Request};
 use skein_lib::{
@@ -313,9 +314,9 @@ impl Front<Test> for Protocol {
         {
             use jig_client_protocol_wire as w;
             let owned = w::Owned::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("read envelope");
-            if *owned.owner() == w::Owner::Jig
+            if owned.owner == w::Owner::Jig
                 && matches!(
-                    w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(owned.record())),
+                    w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(owned.record.as_ref())),
                     Ok(w::Read::Tasks(_))
                 )
             {

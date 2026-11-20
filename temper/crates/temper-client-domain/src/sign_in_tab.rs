@@ -6,6 +6,9 @@ use skein_lib::Queue;
 
 pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
     let Told::Answered { key, outcome } = told else { return };
+    if key.asker != crate::owner::Owner::Pages.asker() {
+        return;
+    }
     let pointing = root.tab == Some(*key);
     let waiting = awaiting(root, *key);
     if !pointing && !waiting {
@@ -66,8 +69,12 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn refused(root: &mut Domain) {
-    if let Some(key) = root.tab.take()
-        && let Some(page) = &mut root.pages.connect_model
+    let Some(key) = root.tab.take() else { return };
+    if crate::forge::github::refused(&mut root.forge, key) {
+        root.tab_revision = root.tab_revision.checked_add(1).expect("tab revisions fit");
+        return;
+    }
+    if let Some(page) = &mut root.pages.connect_model
         && let Some(pending) = &page.request.pending
         && pending.key == key
     {

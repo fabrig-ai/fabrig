@@ -73,6 +73,7 @@ pub(in crate::tests) fn host_with_endpoints(
             worker: u32::from(channel == SECOND).min(limits.fleet.workers.saturating_sub(1)),
             channel,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::ZERO,
@@ -236,6 +237,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
                 worker: 0,
                 channel: FIRST,
                 hello: Hello {
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: Duration::ZERO,
@@ -1168,6 +1170,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: Hello {
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds,
                     stop_bound: Duration::ZERO,
@@ -1209,6 +1212,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: Hello {
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds: Bounds { turns: 0, ..fixtures::bounds() },
                     stop_bound: Duration::ZERO,
@@ -1237,6 +1241,7 @@ fn a_due_tasks_bounds_wait_tracks_its_charters_growth_and_recovery() {
             channel: FIRST,
             worker: 0,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: Bounds { turns: WORKER_TURNS, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1349,6 +1354,7 @@ fn an_untooled_fault_keeps_bounds_and_account_refusals_first() {
             worker: 0,
             channel: FIRST,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: Bounds { turns: 800, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1470,6 +1476,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
             channel: Token::new(99),
             worker: 0,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: Bounds { turns: 0, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -2410,6 +2417,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
             worker: 1,
             channel: SECOND,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

@@ -16,7 +16,7 @@ fn posted(h: &Harness) -> Option<w::Keyed> {
     for request in &h.out {
         if let Request::Exchange { message: Message::Request(body), .. } = request {
             let record = w::Keyed::decode(limits().wire(), &mut Reader::new(body)).expect("keyed request");
-            if record.key() == &CARRIED_KEY {
+            if record.key == CARRIED_KEY {
                 return Some(record);
             }
         }
@@ -31,7 +31,7 @@ fn a_carried_request_leaves_while_the_table_waits_on_a_write() {
     carry(&mut h, ATTEMPT);
     assert_eq!(h.exchanges(), 1, "the carried request alone leaves");
     let record = posted(&h).expect("the carried request left");
-    assert_eq!(record.value(), &Some(Secret::new(Box::new(VALUE))));
+    assert_eq!((&record.value), &Some(Secret::new(Box::new(VALUE))));
     h.write_failed();
     assert!(h.has(&Request::NotKept { attempt: Token::new(5) }));
     assert_eq!(h.answered(ATTEMPT), None, "a failed write never answers it");
@@ -82,7 +82,7 @@ fn a_move_out_leaves_while_the_table_waits_on_a_write() {
     h.send_kept(Token::new(5));
     move_out(&mut h, ATTEMPT);
     assert_eq!(h.exchanges(), 1);
-    assert_eq!(posted(&h).expect("move out left").value(), &None);
+    assert_eq!((&posted(&h).expect("move out left").value), &None);
     h.write_failed();
     assert_eq!(h.answered(ATTEMPT), None);
 }
@@ -95,4 +95,17 @@ fn a_move_out_the_link_cannot_post_is_unsent() {
     move_out(&mut h, ATTEMPT);
     assert_eq!(h.answered(ATTEMPT), Some((RequestEnvelope::Again, None)));
     assert!(posted(&h).is_none());
+}
+
+#[test]
+fn a_carried_value_past_the_wire_bound_is_unsent() {
+    let limits = limits();
+    let mut h = Harness::new(&limits);
+    let length = limits.wire().keyed_value_some.checked_add(1).unwrap();
+    let value = Some(Secret::new(skein_lib::bytes::zeroed(skein_lib::usize_of(length))));
+    let ask = Ask::Family { scope: c::Scope::Own, record: fixtures::family_read() };
+    h.link.step(Time::ZERO, Event::Send { attempt: ATTEMPT, key: CARRIED_KEY, ask, value }, &mut h.out);
+    h.link.settle(&mut h.out);
+    assert_eq!(h.answered(ATTEMPT), Some((RequestEnvelope::Again, None)));
+    assert_eq!(h.exchanges(), 0);
 }

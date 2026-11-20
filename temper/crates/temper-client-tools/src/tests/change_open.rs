@@ -1,6 +1,7 @@
 //! A person's open-change act, with engine answers supplied by the client fixture.
 use super::fixtures::{self as f, OPEN_CHANGE as OPEN};
 use jig_client::{self as client, contract as c};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -234,39 +235,25 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
     );
 }
 fn core(why: jig_client_protocol_wire::Refusal) -> w::Outcome {
-    let mut bytes = skein_lib::Writer::new(usize::try_from(why.measure()).unwrap());
-    why.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(why.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    why.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     w::Outcome::CoreRefused(w::CoreRefused { refusal: bytes.finish() })
 }
 #[test]
 fn core_refusals_use_jigs_words_on_one_prefixed_line() {
     use jig_client_protocol_wire as j;
     for why in [
-        j::Refusal::Authority(
-            j::RefusalAuthority::new(
-                &j::CEILINGS,
-                j::RefusalAuthorityParts {
-                    lacking: j::Lacking::Budget(
-                        j::LackingBudget::new(&j::CEILINGS, j::LackingBudgetParts { needed: 500, left: 0 }).unwrap(),
-                    ),
-                    proposable: None,
-                },
-            )
-            .unwrap(),
-        ),
-        j::Refusal::Authority(
-            j::RefusalAuthority::new(
-                &j::CEILINGS,
-                j::RefusalAuthorityParts {
-                    lacking: j::Lacking::Tasks(
-                        j::LackingTasks::new(&j::CEILINGS, j::LackingTasksParts { needed: Some(1), left: 0 }).unwrap(),
-                    ),
-                    proposable: None,
-                },
-            )
-            .unwrap(),
-        ),
-        j::Refusal::Role(j::RefusalRole::new(&j::CEILINGS, j::RefusalRoleParts { held: None }).unwrap()),
+        j::Refusal::Authority(j::RefusalAuthority {
+            lacking: j::Lacking::Budget(j::LackingBudget { needed: 500, left: 0 }),
+            proposable: None,
+        }),
+        j::Refusal::Authority(j::RefusalAuthority {
+            lacking: j::Lacking::Tasks(j::LackingTasks { needed: Some(1), left: 0 }),
+            proposable: None,
+        }),
+        j::Refusal::Role(j::RefusalRole { held: None }),
     ] {
         let expected = if let j::Refusal::Role(_) = &why {
             b"temper ctl: change open: The held role does not permit this action\n".as_slice()

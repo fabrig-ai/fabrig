@@ -69,7 +69,18 @@ fn install(front: &mut Joint, root: &mut Root, url: &[u8]) {
         stopped: None,
     })));
     front.engine.settle();
-    revisit(front, root);
+    account_acts::settle(front, root);
+}
+
+fn points(front: &Joint) -> Vec<&[u8]> {
+    front
+        .tabs
+        .iter()
+        .filter_map(|tab| match tab {
+            d::Tab::Point { to } | d::Tab::PointOnOrigin { to } => Some(to.as_ref()),
+            d::Tab::Open { .. } | d::Tab::Close => None,
+        })
+        .collect()
 }
 
 #[test]
@@ -77,19 +88,20 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     // F-m3-2: no fake cancellation response exists. The first install tab is abandoned.
     let (mut front, mut root) = Joint::github_fixture_with(fixtures::SEED, false, false);
     node(&view(&root), Role::Heading { level: 2 }, "Install temper’s App".as_bytes());
+    let before = root.person().pages().address().clone();
     install(&mut front, &mut root, b"https://github.test/apps/app/installations/new?state=first");
+    assert_eq!(root.person().pages().address(), &before);
     assert_eq!(front.installs.len(), 1);
     assert_eq!(
-        front.leaves.last().expect("first tab departure").as_ref(),
+        *points(&front).last().expect("first tab departure"),
         b"https://github.test/apps/app/installations/new?state=first"
     );
     let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge rows") };
     assert!(rows[0].installations.is_empty());
     assert!(d::forge::connect::underway(&rows[0]));
     assert!(front.reachable_reads.is_empty(), "an abandoned install gives no repository rows");
-    node(&view(&root), Role::Paragraph,
-        b"app is connected to temper, and installed nowhere yet. Install it, and choose the repositories temper may use.");
-    // Returning to temper is a fresh page/client, as after leaving a browser tab.
+    node(&view(&root), Role::Status, b"Waiting for GitHub");
+    // Reloading keeps the row, not the abandoned client-only way.
     front.reload(CLIENT, Time::ZERO);
     root = Root::Person(Box::new(d::unlinked(&fixtures::domain_limits(), fixtures::SEED + 1)));
     account_acts::event(
@@ -102,8 +114,10 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     install(&mut front, &mut root, b"https://github.test/apps/app/installations/new?state=second");
     assert_eq!(front.installs.len(), 2);
     assert_ne!(front.installs[0].1, front.installs[1].1, "Install again is a new request");
-    assert_eq!(front.leaves.len(), 2, "one departure per answered link");
-    assert_ne!(front.leaves[0], front.leaves[1], "the new install shows its fresh state");
+    let points = points(&front);
+    assert!(front.leaves.is_empty(), "neither press leaves the page");
+    assert_eq!(points.len(), 2, "one point per answered link");
+    assert_ne!(points[0], points[1], "the new install shows its fresh state");
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::Installation {
         forge: 1,
         installation: 2,
@@ -114,10 +128,10 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
         }),
     })));
     front.engine.settle();
-    revisit(&mut front, &mut root);
-    let ready = view(&root);
-    node(&ready, Role::Paragraph, b"Connected GitHub.");
-    assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Choice));
+    account_acts::settle(&mut front, &mut root);
+    assert_eq!(root.person().pages().address(), &Address::Forges);
+    assert_eq!(root.person().pages().forges_opened(), Some(1));
+    assert!(!view(&root).tree().nodes().iter().any(|n| n.role == Role::Choice));
     assert_eq!(front.reachable_reads.len(), 0);
     let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("ready rows") };
     assert_eq!(rows[0].installations.len(), 1);

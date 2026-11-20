@@ -216,15 +216,11 @@ fn a_final_answer_that_does_not_decode_is_told_retrying_as_undecodable() {
     let mut c = Client::signed_in();
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     c.step(Event::Stored);
-    let record = jig_client_protocol_wire::Owned::new(
-        &jig_client_protocol_wire::CEILINGS,
-        jig_client_protocol_wire::OwnedParts {
-            owner: jig_client_protocol_wire::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: Box::new([255]),
-        },
-    )
-    .unwrap();
+    let record = jig_client_protocol_wire::Owned {
+        owner: jig_client_protocol_wire::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        record: Box::new([255]),
+    };
     let message = fixtures::answer(&jig_client_protocol_wire::KeyedAnswer::FinalAnswer(record));
     c.step(Event::Reply { exchange: c.exchange(), message });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Undecodable });
@@ -248,7 +244,7 @@ fn keyed_keys(requests: &[Request]) -> skein_lib::List<skein_lib::RequestKey> {
                 &mut skein_lib::Reader::new(bytes),
             )
             .unwrap();
-            keys.push(*keyed.key()).unwrap();
+            keys.push(keyed.key).unwrap();
         }
     }
     keys

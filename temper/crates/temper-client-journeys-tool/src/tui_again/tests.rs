@@ -99,6 +99,21 @@ fn a_tui_walk_is_read_before_any_build_or_child() {
 }
 
 #[test]
+fn every_committed_tui_setup_reads_and_joins() {
+    let tui = Path::new(crate::TUI_JOURNEYS);
+    let browser = Path::new(crate::JOURNEYS);
+    // Every TUI journey has moved to a version-2 walk, so the checkout may hold no setup.
+    // a_tui_setup_is_read_whole_before_any_build_or_child checks the reader on its own fixtures.
+    for name in crate::names(tui).expect("committed TUI journeys") {
+        if tui.join(&name).join("setup").is_file() {
+            let read = starting(tui, browser, &name).unwrap_or_else(|why| panic!("{name}: {why:?}"));
+            let prepared = read.setup.expect("committed setup retained before building");
+            assert!(!prepared.setup.steps.is_empty(), "{name} has setup steps");
+        }
+    }
+}
+
+#[test]
 fn a_tui_setup_is_read_whole_before_any_build_or_child() {
     use temper_client_shell_web::journey::SetupStep;
     let scratch = Scratch::new("tui-again-setup");

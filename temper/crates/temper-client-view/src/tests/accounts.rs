@@ -2216,11 +2216,12 @@ fn the_old_chrome_is_gone() {
 fn usage_text(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Box<[u8]> {
     fixtures::node_text(tree, tree.nodes().iter().position(|node| node.id == id).unwrap())
 }
-fn usage_fact(label: &[u8], hours: u64, remaining: u64, used: u16, state: u16) -> c::AccountFact {
+fn usage_fact(label: &[u8], hours: u64, remaining: u64, used: u16, state: u16, rate: u32) -> c::AccountFact {
     c::AccountFact {
         kind: c::FACT_USAGE,
         label: Box::from(label),
         value: c::AccountFactValue::Window(c::AccountWindow {
+            rate: Some(rate),
             length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).unwrap())),
             used: Some(used),
             resets: Some(skein_lib::Wall::from_nanos(
@@ -2242,7 +2243,7 @@ fn held_usage_is_in_each_holders_folded_head_and_the_terminal() {
     const LINE: &str = "Week: 29% used · resets in 4 d 14 h · 0.5%/h · about 84% at reset";
     for deployment in [false, true] {
         let (mut root, deployment_watch, own_watch) = owner_root_with_accounts();
-        let facts = List::from_boxed(Box::new([usage_fact(b"seven_day", 168, 110 * 60, 2900, 1)]));
+        let facts = List::from_boxed(Box::new([usage_fact(b"seven_day", 168, 110 * 60, 2900, 1, 50)]));
         let mut own = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
         let mut shared = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
         shared.accounts.truncate(1);
@@ -2310,8 +2311,8 @@ fn usage_warns_limits_and_disappears_when_no_window_is_held() {
     let (mut root, watch) = fixtures::account_root();
     let mut doc = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
     doc.accounts.get_mut(0).unwrap().facts = List::from_boxed(Box::new([
-        usage_fact(b"seven_day", 168, 48 * 60, 8300, 1),
-        usage_fact(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED),
+        usage_fact(b"seven_day", 168, 48 * 60, 8300, 1, 70),
+        usage_fact(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED, 0),
     ]));
     deliver(&mut root, watch, doc);
     let view = fixtures::browser_page_view(&root);

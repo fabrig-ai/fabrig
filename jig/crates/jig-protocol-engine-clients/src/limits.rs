@@ -1,4 +1,5 @@
 //! Connection and exchange admission (protocol/client/README.md, section 10 and protocol/client/openid.md).
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {

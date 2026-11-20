@@ -5,6 +5,7 @@
 extern crate alloc;
 pub use temper_client_view_words::{Limits, limits, look, paths, valid, words};
 pub mod accounts;
+pub mod away;
 pub mod bindings;
 pub mod cards;
 pub mod choice;

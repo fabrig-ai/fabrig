@@ -56,3 +56,15 @@ pub(crate) fn account_refused(
         }));
     }
 }
+
+pub(crate) fn usage(
+    domain: &Hub,
+    owner: Token,
+    account: u32,
+    window: jig_domain_link::UsageWindow,
+    out: &mut Queue<Request>,
+) {
+    if let Some(hosting) = live(domain, owner) {
+        out.push(Request::Up(LinkUp::Usage { run: hosting.run, attempt: hosting.attempt, account, window }));
+    }
+}

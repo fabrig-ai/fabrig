@@ -2,20 +2,16 @@
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{ReplyTo, Secret, Token, Writer};
 
 fn change(change: w::AccountChange) -> w::Ask {
-    w::Ask::AccountChange(
-        w::AskAccountChange::new(&f::wire(), w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-            .unwrap(),
-    )
+    w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change })
 }
 fn outgoing(exchange: &mut Exchange) -> (Token, ReplyTo) {
-    let ask = change(w::AccountChange::MoveOut(
-        w::AccountChangeMoveOut::new(&f::wire(), w::AccountChangeMoveOutParts { account: 19 }).unwrap(),
-    ));
+    let ask = change(w::AccountChange::MoveOut(w::AccountChangeMoveOut { account: 19 }));
     let owner = exchange.send(Message::Request(f::keyed(
         w::Owner::Jig,
         jig_client_protocol_wire::VERSION,
@@ -45,10 +41,10 @@ fn taken(exchange: &mut Exchange, token: Token, record: Option<Secret>) {
 }
 fn record(exchange: &Exchange, owner: Token) -> Secret {
     let w::Final::Done(done) = exchange.final_answer(owner) else { panic!("done") };
-    let w::Outcome::Made(made) = done.outcome() else { panic!("made") };
-    let w::Made::MovingOut(row) = made.what() else { panic!("moving out") };
-    assert_eq!((row.account(), row.number()), (19, 23));
-    row.record().clone()
+    let w::Outcome::Made(made) = &done.outcome else { panic!("made") };
+    let w::Made::MovingOut(row) = &made.what else { panic!("moving out") };
+    assert_eq!((row.account, row.number), (19, 23));
+    row.record.clone()
 }
 #[test]
 fn the_record_goes_to_the_first_exchange_and_a_replay_is_empty() {
@@ -92,32 +88,22 @@ fn a_sign_in_ended_while_taking_never_releases_the_file() {
     assert!(exchange.out.is_empty());
 }
 fn carried(exchange: &mut Exchange, kind: u8, value: &[u8], digest: [u8; 32]) -> Token {
-    let limits = f::wire();
     let ask = change(match kind {
-        0 => w::AccountChange::AddKey(
-            w::AccountChangeAddKey::new(&limits, w::AccountChangeAddKeyParts { provider: 3, join: None, digest })
-                .unwrap(),
-        ),
-        1 => w::AccountChange::ReplaceKey(
-            w::AccountChangeReplaceKey::new(&limits, w::AccountChangeReplaceKeyParts { source: 29, digest }).unwrap(),
-        ),
-        _ => w::AccountChange::MoveIn(
-            w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).unwrap(),
-        ),
+        0 => w::AccountChange::AddKey(w::AccountChangeAddKey { provider: 3, join: None, digest }),
+        1 => w::AccountChange::ReplaceKey(w::AccountChangeReplaceKey { source: 29, digest }),
+        _ => w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest }),
     });
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
-            key: [5; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: f::encode_ask(&ask),
-            value: Some(Secret::new(Box::from(value))),
-        },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
-    keyed.encode(&mut bytes).unwrap();
+    let keyed = w::Keyed {
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: f::encode_ask(&ask),
+        value: Some(Secret::new(Box::from(value))),
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let owner = exchange.send(Message::Request(bytes.finish()));
     exchange.authenticate();
     owner
@@ -141,7 +127,7 @@ fn key_and_move_values_keep_their_own_bounds_below_the_wire_bound() {
         let bytes = skein_lib::bytes::zeroed(bound + 1);
         let owner = carried(&mut exchange, kind, &bytes, skein_lib::sha256::digest(&bytes));
         let w::Final::Refused(row) = exchange.final_answer(owner) else { panic!("limit") };
-        let w::Refusal::Limit(_) = row.refusal() else { panic!("limit refusal") };
+        let w::Refusal::Limit(_) = &row.refusal else { panic!("limit refusal") };
         assert!(exchange.out.is_empty(), "refused before keeping anything");
     }
 }
@@ -183,10 +169,10 @@ fn a_move_in_keeps_its_value_and_erases_a_replays_unused_value() {
         }
         exchange.reply(reply_to, p::Reply::Outcome(p::Outcome::AccountMovedIn { account: 19, renewed: false }));
         let w::Final::Done(done) = exchange.final_answer(owner) else { panic!("moved in") };
-        let w::Outcome::Document(outcome) = done.outcome() else { panic!("owner outcome") };
-        let w::DocumentOutcome::AccountMovedIn(row) = outcome.value() else { panic!("moved-in outcome") };
-        assert_eq!(row.account(), 19);
-        assert!(!row.renewed());
+        let w::Outcome::Document(outcome) = &done.outcome else { panic!("owner outcome") };
+        let w::DocumentOutcome::AccountMovedIn(row) = &outcome.value else { panic!("moved-in outcome") };
+        assert_eq!(row.account, 19);
+        assert!(!row.renewed);
         assert!(exchange.out.is_empty());
         assert!(exchange.component.pending.carried.is_empty());
         exchange.component.connections.remove(&owner);
@@ -202,9 +188,7 @@ fn a_move_in_digest_must_match_before_the_value_is_kept() {
 
 #[test]
 fn written_decodes_its_move_number() {
-    let ask = change(w::AccountChange::Written(
-        w::AccountChangeWritten::new(&f::wire(), w::AccountChangeWrittenParts { number: 23 }).unwrap(),
-    ));
+    let ask = change(w::AccountChange::Written(w::AccountChangeWritten { number: 23 }));
     assert_eq!(
         crate::translate::asks::ask(ask, &f::models(), &f::wire()),
         Ok(p::Ask::AccountChange { holder: p::AccountHolder::Own, change: p::AccountChange::Written { number: 23 } })
@@ -223,7 +207,7 @@ fn each_move_refusal_keeps_its_reason() {
         let (owner, to) = outgoing(&mut exchange);
         exchange.reply(to, p::Reply::Outcome(p::Outcome::Refused(p::Refusal::AccountMove { why })));
         let w::Final::Refused(row) = exchange.final_answer(owner) else { panic!("refused move") };
-        let w::Refusal::AccountMove(value) = row.refusal() else { panic!("move refusal") };
-        assert_eq!(value.why(), &expected);
+        let w::Refusal::AccountMove(value) = &row.refusal else { panic!("move refusal") };
+        assert_eq!((&value.why), &expected);
     }
 }

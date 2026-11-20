@@ -140,10 +140,10 @@ fn each_accounts_piece_ceiling_is_refused_at_its_own_path() {
     let source = document(None);
     let limits = jig_client_test_records::limits();
     let rows = [
-        (w::Limits { accounts_accounts: 0, ..limits }, w::Path::AccountsAccounts),
-        (w::Limits { accounts_signing: 0, ..limits }, w::Path::AccountsSigning),
-        (w::Limits { account_line_sources: 0, ..limits }, w::Path::AccountLineSources),
-        (w::Limits { account_line_uses_some: 0, ..limits }, w::Path::AccountLineUses),
+        (w::Limits { accounts_accounts: 0, ..limits }, w::paths::ACCOUNTS_ACCOUNTS),
+        (w::Limits { accounts_signing: 0, ..limits }, w::paths::ACCOUNTS_SIGNING),
+        (w::Limits { account_line_sources: 0, ..limits }, w::paths::ACCOUNT_LINE_SOURCES),
+        (w::Limits { account_line_uses_some: 0, ..limits }, w::paths::ACCOUNT_LINE_USES),
     ];
     for (limits, path) in rows {
         assert_eq!(accounts::document(&source, &limits), Err(w::Problem { path, reason: skein_codec::Reason::Bound }));
@@ -162,17 +162,17 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     let limits = jig_client_test_records::limits();
     let encoded = crate::translate::deployment::account(account, &limits).unwrap();
     let line = jig_client_test_records::account_line_record();
-    assert_eq!(encoded.place(), line.place());
-    assert_eq!(encoded.uses(), line.uses());
-    assert!(encoded.plan());
-    assert_eq!(encoded.provider(), line.provider());
-    assert_eq!(encoded.display(), line.display());
-    assert_eq!(encoded.holder(), line.holder());
-    assert_eq!(encoded.sources(), line.sources());
+    assert_eq!(encoded.place, line.place);
+    assert_eq!((&encoded.uses), (&line.uses));
+    assert!(encoded.plan);
+    assert_eq!((&encoded.provider), (&line.provider));
+    assert_eq!((&encoded.display), (&line.display));
+    assert_eq!((&encoded.holder), (&line.holder));
+    assert_eq!(encoded.sources.as_ref(), line.sources.as_ref());
     let bound = w::Limits { account_sources: 0, ..limits };
     assert_eq!(
         crate::translate::deployment::account(account, &bound),
-        Err(w::Problem { path: w::Path::AccountSources, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::paths::ACCOUNT_SOURCES, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -190,11 +190,11 @@ fn deployment_terms_reach_the_wire() {
         let mut value = deployment_terms();
         value.list = history;
         let encoded = crate::translate::deployment::account(&value, &limits).unwrap();
-        assert_list(encoded.list().as_ref(), history);
-        assert_eq!(encoded.facts(), &jig_client_test_records::account_fact_records());
-        assert_eq!(encoded.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
-        assert!(encoded.provider_name().as_ref().unwrap().cut());
-        assert_eq!(encoded.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
+        assert_list(encoded.list.as_ref(), history);
+        assert_eq!((&encoded.facts), &jig_client_test_records::account_fact_records());
+        assert_eq!(encoded.provider_name.as_ref().unwrap().bytes.as_ref(), b"Arbitrary provider");
+        assert!(encoded.provider_name.as_ref().unwrap().cut);
+        assert_eq!(encoded.manage_usage.as_deref(), Some(b"https://usage.example/".as_slice()));
     }
 }
 #[test]
@@ -208,11 +208,11 @@ fn account_line_terms_reach_the_wire() {
         account_line.list = history;
         account_line.facts = account.facts;
         let line = accounts::line(&account_line, &limits).unwrap();
-        assert_list(line.list().as_ref(), history);
-        assert_eq!(line.facts(), &jig_client_test_records::account_fact_records());
-        assert_eq!(line.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
-        assert!(line.provider_name().as_ref().unwrap().cut());
-        assert_eq!(line.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
+        assert_list(line.list.as_ref(), history);
+        assert_eq!((&line.facts), &jig_client_test_records::account_fact_records());
+        assert_eq!(line.provider_name.as_ref().unwrap().bytes.as_ref(), b"Arbitrary provider");
+        assert!(line.provider_name.as_ref().unwrap().cut);
+        assert_eq!(line.manage_usage.as_deref(), Some(b"https://usage.example/".as_slice()));
     }
 }
 
@@ -227,7 +227,7 @@ fn account_capacity_actions_reach_the_wire() {
     ] {
         let mut refusal = *source.person_room_refusals.get(0).unwrap();
         refusal.action = action;
-        assert_eq!(crate::translate::deployment::person_refusal(&refusal, &limits).unwrap().action(), &expected);
+        assert_eq!((&crate::translate::deployment::person_refusal(&refusal, &limits).unwrap().action), &expected);
     }
 }
 
@@ -247,28 +247,28 @@ fn assert_list(wire: Option<&w::AccountList>, expected: Option<d::AccountList>) 
     match (wire, expected) {
         (None, None) => {}
         (Some(wire), Some(expected)) => {
-            for (got, at) in [(wire.read(), expected.read), (wire.tried(), expected.tried)] {
+            for (got, at) in [((&wire.read), expected.read), ((&wire.tried), expected.tried)] {
                 if let Some(at) = at {
                     assert_eq!(*got, Some(at.as_nanos()));
                 } else {
                     assert_eq!(*got, None);
                 }
             }
-            assert_eq!(wire.left_out(), expected.left_out);
+            assert_eq!(wire.left_out, expected.left_out);
             if expected.failure.is_some() {
-                let Some(w::AccountListFailure::Refused(failure)) = wire.failure() else { panic!("refused read") };
-                assert_eq!(failure.status(), 429);
+                let Some(w::AccountListFailure::Refused(failure)) = &wire.failure else { panic!("refused read") };
+                assert_eq!(failure.status, 429);
             } else {
-                assert!(wire.failure().is_none());
+                assert!(wire.failure.is_none());
             }
         }
         other => panic!("changed list history: {other:?}"),
     }
 }
 
-pub(super) fn fact_rows() -> List<a::AccountFact> {
+pub(super) fn fact_rows() -> List<d::AccountFactLine> {
     let mut facts = List::with_capacity(a::FACTS);
-    for _ in 0_u32..4 {
+    for rate in [None, Some(0), Some(600), Some(u32::MAX)] {
         for value in [
             a::FactValue::Text(Box::from(b"you@example.com".as_slice())),
             a::FactValue::Count(123),
@@ -283,13 +283,16 @@ pub(super) fn fact_rows() -> List<a::AccountFact> {
             }),
         ] {
             facts
-                .push(a::AccountFact {
-                    kind: 1,
-                    label: Box::from(b"label".as_slice()),
-                    value,
-                    seen: Wall::from_nanos(149),
-                    source: Some(11),
-                    origin: 6,
+                .push(d::AccountFactLine {
+                    rate,
+                    fact: a::AccountFact {
+                        kind: 1,
+                        label: Box::from(b"label".as_slice()),
+                        value,
+                        seen: Wall::from_nanos(149),
+                        source: Some(11),
+                        origin: 6,
+                    },
                 })
                 .unwrap();
         }
@@ -305,24 +308,22 @@ fn accounts_documents_preserve_lending_facts() {
     doc.lent_end =
         Some(a::LentEnd { number: 9, end: a::LoginEnd::Refused { refusal: a::Refusal::ProgramNameReserved } });
     let wire = accounts::document(&doc, &fixtures::wire()).expect("lending document");
-    assert!(wire.lendable());
-    let login = wire.lending().as_ref().expect("lending login");
-    assert_eq!(login.number(), 1);
-    assert_eq!(login.provider(), 2);
-    assert_eq!(login.name(), b"work");
-    assert!(login.cancelled());
-    let ended = wire.lent_end().as_ref().expect("last end");
-    assert_eq!(ended.number(), 9);
-    let w::LoginEnd::Refused(why) = ended.end() else { unreachable!("refused end") };
-    assert_eq!(why.refusal(), &w::AccountRefusal::ProgramNameReserved);
+    assert!(wire.lendable);
+    let login = wire.lending.as_ref().expect("lending login");
+    assert_eq!(login.number, 1);
+    assert_eq!(login.provider, 2);
+    assert_eq!(login.name.as_ref(), b"work");
+    assert!(login.cancelled);
+    let ended = wire.lent_end.as_ref().expect("last end");
+    assert_eq!(ended.number, 9);
+    let w::LoginEnd::Refused(why) = &ended.end else { unreachable!("refused end") };
+    assert_eq!((&why.refusal), &w::AccountRefusal::ProgramNameReserved);
     let terminal = accounts::terminal(doc.lending.as_ref(), &fixtures::wire()).expect("terminal document");
-    assert_eq!(terminal.login(), wire.lending());
+    assert_eq!((&terminal.login), (&wire.lending));
 }
 #[test]
 fn terminal_watches_are_served() {
-    let subject = w::Subject::Terminal(
-        w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap(),
-    );
+    let subject = w::Subject::Terminal(w::SubjectTerminal { terminal: 23 });
     let Some(jig_domain_core_vocabulary::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) =
         watches::watch(skein_lib::Token::new(17), 23, subject, 2)
     else {

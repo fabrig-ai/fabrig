@@ -348,8 +348,10 @@ fn a_trial_row_draws_its_wait_and_keeps_it_after_timeout() {
     let (mut root, watch, _) = fed(d::WayKind::Program);
     let mut parts = row(v::TrialStep::Answers, v::TrialState::Running);
     let wait = jig_client_protocol_wire::TaskRunWait::Credential;
-    let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
-    wait.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     parts.run_wait = Some(writer.finish());
     let out = rows(&mut root, watch, &[parts]);
     for request in &out {

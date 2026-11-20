@@ -1,6 +1,6 @@
 //! Asked links use the existing fake disk and HTTP engine, never a live listener.
 use super::fixtures::{FILE_PARENT, Frame, TOKEN_BYTES};
-use jig_client_protocol_wire::LinkAskAnswer;
+use jig_client_protocol_wire::{LinkAskAnswer, Record as _};
 use skein_io::kernel::{Error, Exit, Kind, OpenHow};
 use skein_lib::Duration;
 const URL: &[u8] = b"http://127.0.0.1:4000/sign-in?secret=__________________________________________8\n";
@@ -62,7 +62,7 @@ fn an_asked_link_signs_in_another_directory() {
         &mut skein_lib::Reader::new(&signed.link_posts[0]),
     )
     .expect("sign-in record");
-    assert_eq!(record.secret().expose(), &[255; 32]);
+    assert_eq!(record.secret.expose(), &[255; 32]);
 }
 #[test]
 fn link_refuses_an_existing_output_before_sending() {

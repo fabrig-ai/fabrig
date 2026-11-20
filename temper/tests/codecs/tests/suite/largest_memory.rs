@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_client_protocol_wire::CLIENT_SCHEMA,
-        temper_client_protocol_wire::v1, lean,
+        temper_client_protocol_wire::v1,
         limits [
             adopt_owner,
             adopt_name,
@@ -390,7 +390,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_client_protocol_wire::PUBLIC_SCHEMA,
-        temper_client_protocol_wire::public_v1, lean,
+        temper_client_protocol_wire::public_v1,
         limits [
             public_change_gates,
             public_landing_line_members,
@@ -411,7 +411,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_records::SCHEMA,
-        temper_protocol_records::v1, lean,
+        temper_protocol_records::v1,
         limits [
             admin_token_value,
             api_token_value,
@@ -432,7 +432,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_store::OWNER_SET.families.first().expect("store family").current,
-        temper_protocol_store::v25, lean,
+        temper_protocol_store::v25,
         limits [
             segment_name,
             answer_name_name,
@@ -545,9 +545,11 @@ fn largest_roots_stay_within_decoded_bounds() {
             waiting_words,
             answered_line,
             answered_answer,
+            amended_reason,
             questions_open,
             questions_waiting,
             questions_answered,
+            questions_amended,
             change_failure_line,
             change_follows_commits,
             plan_item_text,
@@ -813,7 +815,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_worker_wire::SCHEMA,
-        temper_protocol_worker_wire::v1, lean,
+        temper_protocol_worker_wire::v1,
         limits [
             merge_branch,
             merged_branch,

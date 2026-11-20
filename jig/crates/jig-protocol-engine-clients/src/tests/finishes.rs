@@ -2,6 +2,7 @@
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{Secret, Token, Writer};
@@ -16,31 +17,22 @@ fn roomy() -> Exchange {
     Exchange::with_env(env)
 }
 fn finish(exchange: &mut Exchange, bytes: &[u8]) -> Token {
-    let limits = f::wire();
-    let change = w::AccountChange::FinishSignIn(
-        w::AccountChangeFinishSignIn::new(
-            &limits,
-            w::AccountChangeFinishSignInParts { source: SOURCE, digest: skein_lib::sha256::digest(bytes) },
-        )
-        .unwrap(),
+    let change = w::AccountChange::FinishSignIn(w::AccountChangeFinishSignIn {
+        source: SOURCE,
+        digest: skein_lib::sha256::digest(bytes),
+    });
+    let ask = w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change });
+    let keyed = w::Keyed {
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: f::encode_ask(&ask),
+        value: Some(Secret::new(Box::from(bytes))),
+    };
+    let mut writer = Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let ask = w::Ask::AccountChange(
-        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-            .unwrap(),
-    );
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
-            key: [5; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: f::encode_ask(&ask),
-            value: Some(Secret::new(Box::from(bytes))),
-        },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(keyed.measure()).unwrap());
-    keyed.encode(&mut writer).unwrap();
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let owner = exchange.send(Message::Request(writer.finish()));
     exchange.authenticate();
     owner
@@ -60,7 +52,7 @@ fn a_finish_past_its_address_bound_holds_nothing() {
     let bytes = skein_lib::bytes::zeroed(REDIRECT_BYTES + 1);
     let owner = finish(&mut exchange, &bytes);
     let w::Final::Refused(row) = exchange.final_answer(owner) else { panic!("limit") };
-    let w::Refusal::Limit(_) = row.refusal() else { panic!("limit refusal") };
+    let w::Refusal::Limit(_) = &row.refusal else { panic!("limit refusal") };
     assert!(exchange.out.is_empty());
 }
 #[test]
@@ -100,7 +92,7 @@ fn an_unused_finish_erases_its_held_address_once() {
     assert!(exchange.out.is_empty());
     exchange.reply(reply_to, p::Reply::Refused(p::Refusal::SignInRedirect { why: p::SignInRedirectWhy::NotWaiting }));
     let w::Final::Refused(row) = exchange.final_answer(owner) else { panic!("refused") };
-    let w::Refusal::SignInRedirect(row) = row.refusal() else { panic!("redirect refusal") };
-    assert_eq!(row.why(), &w::SignInRedirectWhy::NotWaiting);
+    let w::Refusal::SignInRedirect(row) = &row.refusal else { panic!("redirect refusal") };
+    assert_eq!((&row.why), &w::SignInRedirectWhy::NotWaiting);
     assert!(exchange.out.is_empty());
 }

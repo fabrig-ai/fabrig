@@ -92,12 +92,14 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                 Link::Up {
                     up:
                         host::LinkUp::Piece { .. }
+                        | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
                         | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Ask { .. }
@@ -644,6 +646,8 @@ mod tests {
             effect: change::EffectResult::None,
             delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
             delegate_status: change::Status::Unknown,
+            spec_revision: 0,
+            gate_revision: 0,
             delegate_flake: false,
             delegate_no_test: false,
             delegate_head: None,

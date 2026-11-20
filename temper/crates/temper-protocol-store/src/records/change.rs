@@ -445,12 +445,12 @@ pub(super) fn decode_gate(value: w::Gate) -> d::Gate {
     d::Gate { number, kind: decode_gate_kind(kind), blocking, freshness: decode_freshness(freshness), eager }
 }
 pub(super) fn encode_gate_report(value: &d::GateReport) -> w::GateReport {
-    let d::GateReport { number, head, status } = value;
-    w::GateReport { number: *number, head: *head, status: encode_status(*status) }
+    let d::GateReport { number, head, status, revision } = value;
+    w::GateReport { number: *number, head: *head, status: encode_status(*status), revision: *revision }
 }
 pub(super) fn decode_gate_report(value: w::GateReport) -> d::GateReport {
-    let w::GateReport { number, head, status } = value;
-    d::GateReport { number, head, status: decode_status(status) }
+    let w::GateReport { number, head, status, revision } = value;
+    d::GateReport { number, head, status: decode_status(status), revision }
 }
 pub(super) fn encode_gate_remark(value: &top::GateRemark) -> w::GateRemark {
     let top::GateRemark { number, head, words } = value;
@@ -792,6 +792,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         effect,
         delegate,
         delegate_status,
+        spec_revision,
+        gate_revision,
         delegate_flake,
         delegate_no_test,
         verdicts,
@@ -838,6 +840,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
             None => None,
         },
         delegate_status: encode_status(*delegate_status),
+        spec_revision: *spec_revision,
+        gate_revision: *gate_revision,
         delegate_flake: *delegate_flake,
         delegate_no_test: *delegate_no_test,
         delegate_head: *delegate_head,
@@ -869,6 +873,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         },
     }
 }
+#[expect(clippy::too_many_lines, reason = "each persisted and projected hot field is decoded explicitly")]
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHot {
         regate,
@@ -890,6 +895,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         effect,
         delegate,
         delegate_status,
+        spec_revision,
+        gate_revision,
         delegate_flake,
         delegate_no_test,
         verdicts,
@@ -943,6 +950,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         delegate_status: decode_status(delegate_status),
+        spec_revision,
+        gate_revision,
         delegate_flake,
         delegate_no_test,
         delegate_head,
@@ -1152,6 +1161,7 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
     for answer in &value.answered {
         answered
             .push(w::Answered {
+                revision: answer.revision,
                 asker: answer.asker,
                 number: answer.number,
                 line: answer.line.clone(),
@@ -1159,7 +1169,14 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
             })
             .expect("same count");
     }
+    let mut amended = List::with_capacity(u32::try_from(value.amended.len()).expect("admitted count"));
+    for amendment in &value.amended {
+        amended
+            .push(w::Amended { revision: amendment.revision, reason: amendment.reason.clone() })
+            .expect("same count");
+    }
     w::Questions {
+        amended,
         route: match value.route {
             d::Route::None => w::Route::None,
             d::Route::Up => w::Route::Up,
@@ -1172,11 +1189,15 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
 }
 
 fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::Questions { route, taken, open, waiting, answered } = value;
+    let w::Questions { route, taken, open, waiting, answered, amended } = value;
     let mut answers = List::with_capacity(answered.len());
     for answer in answered.into_boxed() {
-        let w::Answered { asker, number, line, answer } = answer;
-        answers.push(d::Answered { asker, number, line, answer }).expect("same count");
+        let w::Answered { asker, number, line, answer, revision } = answer;
+        answers.push(d::Answered { asker, number, line, answer, revision }).expect("same count");
+    }
+    let mut amendments = List::with_capacity(amended.len());
+    for w::Amended { revision, reason } in amended.into_boxed() {
+        amendments.push(d::Amended { revision, reason }).expect("same count");
     }
     let mut words_waiting = List::with_capacity(waiting.len());
     for word in waiting.into_boxed() {
@@ -1204,6 +1225,7 @@ fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecoda
         open: questions.into_boxed(),
         waiting: words_waiting.into_boxed(),
         answered: answers.into_boxed(),
+        amended: amendments.into_boxed(),
     })
 }
 

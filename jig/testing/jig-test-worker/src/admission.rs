@@ -19,7 +19,8 @@ pub enum Class {
 pub fn class(event: &Event) -> Class {
     match event {
         Event::Link(link) => match link {
-            LinkDown::ReadList { .. }
+            LinkDown::ReadUsage { .. }
+            | LinkDown::ReadList { .. }
             | LinkDown::Sources { .. }
             | LinkDown::Check { .. }
             | LinkDown::SignOut { .. }
@@ -45,6 +46,8 @@ pub fn class(event: &Event) -> Class {
                 | Up::LongDone
                 | Up::Fact { .. }
                 | Up::Unauthorized { .. }
+                // A later change of this goal relays usage; it is admitted work.
+                | Up::Usage { .. }
                 | Up::Limited { .. }
                 | Up::Refused { .. }
                 | Up::Withdraw { .. } => Class::Admitted,
@@ -136,7 +139,8 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             agent == Some(process_owner(held))
         }
         Event::Link(
-            LinkDown::ReadList { .. }
+            LinkDown::ReadUsage { .. }
+            | LinkDown::ReadList { .. }
             | LinkDown::Sources { .. }
             | LinkDown::Check { .. }
             | LinkDown::SignOut { .. }
@@ -171,7 +175,8 @@ fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
         | LinkDown::TurnKept { run, attempt, .. }
         | LinkDown::Acknowledge { run, attempt }
         | LinkDown::Grant { run, attempt, .. } => Some((*run, *attempt)),
-        LinkDown::ReadList { .. }
+        LinkDown::ReadUsage { .. }
+        | LinkDown::ReadList { .. }
         | LinkDown::Sources { .. }
         | LinkDown::Check { .. }
         | LinkDown::SignOut { .. }

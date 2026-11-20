@@ -58,6 +58,7 @@ pub(crate) fn opened(
     }
     out.push(Request::Hello {
         hello: Hello {
+            reads_usage: true,
             slots,
             stop_bound,
             workstreams,

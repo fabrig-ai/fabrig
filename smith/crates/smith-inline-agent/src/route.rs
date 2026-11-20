@@ -125,6 +125,31 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 account: grant.account,
                 generation: grant.generation,
             })),
+            smith::Request::Usage { account, window } => {
+                let state = match window.state {
+                    smith::UsageState::Open => host::UsageState::Open,
+                    smith::UsageState::Warned => host::UsageState::Warned,
+                    smith::UsageState::Limited => host::UsageState::Limited,
+                };
+                let resets = match window.resets {
+                    Some(seconds) => match seconds.checked_mul(1_000_000_000) {
+                        Some(nanos) => Some(skein_lib::Wall::from_nanos(nanos)),
+                        None => None,
+                    },
+                    None => None,
+                };
+                out.push(Output::Parent(parent::Request::Usage {
+                    client,
+                    account,
+                    window: host::UsageWindow {
+                        label: window.label,
+                        length: window.length,
+                        used: window.used,
+                        resets,
+                        state,
+                    },
+                }));
+            }
             smith::Request::Limited { account, reset } => {
                 out.push(Output::Parent(parent::Request::Limited { client, account, reset }));
             }

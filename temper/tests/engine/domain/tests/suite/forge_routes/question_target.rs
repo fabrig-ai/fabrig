@@ -21,7 +21,7 @@ fn a_producer_asking_its_own_task_is_told_where_its_change_is() {
         .find(|section| section.title.as_ref() == b"Task")
         .expect("task brief");
     let brief = std::str::from_utf8(&brief.text).expect("task brief text");
-    assert!(brief.contains(&format!("[This task: {},", producer.task)));
+    assert!(brief.contains(&format!("[This task: {},", producer.task)), "{brief}");
     assert!(brief.contains(&format!("[Requested by task {change}]")));
 
     call(

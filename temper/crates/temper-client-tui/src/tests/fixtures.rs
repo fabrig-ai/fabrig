@@ -145,8 +145,11 @@ pub fn asking() -> (Domain, Token) {
     (root, exchange.expect("link exchange"))
 }
 pub fn answer(root: &mut Domain, exchange: Token, answer: jig_client_protocol_wire::SignInAnswer) {
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer fits"));
-    answer.encode(&mut writer).expect("answer room");
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer fits"),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     client(root, jig_client::Event::Reply { exchange, message: writer.finish() });
 }
 pub fn refused(answer: jig_client_protocol_wire::SignInAnswer) -> Domain {
@@ -156,14 +159,8 @@ pub fn refused(answer: jig_client_protocol_wire::SignInAnswer) -> Domain {
     root
 }
 pub fn full() -> jig_client_protocol_wire::SignInAnswer {
-    use jig_client_protocol_wire::{SignInAnswer, SignInsFull, SignInsFullParts};
-    SignInAnswer::Full(
-        SignInsFull::new(
-            &jig_client_protocol_wire::CEILINGS,
-            SignInsFullParts { sign_ins: u32::MAX, earliest: 0, link_until: 0 },
-        )
-        .expect("full fields"),
-    )
+    use jig_client_protocol_wire::{SignInAnswer, SignInsFull};
+    SignInAnswer::Full(SignInsFull { sign_ins: u32::MAX, earliest: 0, link_until: 0 })
 }
 pub fn me(names: &[&[u8]]) -> c::Me {
     use c::{DocumentText, HeldRole, Me, MeParty, MeProject, Needs, PartyKind};

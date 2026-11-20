@@ -1,5 +1,7 @@
 //! A cut setup starts over; a cut removal ends whole at startup.
 //! temper/docs/design/domain/forge/adoption.md, 1; temper/docs/design/protocol/setup/owned.md, 7, and temper/docs/design/protocol/setup/testing.md, 4.
+// The cuts find steps by their /proc command lines; the box's tree is empty on macOS.
+#![cfg(target_os = "linux")]
 use super::support::{
     self,
     boxed::{self, BOX_DEADLINE, CtlOutcome},
@@ -29,7 +31,7 @@ fn child(binary: &Binary, arguments: &[&[u8]]) -> Option<u32> {
 
 fn signal(pid: u32, name: &str) {
     assert!(
-        std::process::Command::new("/usr/bin/kill")
+        std::process::Command::new("/bin/kill")
             .args([name, &pid.to_string()])
             .status()
             .expect("fixture signal")

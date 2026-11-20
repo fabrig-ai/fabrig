@@ -142,6 +142,9 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::Answer
                         | jig_protocol_worker_wire::Kind::Fact
                         | jig_protocol_worker_wire::Kind::Unauthorized
+                        | jig_protocol_worker_wire::Kind::Usage
+                        | jig_protocol_worker_wire::Kind::UsageRead
+                        | jig_protocol_worker_wire::Kind::ReadUsage
                         | jig_protocol_worker_wire::Kind::Limited
                         | jig_protocol_worker_wire::Kind::AccountRefused
                         | jig_protocol_worker_wire::Kind::Message

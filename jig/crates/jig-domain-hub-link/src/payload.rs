@@ -116,6 +116,10 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
         host::LinkUp::Unauthorized { run, attempt, account, generation } => {
             fleet::Event::Unauthorized { channel, run, attempt, account, generation }
         }
+        host::LinkUp::Usage { run, attempt, account, window } => {
+            fleet::Event::Usage { channel, run, attempt, account, window }
+        }
+        host::LinkUp::UsageRead { read, outcome } => fleet::Event::UsageRead { channel, read, outcome },
         host::LinkUp::Limited { run, attempt, account, reset } => {
             fleet::Event::Limited { channel, run, attempt, account, reset }
         }

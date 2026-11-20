@@ -24,6 +24,7 @@ fn room_for_one_passes_then_tells_in_order_without_touching_questions() {
             }]),
             waiting: Box::new([]),
             answered: Box::new([]),
+            amended: Box::new([]),
         };
         let before = questions.clone();
         let line = match &before.open[0].stands {

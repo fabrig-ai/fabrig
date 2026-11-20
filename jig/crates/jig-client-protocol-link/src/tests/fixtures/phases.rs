@@ -8,36 +8,19 @@ pub fn phases() -> [(w::Chip, c::Chip); 1] {
 }
 
 pub fn phase_owner() -> (w::Chip, c::Chip) {
-    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
-        w::Fact::ChipPhase(
-            w::ChipPhaseRow::new(
-                &lim,
-                w::ChipPhaseRowParts {
-                    parent: Some(0),
-                    value: w::ChipPhaseOwnerFields::new(
-                        &lim,
-                        w::ChipPhaseOwnerFieldsParts {
-                            phase: w::ChipPhase::Waiting(
-                                w::ChipPhaseWaiting::new(
-                                    &lim,
-                                    w::ChipPhaseWaitingParts {
-                                        dependencies: List::with_capacity(0),
-                                        more: false,
-                                        holds: false,
-                                    },
-                                )
-                                .unwrap(),
-                            ),
-                            details: 2,
-                        },
-                    )
-                    .unwrap(),
-                },
-            )
-            .unwrap(),
-        ),
+        w::Fact::ChipPhase(w::ChipPhaseRow {
+            parent: Some(0),
+            value: w::ChipPhaseOwnerFields {
+                phase: w::ChipPhase::Waiting(w::ChipPhaseWaiting {
+                    dependencies: List::with_capacity(0),
+                    more: false,
+                    holds: false,
+                }),
+                details: 2,
+            },
+        }),
         w::Fact::ChipDetails(Box::new(wire_owner_chip_details_row())),
     ];
     let record = chip_from_rows(&rows);

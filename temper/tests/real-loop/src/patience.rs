@@ -444,14 +444,17 @@ mod tests {
 
     #[test]
     fn the_guard_derives_its_wake_deadline_from_the_supplied_patience() {
-        for seconds in [3, 20, 40] {
-            let mut guard = Patience::new(Duration::from_secs(seconds));
+        #[cfg(target_os = "linux")]
+        assert_eq!(crate::PATIENCE, Duration::from_secs(20));
+        for supplied in [Duration::from_secs(3), crate::PATIENCE, Duration::from_secs(40)] {
+            let mut guard = Patience::new(supplied);
+            assert_eq!(guard.after.saturating_add(Duration::from_secs(1)), supplied);
             assert_eq!(guard.deadline(), None);
             let clock = skein_shell::Clock::new();
             let before = clock.now().now;
             assert!(!guard.due());
             let after = clock.now().now;
-            let patience = Duration::from_secs(seconds - 1);
+            let patience = Duration::from_nanos(supplied.as_nanos().checked_sub(1_000_000_000).expect("margin"));
             let deadline = guard.deadline().expect("armed deadline");
             assert!(deadline >= before.saturating_add(patience));
             assert!(deadline <= after.saturating_add(patience));

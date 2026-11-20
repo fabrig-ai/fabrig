@@ -49,7 +49,9 @@ mod tests;
 mod translate;
 #[cfg(test)]
 mod translation_tests;
+mod usage;
 mod waking;
+pub use usage::{UsageState, UsageWindow};
 
 pub use boundary::{Answered, AnsweredCall, Below, Event, Grant, GrantName, Lower, Operation, Request, Start, Window};
 pub use config::{Config, EndpointLimits, Program};

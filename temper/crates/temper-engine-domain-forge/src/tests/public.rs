@@ -268,6 +268,8 @@ fn change_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        spec_revision: 0,
+        gate_revision: 0,
         delegate_flake: false,
         delegate_no_test: false,
         delegate_head: None,
@@ -389,7 +391,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             freshness: c::Freshness::Clean,
             eager: false,
         }]);
-        row.verdicts = Box::new([c::GateReport { number: 9, head: HEAD, status: c::Status::Failed }]);
+        row.verdicts = Box::new([c::GateReport { revision: 0, number: 9, head: HEAD, status: c::Status::Failed }]);
         row.change.repairs = 2;
         if task == QUEUED {
             row.change.state = c::State::Queued { head: HEAD, ready_since: Wall::from_nanos(90_000_000_000) };
@@ -1169,7 +1171,7 @@ fn a_public_landing_keeps_squash_and_prefix_evidence_without_forge_names() {
     row.round.judging = true;
     for task in [CHANGE, SECOND] {
         let row = d.changes.get_mut(&task).unwrap();
-        row.verdicts = Box::new([c::GateReport { number: 9, head: CANDIDATE, status: c::Status::Passed }]);
+        row.verdicts = Box::new([c::GateReport { revision: 0, number: 9, head: CANDIDATE, status: c::Status::Passed }]);
     }
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();

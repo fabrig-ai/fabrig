@@ -145,19 +145,33 @@ fn the_drive_tool_and_every_file_but_fake_claude_must_print_the_kept_commit() {
 
 #[test]
 fn a_manifest_uses_one_sha256sum_faces_answer_for_every_sorted_byte_path() {
+    manifest_keeps_path(Path::new("bundle/weird\\\n\r"), b"bundle/weird\\\\\\n\\r");
+}
+
+// APFS, macOS's file system, holds no file name that is not UTF-8 (temper/docs/design/testing/macos.md, 3).
+#[cfg(target_os = "linux")]
+#[test]
+fn a_manifest_keeps_a_non_utf8_path_as_its_bytes() {
     use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+    manifest_keeps_path(
+        &PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec())),
+        b"bundle/weird\\\\\\n\\r\xff",
+    );
+}
+
+fn manifest_keeps_path(name: &Path, escaped: &[u8]) {
     let (_scratch, home, stage) = stage();
-    let name = PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec()));
-    fs::write(stage.join(&name), b"asset").expect("byte path");
+    fs::write(stage.join(name), b"asset").expect("byte path");
     let mut paths: Vec<_> = REQUIRED.iter().map(PathBuf::from).collect();
-    paths.push(name);
+    paths.push(name.into());
     paths.sort();
     let mut answer = Vec::new();
     for path in &paths {
         // The face's hashes deliberately differ from the files' bytes.
-        let line = if path.to_str().is_none() {
-            let mut line = format!("\\{}  bundle/weird\\\\\\n\\r", "a".repeat(64)).into_bytes();
-            line.extend_from_slice(b"\xff\n");
+        let line = if path == name {
+            let mut line = format!("\\{}  ", "a".repeat(64)).into_bytes();
+            line.extend_from_slice(escaped);
+            line.push(b'\n');
             line
         } else {
             format!("{}  {}\n", "b".repeat(64), path.display()).into_bytes()

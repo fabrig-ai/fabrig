@@ -7,6 +7,7 @@
 )]
 use super::{fixtures, stock};
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -315,16 +316,16 @@ impl StockBox {
 
     fn assert_offer(&mut self, expected: &[(&[u8], &[u8])]) {
         let record = self.me();
-        let mut projects = Reader::new(record.projects());
+        let mut projects = Reader::new(record.projects.as_ref());
         let mut count = 0_u32;
         while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
             count = count.checked_add(1).unwrap();
             let project = wire::MeProject::decode(&self.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
-            assert_eq!(project.models().len(), u32::try_from(expected.len()).unwrap());
+            assert_eq!(project.models.len(), u32::try_from(expected.len()).unwrap());
             for (index, (name, effort)) in expected.iter().enumerate() {
-                let model = project.models().get(u32::try_from(index).unwrap()).unwrap();
-                assert_eq!(model.name(), *name, "offer order and provider filtering");
-                assert_eq!(model.effort().as_deref(), Some(*effort));
+                let model = project.models.get(u32::try_from(index).unwrap()).unwrap();
+                assert_eq!(model.name.as_ref(), *name, "offer order and provider filtering");
+                assert_eq!(model.effort.as_deref(), Some(*effort));
                 let account = self
                     .driver
                     .store
@@ -343,7 +344,7 @@ impl StockBox {
                         }
                     })
                     .expect("offered model's account");
-                assert_eq!(model.accounts().as_slice(), [account]);
+                assert_eq!(model.accounts.as_slice(), [account]);
             }
         }
         assert_eq!(count, 2, "both of the party's projects are present");
@@ -351,21 +352,21 @@ impl StockBox {
 
     fn assert_previews(&mut self, chat: Option<&[u8]>, asking: Option<&[u8]>) {
         let record = self.me();
-        let mut projects = Reader::new(record.projects());
+        let mut projects = Reader::new(record.projects.as_ref());
         while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
             let project = wire::MeProject::decode(&self.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
-            assert_eq!(project.defaults().len(), if chat.is_some() { 4 } else { 0 });
+            assert_eq!(project.defaults.len(), if chat.is_some() { 4 } else { 0 });
             for (template, expected) in [(1, chat), (4, chat), (5, asking), (6, chat)] {
-                let preview = (0..project.defaults().len()).find_map(|at| {
-                    let preview = project.defaults().get(at).unwrap();
-                    (preview.template() == template).then_some(preview)
+                let preview = (0..project.defaults.len()).find_map(|at| {
+                    let preview = project.defaults.get(at).unwrap();
+                    (preview.template == template).then_some(preview)
                 });
                 match expected {
                     Some(name) => {
                         let preview = preview.expect("usable template preview");
-                        assert_eq!(preview.choice().main().model(), name);
-                        assert_eq!(preview.choice().main().effort().as_deref(), Some(b"high".as_slice()));
-                        assert_eq!(*preview.choice().account(), None, "a preview reserves no account");
+                        assert_eq!(preview.choice.main.model.as_ref(), name);
+                        assert_eq!(preview.choice.main.effort.as_deref(), Some(b"high".as_slice()));
+                        assert_eq!(preview.choice.account, None, "a preview reserves no account");
                     }
                     None => assert_eq!(preview, None),
                 }
@@ -827,22 +828,28 @@ fn init_limits_hold_seven_models_and_five_previews_per_project_on_the_wire() {
         jig_protocol_engine_clients::translate::owner::frame(&frame, &world.client_models, &world.client_limits.wire)
             .expect("init's largest me translates to the client wire");
     assert!(
-        record.measure() <= world.client_limits.message_bytes,
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")
+            <= world.client_limits.message_bytes,
         "me fits the client message bound: {} <= {}",
-        record.measure(),
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
         world.client_limits.message_bytes
     );
-    assert!(u64::from(record.measure()) <= wire::Me::encoded_bound(&world.client_limits.wire).unwrap());
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    assert!(
+        u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            <= wire::Me::encoded_bound(&world.client_limits.wire).unwrap()
+    );
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let decoded = wire::Me::decode(&world.client_limits.wire, &mut Reader::new(&writer.finish())).unwrap();
     assert_eq!(decoded, record);
-    let mut projects = Reader::new(decoded.projects());
+    let mut projects = Reader::new(decoded.projects.as_ref());
     let mut seen = 0_u32;
     while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
         let project = wire::MeProject::decode(&world.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
-        assert_eq!(project.models().len(), 7);
-        assert_eq!(project.defaults().len(), 5);
+        assert_eq!(project.models.len(), 7);
+        assert_eq!(project.defaults.len(), 5);
         seen = seen.checked_add(1).unwrap();
     }
     assert_eq!(seen, count);

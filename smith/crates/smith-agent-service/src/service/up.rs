@@ -292,6 +292,9 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
                 }
                 lower_event(service, frame.is_some(), domain::Below::Completed { owner, completion });
             }
+            llm::ToDomain::Usage { owner, window } => {
+                lower_event(service, frame.is_some(), domain::Below::Usage { owner, window });
+            }
             llm::ToDomain::Failed { owner, failure, evidence, detail, report } => {
                 program_failure(frame.as_deref_mut(), owner, failure, &detail);
                 if let Some(events) = &mut service.events {
@@ -477,7 +480,8 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }
         | domain::Event::Below(
-            smith_domain::Below::Completed { .. }
+            smith_domain::Below::Usage { .. }
+            | smith_domain::Below::Completed { .. }
             | smith_domain::Below::Failed { .. }
             | smith_domain::Below::Cancelled { .. }
             | smith_domain::Below::Done { .. }

@@ -1129,9 +1129,8 @@ pub fn answer(
         }
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::CoreRefused(value))) => {
             let value = refusals::refusal(value, jig).ok()?;
-            let mut bytes = Writer::new(usize::try_from(value.measure()).ok()?);
-            value.encode(&mut bytes).ok()?;
-            w::Outcome::CoreRefused(w::CoreRefused { refusal: bytes.finish() })
+            let refusal = value.encode(jig).ok()?;
+            w::Outcome::CoreRefused(w::CoreRefused { refusal })
         }
         Some(
             temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::ForgeRefused(reason))
@@ -2279,9 +2278,7 @@ fn trial_wait(value: jig_domain_core::documents::TaskRunWait) -> Option<Box<[u8]
     let value =
         jig_protocol_engine_clients::translate::task_wait::waiting(Some(value), &jig_client_protocol_wire::CEILINGS)
             .ok()??;
-    let mut writer = Writer::new(usize::try_from(value.measure()).ok()?);
-    value.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    value.encode(&jig_client_protocol_wire::CEILINGS).ok()
 }
 
 /// The watcher's approvals document, each row's kind and files-page address from configuration,

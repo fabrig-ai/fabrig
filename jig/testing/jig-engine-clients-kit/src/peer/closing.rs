@@ -1,5 +1,6 @@
 //! Application mints, secrets erase fence, and component's terminal.
 use super::{Event, Exchange, ExchangeState, Peer, SecretOwner, SecretsAnswer, Token, fixtures};
+use jig_client_protocol_wire::Record as _;
 impl Peer {
     pub(super) fn close_socket(&mut self, entity: Token, state: ExchangeState) {
         *self.close_counts.entry(entity).or_default() += 1;
@@ -107,11 +108,11 @@ impl Peer {
         };
         let secret = link.split(|byte| *byte == b'=').next_back().expect("link secret");
         let secret = base64::decode(Alphabet::Url, secret, 32).expect("secret");
-        let record =
-            w::LinkSignIn::new(&self.env.limits.wire, w::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-                .expect("link");
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut bytes).expect("link bytes");
+        let record = w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("link bytes");
         self.accepted_post(b"/jig/v1/sign-in/link", bytes.finish())
     }
     pub fn accepted_post(&mut self, target: &[u8], body: Box<[u8]>) -> Token {
@@ -136,7 +137,7 @@ impl Peer {
         let token = self.sign_in_answer(socket);
         let mut bearer = Writer::new(61);
         bearer.put(b"Bearer ").expect("prefix");
-        base64::encode(Alphabet::Url, token.token().as_ref().expect("native token").expose(), &mut bearer)
+        base64::encode(Alphabet::Url, token.token.as_ref().expect("native token").expose(), &mut bearer)
             .expect("bearer");
         self.bearer = Some(bearer.finish());
     }

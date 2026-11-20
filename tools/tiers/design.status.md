@@ -1,7 +1,8 @@
 # design: status
 
-2026-11-19. Where the slow tier runner's code lags or departs from [design.md](design.md).
+2026-11-20. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
+- **Present:** 11.9, the build and both profile listings share target selection for package and workspace runs.
 - **Not yet:** 10.1, 10.2, 11.9: `tools/tiers/one-process --alone` runs each flagged test once, and `summary`'s `references` rows have no `alone`, `main_alone` or `swinging` (`tools/tiers/references.md`, 5 and 6) [in flight: change 8831].
 - **Not yet:** 10.2, 11.5, 11.6, 11.10: a starved pass in a one-process run unwinds (`skein_world::pass_starved`), libtest reports it failed, and the lanes read it starved by its last line whatever libtest's result, so a failure whose output ends with the line reads starved; a process a starved pass ends with exit 0 reads as a crash, and only a crash starts a fresh process; the fixture's starved case unwinds with `resume_unwind` [in flight: change 2711].
 - **Not yet:** 10.2: `summary`'s result has no `swings`, and its `warnings` name no test that swings alone at main (`tools/tiers/references.md`, 6) [in flight: change 8489].

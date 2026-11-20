@@ -247,9 +247,9 @@ fn gates_are_judged_at_the_head_with_failed_and_pending_verdicts_taking_preceden
     ]);
     row.change.clean = Box::new([fixtures::BASE]);
     row.verdicts = Box::new([
-        change::GateReport { number: 1, head: fixtures::BASE, status: change::Status::Passed },
-        change::GateReport { number: 2, head: fixtures::BASE, status: change::Status::Passed },
-        change::GateReport { number: 3, head: fixtures::HEAD, status: change::Status::Failed },
+        change::GateReport { revision: 0, number: 1, head: fixtures::BASE, status: change::Status::Passed },
+        change::GateReport { revision: 0, number: 2, head: fixtures::BASE, status: change::Status::Passed },
+        change::GateReport { revision: 0, number: 3, head: fixtures::HEAD, status: change::Status::Failed },
     ]);
     let got = panel(&with_row(row));
     assert_eq!(
@@ -740,6 +740,7 @@ fn a_panel_shows_its_questions() {
     row.questions = change::Questions {
         waiting: Box::new([]),
         answered: Box::new([]),
+        amended: Box::new([]),
         route: change::Route::Up,
         taken: 2,
         open: Box::new([

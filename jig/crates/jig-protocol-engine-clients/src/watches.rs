@@ -5,6 +5,7 @@ use crate::{
     stream::{self, Stream, Taken, Watch},
     translate::watches as translate,
 };
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 impl Component {
     fn issued_name(&self, name: Token) -> bool {
@@ -75,18 +76,18 @@ impl Component {
                     self.response(exchange, crate::Reply::NotARecord);
                     return;
                 }
-                let Some(owner) = self.stream_owner(value.stream(), sign_in) else {
+                let Some(owner) = self.stream_owner(&value.stream, sign_in) else {
                     self.respond(exchange, routes::close_answer(false));
                     return;
                 };
                 let stream = self.streams.get_mut(&owner).expect("selected stream");
-                if value.watch() == 0 && stream.me.is_some() {
+                if value.watch == 0 && stream.me.is_some() {
                     self.respond(exchange, routes::close_answer(false));
                     return;
                 }
                 let mut found = None;
                 for (watcher, watch) in &stream.watches {
-                    if watch.name == value.watch() {
+                    if watch.name == value.watch {
                         found = Some(*watcher);
                         break;
                     }
@@ -116,7 +117,7 @@ impl Component {
             }
             Route::Gone => match w::Gone::decode(&env.limits.wire, &mut reader) {
                 Ok(value) if reader.is_empty() => {
-                    if let Some(owner) = self.stream_owner(value.stream(), sign_in) {
+                    if let Some(owner) = self.stream_owner(&value.stream, sign_in) {
                         self.streams.get_mut(&owner).expect("selected stream").phase = stream::Phase::Closing;
                     }
                     self.respond(exchange, Box::new([]));
@@ -173,19 +174,13 @@ impl Component {
         connection.stream = true;
         if served {
             let subject = w::Subject::Me;
-            let mut record = skein_lib::Writer::new(skein_lib::length::usize_of(subject.measure()));
-            subject.encode(&mut record).expect("measured subject");
-            let subject = w::Owned::new(
-                &env.limits.wire,
-                w::OwnedParts {
-                    owner: w::Owner::Jig,
-                    version: version.expect("served opening"),
-                    record: record.finish(),
-                },
-            )
-            .expect("me subject");
-            let open =
-                w::Open::new(&env.limits.wire, w::OpenParts { stream: name, watch: 0, subject }).expect("stream watch");
+            let mut record = skein_lib::Writer::new(skein_lib::length::usize_of(
+                subject.measure(&env.limits.wire).expect("decoded client record"),
+            ));
+            subject.write(&env.limits.wire, &mut record).expect("measured subject");
+            let subject =
+                w::Owned { owner: w::Owner::Jig, version: version.expect("served opening"), record: record.finish() };
+            let open = w::Open { stream: name, watch: 0, subject };
             self.open_watch(env, None, sign_in, open, out);
         }
     }
@@ -197,7 +192,6 @@ impl Component {
         open: w::Open,
         out: &mut Queue<Request>,
     ) {
-        let open = open.into_parts();
         let Some(owner) = self.stream_owner(&open.stream, sign_in) else {
             if let Some(exchange) = exchange {
                 self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
@@ -230,10 +224,10 @@ impl Component {
             }
             return;
         }
-        let subject = open.subject.into_parts();
+        let subject = open.subject;
         let family = match &subject.owner {
             w::Owner::Jig => None,
-            w::Owner::Family(value) => Some(value.number()),
+            w::Owner::Family(value) => Some(value.number),
         };
         if !self.serves(family, subject.version) {
             let answer =
@@ -385,10 +379,7 @@ impl Component {
         let value = if stream.me == Some(watcher) {
             match value {
                 Ok(w::StreamEvent::Delivery(delivery)) => match stream.hello.take() {
-                    Some(hello) => match w::Opened::new(
-                        &env.limits.wire,
-                        w::OpenedParts { hello, me: delivery.into_parts().document },
-                    ) {
+                    Some(hello) => match Ok(w::Opened { hello, me: delivery.document }) {
                         Ok(opened) => Ok(w::StreamEvent::Opened(opened)),
                         Err(problem) => Err(problem),
                     },
@@ -405,9 +396,13 @@ impl Component {
         } else {
             value
         };
-        let why = match value {
-            Ok(value) => {
-                if stream.queue(stream::packet(value, taken), env.limits.queued_bytes) {
+        let bytes = match value {
+            Ok(value) => value.encode(&env.limits.wire),
+            Err(problem) => Err(problem),
+        };
+        let why = match bytes {
+            Ok(event) => {
+                if stream.queue(stream::Packet { event, taken }, env.limits.queued_bytes) {
                     return;
                 }
                 crate::StreamFailure::QueueBound { queued_bytes: env.limits.queued_bytes }

@@ -6,6 +6,7 @@ use super::{
 use crate::fixtures;
 use jig_client::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
 

@@ -12,6 +12,8 @@ mod restore;
 use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[path = "cluster_turn/mod.rs"]
 mod cluster_turn;
 #[path = "fake_backends/mod.rs"]
@@ -21,7 +23,10 @@ mod startover;
 use temper_box_kit as support;
 #[path = "suite/tui_box.rs"]
 mod tui_box;
-use skein_io::kernel::{Exit, Signal};
+use skein_io::kernel::Exit;
+// Cluster signals and retained process identities need Linux (temper/docs/design/testing/macos.md, 3).
+#[cfg(target_os = "linux")]
+use skein_io::kernel::Signal;
 use skein_lib::Duration;
 use support::forge_land::{
     assert_cached_binary_unchanged, assert_forgejo_setup, assert_plan_box, cache_forgejo_binaries, deployment_flags,
@@ -504,6 +509,8 @@ fn box_terminal_line(line: &str) -> bool {
         || words.starts_with("box: ")
 }
 
+// Finding the box's steps reads their /proc executables; its tree is empty on macOS.
+#[cfg(target_os = "linux")]
 #[test]
 fn temper_box_restarts_a_killed_forgejo_while_the_engine_serves() {
     let scratch = support::Scratch::new("box_kill");
@@ -751,6 +758,8 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
 }
 
 // protocol/cluster.md, 6: the description's first process stories.
+// Cluster helpers need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 struct ClusterJudge {
     seeded: bool,
     client: std::path::PathBuf,
@@ -759,6 +768,7 @@ struct ClusterJudge {
     deadline: skein_lib::Time,
     workers: bool,
 }
+#[cfg(target_os = "linux")]
 impl ClusterJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
         if self.workers && !self.seeded && self.members.capture("engine", "link").is_some() {
@@ -784,6 +794,7 @@ impl ClusterJudge {
         Ok(())
     }
 }
+#[cfg(target_os = "linux")]
 impl skein_world::Referee<support::cluster::Root> for ClusterJudge {
     fn act(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) {
         if self.finding.is_none() {
@@ -849,6 +860,7 @@ impl skein_world::Referee<support::cluster::Root> for ClusterJudge {
         self.finding.is_none() && self.members.verdict().unwrap_or(false)
     }
 }
+#[cfg(target_os = "linux")]
 fn cluster_story(scratch: &std::path::Path, workers: bool) {
     let cluster = support::cluster::Cluster::read(scratch);
     let (mut members, hosts) = cluster.members();
@@ -869,6 +881,7 @@ fn cluster_story(scratch: &std::path::Path, workers: bool) {
     let outcome = world.run(&clock, support::WITHIN);
     assert!(outcome.procs.iter().all(skein_shell::Host::is_empty), "every cluster root settled");
 }
+#[cfg(target_os = "linux")]
 fn clean_cluster_exit(stopped: &support::cluster::Stopped) -> Result<(), String> {
     if stopped.exit != Some(Exit::Code(0)) {
         return Err(format!(
@@ -887,12 +900,16 @@ fn clean_cluster_exit(stopped: &support::cluster::Stopped) -> Result<(), String>
     }
     Ok(())
 }
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn an_engine_alone_prints_its_lines_and_drains_on_a_signal() {
     let scratch = support::Scratch::new("cluster_engine_alone");
     cluster_story(scratch.path(), false);
     scratch.remove();
 }
+// Cluster helpers need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
     let stderr = std::str::from_utf8(&engine.stderr).map_err(|why| format!("engine lines: {why:?}"))?;
     // configuration/figures.md, 2: beside its listeners the engine reports its composed figures.
@@ -1034,6 +1051,8 @@ fn a_mixed_document_exits_1_naming_its_path() {
     scratch.remove();
 }
 
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn the_cluster_stops_in_reverse_each_exiting_0() {
     let scratch = support::Scratch::new("cluster_reverse_stop");
@@ -1042,6 +1061,8 @@ fn the_cluster_stops_in_reverse_each_exiting_0() {
 }
 
 // The engine supplies the owned example's limits to its worker.
+// Cluster helpers need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), String> {
     let directory = members.prepare("w1");
     let configuration = directory.join("config");
@@ -1096,12 +1117,14 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
 enum OwnedWorkerPhase {
     Engine,
     Worker,
     Linked,
     Stopping,
 }
+#[cfg(target_os = "linux")]
 struct OwnedWorkerJudge {
     client: std::path::PathBuf,
     finding: Option<String>,
@@ -1109,6 +1132,7 @@ struct OwnedWorkerJudge {
     deadline: skein_lib::Time,
     phase: OwnedWorkerPhase,
 }
+#[cfg(target_os = "linux")]
 impl OwnedWorkerJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
         if self.members.is_up()
@@ -1157,6 +1181,7 @@ impl OwnedWorkerJudge {
         Ok(())
     }
 }
+#[cfg(target_os = "linux")]
 impl skein_world::Referee<support::cluster::Root> for OwnedWorkerJudge {
     fn act(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) {
         if self.finding.is_none() {
@@ -1198,6 +1223,8 @@ impl skein_world::Referee<support::cluster::Root> for OwnedWorkerJudge {
         self.finding.is_none() && self.members.verdict().unwrap_or(false)
     }
 }
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() {
     let scratch = support::Scratch::new("owned_worker_alone_ring");
@@ -1222,18 +1249,24 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
 
 // Both the idle threshold and ordinary time allowance hold an open chat's slot.
 // Past the story's deadline, a run that parks has already failed it.
+// Cluster helpers need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 const CHAT_HOLDS_ITS_SLOT: Duration = support::WITHIN.saturating_mul(2);
 
 // A lost link heals: a stall past the fixture's 1 s silence loses it.
 // The stock worker contact grace outlasts its redials, and a re-hello clears it.
 // The engine keeps that channel's attempts adrift for its derived fleet grace;
 // re-hello lists them back, so nothing is placed twice (protocol/cluster.md, 3).
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_task_runs_on_each_worker() {
     cluster_chats("cluster_each_worker", ClusterStory::Each).unwrap_or_else(|why| panic!("{why}"));
 }
 
 /// A task on each worker, on the deployment's binaries (protocol/cluster.md, 6).
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_task_runs_on_each_worker_of_the_deployments_binaries() {
     cluster_chats_with(
@@ -1249,6 +1282,8 @@ fn a_task_runs_on_each_worker_of_the_deployments_binaries() {
 // again. Only after close/end is that reply committed, exactly once; the
 // old attempt ends lost and the replacement parks. This covers loss
 // and retry; the hung-worker story will test fencing a surviving old run.
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
     cluster_chats("cluster_killed", ClusterStory::Kill).unwrap_or_else(|why| panic!("{why}"));
@@ -1261,6 +1296,8 @@ fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
 // component.rs:169, :622). Its redials are jittered (backoff.rs:15);
 // its re-hello must reach the engine within the derived fleet grace (jig-domain-fleet
 // attempt.rs:505). This is a margin, checked by the unchanged attempt below.
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_worker_hung_past_the_grace_is_fenced_and_links_again() {
     cluster_chats("cluster_hung", ClusterStory::Hung).unwrap_or_else(|why| panic!("{why}"));
@@ -1269,16 +1306,22 @@ fn a_worker_hung_past_the_grace_is_fenced_and_links_again() {
 // Jig admits only with an available placement (jig-domain-core
 // routing/run_preparation.rs:466–492, run_choice.rs:73–77): the second task
 // is due, unclaimed and unplaced; no attempt exists to be placed twice.
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_worker_started_later_takes_the_waiting_task() {
     cluster_chats("cluster_started_later", ClusterStory::Later).unwrap_or_else(|why| panic!("{why}"));
 }
 
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_worker_restarted_on_its_directories_links_at_its_position() {
     cluster_chats("cluster_restarted", ClusterStory::Restart).unwrap_or_else(|why| panic!("{why}"));
 }
 
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 fn an_unexpected_member_exit_is_reported_after_its_client_settles() {
     let message =
@@ -1288,10 +1331,13 @@ fn an_unexpected_member_exit_is_reported_after_its_client_settles() {
     assert!(!message.contains("EBUSY") && !message.contains("ResourceBusy"), "{message}");
 }
 
+// Cluster helpers need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 fn cluster_chats(case: &str, story: ClusterStory) -> Result<(), String> {
     cluster_chats_with(case, story, |_| {})
 }
 
+#[cfg(target_os = "linux")]
 fn cluster_chats_with(
     case: &str,
     story: ClusterStory,
@@ -1343,14 +1389,23 @@ fn cluster_chats_with(
 }
 
 // bin/temper-box/tests/fixtures/cluster has two chats, one per slot, and two lives in the restart story.
+#[cfg(target_os = "linux")]
 const CLUSTER_CHATS: usize = 2;
+#[cfg(target_os = "linux")]
 const FIRST_LIFE: usize = 0;
+#[cfg(target_os = "linux")]
 const SECOND_LIFE: usize = 1;
+#[cfg(target_os = "linux")]
 const RESTART_LINKS: usize = 2;
+#[cfg(target_os = "linux")]
 const REPLY_ONCE: usize = 1;
+#[cfg(target_os = "linux")]
 const FIRST_LINK: usize = 1;
+#[cfg(target_os = "linux")]
 const LOST_AND_RETRY: usize = 2; // the killed run and its replacement
+#[cfg(target_os = "linux")]
 const KILL_SIGNAL: u32 = 9; // Linux SIGKILL, as reported by wait
+#[cfg(target_os = "linux")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ClusterStory {
     Each,
@@ -1360,6 +1415,7 @@ enum ClusterStory {
     Later,
     Restart,
 }
+#[cfg(target_os = "linux")]
 impl ClusterStory {
     // protocol/cluster.md, 3: re-placement waits for the derived grace, then does the story's work.
     fn within(self) -> Duration {
@@ -1371,6 +1427,7 @@ impl ClusterStory {
         }
     }
 }
+#[cfg(target_os = "linux")]
 #[derive(Debug)]
 enum ClusterChatStage {
     Start,
@@ -1393,6 +1450,7 @@ enum ClusterChatStage {
     Verifying,
     Stopping,
 }
+#[cfg(target_os = "linux")]
 struct ClusterChatJudge {
     finding: Option<String>,
     members: support::cluster::Members,
@@ -1412,11 +1470,13 @@ struct ClusterChatJudge {
     linked_before: usize,
     fenced: Option<(Vec<serde_json::Value>, Vec<serde_json::Value>)>,
 }
+#[cfg(target_os = "linux")]
 fn cluster_call_json(ended: &support::Ended) -> Result<serde_json::Value, String> {
     serde_json::from_slice(&ended.stdout).map_err(|error| {
         format!("ctl JSON: {error}; exit {:?}; stderr: {}", ended.exit, String::from_utf8_lossy(&ended.stderr))
     })
 }
+#[cfg(target_os = "linux")]
 impl ClusterChatJudge {
     fn queue(&self, host: &mut support::cluster::Root, calls: Vec<support::ctl::Call>) -> Result<(), String> {
         self.queue_steps(host, calls.into_iter().map(support::ctl::Step::Run).collect())?;
@@ -2036,6 +2096,7 @@ impl ClusterChatJudge {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn cluster_settings(file: &std::path::Path, reads: &[support::Ended], providers: &serde_json::Value) {
     let mut fixture: serde_json::Value =
         serde_json::from_slice(&std::fs::read(file).expect("cluster settings FILE")).expect("settings JSON");
@@ -2069,12 +2130,14 @@ fn cluster_settings(file: &std::path::Path, reads: &[support::Ended], providers:
     items.extend(support::provider_setup::items(providers));
     support::write_private(file, &serde_json::to_vec(&fixture).expect("cluster settings JSON"));
 }
+#[cfg(target_os = "linux")]
 struct ClusterRead {
     task: serde_json::Value,
     accounts: serde_json::Value,
     rows: Vec<serde_json::Value>,
     turns: bool,
 }
+#[cfg(target_os = "linux")]
 impl ClusterRead {
     fn new(task: serde_json::Value, accounts: serde_json::Value) -> Self {
         Self { task, accounts, rows: Vec::new(), turns: false }
@@ -2125,6 +2188,7 @@ impl ClusterRead {
         Ok(replies)
     }
 }
+#[cfg(target_os = "linux")]
 fn complete_cluster_json(value: &serde_json::Value) -> Result<(), String> {
     if let Some(cut) = value.get("cut")
         && cut != false
@@ -2144,6 +2208,7 @@ fn complete_cluster_json(value: &serde_json::Value) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
 impl ClusterChatJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
         use skein_shell::Host;
@@ -2227,6 +2292,7 @@ impl ClusterChatJudge {
         Ok(())
     }
 }
+#[cfg(target_os = "linux")]
 impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
     fn act(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) {
         if self.finding.is_none() {
@@ -2387,6 +2453,8 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
     }
 }
 
+// Network and name-service isolation uses Linux's namespaces (unshare).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     use std::{ffi::OsString, fs, os::unix::fs::PermissionsExt};
@@ -2495,6 +2563,8 @@ exec "$@"
 // the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
 // until after the ended chat's watch joins; the oracle checks both attempts.
+// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+#[cfg(target_os = "linux")]
 #[test]
 #[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/testing/reference-case.md; temper/docs/design/protocol/configuration/README.md, section 2 and temper/docs/design/protocol/configuration/stock.md)"]
 fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()

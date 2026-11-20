@@ -480,9 +480,9 @@ fn settings_change_survives_the_small_store_and_carried_transport() {
 fn malformed_pieces_counts_and_byte_bounds_are_refused() {
     let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     let mut change = values::settings_change();
-    let mut wire = t::wire_change_settings(&change, limits.wire()).unwrap().into_parts();
+    let mut wire = t::wire_change_settings(&change, limits.wire()).unwrap();
     wire.items = Box::new([0, 0, 0, 1, 255]);
-    let wire = w::ChangeSettings::new(limits.wire(), wire).unwrap();
+    let wire = wire;
     t::restore_change_settings(&wire, &limits).expect_err("invalid settings value is refused");
     let mut items = List::with_capacity(1025);
     for _ in 0_u32..1025 {
@@ -494,14 +494,15 @@ fn malformed_pieces_counts_and_byte_bounds_are_refused() {
     tight.change_settings_items = 1;
     t::wire_change_settings(&values::settings_change(), &tight).expect_err("invalid settings value is refused");
     let wire = translate::asks::ask(&c::Ask::ChangeSettings(values::settings_change()), limits.wire()).unwrap();
-    let mut out = Writer::new(usize::try_from(wire.measure()).unwrap());
-    wire.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let record = out.finish();
     let mut pieces = Writer::new(record.len().checked_add(4).unwrap());
     pieces.put(&u32::try_from(record.len()).unwrap().to_be_bytes()).unwrap();
     pieces.put(&record).unwrap();
-    let compound =
-        w::Compound::new(limits.wire(), w::CompoundParts { project: 1, operations: pieces.finish() }).unwrap();
+    let compound = w::Compound { project: 1, operations: pieces.finish() };
     translate::store::restore_ask(w::Ask::Compound(compound), &limits).expect_err("invalid settings value is refused");
 }
 
@@ -526,10 +527,10 @@ fn settings_items_fit_at_the_count_and_byte_bounds() {
         wire.change_settings_items = bytes;
         assert_eq!(t::wire_change_settings(&change, &wire).is_ok(), accepted);
     }
-    let mut malformed = t::wire_change_settings(&change, limits.wire()).unwrap().into_parts();
+    let mut malformed = t::wire_change_settings(&change, limits.wire()).unwrap();
     // A valid reset row with an extra trailing byte inside its piece.
     malformed.items = Box::new([0, 0, 0, 3, 3, 2, 0]);
-    let malformed = w::ChangeSettings::new(limits.wire(), malformed).unwrap();
+    let malformed = malformed;
     t::restore_change_settings(&malformed, &limits).expect_err("invalid settings value is refused");
 }
 
@@ -559,8 +560,10 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
     for count in [STANDARD_SETTINGS, MAX_SETTINGS] {
         let document = settings_inventory(count);
         let wire = e::wire_settings_document(&document, limits.wire()).unwrap();
-        let mut encoded = Writer::new(usize::try_from(wire.measure()).unwrap());
-        wire.encode(&mut encoded).unwrap();
+        let mut encoded = Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
         let decoded = w::SettingsDocument::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap();
         assert_eq!(t::restore_settings_document(&decoded, &limits), Ok(document));
     }
@@ -569,13 +572,18 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
 #[test]
 fn settings_inventory_refuses_one_line_past_the_wire_and_receiving_limits() {
     let limits = fixtures::limits();
-    let problem = w::Problem { path: w::Path::SettingsDocumentSettings, reason: skein_codec::Reason::Bound };
-    assert_eq!(e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()), Err(problem));
+    let problem = w::Problem { path: w::paths::SETTINGS_DOCUMENT_SETTINGS, reason: skein_codec::Reason::Bound };
+    assert_eq!(
+        e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()).unwrap().encode(limits.wire()),
+        Err(problem)
+    );
     let mut narrow = *limits.wire();
     narrow.settings_document_settings = STANDARD_SETTINGS - 1;
     let wire = e::wire_settings_document(&settings_inventory(STANDARD_SETTINGS), limits.wire()).unwrap();
-    let mut encoded = Writer::new(usize::try_from(wire.measure()).unwrap());
-    wire.encode(&mut encoded).unwrap();
+    let mut encoded = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     assert_eq!(w::SettingsDocument::decode(&narrow, &mut Reader::new(&encoded.finish())), Err(problem));
 }
 
@@ -585,20 +593,17 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
     let ask = c::Ask::MoveToNewest(c::MoveToNewest { revision: 7 });
     let wire = translate::asks::ask(&ask, limits.wire()).expect("ask");
     assert_eq!(translate::store::restore_ask(wire, &limits), Ok(ask));
-    let outcome = w::Outcome::MovedToNewest(
-        w::OutcomeMovedToNewest::new(limits.wire(), w::OutcomeMovedToNewestParts { newest: 9, moved: 3, stayed: 1 })
-            .expect("counts"),
-    );
-    let answer = w::Final::Done(w::Done::new(limits.wire(), w::DoneParts { outcome }).expect("done"));
-    let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut bytes).expect("measured answer");
-    let answer = w::KeyedAnswer::FinalAnswer(
-        w::Owned::new(
-            limits.wire(),
-            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-        )
-        .expect("answer"),
-    );
+    let outcome = w::Outcome::MovedToNewest(w::OutcomeMovedToNewest { newest: 9, moved: 3, stayed: 1 });
+    let answer = w::Final::Done(w::Done { outcome });
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured answer");
+    let answer = w::KeyedAnswer::FinalAnswer(w::Owned {
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        record: bytes.finish(),
+    });
     assert_eq!(
         translate::answers::answer(answer, &limits),
         Ok(c::Answer::Done(c::Outcome::MovedToNewest(c::OutcomeMovedToNewest { newest: 9, moved: 3, stayed: 1 })))
@@ -624,12 +629,12 @@ fn charter_documents_round_trip_through_the_contract() {
         panic!("charter");
     };
     let wire = t::wire_charter(&value, limits.wire()).unwrap();
-    assert_eq!(wire.parts().len(), 2);
-    assert_eq!(wire.parts().get(0).unwrap().on(), 1);
-    assert_eq!(wire.parts().get(1).unwrap().instructions(), "later part λ".as_bytes());
-    assert_eq!(wire.documents().len(), 2);
-    assert_eq!(wire.documents().get(0).unwrap().heading(), &None);
-    assert_eq!(wire.documents().get(1).unwrap().heading().as_deref(), Some(b"Rules".as_slice()));
+    assert_eq!(wire.parts.len(), 2);
+    assert_eq!(wire.parts.get(0).unwrap().on, 1);
+    assert_eq!(wire.parts.get(1).unwrap().instructions.as_ref(), "later part λ".as_bytes());
+    assert_eq!(wire.documents.len(), 2);
+    assert_eq!((&wire.documents.get(0).unwrap().heading), &None);
+    assert_eq!(wire.documents.get(1).unwrap().heading.as_deref(), Some(b"Rules".as_slice()));
     let restored = t::restore_charter(&wire).unwrap();
     assert_eq!(restored, *value);
     assert_eq!(t::wire_charter(&restored, limits.wire()), Ok(wire));
@@ -650,7 +655,7 @@ fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
     let mut wire_limits = w::CEILINGS;
     for (count, accepted) in [(2, true), (1, false)] {
         wire_limits.charter_parts = count;
-        assert_eq!(t::wire_charter(&value, &wire_limits).is_ok(), accepted);
+        assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).is_ok(), accepted);
     }
     wire_limits.charter_parts = 2;
     let instructions = value.parts.get(0).unwrap().instructions.bytes().len();
@@ -658,7 +663,7 @@ fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
         wire_limits.charter_part_instructions = u32::try_from(bytes).unwrap();
         // The other part uses the same bound.
         value.parts.get_mut(1).unwrap().instructions = value.parts.get(0).unwrap().instructions.clone();
-        assert_eq!(t::wire_charter(&value, &wire_limits).is_ok(), accepted);
+        assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).is_ok(), accepted);
     }
     wire_limits.charter_part_instructions = w::CEILINGS.charter_part_instructions;
     wire_limits.charter_documents = 2;
@@ -666,13 +671,22 @@ fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
     wire_limits.charter_document_name_item = 8;
     t::wire_charter(&value, &wire_limits).unwrap();
     *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"123456789".as_slice());
-    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocumentName);
+    assert_eq!(
+        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
+        w::paths::CHARTER_DOCUMENT_NAME
+    );
     *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"resource".as_slice());
     wire_limits.charter_document_name = 1;
-    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocumentName);
+    assert_eq!(
+        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
+        w::paths::CHARTER_DOCUMENT_NAME
+    );
     wire_limits.charter_document_name = 2;
     wire_limits.charter_documents = 1;
-    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocuments);
+    assert_eq!(
+        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
+        w::paths::CHARTER_DOCUMENTS
+    );
 }
 
 #[test]
@@ -713,8 +727,10 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
     let mut wire_limits = *limits.wire();
     let wire = t::wire_overlay(&overlay, &wire_limits).unwrap();
     assert_eq!(t::restore_overlay(&wire), Ok(overlay.clone()));
-    let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
-    wire.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let value = c::SettingValue::Overlay(Box::new(overlay.clone()));
     let wire_value = t::wire_setting_value(&value, &wire_limits).unwrap();
@@ -731,7 +747,11 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
                 }
             };
             *bound.0 = bound.1 - u32::from(past);
-            assert_eq!(t::wire_overlay(&overlay, &wire_limits).is_ok(), !past, "encode field {field}");
+            assert_eq!(
+                t::wire_overlay(&overlay, &wire_limits).unwrap().encode(&wire_limits).is_ok(),
+                !past,
+                "encode field {field}"
+            );
             assert_eq!(
                 w::Overlay::decode(&wire_limits, &mut Reader::new(&bytes)).is_ok(),
                 !past,
@@ -768,8 +788,10 @@ fn limits_kind_and_each_override_cross_the_client_wire_without_loss() {
         }])),
     };
     let wire = t::wire_change_settings(&change, limits.wire()).unwrap();
-    let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
-    wire.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let wire = w::ChangeSettings::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
     assert_eq!(t::restore_change_settings(&wire, &limits), Ok(change));
 }
@@ -789,27 +811,21 @@ fn workers_and_linked_refusals_keep_their_client_identity_and_values() {
             withdrawn: true,
         }));
         let wire = t::wire_setting_value(&value, limits.wire()).unwrap();
-        let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
-        wire.encode(&mut bytes).unwrap();
+        let mut bytes = Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::SettingValue::decode(limits.receiving(), &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(t::restore_setting_value(&wire, &limits).unwrap(), value);
     }
-    let wire = w::Refusal::Malformed(
-        w::RefusalMalformed::new(
-            limits.wire(),
-            w::RefusalMalformedParts {
-                at: 1,
-                why: w::Malformed::Settings(
-                    w::MalformedSettings::new(
-                        limits.wire(),
-                        w::MalformedSettingsParts { setting: wire, fault: w::SettingFault::Linked, detail: None },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    );
+    let wire = w::Refusal::Malformed(w::RefusalMalformed {
+        at: 1,
+        why: w::Malformed::Settings(w::MalformedSettings {
+            setting: wire,
+            fault: w::SettingFault::Linked,
+            detail: None,
+        }),
+    });
     assert_eq!(
         translate::answers::refusal(&wire, &limits).unwrap(),
         c::Refusal::Malformed {

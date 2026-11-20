@@ -791,6 +791,17 @@ impl Domain {
         }
     }
 
+    /// A making keeps its place while its task is held (domain/forge/room.md, 3).
+    #[must_use]
+    pub fn making_waits(&self, task: u64) -> bool {
+        for (_, pending) in &self.makings {
+            if pending.task == task && pending.outbox_wait.is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// An ask holds room until this procedure can decide afresh.
     #[must_use]
     pub fn room_asked(&self, task: u64) -> bool {
@@ -1557,6 +1568,28 @@ impl Domain {
         tasks.into_boxed()
     }
 
+    /// Refresh jig's revision projection before reading verdicts. The forge never advances it
+    /// (temper/docs/design/domain/forge/change/gates.md, 1, Valid at a spec revision).
+    pub fn refresh_spec_revision(&mut self, task: u64, revision: u64, out: &mut Queue<Request>) {
+        let Some(row) = self.changes.get_mut(&task) else { return };
+        if row.frozen() || row.spec_revision == revision {
+            return;
+        }
+        row.spec_revision = revision;
+        let saved = row.clone();
+        let mut reviewing = false;
+        for gate in &row.change.gates {
+            reviewing |= gate.kind == change::GateKind::Agent;
+        }
+        if reviewing {
+            if let Some(landing) = row.change.landing {
+                emit(out, Request::WakeProcedure { task: landing });
+            }
+            emit(out, Request::WakeProcedure { task });
+        }
+        save_change(self, out, saved);
+    }
+
     /// Current durable change state used by the root's procedure route.
     #[must_use]
     pub fn change(&self, task: u64) -> Option<&ChangeRow> {
@@ -1781,6 +1814,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        Event::WayEnded { forge, why } => crate::connect::way_ended(d, forge, &why, out),
         Event::Owner { party } => crate::link::owner(d, party, out),
         Event::PersonOf { forge, answer } => crate::link::person_of(d, forge, answer, out),
         Event::BotLogin { forge, login } => crate::connect::bot_login(d, forge, login, out),
@@ -4569,14 +4603,20 @@ fn record_review(
     if cancelled || cancelling {
         return Ok(());
     }
-    let report = change::GateReport { number, head, status };
+    let report = change::GateReport { number, head, status, revision: row.gate_revision };
+    let mut stale = false;
+    for gate in &row.change.gates {
+        if gate.number == number {
+            stale = !report.at_revision(gate.kind, row.spec_revision);
+        }
+    }
     let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
     for old in &row.verdicts {
         if old.number != number {
             verdicts.push(*old).expect("bounded prior gate reports");
         }
     }
-    if !failed && verdicts.push(report).is_err() {
+    if (!failed || stale) && verdicts.push(report).is_err() {
         return Err(crate::RefusalCause::Limit {
             member: "forge.change_policy.gates",
             configured: u64::from(env.limits.change_policy.gates),
@@ -4584,7 +4624,7 @@ fn record_review(
         });
     }
     row.verdicts = verdicts.into_boxed();
-    if failed {
+    if failed && !stale {
         row.change = change::review_failed(&row.change, number, head, env.wall, &env.limits.change_policy);
     }
     let mut remarks = List::with_capacity(env.limits.change_policy.gates);
@@ -6055,6 +6095,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             return;
         }
         row.change = stepped.change;
+        if let change::Decision::Delegate(change::Delegate::Gate { .. }) = stepped.decision {
+            row.gate_revision = facts.revision;
+        }
         if row.change.last_head != effect_prior.last_head {
             row.regate = None;
             if row.delegate_flake || row.delegate_no_test {
@@ -6471,6 +6514,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        revision: row.spec_revision,
         taken: row.kept,
         fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
         rerun: match d.configured.get(&row.repository.forge) {
@@ -10019,13 +10063,15 @@ pub(crate) fn erase_removed_repositories(
     !kept
 }
 
+// A making's write waits until after the settle; reading afresh ends on reads
+// alone (temper/docs/design/domain/forge/branches.md, 1).
 fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
     if d.restart_fresh == Some(true)
         && d.landing.pending.is_empty()
         && d.pending_ci.is_empty()
         && d.goal_file_reads.is_empty()
         && d.lost.is_empty()
-        && d.makings.is_empty()
+        && !goal_branch::reading_afresh(d)
     {
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });

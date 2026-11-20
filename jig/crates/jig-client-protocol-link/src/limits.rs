@@ -1,5 +1,6 @@
 //! Fixed attempt admission and receiving bounds (protocol/client/README.md, 10; client/domain/client/README.md, 11).
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Duration;
 /// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
 pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;

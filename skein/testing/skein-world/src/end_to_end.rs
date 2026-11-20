@@ -31,6 +31,11 @@ std::thread_local! {
     static IN_LOOP: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
 }
 
+/// Registers this world's destructor-bearing thread-local before admission.
+pub(crate) fn warm_runtime() {
+    FINDING.with(|_| {});
+}
+
 fn keep_finding(why: String) {
     FINDING.with(|finding| {
         finding.borrow_mut().get_or_insert(why);
@@ -433,6 +438,13 @@ impl Binary {
     #[must_use]
     pub fn stderr(&self) -> &[u8] {
         &self.capture.bytes
+    }
+
+    /// Whether stderr has ended; captured bytes no longer wait on a pipe read.
+    /// Descriptor closure may still be pending. An abandoned capture is ended too.
+    #[must_use]
+    pub const fn stderr_ended(&self) -> bool {
+        self.stderr.is_none() && self.reading.is_none()
     }
 
     /// Whether supervised stderr exceeded its capture limit. The captured prefix
@@ -851,6 +863,7 @@ mod tests {
             assert!(matches!(wait.kind, Op::Wait { reap: false, .. }));
             assert!(matches!(read.kind, Op::PipeRead { .. }));
             assert_eq!(binary.counts(), None);
+            assert!(!binary.stderr_ended(), "a pending read has not ended stderr");
             let mut exit = Some(Complete { op: wait.op, kind: wait.kind, result: Ok(Done::Exit(Exit::Code(0))) });
             let data = Complete {
                 op: read.op,
@@ -864,15 +877,17 @@ mod tests {
                 assert!(!binary.is_empty(), "the leader closure and stderr read remain pending");
                 close_completions(&mut binary);
                 assert_eq!(binary.counts(), Some(terminal_counts()), "a pending stderr read cannot hide settlement");
+                assert!(!binary.stderr_ended(), "exit alone does not end stderr");
             }
             binary.completed(data);
             assert_eq!(binary.stderr(), b"diagnostic");
+            assert!(!binary.stderr_ended(), "data alone does not end stderr");
             assert!(!binary.is_empty(), "captured bytes precede EOF");
             binary.iterate(Time::ZERO, Wall::EPOCH);
             let eof = binary.submissions.pop().expect("next stderr read");
             assert!(matches!(eof.kind, Op::PipeRead { .. }));
             binary.completed(Complete { op: eof.op, kind: eof.kind, result: Ok(Done::Count(0)) });
-            assert!(binary.stderr.is_none() && binary.reading.is_none(), "EOF ends the stream");
+            assert!(binary.stderr_ended(), "EOF ends stderr before descriptor closure or leader exit");
             assert!(!binary.is_empty(), "the EOF closure still has to drain");
             close_completions(&mut binary);
             if !exit_first {
@@ -885,6 +900,7 @@ mod tests {
             }
             assert_eq!(binary.exit_status(), Some(Exit::Code(0)));
             assert_eq!(binary.stderr(), b"diagnostic");
+            assert!(binary.stderr_ended(), "stderr stays ended after settlement");
             assert_eq!(binary.counts(), Some(terminal_counts()));
             assert!(binary.is_empty(), "terminal observation has drained every record and descriptor");
         }

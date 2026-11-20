@@ -53,7 +53,7 @@ impl Harness for Incident {
             ("people.inbox_tasks", 24),
             ("people.operations", 12),
             ("people.sign_ins", 8),
-            ("tasks.spec_bytes", 512),
+            ("tasks.spec_bytes", 4096),
             ("authority.grants", 16),
             ("notes.scopes", 32),
             ("tasks.authority_grants", 16),

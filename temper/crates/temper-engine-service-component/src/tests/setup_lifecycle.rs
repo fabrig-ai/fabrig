@@ -1160,6 +1160,11 @@ fn install_link(service: &mut crate::Service, back: Option<&[u8]>) -> Box<[u8]> 
     let at = skein_lib::bytes::find(&link, b"state=").unwrap().checked_add(6).unwrap();
     Box::from(&link[at..])
 }
+fn assert_way_end(service: &mut crate::Service, why: Option<&[u8]>) {
+    run_events(service);
+    let rows = service.engine.as_ref().unwrap().domain.forges().rows;
+    assert_eq!(rows[0].ended.as_deref(), why);
+}
 fn setup_target(state: &[u8]) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(
         b"/forges/1/github/setup?installation_id=22&setup_action=install&state="
@@ -1198,7 +1203,7 @@ fn status_at(peer: &fixtures::http::Peer, code: &[u8], target: &[u8]) {
             b"<meta charset=\"utf-8\">",
             b"name=\"viewport\"",
             b"<style>",
-            b"Back to temper</a>",
+            b"<header><a href=\"/\">temper</a></header>",
             b"Content-Security-Policy: default-src 'none';",
         ] {
             assert!(contains(peer.received(), part), "{target}: missing {}", part.escape_ascii());
@@ -1257,7 +1262,7 @@ fn setup_accept_without_back_answers_its_close_tab_page() {
     status(&peer, b"200");
     assert!(contains(peer.received(), b"<h1>GitHub is connected</h1>"));
     assert!(contains(peer.received(), b"temper has the installation; you may close this tab."));
-    assert!(contains(peer.received(), b"href=\"/forges\""));
+    assert!(!contains(peer.received(), b"Back to temper"));
 }
 #[test]
 fn setup_unknown_state_is_ended_without_calling_github() {
@@ -1287,6 +1292,7 @@ fn setup_accept_stop_answers_the_ended_page() {
     face.reply(&mut service, br#"{"id":23,"app_id":7,"account":{"id":122,"login":"account-fixture","type":"Organization"},"target_type":"Organization","created_at":"1970-01-01T00:00:00Z","suspended_at":null}"#);
     pump_visit(&mut service, &mut peer);
     status(&peer, b"410");
+    assert_way_end(&mut service, Some(b"setup Installation 22: Unexpected"));
 }
 #[test]
 fn setup_request_uses_and_removes_the_back_entry_without_accepting() {
@@ -1302,9 +1308,10 @@ fn setup_request_uses_and_removes_the_back_entry_without_accepting() {
     let peer = visit(&mut service, b"GET", &target);
     status(&peer, b"200");
     assert!(contains(peer.received(), b"GitHub sent a request, not an installation"));
-    assert!(contains(peer.received(), b"href=\"/forges?first=1&amp;next=2\""));
+    assert!(contains(peer.received(), b"<p>You can close this tab.</p></main>"));
     assert!(service.engine.as_ref().unwrap().setup.io.is_empty());
     assert!(service.engine.as_ref().unwrap().setup.backs.is_empty());
+    assert_way_end(&mut service, Some(b"GitHub sent an organization member's request, not an installation"));
     let peer = visit(&mut service, b"GET", &target);
     status(&peer, b"410");
 }
@@ -1464,6 +1471,90 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     }
     writer.finish()
 }
+#[test]
+fn an_unused_manifest_expires_on_its_deadline_without_a_visit() {
+    let life = Duration::from_secs(3);
+    let mut service = service(8, life);
+    let _link = manifest_link(&mut service, None);
+    let until = Time::ZERO.saturating_add(life);
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_millis(2999));
+    advance(service.engine.as_mut().unwrap());
+    assert_way_end(&mut service, None);
+    let engine = service.engine.as_mut().unwrap();
+    engine.env.now = until;
+    engine.setup.env.now = until;
+    // Consume the host's state timer first: the routing must keep its own wakeup.
+    let host = engine.setup.component.as_mut().unwrap();
+    host.fire(&engine.setup.env, &mut engine.setup.above, &mut engine.setup.io);
+    assert_eq!(host.next_deadline(), None);
+    // The manifest page has its own deadline too; only the held state's deadline remains here.
+    assert!(engine.setup.pages.pop().is_some());
+    assert_eq!(engine.setup.next_deadline(), Some(until));
+    assert!(engine.setup.work_pending(until));
+    advance(engine);
+    assert_way_end(&mut service, Some(b"the link to GitHub expired before it was finished"));
+}
+#[test]
+fn only_the_later_ways_expiry_reaches_the_row() {
+    let mut service = service(8, Duration::from_secs(3));
+    let _earlier = manifest_link(&mut service, None);
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(1));
+    let _later = manifest_link(&mut service, None);
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(3));
+    advance(service.engine.as_mut().unwrap());
+    assert_way_end(&mut service, None);
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(4));
+    advance(service.engine.as_mut().unwrap());
+    assert_way_end(&mut service, Some(b"the link to GitHub expired before it was finished"));
+}
+#[test]
+fn an_earlier_way_expires_silently_after_the_later_install_succeeded() {
+    for later_at in [Duration::ZERO, Duration::from_secs(1)] {
+        let mut service = service(8, Duration::from_secs(3));
+        app(&mut service);
+        let _earlier = install_link(&mut service, None);
+        service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(later_at);
+        let later = install_link(&mut service, None);
+        let mut peer = visit(&mut service, b"GET", &setup_target(&later));
+        complete_accept(&mut service, &mut peer);
+        status(&peer, b"200");
+        assert_way_end(&mut service, None);
+        service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(3));
+        advance(service.engine.as_mut().unwrap());
+        assert_way_end(&mut service, None);
+        assert!(service.engine.as_ref().unwrap().setup.backs.is_empty());
+    }
+}
+#[test]
+fn unknown_and_used_states_leave_the_rows_end_unchanged() {
+    let mut service = service(8, Duration::from_secs(3600));
+    app(&mut service);
+    let state = install_link(&mut service, None);
+    let target = setup_target(&state);
+    let mut peer = visit(&mut service, b"GET", &target);
+    complete_accept(&mut service, &mut peer);
+    status(&peer, b"200");
+    run_events(&mut service);
+    service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(domain::Event::WayEnded {
+        forge: 1,
+        why: Box::from(b"kept end".as_slice()),
+    })));
+    for target in [setup_target(b"unknown"), target] {
+        let peer = visit(&mut service, b"GET", &target);
+        status(&peer, b"410");
+        assert_way_end(&mut service, Some(b"kept end"));
+    }
+}
+#[test]
+fn an_accept_without_room_reports_busy_for_its_held_state() {
+    let mut service = service(8, Duration::from_secs(3600));
+    app(&mut service);
+    let state = install_link(&mut service, None);
+    service.engine.as_mut().unwrap().setup.public = Map::with_capacity(0);
+    let peer = visit(&mut service, b"GET", &setup_target(&state));
+    status(&peer, b"410");
+    assert_way_end(&mut service, Some(b"temper was busy, and the link to GitHub ended"));
+}
 fn manifest_target(state: &[u8]) -> Box<[u8]> {
     joined(&[b"/forges/1/github/manifest?state=", state])
 }
@@ -1482,13 +1573,7 @@ fn redirect_target(state: &[u8]) -> Box<[u8]> {
 fn manifest_connect_answers_its_listener_page_with_policy_and_personal_form() {
     // fixtures::http::address is loopback:7100; the manifest's form is the forge's 3000.
     const PREFIX: &[u8] = b"http://127.0.0.1:7100/forges/1/github/manifest?state=";
-    for (back, escaped) in [
-        (
-            Some(b"/forges?from=manifest&next=\"<>".as_slice()),
-            b"href=\"/forges?from=manifest&amp;next=&quot;&lt;&gt;\"".as_slice(),
-        ),
-        (None, b"href=\"/forges/connect?forge=1\""),
-    ] {
+    for back in [Some(b"/forges?from=manifest&next=\"<>".as_slice()), None] {
         let mut service = service(8, Duration::from_secs(3600));
         let link = manifest_link(&mut service, back);
         let state = manifest_state(&link);
@@ -1510,7 +1595,8 @@ fn manifest_connect_answers_its_listener_page_with_policy_and_personal_form() {
         ]);
         assert!(contains(peer.received(), &policy));
         assert!(contains(peer.received(), b"<button type=\"submit\" class=\"primary\">Continue to GitHub</button>"));
-        assert!(contains(peer.received(), escaped));
+        assert!(!contains(peer.received(), b"Back to temper"));
+        assert!(contains(peer.received(), b"Continue to GitHub</button></form></main>"));
         let target = joined(&[b"action=\"http://127.0.0.1:3000/settings/apps/new?state=", state, b"\""]);
         assert!(contains(peer.received(), &target));
         assert!(contains(peer.received(), b"method=\"post\""));
@@ -1586,6 +1672,10 @@ fn redirect_conversion_stop_and_repeat_answer_ended() {
     face.reply_status(&mut service, b"404 Not Found", b"{}");
     pump_visit(&mut service, &mut peer);
     status(&peer, b"410");
+    assert_way_end(
+        &mut service,
+        Some(b"setup conversion refused (404): the App may exist on GitHub without temper holding its key"),
+    );
     // The shell takes diagnostic notes between calls; this routing fixture drives it by hand.
     while service.engine.as_mut().unwrap().notes.pop().is_some() {}
     status(&visit(&mut service, b"GET", &target), b"410");
@@ -1621,6 +1711,7 @@ fn redirect_install_stop_answers_ended_with_the_app_kept() {
     pump_visit(&mut service, &mut peer);
     status(&peer, b"410");
     assert_eq!(service.engine.as_ref().unwrap().forge.starts.len(), 1);
+    assert_way_end(&mut service, Some(b"setup State install: Crowded"));
 }
 #[test]
 fn a_setup_visit_for_a_busy_forge_waits_for_its_run_then_accepts() {
@@ -1644,13 +1735,18 @@ fn a_setup_visit_held_past_the_states_life_is_ended() {
     let mut service = service(8, Duration::from_secs(3));
     app(&mut service);
     let state = install_link(&mut service, None);
+    // The visit starts later than its state; its life still ends at the state's deadline.
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(1));
     service.engine.as_mut().unwrap().setup.lifecycle.deleting.insert(1, ()).unwrap();
     let mut peer = visit(&mut service, b"GET", &setup_target(&state));
     assert!(peer.received().is_empty(), "the visit waits for the forge's run");
     let until = service.engine.as_ref().unwrap().setup.next_deadline().unwrap();
+    assert_eq!(until, Time::ZERO.saturating_add(Duration::from_secs(3)));
     service.engine.as_mut().unwrap().env.now = until;
+    service.engine.as_mut().unwrap().setup.lifecycle.deleting.remove(&1).unwrap();
     pump_visit(&mut service, &mut peer);
     status(&peer, b"410");
+    assert_way_end(&mut service, Some(b"temper was busy, and the link to GitHub ended"));
 }
 // The forge's one run, as the engine's own reconcile (internal) or a run a person asked.
 fn running(service: &mut crate::Service, internal: bool) -> Token {
@@ -1757,7 +1853,8 @@ fn pasted_app_key_form_and_401_failures_use_the_persons_words() {
 fn ended(peer: &fixtures::http::Peer) {
     status(peer, b"410");
     assert!(contains(peer.received(), b"<h1>This link has ended</h1>"));
-    assert!(contains(peer.received(), b"href=\"/forges/connect?forge=1\""));
+    assert!(contains(peer.received(), b"<p>You can close this tab.</p></main>"));
+    assert!(!contains(peer.received(), b"href=\"/forges/connect"));
     assert!(contains(peer.received(), b"style-src 'sha256-"));
     assert!(!contains(peer.received(), b"/welcome?"));
 }
@@ -1775,7 +1872,7 @@ fn a_members_request_explains_ownership_and_consumes_its_back() {
         b"<h1>GitHub sent a request, not an installation</h1>".as_slice(),
         b"Only an owner of an organization can install",
         b"Install it on your own account, or on an organization you own.",
-        b"href=\"/welcome?at=forge&amp;forge=1\"",
+        b"<p>You can close this tab.</p></main>",
         b"style-src 'sha256-",
     ] {
         assert!(contains(peer.received(), words));
@@ -1788,11 +1885,11 @@ fn a_members_request_explains_ownership_and_consumes_its_back() {
     complete_accept(&mut service, &mut accepted);
     status(&accepted, b"200");
     assert!(contains(accepted.received(), b"<h1>GitHub is connected</h1>"));
-    assert!(contains(accepted.received(), b"href=\"/forges\""));
+    assert!(!contains(accepted.received(), b"Back to temper"));
 }
 
 #[test]
-fn an_accepted_link_ends_with_the_fallback_back() {
+fn an_accepted_link_ends_with_the_close_tab_shell() {
     let mut service = service(8, Duration::from_secs(3600));
     app(&mut service);
     let state = install_link(&mut service, Some(b"/welcome?at=forge&forge=1"));
@@ -1805,7 +1902,7 @@ fn an_accepted_link_ends_with_the_fallback_back() {
 }
 
 #[test]
-fn an_expired_link_ends_with_the_fallback_back() {
+fn an_expired_link_ends_with_the_close_tab_shell() {
     let mut service = service(8, Duration::from_secs(3));
     app(&mut service);
     let state = install_link(&mut service, Some(b"/welcome?at=forge&forge=1"));
@@ -1840,7 +1937,7 @@ fn restore(store: crate::store::Store) -> (Box<crate::Service>, Face) {
 }
 
 #[test]
-fn a_link_forgotten_by_restart_ends_with_the_fallback_back() {
+fn a_link_forgotten_by_restart_ends_with_the_close_tab_shell() {
     let (mut before, _before_face) = restore(uninstalled_store());
     let state = install_link(&mut before, Some(b"/welcome?at=forge&forge=1"));
     let store = core::mem::replace(&mut before.engine.as_mut().unwrap().store, fixtures::records_store());

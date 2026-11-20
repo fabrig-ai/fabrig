@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_accounts::SCHEMA,
-        jig_protocol_accounts::v1, lean,
+        jig_protocol_accounts::v1,
         limits [
             moved_application,
             moved_issuer,

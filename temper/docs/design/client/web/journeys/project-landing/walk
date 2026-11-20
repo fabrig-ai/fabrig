@@ -1,0 +1,10 @@
+walk 2
+web press link "Set up temper"
+web press link "Run on this machine"
+web press button "Run on this machine"
+web press button "Continue with ChatGPT"
+web press button "Create your project"
+web see "work/hello is in Hello"
+web reload "/projects/1"
+web see "Hello is ready."
+web mark

@@ -307,8 +307,8 @@ pub(crate) fn configure(value: &mut temper_playground::documents::Configuration)
     }
     documents::configure(value);
     if STORY.with(|slot| matches!(slot.get(), Story::Merge)) {
-        // The compact resolution keeps its deletion rule beside the pinned parameters.
-        value.jig_over("tasks.spec_bytes", 512);
+        // The compact resolution and change context fit beside the pinned parameters.
+        value.jig_over("tasks.spec_bytes", 1024);
     }
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
         value["world_settings"]["landing"]["deployment"] = serde_json::json!([{

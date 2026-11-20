@@ -1,6 +1,7 @@
 //! Program document facts reach their allocated client records.
 use crate::translate::programs;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_link::{LoginState, SourceFailure};
@@ -27,14 +28,14 @@ fn host() -> d::Host {
 #[test]
 fn configured_names_cross_as_whole_bytes() {
     let wire = crate::translate::deployment::host(&host(), &w::CEILINGS).expect("host");
-    assert_eq!(wire.name().as_deref(), Some(b"configured-worker".as_slice()));
+    assert_eq!(wire.name.as_deref(), Some(b"configured-worker".as_slice()));
 }
 #[test]
 fn login_readiness_crosses_the_wire() {
     let wire = crate::translate::deployment::host(&host(), &w::CEILINGS).expect("host");
-    assert!(wire.awaiting_logins());
-    assert!(wire.connected());
-    assert!(!wire.draining());
+    assert!(wire.awaiting_logins);
+    assert!(wire.connected);
+    assert!(!wire.draining);
 }
 #[test]
 fn program_details_past_the_wire_bound_are_refused() {
@@ -46,16 +47,16 @@ fn program_details_past_the_wire_bound_are_refused() {
         cut: false,
     };
     assert_eq!(
-        programs::login(&row, &w::CEILINGS).err(),
-        Some(w::Problem { path: w::Path::ProgramFailedDetail, reason: skein_codec::Reason::Bound })
+        programs::login(&row, &w::CEILINGS).unwrap().encode(&w::CEILINGS).err(),
+        Some(w::Problem { path: w::paths::PROGRAM_FAILED_DETAIL, reason: skein_codec::Reason::Bound })
     );
 }
 #[test]
 fn program_names_past_the_wire_bound_are_refused() {
     let row = d::ProgramLogin { name: Box::from([b'a'; 33]), state: None, sign_out: None, cleanup: false, cut: false };
     assert_eq!(
-        programs::login(&row, &w::CEILINGS).err(),
-        Some(w::Problem { path: w::Path::ProgramLoginName, reason: skein_codec::Reason::Bound })
+        programs::login(&row, &w::CEILINGS).unwrap().encode(&w::CEILINGS).err(),
+        Some(w::Problem { path: w::paths::PROGRAM_LOGIN_NAME, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -64,10 +65,10 @@ fn a_refused_worker_position_reaches_the_wire_record() {
     let mut value = super::fixtures::deployment_document();
     value.hello_refusals.get_mut(0).expect("fixture refusal").why = fleet::HelloRefusal::Position { worker: u32::MAX };
     let record = crate::translate::deployment::document(&value, &w::CEILINGS).expect("deployment record");
-    let w::HelloRefusal::Position(row) = record.hello_refusals().get(0).expect("wire refusal").why() else {
+    let w::HelloRefusal::Position(row) = &record.hello_refusals.get(0).expect("wire refusal").why else {
         panic!("position refusal");
     };
-    assert_eq!(row.worker(), u32::MAX);
+    assert_eq!(row.worker, u32::MAX);
 }
 
 #[test]
@@ -75,16 +76,13 @@ fn a_host_rule_reaches_the_wire() {
     use jig_domain_core_vocabulary::HostRule;
     for (rule, expected) in [
         (HostRule::Open, w::HostRule::Open),
-        (
-            HostRule::Person(7),
-            w::HostRule::Person(w::HostPerson::new(&w::CEILINGS, w::HostPersonParts { party: 7 }).expect("person")),
-        ),
+        (HostRule::Person(7), w::HostRule::Person(w::HostPerson { party: 7 })),
         (HostRule::Several, w::HostRule::Several),
         (HostRule::Unknown, w::HostRule::Unknown),
     ] {
         let mut value = host();
         value.rule = rule;
         let wire = crate::translate::deployment::host(&value, &w::CEILINGS).expect("host");
-        assert_eq!(wire.rule(), &expected);
+        assert_eq!((&wire.rule), &expected);
     }
 }

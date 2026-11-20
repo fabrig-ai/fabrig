@@ -4,6 +4,7 @@ use crate::conformance::Story;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_kit::harness::{ClientId, Receipt};
 use jig_client_protocol_kit::{fixtures, native::wire::Wire, net::Net};
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_native::{Conn, Connections};
 use jig_domain_core as core;
 use jig_ops_client_domain as d;
@@ -60,8 +61,8 @@ impl Side {
             match message {
                 Message::Request(bytes) => {
                     let value = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("whole keyed bytes");
-                    if let w::Owner::Family(family) = value.owner() {
-                        self.family_requests.insert(*exchange, family.number());
+                    if let w::Owner::Family(family) = &value.owner {
+                        self.family_requests.insert(*exchange, family.number);
                     }
                 }
                 Message::Read(_)

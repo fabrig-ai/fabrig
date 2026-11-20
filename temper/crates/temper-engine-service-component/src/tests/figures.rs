@@ -137,6 +137,7 @@ impl Peer {
                             NOW,
                             link::Event::Hello {
                                 hello: jig_domain_link::Hello {
+                                    reads_usage: true,
                                     jobs: Box::new([]),
                                     slots: 1,
                                     stop_bound: Duration::from_millis(100),
@@ -385,12 +386,8 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
 }
 
 fn local_value(places: u32) -> jig_client_protocol_wire::WorkerSetting {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
-    WorkerSetting::new(
-        &CEILINGS,
-        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false },
-    )
-    .unwrap()
+    use jig_client_protocol_wire::WorkerSetting;
+    WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false }
 }
 
 #[test]

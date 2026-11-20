@@ -2,6 +2,7 @@
 use super::{c, encoded, values, w};
 use crate::{Bounds, Invalid};
 use jig_client_protocol_link::{Limits, translate};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Reader, length::len_u64};
 
 pub(super) fn limits(bounds: &Bounds) -> Result<Limits, Invalid> {
@@ -47,25 +48,21 @@ pub(super) fn limits(bounds: &Bounds) -> Result<Limits, Invalid> {
 
 pub(crate) fn read(value: &c::ReadValue, bounds: &Bounds) -> Result<c::ReadValue, Invalid> {
     let record = values::wire_read_value(value, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
-    let bytes = encoded(&record, w::ReadValue::measure, w::ReadValue::encode).map_err(|_| Invalid::Payload)?;
+    let bytes = encoded(&record, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
     translate::reads::value(&bytes, &limits(bounds)?).map_err(|_| Invalid::Payload)
 }
 
 pub(crate) fn delivery(value: &c::Delivery, bounds: &Bounds) -> Result<c::Delivery, Invalid> {
     let record = values::wire_delivery_value(value, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
-    let bytes = encoded(&record, w::DeliveryValue::measure, w::DeliveryValue::encode).map_err(|_| Invalid::Payload)?;
+    let bytes = encoded(&record, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
     translate::watches::delivery(&bytes, &limits(bounds)?).map_err(|_| Invalid::Payload)
 }
 
 pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
     let wire = &w::CEILINGS;
     let record = match value {
-        c::ReadNone::TooLarge { bytes } => w::ReadNone::TooLarge(
-            w::TurnTooLarge::new(wire, w::TurnTooLargeParts { bytes }).expect("scalar read refusal"),
-        ),
-        c::ReadNone::TooLinked { joins } => w::ReadNone::TooLinked(
-            w::ReadTooLinked::new(wire, w::ReadTooLinkedParts { joins }).expect("scalar read refusal"),
-        ),
+        c::ReadNone::TooLarge { bytes } => w::ReadNone::TooLarge(w::TurnTooLarge { bytes }),
+        c::ReadNone::TooLinked { joins } => w::ReadNone::TooLinked(w::ReadTooLinked { joins }),
         c::ReadNone::Malformed => w::ReadNone::Malformed,
         c::ReadNone::Unknown => w::ReadNone::Unknown,
         c::ReadNone::Refused => w::ReadNone::Refused,
@@ -74,12 +71,10 @@ pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
         c::ReadNone::SignedOut => w::ReadNone::SignedOut,
         c::ReadNone::Unreachable => return c::ReadNone::Unreachable,
     };
-    let record = w::ReadAnswer::None(
-        w::ReadAnswerNone::new(wire, w::ReadAnswerNoneParts { value: record }).expect("scalar read answer"),
-    );
-    let bytes = encoded(&record, w::ReadAnswer::measure, w::ReadAnswer::encode).expect("measured read answer");
+    let record = w::ReadAnswer::None(w::ReadAnswerNone { value: record });
+    let bytes = encoded(&record, &w::CEILINGS).expect("measured read answer");
     match w::ReadAnswer::decode(wire, &mut Reader::new(&bytes)).expect("encoded read answer") {
-        w::ReadAnswer::None(value) => translate::reads::none(value.value()),
+        w::ReadAnswer::None(value) => translate::reads::none(&value.value),
         w::ReadAnswer::Value(_) | w::ReadAnswer::NotServed(_) => unreachable!("encoded refusal"),
     }
 }
@@ -87,30 +82,18 @@ pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
 pub(crate) fn answer(value: &c::Answer, bounds: &Bounds) -> Result<c::Answer, Invalid> {
     let wire = &w::CEILINGS;
     let record = match value {
-        c::Answer::Done(value) => w::Final::Done(
-            w::Done::new(
-                wire,
-                w::DoneParts { outcome: values::wire_outcome(value, wire).map_err(|_| Invalid::Payload)? },
-            )
-            .map_err(|_| Invalid::Payload)?,
-        ),
-        c::Answer::Refused { refusal, at } => w::Final::Refused(
-            w::Refused::new(
-                wire,
-                w::RefusedParts {
-                    refusal: values::wire_refusal(refusal, wire).map_err(|_| Invalid::Payload)?,
-                    at: *at,
-                },
-            )
-            .map_err(|_| Invalid::Payload)?,
-        ),
+        c::Answer::Done(value) => {
+            w::Final::Done(w::Done { outcome: values::wire_outcome(value, wire).map_err(|_| Invalid::Payload)? })
+        }
+        c::Answer::Refused { refusal, at } => w::Final::Refused(w::Refused {
+            refusal: values::wire_refusal(refusal, wire).map_err(|_| Invalid::Payload)?,
+            at: *at,
+        }),
     };
-    let record = encoded(&record, w::Final::measure, w::Final::encode).map_err(|_| Invalid::Payload)?;
-    let owned =
-        w::Owned::new(wire, w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record })
-            .map_err(|_| Invalid::Payload)?;
+    let record = encoded(&record, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record };
     let keyed = w::KeyedAnswer::FinalAnswer(owned);
-    let bytes = encoded(&keyed, w::KeyedAnswer::measure, w::KeyedAnswer::encode).map_err(|_| Invalid::Payload)?;
+    let bytes = encoded(&keyed, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
     let limits = limits(bounds)?;
     let record = w::KeyedAnswer::decode(limits.wire(), &mut Reader::new(&bytes)).map_err(|_| Invalid::Payload)?;
     translate::answers::answer(record, &limits).map_err(|_| Invalid::Payload)
@@ -120,7 +103,7 @@ pub(crate) fn answer(value: &c::Answer, bounds: &Bounds) -> Result<c::Answer, In
 pub(crate) fn ask(value: &c::Ask, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
     let record = translate::asks::ask(value, limits.wire()).map_err(|_| Invalid::Payload)?;
-    let bytes = encoded(&record, w::Ask::measure, w::Ask::encode).map_err(|_| Invalid::Payload)?;
+    let bytes = encoded(&record, limits.wire()).map_err(|_| Invalid::Payload)?;
     if len_u64(bytes.len()) > bounds.document_bytes {
         return Err(Invalid::Payload);
     }
@@ -129,11 +112,15 @@ pub(crate) fn ask(value: &c::Ask, bounds: &Bounds) -> Result<(), Invalid> {
 }
 
 pub(crate) fn selector(value: &c::Read, bounds: &Bounds) -> Result<(), Invalid> {
-    translate::reads::read(value, limits(bounds)?.wire()).map_err(|_| Invalid::Payload)?;
+    let limits = limits(bounds)?;
+    let record = translate::reads::read(value, limits.wire()).map_err(|_| Invalid::Payload)?;
+    record.measure(limits.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }
 
 pub(crate) fn subject(value: &c::Subject, bounds: &Bounds) -> Result<(), Invalid> {
-    translate::watches::subject(value, limits(bounds)?.wire()).map_err(|_| Invalid::Payload)?;
+    let limits = limits(bounds)?;
+    let record = translate::watches::subject(value, limits.wire()).map_err(|_| Invalid::Payload)?;
+    record.measure(limits.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }
