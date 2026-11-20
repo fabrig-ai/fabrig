@@ -1,6 +1,6 @@
 # branches: status
 
-2026-11-19. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-20. Where the tree's code lags or departs from [branches.md](branches.md).
 
 
 
@@ -38,6 +38,7 @@ a change's merge job from the engine through its worker to the fake forge
 (`../../testing/README.status.md`, 2.1).
 
 - **Not yet:**
+  - 1, *Made whatever restarts*: a restart's making of a missing branch with no entry asks the root for its entry number and reads the landing branch's tip while the start reads afresh, and on a full outbox waits there for room, so reading afresh never ends (`temper-engine-domain-forge/src/goal_branch.rs`, `missing`; `domain.rs`, `read_afresh_complete`) [in flight: change 10942].
   -  the request-to-repair fuzzy coverage remains `change/gates.status.md`, 1.
   -  the real-process update-recovery trial remains `README.status.md`, 6 and 10.
   - `change/README.md`, 2, step 3: the base-first deployment proof remains `change/README.status.md`, 2, step 3.
