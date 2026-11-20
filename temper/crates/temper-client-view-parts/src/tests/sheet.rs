@@ -17,7 +17,7 @@ fn reached(id: u64, name: &[u8], private: bool) -> wire::Reached {
 fn tree(sheet: &sheet::Sheet) -> (Tree, Bindings) {
     let root = root();
     let mut b = Builder::new(&f::tree_limits());
-    let mut bindings = Bindings::new(200, 8, 1);
+    let mut bindings = Bindings::new(200, 8, 1, f::tree_limits().text_per_node);
     choices(&mut b, &root, sheet, &f::words(), &mut bindings);
     picker(&mut b, &root, sheet, b"Shop", &f::words(), &mut bindings);
     let mut form = forge::form(f::PROJECT);

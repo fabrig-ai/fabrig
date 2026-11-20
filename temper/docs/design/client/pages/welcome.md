@@ -206,15 +206,24 @@
     before "Start over": it goes on to the App's installation, as
     Connecting's "Install on GitHub" does (`../forge/deployment.md`), and
     "Start over" removes the forge, the card saying that the App on
-    GitHub stays the person's to delete. While the removal is out, both
+    GitHub stays the person's to delete. Under the card's words, the
+    row's last connect's line, where it has one, says why its last way
+    ended (`../forge/deployment.md`, the row's table). While the removal
+    is out, both
     are disabled. An account added before stays: it is the person's,
     not the set up's, and the Model step shows it ready.
+    *GitHub's way* from this step, "Connect GitHub", "Go on" or
+    "Install on GitHub", goes in a new tab, and the step waits with
+    the welcome's note in the choices' place, then moves on by itself
+    on the `forges` watch (`../forge/deployment.md`, *GitHub's way, in a
+    new tab*; the look request `github-new-tab`).
     A forge of the person's under way or connected is no choice either
     (*The Forge step with a forge,* below); but a GitHub
     forge with no accepted installation, or a Forgejo connecting
-    as its admin, shows `ConnectForge`'s step for it in the step, its
-    `back` the welcome's Forge step, `/welcome?at=forge&forge=N`, so
-    that the tab GitHub sends back finds its choice there. While the
+    as its admin, shows `ConnectForge`'s step for it in the step, at
+    the welcome's Forge step's address with the forge,
+    `/welcome?at=forge&forge=N`, where GitHub's way, its note and its
+    end stay. While the
     step's address names a forge (`forge=N`) that is connected, as *The
     store's state* says, the welcome moves on to Model, its address
     replacing the step's, so that "‹ Back" from Model, to

@@ -594,7 +594,11 @@ fn reopen(side: &mut Side, again: Act) {
         | Request::ConnectForge { .. }
         | Request::Leave { .. }
         | Request::Client { .. }
-        | Request::Send { .. } => false,
+        | Request::Send { .. }
+        | Request::OpenTab { .. }
+        | Request::PointTab { .. }
+        | Request::CloseTab { .. }
+        | Request::GitHubEnded { .. } => false,
     }));
     forge::step(
         side,
@@ -808,7 +812,11 @@ fn dismiss_uses_the_rows_project_and_waits_for_the_watch() {
             | Request::ConnectForge { .. }
             | Request::Leave { .. }
             | Request::Client { .. }
-            | Request::Send { .. } => None,
+            | Request::Send { .. }
+            | Request::OpenTab { .. }
+            | Request::PointTab { .. }
+            | Request::CloseTab { .. }
+            | Request::GitHubEnded { .. } => None,
         })
         .unwrap();
     assert_eq!(scope, jig_client::contract::Scope::Project(PROJECT));

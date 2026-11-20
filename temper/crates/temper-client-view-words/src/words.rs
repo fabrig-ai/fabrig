@@ -2017,6 +2017,12 @@ pub enum Word {
     WelcomeAwayAgain,
     WelcomeTabOpening,
     WelcomeAwayBody,
+    GitHubTabOpening,
+    GitHubAwayTitle,
+    GitHubAwayOwn,
+    GitHubAwayConnect,
+    GitHubAwayInstall,
+    GitHubAwayOpen,
     WelcomeFinishing,
     WelcomeClaudeTitle,
     WelcomeClaudeBody,
@@ -2285,7 +2291,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2844;
+const PHRASES: u32 = 2850;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2312,10 +2318,10 @@ const PHRASES: u32 = 2844;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5284;
+const SEGMENTS: u32 = 5290;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66629;
-const ALL: [Word; 2110] = [
+const ENGLISH_BYTES: u32 = 66926;
+const ALL: [Word; 2116] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -4236,6 +4242,12 @@ const ALL: [Word; 2110] = [
     Word::WelcomeAwayAgain,
     Word::WelcomeTabOpening,
     Word::WelcomeAwayBody,
+    Word::GitHubTabOpening,
+    Word::GitHubAwayTitle,
+    Word::GitHubAwayOwn,
+    Word::GitHubAwayConnect,
+    Word::GitHubAwayInstall,
+    Word::GitHubAwayOpen,
     Word::WelcomeFinishing,
     Word::WelcomeClaudeTitle,
     Word::WelcomeClaudeBody,
@@ -6437,6 +6449,12 @@ impl Word {
             Self::WelcomeAwayAgain => 3740,
             Self::WelcomeTabOpening => 3793,
             Self::WelcomeAwayBody => 3374,
+            Self::GitHubTabOpening => 9964,
+            Self::GitHubAwayTitle => 9965,
+            Self::GitHubAwayOwn => 9966,
+            Self::GitHubAwayConnect => 9967,
+            Self::GitHubAwayInstall => 9968,
+            Self::GitHubAwayOpen => 9969,
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
             Self::WelcomeClaudeBody => 3377,
@@ -7657,6 +7675,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeAwayAgain => (&[b"Open it again \xe2\x80\xba"], &[]),
         Word::WelcomeTabOpening => (&[b"Opening ", b"\xe2\x80\x99s sign-in\xe2\x80\xa6"], &[Name]),
         Word::WelcomeAwayBody => (&[b"Sign in and approve temper there. This page moves on by itself."], &[]),
+        Word::GitHubTabOpening => (&[b"Opening GitHub\xe2\x80\xa6"], &[]),
+        Word::GitHubAwayTitle => (&[b"Waiting for GitHub, in the new tab"], &[]),
+        Word::GitHubAwayOwn => (&[b"Waiting for GitHub"], &[]),
+        Word::GitHubAwayConnect => (&[b"Make temper\xe2\x80\x99s App there, then choose the account and the repositories it may use. This page moves on by itself."], &[]),
+        Word::GitHubAwayInstall => (&[b"Choose the account and the repositories temper\xe2\x80\x99s App may use there. This page moves on by itself."], &[]),
+        Word::GitHubAwayOpen => (&[b"Open GitHub \xe2\x80\xba"], &[]),
         Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
         Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
         Word::WelcomeCopy => (&[b"Copy"], &[]),
@@ -8140,7 +8164,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeOther => (&[b"Forgejo"], &[]),
         Word::ForgePlayground => (&[b"Playground forge"], &[]),
         Word::ForgeGitHubDescription => (&[b"Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use."], &[]),
-        Word::ForgeGitHubTime => (&[b"In this tab, on GitHub \xc2\xb7 about two minutes"], &[]),
+        Word::ForgeGitHubTime => (&[b"In a new tab, on GitHub \xc2\xb7 about two minutes"], &[]),
         Word::ForgeHereDescription => (&[b"A forge of your own, run by temper box. No account needed: temper makes your first repository, and you start in it."], &[]),
         Word::ForgeHereTime => (&[b"Here \xc2\xb7 about a minute"], &[]),
         Word::ForgeCommandsTime => (&[b"Needs four commands and a restart"], &[]),

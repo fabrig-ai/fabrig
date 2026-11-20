@@ -353,13 +353,6 @@ pub(super) enum Purpose {
     Admin(Token),
     Deleted(u16),
 }
-/// The connect's `back`, held with its manifest run, for the manifest page's Back.
-fn manifest_back(engine: &crate::engine::Engine, token: Token) -> Option<&[u8]> {
-    match engine.setup.public.get(&token) {
-        Some(super::public::Caller::Manifest { back, .. }) => back.as_deref(),
-        _ => None,
-    }
-}
 /// The App's kept mark and account identify the person (temper/docs/design/protocol/setup/github.md, 2).
 fn app_answer(
     engine: &crate::engine::Engine,
@@ -501,9 +494,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     let outcome = match outcome {
         reconcile::Outcome::Manifest { state, target, manifest } => {
             // The kit answers the form's parts; the page is temper's (skein/docs/design/forge/setup/github.md 1.1).
-            let back = manifest_back(engine, token);
-            let Some(page) = super::routes::form(&target, &manifest, back, forge, engine.setup.env.limits.body_bytes)
-            else {
+            let Some(page) = super::routes::form(&target, &manifest, engine.setup.env.limits.body_bytes) else {
                 let failure = reconcile::Failure {
                     forge,
                     step: reconcile::Stage::App,

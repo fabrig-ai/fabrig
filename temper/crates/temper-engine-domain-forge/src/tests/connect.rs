@@ -319,6 +319,47 @@ fn connect_end_reasons_are_bounded_without_splitting_utf8() {
     assert!(out.contains(&Request::MarkedForges));
 }
 #[test]
+fn way_end_is_bounded_marked_and_cleared_by_the_next_connect() {
+    let mut d = github(Kind::GitHub, Mode::Connected);
+    let out = outputs(&mut d, Event::WayEnded { forge: 1, why: Box::from(STOP_REASON) });
+    assert_eq!(d.forges().rows[0].ended.as_deref(), Some(STOP_REASON));
+    assert_eq!(out.as_ref(), [Request::MarkedForges]);
+    let mut reason = skein_lib::Writer::new(CONNECT_WHY_BYTES + 1);
+    reason.put(&[b'x'; CONNECT_WHY_BYTES - 1]).unwrap();
+    reason.put("é".as_bytes()).unwrap();
+    let out = outputs(&mut d, Event::WayEnded { forge: 1, why: reason.finish() });
+    assert_eq!(d.forges().rows[0].ended.as_deref(), Some([b'x'; CONNECT_WHY_BYTES - 1].as_slice()));
+    assert_eq!(d.forges().rows[0].ended_stop, None);
+    assert_eq!(out.as_ref(), [Request::MarkedForges]);
+    assert!(outputs(&mut d, Event::WayEnded { forge: 2, why: Box::from(STOP_REASON) }).is_empty());
+    let out = application(&mut d, 1, connect(1), Some(PartyRole::Owner), Some(VALUE));
+    assert_eq!(d.forges().rows[0].ended, None);
+    assert!(out.contains(&Request::MarkedForges));
+}
+#[test]
+fn a_running_connect_or_install_keeps_its_end_when_a_way_ends() {
+    for install in [false, true] {
+        let mut d = github(Kind::GitHub, Mode::Connected);
+        let (ask, carried) = if install {
+            outputs(
+                &mut d,
+                Event::Connection {
+                    forge: 1,
+                    state: Connection::Connected { id: 9, login: Box::from(b"app[bot]".as_slice()) },
+                },
+            );
+            (Ask::Install { forge: 1, back: None }, None)
+        } else {
+            (connect(1), Some(VALUE))
+        };
+        application(&mut d, 1, ask, Some(PartyRole::Owner), carried);
+        assert_eq!(d.application_answer(Token::new(1)), None);
+        let out = outputs(&mut d, Event::WayEnded { forge: 1, why: Box::from(STOP_REASON) });
+        assert_eq!(d.forges().rows[0].ended, None);
+        assert!(out.is_empty());
+    }
+}
+#[test]
 fn installation_updates_mark_rows_in_id_order_and_deletion_drops_one() {
     let mut limits = LIMITS;
     limits.client.repositories = 3; // The three configured forge fixtures below.

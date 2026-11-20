@@ -167,7 +167,7 @@ fn a_press_opens_its_tab_before_any_answer() {
         .id;
     let event = temper_client_view::event(&view, id, skein_ui::Act::Press).expect("press");
     accounts::press_turn(&mut front, &mut root, event.into());
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert_eq!(front.tabs, [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }]);
     assert!(
         root.person()
             .pages()
@@ -186,7 +186,10 @@ fn a_press_opens_its_tab_before_any_answer() {
 fn an_answer_points_once_and_replaces_the_page_address() {
     let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
     let source = start_plan_sign_in(&mut front, &mut root);
-    let expected = [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Point { to: ISSUER.into() }];
+    let expected = [
+        d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } },
+        d::Tab::Point { to: ISSUER.into() },
+    ];
     assert_eq!(front.tabs, expected);
     assert_eq!(d::address::print(root.person().pages().address()).as_ref(), returned_path(source));
     assert_eq!(front.shows.last(), Some(&(root.person().pages().address().clone(), true)));
@@ -218,7 +221,10 @@ fn an_answer_after_leaving_closes_the_tab() {
     let (mut front, mut root, source) = unanswered_sign_in();
     go(&mut front, &mut root, Address::Accounts);
     visit(&mut front, &mut root, source);
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert_eq!(
+        front.tabs,
+        [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }, d::Tab::Close]
+    );
     assert_eq!(root.person().pages().address(), &Address::Accounts);
     assert_eq!(front.leaves.len(), 0);
 }
@@ -227,7 +233,10 @@ fn a_refused_sign_in_closes_the_tab_and_explains_why() {
     let (mut front, mut root, source) = unanswered_sign_in();
     visited(&mut front, source);
     accounts::refused_answer(&mut front, &mut root);
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert_eq!(
+        front.tabs,
+        [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }, d::Tab::Close]
+    );
     assert!(text(&root).contains("not offered"), "{}", text(&root));
     assert_eq!(front.leaves.len(), 0);
 }
@@ -238,7 +247,10 @@ fn a_lost_sign_in_closes_the_tab_and_explains_why() {
     visit(&mut front, &mut root, source);
     accounts::lost(&mut front, &mut root);
     accounts::expire_answer(&mut front, &mut root);
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert_eq!(
+        front.tabs,
+        [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }, d::Tab::Close]
+    );
     assert!(text(&root).contains("Waiting for current account facts."), "{}", text(&root));
     assert_eq!(front.leaves.len(), 0);
 }
@@ -250,7 +262,7 @@ fn a_refused_tab_keeps_the_address_without_pointing() {
     assert!(d::shown(root.person()) > shown, "the tab refusal redraws the page");
     assert!(root.person().pages().connect_model().expect("page").tab_refused());
     visit(&mut front, &mut root, source);
-    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert_eq!(front.tabs, [d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } }]);
     assert_eq!(
         root.person().pages().connect_model().expect("page").request.sign_in_address(root.person().client()),
         Some(ISSUER)
@@ -310,7 +322,10 @@ fn welcome_sign_in() -> (Joint, Root, u32) {
 #[test]
 fn a_welcome_model_answer_names_its_source_and_holds() {
     let (mut front, mut root, source) = welcome_sign_in();
-    let expected = [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Point { to: ISSUER.into() }];
+    let expected = [
+        d::Tab::Open { opening: d::Opening::SignIn { provider: accounts::PROVIDER } },
+        d::Tab::Point { to: ISSUER.into() },
+    ];
     assert_eq!(front.tabs, expected);
     assert_eq!(
         root.person().pages().address(),

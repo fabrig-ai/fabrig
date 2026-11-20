@@ -916,10 +916,7 @@ fn accepting_at_once_on_either_welcome_forge_address_moves_to_model() {
 #[test]
 fn choosing_github_sends_connect_new_github() {
     let (mut root, _, _) = opened(true);
-    let (_, _, request) = sent(f::form_act(
-        &mut root,
-        forge::Act::Forges(forges::Act::GitHub { back: b"https://temper.example/forges".as_slice().into() }),
-    ));
+    let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::GitHub)));
     let w::Request::Connect(request) = request else { panic!("connect") };
     let w::Making::New(new) = &request.forge else { panic!("new") };
     assert_eq!(new.forge, w::ForgeAsk::Github);
@@ -1196,13 +1193,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
                 },
             },
         );
-        let (_, _, request) = sent(f::form_act(
-            &mut root,
-            forge::Act::Forges(forges::Act::GoOn {
-                forge: 9,
-                back: b"https://temper.example/forges".as_slice().into(),
-            }),
-        ));
+        let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::GoOn { forge: 9 })));
         match app {
             w::AppWay::Manifest => {
                 let w::Request::Connect(connect) = request else { panic!("connect") };
@@ -1223,10 +1214,7 @@ fn a_new_github_does_not_rebind_a_retained_owned_setup() {
     let (mut root, _, watch) = opened(true);
     setup(&mut root);
     answered(&mut root, w::Outcome::SettingUp);
-    let (attempt, _, _) = sent(f::form_act(
-        &mut root,
-        forge::Act::Forges(forges::Act::GitHub { back: b"https://temper.example/forges".as_slice().into() }),
-    ));
+    let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::GitHub)));
     deliver_picker(&mut root, watch, false);
     assert!(!root.forge().setup_form().making.as_ref().unwrap().accepted);
     reply(&mut root, attempt, w::Outcome::Connecting);
@@ -1237,10 +1225,7 @@ fn a_new_github_does_not_rebind_a_retained_owned_setup() {
 #[test]
 fn a_pending_new_github_blocks_a_second_new_forge() {
     let (mut root, _, _) = opened(true);
-    sent(f::form_act(
-        &mut root,
-        forge::Act::Forges(forges::Act::GitHub { back: b"https://temper.example/forges".as_slice().into() }),
-    ));
+    sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::GitHub)));
     assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::SetUpOwned)).is_empty());
     assert!(root.forge().set_up().is_none());
     assert_eq!(root.forge().setup_form().making.as_ref().unwrap().kind, Kind::GitHub);

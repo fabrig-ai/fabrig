@@ -8,8 +8,10 @@ client right after clicking on the signin link, and it feels almost like
 a glitch." Offered the behaviour below, the user took it ("I'll go with
 your recs"). The look request `sign-in-new-tab` draws the page
 (`../client/journeys/sign-in-new-tab/`). This draft carries what the look
-cannot. It covers a model account's sign-in alone: a forge's departures
-stay as they are (section 6).
+cannot. It covers a model account's sign-in alone; a forge's departures
+took the same way since, by the look request `github-new-tab` (the user,
+2026-11-19; `../client/forge/deployment.md`, *GitHub's way, in a new
+tab*).
 
 ## 1. In one page
 
@@ -86,8 +88,6 @@ stay as they are (section 6).
 
 ## 6. Open questions
 
-- **A forge's departures:** GitHub's App and install still leave in this
-  tab ("In this tab, on GitHub"), and may want the same.
 - **The new tab closing itself:** temper's page keeps a handle on the tab,
   but a provider's opener policy may sever it. Left out for now, so the
   person closes it.

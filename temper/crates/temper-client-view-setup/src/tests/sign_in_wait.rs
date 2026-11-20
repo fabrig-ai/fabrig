@@ -1,6 +1,7 @@
 //! The waiting page's links and the page's fact of a tab refused.
 use super::*;
 use crate::tests::fixtures;
+use skein_ui::phrases::Hole;
 
 const ADDRESS: &[u8] = b"https://issuer.example/visit";
 

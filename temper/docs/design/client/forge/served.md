@@ -62,24 +62,32 @@ nothing of temper's client calls them. Every other path, the client's
 
 | Route | What it does | Answers |
 |---|---|---|
-| `GET /forges/N/github/manifest?state=S` | temper's page for that state, rendered from what the setup's host's `Manifest` run answered, the form's target and the manifest, and held with it, at most `page_bytes`: one form, the manifest its hidden `manifest` field, escaped as an attribute's value, posting temper's manifest to `WEB/settings/apps/new?state=S`, the person's own account's, which posts itself as the page loads; a browser that runs no script, or one come back to the page through its history, shows instead "temper’s App, on GitHub", its button "Continue to GitHub" and "Back to temper", a link to the connect's `back`, else `/forges/connect?forge=N`; the manifest's redirect and setup addresses are whole URLs on the clients' listener, `http://LISTENER/forges/N/github/redirect` and `http://LISTENER/forges/N/github/setup`, and its `url`, the App's homepage, `http://LISTENER/` | `200`, the page |
+| `GET /forges/N/github/manifest?state=S` | temper's page for that state, rendered from what the setup's host's `Manifest` run answered, the form's target and the manifest, and held with it, at most `page_bytes`: one form, the manifest its hidden `manifest` field, escaped as an attribute's value, posting temper's manifest to `WEB/settings/apps/new?state=S`, the person's own account's, which posts itself as the page loads; a browser that runs no script, or one come back to the page through its history, shows instead "temper’s App, on GitHub" and its button "Continue to GitHub", and nothing after it: the page is the new tab's (below); the manifest's redirect and setup addresses are whole URLs on the clients' listener, `http://LISTENER/forges/N/github/redirect` and `http://LISTENER/forges/N/github/setup`, and its `url`, the App's homepage, `http://LISTENER/` | `200`, the page |
 | `GET /forges/N/github/redirect?code=C&state=S` | `Convert`: the code exchanged for the App's id, slug and key, each kept before the browser is answered, and its user; the App's hook points at `https://SLUG.invalid/`, so no webhook secret is kept on GitHub; then `Install` for a fresh state, held with the connect's `back`, whose link answers the browser, and the forge connects | `302` to the install page, `Install`'s link for that state |
-| `GET /forges/N/github/setup?installation_id=I&setup_action=A&state=S` | `Accept`: the installation checked and accepted, then the forge's installations handed to its component again | `303` to the state's `back`; with none, `200`, a short page: "temper has the installation; you may close this tab." |
+| `GET /forges/N/github/setup?installation_id=I&setup_action=A&state=S` | `Accept`: the installation checked and accepted, then the forge's installations handed to its component again | `303` to the state's `back`, where a request named one; with none, as every client's way now has, `200`, the new tab's end, a short page: "GitHub is connected", "temper has the installation; you may close this tab.", and nothing after it |
 
 N is the forge's `number`, WEB its record's `web` address and
 LISTENER the clients' listener's address, as temper builds the
 manifest from it (`../../protocol/forge/README.md`, the setup's host).
 
-- **The tab goes and comes back** (with the user, 2026-10-23): the
-  page that sends `Connect` or `Install` names `back`, its own address,
-  which the setup's host holds with the state (a connect's passes to
-  the install `Convert` starts), and the browser goes to the link in
-  the page's own tab, where a sign-in has a tab of its own (`../pages/README.md`,
-  `ConnectModel`, The sign-in's tab). The setup route sends it back
-  there, so the page that started it shows how it ended, as a new
-  client: the welcome's Forge step, `ConnectForge` at the forge, or the
-  Forges page. A connect from the terminal names none, and its routes
-  answer their pages as before.
+- **The way goes in a new tab** (the user, 2026-11-19, the look request
+  `github-new-tab`, reversing their word of 2026-10-23 that the tab goes
+  and comes back): the page that sends `Connect` or `Install` opens a
+  tab of its own in the press's turn, as a sign-in does
+  (`../pages/accounts.md`, 1, `ConnectModel`, *The sign-in's tab*), and
+  names no `back`; the answer's link is pointed in that tab, its opener
+  cut, and the manifest's page, GitHub's App and install, the redirect
+  and the setup route all run there (`deployment.md`, *GitHub's way, in
+  a new tab*). A connect with no `back` is answered the whole address
+  on the clients' listener, as the terminal's always was; the browser
+  points its tab at that address's path and query on its own origin
+  (`deployment.md`, *GitHub's way, in a new tab*). temper's page
+  stays, waiting, and reads how the way ended on the `forges` watch, so
+  every end is said on the forge's row (*Each way's end reaches the
+  forge's row,* below), and no page sends the tab back. `back` stays a
+  field of `Connect` and `Install`, and the routes still honour one a
+  request names (`../engine.md`); no client of temper's names one now,
+  the terminal's included.
 - **The manifest's page's headers:** `Content-Security-Policy:
   default-src 'none'; form-action WEB; script-src 'sha256-H';
   style-src 'sha256-S'`, H the hash of its one inline script and S
@@ -96,8 +104,8 @@ manifest from it (`../../protocol/forge/README.md`, the setup's host).
   link quiet (`quiet`). Their one inline style takes the rules of the
   bundle's `files/pages.css`, but the `@font-face` rules, since
   `default-src 'none'` fetches nothing: the system's sans stands in.
-  The manifest's page's "Continue to GitHub" is filled and its "Back to
-  temper" quiet. Each hash, S and H, follows its inline text.
+  The manifest's page's "Continue to GitHub" is filled, and nothing
+  follows it. Each hash, S and H, follows its inline text.
 - **The state is the only authenticator.** A route takes no cookie and
   no credential of jig's: the state, 128 bits or more drawn by the
   setup's host for one connect or one install, is good once, for its
@@ -107,18 +115,21 @@ manifest from it (`../../protocol/forge/README.md`, the setup's host).
 - **Where GitHub's way can't go on,** the route answers a short page
   of its own, temper's mark above one column, as a Google sign-in's
   endings are drawn (`../../protocol/sign-in.md`, 4.3): its level-1
-  heading, why, and "Back to temper", a filled link, in place of
-  sending the tab back; each with
+  heading, why, then "You can close this tab.", a paragraph of its own
+  and no link (the look request `github-new-tab`): the page is the new
+  tab's, and temper's page, still open in its own tab, says how the way
+  ended. Every page of this shell ends so, the `400`, `404`, `405` and
+  `503` ones included; the setup route's "GitHub is connected" alone
+  says it in its own words. Each with
   `Content-Security-Policy: default-src 'none'; style-src 'sha256-S'`,
   S the hash of its one inline style, `Cache-Control: no-store` and
   `Referrer-Policy: no-referrer`, and nothing is kept. The pages:
   - *Ended:* a state used, unknown or past its life, or a code GitHub
     refuses, is answered `410`: "This link has ended", "It was used
     already, it expired, or temper restarted since. Start again from
-    temper.", its link to `/forges/connect?forge=N`, since the state's
-    `back` is gone with it. So is a run that stops otherwise:
-    `Convert`'s `Stop`, whatever its failure, an `Install` that stops,
-    and `Accept`'s `Stop`.
+    temper.", then "You can close this tab.". So is a run that stops
+    otherwise: `Convert`'s `Stop`, whatever its failure, an `Install`
+    that stops, and `Accept`'s `Stop`.
   - *A request:* GitHub's visit with `setup_action=request` and no
     installation, after a member of an organization who is not its
     owner asked for the App there. Nothing is accepted: the routing
@@ -130,8 +141,8 @@ manifest from it (`../../protocol/forge/README.md`, the setup's host).
     an installation", "Only an owner of an organization can install
     temper’s App there, and temper can’t wait for an owner to approve
     it yet: an installation approved later isn’t used. Install it on
-    your own account, or on an organization you own.", its link to the
-    state's `back`, else `/forges/connect?forge=N`. An owner's approval
+    your own account, or on an organization you own.", then "You can
+    close this tab.". An owner's approval
     later makes an installation with no state of temper's, a stray
     (`../../protocol/setup/github.md`, 4); waiting for it is for later
     (`../../draft/github.md`, section 18).
@@ -144,6 +155,38 @@ manifest from it (`../../protocol/forge/README.md`, the setup's host).
   the forge's run ends. One held past the state's life
   (`setup.state_life_ms`), or with no room to hold it, is answered `410`
   as ended.
+- **Each way's end reaches the forge's row** (the look request
+  `github-new-tab`): the tab no longer comes back, and temper's page
+  waits on the `forges` watch (`deployment.md`, *GitHub's way, in a new
+  tab*), so every way the new tab's way ends without an installation
+  accepted is said as the forge's last connect's line, "The last
+  connect stopped: WHY" (`deployment.md`, the row's table), as a stopped
+  `Connect`'s is. The routing says it, for a state it holds for that
+  forge (each state a connect's or an install's way drew, held with its
+  `back` beside the setup's host's own), and for the forge's latest of
+  them alone, the one with the latest life: one a fresh press has
+  followed ends unsaid. Its ends, each WHY at most 256 bytes:
+  - *Expired:* a state the routing holds passing its life
+    (`setup.state_life_ms`) unused, at that moment, not at a later
+    visit: "the link to GitHub expired before it was finished". The
+    routing wakes for it, the earliest such life among its deadlines.
+  - *A request:* GitHub's visit with `setup_action=request` (above):
+    "GitHub sent an organization member's request, not an
+    installation".
+  - *A run that stops:* `Convert`'s `Stop`, the `Install` it starts
+    stopping and `Accept`'s `Stop`, for a visit whose state the routing
+    held: the setup's host's reason, as a `Connect`'s stop is said.
+  - *Busy:* a visit held past the state's life or with no room, or an
+    `Accept` the forge's run or `setup.runs` keeps from starting: "temper
+    was busy, and the link to GitHub ended".
+
+  It reaches the forge domain as one event, the forge and WHY, which
+  keeps it as a stopped run's end (`records.md`, `ended`), cleared by
+  the forge's next connect or install, or its connecting, as that end
+  is; a forge a `Connect` or `Install` run holds keeps its line
+  unchanged, since that run's own end follows. A visit whose state the
+  routing does not hold (used, unknown, or from before a restart) is
+  no way of the forge's now, and says nothing on the row.
 - **A visit with no state** to the setup route is GitHub's, after a
   person changed the installation's repositories on GitHub: for an
   installation accepted already it is a refresh, answered `303` to
