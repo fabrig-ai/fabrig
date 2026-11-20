@@ -412,10 +412,11 @@ service, over HTTP, rather than joined to the engine's root.
   (`temper_playground::documents::configuration::story_a`) holds a bound
   tighter than a box's, and a step a box takes is refused by it, the
   walk's start takes the deployment's default for that bound, as a
-  box's deployment does: `tasks.spec_bytes`, whose 187 bytes hold no
-  goal's specification from a draft, and each other the goal from a
-  draft meets (6), named here by the change that lifts it. Story A's
-  own start keeps its bounds.
+  box's deployment does: `tasks.spec_bytes`, from 187 to 131072 bytes,
+  for the goal's specification from a draft; and
+  `people.amendment_bytes`, from 1218 to 135168 bytes, for that
+  specification with its authority in the person's create request.
+  Story A's own start keeps its bounds.
 - **The browser starts** on the page the printed link opens, signed
   in, at `/welcome`. Nothing else is implied: the walk's first line
   acts on that page.
