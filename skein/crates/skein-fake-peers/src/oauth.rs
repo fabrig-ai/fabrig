@@ -286,8 +286,8 @@ impl Peer {
                     self.observe(Observation::Closed { connection: owner }, 0);
                 }
             }
-            io::Event::Failed { owner, .. } => {
-                assert_ne!(owner, LISTENER, "issuer listener must bind");
+            io::Event::Failed { owner, error } => {
+                assert_ne!(owner, LISTENER, "{}", face::listener_failure("issuer", self.face.listen_address, error));
                 if let Some(connection) = self.connections.iter_mut().find(|connection| connection.owner == owner) {
                     connection.wire.close(&mut self.face.requests);
                     connection.closing = true;

@@ -144,8 +144,13 @@ impl Peer {
                     core::close(&mut c.http, env, &mut c.below);
                 }
             }
-            io::Event::Failed { owner, .. } => {
-                assert_ne!(owner, LISTENER, "the push listener binds");
+            io::Event::Failed { owner, error } => {
+                assert_ne!(
+                    owner,
+                    LISTENER,
+                    "{}",
+                    crate::face::listener_failure("the push", self.face.listen_address, error)
+                );
                 if let Some(c) = self.connections.iter_mut().find(|c| c.owner == owner) {
                     core::close(&mut c.http, env, &mut c.below);
                 }

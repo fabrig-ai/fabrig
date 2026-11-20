@@ -40,6 +40,7 @@ pub struct Face {
     pub completions: Queue<kernel::Complete>,
     pub listener: Option<Token>,
     pub address: Option<SocketAddr>,
+    pub listen_address: SocketAddr,
     pub stopping: bool,
 }
 
@@ -59,6 +60,7 @@ impl Face {
             completions: Queue::with_capacity(limits.queue),
             listener: None,
             address: None,
+            listen_address: address,
             stopping: false,
         })
     }
@@ -104,6 +106,10 @@ impl Face {
             && self.submissions.is_empty()
             && self.completions.is_empty()
     }
+}
+
+pub(crate) fn listener_failure(name: &str, address: SocketAddr, error: io::Error) -> String {
+    format!("{name} listener must bind {address}: {error:?}")
 }
 
 /// Whether these limits are representable: every edge bound they size is finite
@@ -167,6 +173,22 @@ mod tests {
         face.down(Time::ZERO, Wall::EPOCH);
         assert!(face.is_empty());
         assert!(!face.work_pending());
+    }
+
+    #[test]
+    fn a_listener_refusal_names_its_address_and_io_error() {
+        let address = "192.0.2.1:0".parse().expect("non-local address");
+        assert_eq!(
+            skein_shell::open_listener(address, 2),
+            Err(kernel::Error::AddressNotAvailable),
+            "the host cannot bind this documentation address"
+        );
+        // io reports an unavailable bind address as Other. The face rejects
+        // non-loopback addresses before io, so pin the shared assertion's words.
+        assert_eq!(
+            super::listener_failure("issuer", address, io::Error::Other),
+            "issuer listener must bind 192.0.2.1:0: Other"
+        );
     }
 
     #[test]
