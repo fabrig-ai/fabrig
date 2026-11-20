@@ -110,7 +110,7 @@ impl Judge {
                                 b"web",
                             )
                         {
-                            let killed = std::process::Command::new("/usr/bin/kill")
+                            let killed = std::process::Command::new("/bin/kill")
                                 .args(["-KILL", &forgejo.to_string()])
                                 .status()
                                 .map_err(|error| format!("kill Forgejo: {error:?}"))?;
@@ -690,7 +690,7 @@ fn restart_engine(
         let at = *restart_at.get_or_insert(now.saturating_add(Duration::from_secs(1)));
         if now >= at {
             let engine = find(&binary.tree_status().live_pids, program, b"serve").ok_or(String::from("box engine"))?;
-            let status = std::process::Command::new("/usr/bin/kill")
+            let status = std::process::Command::new("/bin/kill")
                 .args(["-TERM", &engine.to_string()])
                 .status()
                 .map_err(|error| format!("stop engine: {error:?}"))?;
@@ -711,7 +711,7 @@ impl<F, T> CtlJudge<'_, F, T> {
             && let Some([config, client]) = self.resuming_playground.take()
         {
             let parent = super::playground::interrupt_reset(binary, &config, &client);
-            let continued = std::process::Command::new("/usr/bin/kill")
+            let continued = std::process::Command::new("/bin/kill")
                 .args(["-CONT", &parent.to_string()])
                 .status()
                 .map_err(|error| format!("resume box parent: {error:?}"))?;

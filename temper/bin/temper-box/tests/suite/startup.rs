@@ -2078,12 +2078,12 @@ fn forge_run_keeps_fd_three_through_the_version_spawn_and_exec() {
             r#"#!/bin/sh
 if [ "$1" = --version ]; then
     test -z "${{LISTEN_FDS+x}}" || exit 20
-    test ! -S /proc/self/fd/3 || exit 21
+    test ! -S /dev/fd/3 || exit 21
     printf 'forgejo version {VERSION}\n'
     exit 0
 fi
 test "$LISTEN_FDS" = 1 || exit 22
-test -S /proc/self/fd/3 || exit 23
+test -S /dev/fd/3 || exit 23
 printf 'inherited fd 3 after exec\n'
 "#
         ),
