@@ -727,8 +727,13 @@ like any, in the owner's own order, and holds no read of the step open.
    settle beside the pass. Each restored entry with an attempt is found,
    or waits for its saved deadline (section 7.5); a queued one is
    restored queued and its pull read at once, within the same bounds
-   (7.7). `OutboxDone` comes when each restored entry has been looked
-   for once, whether or not the pass has ended.
+   (7.7). A restored entry's first find that finds nothing, the entry
+   going on to wait for its deadline or to be made again, emits
+   `Outcome::Uncertain` once more: its owner's word that this entry has
+   had its first look; a find that finds it ends in its outcome, and an
+   entry written by this run never emits it twice. `OutboxDone` comes
+   when each restored entry has been looked for once, whether or not the
+   pass has ended.
 6. **What it still owes,** per forge, for its owner's catching-up state:
    `fresh_owed(forge)`, the pass's watched resources and listings not
    yet read, and `finds_owed(forge)`, the restored entries with an

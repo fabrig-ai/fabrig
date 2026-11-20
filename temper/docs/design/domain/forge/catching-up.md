@@ -104,7 +104,9 @@ A decision that judges a forge fact after a restart is made on one of:
   restored fact before them, and is woken as they come in (section 2);
 - **its entries:** a procedure whose restored state names entries of
   its own waits for each one's first look, its outcome or its find's
-  answer, as it waits for any entry's outcome.
+  answer, as it waits for any entry's outcome: a find that finds nothing
+  is the client's `Outcome::Uncertain` for that entry
+  (`skein/docs/design/forge/client.md`, 8, step 5).
 
 A procedure may take its own read where the list below says the fresh
 reads, when one is at hand. Nothing is judged from the store alone.
