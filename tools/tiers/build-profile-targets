@@ -1,0 +1,27 @@
+#!/usr/bin/env -S python3 -I -B
+"""Build the test targets used by the focused or fuzzy profile (tools/tiers/design.md, 11.9)."""
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+
+
+def main(selection):
+    one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
+    try:
+        metadata = one['read_metadata']('cargo', os.environ)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f'profile targets: keeping full build ({error})', flush=True)
+        groups = [selection]
+    else:
+        groups = one['profile_targets'](selection, metadata, '.config/nextest.toml', ['cargo'], os.environ)
+    for group in groups:
+        result = subprocess.run(['cargo', 'nextest', 'run', *group, '--no-run'], stdin=subprocess.DEVNULL)
+        if result.returncode not in (0, 4):  # nextest reports an empty selection with 4
+            return result.returncode if result.returncode > 0 else 128 - result.returncode
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
