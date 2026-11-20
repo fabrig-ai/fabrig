@@ -1,6 +1,8 @@
 //! Fixed journey inputs (temper/docs/design/client/journey-walks.md, 3.2).
 
-use skein_lib::Wall;
+use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
+use rsa::{RsaPrivateKey, pkcs8::{EncodePrivateKey, LineEnding}};
+use skein_lib::{Secret, Wall};
 use temper_fake::{backends, credential, llm, oauth};
 use temper_playground::{documents, stories, story::Start};
 
@@ -28,6 +30,8 @@ pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     // The owned preparation's default person, on the composition's same forge.
     start.fakes.peer.setup_mut().account(b"owner", false, b"");
     start.deployment.document["application"]["clients"]["listener"]["socket"] = SERVICE.into();
+    start.deployment["engine"]["clients"]["provider"] =
+        serde_json::json!({"key":"provider.key", "clients":[], "addresses":[1]});
     let document = llm::Document::decode_with_scripts(stories::A.llm, scripts).map_err(|why| format!("{why:?}"))?;
     let mut configuration = llm::configuration(&document, documents::KEY, documents::seeds(SEED).llm);
     // The box's issuer and first added model key use the same seed. Keep the
@@ -50,6 +54,43 @@ pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     start.deployment["world_settings"]["providers"] = serde_json::from_slice(&providers).expect("providers JSON");
     start.deployment["world_settings"]["issuer"] = ISSUER.into();
     Ok(start)
+}
+
+/// Only walks opt into the box's provider. The key never leaves the simulated disk
+/// and the startup's private-file input; it is not a host credential.
+pub(crate) fn prepare(disk: &mut skein_fake_machine::Machine, document: &documents::Configuration, seed: u64) {
+    if document["engine"]["clients"]["provider"].is_null() {
+        return;
+    }
+    let mut rng = ChaCha20Rng::seed_from_u64(seed);
+    let key = RsaPrivateKey::new(&mut rng, 3072).expect("seeded world RSA key");
+    let pem = key.to_pkcs8_pem(LineEnding::LF).expect("world provider PKCS#8");
+    temper_playground::machine::lay_handover(disk, b"/setup/provider.key", pem.as_bytes());
+}
+
+/// As with the composition's other private files, startup receives the contents
+/// through `Files`, not through the real filesystem.
+pub(crate) fn files() -> temper_service::settings::Files {
+    let files = documents::files();
+    let parameters = temper_playground::programs::parameters();
+    if parameters.deployment["engine"]["clients"]["provider"].is_null() {
+        return files;
+    }
+    let mut disk = parameters.disk.borrow_mut();
+    let root = disk.reopen_root(3);
+    let file = disk.open(root, b"provider.key", skein_fake_machine::How::ReadNoFollow).expect("world provider key");
+    let stat = disk.stat(file);
+    assert_eq!(stat.mode & 0o777, 0o600, "world provider key is private");
+    assert_eq!(stat.owner, 1000, "world provider key belongs to the service");
+    let key = disk.read(file, 0, 4096).expect("bounded provider PEM");
+    disk.close(file);
+    disk.close(root);
+    let mut entries = skein_lib::List::with_capacity(files.entries.len() + 1);
+    for entry in files.entries.into_boxed() {
+        entries.push(entry).expect("composition files counted");
+    }
+    entries.push((b"provider.key".as_slice().into(), Secret::new(key.into()))).expect("provider file counted");
+    temper_service::settings::Files { entries }
 }
 
 #[cfg(test)]
