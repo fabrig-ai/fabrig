@@ -310,8 +310,8 @@ The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.
 A window's value also carries its rate (`AccountWindow.rate`, `Option<u32>`),
 its share per hour in basis points, or none: the core's memory beside the fact
-(`../../../domain/accounts.md`, 3.7), never stored. It moved the client wire to
-version 36.
+(`../../../domain/accounts.md`, 3.7), never stored. It moved the client wire's
+version, unbridged; the wire's layouts ledger names which.
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes

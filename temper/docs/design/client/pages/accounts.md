@@ -361,15 +361,13 @@ The words for each offered source are:
     "resets in 4 d 14 h · 2.0%/h · full in 1 d 11 h". The bar fills amber
     at 80% or more, and red, whole, while the window is limited (its state
     3, limited); a limited window's pace is "resets in SPAN" alone.
-  - *Its pace:* the rate is the share used over the time since the window
-    opened, its reset less its length, a share an hour: "2.0%/h", with one
-    decimal under 10, "21%/h" from 10. It needs no history; the accounts
-    document's own rate, once it serves one (`../../draft/usage-windows.md`,
-    5), will replace it. Then "full in SPAN", amber, the share left at that
-    rate, where that comes before the reset; otherwise "about 59% at reset",
-    the share the rate reaches by then, in whole percent. With no length
-    or no reset held there is no rate, since the window's opening isn't
-    known: the pace is "resets in SPAN" where the reset is held, and none
+  - *Its pace:* the rate is the one the accounts document serves beside the
+    window (`AccountWindow.rate`, jig's `client/domain/contract/documents.md`,
+    1), a share an hour: "2.0%/h", with one decimal under 10, "21%/h" from
+    10. Then "full in SPAN", amber, the share left at that rate, where that
+    comes before the reset; otherwise "about 59% at reset", the share the
+    rate reaches by then, in whole percent. A window served no rate draws
+    none: its pace is "resets in SPAN" where the reset is held, and none
     otherwise. The rate is rounded to its tenth under 10 and to its whole
     from 10, halves up; "full in" and "at reset" come from the rate unrounded.
   - *A span* is days and hours from a day, "4 d 14 h", "2 d" with no
@@ -586,8 +584,8 @@ The words for each offered source are:
   `accounts-usage` draws them. A window's pace is its rate as the
   document serves it ("2.0%/h", jig's `client/domain/contract/documents.md`,
   1), and "full in" is the share left at that rate, drawn where it comes
-  before the reset. A window the document gives no rate draws no pace, and
-  a window no fact holds isn't drawn.
+  before the reset. A window the document gives no rate draws no rate,
+  only its reset (*Usage*, above), and a window no fact holds isn't drawn.
 - **A sign-in:** no words while it waits in a browser, which is at the
   provider (1, `ConnectModel`); in the terminal, "Open this address in
   a browser:" and the address, then the paste (below), as an external
