@@ -22,6 +22,62 @@ jobs:
         env:
           HEAD: ${{ github.event.pull_request.head.sha }}
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: '"$CI_GATE" "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}"'
+      # Prose that no test reads, and the workflows themselves, need no gate: the step decides from the forge's
+      # compare of BASE...HEAD and the head's .config/gate lists, and runs the gate on any doubt.
+      - run: |
+          if python3 -I - "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}" <<'PY'
+          # Exit 0 when HEAD changes, from BASE, only prose that no test reads (.config/gate/README.md, "The gate's lists",
+          # the same rule as tools/pre-pr/pre_pr.py's code_inputs) or files under .forgejo/; otherwise, or on any doubt, exit 1.
+          import fnmatch, json, os, sys, tomllib, urllib.error, urllib.request
+          from pathlib import PurePosixPath
+          from urllib.parse import urlsplit
+
+          head, base = sys.argv[1], sys.argv[2]
+          if not base:
+              sys.exit(1)
+          remote = urlsplit(os.environ.get('CI_GATE_REMOTE') or f"http://127.0.0.1:3000/{os.environ['GITHUB_REPOSITORY']}.git")
+          api = f"{remote.scheme}://{remote.netloc}/api/v1/repos{remote.path.removesuffix('.git')}"
+          token = os.environ.get('CI_GATE_TOKEN', '')
+
+          def get(path, missing=None):
+              request = urllib.request.Request(api + path, headers={'Authorization': f'token {token}'} if token else {})
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as answer:
+                      return answer.read()
+              except urllib.error.HTTPError as error:
+                  if error.code == 404 and missing is not None:
+                      return missing
+                  raise
+
+          try:
+              files = []
+              for row in json.loads(get(f'/compare/{base}...{head}')).get('files') or []:
+                  files += [name for name in (row.get('filename'), row.get('previous_filename')) if name]
+              globs = [line.strip() for line in get(f'/raw/.config/gate/read-by-tests.txt?ref={head}', b'').decode().splitlines()
+                       if line.strip() and not line.startswith('#')]
+              for fixture in tomllib.loads(get(f'/raw/.config/fixture-readers.toml?ref={head}', b'').decode()).get('fixture', []):
+                  globs += (fixture.get('paths', []) if fixture.get('reader') else []) + fixture.get('regenerate', [])
+          except Exception as error:
+              print(f'docs-only: undecided ({type(error).__name__}): the gate runs')
+              sys.exit(1)
+
+          def needs_no_gate(path):
+              parts = PurePosixPath(path).parts
+              if parts[0] == '.forgejo':
+                  return True
+              outside = 'docs' in parts[:-1] and not {'src', 'tests', 'benches', 'examples'} & set(parts[:parts.index('docs')])
+              source = path.endswith('.rs') or parts[-1] in ('Cargo.toml', 'Cargo.lock')
+              return (path.endswith('.md') or outside) and not source and not any(fnmatch.fnmatchcase(path, g) for g in globs)
+
+          gated = [path for path in files if not needs_no_gate(path)]
+          if not files or gated:
+              print(f"docs-only: {len(files)} files, {len(gated)} for the gate{': ' + gated[0] if gated else ''}")
+              sys.exit(1)
+          print(f'docs-only: {len(files)} files, all prose no test reads or .forgejo/: no gate')
+          PY
+          then
+            exit 0
+          fi
+          exec "$CI_GATE" "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}"
         env:
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
