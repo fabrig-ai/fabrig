@@ -31,6 +31,11 @@ std::thread_local! {
     static IN_LOOP: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
 }
 
+/// Registers this world's destructor-bearing thread-local before admission.
+pub(crate) fn warm_runtime() {
+    FINDING.with(|_| {});
+}
+
 fn keep_finding(why: String) {
     FINDING.with(|finding| {
         finding.borrow_mut().get_or_insert(why);

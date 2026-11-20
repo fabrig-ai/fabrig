@@ -5,6 +5,9 @@ use std::cell::RefCell;
 use temper_fake_git_hosted::Typed;
 
 thread_local! { static SHARED: RefCell<Option<Typed>> = const { RefCell::new(None) }; }
+pub(crate) fn warm_runtime() {
+    SHARED.with(|_| {});
+}
 pub fn share(transport: Option<Typed>) {
     SHARED.with(|shared| *shared.borrow_mut() = transport);
 }

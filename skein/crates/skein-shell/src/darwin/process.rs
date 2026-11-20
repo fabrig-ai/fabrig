@@ -64,6 +64,19 @@ struct Child {
 )]
 static CHILDREN: Mutex<BTreeMap<Fd, Child>> = Mutex::new(BTreeMap::new());
 
+/// Makes the process-wide locks and first nodes before a step can use them.
+pub(crate) fn warm_tables() {
+    let mut children = CHILDREN.lock().expect("child table is not poisoned");
+    if children.is_empty() {
+        // No live descriptor can name the sentinel, and it never leaves the lock.
+        let sentinel = Fd::new(-1);
+        let _prior = children.insert(sentinel, Child { pid: -1, reaped: true });
+        let _removed = children.remove(&sentinel);
+    }
+    drop(children);
+    signals::warm_table();
+}
+
 fn fd(raw: i32) -> Result<OwnedFd, i32> {
     if raw < 0 {
         Err(last_errno())

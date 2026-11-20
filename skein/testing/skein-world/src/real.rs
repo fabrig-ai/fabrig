@@ -140,6 +140,12 @@ impl<P, R> DerefMut for CheckedWorld<P, R> {
 }
 
 impl<P: Host, R: Referee<P>> CheckedWorld<P, R> {
+    /// Forces the backend while retaining checked ownership on release.
+    #[must_use]
+    pub fn on(self, backend: Backend) -> Self {
+        Self(self.0.on(backend))
+    }
+
     /// Runs on one kernel and retains final ownership checking in the outcome.
     #[must_use]
     pub fn run(self, clock: &Clock, patience: Duration) -> CheckedOutcome<P> {
@@ -269,6 +275,11 @@ impl<P: Host, R: Referee<P>> World<P, R> {
     /// Constructs a referee with a handle for injecting signals into this world.
     #[must_use]
     pub fn new_controlled<F: FnOnce(Controls) -> R>(make_referee: F) -> Self {
+        // The shared kernel's size is known only after roots are admitted.
+        // Make its process-wide storage before even their constructors run.
+        Kernel::warm();
+        crate::end_to_end::warm_runtime();
+        crate::tree::warm_runtime();
         let controls = Controls::new();
         let referee = make_referee(controls.clone());
         Self {

@@ -76,6 +76,8 @@ impl Readiness {
         {
             return Err(OpenError::BelowFloor);
         }
+        #[cfg(target_os = "macos")]
+        crate::Kernel::warm();
         system::process::block_sigpipe().map_err(OpenError::Setup)?;
         let poller = Poller::open(config.operations).map_err(OpenError::Setup)?;
         let capacity = usize_of(config.operations);
