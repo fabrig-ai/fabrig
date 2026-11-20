@@ -14,7 +14,7 @@ pub(crate) fn ask(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
     }
     root.asked = Some(State::Asking);
     crate::approve::changed(root);
-    crate::route::client(root, env, jig_client::Event::AskApproval, out);
+    crate::route::client(root, env, jig_client::Event::AskApproval { port: None }, out);
 }
 pub(crate) fn answered(root: &mut Domain, env: &Env<Limits>, answer: jig_client::Approval, out: &mut Queue<Request>) {
     if root.asked != Some(State::Asking) {
@@ -28,7 +28,7 @@ pub(crate) fn answered(root: &mut Domain, env: &Env<Limits>, answer: jig_client:
                 crate::route::client(
                     root,
                     env,
-                    jig_client::Event::SignIn { with: jig_client::With::Approval { secret } },
+                    jig_client::Event::SignIn { with: jig_client::With::Approval { secret, grant: None } },
                     out,
                 );
             }

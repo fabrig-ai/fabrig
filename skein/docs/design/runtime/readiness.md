@@ -376,6 +376,67 @@ other module is safe Rust, the same on both systems.
   stopped at the suite's budget).
   Darwin answers an escape with `ENOTCAPABLE`, which `darwin` gives up
   as Linux's `EXDEV`, so that one error table serves both (`Escape`).
+- **The system's own links are passed.** macOS keeps `/var`, `/tmp` and
+  `/etc` as links into `/private` (`/var -> private/var`), and every
+  user's temporary directory lies beneath `/var/folders`, so
+  `O_NOFOLLOW_ANY` alone refuses every path through them, where Linux,
+  with no links there, opens it. A link is *the system's own* when root
+  owns it and the directory it lies in, and that directory has no group
+  or other write bit: no one but root could have placed it there. Every
+  no-follow open on Darwin, an `Open` beneath a root and the startup
+  reads alike (`shell.md`, 6.1), passes those and refuses every other
+  link, as Linux's refuse them:
+  1. It opens as above. Any answer but `ELOOP` is the open's.
+  2. On `ELOOP`, it walks the path once, from where the open starts (the
+     root, the working directory, or `/` for an absolute path), a
+     component at a time, by `fstatat` with `AT_SYMLINK_NOFOLLOW`, every
+     component but the last: a directory is walked into; a system's own
+     link is passed, its target read once (`readlinkat`) taking its
+     place in the path and walked the same way, an absolute target
+     starting again at `/`; `.` and empty components are skipped. The
+     walk ends at anything else, left as written with all that follows
+     it: a link that is not the system's own, a `..`, a component it
+     cannot stat or read, and a ninth link, at most eight being passed.
+     Its calls change nothing, and are tried again on `EINTR`.
+  3. With no link passed, the answer is the `ELOOP`, as before;
+     otherwise it opens the rewritten path once more, with the same
+     flags, `O_NOFOLLOW_ANY` among them, and that answer is the open's.
+
+  Why so:
+  - **No-follow still holds at the open.** The kernel refuses every link
+    in the path it opens, so a link swapped in after the walk is refused;
+    the walk replaces only links no one but root could have placed. A
+    root-owned link in a directory others may write may be one they
+    hard-linked there, whose relative target would then resolve beneath
+    their own directory: it is not passed. A user's own link is refused
+    as on Linux, the path's owner's included. The bits read are the
+    mode's, as io's private-file checks read them (io/files.md, 3).
+  - **Not the canonical path.** Making a path canonical (`realpath`)
+    before the open would follow every link, a user's too, and leave
+    `O_NOFOLLOW_ANY` nothing to refuse; making only each root canonical
+    at startup would still refuse a startup read's absolute path, and an
+    `Open` beneath a root opened at `/` (temper's fake git).
+  - **Only on `ELOOP`.** An open that meets no link costs nothing more;
+    one through `/var` costs a walk and a second open.
+  - **The last component is never passed:** a no-follow open refuses a
+    link at its own name, root's too, and `PathNoFollow` opens it as a
+    link. Beneath a root, the rewritten path is opened beneath it as any
+    path is: a target that leaves it is an `Escape`.
+  - **Linux passes none.** Its no-follow opens stay `RESOLVE_NO_SYMLINKS`,
+    which refuses root's links too (`/var/run -> /run`), and
+    `resolve_system_links` answers a path as given there (`shell.md`,
+    6.1); whether Linux should pass them is kernel.md, 9's question.
+
+  The walk is `posix`'s, built for macOS and for the crate's tests, with
+  the owner whose links it passes as its argument (root's, 0, on
+  Darwin), so that its tests run on Linux and macOS alike, the test's
+  own user standing in for root: a path whose parent is that owner's
+  link, in a directory only that owner may write, is rewritten through
+  the link's target, and the rewritten path holds no link; a path
+  through another owner's link, through a link in a directory others
+  may write, or ending at a link is left as written, and so is a link
+  after a `..`; a chain of nine links is rewritten through eight, the
+  ninth kept for the open to refuse.
 - **Files:** `pread`, `pwrite`, `write`, `ftruncate`, `fstat` (decoded by
   `darwin`), `renameatx_np` with `RENAME_EXCL` for a rename that never
   replaces and `renameat` otherwise, `unlinkat`, `mkdirat`, `linkat`
@@ -485,7 +546,8 @@ other module is safe Rust, the same on both systems.
   `CLOCK_MONOTONIC` and `CLOCK_REALTIME`; `getrusage`, whose resident
   size Darwin gives in bytes; `TIOCGWINSZ` and the terminal's modes as on
   Linux; `faccessat` with `AT_EACCESS` for a directory's access; the
-  startup reads opened with `O_NOFOLLOW_ANY` where Linux's refuse links.
+  startup reads opened with `O_NOFOLLOW_ANY` where Linux's refuse links,
+  passing the system's own links as an `Open` does (above).
 - **Names that differ only in case** are one name on a default APFS
   volume. The shell passes names as they are and answers as the volume
   does (a `Create` of `A` beside `a` is `AlreadyExists` there); it folds

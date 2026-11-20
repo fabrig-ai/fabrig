@@ -286,6 +286,8 @@ impl World {
         let exchange = Token::new(self.next);
         self.next += 1;
         self.send(Event::Transport(FromTransport::Exchange {
+            via: jig_protocol_engine_clients::Via::Listener,
+            source: None,
             browser: false,
             exchange,
             credential: self.credential.clone(),

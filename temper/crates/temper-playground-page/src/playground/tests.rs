@@ -29,12 +29,14 @@ fn only_the_services_output_link_supplies_a_path_and_query() {
     let mut printed = Printed {
         process: b"temper serve".as_slice().into(),
         stream: Stream::Output,
-        line: b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=example&extra=kept".as_slice().into(),
+        line: b"http://127.0.0.1:7100/sign-in?secret=example&extra=kept".as_slice().into(),
     };
-    assert_eq!(printed_link(&printed), Some("/jig/v1/sign-in/link?secret=example&extra=kept"));
-    for scheme in ["http", "https"] {
-        printed.line = format!("{scheme}://127.0.0.1:7100/sign-in?secret=example&extra=kept").into_bytes().into();
-        assert_eq!(printed_link(&printed), Some("/sign-in?secret=example&extra=kept"));
+    assert_eq!(printed_link(&printed), Some("/sign-in?secret=example&extra=kept"));
+    for (scheme, path) in
+        [("http", "/jig/v1/sign-in/link?secret=example&extra=kept"), ("https", "/sign-in?secret=example&extra=kept")]
+    {
+        printed.line = format!("{scheme}://127.0.0.1:7100{path}").into_bytes().into();
+        assert_eq!(printed_link(&printed), Some(path));
     }
     printed.stream = Stream::Error;
     assert_eq!(printed_link(&printed), None);
@@ -62,8 +64,8 @@ fn only_the_services_output_link_supplies_a_path_and_query() {
         printed.line = line.as_bytes().into();
         assert_eq!(printed_link(&printed), None, "{line:?}");
     }
-    printed.line = b"https://host/jig/v1/sign-in/link?secret=example".as_slice().into();
-    assert_eq!(printed_link(&printed), Some("/jig/v1/sign-in/link?secret=example"));
+    printed.line = b"https://host/sign-in?secret=example".as_slice().into();
+    assert_eq!(printed_link(&printed), Some("/sign-in?secret=example"));
     printed.line = b"http://host/jig/v1/sign-in/link?secret=\xff".as_slice().into();
     assert_eq!(printed_link(&printed), None);
 }

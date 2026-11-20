@@ -338,9 +338,9 @@ impl Peer {
             active = true;
             match routed {
                 jig_test_service::server::Routed::Io(request) => self.io(request),
-                jig_test_service::server::Routed::Call { call, head } => {
+                jig_test_service::server::Routed::Call { call, head, peer } => {
                     if self.mount.room() > 0 {
-                        self.mount_event(mapping::Event::Call { call, head });
+                        self.mount_event(mapping::Event::Call { call, head, peer });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
                         self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);

@@ -20,6 +20,8 @@
 pub(crate) mod files;
 pub(crate) mod group;
 #[cfg(any(target_os = "macos", test))]
+pub(crate) mod links;
+#[cfg(any(target_os = "macos", test))]
 pub(crate) mod parent_death;
 pub(crate) mod process;
 pub(crate) mod terminal;

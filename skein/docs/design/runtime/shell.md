@@ -248,7 +248,7 @@ io's private-file checks (io/files.md, 3) on what it opened before it reads a
 byte:
 
 - a regular file, reached through no link: no component of its path is
-  one;
+  one, but for macOS's own among its parents (`readiness.md`, 5);
 - no group or other permission bits;
 - one link;
 - owned by the process's effective user, which startup reads once
@@ -261,6 +261,14 @@ private fails its open for want of permission; the read names it as io
 does, by a path-only open whose stat decides nothing (io/files.md, 3). The
 bytes are a secret's: the caller keeps them out of logs, traces and
 `Debug` (lib.md, section 6).
+
+**The system's links, for a caller's own check.** A caller that checks
+a path's components for links itself first takes
+`resolve_system_links(path: &Path) -> PathBuf`, the path with the
+system's own links among its parents passed by the walk the no-follow
+opens make (`readiness.md`, 5), always, not only on a refusal; on
+Linux, the path as given. What it answers is checked as before, so the
+caller refuses what the shell's opens refuse, and no other link.
 
 **The process's own identity** is read the same way, once, at startup,
 through the ring adapter:

@@ -5,6 +5,9 @@
 use alloc::boxed::Box;
 use core::cmp::Ordering;
 
+mod ip;
+pub use ip::ip_text;
+
 /// A copy of `bytes` in a box of exactly their length.
 ///
 /// This is "copy at emission" (programming-model.md, 6.2): data a layer keeps
