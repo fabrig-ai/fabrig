@@ -513,6 +513,7 @@ impl skein_world::Referee<Proc> for Referee {
     }
     #[expect(clippy::too_many_lines, reason = "durable commits and their outside receipts are observed in order")]
     fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        crate::store_check::check()?;
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }

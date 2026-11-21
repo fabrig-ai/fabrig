@@ -77,10 +77,11 @@ impl skein_world::Referee<SignalHost<Tool>> for Judge {
         self.done
     }
 }
-thread_local! { static CONFIGURATION: std::cell::RefCell<Option<temper_playground::documents::Configuration>> = const { std::cell::RefCell::new(None) }; }
+type Configuration = (temper_playground::documents::Configuration, Option<temper_service::stock::Given>);
+thread_local! { static CONFIGURATION: std::cell::RefCell<Option<Configuration>> = const { std::cell::RefCell::new(None) }; }
 fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
-    let mut document = CONFIGURATION.with(|bytes| bytes.borrow().as_ref().expect("configured rehearsal").clone());
-    let given = temper_playground::documents::given(&document);
+    let (mut document, given) = CONFIGURATION.with(|bytes| bytes.borrow_mut().take().expect("configured rehearsal"));
+    let given = given.unwrap_or_else(|| temper_playground::documents::given(&document));
     temper_playground::documents::settings::strip_models(&mut document);
     let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
     for provider in document["world_settings"]["llm"]["providers"].as_array().expect("LLM providers") {
@@ -130,6 +131,40 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         assert!(accounts.empty && !accounts.work_pending && !accounts.opened, "unstarted accounts close: {accounts:?}");
     }
     SignalHost::new(Tool(service, Time::ZERO), Some(inherited.signal))
+}
+
+/// Run the same tool and report over a world's isolated filesystem.
+pub(crate) fn check(
+    disk: skein_fake_machine::Machine,
+    settings: crate::world::Settings,
+    configuration: temper_playground::documents::Configuration,
+    given: temper_service::stock::Given,
+) -> Result<(String, u8), String> {
+    CONFIGURATION.with(|at| *at.borrow_mut() = Some((configuration, Some(given))));
+    let outcome = tool_world(disk, settings).try_run()?;
+    let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
+    Ok(render(&tool.0))
+}
+
+fn tool_world(
+    disk: skein_fake_machine::Machine,
+    settings: crate::world::Settings,
+) -> skein_world::World<SignalHost<Tool>, Judge, machine::Machine> {
+    let mut world = skein_world::World::new(
+        settings.seed,
+        skein_sim::Config { wall: settings.config.wall, ..skein_sim::Config::calm() },
+        Judge::default(),
+        skein_world::Memory::Unchecked,
+    )
+    .with_machine(machine::Machine::new(disk));
+    world.spawn_restartable(
+        vec![
+            skein_world::StartupRoot { name: b"source".as_slice().into(), path: b"state".as_slice().into() },
+            skein_world::StartupRoot { name: b"scratch".as_slice().into(), path: b"client".as_slice().into() },
+        ],
+        start,
+    );
+    world
 }
 
 /// Every floor record decodes and restores after the id jobs.
@@ -198,22 +233,8 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
     }
     let before = golden::files::image_root(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
-    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = Some(configuration));
-    let mut world = skein_world::World::new(
-        fixtures::SEED,
-        skein_sim::Config::calm(),
-        Judge::default(),
-        skein_world::Memory::Unchecked,
-    )
-    .with_machine(machine::Machine::new(disk));
-    world.spawn_restartable(
-        vec![
-            skein_world::StartupRoot { name: b"source".as_slice().into(), path: b"state".as_slice().into() },
-            skein_world::StartupRoot { name: b"scratch".as_slice().into(), path: b"client".as_slice().into() },
-        ],
-        start,
-    );
-    let outcome = world.run();
+    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = Some((configuration, None)));
+    let outcome = tool_world(disk, fixtures::calm(fixtures::SEED)).run();
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
     let (lines, code) = render(&tool.0);
     eprintln!("{lines}");
