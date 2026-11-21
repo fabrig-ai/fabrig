@@ -510,7 +510,9 @@ the facts the engine and the worker emit and the durable records
 (`README.md`, 4.2); a harness invariant, which reads a component's frozen
 state through its inspection adapter (skein's `testing/inspection.md`);
 or a settings test, outside every world. Each returns its finding, naming
-the object, the moment and the seed.
+the object, the moment and the seed. The settings tests are
+`settings-tests.md`'s, and the check of every commit's store against a
+start is `store-check.md`'s.
 
 ### 6.1 The inspection adapters
 

@@ -390,6 +390,93 @@ more than one world needs them (testing-strategy.md, section 4):
   - the core's world calls `core` at its driver's quiet point, the
     engine-clients world at its own, and an application's worlds call
     `tasks` over the arena their root holds, beside their own adapter.
+- **the store check** (`temper/docs/design/draft/failure-worlds.md`,
+  3.7): a start over a committed snapshot, apart from the live world, so
+  that a record a start would refuse fails the world at the commit that
+  made it, naming the record and the commit:
+  - **What it runs:** the world's store copied at a commit (`Durable::fork`,
+    `jig_test_store_files::Store::fork`: the durable image, cold-opened),
+    a root of its own built from the world's configuration, and a start
+    over the copy through every phase before the switch: the core's
+    records, each connector's, the link pass and what the start derives
+    after it, the sweep among them (`engine/restart.md`). It stops where
+    the core asks for `Phase::Switch`, so nothing a start does after its
+    mark runs: no wires, no run adopted, no connector reading or writing
+    its system. The start's commits land in the copy alone, and no peer,
+    fake or referee of the live world sees it.
+  - **Its verdict:** the root reaching the switch passes. A start refused
+    (a `start::Failure`, a page refused, a connector's restore refused)
+    is a finding, `store check: commit <n>: start refused at <phase>:
+    <refusal>`, the refusal in its `Debug` form, naming the record's key
+    wherever it names one (`Failure::Link`'s `record`, `LiveSet`'s `key`,
+    a page refusal's row); a start that stops short of the switch with
+    nothing refused is one too, `store check: commit <n>: start stalled
+    at <phase>`. A connector's restore refusal in jig's test root is a
+    start refusal (`Failure::Application`), never a panic.
+  - **Which commits,** `jig_conformance::store_check`:
+
+    ```rust
+    pub struct StoreChecks { /* policy, commits, checked */ }
+    impl StoreChecks {
+        /// Every commit: the worlds whose budgets carry it.
+        pub fn every() -> StoreChecks;
+        /// Each commit with one chance in `one_in`, drawn from the run's seed.
+        pub fn sampled(seed: u64, one_in: u64) -> StoreChecks;
+        /// None, for a story whose own input is a record a start refuses.
+        pub fn none(reason: &'static str) -> StoreChecks;
+        /// Counts commit `number`; whether the world checks it now.
+        pub fn due(&mut self, number: u64) -> bool;
+        /// Counts commit `number` checked by a restart the run made from it anyway.
+        pub fn restarted(&mut self, number: u64);
+        pub fn checked(&self) -> u64;
+        pub fn commits(&self) -> u64;
+        /// `store check: 3 of 41 commits checked (one in 16, seed 7)`.
+        pub fn report(&self) -> String;
+    }
+    pub fn finding(commit: u64, phase: &str, refusal: &str) -> String;
+    ```
+
+    A sampled commit `n` is due when `Rng::new(draw ^ n).below(one_in)`
+    is 0, `draw` the seed's `store check` part of `Stream::Scheduling`
+    (`skein/docs/design/testing/sweeps.md`, 2): a part of its own, so
+    its draws move none of the world's, and a seed replays its sample.
+    A world writes its report to stderr as its run ends.
+  - **The core's world:** `jig_core_kit::World::check_store(&self) ->
+    Result<(), String>`, over jig's test root rehearsing, called once
+    each commit is durable as the world's `StoreChecks` say
+    (`World::store_checks`), sampled from the world's seed by default.
+  - **The conformance harness:** `Harness::check_store(&self) ->
+    Result<(), Violation>`, over a cold snapshot (`cold_snapshot`), with
+    three methods each application gives: `rehearse(domain: &mut
+    Self::Domain)`, before its start begins, which makes the start stop
+    before the switch; `rehearsed(domain: &Self::Domain) -> bool`, it
+    stopped there; and `refused(domain: &Self::Domain) -> Option<String>`,
+    its start's refusal in words, phase and failure.
+    `Harness::store_checks(&mut self, StoreChecks)` sets the commits,
+    sampled from the harness's seed by default, and `Outcome` gains
+    `checked: u64`.
+  - **A restart the run makes anyway is its commit's check:** in a
+    commit-cut sweep (`Cut::EachCommitFrom`, `fork_cuts`, the core
+    world's `World::sweep`), each child's cold restart is a start over
+    its commit's store, so a refusal there is the finding, read through
+    `refused` (the core world's `start_failure()`), naming the commit it
+    restarted from, and the parent counts each such commit `restarted`:
+    those sweeps check every commit, at no second start's cost. Any
+    restart the harness or the world makes that the root refuses fails
+    with the same finding.
+  - **A story about a refused start,** whose own input is a record a
+    start refuses, reads the check's `Err` as its outcome, or sets
+    `StoreChecks::none` with a reason naming the refusal it tests.
+  - **A sampled world's finding** names the commit it checked, at or
+    after the one that made the record; the same seed under `every()`
+    names the commit that made it.
+  - **Tests,** in the core's world and the conformance world: a committed
+    record a start would refuse (a task naming a project the store
+    doesn't hold, written by a fixture's commit as a writer's defect
+    would) fails at its commit under `every()`, naming the record and the
+    commit; the same story without it passes with every commit checked;
+    a commit-cut sweep's child refused names its commit; a sampled run
+    reports its count and replays it from its seed.
 
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.

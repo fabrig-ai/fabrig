@@ -1,9 +1,16 @@
 # testing: status
 
-2026-11-20. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-21. Where jig's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 7: jig's inspection adapter, `jig-inspect`, and the
   core's and engine-clients worlds' calls of the shared checks.
+- **Not yet:** 7: the store check: `jig_conformance::store_check`, and
+  jig's test root rehearsing, with a connector's restore refusal as a
+  start refusal.
+  7: the store check in the core's world: `World::check_store`, its
+  calls at each durable commit, and its sweeps' restarts.
+  7: the store check in the conformance harness: `Harness::check_store`,
+  the applications' three methods, and its cuts' restarts.
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
