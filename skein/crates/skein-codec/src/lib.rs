@@ -14,6 +14,7 @@ use alloc::boxed::Box;
 use skein_lib::Reader;
 
 pub mod bounds;
+pub mod convert;
 pub mod field;
 mod record;
 pub use record::{Path, Problem, Record};

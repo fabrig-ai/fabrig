@@ -14,6 +14,7 @@ mod emit_tests;
 mod emit_types;
 mod largest;
 mod lean;
+mod maps;
 mod parse;
 pub mod patch;
 mod values;
@@ -23,6 +24,7 @@ pub use emit_limits::{pascal, snake};
 pub use largest::{largest, largest_variants, roots};
 pub use parse::{Error, parse};
 pub use values::{Values, values};
+pub use maps::translate;
 
 /// One schema version of a family.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +64,8 @@ pub struct Field {
     pub line: usize,
     pub name: String,
     pub ty: Type,
+    /// Whether this field frames records as pieces, which stay by hand in maps.
+    pub pieces: bool,
 }
 
 /// A named variant with an optional record payload.

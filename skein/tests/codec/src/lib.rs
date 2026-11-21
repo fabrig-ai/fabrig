@@ -58,5 +58,16 @@ pub mod every_v3;
 #[path = "growth/v1.rs"]
 pub mod growth;
 
+/// The maps fixture's owner types and by-hand pairs.
+pub mod mapped_domain;
+
+#[rustfmt::skip]
+#[path = "generated/mapped.rs"]
+pub mod mapped_records;
+
+#[rustfmt::skip]
+#[path = "generated/maps/mapped.rs"]
+pub mod mapped_translation;
+
 #[path = "../patches/mod.rs"]
 pub mod patches;

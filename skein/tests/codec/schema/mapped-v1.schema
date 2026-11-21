@@ -1,0 +1,34 @@
+family mapped 1
+
+record Reference { id: u64 }
+record Label { text: bytes 16 }
+record Item { code: u32 }
+record Shared { count: u32 }
+record Checked { code: u32 }
+enum HandChoice { none, some }
+enum Event {
+    idle
+    inline: Shared
+    alternate: Shared
+    item: boxed Item
+    label: Label
+    old_name
+    checked: Checked
+}
+record Packet {
+    when: u64
+    caption: bytes 16
+    maybe: option u64
+    times: list 4 u64
+    references: list 4 Reference
+    labels: list 4 Label
+    items: list 4 Item
+    primary: Item
+    events: list 8 Event
+    checked: Checked
+    choice: HandChoice
+    enabled: bool
+    nonce: fixed 2
+    age: duration
+}
+record Root { packet: Packet }
