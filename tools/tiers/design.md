@@ -102,6 +102,10 @@ the configured pairs.
 package's focused and fuzzy tests run, in the same records without `env`,
 validated alike; the delivery check builds them before its tests
 (`tools/pre-pr/design.md`, 4). `smith`'s lists `smith-fake-claude`'s `fake-claude`.
+The tests that run it are smith's end to end, which the real pair
+`real-smith` runs after landing (`tools/tiers/layers.md`, 9.2), so that
+pair's `[binaries]` list holds it too; the other real pairs' lists are
+empty.
 
 ### 2.2 The bundle list
 
@@ -858,12 +862,14 @@ Relative paths are the caller's working directory's, the checkout root.
   command's own exit status, nextest's 4 for an empty selection among
   them. An invalid summary (7.3's exit 2) raises `ValueError`; an
   interruption stops the command (7.3) and is raised again.
-- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None)`:
+- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None, selected_layers=None)`:
   runs the selection of `command`, the caller's nextest command as it would
   give `execute` without `prepare`'s arguments, a binary's tests in one
   process (section 11), into `directory`, fresh as `prepare` makes one, which
   it makes itself. `walls`, a walls file's path or none, gives the run's
-  `global-timeout` (11.7). `gate` is given to `summary`: true asks for the
+  `global-timeout` (11.7). `selected_layers`, given to `run`, is the
+  layers it runs: none for the profile's default, else a list of names
+  as `--layers` takes them (`tools/tiers/layers.md`, 9.1). `gate` is given to `summary`: true asks for the
   gate's verdict on the run's layers (`tools/tiers/budgets.md`, 4). `ledger`,
   main's ledger as `ledger` read it or none, is given to `run`, which runs
   the new and flagged tests alone after the suite
@@ -883,7 +889,11 @@ Relative paths are the caller's working directory's, the checkout root.
   on a finished run directory, as the dictionary below. With `gate`, a
   one-process run's layer over its budget, or test over its reference, is
   red; without, a warning (`tools/tiers/budgets.md`, 4;
-  `tools/tiers/references.md`, 6). With `ledger`, a one-process run's layers
+  `tools/tiers/references.md`, 6). A one-process run is judged in the
+  layers its `results.json`'s `selected_layers` names alone
+  (`tools/tiers/budgets.md`, 4.1); a real pair's nextest run is summed by
+  layer, its layers over their figures warnings alone
+  (`tools/tiers/budgets.md`, 4.2). With `ledger`, a one-process run's layers
   are judged whole, what it didn't run counted from the ledger, and held to
   the budgets main's figures give (`tools/tiers/budgets.md`, 8 and 9); for
   any other run it is refused. `base`, the directory of a run at the base
@@ -1025,15 +1035,16 @@ it would without counting.
 `cpu.py`'s `execute_one_process` (10.2) and `tools/tiers/one-process` (11.9)
 run the mode. Its body is `tools/tiers/one_process.py`, loaded with
 `runpy.run_path` as `cpu.py` is and no importable module:
-`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None)`
+`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, layers=Path('tools/tiers/layers.toml'), ledger=None, selected_layers=None)`
 runs one suite into a fresh, private `directory` (mode 0700, refused when it
 holds anything) and writes 11.8's files; `execute_one_process` adds the
 summary and the exit status. `walls`, a walls file's path or none, gives the
-profile's `global-timeout` in place of `config`'s (11.7). A further argument,
-`layers=Path('tools/tiers/layers.toml')`, is the layers file by which it
-places each binary in its tree and layer (`tools/tiers/budgets.md`, 3),
-and `ledger=None`, main's ledger as `ledger` reads it, picks the tests it
-runs alone after the suite (`tools/tiers/references.md`, 3 and 4).
+profile's `global-timeout` in place of `config`'s (11.7). `layers` is the
+layers file by which it places each binary in its tree and layer
+(`tools/tiers/budgets.md`, 3); `ledger`, main's ledger as `ledger` reads
+it, picks the tests it runs alone after the suite
+(`tools/tiers/references.md`, 3 and 4); and `selected_layers`, none or a
+list of names, the layers it runs (11.2; `tools/tiers/layers.md`, 9.1).
 
 `command` is the caller's nextest command, as it would pass it to `execute`
 without `prepare`'s arguments: its first element whose basename is `cargo`
@@ -1081,7 +1092,17 @@ profile's filter, ignored handling and partition as nextest applied them.
 Each entry gives the binary's `binary-path`, `cwd`, `binary-id`,
 `package-id`, `kind` and `binary-name`.
 
-An empty selection ends the run as nextest would: `--no-tests=fail`, the
+**By layer.** The run then leaves out the binaries of the layers it doesn't
+run, as each binary is placed (`tools/tiers/budgets.md`, 3): for `default`
+and `fuzzy`, by default, those placed `real-loop` or `end-to-end`; with
+`selected_layers`, those outside it (`tools/tiers/layers.md`, 9.1). An
+unplaced binary stays. It passes nextest no filter for it: a caller's
+filter selects within the layers the run runs. Where the run narrows its
+listing to the targets its profiles can select (11.9), it leaves out
+those layers' targets there too.
+
+An empty selection, nextest's or the one left once the run leaves out
+layers, ends the run as nextest would: `--no-tests=fail`, the
 default, exit 4; `warn`, nextest's warning, `warning: no tests to run`, in the
 output, and 0; `pass`, 0.
 
@@ -1473,11 +1494,15 @@ same dependencies and features. Otherwise it keeps the original selection.
 With `TIERS_PROFILE_TARGETS=1`, the two profiles use the same rule when listing
 their tests. Explicit case filters keep their own selection.
 
-`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`,
+`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] [--layers LAYERS] PROFILE [NEXTEST_ARGS...]`,
 from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
 --no-fail-fast` and `NEXTEST_ARGS`, with `--workspace` unless they name a
 package (`-p`, `--package`), behind `TIERS_WRAPPER` as section 3 gives it, and
-prints the summary as `cpu-summary` does. `DIR` defaults to a fresh
+prints the summary as `cpu-summary` does. For `default` and `fuzzy` it runs
+by default the layers that replay and the repository's checks, and leaves
+out the real loop and end to end; `--layers` names the layers to run, a
+comma-separated list or `all`, passed as `selected_layers`
+(`tools/tiers/layers.md`, 9.1). `DIR` defaults to a fresh
 `tiers-one-process/runs/<UTC time>-<pid>` beneath Cargo metadata's target
 directory, printed first; `--budgets`' limits (`budgets`) apply,
 `tools/tiers/budgets.toml` by default where it exists and none otherwise;
@@ -1513,8 +1538,8 @@ times. It counts nothing: its plan's `count` is false, so its processes'
 name passed, 100 when one did not, and 2 for an invalid invocation or run:
 no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
 tests or given twice, no names, or a `DIR` not fresh; `--budgets`,
-`--walls`, `--ledger` or `--gate` with `--again` is an invalid invocation too, since
-the plan holds its run's bound. The hold is as
+`--walls`, `--ledger`, `--gate` or `--layers` with `--again` is an invalid invocation too, since
+the plan holds its run's bound and its selection. The hold is as
 above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`. It runs
 nothing alone for a reference.
 
