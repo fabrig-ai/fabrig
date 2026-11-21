@@ -114,10 +114,15 @@ change's due step.
   world, which is that root, keeps the tasks it owes an act: each task
   of a `ChangeDecision` or `WakeProcedure` it has taken from the
   forge's output, until it passes the forge that task's `StepChange` or
-  `StepLanding`. At its quiet point it adds `Party("root")` to the wait
-  of each such task, in the inspection `forge` gave, and to nothing
-  else. The adapter's surface stays 2.1's; the forge's state gains
-  nothing for it.
+  `StepLanding`. A row the world registers (a change's, a landing's,
+  or one restored) owes its first step the same way: the root steps a
+  row in the turn that makes or restores it, and the script steps it
+  in its own time, so the task is owed from its registration until
+  the world first passes its `StepChange` or `StepLanding`. At its
+  quiet point it adds `Party("root")` to the wait of each such task,
+  in the inspection `forge` gave, and to nothing else: a task the
+  world owes nothing has no fallback wake. The adapter's surface stays
+  2.1's; the forge's state gains nothing for it.
 - **A read in flight:** a read the forge's client has admitted and
   not yet had answered, its holder's owner the token the forge maps to
   the waiting change or landing, wakes it when its answer comes:
@@ -155,6 +160,16 @@ change's due step.
 | `branch holds` | `forge.holds` | each hold, `NAME (task T)` | the closing settlement of the landing or change that holds it | its holder's task has ended and no release of it is under way |
 | `landing rows` | `forge.landings` | each landing's row with its asks, `landing L` | the closing settlement of the landing | the landing has ended, landed or cancelled, and its row still names write entries or holds an ask not handed over |
 
+- **An owner's end, as each function reads it:** `inspect` reads it
+  from jig's tasks. `forge` reads what the forge keeps: for write
+  entries and landing rows, a landing's end is its phase, landed or
+  cancelled; a task outlives its landing's phase, closing its holds
+  after it finishes, so for branch holds `forge` knows a holder's end
+  only where the forge's own release state shows that holder's ending
+  settled while the hold still names it. Elsewhere a hold is pending
+  in `forge`: the forge world can't tell a living holder from one
+  whose root has not yet asked its ending, and the kit's worlds,
+  through `inspect`, find a leaked hold.
 - **Kept:** an ended landing's row naming nothing, kept until a new
   landing needs its place, as the forge retires ended rows. A hold its
   holder's failed ending hands to the root is the root's, and pending
