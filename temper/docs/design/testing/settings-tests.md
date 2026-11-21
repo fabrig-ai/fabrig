@@ -140,9 +140,11 @@ check would refuse.
 - **The owner's own widening** addressed to the owners' role is P77's
   open problem, whose scenario is jig's (the draft, 7,
   `an_owners_widening_is_never_proposed_to_itself`): the generated cases
-  that reproduce it, a proposer of role 0 whose proposal the address
-  sends to role 0, are left out by that scenario's name and nothing
-  broader.
+  that reproduce it, a proposal the address sends to its proposer's own
+  role (an owner's to the owners, a maintainer's to roles 0 and 1, both
+  deciding every kind), judged by that role, are left out by that
+  scenario's name and nothing broader: the other roles it is addressed
+  to are judged.
 
 ## 6. Generated mutations
 
