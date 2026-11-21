@@ -1158,3 +1158,40 @@ fn poll_at_answers_the_fallback_rule() {
         assert_eq!(skein_lib::state_digest(&h.domain), before, "a question changes nothing");
     }
 }
+
+#[test]
+fn holders_follow_admission_across_slot_reuse_and_include_joined_calls_without_write_payloads() {
+    let mut h = Harness::new(LIMITS);
+    h.read(1);
+    h.read(2);
+    let first = h.one();
+    h.answer(&first, 1, Err(Error::Missing));
+    h.read(3);
+    h.step(Event::Read { owner: Token::new(4), repository: REPO, read: Read::Pull { number: 2, ci: false } });
+    crate::calls::queue(
+        &mut h.domain.calls,
+        crate::CallOwner::Entry(9),
+        REPO,
+        Op::Write(Write::Close { number: 99 }),
+        Priority::Write,
+    );
+    let holders = h.domain.holders();
+    assert_eq!(holders.len(), 4);
+    assert_eq!(
+        [holders[0].owner.clone(), holders[1].owner.clone(), holders[2].owner.clone(), holders[3].owner.clone()],
+        [
+            crate::CallOwner::Read(Token::new(2)),
+            crate::CallOwner::Read(Token::new(3)),
+            crate::CallOwner::Read(Token::new(4)),
+            crate::CallOwner::Entry(9),
+        ]
+    );
+    for holder in &holders {
+        assert_eq!(holder.repository, REPO);
+    }
+    assert_eq!(holders[0].call, crate::Holding::Read(Read::Pull { number: 2, ci: false }));
+    assert_eq!(holders[2].call, holders[0].call);
+    assert_eq!(holders[3].call, crate::Holding::Write);
+    assert_eq!(h.domain.holders(), holders);
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
+}

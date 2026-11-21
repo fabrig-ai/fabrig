@@ -27,6 +27,7 @@ pub use boundary::{
     Attempt, Cached, Condition, Delivery, Echo, Effect, Entry, Event, Key, LiveRecord, Made, Outcome, Position,
     Recovery, RecoveryClock, RepositoryRecord, Request, Resource, Stored, Watch, What, recovery,
 };
+pub use calls::{Holder, Holding, Owner as CallOwner};
 pub use domain::{Domain, fire, resume, step, writer};
 pub use facts::{Fact, Priority};
 pub use identity::{Config, Writer, effect_key};

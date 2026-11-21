@@ -1723,7 +1723,11 @@ fn dismissal_refusals_stay_in_the_repository_row() {
         let record = jig_client::Family {
             family: f::FORGE,
             version: temper_client_protocol_wire::CLIENT_VERSION,
-            bytes: temper_client_protocol_wire::forges(&w::Forges { forges: rows, linked: false }),
+            bytes: temper_client_protocol_wire::forges(&w::Forges {
+                forges: rows,
+                full: List::with_capacity(0),
+                linked: false,
+            }),
         };
         drive(
             &mut root,
@@ -1968,5 +1972,57 @@ fn the_questions_select_has_only_two_routes() {
             options,
             [Some(b"Asked of me too".as_slice()), Some(b"Not asked: each agent decides alone".as_slice())]
         );
+    }
+}
+
+#[test]
+fn full_forge_tables_draw_above_rows_in_both_views_and_age_with_the_client_clock() {
+    let (mut root, watch) = f::forge_root_watch(Address::Forges, making_rows(true, w::MakingState::Making));
+    let full = List::from_boxed(Box::new([
+        w::FullTable {
+            table: w::FullKind::Outbox,
+            since: 170_000_000_000,
+            words: b"2 of 2, held by entry 7 (task 1), entry 9 (task 2)".as_slice().into(),
+        },
+        w::FullTable {
+            table: w::FullKind::ReadAdmission,
+            since: 80_000_000_000,
+            words: b"2 of 2, held by pull 12 of work/hello, branch main of work/hello".as_slice().into(),
+        },
+    ]));
+    let record = jig_client::Family {
+        family: f::FORGE,
+        version: temper_client_protocol_wire::CLIENT_VERSION,
+        bytes: temper_client_protocol_wire::forges(&w::Forges {
+            forges: making_rows(true, w::MakingState::Making),
+            linked: false,
+            full,
+        }),
+    };
+    drive(
+        &mut root,
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+    );
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        crate::build(&mut view, &root, skein_lib::Wall::from_nanos(200_000_000_000), &mut Queue::uncapped());
+        let text = String::from_utf8(f::text(view.tree()).to_vec()).unwrap();
+        let outbox = text
+            .find("The forge's outbox is full for 30 s: 2 of 2, held by entry 7 (task 1), entry 9 (task 2)")
+            .unwrap();
+        let reads = text.find("The forge's read admission is full for 2 min: 2 of 2, held by pull 12 of work/hello, branch main of work/hello").unwrap();
+        assert!(outbox < reads);
+        let row = styled(view.tree(), look::SETTINGS_ROW)[0].id;
+        let paragraph = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.name.as_deref().is_some_and(|name| name.starts_with(b"The forge's outbox is full")))
+            .unwrap()
+            .id;
+        assert!(paragraph < row);
+        assert!(view.next_change().is_some());
+        crate::build(&mut view, &root, skein_lib::Wall::from_nanos(290_000_000_000), &mut Queue::uncapped());
+        let text = String::from_utf8(f::text(view.tree()).to_vec()).unwrap();
+        assert!(text.contains("The forge's outbox is full for 2 min:"));
     }
 }

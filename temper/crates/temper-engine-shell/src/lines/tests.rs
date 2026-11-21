@@ -1652,3 +1652,26 @@ fn the_playground_start_makes_a_private_random_key_before_reading_it() {
     assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
     assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
 }
+
+#[test]
+fn full_table_notes_are_single_bounded_serve_lines() {
+    for words in [
+        "the forge's outbox full for 30 s: 2 of 2, held by entry 7 (task 1), entry 9 (task 2); 1 waiting for room",
+        "the forge's read admission full for 60 s: 2 of 2, held by pull 12 of work/hello for task 42, branch main of work/hello",
+        "the forge's outbox has room again",
+        "the forge's read admission has room again",
+    ] {
+        let line =
+            note_line("temper-engine", temper_engine_service::Note::ForgeTable { words: words.as_bytes().into() });
+        assert_eq!(line, format!("temper-engine serve: {words}\n"));
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.len() <= 1024);
+    }
+    let words = format!("the forge's outbox full for 2 min: {}\n{}", "é".repeat(1000), "z".repeat(100));
+    let line = note_line(
+        "temper-box",
+        temper_engine_service::Note::ForgeTable { words: words.into_bytes().into_boxed_slice() },
+    );
+    assert!(line.len() <= 1024);
+    assert_eq!(line.lines().count(), 1);
+}

@@ -32,7 +32,7 @@ fn web_host(project: bool, printed: bool) -> (Host, u64) {
 
 fn web_linked(host: &mut Host, watch: u64, linked: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as f};
-    let record = wire::forges(&f::Forges { forges: List::with_capacity(0), linked });
+    let record = wire::forges(&f::Forges { forges: List::with_capacity(0), full: List::with_capacity(0), linked });
     let event = w::StreamEvent::Delivery(w::Delivery { watch, document: goal::family(record) });
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),

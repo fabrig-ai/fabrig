@@ -13,7 +13,7 @@ pub(crate) enum Waiter {
 
 #[derive(Hash, Debug)]
 pub(crate) struct State {
-    asked: Set<Waiter>,
+    pub(crate) asked: Set<Waiter>,
     passed: Set<Waiter>,
     pub(crate) ready: bool,
 }
@@ -48,7 +48,7 @@ pub(crate) fn free(d: &Domain, limits: &Limits) -> u32 {
     limits.entries.saturating_sub(d.entries.len()).saturating_sub(reserved(d))
 }
 
-fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
+pub(crate) fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
     match waiter {
         Waiter::Change(task) => d.changes.get(&task)?.room,
         Waiter::Landing(task) => d.landing.rows.get(&task)?.room,
@@ -211,6 +211,7 @@ pub(crate) fn stepping(d: &mut Domain, task: u64) {
 }
 
 pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    crate::domain::full::update(d, env, out);
     let mut stale = skein_lib::List::uncapped();
     for (owner, pending) in &d.makings {
         let live = match d.holds.get(&pending.name) {
@@ -235,12 +236,18 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for waiter in gone.into_boxed() {
         leave(d, waiter);
     }
+    crate::domain::full::update(d, env, out);
     if !d.room.ready || d.stopping {
         return;
     }
     while free(d, &env.limits) > 0 {
         let Some(waiter) = first(d) else { break };
         d.room.asked.insert(waiter).expect("one ask per waiter");
+        let task = match waiter {
+            Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) => task,
+            Waiter::Making(owner) => d.makings.get(&owner).expect("selected making").task,
+        };
+        d.full.reserve(crate::domain::full::Reservation::Asked(waiter), task);
         let request = match waiter {
             Waiter::Change(task) => {
                 d.procedure_wakes.remove(&task);
@@ -255,4 +262,5 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         };
         out.push(request);
     }
+    crate::domain::full::update(d, env, out);
 }

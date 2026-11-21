@@ -141,6 +141,11 @@ impl Domain {
     pub fn has_room(&self) -> bool {
         !self.calls.is_full()
     }
+    /// Calls holding admission places, oldest admitted first; changes nothing.
+    #[must_use]
+    pub fn holders(&self) -> Box<[crate::Holder]> {
+        self.calls.holders()
+    }
     #[must_use]
     pub fn cached(&self, resource: &Resource) -> Option<&crate::Cached> {
         self.keep.cached(resource)

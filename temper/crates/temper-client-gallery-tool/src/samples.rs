@@ -3050,7 +3050,9 @@ fn home_domain(name: &str) -> Domain {
                         }
                         wire::dismissals(&w::Dismissals { dismissed })
                     }
-                    w::Watch::Forges => wire::forges(&w::Forges { forges: rows, linked: false }),
+                    w::Watch::Forges => {
+                        wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false })
+                    }
                     w::Watch::Status(_) => match if home_away {
                         Some(crate::worlds::home_away_status())
                     } else if status_name == "home-morning" {

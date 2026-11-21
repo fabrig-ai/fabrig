@@ -61,7 +61,7 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 41);
+    assert_eq!(wire::CLIENT_VERSION, 42);
     let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [
@@ -94,7 +94,7 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
         };
         let mut rows = skein_lib::List::with_capacity(1);
         rows.push(row).expect("one row capacity");
-        let rows = v1::Forges { forges: rows, linked: false };
+        let rows = v1::Forges { forges: rows, full: List::with_capacity(0), linked: false };
         assert_eq!(wire::decode_forges(&wire::forges(&rows), &v1::CEILINGS), Some(rows));
     }
 }

@@ -604,6 +604,17 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 String::from_utf8_lossy(section)
             )
         }
+        temper_engine_service::Note::ForgeTable { words } => {
+            let mut line = format!("{binary} serve: {}", String::from_utf8_lossy(&words));
+            line = line.replace(['\r', '\n'], " ");
+            let mut end = line.len().min(1023);
+            while !line.is_char_boundary(end) {
+                end = end.saturating_sub(1);
+            }
+            line.truncate(end);
+            line.push('\n');
+            line
+        }
         temper_engine_service::Note::HeadRefused { task, words } => {
             let task = match task {
                 Some(task) => format!(" task={task}"),
