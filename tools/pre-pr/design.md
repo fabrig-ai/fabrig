@@ -310,8 +310,9 @@ boundary (smith's run.md, 8.1).
 
 In this order, each announced by a line `pre-pr: <check> …` before it
 starts and ended by `pre-pr: <check>: passed|failed|inherited, <seconds> s`.
-Every selected check runs, whatever an earlier one ended in, so that one
-delivery hears every failure; the verdict is section 6's.
+Independent checks continue after a failure so the delivery reports their
+results together. The test phases below share build prerequisites. Section 6
+defines the verdict.
 
 1. **The format check:** `tools/pre-pr/pre_pr.py`'s batched `rustfmt
    --check` over every workspace target, as before
@@ -375,7 +376,8 @@ delivery hears every failure; the verdict is section 6's.
    - **2, its output ending with the line `one-process: nextest listing
      exited with 101`:** a build failure. The listing builds the tests as
      nextest's run would (`tools/tiers/design.md`, 11.2), and nextest's
-     101 is a failed build;
+     101 is a failed build. The delivery reports the compiler output and
+     skips the fuzzy listing of the same test targets;
    - **any other:** a failure of the check itself, a 2 that names no
      failed build included (a refusal or an invalid run:
      `tools/tiers/design.md`, 11.1 and 11.7).
@@ -433,12 +435,13 @@ delivery hears every failure; the verdict is section 6's.
    **Then the fuzzy tests** of the same tests' set: `tools/tiers/one-process
    --out <dir>/fuzzy fuzzy -p … --no-tests=warn`, the same `-p` arguments in
    the same order, `.config/nextest.toml`'s `fuzzy` profile its selection
-   and its `global-timeout` its only bound. It runs where the focused run
-   ran, whatever that ended in (a failure, a build failure, a failure of
-   the check itself), once the focused run and its tests again have ended;
-   where the focused run did not run (an empty tests' set, a failed build of
-   the other packages' binaries, no base), neither does it. It reuses the
-   other packages' binaries built for the focused run.
+   and its `global-timeout` its only bound. It runs after the focused tests
+   and their replays, including after test failures or errors of the check
+   itself. A focused listing that reports a build failure prints
+   `pre-pr: fuzzy tests: skipped (focused test build failed)` and leaves
+   fuzzy results unobserved. An empty tests' set, a failed build of the
+   other packages' binaries, or no base skips both profiles. Fuzzy tests
+   reuse the other packages' binaries built for the focused run.
    - **Its lines:** announced `pre-pr: fuzzy tests …` and ended `pre-pr:
      fuzzy tests: passed|failed|inherited, <seconds> s`. Each run's end
      line judges its own failures alone.
@@ -1125,10 +1128,11 @@ that reaches nothing of it, and `fabrig-boundary`, a member, is in every
 set; a line naming no member is printed and skipped; no inputs, or no
 base, run neither. It runs the fuzzy tests after the focused ones, as
 section 4 gives them: `fuzzy`, a `--out` of its own, the same `-p`
-arguments in the same order; after a focused run that failed, or ended in
-a build failure, as after one that passed; and not where no focused run
-was selected (an empty tests' set, a failed build of the other packages'
-binaries). A fuzzy run's failure is read as a focused one's: keyed by
+arguments in the same order. A focused pass, test failure, or error of the
+check itself still runs fuzzy. A focused listing build failure skips fuzzy,
+retains the build diagnostic, and permits both profiles to run on retry.
+Both profiles are skipped for an empty tests' set or a failed build of the
+other packages' binaries. A fuzzy run's failure is read as a focused one's: keyed by
 binary id and name, inherited from a `- test` entry, its starved line
 printed and repeated in the summary, a failure no entry names run again
 from `<dir>/fuzzy`; its build failure is `build fuzzy`; and each run's end

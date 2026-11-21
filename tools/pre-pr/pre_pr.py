@@ -1100,6 +1100,9 @@ def main():
                     errors += found
                     if warning:
                         starved.append(warning)
+                    if any(error['name'] == 'build' for error in found):
+                        print('pre-pr: fuzzy tests: skipped (focused test build failed)', flush=True)
+                        break
             if docs:
                 _, found = timed('citations', lambda: citations(tree_id, root, env), pending)
                 errors += found
