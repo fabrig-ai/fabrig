@@ -2,7 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [records.md](records.md).
 
-- **Not yet:** the whole document: the forges' document's `full`, its tables full past their report bound [in flight: change 10972].
 
 
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left

@@ -2,7 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [deployment.md](deployment.md).
 
-- **Not yet:** the whole document: a full table's line above the forges' rows [in flight: change 10972].
 
 - **Not yet:**  the native-queue position remains `README.status.md`, 2.1.
   the panel's gate amendment remains `README.status.md`, 2.3.  the counted approval and person-task cards remain `README.status.md`, 4.

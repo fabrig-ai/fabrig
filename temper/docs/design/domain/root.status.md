@@ -2,9 +2,6 @@
 
 2026-11-20. Where temper's code lags or departs from [root.md](root.md).
 
-- **Not yet:** 8.2: a stop heard in every step of the start, ending it at once before the mark and at its step's end after it; the service routes the root's stop only once it is open (`temper-engine-service-component/src/stop.rs`, `advance`) [in flight: change 10969].
-- **Not yet:** 8.2: the bound as `skein_forge_client::stop_bound`, printed by `temper-engine versions` [in flight: change 10967].
-- **Not yet:** 8.1: a step that runs long reports its waiters past the report bound; no step keeps when it began [in flight: change 10971].
 
 - **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,
   because standard's map budget is that mark and temper's boxes take standard: under

@@ -2,8 +2,6 @@
 
 2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 9: what steps 1 and 2 wait for, answered by kind with counts and the oldest named [in flight: change 10971].
-- **Not yet:** 9: a stop during steps 1 and 2 ends their waits; told to settle while it reads afresh, the forge's client refuses its reads and the step's end is still awaited [in flight: change 10969].
 
 
 

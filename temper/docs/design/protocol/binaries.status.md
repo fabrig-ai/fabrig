@@ -2,7 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** 2: `versions` prints no `bound stop` and no `bound report` line [in flight: change 10967].
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
 
