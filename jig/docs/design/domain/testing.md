@@ -598,7 +598,7 @@ table's words, its rule the table's:
 Each open problem of the draft's section 7 that a jig world shows has its
 scenario, named as the draft names it, ignored with the problem and the
 work that fixes it (`#[ignore = "P43, open: bounded waits
-(temper/docs/design/draft/failure-worlds.md, 7)"]`), and an exclusion of
+(jig/docs/design/domain/testing.md, 7.3)"]`), and an exclusion of
 skein's form (`skein/docs/design/testing/sweeps.md`, 5) in the kit of the
 world whose sweeps draw its fault: `jig_core_kit::open::EXCLUSIONS` and
 `jig_engine_clients_kit::open::EXCLUSIONS`, each fault's kind beside them,
@@ -617,6 +617,11 @@ test holds that a sweep configuring each fault accepts each.
 | P98 | `a_full_period_is_named_as_funding` | core | provider failures | the engine's own bounds: `a new party asks for funds`, while `its period is fully allocated` |
 | P82 residual | `a_small_delegating_task_funds_its_delegates` | core | provider failures | the engine's own bounds: `a delegating task's run at its minimum`, while `half its budget is at most the minimum run spend` |
 
+- **The reason cites this section,** whose table leads to the draft's
+  rows: jig's sources name no temper path or word, in an attribute, a
+  literal or a comment (jig's vocabulary boundary,
+  `jig/tests/boundary`), so neither a scenario nor its doc comment cites
+  the draft.
 - **What each asserts** is the draft's row. P76's runs in the core world,
   where the accounts and the runs' coverage are: the people world answers
   account changes with a fixed outcome.
