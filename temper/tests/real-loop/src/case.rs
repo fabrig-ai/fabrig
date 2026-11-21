@@ -129,9 +129,6 @@ pub enum Agent {
     WaitingKitCoder,
     WaitingAppCoder,
     // 6.4
-    RedDirector,
-    RedOwner,
-    RedCoder,
     RedRepairCoder,
     QaDirector,
     QaOwner,
@@ -156,9 +153,6 @@ impl Agent {
             Self::WaitingKitCoder => b"@case_waiting_kit",
             Self::WaitingAppCoder => b"@case_waiting_app",
             // 6.4
-            Self::RedDirector => b"@case_red_director",
-            Self::RedOwner => b"@case_red_owner",
-            Self::RedCoder => b"@case_red_coder",
             Self::RedRepairCoder => b"Repair landing branch CI",
             Self::Direction => b"@case_direction",
             Self::StoryOwner => b"@case_story_owner",
@@ -805,31 +799,17 @@ pub fn fixture_6_5() -> forge::Fixture {
 }
 
 // Act 3, step 6.4 (testing/reference-case.md)
-pub const RED_DIRECTOR: u64 = 1;
-pub const RED_OWNER: u64 = 2;
-pub const RED_CHANGE: u64 = 3;
-pub const RED_CODER: u64 = 4;
-pub const RED_REVIEW: u64 = 5;
-pub const RED_REPAIR: u64 = 6;
-pub const RED_REPAIR_CODER: u64 = 7;
-pub const RED_REPAIR_REVIEW: u64 = 8;
-pub const RED_UPDATED_REVIEW: u64 = 9;
+pub const RED_CHANGE: u64 = 1;
+pub const RED_REVIEW: u64 = 2;
+pub const RED_REPAIR: u64 = 3;
+pub const RED_REPAIR_CODER: u64 = 4;
+pub const RED_REPAIR_REVIEW: u64 = 5;
+pub const RED_UPDATED_REVIEW: u64 = 6;
 pub const RED_FIRST_HEAD: u64 = 2;
 pub const RED_UPDATED_HEAD: u64 = 6;
 pub const RED_A4_PULL: u64 = 1;
 pub const RED_REPAIR_PULL: u64 = 2;
-// The person's direction precedes the director's interim timer.
-pub const RED_TIMER: u64 = 6;
-pub const RED_PERSON_MESSAGE: u64 = 5;
 pub const RED_REVISION: u64 = 0;
-pub const RED_TIMER_AT: u64 = 4_102_444_800_000_000_000;
-pub const RED_PERSON: &str = "@case_red_director Delegate A1 to own a4 and report its landing.";
-pub const RED_OWNER_SPEC: &str = "@case_red_owner Own a4 as a goal; delegate its change and report.";
-pub const RED_CHANGE_SPEC: &str = "@case_red_coder Write a4 in docs/a4.md, leaving the CI cue in docs/story.md green.";
-pub const RED_MESSAGE: &str = "Kit's tip is red. Rule that a4 fixes it or an interim fix lands within ninety minutes.";
-pub const RED_RULE: &str = "a4 fixes it or an interim fix lands within ninety minutes.";
-pub const RED_OWNER_REPORT: &str = "A1 reports a4 landed after the deployment repair.";
-pub const RED_REPORT: &str = "The interim repair and a4 landed; the timer is removed.";
 pub const RED_FILE: &str = "docs/story.md";
 pub const RED_GREEN: &str = "# Story green";
 pub const RED_BASE: &str = "# Story green\n\nBase story.\n";
@@ -838,9 +818,6 @@ pub const RED_A4_FILE: &str = "docs/a4.md";
 pub const RED_A4: &str = "# A4\n\nA4's story.\n";
 pub const RED_REVIEW_HOLD: &[u8] = b"case-6-4-review";
 pub const RED_REPAIR_HOLD: &[u8] = b"case-6-4-repair";
-
-pub const RED_OWNER_SPEND: u64 = 16;
-pub const RED_CHANGE_SPEND: u64 = 6;
 
 #[must_use]
 pub fn fixture_6_4() -> forge::Fixture {
@@ -854,38 +831,52 @@ pub fn fixture_6_4() -> forge::Fixture {
                 Some(api::Cue::File { path: RED_FILE.as_bytes().into(), green: RED_GREEN.as_bytes().into() });
             setup
         },
+        prepare: |forge, env| {
+            use skein_fake_forge_domain as domain;
+            // a4 starts as the person's existing change; only its update onto
+            // repaired main needs a worker's real git in this story.
+            let base = forge.branch(b"acme/app", b"main").expect("seeded main");
+            let mut out = skein_lib::Queue::uncapped();
+            let mut env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.clone() };
+            domain::step(
+                forge,
+                &env,
+                domain::Event::Call {
+                    reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+                    repository: b"acme/app".as_slice().into(),
+                    user: 1,
+                    op: api::Op::Git(api::Git::Create { branch: b"a4".as_slice().into(), commit: base }),
+                },
+                &mut out,
+            );
+            loop {
+                if let Some(domain::Request::Reply { result, .. }) = out.pop() {
+                    assert_eq!(result, Ok(api::Answer::Branch(api::Created::Created)));
+                    break;
+                }
+                env.now = forge.next_deadline().expect("branch creation reply");
+                domain::fire(forge, &env, &mut out);
+            }
+            domain::advance(forge, &env, b"acme/app", b"a4", RED_A4_FILE.as_bytes(), RED_A4.as_bytes(), 1)
+                .expect("a4's existing green change");
+        },
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            // These small change/repair allotments retain the world's
-            // one-unit admission floor for their final reviews.
             value["world_settings"]["minimum_run_spend"] = 1.into();
-            // Small, with each capacity/allowance below checked by a passing
-            // whole story and a failing one-less probe in a fresh process.
-            // calls_per_response 1 admits the aggregate turn; hub.run_calls
-            // 1 serializes its paired calls. hub.accounts 2 carries LLM/git;
-            // fleet.calls 1 services worker requests serially; documents.lines
-            // 2 carries the complete creating offer for charters 1 and 4. Live tasks and
-            // project tasks need 5 and 5; tree tasks 6 retains the root's descendants.
-            // a4's allowance 6 funds its coder and two exact-head reviews;
-            // A1's 16 adds its ten-unit run reservation, and the director's
-            // 26 adds ten again. Role spend 26, role period spend 26, and
-            // project period spend 31 leave 5 for the deployment's repair.
-            // A1 allows 4 descendants and a4 3; one repair suffices (repairs
-            // 1). Tools 423 = 391 | 32 adds timer subscription tools, with
-            // 5.4's six forge grants unchanged. Forge statuses 3 (State::new)
-            // retain a4's head, the red tip and repair head; 2 omits repair CI.
-            // Listing polls stay PATIENCE + 1 ms: adoption/hooks supply
-            // changes. This timing bound and every oracle bound stay unchanged.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);
             value.jig_over("hub.accounts", 2);
             value.jig_over("fleet.calls", 1);
             value.jig_over("documents.lines", 2);
+            // Independent allotments fund a4's two reviews and the repair;
+            // the project leaves five units beyond the role for that repair.
             value["world_settings"]["cap"] = 26.into();
-            let tools = 0x0187 | 0x0020;
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["tools"] = tools.into();
-                project["policy"]["roles"][0]["authority"]["tools"] = tools.into();
+                // Opening the person's source branch grants its owned copy's creation.
+                let mut create = project["policy"]["ceiling"]["grants"][0].clone();
+                create["kind"] = 9.into();
+                project["policy"]["ceiling"]["grants"].as_array_mut().expect("ceiling grants").push(create.clone());
+                project["policy"]["roles"][0]["authority"]["grants"].as_array_mut().expect("role grants").push(create);
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 26.into();
                 project["policy"]["roles"][0]["period_spend"] = 26.into();
                 project["policy"]["period_spend"] = 31.into();
@@ -968,6 +959,7 @@ fn waiting_setup(id: u32, name: &str) -> api::Setup {
 #[must_use]
 pub fn fixture_6_6() -> forge::Fixture {
     forge::Fixture {
+        prepare: |_, _| {},
         manual_merges: api::ManualMerges::OFF,
         setup: || waiting_setup(waiting::APP_ID, waiting::APP),
         extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),

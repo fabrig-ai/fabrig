@@ -111,22 +111,11 @@ pub enum Read {
     WaitingRepinReviewerEnded,
     WaitingRootsEnded,
     // 6.4
-    RedReviewWriting,
-    RedChangeOpen,
-    RedRepairWriting,
-    RedRepairPending,
-    RedTimerArmed,
-    RedChangePaused,
-    RedDirectorEnded,
-    RedOwnerEnded,
-    RedOwnerEarlier,
     RedChangeEnded,
-    RedCoderEnded,
     RedReviewEnded,
     RedRepairEnded,
     RedRepairCoderEnded,
     RedRepairReviewEnded,
-    RedRootsEnded,
     RedRootsPending,
     RedUpdatedReviewEnded,
     QaSubownerBefore,
@@ -978,34 +967,20 @@ pub fn step_6_5() -> Vec<calls::Step> {
 }
 
 // Act 3, step 6.4 (testing/reference-case.md)
-const RED_OWNER_ENDED: usize = 19;
 pub const READS_6_4: &[(Read, usize)] = &[
-    (Read::RedReviewWriting, 8),
-    (Read::RedChangeOpen, 9),
-    (Read::RedRootsPending, 10),
-    (Read::RedRepairWriting, 12),
-    // Reuse the creation read; the held coder has its separate document.
-    (Read::RedRepairPending, 11),
-    (Read::RedTimerArmed, 14),
-    (Read::RedChangePaused, 15),
-    (Read::RedDirectorEnded, 18),
-    (Read::RedOwnerEnded, RED_OWNER_ENDED),
-    (Read::RedChangeEnded, 20),
-    (Read::RedCoderEnded, 21),
-    (Read::RedReviewEnded, 22),
-    // The ended wait already returns the complete procedure document.
-    (Read::RedRepairEnded, 16),
-    (Read::RedRepairCoderEnded, 23),
-    (Read::RedRepairReviewEnded, 24),
-    (Read::RedUpdatedReviewEnded, 25),
-    (Read::RedRootsEnded, 26),
+    (Read::RedRootsPending, 3),
+    (Read::RedChangeEnded, 5),
+    (Read::RedRepairEnded, 6),
+    (Read::RedReviewEnded, 7),
+    (Read::RedRepairCoderEnded, 8),
+    (Read::RedRepairReviewEnded, 9),
+    (Read::RedUpdatedReviewEnded, 10),
 ];
 #[must_use]
 pub fn step_6_4() -> Vec<calls::Step> {
     use super::{
-        Agent, PROJECT, RED_BROKEN, RED_CHANGE, RED_CODER, RED_DIRECTOR, RED_FILE, RED_MESSAGE, RED_OWNER, RED_PERSON,
-        RED_REPAIR, RED_REPAIR_CODER, RED_REPAIR_HOLD, RED_REPAIR_REVIEW, RED_REVIEW, RED_REVIEW_HOLD,
-        RED_UPDATED_REVIEW,
+        Agent, PROJECT, RED_BROKEN, RED_CHANGE, RED_FILE, RED_REPAIR, RED_REPAIR_CODER, RED_REPAIR_HOLD,
+        RED_REPAIR_REVIEW, RED_REVIEW, RED_REVIEW_HOLD, RED_UPDATED_REVIEW,
     };
     let mut steps = vec![
         sign_in(D1),
@@ -1027,56 +1002,42 @@ pub fn step_6_4() -> Vec<calls::Step> {
                 "red-kit"
             ],
         ),
-        call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "red", RED_PERSON]),
-        call(D1, argv!["task", "show", number(RED_DIRECTOR), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(RED_OWNER), "--until", "replied"]),
-        // The producing procedure parks after making its coder; watch that ending.
-        call(D1, argv!["task", "show", number(RED_CHANGE), "--until", "phase:idle"]),
-        call(D1, argv!["task", "show", number(RED_CODER), "--until", "ended"]),
-        // No ctl predicate selects review creation: poll only this later transition.
-        until(D1, argv!["task", "show", number(RED_CHANGE), "--json"], Agent::Review.cue(), b"\"task\""),
-        until(D1, argv!["task", "show", number(RED_REVIEW), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        // News and forge hints wake a4's procedure for a step that finds nothing to do: a plain read can catch it
-        // due. Read it settled: an ended a4 answers with its ended read, which the oracle names.
-        call(D1, argv!["task", "show", number(RED_CHANGE), "--until", "phase:idle", "--json"]),
+        call(
+            D1,
+            argv![
+                "change",
+                "open",
+                "--project",
+                number(PROJECT),
+                "--repository",
+                "acme/app",
+                "--branch",
+                "a4",
+                "--title",
+                "a4",
+                "--budget",
+                "0.06",
+                "--key",
+                "red-a4"
+            ],
+        ),
+        calls::held(RED_REVIEW_HOLD),
         calls::push(RED_FILE.as_bytes(), RED_BROKEN.as_bytes()),
-        // A ready change, after its gate passes, discovers the red base.
+        // The first exact-head review waits until the person's red push.
         calls::release_hold(RED_REVIEW_HOLD),
-        // Until cannot retry an unknown task: first observe the deployment
-        // repair among project roots, then its coder's live delegate card.
         until(
             D1,
             argv!["task", "list", "--project", number(PROJECT), "--json"],
             Agent::RedRepairCoder.cue(),
             b"\"tasks\"",
         ),
-        until(D1, argv!["task", "show", number(RED_REPAIR), "--json"], Agent::RedRepairCoder.cue(), b"\"task\""),
-        until(D1, argv!["task", "show", number(RED_REPAIR_CODER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        call(D1, argv!["task", "message", number(RED_DIRECTOR), "--key", "red-tip", RED_MESSAGE]),
-        until(
-            D1,
-            argv!["task", "show", number(RED_DIRECTOR), "--activity", "32", "--json"],
-            b"\"kind\":{\"timer\":{",
-            b"\"task\"",
-        ),
-        call(D1, argv!["task", "show", number(RED_CHANGE), "--until", "phase:idle", "--json"]),
+        calls::held(RED_REPAIR_HOLD),
         calls::release_hold(RED_REPAIR_HOLD),
-        call(D1, argv!["task", "show", number(RED_REPAIR), "--until", "ended", "--json"]),
-        call(D1, argv!["task", "show", number(RED_DIRECTOR), "--until", "ended"]),
+        call(D1, argv!["task", "show", number(RED_CHANGE), "--until", "ended"]),
     ];
-    for task in [
-        RED_DIRECTOR,
-        RED_OWNER,
-        RED_CHANGE,
-        RED_CODER,
-        RED_REVIEW,
-        RED_REPAIR_CODER,
-        RED_REPAIR_REVIEW,
-        RED_UPDATED_REVIEW,
-    ] {
+    for task in [RED_CHANGE, RED_REPAIR, RED_REVIEW, RED_REPAIR_CODER, RED_REPAIR_REVIEW, RED_UPDATED_REVIEW] {
         steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
     }
-    steps.push(call(D1, argv!["task", "list", "--project", number(PROJECT), "--ended", "--json"]));
     steps
 }
 

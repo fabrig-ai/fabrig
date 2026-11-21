@@ -397,6 +397,7 @@ impl Llm {
             Some(rules) => llm::played_by_input(scripts(address), rules()),
             None => llm::scripted(scripts(address)),
         };
+        self.holds = script_holds(&recipe);
         self.peer = llm::peer(recipe).map_err(|error| format!("bound forge scripts: {error:?}"))?;
         Ok(())
     }

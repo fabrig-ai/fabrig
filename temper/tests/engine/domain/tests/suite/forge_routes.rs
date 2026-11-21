@@ -1948,25 +1948,15 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
 #[test]
 #[expect(clippy::too_many_lines, reason = "the base repair story drives two consecutive change landings")]
 fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_land() {
-    let (mut world, _chat, producer, branch) = change_world(false, 1000, None);
-    assert!(matches!(
-        world.external(
-            1,
-            raw::Op::Write(raw::Write::Status {
-                commit: 1,
-                context: Box::from(&b"build"[..]),
-                state: raw::Check::Failed,
-                description: Box::new([]),
-                link: Box::new([])
-            })
-        ),
-        raw::Answer::Done
-    ));
+    let (mut world, _chat, producer, branch) = change_world_with_gate(false, 1000, None, true);
+    let tasks::Party::Task(waiter) = live_task(&world, producer.task).requester else {
+        panic!("producer belongs to a4")
+    };
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
     ));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fix", 1)
+    let original = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fix", 1)
         .expect("original change pushed");
     let event = world.protocol.answer(
         Token::new(7),
@@ -1992,9 +1982,40 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             break;
         }
     }
+    let review = world.assigned.get(2).expect("first review").clone();
+    assert!(world.store.change(waiter).expect("open change").pull.is_some());
+    assert_eq!(live_task(&world, waiter).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(goal_landing::ended(&world, waiter).is_none(), "a4 has no result at its open read");
+    let red = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"base", b"broken", 1)
+        .expect("person pushes red main");
+    world.advance_ticks(20);
+    assert!(matches!(
+        world.external(
+            1,
+            raw::Op::Write(raw::Write::Status {
+                commit: red,
+                context: Box::from(&b"build"[..]),
+                state: raw::Check::Failed,
+                description: Box::new([]),
+                link: Box::new([])
+            })
+        ),
+        raw::Answer::Done
+    ));
+    goal_landing::finish_run(
+        &mut world,
+        &review,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    for _ in 0..200 {
+        world.tick();
+        if world.assigned.len() >= 4 {
+            break;
+        }
+    }
     let repair = world
         .assigned
-        .get(2)
+        .get(3)
         .unwrap_or_else(|| {
             panic!(
                 "base failure assigned deployment repair producer; task4={:?}; task5={:?}; assignments={:?}",
@@ -2004,6 +2025,27 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             )
         })
         .clone();
+    assert_eq!(live_task(&world, waiter).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(goal_landing::ended(&world, waiter).is_none(), "a4 has no result while paused");
+    assert_eq!(world.merges, 0, "nothing lands while main is red");
+    let repairs: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                if task.requester == (tasks::Party::Deployment { project: 1 }) =>
+            {
+                Some(task)
+            }
+            _ => None,
+        })
+        .collect();
+    let [procedure] = repairs.as_slice() else { panic!("one deployment repair: {repairs:?}") };
+    assert_eq!(procedure.spec.words.as_ref(), b"Repair landing branch CI");
+    assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(procedure.number));
+    let repair_task = procedure.number;
+    // No agent call intervenes: the deployment creates the repair on discovering red CI.
     let repair_branch = repair.workspace.repositories[0].push.as_ref().expect("repair branch").clone();
     assert_ne!(repair_branch, branch);
     assert!(world.store.rows.values().any(|stored| matches!(stored,
@@ -2011,7 +2053,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             if world.store.change(change.task).unwrap().base_repair && change.queue_repair.is_none())
     )));
     assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: repair_branch.clone(), commit: 1 })),
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: repair_branch.clone(), commit: red })),
         raw::Answer::Branch(raw::Created::Created)
     ));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &repair_branch, b"base", b"fixed", 1)
@@ -2034,8 +2076,26 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         engine::Parts::none(),
     );
     world.send(event);
+    let mut reviewed = std::collections::BTreeSet::from([review.task]);
     for _ in 0..1000 {
         world.tick();
+        for run in world.assigned.clone() {
+            let needs_review =
+                world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)))).is_some_and(
+                    |stored| {
+                        matches!(stored,
+                    Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                        if matches!(task.contract, tasks::Contract::Verdict { .. }))
+                    },
+                );
+            if needs_review && reviewed.insert(run.task) {
+                goal_landing::finish_run(
+                    &mut world,
+                    &run,
+                    tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+                );
+            }
+        }
         if world
             .store
             .rows
@@ -2066,6 +2126,57 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         "deployment repair and waiting change land; forge={:?}",
         world.store.rows.values().filter(|row| matches!(row, Record::Forge { .. })).collect::<Vec<_>>()
     );
+    for _ in 0..200 {
+        world.tick();
+        if [repair_task, waiter].iter().all(|task| goal_landing::ended(&world, *task).is_some()) {
+            break;
+        }
+    }
+    let mut records = Vec::new();
+    while let Some(record) = world.fake.pop_observation() {
+        records.push(record);
+    }
+    assert_eq!(world.fake.observations_lost(), 0);
+    let landings: Vec<_> = records
+        .iter()
+        .filter_map(|record| match record {
+            fake::Observation::Merged { number, head, commit, .. } => Some((*number, *head, *commit)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(landings.len(), 2);
+    let repair_row = world.store.change(repair_task).expect("repair change");
+    let waiter_row = world.store.change(waiter).expect("waiting change");
+    assert_eq!(landings[0].0, repair_row.pull.expect("repair pull"));
+    assert_eq!(landings[1].0, waiter_row.pull.expect("a4 pull"));
+    assert_ne!(landings[1].1, original, "a4 updates onto the repaired main");
+    let raw::Answer::Comparison { contains_base, .. } = world.external(
+        1,
+        raw::Op::Read(raw::Read::Compare { base: landings[0].2, head: landings[1].1, page: 1, limit: 10 }),
+    ) else {
+        panic!("a4 compared with repaired main")
+    };
+    assert!(contains_base, "a4's updated head contains the repair merge");
+    for (task, (_, head, merge)) in [(repair_task, landings[0]), (waiter, landings[1])] {
+        let green = records.iter().position(|record| {
+            matches!(record,
+            fake::Observation::Reported { commit, state: raw::Check::Passed, .. } if *commit == head)
+        });
+        let landed = records.iter().position(|record| {
+            matches!(record,
+            fake::Observation::Merged { commit, .. } if *commit == merge)
+        });
+        assert!(green.zip(landed).is_some_and(|(green, landed)| green < landed));
+        let ended = goal_landing::ended(&world, task).expect("landed task");
+        let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { words, .. })) = &ended.phase else {
+            panic!("change result: {:?}", ended.phase)
+        };
+        let id = translate::commit(merge).iter().fold(String::new(), |mut id, byte| {
+            write!(id, "{byte:02x}").expect("merge hex");
+            id
+        });
+        assert!(words.windows(32).any(|word| word == &id.as_bytes()[..32]), "result names merge");
+    }
     world.close();
 }
 

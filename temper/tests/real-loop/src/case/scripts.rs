@@ -1081,47 +1081,13 @@ pub fn step_6_5_rules() -> Box<[Box<[Rule]>]> {
 
 // Act 3, step 6.4 (testing/reference-case.md)
 #[must_use]
-pub fn step_6_4(forge: SocketAddr) -> Box<[Script]> {
+pub fn step_6_4(_forge: SocketAddr) -> Box<[Script]> {
     use super::{
-        Agent, RED_A4, RED_A4_FILE, RED_BASE, RED_BROKEN, RED_CHANGE_SPEC, RED_CHANGE_SPEND, RED_FILE, RED_FIRST_HEAD,
-        RED_OWNER_REPORT, RED_OWNER_SPEC, RED_OWNER_SPEND, RED_REPAIR, RED_REPAIR_HOLD, RED_REPORT, RED_REVIEW_HOLD,
-        RED_RULE, RED_TIMER, RED_TIMER_AT, RED_UPDATED_HEAD, REVIEWED,
+        Agent, RED_BASE, RED_BROKEN, RED_FILE, RED_FIRST_HEAD, RED_REPAIR, RED_REPAIR_HOLD, RED_REVIEW_HOLD,
+        RED_UPDATED_HEAD, REVIEWED,
     };
-    let owner = direction_owner(forge, RED_OWNER_SPEC, RED_OWNER_SPEND, 0, 4);
-    let mut change = direction_change(forge, RED_CHANGE_SPEC, RED_A4_FILE, 3);
-    change["authority"]["budget"]["spend"] = RED_CHANGE_SPEND.into();
     let verdict = || call(b"finish", &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]}));
-    let mut interim = call(b"subscribe", &json!({"kind":"timer","at":RED_TIMER_AT}));
-    let mut lines = vec![Line::Text { text: RED_RULE.as_bytes().into() }];
-    lines.extend(interim.lines);
-    interim.lines = lines.into();
     Box::new([
-        Script {
-            cue: Agent::RedDirector.cue().into(),
-            turns: Box::new([
-                then_wait(call(b"delegate", &json!({"batch":[owner]})), "A1 owns a4."),
-                then_wait(interim, "The interim timer is armed."),
-                call(b"unsubscribe", &json!({"subscription":RED_TIMER})),
-                report(RED_REPORT),
-                wait("A1 is still working."),
-            ]),
-        },
-        Script {
-            cue: Agent::RedOwner.cue().into(),
-            turns: Box::new([
-                then_wait(call(b"delegate", &json!({"batch":[change]})), "a4 is delegated."),
-                report(RED_OWNER_REPORT),
-                wait("a4 waits for the landing branch repair."),
-            ]),
-        },
-        Script {
-            cue: task_cue(Agent::RedCoder.cue()),
-            turns: Box::new([finish_change(
-                call(b"write", &json!({"path":RED_A4_FILE,"content":RED_A4})),
-                "a4",
-                "Preserve green CI.",
-            )]),
-        },
         Script { cue: review_cue(RED_FIRST_HEAD), turns: Box::new([direction_held(RED_REVIEW_HOLD, verdict())]) },
         Script {
             cue: task_cue(Agent::RedRepairCoder.cue()),
@@ -1141,29 +1107,7 @@ pub fn step_6_4(forge: SocketAddr) -> Box<[Script]> {
 
 #[must_use]
 pub fn step_6_4_rules() -> Box<[Box<[Rule]>]> {
-    use super::{RED_CHANGE, RED_MESSAGE, RED_OWNER_REPORT, RED_TIMER};
-    let table = |entries: &[(&str, u32)]| -> Box<[Rule]> {
-        entries.iter().map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn: *turn }).collect()
-    };
-    Box::new([
-        table(&[
-            // The final report can cross the interim timer or A1's news.
-            (CROSSED, 3),
-            ("Subscription removed", 3),
-            (RED_OWNER_REPORT, 2),
-            (&format!("Subscription {RED_TIMER} added"), 4),
-            (RED_MESSAGE, 1),
-            (DELEGATED, 4),
-            (BEGIN, 0),
-            ("", 4),
-        ]),
-        table(&[(&format!("Result from task {RED_CHANGE}:"), 1), (CROSSED, 1), (DELEGATED, 2), (BEGIN, 0), ("", 2)]),
-        Box::new([]),
-        Box::new([]),
-        Box::new([]),
-        Box::new([]),
-        Box::new([]),
-    ])
+    Box::new([Box::new([]), Box::new([]), Box::new([]), Box::new([])])
 }
 
 // A review now includes the change's words before its requester and head.
@@ -1509,16 +1453,6 @@ mod tests {
             &step_5_4_rules(),
             Agent::StoryOwner,
             super::super::STORY_OWNER_REPORT,
-        );
-    }
-
-    #[test]
-    fn case_6_4_director_finishes_after_crossed_report_and_waits_on_fresh_landing() {
-        check_finish_feedback(
-            &step_6_4(([127, 0, 0, 1], 3000).into()),
-            &step_6_4_rules(),
-            Agent::RedDirector,
-            super::super::RED_REPORT,
         );
     }
 }
