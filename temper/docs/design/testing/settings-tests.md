@@ -73,10 +73,11 @@ and the resolution's followers, each once, with its kind and design):
 | a worker's workspaces and git operations | follows | its `slots` (`../protocol/configuration/derived.md`, 5.2 and 5.3) |
 | the counts that scale with `live_goals` | follows | ⌈stock × `live_goals` / 40⌉, each at most its cap (`../protocol/configuration/derived.md`, 5.4) |
 | the ties of 5.4: landing members, landings, delegates, operations, inbox tasks, exemptions | follows | their scaled side (`../protocol/configuration/derived.md`, 5.4) |
-| the brief's figures: the loads' read bytes against the brief's task budget, the forge's brief bytes against the loads' read bytes, the journal's result bytes against the brief's bytes, and the brief's bytes within the host part's authorised brief | follows or floor, each as the resolution and the start's checks treat it: the stock sets the brief's bytes from the host part's room, not from the sum of the brief's budgets, and each is configurable (`../protocol/configuration/limits.md`, the brief) |
+| the brief's figures: the brief's read bytes against its task budget, the forge's brief bytes against the brief's read bytes, the journal's result bytes against the brief's bytes | floor, each refused at start below its source, naming both (`../protocol/configuration/limits.md`, limits checked against each other, the brief's): the stock sets the brief's bytes from the host part's room, not from the sum of the brief's budgets, and each is configurable. The brief's bytes within the host part's authorised brief is no row: it is the charter's room, checked per charter at start (`../domain/agent/room.md`, 1) |
 | the stop bound and a unit's stop timeout | follows | the forge client's lifetime and clock margin (`../protocol/configuration/derived.md`, 5.6): the stop bound is `skein_forge_client::stop_bound`, twice their sum; a unit's stop timeout is the deployment's unit file, which no code derives, so its rule (the bound plus at least 30 s, to a whole minute) is checked by arithmetic over the same mutations, and its stock 660 s is the help's, which its own test pins |
 | the forge's holds against its landings and their members | holds what it must | none: a landing past them is refused at its forming and its changes wait (`../domain/landing.md`, 12) |
-| the forge client's resources, entries and repositories against the forge's | holds what it must | none: a batch past either bound is refused, and a full table refuses rather than stops (`../domain/forge/keeping-up.md`) |
+| the forge client's repositories, entries and resources against the forge's repositories, entries and holds | checked together | none: an override of either side alone that breaks it is refused at start, naming both (`../protocol/configuration/limits.md`, limits checked against each other, the forge client's tables) |
+| the forge client's resources against the forge's tasks times their resources | holds what it must | a batch past the bound is refused, and a full table refuses rather than stops (`../domain/forge/keeping-up.md`, its capacity) |
 | the store's tier rows against `forge.changes`, and kept and pending landings with their members | holds what it must | the store's ceilings refuse the start, naming the setting (`../protocol/configuration/limits.md`) |
 | the git component's output against its conflicts' paths | holds what it must | refused once, naming every short figure (`../protocol/configuration/limits.md`) |
 
@@ -200,6 +201,18 @@ relation and the decision it got.
   overridden again with a companion override that keeps the other
   relation (the connections with the calls), and that case gets its own
   row's decision, the formula observed through the same resolution.
+  Where no companion in range keeps the other relation, the case keeps
+  that relation's refusal as its decision and the row's formula is
+  observed by its other mutations.
+- **Where a mutation passes a fixed ceiling:** a value a wire's or the
+  store schema's ceiling refuses whatever else is set (the forge
+  client's `answer_bytes`, `forge.holds` and `forge.landing_members`
+  at twice their stock, or one past a floor that sits at the ceiling)
+  gets the start's
+  refusal naming the figure and its ceiling, as its decision, and the
+  table holds a row for each such ceiling, citing what fixes it. No
+  companion raises a wire or a schema, and no result is made up for the
+  row the mutation was drawn from: its other mutations observe it.
 - **Where one removal meets several references:** jig's whole check
   names the first reference it meets, the policy's rules before the
   templates. A charter's or producer's removal from the stock as it
