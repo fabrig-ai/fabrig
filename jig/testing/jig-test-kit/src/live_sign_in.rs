@@ -1,5 +1,5 @@
 //! The live layer's person-driven sign-in, bounded answer and confirmed sign-out.
-use crate::support::{self, Person, Process};
+use crate::{self as support, Person, Process};
 use jig_client::{Asker, Handle, Key, contract as c};
 use jig_client_protocol_kit::native::{NativeClient, Received, Script};
 use jig_protocol_accounts_kit::fixtures;
@@ -36,6 +36,7 @@ pub fn configuration(directory: &Path) -> codec::View {
     configuration_at(directory, &address, Peers::Real)
 }
 
+#[expect(clippy::must_use_candidate, reason = "configuration checks use the written files without the store limits")]
 pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::View {
     let mut value = support::configuration_value(directory);
     let path = directory.join("config.json");
@@ -146,7 +147,7 @@ fn progress(previous: &mut String, document: &c::Accounts, source: u32) {
 }
 /// The chat's run in words: its phase, attempt, retry, work, hold, ending and run wait. A
 /// result's words are the page's; no grant or credential is in the task document.
-pub(super) fn run_line(task: &c::Task) -> String {
+pub fn run_line(task: &c::Task) -> String {
     let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     format!(
         "phase={phase:?}; attempt={:?}; retry={:?}; work={:?}; hold={:?}; ending={}; wait={:?}",
@@ -172,7 +173,8 @@ fn ending(ending: &c::ChipEnding) -> String {
 }
 /// Whether the run can no longer bring the answer: any failed or refused attempt, a hold, an
 /// ending other than a report, or a host's refusal. Each fails the test at once, in words.
-pub(super) fn failed(task: &c::Task) -> bool {
+#[must_use]
+pub fn failed(task: &c::Task) -> bool {
     let refused = matches!(task.run_wait, Some(c::TaskRunWait::Refused(_)));
     let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     refused
@@ -346,6 +348,7 @@ pub fn run(directory: &Path, started: Time, peers: Peers) -> Result<(u32, u32), 
 pub const INSTRUCTIONS: &str = "Report exactly: Process answer";
 pub const WORDS: &str = "Follow the first sentence.";
 
+#[must_use]
 pub fn store_limits(bytes: &[u8]) -> codec::View {
     let document = config::document(bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 })
         .expect("live document");
@@ -701,34 +704,5 @@ impl Judge {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The diagnostic checked by the refused-plan process story is formatted without a process.
-    #[test]
-    fn a_refused_plan_is_reported_with_the_run_failure() {
-        let mut task = jig_client_protocol_link::translate::documents::task(
-            jig_client_test_records::task_with_hold_record(),
-            &jig_client_protocol_kit::fixtures::link_limits(),
-        )
-        .expect("owner task fixture");
-        let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
-        *phase = c::ChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
-        details.attempt = Some(1);
-        details.retry =
-            Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3, reason: None });
-        details.hold = None;
-        details.ending = None;
-        details.observation = None;
-        task.run_wait = None;
-        assert!(failed(&task));
-        assert_eq!(
-            run_line(&task),
-            "phase=Active(BackingOff { until: Wall(17) }); attempt=Some(1); retry=Some(OwnerFailed { class: Run, count: 1, allowance: 3, reason: None }); work=None; hold=None; ending=none; wait=None"
-        );
     }
 }

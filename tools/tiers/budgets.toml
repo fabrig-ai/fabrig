@@ -198,6 +198,18 @@ cpu_s = 2
 [gate.default.jig.end-to-end]
 cpu_s = 2
 
+[[gate.default.moves]]
+from = "jig.real-loop"
+to = "jig.protocol"
+cpu_s = 1.5
+why = "The engine clients' codec bounds, scripted peers and joint HTTP stories replay in their own protocol binary, apart from the provider's openssl children (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "jig.end-to-end"
+to = "jig.step"
+cpu_s = 0.2
+why = "The reference service's refused-plan diagnostic replays in its step binary, apart from real-account service processes (tools/tiers/layers.md, 6.1)."
+
 [gate.default.temper]
 ideal_s = 100
 
@@ -380,6 +392,12 @@ cpu_s = 2
 
 [gate.fuzzy.jig.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "jig.real-loop"
+to = "jig.protocol"
+cpu_s = 1.0
+why = "The engine clients' cursor and forwarded-field sweeps replay in their own protocol binary, apart from the provider's openssl children (tools/tiers/layers.md, 6.1)."
 
 [gate.fuzzy.temper]
 ideal_s = 180
