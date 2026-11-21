@@ -1,6 +1,5 @@
 # README: status
 
-2026-11-13. Where temper's code lags or departs from [README.md](README.md).
+2026-11-21. Where temper's code lags or departs from [README.md](README.md).
 
-Its decisions (section 5) stand in the code. Each document's gaps are in its own status.
-
+No gap.
