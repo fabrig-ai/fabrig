@@ -739,6 +739,7 @@ Drafts:
 - [`draft/milestones.md`](draft/milestones.status.md) — M1, goal 4276: jig's gathering, `Conclude` and a party's `Delegate`. M2, goal 4793: temper's milestone, the stock's template 8, label 4, on jig's gathering; its goals asking its maker; `temper ctl milestone new`, `whole`, `list` and `show`, and `goal start`'s `--milestone`, `--after` and `--no-deadline`; the forge family's read `Milestone` and the forge's row of each milestone, its last landing and its end; the status agent's milestones (`domain/milestones.md`; `client/ctl/milestones.md`). M3, goal 5517: the pages' milestones, a goal's waits, Home's grouped Goals, Work's milestone card, a milestone's page and its goals named by it on Needs you, Decided for you and a goal's page (`client/pages/milestone.md`).
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
+- [`draft/model-speeds.md`](draft/model-speeds.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/outbox-room-wait.md`](draft/outbox-room-wait.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
