@@ -1,0 +1,42 @@
+records crate::accounts_v2
+use a = jig_domain_accounts
+use s = skein_codec::convert
+use c = crate::codec::convert
+
+record Installation = crate::codec::accounts::Installation
+record Next
+record Party stands for party
+enum Holder = a::Holder { party tuple }
+record Project stands for project
+enum Use = a::Use { party tuple, project tuple }
+record Refused
+enum ReadFailure = a::ReadFailure
+record ListRecord = a::ListRecord { read via s::wall, tried via s::wall }
+record Account { uses slice }
+enum Kind = a::Kind
+record Limited { reset via s::wall }
+enum Held = a::Held
+record Source
+record Issued
+record FactText stands for text
+record FactCount stands for count
+record FactInstant stands for at via s::wall
+record FactSpan stands for nanos via s::duration
+record FactShare stands for basis via c::share
+record FactWindow = a::FactWindow {
+    length via s::duration
+    used via c::share
+    resets via s::wall
+}
+enum FactValue = a::FactValue {
+    text tuple
+    count tuple
+    instant tuple
+    span tuple
+    share tuple
+    window tuple
+}
+record Fact = a::AccountFact { seen via s::wall }
+record Facts { facts slice }
+enum Value = a::Stored
+record Row by hand
