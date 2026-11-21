@@ -8707,6 +8707,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-transcript",
  "temper-fake-checkout",
+ "temper-faults",
  "temper-worker-checkout-world",
  "temper-worker-domain",
 ]

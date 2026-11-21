@@ -8,11 +8,13 @@ mod jobs;
 mod merge;
 mod orders;
 mod prepare;
+mod restarts;
 mod runtime;
 mod runtime_memory;
 mod whole;
 
 mod fuzzy {
+    mod restarts;
     mod runtime;
     mod whole;
 }

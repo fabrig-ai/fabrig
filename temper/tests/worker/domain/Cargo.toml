@@ -20,6 +20,7 @@ smith-transcript.workspace = true
 temper-worker-domain.workspace = true
 temper-worker-checkout-world.workspace = true
 temper-fake-checkout.workspace = true
+temper-faults.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

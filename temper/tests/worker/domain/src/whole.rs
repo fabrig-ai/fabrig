@@ -25,6 +25,7 @@ pub mod merge;
 pub mod orders;
 pub mod pause;
 pub mod prepare;
+pub mod restarts;
 
 const RUN: Token = Token::new(81);
 const ATTEMPT: Token = Token::new(13);
@@ -78,6 +79,7 @@ struct World {
     /// The channel to the engine is open: what goes up reaches it.
     up: bool,
     hold_push: bool,
+    restart_observer: Option<restarts::Observer>,
     held: Option<(Token, Op)>,
     deliveries: u32,
     delivery_reply: Option<agent::Delivery>,
@@ -125,6 +127,7 @@ impl World {
             reading: false,
             up: false,
             hold_push: false,
+            restart_observer: None,
             held: None,
             deliveries: 0,
             delivery_reply: None,
@@ -201,6 +204,9 @@ impl World {
                 panic!("this fixture declares no program sources")
             }
             Request::Hello(hello) => {
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.hello(self.env.now, hello.hosting.len());
+                }
                 assert!(hello.hosting.len() <= 1);
                 self.report.stop_bound = hello.stop_bound;
                 self.workstreams = hello.workstreams;
@@ -256,6 +262,9 @@ impl World {
             host::LinkUp::Draining => self.shutdown_notices += 1,
             host::LinkUp::Turn { run, attempt, turn } => {
                 assert_eq!((run, attempt, turn.turn), (RUN, self.attempt, 1));
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.turned(attempt, &turn);
+                }
             }
             host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (RUN, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
@@ -365,6 +374,9 @@ impl World {
     fn down(&mut self, message: agent::Down) -> bool {
         match message {
             agent::Down::Start { start, .. } => {
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.started(self.attempt);
+                }
                 assert_eq!(start.activation, self.attempt.raw());
                 assert_eq!(start.directories.len(), 1);
                 assert_eq!(start.directories[0].name.as_ref(), b"app");
@@ -556,7 +568,7 @@ impl World {
                 self.deliver();
                 assert!(self.held.is_some());
                 assert_eq!(self.forge.branch(REMOTE, b"topic"), Some(self.first));
-                self.event(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT }));
+                self.event(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: self.attempt }));
                 assert_eq!(self.report.cancellations, 1);
                 self.gone();
                 assert!(self.answer.is_none());
@@ -592,6 +604,11 @@ impl World {
     fn run(mut self, case: Case) -> Report {
         self.start();
         self.story(case);
+        self.completed(case);
+        self.report
+    }
+
+    fn completed(&mut self, case: Case) {
         assert_eq!(self.domain.agent().agents(), 0);
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
@@ -640,11 +657,11 @@ impl World {
         self.report.tree = self.forge.tree(commit);
         assert_eq!(self.report.tree, [(PATH.to_vec(), b"edited\n".to_vec())].into(), "the entire edited tree landed");
         assert!(self.forge.is_ancestor(self.first, commit));
-        self.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+        self.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: self.attempt }));
         assert_eq!(self.domain.kept_answers(), 0);
         if matches!(case, Case::Drained | Case::LinkDrained) {
             assert_eq!(self.stops, 0, "its last turn must be kept too");
-            self.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn: 1 }));
+            self.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: self.attempt, turn: 1 }));
         }
         if matches!(case, Case::LinkDrained | Case::LinkDrainExpired) {
             assert_eq!(
@@ -664,7 +681,6 @@ impl World {
             self.event(Event::Shutdown { drain: true });
         }
         assert_eq!(self.stops, 1, "a worker with nothing left stops, once");
-        self.report
     }
 }
 
@@ -759,7 +775,7 @@ fn finish_host_run(world: &mut World) {
     assert_eq!(preparation, None);
     assert_eq!(world.domain.agent().agents(), 0);
     assert_eq!(world.domain.workspaces(), 0);
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
     assert_eq!(world.domain.kept_answers(), 0);
     world.event(Event::Shutdown { drain: true });
     assert_eq!(world.stops, 1);
