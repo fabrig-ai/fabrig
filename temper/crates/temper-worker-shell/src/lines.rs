@@ -78,6 +78,13 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
             "{binary} worker: the engine said it restarts: runs kept up to {} ms after the link drops\n",
             keep.as_millis()
         ),
+        service::Note::Unswept { path, error } => {
+            use std::fmt::Write as _;
+            let mut line = format!("{binary} worker: trash entry not removed: ");
+            escape_detail(&mut line, &path);
+            writeln!(line, ": {error:?}").expect("format trash error");
+            line
+        }
         service::Note::ResultsIgnored { owner, tag, reason } => {
             run_detail_line(format!("{binary} worker: owner {owner} repository {tag} check results ignored: "), &reason)
         }
