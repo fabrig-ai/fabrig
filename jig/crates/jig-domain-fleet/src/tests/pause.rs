@@ -10,6 +10,7 @@ fn worker(h: &mut Harness, channel: Token, position: u32) {
         worker: position,
         channel,
         hello: Hello {
+            reads_usage: true,
             slots: 2,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),

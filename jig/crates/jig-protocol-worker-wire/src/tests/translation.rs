@@ -659,7 +659,7 @@ fn usage_and_usage_read_are_unheld_below_nineteen() {
         for record in usage_records().into_iter().take(2) {
             let refusal = translation.send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS).unwrap_err();
             assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
-            assert_eq!(refusal.version, 19);
+            assert_eq!(refusal.version, crate::VERSION);
             let Halt::Unheld(_) = refusal.halt else { panic!("usage is unheld: {refusal:?}") };
         }
     }
