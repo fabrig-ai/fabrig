@@ -1759,6 +1759,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
         Event::Settle => {
             d.stopping = true;
+            d.restart_fresh = None;
             d.watch_due = None;
             crate::landing::settle(d);
             child(d, env, skein_forge_client::Event::Settle, out);
@@ -2731,16 +2732,24 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     lost_read(d, env, owner, result, out);
                 }
             }
-            skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
-            skein_forge_client::Request::OutboxDone => {
-                d.room.ready = true;
-                crate::landing::restore_waits(d, env);
-                emit(out, Request::RestartDone { stage: RestartStage::Settled });
+            skein_forge_client::Request::ReadAfreshDone => {
+                if !d.stopping {
+                    d.restart_fresh = Some(true);
+                }
             }
+            skein_forge_client::Request::OutboxDone => restart_outbox_done(d, env, out),
         }
     }
     written::cleanup(d, env, out);
     read_afresh_complete(d, out);
+}
+
+pub(crate) fn restart_outbox_done(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if !d.stopping {
+        d.room.ready = true;
+        crate::landing::restore_waits(d, env);
+        emit(out, Request::RestartDone { stage: RestartStage::Settled });
+    }
 }
 
 fn settled_facts(

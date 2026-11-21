@@ -485,6 +485,9 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 }
 
 pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
+    if domain.core.stopping() || domain.settling.active() {
+        return;
+    }
     let connector = domain.config.forge_connector;
     let phase = match stage {
         jig_domain_core::effects::connector::RestartStage::Restored => Phase::Link,

@@ -1,6 +1,8 @@
 //! Small limits for tests alone (temper/docs/design/protocol/configuration/limits.md).
 #![no_std]
+extern crate alloc;
 pub mod root_resume;
+pub mod start_forge;
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;

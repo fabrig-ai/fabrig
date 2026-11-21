@@ -8,6 +8,22 @@ use skein_lib::Duration;
 use temper_engine_domain_forge as forge;
 
 #[must_use]
+pub fn documents(authority: &authority::Limits, tasks: &tasks::Limits) -> jig_domain_core::documents::DocumentLimits {
+    jig_domain_core::documents::DocumentLimits {
+        roles: 1,
+        segments: 9,
+        grants: authority.grants.max(tasks.authority_grants),
+        executors: authority.executors.max(tasks.executor_kinds),
+        implications: authority.implications,
+        rows: 4,
+        text_bytes: 4_096,
+        chips: 4,
+        lines: 4,
+        versions: jig_domain_core::documents::Versions { minimum: 1, maximum: 1 },
+    }
+}
+
+#[must_use]
 pub fn tasks() -> tasks::Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     tasks::Limits {
