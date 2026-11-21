@@ -326,7 +326,7 @@ pub fn turn_overlap_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn callable_turn() -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     let mut blocks = List::with_capacity(2);
     blocks.push(s::Block::Text(s::Text { text: TURN_TEXT.into(), replay: None })).expect("source text block");
     blocks
@@ -339,8 +339,8 @@ pub fn callable_turn() -> Box<[u8]> {
         .expect("source call block");
     turn_with_blocks(blocks)
 }
-fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+fn turn_with_blocks(blocks: List<smith_transcript::v8::Block>) -> Box<[u8]> {
+    use smith_transcript::v8 as s;
     let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture");
     let mut message = turn.messages.get(0).expect("person message").clone();
     message.blocks = blocks;
@@ -368,7 +368,7 @@ pub fn turn_page_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn large_turn() -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     let mut blocks = List::with_capacity(1);
     blocks
         .push(s::Block::Text(s::Text {

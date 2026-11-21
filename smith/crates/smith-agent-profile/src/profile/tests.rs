@@ -242,7 +242,7 @@ fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     let mut smaller = transcript;
     smaller.opaque_bytes -= 1;
     let problem = block.encode(&smaller).expect_err("one byte beyond the bound");
-    assert_eq!(problem.path, smith_transcript::v7::paths::OPAQUE_BYTES);
+    assert_eq!(problem.path, smith_transcript::v8::paths::OPAQUE_BYTES);
 }
 
 #[test]

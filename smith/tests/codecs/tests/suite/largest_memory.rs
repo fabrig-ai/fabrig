@@ -157,7 +157,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_transcript::SCHEMA,
-        smith_transcript::v7,
+        smith_transcript::v8,
         limits [
             replay_bytes,
             text_text,
@@ -175,6 +175,8 @@ fn largest_roots_stay_within_decoded_bounds() {
             command_end_last,
             command_running_head,
             command_running_last,
+            interrupted_head,
+            interrupted_last,
             job_read_head,
             job_read_last,
             ambiguous_lines,

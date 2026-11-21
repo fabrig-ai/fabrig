@@ -257,6 +257,25 @@ fn payload(events: &[Event]) -> &[u8] {
     }
 }
 #[test]
+fn the_real_smith_set_patches_kept_version_seven_on_read() {
+    const REAL: OwnerSets = OwnerSets { sets: &[crate::owners::SMITH_SET] };
+    let text = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
+    let old = skein_codegen::goldens(&skein_codegen::parse(text).expect("kept v7"))
+        .into_iter()
+        .find(|value| value.name == "record_turn_smallest.bin")
+        .expect("turn")
+        .bytes;
+    let bytes = frames::frame(6, &old);
+    let (mut disk, mut store) = scene(&bytes, REAL);
+    let events = disk.request(&mut store, request(1, BUDGET));
+    let patched = payload(&events);
+    let mut expected = old;
+    expected[1] = 8;
+    assert_eq!(patched, expected);
+    assert_eq!(&*disk.bytes(PATH), &*bytes, "patching a read never writes the frame");
+}
+
+#[test]
 fn every_read_kind_patches_each_kept_frame_without_writing() {
     const KINDS: u8 = 6; // resume, point, activity, page, tail's window path, party point
     for body in [5, 6] {

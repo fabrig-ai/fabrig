@@ -9,7 +9,7 @@ pub struct Limits {
     /// This agent's bounded charter decoder allowances.
     pub charter: smith_charter::v5::Limits,
     /// This agent's bounded saved-turn decoder allowances.
-    pub transcript: smith_transcript::v7::Limits,
+    pub transcript: smith_transcript::v8::Limits,
     /// Saved turns admitted on resume, from one window's message capacity.
     pub resume_turns: u32,
     /// Hits admitted within one search outcome on resume.
@@ -152,8 +152,8 @@ fn charter_cells(limits: &smith_charter::v5::Limits) -> Option<u64> {
     smith_charter::Charter::decoded_bound(&cells)
 }
 
-fn turn_cells(limits: &smith_transcript::v7::Limits) -> Option<u64> {
-    let cells = smith_transcript::v7::Limits {
+fn turn_cells(limits: &smith_transcript::v8::Limits) -> Option<u64> {
+    let cells = smith_transcript::v8::Limits {
         replay_bytes: 0,
         text_text: 0,
         opaque_bytes: 0,
@@ -169,6 +169,8 @@ fn turn_cells(limits: &smith_transcript::v7::Limits) -> Option<u64> {
         command_end_last: 0,
         command_running_head: 0,
         command_running_last: 0,
+        interrupted_head: 0,
+        interrupted_last: 0,
         job_read_head: 0,
         job_read_last: 0,
         working_path_path: 0,

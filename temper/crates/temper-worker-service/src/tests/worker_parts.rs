@@ -476,7 +476,7 @@ fn resumed_turn_versions_are_not_malformed_transcripts() {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-transcript".as_slice().into(),
                 version: current.checked_add(1).unwrap(),
-                lowest: current,
+                lowest: smith_transcript::wire::FLOOR,
                 highest: current,
             })
         } else {

@@ -6,8 +6,8 @@ use smith_agent_service::profile::{Layer, Limit, Value};
 
 use super::entry;
 
-pub(super) fn transcript(limits: &smith_transcript::v7::Limits) -> Box<[Limit]> {
-    let mut entries = skein_lib::List::with_capacity(35);
+pub(super) fn transcript(limits: &smith_transcript::v8::Limits) -> Box<[Limit]> {
+    let mut entries = skein_lib::List::with_capacity(37);
     for group in [transcript_provider(limits), transcript_tools(limits)] {
         for (name, value) in group {
             entries.push(entry(Layer::Host, name, value)).expect("every transcript bound counted");
@@ -116,7 +116,7 @@ fn body_count(field: &'static str, value: u32) -> Limit {
     entry(Layer::Host, field, Value::Count(u64::from(value)))
 }
 
-fn transcript_provider(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str, Value)]> {
+fn transcript_provider(limits: &smith_transcript::v8::Limits) -> Box<[(&'static str, Value)]> {
     Box::new([
         ("process.channel.transcript.program_name", Value::Bytes(u64::from(limits.program_name))),
         ("process.channel.transcript.replay_bytes", Value::Bytes(u64::from(limits.replay_bytes))),
@@ -134,7 +134,7 @@ fn transcript_provider(limits: &smith_transcript::v7::Limits) -> Box<[(&'static 
     ])
 }
 
-fn transcript_tools(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str, Value)]> {
+fn transcript_tools(limits: &smith_transcript::v8::Limits) -> Box<[(&'static str, Value)]> {
     Box::new([
         ("process.channel.transcript.allowed_calls_names", Value::Count(u64::from(limits.allowed_calls_names))),
         ("process.channel.transcript.entry_name", Value::Bytes(u64::from(limits.entry_name))),
@@ -147,6 +147,8 @@ fn transcript_tools(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str
         ("process.channel.transcript.command_end_last", Value::Bytes(u64::from(limits.command_end_last))),
         ("process.channel.transcript.command_running_head", Value::Bytes(u64::from(limits.command_running_head))),
         ("process.channel.transcript.command_running_last", Value::Bytes(u64::from(limits.command_running_last))),
+        ("process.channel.transcript.interrupted_head", Value::Bytes(u64::from(limits.interrupted_head))),
+        ("process.channel.transcript.interrupted_last", Value::Bytes(u64::from(limits.interrupted_last))),
         ("process.channel.transcript.job_read_head", Value::Bytes(u64::from(limits.job_read_head))),
         ("process.channel.transcript.job_read_last", Value::Bytes(u64::from(limits.job_read_last))),
         ("process.channel.transcript.ambiguous_lines", Value::Count(u64::from(limits.ambiguous_lines))),

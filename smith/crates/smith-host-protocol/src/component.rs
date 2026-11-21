@@ -102,7 +102,7 @@ pub struct Component {
     stopping: Stopping,
     endpoints: smith_protocol_translate::Endpoints,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     sequence: u32,
     long_open: u32,
     live: crate::live::Streams,

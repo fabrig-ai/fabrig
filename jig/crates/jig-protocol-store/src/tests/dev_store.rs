@@ -45,11 +45,15 @@ fn old_sets() -> OwnerSets {
         current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
         ..family
     });
-    let smith = crate::KeptFamily { current: SMITH, ..crate::SMITH_SET.families[0] };
+    let smith = crate::KeptFamily {
+        current: SMITH,
+        frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: &[SMITH], patches: &[] }),
+        ..crate::SMITH_SET.families[0]
+    };
     OwnerSets {
         sets: Box::leak(Box::new([
             crate::SKEIN_SET,
-            crate::OwnerSet { families: Box::leak(Box::new([smith])), ..crate::SMITH_SET },
+            crate::OwnerSet { families: Box::leak(Box::new([smith])), level: Some(0), ..crate::SMITH_SET },
             crate::OwnerSet { families: Box::leak(Box::new(families)), ..crate::JIG_STORE_SET },
         ])),
     }

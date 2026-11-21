@@ -180,7 +180,7 @@ pub fn endpoint_allowance(profile: &Profile, endpoint: &Endpoint, tools: &tools:
 fn transcript(
     domain: &domain::Limits,
     client: &shared::client::Limits,
-) -> Result<smith_transcript::v7::Limits, Refusal> {
+) -> Result<smith_transcript::v8::Limits, Refusal> {
     let session = domain.session;
     let tools = session.tools;
     let run = domain.run;
@@ -221,6 +221,8 @@ fn transcript(
     limits.command_end_last = tools.shell_tail;
     limits.command_running_head = tools.shell_head;
     limits.command_running_last = tools.shell_tail;
+    limits.interrupted_head = tools.shell_head;
+    limits.interrupted_last = tools.shell_tail;
     limits.job_read_head = tools.shell_head;
     limits.job_read_last = tools.shell_tail;
     limits.ambiguous_lines = tools.match_lines;
@@ -341,7 +343,7 @@ fn channel_limits(
     policy: &Policy,
     bodies: smith_channel::Limits,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     io: &io::Limits,
 ) -> Result<channel::Limits, Refusal> {
     let refusal = derived(Layer::Channel, "output_frames");
@@ -660,7 +662,7 @@ fn derive_machine(
     }
 }
 
-fn transcript_bounds(limits: smith_transcript::v7::Limits) -> Result<smith_transcript::v7::Limits, Refusal> {
+fn transcript_bounds(limits: smith_transcript::v8::Limits) -> Result<smith_transcript::v8::Limits, Refusal> {
     let ceiling = smith_transcript::CEILINGS;
     for (field, required, available) in [
         ("replay_bytes", limits.replay_bytes, ceiling.replay_bytes),

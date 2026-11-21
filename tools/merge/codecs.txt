@@ -31,7 +31,7 @@ skein/tests/codec/src/generated/sample.rs skein/tests/codec/schema/sample-v1.sch
 smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v13.schema
 smith/crates/smith-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema
 smith/crates/smith-local-protocol-codec/src/generated/local_store.rs smith/crates/smith-local-protocol/schema/local-store-v1.schema
-smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v7.schema
+smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema
 temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema
 temper/crates/temper-protocol-records/src/generated/secrets.rs temper/crates/temper-protocol-records/schema/secrets-v1.schema

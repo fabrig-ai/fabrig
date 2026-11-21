@@ -225,6 +225,10 @@ fn outside(
     only: Option<&str>,
 ) -> Vec<String> {
     if old.version() == new.version() {
+        // A frame's body and held turn are judged independently: compare the
+        // body at one held version; the turn's own set must patch its move
+        // (jig/docs/design/protocol/store/transcripts.md, 6).
+        let new_held = if family.frames.is_some() { old_held } else { new_held };
         return unchanged(build, old, old_held, new, new_held, only);
     }
     let (texts, patches) = match family.frames {
@@ -534,6 +538,54 @@ fn held_layouts_use_the_builds_texts() {
     let texts = BTreeMap::from([(FAMILY.name.to_owned(), parsed(HOLDER)), ("fixture-held".to_owned(), parsed(HELD))]);
     refuses(&registered("mutation-build", &BAD, &HOLDER_FAMILY, &texts));
     assert_eq!(registered("mutation-build", &GOOD, &HOLDER_FAMILY, &texts), Vec::<String>::new());
+}
+
+#[test]
+fn a_frames_held_turn_moves_only_with_its_own_patch() {
+    const BODY: &str = "family fixture-body 1\nversioned record Frame { turn: bytes 64 holds fixture-turn Turn }";
+    const CHANGED_BODY: &str =
+        "family fixture-body 1\nversioned record Frame { turn: bytes 64 holds fixture-turn Turn added: u64 }";
+    const TURN: &str = "family fixture-turn 1\nversioned record Turn { count: u32 }";
+    const NEXT: &str = "family fixture-turn 2\nversioned record Turn { count: u32 extra: u32 }";
+    const PATCH: &str = "patch 1\nowner fixture 1\nfamily fixture-turn 1 to 2\nadd Turn.extra u32 0\n";
+    const BODY_FAMILY: KeptFamily = KeptFamily {
+        name: "fixture-body",
+        current: BODY,
+        types: &[],
+        frames: Some(store::Frames { root: "Frame", texts: &[BODY], patches: &[] }),
+        ..FAMILY
+    };
+    const TURN_FAMILY: KeptFamily = KeptFamily {
+        name: "fixture-turn",
+        current: NEXT,
+        types: &[],
+        frames: Some(store::Frames { root: "Turn", texts: &[TURN, NEXT], patches: &[PATCH] }),
+        ..FAMILY
+    };
+    let old = BTreeMap::from([("fixture-body".to_owned(), parsed(BODY)), ("fixture-turn".to_owned(), parsed(TURN))]);
+    for (body, texts, patches, refused) in [
+        (BODY, &[TURN, NEXT][..], &[PATCH][..], None),
+        (BODY, &[TURN, NEXT][..], &[][..], Some("fixture-turn")),
+        (BODY, &[NEXT][..], &[PATCH][..], Some("fixture-turn")),
+        (CHANGED_BODY, &[TURN, NEXT][..], &[PATCH][..], Some("fixture-body")),
+    ] {
+        let sets = OwnerSets {
+            sets: Box::leak(Box::new([store::OwnerSet {
+                families: Box::leak(Box::new([
+                    KeptFamily { current: body, ..BODY_FAMILY },
+                    KeptFamily { frames: Some(store::Frames { root: "Turn", texts, patches }), ..TURN_FAMILY },
+                ])),
+                ..SET
+            }])),
+        };
+        let failures = guard("mutation-build", &sets, &old, &BTreeMap::new());
+        if let Some(family) = refused {
+            assert_eq!(failures.len(), 1, "{failures:?}");
+            assert!(failures[0].contains(family), "{failures:?}");
+        } else {
+            assert!(failures.is_empty(), "{failures:?}");
+        }
+    }
 }
 
 #[test]
