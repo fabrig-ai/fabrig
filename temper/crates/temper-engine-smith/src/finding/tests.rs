@@ -235,6 +235,9 @@ fn row(number: u32) -> f::FindingRow {
         at: Wall::from_nanos(19),
         why: Some(b"flake".as_slice().into()),
         hander: Some(f::Filer::Task(39)),
+        goal: None,
+        reason: None,
+        cleared: None,
     }
 }
 #[test]
@@ -267,11 +270,10 @@ fn finding_answers_use_the_tools_words_and_mark_refusals_as_errors() {
         project: 3,
         number: 12,
         finding: Some(f::FindingAnswer {
-            row: row(12),
+            row: f::FindingRow { goal: Some(99), reason: Some(b"duplicate".as_slice().into()), ..row(12) },
             body: "reproduce é".as_bytes().into(),
             filer: f::Filer::Task(2),
-            goal: Some(99),
-            reason: Some(b"duplicate".as_slice().into()),
+            blame: None,
         }),
     })));
     assert!(!shown.error());

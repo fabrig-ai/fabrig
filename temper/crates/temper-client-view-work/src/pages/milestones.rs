@@ -14,7 +14,7 @@ use temper_client_domain::{
     pages::{
         Act,
         goals::Goals,
-        milestones::{self, Count, Headline, Mark, Milestone, State},
+        milestones::{self, Count, Headline, HeadlineCase, Mark, Milestone, State},
     },
 };
 
@@ -84,13 +84,13 @@ pub(crate) fn row(
     }
     strip(b, words, lines, needing.as_slice(), count_value);
     let value = milestones::headline(line, lines, totals, goals.needs_person(line.chip.task));
-    let report = match value {
-        Headline::Running { goal, .. } => milestone.headline(goal),
-        Headline::Count(_)
-        | Headline::Complete(_)
-        | Headline::Open(_)
-        | Headline::Closed(_)
-        | Headline::Ended { .. } => None,
+    let report = match value.case {
+        HeadlineCase::Running { goal, .. } => milestone.headline(goal),
+        HeadlineCase::Count(_)
+        | HeadlineCase::Complete(_)
+        | HeadlineCase::Open(_)
+        | HeadlineCase::Closed(_)
+        | HeadlineCase::Ended { .. } => None,
     };
     b.open(if words.shell == Shell::Browser { Role::Text } else { Role::Paragraph });
     b.style(look::GOALS_LINE);
@@ -198,6 +198,17 @@ fn sentence(words: &Words, count: Count) -> Box<[u8]> {
 fn without_stop(text: &[u8]) -> &[u8] {
     text.strip_suffix(b".").unwrap_or(text)
 }
+fn reds_owed(words: &Words, sentence: Box<[u8]>, reds: u32) -> Box<[u8]> {
+    if reds == 0 {
+        return sentence;
+    }
+    let prefix = Hole::Name(bytes::copy_of(without_stop(&sentence)));
+    if reds == 1 {
+        words.say(Word::MsRedsOne, &[prefix])
+    } else {
+        words.say(Word::MsRedsMany, &[prefix, Hole::Number(u64::from(reds))])
+    }
+}
 pub(crate) fn headline(
     words: &Words,
     headline: Headline,
@@ -205,24 +216,24 @@ pub(crate) fn headline(
     report: Option<&[u8]>,
     names: &Names<'_>,
 ) -> Box<[u8]> {
-    match headline {
-        Headline::Count(count) => sentence(words, count),
-        Headline::Complete(count) => {
+    let first = match headline.case {
+        HeadlineCase::Count(count) => sentence(words, count),
+        HeadlineCase::Complete(count) => {
             if count.total == 0 {
                 words.say(Word::MsCompleteEmpty, &[])
             } else {
                 words.say(Word::MsAll, &[Hole::Number(count.total), Hole::Name(noun(words, count.total))])
             }
         }
-        Headline::Open(count) => {
+        HeadlineCase::Open(count) => {
             if count.total == 0 {
                 words.say(Word::MsNoGoals, &[])
             } else {
                 words.say(Word::MsOpenSentence, &[Hole::Number(count.done), Hole::Name(noun(words, count.done))])
             }
         }
-        Headline::Closed(count) => words.say(Word::MsClosedSentence, &[Hole::Name(sentence(words, count))]),
-        Headline::Ended { count, failed, first } => {
+        HeadlineCase::Closed(count) => words.say(Word::MsClosedSentence, &[Hole::Name(sentence(words, count))]),
+        HeadlineCase::Ended { count, failed, first } => {
             let prefix = Hole::Name(bytes::copy_of(without_stop(&sentence(words, count))));
             if failed == 1
                 && let Some(task) = first
@@ -233,8 +244,9 @@ pub(crate) fn headline(
                 words.say(Word::MsFailedCount, &[prefix, Hole::Number(u64::from(failed))])
             }
         }
-        Headline::Running { count, goal: task, more } => {
-            let Some(line) = goal(lines, task) else { return sentence(words, count) };
+        HeadlineCase::Running { count, goal: task, more } => {
+            let first = reds_owed(words, sentence(words, count), headline.reds);
+            let Some(line) = goal(lines, task) else { return first };
             let state =
                 temper_client_domain::pages::goals::state(&line.chip, false, report.is_some(), line.delegates_total);
             let mut detail = match report {
@@ -249,8 +261,8 @@ pub(crate) fn headline(
                     words.say(Word::MsMoreMany, &[prefix, Hole::Number(u64::from(more))])
                 };
             }
-            words
-                .say(Word::MsRunning, &[Hole::Name(sentence(words, count)), Hole::Name(name(line)), Hole::Name(detail)])
+            return words.say(Word::MsRunning, &[Hole::Name(first), Hole::Name(name(line)), Hole::Name(detail)]);
         }
-    }
+    };
+    reds_owed(words, first, headline.reds)
 }

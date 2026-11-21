@@ -880,7 +880,8 @@ pub enum ForgeReadAnswer {
     },
     Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
-    Finding(Option<forge::FindingAnswer>),
+    /// Keep finding detail out of every journal delivery slot's inline size.
+    Finding(Option<Box<forge::FindingAnswer>>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
     Setting {

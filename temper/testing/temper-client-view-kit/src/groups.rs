@@ -34,6 +34,9 @@ pub fn row(number: u32, title: &str, severity: w::Severity, kind: w::FindingKind
         holder: w::Holder::Task(w::HolderTask { number: 55 }),
         why: None,
         hander: None,
+        goal: None,
+        reason: None,
+        cleared: None,
     }
 }
 
@@ -223,7 +226,10 @@ fn at_with(
                             project: subject.project,
                             rows: List::from_boxed(if subject.project != PROJECT {
                                 Box::default()
-                            } else if subject.mine {
+                            } else if match &subject.filter {
+                                w::FindingsFilter::Triage(filter) => filter.mine,
+                                w::FindingsFilter::Goal(_) | w::FindingsFilter::Milestone(_) => false,
+                            } {
                                 mine.into()
                             } else {
                                 rows.into()

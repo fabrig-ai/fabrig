@@ -22,6 +22,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
     (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
+    (Some(jig::rows::GOAL_SHOW_AT), "help_goal_show"),
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
@@ -575,6 +576,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+    reference_matches(b"finding", b"ctl-finding");
     reference_matches(b"role", b"ctl-role");
     reference_matches(b"milestone", b"ctl-milestone");
 }

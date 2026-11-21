@@ -70,7 +70,8 @@ pub(crate) fn call(
             forge::FindingReply { project, number, area: None, result, more, landing }
         }
         FindingCall::List { state, mine } => {
-            let mut document = findings::document(domain, project, 0, None, false);
+            let mut document =
+                findings::document(domain, project, 0, forge::FindingsFilter::Triage { state: None, mine: false });
             // The party document is row-bounded; this tool counts every omitted row in its answer.
             let mut rows = List::with_capacity(env.limits.forge.findings_per_project);
             for (_, row) in domain.forge.findings(project).rev() {

@@ -7,15 +7,19 @@ Findings: file, read, hand on and triage them.
 ## finding list
 
 ```
-finding list --project PROJECT [--state new|routed|backlog|dropped] [--mine]
+finding list --project PROJECT [--state new|routed|backlog|dropped] [--mine] [--goal TASK] [--milestone TASK]
   --project PROJECT: a project's name or number; required. The project
   --state new|routed|backlog|dropped: one of new, routed, backlog or dropped; optional. Only this state
   --mine: a switch. Only findings held by you or a role you hold
+  --goal TASK: a number; optional. Blamed on this goal; not with --milestone, --state or --mine
+  --milestone TASK: a number; optional. Blamed on this milestone's goals; not with --goal, --state or --mine
 Read a project's areas, triager and findings, newest first
-Prints: Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding
+Prints: Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding; cleared rows end with cleared by TIER run N
 --json: the record findings.
 Key: none.
 Reads the findings subject once. At most 128 findings; a cut is marked.
+--goal and --milestone take neither each other nor --state or --mine.
+--json rows carry goal, reason and cleared, null where absent.
 ```
 
 ## finding show
@@ -24,7 +28,7 @@ Reads the findings subject once. At most 128 findings; a cut is marked.
 finding show FINDING
   FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
 Read one finding whole
-Prints: Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body
+Prints: Its line, filer, filing time, last hand-off's why, goal and drop reason, blame and its landings, clearing, then its body
 --json: the record finding.
 Key: none.
 FINDING is P/N, P the project's name or number.

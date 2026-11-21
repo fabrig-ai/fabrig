@@ -13,6 +13,7 @@ pub mod generated {
     pub mod component;
     pub mod core;
     pub mod notes;
+    pub mod people;
     pub mod settings;
     pub mod tasks;
 }

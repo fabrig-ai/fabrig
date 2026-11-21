@@ -44,8 +44,9 @@ mockups' `../web/home-for-a-person/`.
   - *its goals,* its part's `goals`, at most 16, each a goal's line and
     its report's headline, in task number, the order they joined; `more`,
     its part's;
-  - *its totals,* its part's `totals`; none until a part of it has
-    decoded.
+  - *its totals,* its part's `totals`, the reds its goals owe among
+    them (`../../domain/milestones.md`, section 7); none until a part of
+    it has decoded.
 
   Each is its part's as last decoded while the list is held: a delivery
   whose part of it is not made keeps its facts, goals, headlines and
@@ -154,6 +155,18 @@ of the reader's is under it; the view words them.
 
   NAME is the goal's id where its title has one, else its title cut at
   40 characters by the row's cut (`work.md`, 1, *Goals*).
+
+  **Reds owed:** where its totals are read and their `reds`, R, are
+  above zero (`../../domain/red-findings.md`, section 10), the
+  headline's first sentence ends "; R reds after landing owed." in
+  place of its full stop, "; 1 red after landing owed." for one, in
+  every case above: "All 5 goals done; 2 reds after landing owed.",
+  "7 of 8 goals done; 1 red after landing owed. S7: 5 of its 7 changes
+  landed; the other 2 are building.", "D goals done so far; more may
+  join; 1 red after landing owed." `Headline` carries them, `reds:
+  u32`, beside its case, and its state's word is unchanged: a complete
+  milestone owing reds is "complete". Every view that draws this
+  headline draws them, its page, Home's row and Work's card among them.
 - **Its tag:** "milestone", `temper-ms-tag`, on the ink ground in the
   paper's colour, 11 px, 500, radius 4, padding 0 7 px, as the mockups
   draw it; printed in the terminal as "milestone · " before its name.

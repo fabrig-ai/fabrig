@@ -579,6 +579,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingUnmade { .. }
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Adopted { .. }
         | Request::Save { .. }
@@ -687,6 +688,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingUnmade { .. }
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }
@@ -789,6 +791,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingUnmade { .. }
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }

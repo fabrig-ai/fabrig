@@ -1236,8 +1236,7 @@ impl Task {
             if let Some(goal) = &mut self.goal {
                 goal.changed(task, &mut self.next, out);
             } else {
-                self.goal =
-                    Some(super::goal::Goal::new(task, self.limits.client.domain.long_text, &mut self.next, out));
+                self.goal = Some(super::goal::Goal::new(task, &self.limits, &mut self.next, out));
             }
         } else if let Some(goal) = self.goal.take() {
             goal.leave(out);

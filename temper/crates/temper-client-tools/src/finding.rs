@@ -1,5 +1,5 @@
 //! Findings on the forge family (temper/docs/design/client/ctl/tools.md, 2 and 3).
-mod render;
+pub(crate) mod render;
 use crate::{
     jig::{
         self,
@@ -85,6 +85,10 @@ pub(crate) fn ready(state: &mut Findings, client: &Client, env: &Env<Limits>, ou
         let called = state.waiting.remove(&number).expect("waiting call");
         if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
             fail(called, b"invalid finding call", out);
+            continue;
+        }
+        if check(&called.call).is_err() {
+            fail(called, FILTER_FLAGS, out);
             continue;
         }
         let prepared = prepare(&called.call, me);
@@ -296,7 +300,7 @@ fn repair(call: &Call, me: &c::Me, project: u32, number: u32) -> Result<w::Findi
     repair.measure(&w::CEILINGS).or(Err(b"repair words past 4096 bytes".as_slice()))?;
     Ok(repair)
 }
-fn blame(call: &Call) -> Result<w::FindingBlame, &'static [u8]> {
+fn blame(call: &Call) -> Result<w::FindingBlameAct, &'static [u8]> {
     let landing = if call.form == 0 {
         Some(commit(text(call, 1)?).ok_or(b"landing must be 40 or 64 hex digits".as_slice())?)
     } else {
@@ -306,7 +310,7 @@ fn blame(call: &Call) -> Result<w::FindingBlame, &'static [u8]> {
     if why.is_empty() {
         return Err(b"blame why must not be empty");
     }
-    let blame = w::FindingBlame { landing, why: why.into() };
+    let blame = w::FindingBlameAct { landing, why: why.into() };
     blame.measure(&w::CEILINGS).or(Err(b"blame why past 200 bytes".as_slice()))?;
     Ok(blame)
 }
@@ -333,8 +337,28 @@ fn hex_digit(digit: u8) -> Option<u8> {
         None
     }
 }
+pub(crate) const FILTER_FLAGS: &[u8] =
+    b"finding list: --goal and --milestone take neither each other nor --state or --mine";
+pub(crate) fn check(call: &Call) -> Result<(), jig::argv::Usage> {
+    if call.tool == rows::FINDING_LIST_AT {
+        for (left, right) in [(3, 4), (3, 1), (3, 2), (4, 1), (4, 2)] {
+            if value(call, left).is_some() && value(call, right).is_some() {
+                return Err(jig::argv::Usage::Together {
+                    tool: call.tool,
+                    form: call.form,
+                    first: u8::try_from(left).expect("filter slot"),
+                    second: u8::try_from(right).expect("filter slot"),
+                });
+            }
+        }
+    }
+    Ok(())
+}
 pub(crate) fn subject(project: u32, state: Option<w::FindingState>, mine: bool) -> Watchable {
-    let subject = w::FindingsSubject { project, state, mine };
+    filtered_subject(project, w::FindingsFilter::Triage(w::FindingsTriage { state, mine }))
+}
+pub(crate) fn filtered_subject(project: u32, filter: w::FindingsFilter) -> Watchable {
+    let subject = w::FindingsSubject { project, filter };
     let watching = w::Watching { watch: w::Watch::Findings(subject) };
     Watchable::Family {
         scope: c::Scope::Project(project),
@@ -359,7 +383,15 @@ fn watch(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue
             (None, false)
         }
     };
-    out.push(Out::Client { event: Event::Watch { handle, subject: subject(pending.project, filter, mine) } });
+    let call = &pending.called.as_ref().expect("live list").call;
+    let watching = if let Some(goal) = jig::call::number(call, 3) {
+        filtered_subject(pending.project, w::FindingsFilter::Goal(w::FindingsGoal { goal }))
+    } else if let Some(milestone) = jig::call::number(call, 4) {
+        filtered_subject(pending.project, w::FindingsFilter::Milestone(w::FindingsMilestone { milestone }))
+    } else {
+        subject(pending.project, filter, mine)
+    };
+    out.push(Out::Client { event: Event::Watch { handle, subject: watching } });
     state.views.insert(handle, pending);
 }
 fn read(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue<Out>) {

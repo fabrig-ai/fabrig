@@ -47,6 +47,27 @@ impl Domain {
     pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
         self.finding_rows().range((project, 0)..=(project, u32::MAX))
     }
+    /// Count uncleared reds once per finding, whatever its triage state (red-findings.md, 10).
+    #[must_use]
+    pub fn reds_owed(&self, project: u32, milestone: u64) -> u32 {
+        let mut count = 0u32;
+        for (_, finding) in self.findings(project) {
+            if !finding.uncleared_red() {
+                continue;
+            }
+            let Some(blame) = &finding.blame else { continue };
+            let mut blamed = false;
+            for landing in &blame.landings {
+                for goal in &landing.goals {
+                    blamed |= goal.milestone == Some(milestone);
+                }
+            }
+            if blamed {
+                count = count.saturating_add(1);
+            }
+        }
+        count
+    }
     /// One open flake per test suffices; count each chosen finding once (landing-regate.md, 2).
     pub(crate) fn gate_flakes(
         &self,
@@ -352,6 +373,19 @@ impl Domain {
     }
     pub fn commit_finding(&mut self, limits: &Limits, write: FindingWrite, out: &mut Queue<Request>) {
         let FindingWrite { row, erase } = write;
+        let mut subjects = Map::uncapped();
+        let mut milestones = Map::uncapped();
+        if let Some(previous) = self.finding(row.project, row.number) {
+            blame_marks(previous, &mut subjects, &mut milestones);
+        }
+
+        if let Some(number) = erase
+            && let Some(previous) = self.finding(row.project, number)
+        {
+            blame_marks(previous, &mut subjects, &mut milestones);
+        }
+
+        blame_marks(&row, &mut subjects, &mut milestones);
         if let Some(number) = erase {
             self.finding_rows_mut(limits).remove(&(row.project, number));
             out.push(Request::Erase { key: Key::Finding { project: row.project, number } });
@@ -360,6 +394,20 @@ impl Domain {
         self.finding_rows_mut(limits).insert((project, row.number), row.clone()).expect("judged finding room");
         out.push(Request::Save { record: Stored::Finding(row), release: None, read_afresh: None });
         mark_findings(project, out);
+        let mut batch = List::with_capacity(crate::MARKED);
+        for (subject, ()) in &subjects {
+            batch.push(*subject).expect("bounded marks batch");
+            if batch.len() == crate::MARKED {
+                out.push(Request::Marked { tasks: batch.into_boxed() });
+                batch = List::with_capacity(crate::MARKED);
+            }
+        }
+        if !batch.is_empty() {
+            out.push(Request::Marked { tasks: batch.into_boxed() });
+        }
+        for (task, ()) in &milestones {
+            out.push(Request::MilestoneMarked { task: *task });
+        }
     }
     pub fn answer_finding(
         &mut self,
@@ -391,6 +439,24 @@ pub(crate) fn blamed_landing(
     }
     BlamedLanding { commit, goals: goals.into_boxed() }
 }
+/// Union the old, written and evicted blames; one finding can name a goal more than once.
+fn blame_marks(row: &Finding, subjects: &mut Map<u64, ()>, milestones: &mut Map<u64, ()>) {
+    let Some(blame) = &row.blame else { return };
+    for landing in &blame.landings {
+        for goal in &landing.goals {
+            if let Some(subject) = findings_subject(row.project, FindingsFilter::Goal(goal.goal)) {
+                subjects.insert(subject, ()).expect("blame subjects");
+            }
+            if let Some(milestone) = goal.milestone {
+                milestones.insert(milestone, ()).expect("blamed milestones");
+                if let Some(subject) = findings_subject(row.project, FindingsFilter::Milestone(milestone)) {
+                    subjects.insert(subject, ()).expect("blame subjects");
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut numbers = List::with_capacity(d.finding_rows().len());
     for (_, row) in d.findings(project) {

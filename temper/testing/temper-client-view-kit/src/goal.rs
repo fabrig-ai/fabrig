@@ -3,6 +3,7 @@ use super::{self as fixtures, task as f};
 use jig_client::{Down, Event as ClientEvent, Readable, Readout, UnlinkedRequest, Up, Watchable, contract as c};
 use skein_lib::{Env, List, Queue, Time, Wall};
 use temper_client_domain::{Address, Domain, Event, Request, pages::Act};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_fixtures::client_documents as documents;
 
 pub const TASK: u64 = 9;
@@ -51,7 +52,44 @@ pub fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: 
     root_with_side(task, done, total, note, needs, Side::empty())
 }
 
+/// A red's row, with the status-specific fields left to its story.
+#[must_use]
+pub fn red(number: u32, title: &[u8], state: w::FindingState) -> w::FindingRow {
+    w::FindingRow {
+        number,
+        kind: w::FindingKind::Red,
+        severity: w::Severity::High,
+        area: None,
+        state,
+        title: title.into(),
+        holder: w::Holder::Party(w::HolderParty { number: fixtures::chat::PARTY }),
+        at: u64::from(number),
+        why: None,
+        hander: None,
+        goal: None,
+        reason: None,
+        cleared: None,
+    }
+}
+
+#[must_use]
+pub fn reds(project: u32, rows: &[w::FindingRow], cut: bool) -> w::Findings {
+    let mut findings = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for parts in rows {
+        findings.push(parts.clone()).unwrap();
+    }
+    w::Findings {
+        project,
+        rows: findings,
+        areas: List::with_capacity(0),
+        triager: None,
+        holder: w::Holder::Party(w::HolderParty { number: fixtures::chat::PARTY }),
+        cut,
+    }
+}
+
 pub struct Side {
+    pub reds: Option<w::Findings>,
     pub requester: Option<c::Task>,
     pub activity: Option<c::ActivityPage>,
     pub specification: Option<Box<[u8]>>,
@@ -65,6 +103,7 @@ impl Side {
     #[must_use]
     pub fn empty() -> Self {
         Self {
+            reds: None,
             requester: None,
             activity: None,
             specification: None,
@@ -196,6 +235,21 @@ pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note
                     next: None,
                 }))),
             }),
+            Request::Unlinked {
+                request: UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
+            } => match wire::decode_watching(&record.bytes, &w::CEILINGS) {
+                Some(watching) if matches!(&watching.watch, w::Watch::Findings(subject) if matches!(subject.filter, w::FindingsFilter::Goal(_))) => {
+                    side.reds.as_ref().map(|document| Up::FamilyDelivered {
+                        watch,
+                        record: jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: wire::findings(document),
+                        },
+                    })
+                }
+                _ => None,
+            },
             Request::Client { .. }
             | Request::Unlinked { .. }
             | Request::Show { .. }

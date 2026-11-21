@@ -918,6 +918,39 @@ fn live_milestone_records(world: &World, goal: u64, store: u64, moves: u64, dele
     vec![live_record(store), live_record(moves), live_record(goal), live_record(child), live_record(moving)]
 }
 
+fn owed_red(number: u32, milestone: u64) -> Record {
+    Record::Forge {
+        row: Box::new(forge_top::Stored::Finding(forge_top::Finding {
+            project: PROJECT,
+            number,
+            kind: forge_top::FindingKind::Red,
+            severity: forge_top::Severity::High,
+            state: forge_top::FindingState::Dropped,
+            title: b"Red after landing".as_slice().into(),
+            body: Box::new([]),
+            filer: forge_top::Filer::Party(1),
+            at: minute(21, 41),
+            area: None,
+            why: None,
+            hander: None,
+            goal: None,
+            reason: Some(b"Not pursuing".as_slice().into()),
+            signature: None,
+            seen: None,
+            repair: None,
+            blame: Some(forge_top::FindingBlame {
+                moved: None,
+                strength: forge_top::BlameStrength::Owned,
+                landings: Box::new([forge_top::BlamedLanding {
+                    commit: [1; 32],
+                    goals: Box::new([forge_top::BlamedGoal { goal: 198, milestone: Some(milestone), person: None }]),
+                }]),
+            }),
+            cleared: None,
+        })),
+    }
+}
+
 #[test]
 fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones() {
     let (mut world, requester) = roles_world();
@@ -951,6 +984,9 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
         }),
         milestone_row(search),
         milestone_row(old),
+        owed_red(1, 200),
+        owed_red(2, 200),
+        owed_red(3, store),
         Record::Forge { row: Box::new(forge_top::Stored::PersonBrief(facts)) },
     ]);
     for record in world.store.rows.values() {
@@ -982,7 +1018,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
     world.env.wall = minute(22, 0);
     looked(&mut world, 171);
     let words = status_words(&world);
-    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 parts done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z\nPeople who signed:\n- person 4: no longer a member\nOpen findings: none\nStanding roles:\n"), "{words}");
+    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 parts done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z; 1 red owed\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z; 2 reds owed\nPeople who signed:\n- person 4: no longer a member\nOpen findings: 3\n- red: 3 high\nHigh ones, newest first:\n"), "{words}");
     assert!(!words.contains("Old"), "{words}");
     assert!(words.ends_with(&format!("Role {role}:\nno Now yet\n")), "{words}");
     let agent = run(&world);

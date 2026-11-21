@@ -1,14 +1,14 @@
 # Red findings
 
 Provisional, 2026-11-19, from `../draft/after-landing-repairs.md`,
-sections 4 and 5. Under kind 4's `wait: landed` (`after-landing.md`,
+sections 4 to 6. Under kind 4's `wait: landed` (`after-landing.md`,
 section 6), every red of a tier following its repository's landing
 branch or a named branch is a finding (`findings.md`) blamed on the
 landing, and so the goal, that caused it, and kept until a run passes
 its tests. A tier following goal branches is unchanged
 (`after-landing.md`, 5.4), and under `wait: cleared` a red reaches its
 goals or is a red of no goal's, as `after-landing.md`, section 7 says.
-What waits is section 11.
+What waits is section 12.
 
 ## 1. In one page
 
@@ -31,6 +31,10 @@ What waits is section 11.
   record.
 - **Switching** a project to `landed` files each red landing's finding
   from its `Verification` row (section 8).
+- **Shown on its goals and milestones** (section 10): a goal's page and
+  `goal show` list the findings blamed on it and where each stands; a
+  milestone counts the uncleared ones its goals owe, and is never held
+  for them.
 
 ## 2. Filing
 
@@ -261,9 +265,9 @@ What waits is section 11.
   blame, uncleared and not many, so that a red finding filed before
   reads as it was, open until dropped; a member and a change with no
   person, title, draft or fixes; a tier with nothing waiting.
-- **No wire moves:** filing is a request inside the engine, and the
-  client's finding read is unchanged; showing blame on goals' and
-  milestones' pages is the draft's section 6.
+- **No engine wire moves:** filing is a request inside the engine. The
+  client's records that show a finding's blame and clearing move in the
+  client's next layout, unbridged (section 10).
 - **In the code,** the forge's vocabulary
   (`temper-engine-domain-forge-vocabulary`) holds the shapes the
   engine's parts share:
@@ -288,9 +292,91 @@ What waits is section 11.
   - `ChangeRow` and `LoggedChange` gain `person: Option<u64>`,
     `goal_title: Option<Box<[u8]>>` and `draft: Option<Box<[u8]>>`,
     `LoggedChange` `fixes: Box<[u32]>`, and `TierRow` `waiting:
-    Box<[VerdictFiling]>` and `unkept: u32`.
+    Box<[VerdictFiling]>` and `unkept: u32`;
+  - for section 10: `FindingsFilter { Triage { state:
+    Option<FindingState>, mine: bool }, Goal(u64), Milestone(u64) }`,
+    `findings_subject(project: u32, filter: FindingsFilter) ->
+    Option<u64>` and `findings_filter(subject: u64, project: u32) ->
+    Option<FindingsFilter>`, a goal's key `(1 << 62) | (1 << 41) |
+    goal` and a milestone's `(1 << 62) | (1 << 42) | milestone`, a
+    number at or past `1 << 41` having none, so that its watch is
+    answered as a subject the forge doesn't serve;
+    `FindingRow` gains `goal: Option<u64>`, `reason: Option<Box<[u8]>>`
+    and `cleared: Option<FindingClearing>`, `FindingClearing { tier:
+    Box<[u8]>, run: u64, at: Wall }`, made by `Finding::row`;
+    `FindingAnswer` gains `blame: Option<FindingBlame>` and gives up its
+    `goal` and `reason` to its row; `MilestoneTotals` gains `reds: u32`.
 
-## 10. The world
+## 10. Shown on its goals and milestones
+
+From `../draft/after-landing-repairs.md`, section 6. A red finding's
+blame says which goals and milestones it is shown on; nothing else is
+kept of it, so a blame moved (the draft's section 7) moves where it is
+shown, and every count follows at its next read.
+
+- **Blamed on a goal** where a landing its blame names has that goal
+  among its goals (section 3), whatever its strength, owned or
+  suspected; **on a milestone** where one of those goals' `milestone`
+  is it. A finding with no blame, or one whose landings name no goal,
+  is blamed on none.
+- **The forge's `findings` subject, filtered** by a goal or a milestone
+  (`../client/forge/records.md`, *A project's findings*): its rows are
+  the findings of its project blamed on it, in every state, cleared or
+  not, newest first, at most 128 as any of its rows, with `cut`. Every
+  row of the subject carries what says where it stands: the goal it was
+  routed to, a drop's reason, and its clearing, the tier (its
+  signature's source), the run and the time. A filter by goal or
+  milestone takes no state and no `mine`.
+- **Its key and marks:** a filtered subject's key holds the goal's or
+  the milestone's number alone, since task numbers are the
+  deployment's, never reused, and its document is made in its watch's
+  project scope. A decision that writes a finding marks the subject of
+  each goal and each milestone its blame names, before the write and
+  after it, beside the project's ten (`findings.md`, section 9), and
+  marks the parts of each such milestone, as a change of its forge row
+  does (`../client/forge/parts.md`, 4).
+- **A goal's reds:** its page (`../client/pages/goal.md`, section 2) and
+  `temper ctl goal show` (`../client/ctl/findings.md`) list the findings
+  blamed on it, the uncleared first, each group newest first: each its
+  number `P/N`, its title, and where it stands, the first that holds:
+
+  | Where it stands | When |
+  |---|---|
+  | `cleared by TIER run N` | cleared, whatever its state (section 6) |
+  | `waiting for triage` | `new` |
+  | `being repaired by goal G` | `routed`, G the goal's number |
+  | `in the backlog` | `backlog` |
+  | `dropped: REASON` | `dropped`, its reason as kept |
+
+  One pure function of the client's domain says it for both,
+  `findings::stands(row: &FindingRow) -> Stands`, and each shell words
+  it. The goal's own state is unchanged: done stays done, and the red
+  belongs to the record.
+- **A milestone's reds owed:** `MilestoneTotals`' `reds`
+  (`milestones.md`, section 7), the uncleared red findings of its
+  project (`Finding::uncleared_red`) blamed on it, each once, whatever
+  their state, a dropped one included, since it still holds its tests
+  (section 7). They are counted at each read and each making of its
+  part, from the forge's findings, by the forge's
+  `Domain::reds_owed(project: u32, milestone: u64) -> u32`, and never
+  kept on its row, its ended record or a part's cache. Its headline
+  says them on its page, Home's row and Work's card
+  (`../client/pages/milestone.md`, section 2), and so do the status
+  agent's line (`milestones.md`, section 9) and `temper ctl milestone
+  show` (`../client/ctl/milestones.md`, section 4).
+- **Not held:** a milestone is complete when its goals ended done
+  (`milestones.md`, section 6), whatever reds its goals owe; holding it
+  for them is the draft's section 12's.
+- **As fresh as the read:** a live milestone's row and its page count
+  again as the marks above deliver them. An ended milestone's row on
+  Home and Work is read with its ended group, only as that group's mark
+  grows (`../client/forge/parts.md`, section 6), so it says what was
+  owed at that read; its page reads `Milestone` as it opens.
+- **The agents' `finding` tool** keeps its acts and filters: the
+  triager's acts on a red are the draft's sections 7 and 8, which move
+  the host tools' contract once for them.
+
+## 11. The world
 
 Focused, each failing first, in the forge domain's library tests and
 the root's world (`temper-engine-domain-world`):
@@ -312,19 +398,42 @@ the root's world (`temper-engine-domain-world`):
   clearing run's comment names the pull request whose body says
   `Fixes-finding: n`, and that name alone clears nothing;
 - switching: switching a project to `landed` files each red landing's
-  finding blamed on it.
+  finding blamed on it;
+- shown (section 10): the `findings` subject filtered by a goal lists
+  the findings blamed on it and no other, owned and suspected alike,
+  each row with its routed goal, drop reason and clearing, and by a
+  milestone those blamed on its goals; a finding's write marks the
+  subjects of the goals and milestones its blame names and those
+  milestones' parts; the `Finding` read carries the blame;
+  `MilestoneTotals`' `reds` counts a milestone's goals' uncleared red
+  findings, each once, a dropped one included and a cleared one not,
+  in the read, a live part and an ended one alike, while a complete
+  milestone stays complete; the status agent's milestone line ends
+  `; R reds owed`.
 
 Fuzzy: random runs, enumerated and many, landings, triage acts,
 filings refused for room and restarts keep every failing id in at most
 one uncleared red finding of its tier, no uncleared red finding
-evicted, and at most 8 filings waiting per tier.
+evicted, and at most 8 filings waiting per tier; and, for section 10,
+random filings, blames, clearings and triage acts keep each
+milestone's `reds` equal to its uncleared red findings counted from
+the record, and each filtered subject's rows equal to the findings
+whose blame names its goal or milestone.
 
-## 11. Later
+The client's side of section 10 is tested where its documents say:
+the pages' in the client's domain and view crates
+(`../client/pages/goal.md`, section 2; `../client/pages/milestone.md`,
+section 2), `temper ctl`'s in its tools' step harness
+(`../client/ctl/findings.md`, section 5).
+
+## 12. Later
 
 - **Trailers:** a landing's commits naming a finding by
   `Fixes-finding: n` name its repair once the landing log keeps their
   trailers (`after-landing.md`, sections 8 and 10); until then its
   members' pull request bodies alone do.
-- **The rest of the draft:** a red shown on its goal and milestone
-  (`../draft/after-landing-repairs.md`, section 6). Its sorting, its
-  blame moved and its repair goals are `red-repairs.md`'s.
+- **Sorting and repairs** are `red-repairs.md`'s: the triager's sorts,
+  a red's blame moved and its repair goals.
+- **Reds owed on an ended milestone's row** counted as they move, once
+  a mark of the parts can reach an ended group's row without its mark
+  growing (section 10, *As fresh as the read*).

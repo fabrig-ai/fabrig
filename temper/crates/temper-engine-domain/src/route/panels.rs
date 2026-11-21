@@ -53,11 +53,9 @@ pub(crate) fn document(
     let mut panel = if let ApplicationScope::Project(project) = scope
         && connector == domain.config.forge_connector
         && domain.core.people.role(party, project).is_some()
-        && let Some((state, mine)) = temper_engine_domain_forge::findings::findings_filter(subject.raw(), project)
+        && let Some(filter) = temper_engine_domain_forge::findings::findings_filter(subject.raw(), project)
     {
-        Some(temper_engine_domain_forge::Document::Findings(super::findings::document(
-            domain, project, party, state, mine,
-        )))
+        Some(temper_engine_domain_forge::Document::Findings(super::findings::document(domain, project, party, filter)))
     } else if connector == domain.config.forge_connector {
         domain.forge.document(subject.raw(), scope, party, env.wall, &env.limits.forge)
     } else {

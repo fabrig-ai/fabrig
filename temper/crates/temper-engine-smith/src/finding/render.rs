@@ -193,11 +193,11 @@ fn show(text: &mut Text, project: u32, finding: &f::FindingAnswer) -> Result<(),
         text.add(b"\nwhy: ")?;
         text.literal(why)?;
     }
-    if let Some(goal) = finding.goal {
+    if let Some(goal) = finding.row.goal {
         text.add(b"\ngoal: task ")?;
         text.number(goal)?;
     }
-    if let Some(reason) = &finding.reason {
+    if let Some(reason) = &finding.row.reason {
         text.add(b"\nreason: ")?;
         text.literal(reason)?;
     }

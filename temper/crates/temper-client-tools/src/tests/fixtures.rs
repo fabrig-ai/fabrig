@@ -147,6 +147,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["role", "start", "--project", "2", "--budget", "0.50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
+    &["goal", "show", "820"],
     &["role", "talk", "41", "Hello", "--key", "talk"],
     &["role", "talk", "41", "--leave", "--key", "leave"],
     &["project", "make", "Second", "--key", "second-project"],
@@ -803,6 +804,7 @@ impl Harness {
                 | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
                 | crate::jig::rows::WORKER_PAUSE_AT..=crate::jig::rows::WORKER_RESUME_AT
                 | crate::jig::rows::MILESTONE_LIST_AT
+                | crate::jig::rows::GOAL_SHOW_AT
                 | crate::jig::rows::MILESTONE_SHOW_AT
                 | crate::jig::rows::MILESTONE_WHOLE_AT
                 | crate::jig::rows::ROLE_LIST_AT
