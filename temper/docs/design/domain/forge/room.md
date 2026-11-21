@@ -13,6 +13,9 @@ cleanup wait the same way, in the same line.
 - **Room is the bound less what holds it:** the entries in the outbox
   and the reservations, each room promised to a write a check admitted
   whose entry is not yet kept (section 2).
+- **An entry leaves with its write's outcome,** though its writer still
+  follows what it made, and an ended landing's writes leave as they
+  settle (section 2).
 - **One line, by place:** a write that finds no room takes the line's
   last place and waits, holding no entry number and polling nothing.
   Room that frees goes to the first waiter by place, and a newcomer
@@ -51,6 +54,15 @@ cleanup wait the same way, in the same line.
 - **Room frees** as an entry leaves the outbox, by its write's outcome,
   its withdrawal or its settling as not made, and as a reservation ends
   without an entry.
+- **An entry lives as long as its write, no longer:** it leaves at its
+  write's outcome even where its writer goes on following what the
+  write made, as a landing follows its gate's run; the writer keeps what
+  following needs on its own row (`../landing.md`, 7.1). A landing that
+  ends, landed or cancelled, withdraws each of its entries not yet sent,
+  and each in flight leaves at its outcome, settled as that outcome
+  says, though its landing has ended (`../landing.md`, 4.2). So an
+  ended landing holds no room once its writes settle, and its row
+  yields its place among the landings (`../landing-forming.md`, 2.3).
 
 ### 2.1 A full outbox names its holders
 
