@@ -6,6 +6,14 @@ extern crate alloc;
 
 pub mod codec;
 
+/// Generated store translations (skein/docs/design/data/codec/maps.md, 4).
+#[rustfmt::skip]
+pub mod generated {
+    pub mod accounts;
+    pub mod component;
+    pub mod notes;
+}
+
 use jig_protocol_store_core::core_v6;
 use jig_protocol_store_families::{accounts_v2, component_v3, notes_v1};
 use jig_protocol_store_people::people_v17;
