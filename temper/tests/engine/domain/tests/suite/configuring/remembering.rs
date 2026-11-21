@@ -263,7 +263,7 @@ fn a_turn_shows_its_persons_list_to_them_alone() {
 }
 
 fn transcript(run: &engine::Assignment, input: &[u8], answer: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
 
     let section = preferences(run);
     let text =

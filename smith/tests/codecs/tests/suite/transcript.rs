@@ -5,11 +5,11 @@ use smith_transcript::Record;
 
 use skein_codec::Reason;
 use skein_lib::Reader;
-use smith_transcript::v7::{CEILINGS, Turn, paths};
+use smith_transcript::v8::{CEILINGS, Turn, paths};
 
 #[test]
 fn turn_goldens_decode_at_their_measured_length() {
-    let goldens = Goldens::new("transcript", 7);
+    let goldens = Goldens::new("transcript", 8);
     goldens.assert_measured("turn", |bytes| {
         Turn::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("turn decodes")
@@ -26,10 +26,10 @@ fn turn_rejects_an_unsupported_version_before_fields() {
 
 #[test]
 fn nesting_problem_goldens_have_their_own_wire_tag() {
-    use smith_transcript::v7::CallProblem;
+    use smith_transcript::v8::CallProblem;
     for bytes in [
-        crate::support::goldens::bytes("transcript", 7, "enum_call_problem_nesting_full.bin").as_slice(),
-        crate::support::goldens::bytes("transcript", 7, "enum_call_problem_nesting_smallest.bin").as_slice(),
+        crate::support::goldens::bytes("transcript", 8, "enum_call_problem_nesting_full.bin").as_slice(),
+        crate::support::goldens::bytes("transcript", 8, "enum_call_problem_nesting_smallest.bin").as_slice(),
     ] {
         let mut reader = Reader::new(bytes);
         assert_eq!(CallProblem::decode(&CEILINGS, &mut reader).expect("nesting problem"), CallProblem::Nesting);
@@ -47,7 +47,7 @@ fn failure_goldens_keep_their_tags_and_now_require_a_resolved_path_payload() {
         ("not_found", 10, Outcome::NotFound(failure.clone())),
         ("not_directory", 14, Outcome::NotDirectory(failure)),
     ] {
-        let bytes = crate::support::goldens::bytes("transcript", 7, &format!("enum_outcome_{name}_smallest.bin"));
+        let bytes = crate::support::goldens::bytes("transcript", 8, &format!("enum_outcome_{name}_smallest.bin"));
         assert_eq!(bytes, [tag, 0, 0, 0, 0, 0], "tag, Working descriptor, zero path length");
         let decoded = Outcome::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("resolved golden");
         assert_eq!(decoded, expected);
@@ -75,7 +75,7 @@ fn indexed_edit_failure_goldens_keep_the_first_failure_and_matching_reason() {
 #[test]
 fn a_turn_round_trips_its_highest_job_number() {
     use skein_lib::Writer;
-    let smallest = &crate::support::goldens::bytes("transcript", 7, "record_turn_smallest.bin");
+    let smallest = &crate::support::goldens::bytes("transcript", 8, "record_turn_smallest.bin");
     let mut parts = Turn::decode(&CEILINGS, &mut Reader::new(smallest)).expect("smallest turn");
     parts.jobs = 37;
     let turn = parts;
@@ -101,6 +101,111 @@ fn a_running_result_round_trips() {
         after: TimeoutClamp::Within,
     };
     round_trip_outcome(&Outcome::Running(running));
+}
+
+#[test]
+fn interrupted_turns_round_trip_and_render_identically_live_and_resumed() {
+    use smith_domain_tools::Outcome;
+    for ran in [Some(skein_lib::Duration::from_millis(42_900)), None] {
+        let outcome = Outcome::Interrupted {
+            ran,
+            head: b"building\n".as_slice().into(),
+            last: b"error: x\n".as_slice().into(),
+            dropped: 10,
+        };
+        let turn = domain_turn(outcome.clone());
+        let endpoints = endpoints();
+        let bytes = smith_protocol_translate::encode_turn(&turn, &CEILINGS, &endpoints).expect("encode turn");
+        let decoded =
+            smith_protocol_translate::decode_turn(&bytes, turn.sequence, &CEILINGS, &endpoints).expect("decode turn");
+        assert_eq!(decoded, turn);
+        let smith_domain_session::llm::Block::ToolResult {
+            result: smith_domain_session::llm::Returned::Owned { outcome: restored },
+            ..
+        } = &decoded.messages[0].content[0]
+        else {
+            panic!("result retained")
+        };
+        let render = |value| {
+            smith_protocol_llm::render_outcome(value, &smith_domain_tools::Namespace::One, 1024)
+                .expect("bounded result")
+        };
+        assert_eq!(render(restored), render(&outcome));
+    }
+}
+
+#[test]
+fn the_real_patch_reads_seven_and_only_interrupted_halts_going_back() {
+    use skein_codec::{
+        bridge::Bridge,
+        patch::{Capacity, Halt},
+    };
+    use smith_domain_tools::Outcome;
+    let capacity = Capacity { versions: 2, patches: 2, text: 16_384, bytes: 4096, nodes: 256 };
+    let mut bridge = smith_transcript::patches::kept::smith_transcript::bridge(capacity).expect("real bridge");
+    let kept = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
+    let old = skein_codegen::goldens(&skein_codegen::parse(kept).expect("v7"))
+        .into_iter()
+        .find(|value| value.name == "record_turn_smallest.bin")
+        .expect("kept turn")
+        .bytes;
+    let patched = bridge.translate(7, 8, b"Turn", old.clone().into()).expect("patch v7");
+    let mut expected = old.clone();
+    expected[1] = 8;
+    assert_eq!(patched.as_ref(), expected);
+    assert_eq!(bridge.translate(8, 7, b"Turn", patched).expect("reverse old value").as_ref(), old);
+    for outcome in [
+        Outcome::Cancelled,
+        Outcome::Interrupted {
+            ran: Some(skein_lib::Duration::from_millis(42_900)),
+            head: b"building\n".as_slice().into(),
+            last: b"error: x\n".as_slice().into(),
+            dropped: 10,
+        },
+    ] {
+        let interrupted = matches!(outcome, Outcome::Interrupted { .. });
+        let turn = domain_turn(outcome);
+        let bytes = smith_protocol_translate::encode_turn(&turn, &CEILINGS, &endpoints()).expect("turn");
+        let result = bridge.translate(8, 7, b"Turn", bytes.clone());
+        if interrupted {
+            assert!(matches!(result, Err(Halt::Unheld(_))), "{result:?}");
+        } else {
+            let old = result.expect("existing outcome goes down");
+            assert_eq!(bridge.translate(7, 8, b"Turn", old).expect("round trip"), bytes);
+        }
+    }
+    assert_eq!(Bridge::total(&bridge, 7, b"Turn"), Some(false));
+}
+
+fn domain_turn(outcome: smith_domain_tools::Outcome) -> smith_domain_session::record::Turn {
+    use smith_domain_session::{llm, record};
+    record::Turn {
+        version: record::VERSION,
+        kind: record::Kind::Ordinary,
+        endpoint: Some(llm::Endpoint(1)),
+        model: b"model".as_slice().into(),
+        effort: None,
+        dialect: 1,
+        sequence: 2,
+        usage: llm::Usage::ZERO,
+        spent: 0,
+        jobs: 0,
+        messages: Box::new([llm::Message {
+            role: llm::Role::User,
+            content: Box::new([llm::Block::ToolResult {
+                id: b"command".as_slice().into(),
+                result: llm::Returned::Owned { outcome },
+            }]),
+        }]),
+    }
+}
+
+fn endpoints() -> smith_protocol_translate::Endpoints {
+    let mut endpoints = skein_lib::List::with_capacity(1);
+    endpoints
+        .push(smith_protocol_translate::Endpoint { name: b"provider".as_slice().into(), number: 1, dialect: 1 })
+        .expect("endpoint");
+    smith_protocol_translate::Endpoints::new(endpoints)
 }
 
 #[test]
@@ -176,7 +281,7 @@ fn a_version_five_transcript_is_refused() {
 
 #[test]
 fn a_turn_carries_its_dialects_number() {
-    let smallest = &crate::support::goldens::bytes("transcript", 7, "record_turn_smallest.bin");
+    let smallest = &crate::support::goldens::bytes("transcript", 8, "record_turn_smallest.bin");
     for (name, dialect) in [("openai", 3), ("anthropic", 2)] {
         let mut parts = Turn::decode(&CEILINGS, &mut Reader::new(smallest)).expect("turn");
         parts.dialect = dialect;

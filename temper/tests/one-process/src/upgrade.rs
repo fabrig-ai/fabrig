@@ -216,19 +216,19 @@ fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
     }
 }
 
-/// Added task suspension parts register current tasks layouts and core layouts that hold task ends.
-/// Only new registry rows are admitted; existing history must remain byte-for-byte unchanged.
+/// Current task and transcript layouts register new rows and retire unused replaced rows.
+/// Existing history must remain byte-for-byte unchanged.
 fn suspension_layouts(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
     let families: Vec<_> = CURRENT_SETS.sets.iter().flat_map(|set| set.families).collect();
     let schemas: Vec<_> = families
         .iter()
-        .filter(|family| !family.types.is_empty())
         .map(|family| skein_codec::schema::parse(family.current.as_bytes()).expect("current registered schema"))
         .collect();
     let held: Vec<_> = schemas.iter().collect();
     let mut changed = BTreeSet::new();
+    let mut replaced = BTreeSet::new();
     for (key, value) in &after.store {
         if before.store.contains_key(key) {
             continue;
@@ -252,12 +252,41 @@ fn suspension_layouts(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u
                 )
                 .expect("new text");
                 assert_eq!(text.text.as_ref(), family.current.as_bytes());
+                replaced.insert((name, number));
                 changed.insert(key.clone());
                 if !before.store.contains_key(text_key.as_ref()) {
                     changed.insert(text_key.into_vec());
                 }
+                for digest in &layout.held {
+                    let key = keys::encode_own(&keys::Own::Text(*digest), 1024).expect("held text key");
+                    let text = wire::Text::decode(
+                        &wire::CEILINGS,
+                        &mut Reader::new(after.store.get(key.as_ref()).expect("held text")),
+                    )
+                    .expect("held schema text");
+                    assert!(
+                        families.iter().any(|family| family.current.as_bytes() == text.text.as_ref()),
+                        "a held text is a current family's schema"
+                    );
+                    if !before.store.contains_key(key.as_ref()) {
+                        changed.insert(key.into_vec());
+                    }
+                }
             }
             _ => {}
+        }
+    }
+    for (key, value) in &before.store {
+        if after.store.contains_key(key) {
+            continue;
+        }
+        if let Some(keys::Own::Layout { family, number, .. }) = keys::decode_own(key)
+            && replaced.contains(&(family, number))
+        {
+            let retired = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("retired layout");
+            let text_key = keys::encode_own(&keys::Own::Text(retired.text), 1024).expect("retired text key");
+            assert!(after.store.contains_key(text_key.as_ref()), "retired layout's text is retained");
+            changed.insert(key.clone());
         }
     }
     changed

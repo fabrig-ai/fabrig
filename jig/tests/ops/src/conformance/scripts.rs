@@ -36,7 +36,7 @@ use jig_client_test_domain::DIALECT;
 use jig_domain_host as host;
 use jig_ops_domain as root;
 use skein_lib::{Duration, List, Token, Writer};
-use smith_transcript::v7 as transcript;
+use smith_transcript::v8 as transcript;
 use std::collections::BTreeMap;
 
 pub struct Agents {

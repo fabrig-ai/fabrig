@@ -55,7 +55,7 @@ fn agreed(jig: u16, charter: u16) -> [Agreed; 4] {
     [
         Agreed { name: "jig-worker-wire", version: jig },
         Agreed { name: "smith-charter", version: charter },
-        Agreed { name: "smith-transcript", version: 7 },
+        Agreed { name: "smith-transcript", version: smith_transcript::wire::VERSION },
         Agreed { name: "application", version: 1 },
     ]
 }
@@ -371,7 +371,7 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     let wire::FromEngine::Assignment(at_worker) = engine_value(&up) else { panic!("assignment") };
     let mut reader = Reader::new(&at_worker.transcript);
     let turn = skein_codec::piece::split(&mut reader).unwrap().unwrap();
-    assert_eq!(&turn[..2], &[0, 7]);
+    assert_eq!(&turn[..2], &[0, 8]);
 }
 
 #[test]

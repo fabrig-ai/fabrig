@@ -437,7 +437,7 @@ fn turn_record_with(
     second_input: &[u8],
     second_result: &[u8],
 ) -> jig_domain_core::TurnRecord {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     const BLOCKS: u32 = 5; // Words and two call/result pairs.
 
     let mut blocks = List::with_capacity(BLOCKS);

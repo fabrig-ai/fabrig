@@ -179,7 +179,7 @@ impl State {
 }
 
 fn transcript(turn: u32, spent: u64) -> Box<[u8]> {
-    use smith_transcript::v7 as t;
+    use smith_transcript::v8 as t;
 
     let text = t::Text { text: b"shared scenario turn".as_slice().into(), replay: None };
     let message = t::Message { role: t::Role::Assistant, blocks: List::from_boxed(Box::new([t::Block::Text(text)])) };

@@ -14,7 +14,7 @@ fn charter_schema_matches_generated_code_and_pinned_constructs() {
 
 #[test]
 fn transcript_schema_matches_generated_code_and_pinned_constructs() {
-    assert_family("transcript", 7, smith_transcript::SCHEMA);
+    assert_family("transcript", 8, smith_transcript::SCHEMA);
 }
 
 #[test]

@@ -4,7 +4,7 @@
 use super::list::Inventory;
 use super::{Layer, Value};
 
-pub(super) fn transcript(inventory: &mut Inventory, limits: &smith_transcript::v7::Limits) -> Option<()> {
+pub(super) fn transcript(inventory: &mut Inventory, limits: &smith_transcript::v8::Limits) -> Option<()> {
     inventory.layer = Layer::Transcript;
     transcript_bytes(inventory, limits)?;
     transcript_counts(inventory, limits)
@@ -143,7 +143,7 @@ pub(super) fn framing(inventory: &mut Inventory, limits: &skein_channel::Limits)
     Some(())
 }
 
-fn transcript_bytes(inventory: &mut Inventory, limits: &smith_transcript::v7::Limits) -> Option<()> {
+fn transcript_bytes(inventory: &mut Inventory, limits: &smith_transcript::v8::Limits) -> Option<()> {
     inventory.value("program_name", Value::Bytes(u64::from(limits.program_name)))?;
     inventory.value("replay_bytes", Value::Bytes(u64::from(limits.replay_bytes)))?;
     inventory.value("text_text", Value::Bytes(u64::from(limits.text_text)))?;
@@ -161,6 +161,8 @@ fn transcript_bytes(inventory: &mut Inventory, limits: &smith_transcript::v7::Li
     inventory.value("command_end_last", Value::Bytes(u64::from(limits.command_end_last)))?;
     inventory.value("command_running_head", Value::Bytes(u64::from(limits.command_running_head)))?;
     inventory.value("command_running_last", Value::Bytes(u64::from(limits.command_running_last)))?;
+    inventory.value("interrupted_head", Value::Bytes(u64::from(limits.interrupted_head)))?;
+    inventory.value("interrupted_last", Value::Bytes(u64::from(limits.interrupted_last)))?;
     inventory.value("job_read_head", Value::Bytes(u64::from(limits.job_read_head)))?;
     inventory.value("job_read_last", Value::Bytes(u64::from(limits.job_read_last)))?;
     inventory.value("working_path_path", Value::Bytes(u64::from(limits.working_path_path)))?;
@@ -177,7 +179,7 @@ fn transcript_bytes(inventory: &mut Inventory, limits: &smith_transcript::v7::Li
     Some(())
 }
 
-fn transcript_counts(inventory: &mut Inventory, limits: &smith_transcript::v7::Limits) -> Option<()> {
+fn transcript_counts(inventory: &mut Inventory, limits: &smith_transcript::v8::Limits) -> Option<()> {
     inventory.value("allowed_calls_names", Value::Count(u64::from(limits.allowed_calls_names)))?;
     inventory.value("listed_entries", Value::Count(u64::from(limits.listed_entries)))?;
     inventory.value("ambiguous_lines", Value::Count(u64::from(limits.ambiguous_lines)))?;

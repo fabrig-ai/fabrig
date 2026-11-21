@@ -89,7 +89,7 @@ pub struct Component {
     ending: Ending,
     bodies: smith_channel::Limits,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     endpoints: Endpoints,
     calls: Map<CallKey, CallRoute>,
     turn_capacity: u32,

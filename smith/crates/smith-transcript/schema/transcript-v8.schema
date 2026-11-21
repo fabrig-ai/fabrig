@@ -1,4 +1,4 @@
-family smith-transcript 7
+family smith-transcript 8
 
 # The aggregate turn is limited again by the receiving session's
 # Limits.session_bytes. These member ceilings cover its default fixtures and
@@ -51,13 +51,14 @@ record OtherPath { directory: bytes 4096 path: bytes 4096 }
 record OutsidePath { path: bytes 4096 }
 enum Resolved { working: WorkingPath, other: OtherPath, outside: OutsidePath }
 record ResolvedFailure { path: Resolved }
+record Interrupted { ran_ms: option u64 head: bytes 1048576 last: bytes 1048576 dropped: u64 }
 enum Outcome {
     read: Read, listed: Listed, found: Found, written: Written,
     edited: Edited, exited: CommandEnd, not_granted, outside: ResolvedFailure, read_only: ResolvedFailure,
     too_long, not_found: ResolvedFailure, not_file, linked, protected, not_directory: ResolvedFailure,
     too_large: TooLarge, not_read, stale, edit_failed: EditFailed,
     failed: Failed, timed_out,
-    cancelled, busy, nul_byte, running: CommandRunning, job: JobRead, removed, not_empty
+    cancelled, busy, nul_byte, running: CommandRunning, job: JobRead, removed, not_empty, interrupted: Interrupted
 }
 
 # The problem variants mirror smith-domain-session::llm::Problem.

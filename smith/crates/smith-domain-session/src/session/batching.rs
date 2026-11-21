@@ -66,6 +66,7 @@ pub(super) fn answered(tools: &mut Tools, slot: u32, block: &Block, result: &Ret
                     | Outcome::EditFailed { .. }
                     | Outcome::Failed { .. }
                     | Outcome::TimedOut
+                    | Outcome::Interrupted { .. }
                     | Outcome::Cancelled
                     | Outcome::Busy
                     | Outcome::NulByte => true,

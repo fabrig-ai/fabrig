@@ -800,7 +800,7 @@ fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
 }
 
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as wire;
+    use smith_transcript::v8 as wire;
 
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks.push(wire::Block::Text(wire::Text { text: words.into(), replay: None })).unwrap();

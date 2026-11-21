@@ -283,7 +283,7 @@ impl AgentPeer {
 
 /// Encode a concrete saved assistant turn, with the supplied text.
 pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as transcript;
+    use smith_transcript::v8 as transcript;
     let limits = &agent.limits.transcript;
     let mut blocks = List::with_capacity(1);
     blocks.push(transcript::Block::Text(transcript::Text { text: text.into(), replay: None })).unwrap();
@@ -321,8 +321,8 @@ fn agent_spawn(worker: &mut crate::Worker) -> Token {
     panic!("assigned process spawn");
 }
 
-fn turn_opening(_limits: &smith_transcript::v7::Limits, number: u32) -> Option<smith_transcript::v7::Opening> {
-    use smith_transcript::v7 as t;
+fn turn_opening(_limits: &smith_transcript::v8::Limits, number: u32) -> Option<smith_transcript::v8::Opening> {
+    use smith_transcript::v8 as t;
     if number != 1 {
         return None;
     }
