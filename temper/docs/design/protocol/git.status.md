@@ -2,7 +2,7 @@
 
 2026-11-21. Where temper's code lags or departs from [git.md](git.md).
 
-- **Not yet:** 8: the component has no deadline of its own; the sweep's next pass (`git-sweep.md`, 4) is not yet one, and nothing bounds the sweep's reported entries, since it reports none.
+- **Not yet:** 8: the component has no deadline of its own; the sweep's next pass (`git-sweep.md`, 4) is not yet one, and nothing bounds the sweep's reported entries, since it reports none [in flight: change 11696].
 - **Not yet:** 4.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:
   change 6015].
