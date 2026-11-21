@@ -222,7 +222,7 @@ they compile beside the core's crates rather than after them:
   families' declarations (`store/layouts.md`, 2), the families' bounds
   from the domain's limits (`store/README.md`, section 8) and the
   translations. The drift test, `jig/tests/codec-families.rs`, compares
-  each family's generated records and refuses unpinned constructs (skein's
+  each family's generated records with the committed module (skein's
   `data/codec/README.md`, section 6). Its inventory names the codec crates'
   records and the store's layouts' glue, not golden bytes or generated tests.
 

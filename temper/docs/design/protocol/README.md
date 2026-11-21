@@ -71,7 +71,7 @@ its tests, is `cluster.md`.
   secrets' store: LLM accounts' as jig keeps them, and each forge's
   records under temper's tag, from which its access and its git identity
   are made (section 8; credentials.md).
-- **Tested at every tier:** codecs with records drift, pinned constructs and
+- **Tested at every tier:** codecs with records drift and
   built-value round trips, and parsers against transcripts of real peers;
   the forge component and the git component in worlds of their own; temper's client joined to the engine's root; the
   one-process world on skein's simulator; the real binary with an owned
@@ -672,8 +672,8 @@ section 8 give them. temper's sit beside them:
     are the forge's, and going back past a preparation that migrated it
     needs its dump (`../draft/upgrades.md`, 3.2 and 11).
   - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/README.md`,
-    6). Each schema's drift compares its records and refuses unpinned
-    constructs; round trips, fuzzing and memory tests build their values,
+    6). Each schema's drift compares its records with the committed code;
+    round trips, fuzzing and memory tests build their values,
     without family golden files or generated tests. Fixed forms and the
     key's frame and marker keep their own byte tests.
 
@@ -751,7 +751,7 @@ revisions temper's `Cargo.lock` pins.
 `../testing/README.md` applies skein's strategy (testing-strategy.md) to
 temper: its tiers, fakes, layout and budgets. What checks this layer:
 
-- **Step tests:** every codec with records drift, pinned constructs and
+- **Step tests:** every codec with records drift and
   built-value round trips, at its bounds and by fuzz targets; each translation both ways; git's argument and
   environment builders, and its output parsers against transcripts of
   real git (`temper-git-transcripts`); `skein-forge`'s decoders against

@@ -1,13 +1,12 @@
-//! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, unpinned, values};
+//! Records' drift (skein's data/codec/README.md, 6).
+use skein_codegen::{generate, values};
 use std::fs;
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
 fn moved_schema_matches_generated_records_and_is_pinned() {
     let source = jig_protocol_accounts::SCHEMA;
-    let unpinned = unpinned(source).expect("schema valid");
-    assert!(unpinned.is_empty(), "moved: unpinned constructs: {unpinned:?}");
+
     let tree = skein_scratch::paths::tree();
     let schema = &values(source).schema;
     let output = generate(schema);

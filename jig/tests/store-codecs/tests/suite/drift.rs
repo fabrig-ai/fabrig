@@ -1,4 +1,4 @@
-//! The store records' drift and pinned constructs (skein's data/codec/README.md, 6).
+//! The store records' drift (skein's data/codec/README.md, 6).
 #[path = "../../../codec-families.rs"]
 mod families;
 

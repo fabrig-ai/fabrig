@@ -274,7 +274,7 @@ mod tests {
         let mut cases = 0_u32;
         for path in paths {
             let name = path.file_name().expect("name").to_str().expect("UTF-8");
-            let decl = generic::golden_root(&schema, name);
+            let decl = generic::named_root(&schema, name);
             let root = core::str::from_utf8(schema.spelled(schema.declaration(decl).name)).expect("root name");
             let bytes = std::fs::read(&path).expect("golden");
             let mut compare = |bytes: &[u8]| {

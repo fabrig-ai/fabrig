@@ -50,7 +50,7 @@ mod tests {
     }
 
     #[test]
-    fn arbitrary_and_mutated_golden_bytes_never_panic_and_round_trip_if_valid() {
+    fn arbitrary_and_mutated_fixed_value_bytes_never_panic_and_round_trip_if_valid() {
         let mut rng = Rng::new(0xC0DE_CAFE_8100_0001);
         let mut buffer = [0_u8; 128];
         for _round in 0_u32..10_000 {
@@ -61,9 +61,9 @@ mod tests {
             check_all(buffer.get(..length).expect("within buffer"));
         }
 
-        let goldens = [skein_codec_tests::SAMPLE_SCHEMA, skein_codec_tests::SCALARS_SCHEMA]
+        let fixed_values = [skein_codec_tests::SAMPLE_SCHEMA, skein_codec_tests::SCALARS_SCHEMA]
             .into_iter()
-            .flat_map(|text| skein_codegen::values(text).goldens.iter())
+            .flat_map(|text| skein_codegen::values(text).fixed.iter())
             .collect::<Vec<_>>();
         for name in [
             "record_field_full.bin",
@@ -72,10 +72,11 @@ mod tests {
             "record_empty_full.bin",
             "record_scalars_full.bin",
         ] {
-            let golden = &goldens.iter().find(|golden| golden.name == name).expect("seed golden").bytes;
-            check_all(golden);
+            let fixed_value =
+                &fixed_values.iter().find(|fixed_value| fixed_value.name == name).expect("seed fixed-rule value").bytes;
+            check_all(fixed_value);
             for _round in 0_u32..200 {
-                let mut mutated = golden.clone();
+                let mut mutated = fixed_value.clone();
                 if !mutated.is_empty() {
                     let index = usize::try_from(rng.below(skein_lib::len_u64(mutated.len()))).expect("index fits");
                     *mutated.get_mut(index).expect("chosen byte") =

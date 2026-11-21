@@ -472,10 +472,9 @@ pub fn generate(schema: &Schema) -> Output;
   family's drift test proves that its committed code is the generator's
   output. That schema is skein's `every` fixture (`skein/tests/codec`):
   its current version holds every construct, and its earlier versions
-  stay for the patch story (`patches.md`, 8). Its golden files, and its
-  family digests' literals (9.3), are the only committed bytes of any
-  family: a change to the generator or to `skein-codec` that moves a byte
-  or a fingerprint fails there.
+  stay for the patch story (`patches.md`, 8). Its golden files and the
+  `every` and `secrets` digest literals (9.3) pin the bytes and fingerprints: a generator or `skein-codec`
+  change that moves either fails there.
 - **Fixed-rule values,** so the generator can change without moving
   them. For each record, and each variant of each enumeration, there are
   two:
@@ -486,8 +485,8 @@ pub fn generate(schema: &Schema) -> Output;
     full item, options present.
 
   They are named `record_<record>_<smallest|full>.bin` and
-  `enum_<enum>_<variant>_<smallest|full>.bin`. The generator computes
-  their bytes from the schema alone, not through the code it writes, so
+  `enum_<enum>_<variant>_<smallest|full>.bin`. Their bytes come
+  from the schema alone, not the generated code, so
   `every`'s golden files are the rule written down, and any test builds
   a schema's values at run time from its text, a kept text's as a
   current one's.
@@ -507,36 +506,36 @@ pub fn generate(schema: &Schema) -> Output;
     `bytes` and a `secret` of pieces;
   - a field with a default, and a former name.
 
-  A test of the generator fails, naming each, when `every`'s current
-  text lacks a construct of the list. Each family's drift test fails,
-  naming each, when its schema uses a construct the list lacks, so a new
-  construct lands only with its pin. Whether a held type is a record or
-  an enumeration is its family's, which the text can't tell (7.2), so
-  the list counts a hold once per carrier; `every` holds both, of its
-  fixture family `every-other`.
+  The pin's check fails, naming each construct the list has that
+  `every-v3` lacks. No family needs an unlisted-construct check: the
+  list is the classifier's whole range, its matches over `Type`,
+  `Shape` and `Held` tables have no rest arm, and the generator's tests
+  hold each construct listed once. A new table variant fails
+  skein-codegen's build until listed, then the pin's check until
+  `every-v3` holds it. A held type's record or enumeration is its
+  family's, unknown to the text (7.2), so the list counts a hold per
+  carrier; `every` holds both from `every-other`.
 - **What each family keeps,** none of it reading a golden file:
   - **drift:** the generator run on the schema equals the committed
-    records' module, and the schema uses no construct the list lacks.
+    records' module.
     On a difference it fails, saying how to write the code again, which
     the same test does when `SKEIN_CODEGEN_WRITE=1` asks it to. The test
-    is the owner's: it reads the schema in the owner and the code in the
-    family's codec crate (section 2), and writes the code where it reads
-    it;
+    reads the owner's schema and the family's codec crate (section 2),
+    writing the code where it reads it;
   - **fuzzing,** in the fuzzy suite, where the family has it: each
     top-level record's decoder over arbitrary bytes, and over the
     fixed-rule values with bytes changed, cut or grown. It never panics,
     and what decodes encodes back to the same bytes;
-  - **memory,** one test per owner over its roots: each root's largest
-    value (`largest`) at the ceilings, or under the test's cap at lower
-    limits with its bounds at the ceilings pinned, decoded and measured
-    with the counting allocator against its decoded bound (section 4),
-    a root enumeration once per variant, since its decoded bound is its
-    variants' most.
+  - **memory:** each owner's suite includes `skein/testing/codec-memory.rs`
+    by relative path, test code outside any crate. This harness holds
+    the choice of limits under the test's cap (ceiling bounds pinned
+    when lowered), the family check over all roots, and the round trip.
+    It decodes each root's `largest` value, each enum variant, measuring
+    the allocator's peak against the decoded bound (section 4).
 
-  Their values are built at run time: the fixed-rule values of the
-  schema's text (`values`), the largest values given limits allow, which
-  `largest` builds from it, or values a test writes. A test of an older
-  version builds that version's values from its kept text (`command.md`, 1).
+  Values are built at run time from schema text (`values`), at given
+  limits (`largest`), or by the test. Older versions use their kept
+  text (`command.md`, 1).
 - **Each text once.** An owner exports each family's current text as a
   public constant, `SCHEMA`, or `<STEM>_SCHEMA` where it owns several,
   a split schema's parts concatenated; jig's and temper's stores export
@@ -579,15 +578,13 @@ pub fn generate(schema: &Schema) -> Output;
 - **What tests read of the generator:**
 
   ```rust
-  pub struct Golden { pub name: String, pub bytes: Vec<u8> }
+  pub struct FixedValue { pub name: String, pub bytes: Vec<u8> }
   // the fixed-rule values, in declaration order, without writing code
-  pub fn goldens(schema: &Schema) -> Vec<Golden>;
+  pub fn fixed_values(schema: &Schema) -> Vec<FixedValue>;
   pub enum Construct { /* one of the list; its Debug names it */ }
   pub const CONSTRUCTS: &[Construct];  // the list the pin holds
   // the constructs a schema text uses, each once
   pub fn constructs(text: &str) -> Result<Vec<Construct>, Error>;
-  // those of them CONSTRUCTS lacks
-  pub fn unpinned(text: &str) -> Result<Vec<Construct>, Error>;
   // those of CONSTRUCTS the text lacks
   pub fn missing(text: &str) -> Result<Vec<Construct>, Error>;
   // the declarations no other declaration names, in declaration order
@@ -600,7 +597,7 @@ pub fn generate(schema: &Schema) -> Output;
   pub fn largest_variants(schema: &Schema, declaration: &str, limits: &[u32])
       -> Result<Vec<Vec<u8>>, Error>;
   // made once per text for the process; a text that fails panics
-  pub struct Values { pub schema: Schema, pub goldens: Vec<Golden> }
+  pub struct Values { pub schema: Schema, pub fixed: Vec<FixedValue> }
   pub fn values(text: &'static str) -> &'static Values;
   ```
 

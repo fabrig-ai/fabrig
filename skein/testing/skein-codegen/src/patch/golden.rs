@@ -1,4 +1,4 @@
-//! Old golden values run through a kept patch (data/codec/command.md, 3).
+//! Fixed-rule values run through a kept patch into golden files (data/codec/command.md, 3).
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use std::{fs, path::Path};
@@ -75,7 +75,7 @@ fn kept<'a>(krate: &'a Crate, block: &Block, version: u16) -> Result<&'a str, St
         .ok_or_else(|| format!("kept version {version} missing"))
 }
 
-// Eight times the larger golden plus both schema texts and a kilobyte gives
+// Eight times the larger fixed-rule value plus both schema texts and a kilobyte gives
 // room for written answers. Nodes also count empty records, whose encodings
 // need no bytes. An answer beyond this room reports a capacity failure.
 fn capacity(old: &str, new: &str, source: &str, largest: usize, nodes: u32) -> Result<Capacity, String> {
@@ -89,17 +89,17 @@ fn capacity(old: &str, new: &str, source: &str, largest: usize, nodes: u32) -> R
         .and_then(|size| size.checked_mul(8))
         .and_then(|size| size.checked_add(1024))
         .and_then(|size| u32::try_from(size).ok())
-        .ok_or("goldens exceed the patcher's capacity")?;
+        .ok_or("fixed-rule values exceed the patcher's capacity")?;
     let nodes = nodes
         .checked_mul(8)
         .and_then(|nodes| nodes.checked_add(1024))
-        .ok_or("golden nodes exceed the patcher's capacity")?;
+        .ok_or("fixed-rule value nodes exceed the patcher's capacity")?;
     Ok(Capacity { versions: 2, patches: 2, text, bytes: room, nodes: nodes.max(room) })
 }
 
-// Golden lists hold at most one item and golden options can be present.
+// Fixed-rule lists hold at most one item and fixed-rule value options can be present.
 // A named declaration refers backwards, so its node count is already known.
-fn golden_nodes(schema: &crate::Schema) -> Result<u32, String> {
+fn fixed_value_nodes(schema: &crate::Schema) -> Result<u32, String> {
     let mut counts = BTreeMap::new();
     let mut largest = 1;
     for declaration in &schema.declarations {
@@ -107,8 +107,9 @@ fn golden_nodes(schema: &crate::Schema) -> Result<u32, String> {
             crate::Declaration::Record(record) => {
                 let mut children = 0_u32;
                 for field in &record.fields {
-                    children =
-                        children.checked_add(type_nodes(&field.ty, &counts)?).ok_or("golden node count exceeds u32")?;
+                    children = children
+                        .checked_add(type_nodes(&field.ty, &counts)?)
+                        .ok_or("fixed-rule value node count exceeds u32")?;
                 }
                 (&record.name, children)
             }
@@ -123,7 +124,7 @@ fn golden_nodes(schema: &crate::Schema) -> Result<u32, String> {
                 (&enumeration.name, children)
             }
         };
-        let nodes = children.checked_add(1).ok_or("golden node count exceeds u32")?;
+        let nodes = children.checked_add(1).ok_or("fixed-rule value node count exceeds u32")?;
         counts.insert(name.as_str(), nodes);
         largest = largest.max(nodes);
     }
@@ -145,35 +146,35 @@ fn type_nodes(ty: &crate::Type, counts: &BTreeMap<&str, u32>) -> Result<u32, Str
         | crate::Type::Secret(_)
         | crate::Type::Text(_) => Ok(1),
         crate::Type::List(_, item) | crate::Type::Option(item) => {
-            type_nodes(item, counts)?.checked_add(1).ok_or_else(|| "golden node count exceeds u32".into())
+            type_nodes(item, counts)?.checked_add(1).ok_or_else(|| "fixed-rule value node count exceeds u32".into())
         }
     }
 }
 
-// Only the patch's opened pieces depart from the fixed golden rule (command.md, 3).
-// Declarations refer backwards, so each item's prepared full sample is already available.
-fn open_goldens(
+// Only the patch's opened pieces depart from the fixed rule (command.md, 3).
+// Declarations refer backwards, so each item's prepared full value is already available.
+fn open_fixed_values(
     patcher: &Patcher,
     plan: PlanIx,
-    goldens: &mut [(DeclIx, crate::Golden)],
+    fixed_values: &mut [(DeclIx, crate::FixedValue)],
     nodes: u32,
 ) -> Result<(), String> {
     let schema = patcher.schema(patcher.versions(plan).from).expect("kept old text");
     let mut samples = BTreeMap::new();
-    for (root, golden) in goldens {
-        if !golden.name.ends_with("_full.bin") {
+    for (root, fixed_value) in fixed_values {
+        if !fixed_value.name.ends_with("_full.bin") {
             continue;
         }
         let mut value = Value::with_room(nodes);
         let at = value
-            .decode(schema, *root, golden.bytes.clone().into_boxed_slice())
-            .map_err(|error| format!("{}: {error:?}", golden.name))?;
+            .decode(schema, *root, fixed_value.bytes.clone().into_boxed_slice())
+            .map_err(|error| format!("{}: {error:?}", fixed_value.name))?;
         let mut opened =
             Opened { patcher, plan, schema, samples: &samples, value: &value, bytes: Vec::new(), cursor: 0 };
         opened.declaration(*root, at)?;
-        opened.bytes.extend_from_slice(value.bytes().get(opened.cursor..).expect("remaining golden bytes"));
-        golden.bytes = opened.bytes;
-        samples.entry(*root).or_insert_with(|| golden.bytes.clone());
+        opened.bytes.extend_from_slice(value.bytes().get(opened.cursor..).expect("remaining fixed-rule value bytes"));
+        fixed_value.bytes = opened.bytes;
+        samples.entry(*root).or_insert_with(|| fixed_value.bytes.clone());
     }
     Ok(())
 }
@@ -194,13 +195,16 @@ impl Opened<'_> {
             Shape::Record { first, count, .. } => {
                 for offset in 0..count {
                     let field = FieldIx::new(first.index().checked_add(offset).expect("bounded field index"));
-                    self.ty(self.schema.field(field).ty, self.value.field(at, field).expect("golden field"))?;
+                    self.ty(self.schema.field(field).ty, self.value.field(at, field).expect("fixed-rule value field"))?;
                 }
             }
             Shape::Enum { .. } => {
-                let tag = self.value.tag(at).expect("golden variant");
+                let tag = self.value.tag(at).expect("fixed-rule value variant");
                 if let Some(record) = self.schema.variant(tag).record {
-                    self.declaration(record, self.value.payload(at).expect("golden payload").expect("record payload"))?;
+                    self.declaration(
+                        record,
+                        self.value.payload(at).expect("fixed-rule value payload").expect("record payload"),
+                    )?;
                 }
             }
         }
@@ -211,33 +215,35 @@ impl Opened<'_> {
         match self.schema.ty(ty) {
             Type::Named(root) => self.declaration(root, at)?,
             Type::List { item, .. } => {
-                let mut items = self.value.items(at).expect("golden list");
+                let mut items = self.value.items(at).expect("fixed-rule value list");
                 while let Some(at) = self.value.next_item(&mut items) {
                     self.ty(item, at)?;
                 }
             }
             Type::Option(item) => {
-                if let Some(at) = self.value.some(at).expect("golden option") {
+                if let Some(at) = self.value.some(at).expect("fixed-rule value option") {
                     self.ty(item, at)?;
                 }
             }
             Type::Bytes { held: Held::Pieces(item), bound } | Type::Secret { held: Held::Pieces(item), bound }
                 if !self.patcher.copies(self.plan, item) =>
             {
-                let sample = self.samples.get(&item).expect("earlier item's full golden");
+                let sample = self.samples.get(&item).expect("earlier item's full fixed-rule value");
                 let length = u32::try_from(sample.len()).map_err(|error| error.to_string())?;
-                let piece = length.checked_add(4).ok_or("full golden piece length exceeds u32")?;
+                let piece = length.checked_add(4).ok_or("full fixed-rule value piece length exceeds u32")?;
                 if piece > bound {
-                    return Err(format!("full golden piece needs {piece} bytes, bound {bound}"));
+                    return Err(format!("full fixed_value piece needs {piece} bytes, bound {bound}"));
                 }
-                let span = self.value.span(at).expect("golden pieces span");
-                let start = usize::try_from(span.start).expect("golden span fits usize");
-                self.bytes.extend_from_slice(self.value.bytes().get(self.cursor..start).expect("ordered golden spans"));
+                let span = self.value.span(at).expect("fixed-rule value pieces span");
+                let start = usize::try_from(span.start).expect("fixed-rule value span fits usize");
+                self.bytes.extend_from_slice(
+                    self.value.bytes().get(self.cursor..start).expect("ordered fixed-rule value spans"),
+                );
                 // The bytes field's length, then one skein-codec piece's length and item.
                 self.bytes.extend_from_slice(&piece.to_be_bytes());
                 self.bytes.extend_from_slice(&length.to_be_bytes());
                 self.bytes.extend_from_slice(sample);
-                self.cursor = usize::try_from(span.end).expect("golden span fits usize");
+                self.cursor = usize::try_from(span.end).expect("fixed-rule value span fits usize");
             }
             Type::U8
             | Type::U16
@@ -270,15 +276,15 @@ fn family<C: Default>(
     let new = kept(krate, block, block.to)?;
     let old_schema = crate::parse(old).map_err(|error| error.to_string())?;
     let new_schema = crate::parse(new).map_err(|error| error.to_string())?;
-    let nodes = golden_nodes(&old_schema)?.max(golden_nodes(&new_schema)?);
-    let mut goldens = crate::emit_tests::goldens(if down { &new_schema } else { &old_schema });
-    let largest = goldens
+    let nodes = fixed_value_nodes(&old_schema)?.max(fixed_value_nodes(&new_schema)?);
+    let mut fixed_values = crate::fixed_values::fixed_values(if down { &new_schema } else { &old_schema });
+    let largest = fixed_values
         .iter()
-        .map(|(_, golden)| golden.bytes.len())
+        .map(|(_, fixed_value)| fixed_value.bytes.len())
         .chain(
-            crate::emit_tests::goldens(if down { &old_schema } else { &new_schema })
+            crate::fixed_values::fixed_values(if down { &old_schema } else { &new_schema })
                 .iter()
-                .map(|(_, golden)| golden.bytes.len()),
+                .map(|(_, fixed_value)| fixed_value.bytes.len()),
         )
         .max()
         .unwrap_or(0);
@@ -301,21 +307,21 @@ fn family<C: Default>(
     let target_version = patcher.versions(plan).to;
     let directory = krate.root.join(golden_path(number)).join(&block.family);
     let directory = if down { directory.join("down") } else { directory };
-    open_goldens(&patcher, plan, &mut goldens, capacity.nodes)?;
+    open_fixed_values(&patcher, plan, &mut fixed_values, capacity.nodes)?;
     let mut decoded = Value::with_room(capacity.nodes);
     let mut results = BTreeMap::new();
     let mut expected = BTreeSet::new();
-    for (root, golden) in goldens {
+    for (root, fixed_value) in fixed_values {
         let Some(new_root) = patcher.counterpart(plan, root) else {
             continue;
         };
         let label = if down {
-            format!("{}/{}", directory.display(), golden.name)
+            format!("{}/{}", directory.display(), fixed_value.name)
         } else {
-            format!("patch {number}, {}/{}", block.family, golden.name)
+            format!("patch {number}, {}/{}", block.family, fixed_value.name)
         };
-        let original = if down { Some(golden.bytes.clone()) } else { None };
-        let result = run(&mut patcher, plan, root, golden.bytes.into_boxed_slice(), written).and_then(|bytes| {
+        let original = if down { Some(fixed_value.bytes.clone()) } else { None };
+        let result = run(&mut patcher, plan, root, fixed_value.bytes.into_boxed_slice(), written).and_then(|bytes| {
             if let Some(original) = original {
                 let round_trip = run(&mut patcher, forward, new_root, bytes.clone().into_boxed_slice(), written)?;
                 if round_trip != original {
@@ -326,14 +332,14 @@ fn family<C: Default>(
         });
         match result {
             Ok(bytes) => {
-                expected.insert(golden.name.clone());
+                expected.insert(fixed_value.name.clone());
                 match decoded.decode(
                     patcher.schema(target_version).expect("kept target text"),
                     new_root,
                     bytes.clone().into_boxed_slice(),
                 ) {
                     Ok(_) => {
-                        results.insert(golden.name, bytes);
+                        results.insert(fixed_value.name, bytes);
                     }
                     Err(error) => {
                         failures.push(format!("{label}: new value: {error:?}"));
@@ -341,12 +347,12 @@ fn family<C: Default>(
                 }
             }
             Err(Halt::Unheld(location)) if down => {
-                let name = format!("{}.refused", golden.name);
+                let name = format!("{}.refused", fixed_value.name);
                 expected.insert(name.clone());
                 results.insert(name, format!("unheld {location:?}\n").into_bytes());
             }
             Err(Halt::Refused(refusal)) => {
-                let name = format!("{}.refused", golden.name);
+                let name = format!("{}.refused", fixed_value.name);
                 expected.insert(name.clone());
                 if let Some(reason) = patch.refusals().nth(usize::try_from(refusal.index()).expect("refusal index")) {
                     results.insert(name, format!("refuses {reason}\n").into_bytes());
@@ -356,8 +362,8 @@ fn family<C: Default>(
             }
             Err(error) => {
                 // A failed run keeps its old result for review in write mode.
-                expected.insert(golden.name.clone());
-                expected.insert(format!("{}.refused", golden.name));
+                expected.insert(fixed_value.name.clone());
+                expected.insert(format!("{}.refused", fixed_value.name));
                 failures.push(format!("{label}: {}", halt(error, patch, capacity)));
             }
         }
@@ -400,7 +406,7 @@ fn halt(error: Halt, patch: &PatchText, capacity: Capacity) -> String {
             format!("patch {} site {} (written {target})", site.patch(), site.index())
         }
         Halt::Room | Halt::Decode(skein_codec::value::Refusal::Room) => {
-            format!("Room: golden exceeds capacity ({} bytes, {} nodes)", capacity.bytes, capacity.nodes)
+            format!("Room: fixed-rule value exceeds capacity ({} bytes, {} nodes)", capacity.bytes, capacity.nodes)
         }
         Halt::Decode(_)
         | Halt::Refused(_)
@@ -584,7 +590,7 @@ mod tests {
             writeln!(text, "record D{level} {{ a: D{previous} b: D{previous} }}").expect("schema text");
         }
         let schema = crate::parse(&text).expect("empty tree schema");
-        let nodes = super::golden_nodes(&schema).expect("node bound");
+        let nodes = super::fixed_value_nodes(&schema).expect("node bound");
         assert_eq!(nodes, TREE_NODES);
         let capacity = super::capacity(&text, &text, "patch 1\nowner sample 1\n", 0, nodes).expect("capacity");
         assert!(capacity.nodes > TREE_NODES, "empty trees need room despite their zero bytes");
