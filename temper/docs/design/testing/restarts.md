@@ -313,10 +313,10 @@ One per world, each a test of its world's fuzzy suite:
 | World | Over | Configures |
 |---|---|---|
 | the engine's domain world | the follows workload | `ENGINE` |
-| the engine's forge world | its seeded simulation's workload | `FORGE` |
-| the worker's domain world | its seeded delivery and contact stories | `WORKER` |
-| the system world | its seeded runs | `MID_TURN` |
-| the one-process world | its drawn kills' story | `SIMULATED` |
+| the engine's forge world | a workload drawn from its existing steps | `FORGE` |
+| the worker's domain world | its delivery and contact stories | `WORKER` |
+| the system world | its absence stories' runs | `MID_TURN` |
+| the one-process world | its stories through a run mid-turn, and dev's image | `SIMULATED` |
 
 - **The loop** is skein's `testing/sweeps.md`, 4: for each seed it
   writes the seed to stderr, runs the world with `Streams::new(seed)`,
