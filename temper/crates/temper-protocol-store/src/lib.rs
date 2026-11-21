@@ -5,6 +5,13 @@
 use skein_codec::Record;
 extern crate alloc;
 
+mod converters;
+mod generated {
+    #[rustfmt::skip]
+    #[expect(clippy::unnecessary_wraps, clippy::trivially_copy_pass_by_ref, clippy::too_many_lines,
+        reason = "maps pairs keep the fallible borrowed signature and exhaustive schema fields (skein/docs/design/data/codec/maps.md, 4.1)")]
+    pub(crate) mod store;
+}
 mod lowering;
 mod patch_set;
 pub use patch_set::OWNER_SET;

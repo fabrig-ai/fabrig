@@ -60,46 +60,11 @@ fn decode_phase(phase: w::LandingPhase) -> d::Phase {
     }
 }
 fn encode_proof(proof: &d::GateProof) -> w::GateProof {
-    let state = match proof.proof {
-        d::Proof::Unkeyed => w::GateProofState::Unkeyed,
-        d::Proof::Dispatched { key, try_ } => w::GateProofState::Dispatched(w::DispatchedKey { key, try_ }),
-        d::Proof::Keyed { key } => w::GateProofState::Keyed(w::GateKey { key }),
-        d::Proof::Passed { key } => w::GateProofState::Passed(w::GateKey { key }),
-        d::Proof::Failed { key } => w::GateProofState::Failed(w::GateKey { key }),
-    };
-    w::GateProof {
-        proof: state,
-        posted: match proof.posted {
-            d::Posted::ByTest => w::GatePosted::ByTest,
-            d::Posted::Nothing => w::GatePosted::Nothing,
-            d::Posted::Pending => w::GatePosted::Pending,
-            d::Posted::Verdict => w::GatePosted::Verdict,
-        },
-        faults: proof.faults,
-    }
+    crate::generated::store::gate_proof_to_record(proof, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_proof(proof: w::GateProof) -> d::GateProof {
-    let w::GateProof { proof, posted, faults } = proof;
-    let proof = match proof {
-        w::GateProofState::Unkeyed => d::Proof::Unkeyed,
-        w::GateProofState::Dispatched(value) => {
-            let w::DispatchedKey { key, try_ } = value;
-            d::Proof::Dispatched { key, try_ }
-        }
-        w::GateProofState::Keyed(value) => d::Proof::Keyed { key: value.key },
-        w::GateProofState::Passed(value) => d::Proof::Passed { key: value.key },
-        w::GateProofState::Failed(value) => d::Proof::Failed { key: value.key },
-    };
-    d::GateProof {
-        proof,
-        posted: match posted {
-            w::GatePosted::ByTest => d::Posted::ByTest,
-            w::GatePosted::Nothing => d::Posted::Nothing,
-            w::GatePosted::Pending => d::Posted::Pending,
-            w::GatePosted::Verdict => d::Posted::Verdict,
-        },
-        faults,
-    }
+    crate::generated::store::gate_proof_to_domain(proof, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 fn encode_member(member: &d::Member) -> w::LandingMember {
     let mut gates = List::with_capacity(u32::try_from(member.gates.len()).expect(FITS));
@@ -183,395 +148,33 @@ fn decode_member(member: w::LandingMember) -> d::Member {
         },
     }
 }
-fn encode_operation(op: top::Operation) -> w::LandingOperation {
-    match op {
-        top::Operation::Dispatch => w::LandingOperation::Dispatch,
-        top::Operation::Rerun => w::LandingOperation::Rerun,
-        top::Operation::Pending => w::LandingOperation::Pending,
-        top::Operation::Verdict => w::LandingOperation::Verdict,
-        top::Operation::Open => w::LandingOperation::Open,
-        top::Operation::Close => w::LandingOperation::Close,
-        top::Operation::Delete => w::LandingOperation::Delete,
-        top::Operation::Record => w::LandingOperation::Record,
-        top::Operation::Merge => w::LandingOperation::Merge,
-    }
-}
-fn decode_operation(op: w::LandingOperation) -> top::Operation {
-    match op {
-        w::LandingOperation::Dispatch => top::Operation::Dispatch,
-        w::LandingOperation::Rerun => top::Operation::Rerun,
-        w::LandingOperation::Pending => top::Operation::Pending,
-        w::LandingOperation::Verdict => top::Operation::Verdict,
-        w::LandingOperation::Open => top::Operation::Open,
-        w::LandingOperation::Close => top::Operation::Close,
-        w::LandingOperation::Delete => top::Operation::Delete,
-        w::LandingOperation::Record => top::Operation::Record,
-        w::LandingOperation::Merge => top::Operation::Merge,
-    }
-}
 pub(super) fn encode_ask(ask: change::Ask) -> w::LandingAsk {
-    match ask {
-        change::Ask::Judge(target) => w::LandingAsk::Judge(super::change::encode_judgement(&target)),
-        change::Ask::Landed { prefix } => w::LandingAsk::Landed(w::LandingPrefix { prefix }),
-        change::Ask::Resolve { base } => w::LandingAsk::Resolve(w::LandingResolve { base }),
-        change::Ask::Prepare { head, main } => w::LandingAsk::Prepare(w::LandingPrepare { head, main }),
-        change::Ask::Repair { gate, candidate, below } => {
-            w::LandingAsk::Repair(w::LandingRepairAsk { gate, candidate, below: super::change::encode_below(below) })
-        }
-    }
+    crate::generated::store::landing_ask_to_record(&ask, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_ask(ask: w::LandingAsk) -> change::Ask {
-    match ask {
-        w::LandingAsk::Judge(value) => change::Ask::Judge(super::change::decode_judgement(value)),
-        w::LandingAsk::Landed(value) => change::Ask::Landed { prefix: value.prefix },
-        w::LandingAsk::Resolve(value) => change::Ask::Resolve { base: value.base },
-        w::LandingAsk::Prepare(value) => {
-            let w::LandingPrepare { head, main } = value;
-            change::Ask::Prepare { head, main }
-        }
-        w::LandingAsk::Repair(value) => {
-            let w::LandingRepairAsk { gate, candidate, below } = value;
-            change::Ask::Repair { gate, candidate, below: super::change::decode_below(below) }
-        }
-    }
+    crate::generated::store::landing_ask_to_domain(ask, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 fn encode_round(round: &d::Round) -> w::LandingRound {
-    w::LandingRound {
-        merges: round.merges,
-        search: match &round.search {
-            Some(search) => Some(w::LandingSearch {
-                green: search.green,
-                red: search.red,
-                tests: encode_search_tests(&search.tests),
-            }),
-            None => None,
-        },
-        changed: round.changed,
-        branch: round.branch.clone(),
-        pull: round.pull,
-        upstream: round.upstream,
-        combined: match round.combined {
-            Some(d::Combine::Merge) => Some(w::LandingCombine::Merge),
-            Some(d::Combine::Squash) => Some(w::LandingCombine::Squash),
-            None => None,
-        },
-        recorded: round.recorded,
-        told: round.told,
-        failure: round.failure.clone(),
-        judging: round.judging,
-        ending: match round.ending {
-            Some(d::RoundEnd::Stale) => Some(w::LandingRoundEnd::Stale),
-            Some(d::RoundEnd::Leave) => Some(w::LandingRoundEnd::Leave),
-            Some(d::RoundEnd::Conflict) => Some(w::LandingRoundEnd::Conflict),
-            Some(d::RoundEnd::Cut) => Some(w::LandingRoundEnd::Cut),
-            None => None,
-        },
-    }
+    crate::generated::store::landing_round_to_record(round, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
-    let w::LandingRound {
-        merges,
-        branch,
-        pull,
-        upstream,
-        combined,
-        recorded,
-        told,
-        ending,
-        failure,
-        judging,
-        changed,
-        search,
-    } = round;
-    d::Round {
-        merges,
-        search: match search {
-            Some(search) => {
-                Some(d::Search { green: search.green, red: search.red, tests: decode_search_tests(search.tests) })
-            }
-            None => None,
-        },
-        changed,
-        branch,
-        pull,
-        upstream,
-        combined: match combined {
-            Some(w::LandingCombine::Merge) => Some(d::Combine::Merge),
-            Some(w::LandingCombine::Squash) => Some(d::Combine::Squash),
-            None => None,
-        },
-        recorded,
-        told,
-        failure,
-        judging,
-        ending: match ending {
-            Some(w::LandingRoundEnd::Stale) => Some(d::RoundEnd::Stale),
-            Some(w::LandingRoundEnd::Leave) => Some(d::RoundEnd::Leave),
-            Some(w::LandingRoundEnd::Conflict) => Some(d::RoundEnd::Conflict),
-            Some(w::LandingRoundEnd::Cut) => Some(d::RoundEnd::Cut),
-            None => None,
-        },
-    }
+    crate::generated::store::landing_round_to_domain(round, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
-    let mut members = List::with_capacity(u32::try_from(row.landing.members.len()).expect(FITS));
-    for member in &row.landing.members {
-        members.push(encode_member(member)).expect(FITS);
-    }
-    let landing = w::LandingState {
-        searched: encode_searched(row.landing.searched.as_ref()),
-        last_prepare: encode_last_prepare(row.landing.last_prepare.as_ref()),
-        task: row.landing.task,
-        project: row.landing.project,
-        phase: encode_phase(&row.landing.phase),
-        members,
-        preparation: row.landing.preparation,
-        stale_proofs: row.landing.stale_proofs,
-        last_left: row.landing.last_left,
-        branch: row.landing.branch.clone(),
-        round: if row.landing.round.branch.is_empty() { None } else { Some(encode_round(&row.landing.round)) },
-        own_hold: match row.landing.phase {
-            d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
-            d::Phase::Held { why: d::Hold::Record { member }, .. } => {
-                Some(w::LandingOwnHold::Record(w::LandingRecordHold { member }))
-            }
-            d::Phase::Held { why: d::Hold::Timeout { member, gate, run }, .. } => {
-                Some(w::LandingOwnHold::Timeout(w::LandingTimeout { member, gate, run }))
-            }
-            d::Phase::Held { why: d::Hold::Turn, .. } => Some(w::LandingOwnHold::Turn),
-            d::Phase::Held { why: d::Hold::Faults { .. }, .. }
-            | d::Phase::Waiting
-            | d::Phase::Preparing
-            | d::Phase::Proving
-            | d::Phase::Proved { .. }
-            | d::Phase::Turn { .. }
-            | d::Phase::Landed
-            | d::Phase::Cancelled => None,
-        },
-    };
-    let mut asks = List::with_capacity(u32::try_from(row.asks.len()).expect(FITS));
-    for ask in &row.asks {
-        asks.push(w::LandingAskSlot {
-            ask: match ask {
-                Some(ask) => Some(encode_ask(ask.clone())),
-                None => None,
-            },
-        })
-        .expect(FITS);
-    }
-    let mut entries = List::with_capacity(u32::try_from(row.entries.len()).expect(FITS));
-    for entry in &row.entries {
-        entries
-            .push(w::LandingEntry {
-                preparation: entry.preparation,
-                base: entry.base,
-                run: match entry.run {
-                    Some(run) => Some(encode_run(run)),
-                    None => None,
-                },
-                entry: entry.entry,
-                member: entry.member,
-                gate: entry.gate,
-                operation: encode_operation(entry.operation),
-            })
-            .expect(FITS);
-    }
-    w::LandingRow {
-        landing,
-        asks,
-        entries,
-        job: super::history::encode_job_record(row.job.as_ref()),
-        flake_reruns: encode_flake_reruns(&row.flake_reruns),
-        room: row.room,
-        last_event: match row.last_event {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        turn_since: match row.turn_since {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        waiting: encode_wait(row.waiting),
-    }
-}
-fn encode_flake_reruns(reruns: &[top::FlakeRerun]) -> List<w::LandingFlakeRerun> {
-    let mut encoded = List::with_capacity(u32::try_from(reruns.len()).expect(FITS));
-    for rerun in reruns {
-        let mut findings = List::with_capacity(64);
-        for number in &rerun.findings {
-            findings.push(*number).expect(FITS);
-        }
-        let mut pending = List::with_capacity(16);
-        for attempt in &rerun.pending {
-            pending
-                .push(w::JobAttempt {
-                    head: attempt.head,
-                    run: attempt.run,
-                    job: attempt.job,
-                    attempt: attempt.attempt,
-                })
-                .expect(FITS);
-        }
-        encoded
-            .push(w::LandingFlakeRerun {
-                key: encode_receipt_key(&rerun.key),
-                run: rerun.run,
-                findings,
-                pending,
-                redispatch: rerun.redispatch,
-                ended: rerun.ended,
-            })
-            .expect(FITS);
-    }
-    encoded
-}
-fn decode_flake_reruns(reruns: List<w::LandingFlakeRerun>) -> Box<[top::FlakeRerun]> {
-    let mut decoded = List::with_capacity(reruns.len());
-    for rerun in reruns.into_boxed() {
-        let w::LandingFlakeRerun { key, run, findings, pending, redispatch, ended } = rerun;
-        let mut attempts = List::with_capacity(pending.len());
-        for attempt in pending.into_boxed() {
-            let w::JobAttempt { head, run, job, attempt } = attempt;
-            attempts.push(skein_forge::api::JobAttempt { head, run, job, attempt }).expect(FITS);
-        }
-        decoded
-            .push(top::FlakeRerun {
-                key: decode_receipt_key(key),
-                run,
-                findings: findings.into_boxed(),
-                pending: attempts.into_boxed(),
-                redispatch,
-                ended,
-            })
-            .expect(FITS);
-    }
-    decoded.into_boxed()
+    crate::generated::store::landing_row_to_record(row, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
-    let w::ReceiptKey { project, repository, check_name, key } = key;
-    let check = match check_name {
-        w::ReceiptCheck::Gate(name) => top::Check::Gate(name.name),
-        w::ReceiptCheck::Tier(name) => top::Check::Tier(name.name),
-    };
-    top::ReceiptKey { project, repository: names::decode_repository(repository), check, key }
-}
-fn encode_run(run: top::LandingRun) -> w::LandingRun {
-    w::LandingRun { id: run.id, attempt: run.attempt, ended: run.ended, clock: super::change::encode_clock(run.clock) }
-}
-fn decode_run(run: w::LandingRun) -> top::LandingRun {
-    let w::LandingRun { id, attempt, ended, clock } = run;
-    top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
+    crate::generated::store::receipt_key_to_domain(key, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    let w::LandingRow { landing, asks, entries, job, flake_reruns, room, last_event, turn_since, waiting } = row;
-    let w::LandingState {
-        task,
-        project,
-        phase,
-        members,
-        preparation,
-        stale_proofs,
-        branch,
-        round,
-        own_hold,
-        last_left,
-        searched,
-        last_prepare,
-    } = landing;
-    if phase.held.is_some() && own_hold.is_some() {
-        return Err(super::Undecodable::Malformed);
-    }
-    let mut decoded_members = List::with_capacity(members.len());
-    for member in members.into_boxed() {
-        decoded_members.push(decode_member(member)).expect(FITS);
-    }
-    let mut decoded_asks = List::with_capacity(asks.len());
-    for ask in asks.into_boxed() {
-        decoded_asks
-            .push(match ask.ask {
-                Some(ask) => Some(decode_ask(ask)),
-                None => None,
-            })
-            .expect(FITS);
-    }
-    let mut decoded_entries = List::with_capacity(entries.len());
-    for entry in entries.into_boxed() {
-        let w::LandingEntry { entry, member, gate, operation, preparation, base, run } = entry;
-        decoded_entries
-            .push(top::LandingEntry {
-                entry,
-                member,
-                gate,
-                operation: decode_operation(operation),
-                preparation,
-                base,
-                run: match run {
-                    Some(run) => Some(decode_run(run)),
-                    None => None,
-                },
-            })
-            .expect(FITS);
-    }
-    Ok(top::LandingRow {
-        last_event: match last_event {
-            Some(at) => Some(Wall::from_nanos(at)),
-            None => None,
-        },
-        turn_since: match turn_since {
-            Some(at) => Some(Wall::from_nanos(at)),
-            None => None,
-        },
-        waiting: decode_wait(waiting),
-        flake_reruns: decode_flake_reruns(flake_reruns),
-        room,
-        job: super::history::decode_job_record(job),
-        landing: d::Landing {
-            searched: decode_searched(searched),
-            last_left,
-            task,
-            project,
-            phase: match own_hold {
-                Some(w::LandingOwnHold::Turn) => {
-                    d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn }
-                }
-                Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {
-                    was: Box::new(decode_phase(phase)),
-                    why: d::Hold::Timeout { member: value.member, gate: value.gate, run: value.run },
-                },
-                Some(w::LandingOwnHold::Prepare) => {
-                    d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare }
-                }
-                Some(w::LandingOwnHold::Record(value)) => {
-                    d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Record { member: value.member } }
-                }
-                None => decode_phase(phase),
-            },
-            members: decoded_members.into_boxed(),
-            preparation,
-            stale_proofs,
-            branch,
-            round: match round {
-                Some(round) => decode_round(round),
-                None => d::Round::new(Box::new([])),
-            },
-            last_prepare: decode_last_prepare(last_prepare),
-        },
-        asks: decoded_asks.into_boxed(),
-        entries: decoded_entries.into_boxed(),
-    })
+    crate::generated::store::landing_row_to_domain(row, &super::Context::UNBOUNDED)
+        .or(Err(super::Undecodable::Malformed))
 }
 pub(super) fn encode_receipt_key(key: &top::ReceiptKey) -> w::ReceiptKey {
-    let (name, tier) = match &key.check {
-        top::Check::Gate(name) => (name.clone(), false),
-        top::Check::Tier(name) => (name.clone(), true),
-    };
-    let name = w::ReceiptName { name };
-    w::ReceiptKey {
-        project: key.project,
-        repository: names::encode_repository(key.repository),
-        check_name: if tier { w::ReceiptCheck::Tier(name) } else { w::ReceiptCheck::Gate(name) },
-        key: key.key,
-    }
+    crate::generated::store::receipt_key_to_record(key, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
     w::ReceiptRow {
@@ -588,7 +191,10 @@ fn encode_report(report: &top::ReceiptReport) -> w::ReceiptReport {
         top::ReceiptReport::Tests(tests) => {
             let mut kept = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
             for test in tests {
-                kept.push(w::ReceiptTest { key: test.key.clone(), fuzzy: test.fuzzy }).expect(FITS);
+                kept.push(
+                    crate::generated::store::receipt_test_to_record(test, &super::Context::UNBOUNDED).expect(FITS),
+                )
+                .expect(FITS);
             }
             w::ReceiptReport::Tests(w::ReceiptTests { tests: kept })
         }
@@ -603,8 +209,10 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
             let tests = tests.tests;
             let mut kept = List::with_capacity(tests.len());
             for test in tests.into_boxed() {
-                let w::ReceiptTest { key, fuzzy } = test;
-                kept.push(top::ReceiptTest { key, fuzzy }).expect(FITS);
+                kept.push(
+                    crate::generated::store::receipt_test_to_domain(test, &super::Context::UNBOUNDED).expect(FITS),
+                )
+                .expect(FITS);
             }
             top::ReceiptReport::Tests(kept.into_boxed())
         }
@@ -613,10 +221,10 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
 
 // Gate reports belong to ReceiptRow, not the value a tier result embeds.
 pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
-    let run = w::ReceiptRun { id: receipt.run.id, number: receipt.run.number, url: receipt.run.url.clone() };
+    let run = crate::generated::store::receipt_run_to_record(&receipt.run, &super::Context::UNBOUNDED).expect(FITS);
     let mut jobs = List::with_capacity(16);
     for job in &receipt.jobs {
-        let job = w::ReceiptJob { job: job.job, attempt: job.attempt, name: job.name.clone() };
+        let job = crate::generated::store::receipt_job_to_record(job, &super::Context::UNBOUNDED).expect(FITS);
         jobs.push(job).expect(FITS);
     }
     w::Receipt {
@@ -645,8 +253,8 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
     let w::ReceiptRun { id, number, url } = run;
     let mut kept = List::with_capacity(16);
     for job in jobs.into_boxed() {
-        let w::ReceiptJob { job, attempt, name } = job;
-        kept.push(top::ReceiptJob { job, attempt, name }).expect(FITS);
+        kept.push(crate::generated::store::receipt_job_to_domain(job, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     Ok(top::Receipt {
         report: top::ReceiptReport::Unset,
@@ -698,21 +306,18 @@ pub(super) fn decode_leave(why: w::LandingLeave) -> d::Leave {
 }
 
 fn encode_combine(combined: Option<d::Combine>) -> Option<w::LandingCombine> {
-    match combined {
-        Some(d::Combine::Merge) => Some(w::LandingCombine::Merge),
-        Some(d::Combine::Squash) => Some(w::LandingCombine::Squash),
-        None => None,
-    }
+    let combined = combined?;
+    Some(crate::generated::store::landing_combine_to_record(&combined, &super::Context::UNBOUNDED).expect(FITS))
 }
 fn decode_combine(combined: Option<w::LandingCombine>) -> Option<d::Combine> {
-    match combined {
-        Some(w::LandingCombine::Merge) => Some(d::Combine::Merge),
-        Some(w::LandingCombine::Squash) => Some(d::Combine::Squash),
-        None => None,
-    }
+    let combined = combined?;
+    Some(
+        crate::generated::store::landing_combine_to_domain(combined, &super::Context::UNBOUNDED)
+            .expect("infallible store translation"),
+    )
 }
 
-fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTests {
+pub(super) fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTests {
     match search {
         d::SearchTests::Whole => w::LandingSearchTests::Whole,
         d::SearchTests::WholeAgain => w::LandingSearchTests::WholeAgain,
@@ -734,19 +339,17 @@ fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTests {
             let mut outcomes = List::with_capacity(u32::try_from(probed.len()).expect(FITS));
             for outcome in probed {
                 outcomes
-                    .push(w::LandingProbed {
-                        member: outcome.member,
-                        gate: outcome.gate,
-                        run: outcome.run,
-                        passed: outcome.passed,
-                    })
+                    .push(
+                        crate::generated::store::landing_probed_to_record(outcome, &super::Context::UNBOUNDED)
+                            .expect(FITS),
+                    )
                     .expect(FITS);
             }
             w::LandingSearchTests::ByTest(w::LandingByTest { gates: selected, probed: outcomes })
         }
     }
 }
-fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
+pub(super) fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
     match search {
         w::LandingSearchTests::Whole => d::SearchTests::Whole,
         w::LandingSearchTests::WholeAgain => d::SearchTests::WholeAgain,
@@ -768,12 +371,10 @@ fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
             let mut probed = List::with_capacity(value.probed.len());
             for outcome in value.probed.into_boxed() {
                 probed
-                    .push(d::Probed {
-                        member: outcome.member,
-                        gate: outcome.gate,
-                        run: outcome.run,
-                        passed: outcome.passed,
-                    })
+                    .push(
+                        crate::generated::store::landing_probed_to_domain(outcome, &super::Context::UNBOUNDED)
+                            .expect(FITS),
+                    )
                     .expect(FITS);
             }
             d::SearchTests::ByTest { gates: gates.into_boxed(), probed: probed.into_boxed() }
@@ -782,98 +383,164 @@ fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
 }
 fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched> {
     let searched = searched?;
-    let mut changes = List::with_capacity(u32::try_from(searched.changes.len()).expect(FITS));
-    for change in &searched.changes {
-        changes.push(*change).expect(FITS);
-    }
-    Some(w::LandingSearched { red: searched.red, green: searched.green, changes })
+    Some(crate::generated::store::landing_searched_to_record(searched, &super::Context::UNBOUNDED).expect(FITS))
 }
 
 fn decode_searched(searched: Option<w::LandingSearched>) -> Option<d::Searched> {
-    match searched {
-        Some(value) => Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() }),
-        None => None,
-    }
+    let searched = searched?;
+    Some(
+        crate::generated::store::landing_searched_to_domain(searched, &super::Context::UNBOUNDED)
+            .expect("infallible store translation"),
+    )
 }
 
 fn encode_last_prepare(last: Option<&d::LastPrepare>) -> Option<w::LandingLastPrepare> {
     let last = last?;
-    let mut suffix = List::with_capacity(u32::try_from(last.suffix.len()).expect(FITS));
-    for member in &last.suffix {
-        suffix.push(*member).expect(FITS);
-    }
-    Some(w::LandingLastPrepare {
-        member: last.member,
-        head: last.head,
-        main: last.main,
-        suffix,
-        asks: last.asks,
-        again: match last.again {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-    })
+    Some(crate::generated::store::landing_last_prepare_to_record(last, &super::Context::UNBOUNDED).expect(FITS))
 }
 
 fn decode_last_prepare(last: Option<w::LandingLastPrepare>) -> Option<d::LastPrepare> {
-    match last {
-        Some(value) => {
-            let w::LandingLastPrepare { member, head, main, suffix, asks, again } = value;
-            Some(d::LastPrepare {
-                member,
-                head,
-                main,
-                suffix: suffix.into_boxed(),
-                asks,
-                again: match again {
-                    Some(at) => Some(Wall::from_nanos(at)),
-                    None => None,
-                },
-            })
-        }
-        None => None,
+    let last = last?;
+    Some(
+        crate::generated::store::landing_last_prepare_to_domain(last, &super::Context::UNBOUNDED)
+            .expect("infallible store translation"),
+    )
+}
+
+pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
+    let mut members = List::with_capacity(u32::try_from(landing.members.len()).expect(FITS));
+    for member in &landing.members {
+        members.push(encode_member(member)).expect(FITS);
+    }
+    w::LandingState {
+        searched: encode_searched(landing.searched.as_ref()),
+        last_prepare: encode_last_prepare(landing.last_prepare.as_ref()),
+        task: landing.task,
+        project: landing.project,
+        phase: encode_phase(&landing.phase),
+        members,
+        preparation: landing.preparation,
+        stale_proofs: landing.stale_proofs,
+        last_left: landing.last_left,
+        branch: landing.branch.clone(),
+        round: if landing.round.branch.is_empty() { None } else { Some(encode_round(&landing.round)) },
+        own_hold: match landing.phase {
+            d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
+            d::Phase::Held { why: d::Hold::Record { member }, .. } => {
+                Some(w::LandingOwnHold::Record(w::LandingRecordHold { member }))
+            }
+            d::Phase::Held { why: d::Hold::Timeout { member, gate, run }, .. } => {
+                Some(w::LandingOwnHold::Timeout(w::LandingTimeout { member, gate, run }))
+            }
+            d::Phase::Held { why: d::Hold::Turn, .. } => Some(w::LandingOwnHold::Turn),
+            d::Phase::Held { why: d::Hold::Faults { .. }, .. }
+            | d::Phase::Waiting
+            | d::Phase::Preparing
+            | d::Phase::Proving
+            | d::Phase::Proved { .. }
+            | d::Phase::Turn { .. }
+            | d::Phase::Landed
+            | d::Phase::Cancelled => None,
+        },
     }
 }
 
-fn encode_wait(wait: Option<d::Awaited>) -> Option<w::LandingAwaited> {
-    let wait = wait?;
-    Some(match wait {
-        d::Awaited::Release => w::LandingAwaited::Release,
-        d::Awaited::Turn => w::LandingAwaited::Turn,
-        d::Awaited::Prepare => w::LandingAwaited::Prepare,
-        d::Awaited::Prefixes => w::LandingAwaited::Prefixes,
-        d::Awaited::Open => w::LandingAwaited::Open,
-        d::Awaited::Close => w::LandingAwaited::Close,
-        d::Awaited::Merge => w::LandingAwaited::Merge,
-        d::Awaited::Read => w::LandingAwaited::Read,
-        d::Awaited::Ready { member } => w::LandingAwaited::Ready(w::LandingWaitMember { member }),
-        d::Awaited::Delete { member } => w::LandingAwaited::Delete(w::LandingWaitMember { member }),
-        d::Awaited::Judgement { member } => w::LandingAwaited::Judgement(w::LandingWaitMember { member }),
-        d::Awaited::Record { member } => w::LandingAwaited::Record(w::LandingWaitMember { member }),
-        d::Awaited::Ancestry { member } => w::LandingAwaited::Ancestry(w::LandingWaitMember { member }),
-        d::Awaited::Post { member, gate } => w::LandingAwaited::Post(w::LandingWaitGate { member, gate }),
-        d::Awaited::Run { member, gate } => w::LandingAwaited::Run(w::LandingWaitGate { member, gate }),
-        d::Awaited::Receipt { member, gate } => w::LandingAwaited::Receipt(w::LandingWaitGate { member, gate }),
+pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landing, super::Undecodable> {
+    let w::LandingState {
+        task,
+        project,
+        phase,
+        members,
+        preparation,
+        stale_proofs,
+        branch,
+        round,
+        own_hold,
+        last_left,
+        searched,
+        last_prepare,
+    } = landing;
+    if phase.held.is_some() && own_hold.is_some() {
+        return Err(super::Undecodable::Malformed);
+    }
+    let mut decoded_members = List::with_capacity(members.len());
+    for member in members.into_boxed() {
+        decoded_members.push(decode_member(member)).expect(FITS);
+    }
+    Ok(d::Landing {
+        searched: decode_searched(searched),
+        last_left,
+        task,
+        project,
+        phase: match own_hold {
+            Some(w::LandingOwnHold::Turn) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn },
+            Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {
+                was: Box::new(decode_phase(phase)),
+                why: d::Hold::Timeout { member: value.member, gate: value.gate, run: value.run },
+            },
+            Some(w::LandingOwnHold::Prepare) => {
+                d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare }
+            }
+            Some(w::LandingOwnHold::Record(value)) => {
+                d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Record { member: value.member } }
+            }
+            None => decode_phase(phase),
+        },
+        members: decoded_members.into_boxed(),
+        preparation,
+        stale_proofs,
+        branch,
+        round: match round {
+            Some(round) => decode_round(round),
+            None => d::Round::new(Box::new([])),
+        },
+        last_prepare: decode_last_prepare(last_prepare),
     })
 }
-fn decode_wait(wait: Option<w::LandingAwaited>) -> Option<d::Awaited> {
-    let wait = wait?;
-    Some(match wait {
-        w::LandingAwaited::Release => d::Awaited::Release,
-        w::LandingAwaited::Turn => d::Awaited::Turn,
-        w::LandingAwaited::Prepare => d::Awaited::Prepare,
-        w::LandingAwaited::Prefixes => d::Awaited::Prefixes,
-        w::LandingAwaited::Open => d::Awaited::Open,
-        w::LandingAwaited::Close => d::Awaited::Close,
-        w::LandingAwaited::Merge => d::Awaited::Merge,
-        w::LandingAwaited::Read => d::Awaited::Read,
-        w::LandingAwaited::Ready(value) => d::Awaited::Ready { member: value.member },
-        w::LandingAwaited::Delete(value) => d::Awaited::Delete { member: value.member },
-        w::LandingAwaited::Judgement(value) => d::Awaited::Judgement { member: value.member },
-        w::LandingAwaited::Record(value) => d::Awaited::Record { member: value.member },
-        w::LandingAwaited::Ancestry(value) => d::Awaited::Ancestry { member: value.member },
-        w::LandingAwaited::Post(value) => d::Awaited::Post { member: value.member, gate: value.gate },
-        w::LandingAwaited::Run(value) => d::Awaited::Run { member: value.member, gate: value.gate },
-        w::LandingAwaited::Receipt(value) => d::Awaited::Receipt { member: value.member, gate: value.gate },
-    })
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_leave_to_record(
+    value: &d::Leave,
+    _context: &super::Context,
+) -> Result<w::LandingLeave, w::Problem> {
+    Ok(encode_leave(*value))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_leave_to_domain(
+    value: w::LandingLeave,
+    _context: &super::Context,
+) -> Result<d::Leave, w::Problem> {
+    Ok(decode_leave(value))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_search_tests_to_record(
+    value: &d::SearchTests,
+    _context: &super::Context,
+) -> Result<w::LandingSearchTests, w::Problem> {
+    Ok(encode_search_tests(value))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_search_tests_to_domain(
+    value: w::LandingSearchTests,
+    _context: &super::Context,
+) -> Result<d::SearchTests, w::Problem> {
+    Ok(decode_search_tests(value))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_state_to_record(
+    value: &d::Landing,
+    _context: &super::Context,
+) -> Result<w::LandingState, w::Problem> {
+    Ok(encode_landing_state(value))
+}
+
+pub(crate) fn landing_state_to_domain(
+    value: w::LandingState,
+    _context: &super::Context,
+) -> Result<d::Landing, w::Problem> {
+    decode_landing_state(value).or(Err(w::paths::LANDING_STATE_OWN_HOLD.problem(skein_codec::Reason::Malformed)))
 }

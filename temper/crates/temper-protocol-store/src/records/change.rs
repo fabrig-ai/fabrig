@@ -1,134 +1,22 @@
-use super::{FITS, names, w};
+use super::{FITS, w};
 use alloc::boxed::Box;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{List, Wall};
 use temper_engine_domain_forge_change as d;
 use temper_engine_domain_forge_vocabulary as top;
-fn encode_status(value: d::Status) -> w::ChangeStatus {
-    match value {
-        d::Status::Unknown => w::ChangeStatus::Unknown,
-        d::Status::Pending => w::ChangeStatus::Pending,
-        d::Status::Passed => w::ChangeStatus::Passed,
-        d::Status::Failed => w::ChangeStatus::Failed,
-    }
-}
-fn decode_status(value: w::ChangeStatus) -> d::Status {
-    match value {
-        w::ChangeStatus::Unknown => d::Status::Unknown,
-        w::ChangeStatus::Pending => d::Status::Pending,
-        w::ChangeStatus::Passed => d::Status::Passed,
-        w::ChangeStatus::Failed => d::Status::Failed,
-    }
-}
-fn encode_freshness(value: d::Freshness) -> w::Freshness {
-    match value {
-        d::Freshness::Exact => w::Freshness::Exact,
-        d::Freshness::Clean => w::Freshness::Clean,
-    }
-}
-fn decode_freshness(value: w::Freshness) -> d::Freshness {
-    match value {
-        w::Freshness::Exact => d::Freshness::Exact,
-        w::Freshness::Clean => d::Freshness::Clean,
-    }
-}
-fn encode_gate_kind(value: d::GateKind) -> w::GateKind {
-    match value {
-        d::GateKind::Agent => w::GateKind::Agent,
-        d::GateKind::Person => w::GateKind::Person,
-        d::GateKind::Check => w::GateKind::Check,
-        d::GateKind::Follow => w::GateKind::Follow,
-    }
-}
-fn decode_gate_kind(value: w::GateKind) -> d::GateKind {
-    match value {
-        w::GateKind::Agent => d::GateKind::Agent,
-        w::GateKind::Person => d::GateKind::Person,
-        w::GateKind::Check => d::GateKind::Check,
-        w::GateKind::Follow => d::GateKind::Follow,
-    }
-}
 fn encode_hold(value: d::Hold) -> w::ChangeHold {
-    match value {
-        d::Hold::Stalled => w::ChangeHold::Stalled,
-        d::Hold::Repairs => w::ChangeHold::Repairs,
-        d::Hold::Questions => w::ChangeHold::Questions,
-        d::Hold::Resolutions => w::ChangeHold::Resolutions,
-        d::Hold::Updates => w::ChangeHold::Updates,
-        d::Hold::BranchMoved => w::ChangeHold::BranchMoved,
-        d::Hold::BranchMissing => w::ChangeHold::BranchMissing,
-        d::Hold::PullClosed => w::ChangeHold::PullClosed,
-        d::Hold::Retargeted => w::ChangeHold::Retargeted,
-        d::Hold::Failed => w::ChangeHold::Failed,
-        d::Hold::Flake => w::ChangeHold::Flake,
-        d::Hold::NoTest => w::ChangeHold::NoTest,
-        d::Hold::Rejected => w::ChangeHold::Rejected,
-        d::Hold::Authority(cause) => w::ChangeHold::Authority(w::AuthorityHold {
-            lack: match cause.lack {
-                d::AuthorityLack::Tasks => w::AuthorityLack::Tasks,
-                d::AuthorityLack::Depth => w::AuthorityLack::Depth,
-                d::AuthorityLack::Spend => w::AuthorityLack::Spend,
-            },
-            had: cause.had,
-            task: cause.recovery.task,
-            spec: cause.recovery.spec,
-            hold: cause.recovery.hold,
-            tasks: cause.recovery.tasks,
-            released: cause.released,
-        }),
-    }
+    crate::generated::store::change_hold_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_hold(value: w::ChangeHold) -> d::Hold {
-    match value {
-        w::ChangeHold::Stalled => d::Hold::Stalled,
-        w::ChangeHold::Repairs => d::Hold::Repairs,
-        w::ChangeHold::Questions => d::Hold::Questions,
-        w::ChangeHold::Resolutions => d::Hold::Resolutions,
-        w::ChangeHold::Updates => d::Hold::Updates,
-        w::ChangeHold::BranchMoved => d::Hold::BranchMoved,
-        w::ChangeHold::BranchMissing => d::Hold::BranchMissing,
-        w::ChangeHold::PullClosed => d::Hold::PullClosed,
-        w::ChangeHold::Retargeted => d::Hold::Retargeted,
-        w::ChangeHold::Failed => d::Hold::Failed,
-        w::ChangeHold::Flake => d::Hold::Flake,
-        w::ChangeHold::NoTest => d::Hold::NoTest,
-        w::ChangeHold::Rejected => d::Hold::Rejected,
-        w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
-            lack: match cause.lack {
-                w::AuthorityLack::Tasks => d::AuthorityLack::Tasks,
-                w::AuthorityLack::Depth => d::AuthorityLack::Depth,
-                w::AuthorityLack::Spend => d::AuthorityLack::Spend,
-            },
-            had: cause.had,
-            recovery: d::AuthorityRecovery { task: cause.task, spec: cause.spec, hold: cause.hold, tasks: cause.tasks },
-            released: cause.released,
-        }),
-    }
-}
-fn encode_effect_result(value: d::EffectResult) -> w::EffectResult {
-    match value {
-        d::EffectResult::None => w::EffectResult::None,
-        d::EffectResult::Pending => w::EffectResult::Pending,
-        d::EffectResult::Made => w::EffectResult::Made,
-        d::EffectResult::Conflict => w::EffectResult::Conflict,
-        d::EffectResult::Failed => w::EffectResult::Failed,
-        d::EffectResult::Stale => w::EffectResult::Stale,
-    }
-}
-fn decode_effect_result(value: w::EffectResult) -> d::EffectResult {
-    match value {
-        w::EffectResult::None => d::EffectResult::None,
-        w::EffectResult::Pending => d::EffectResult::Pending,
-        w::EffectResult::Made => d::EffectResult::Made,
-        w::EffectResult::Conflict => d::EffectResult::Conflict,
-        w::EffectResult::Failed => d::EffectResult::Failed,
-        w::EffectResult::Stale => d::EffectResult::Stale,
-    }
+    crate::generated::store::change_hold_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
     let below = below?;
     let mut changes = List::with_capacity(4);
     for landed in below.changes.into_iter().flatten() {
-        changes.push(w::LandedBelow { change: landed.change, pull: landed.pull }).expect(FITS);
+        changes
+            .push(crate::generated::store::landed_below_to_record(&landed, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     Some(w::LandingBelow { green: below.green, changes, by_test: below.by_test, top: below.top })
 }
@@ -137,63 +25,18 @@ pub(super) fn decode_below(below: Option<w::LandingBelow>) -> Option<d::Below> {
     let w::LandingBelow { green, changes, by_test, top } = below?;
     let mut below = d::Below { green, changes: [None; 4], by_test, top };
     for (slot, landed) in below.changes.iter_mut().zip(&changes) {
-        *slot = Some(d::Landed { change: landed.change, pull: landed.pull });
+        *slot = Some(
+            crate::generated::store::landed_below_to_domain(landed.clone(), &super::Context::UNBOUNDED).expect(FITS),
+        );
     }
     Some(below)
 }
 
 fn encode_repair(value: d::Repair) -> w::Repair {
-    match value {
-        d::Repair::LandingAt { gate, candidate, below } => {
-            w::Repair::LandingAt(w::LandingRepairAt { gate, candidate, below: encode_below(below) })
-        }
-        d::Repair::Ci => w::Repair::Ci,
-        d::Repair::Review { head } => w::Repair::Review(w::Commit { commit: head }),
-        d::Repair::Gate(number) => w::Repair::Gate(w::Number { number }),
-        d::Repair::Semantic => w::Repair::Semantic,
-        d::Repair::Landing { gate } => w::Repair::Landing(w::LandingRepair { gate }),
-    }
+    crate::generated::store::repair_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_repair(value: w::Repair) -> d::Repair {
-    match value {
-        w::Repair::LandingAt(value) => {
-            let w::LandingRepairAt { gate, candidate, below } = value;
-            d::Repair::LandingAt { gate, candidate, below: decode_below(below) }
-        }
-        w::Repair::Ci => d::Repair::Ci,
-        w::Repair::Review(value) => d::Repair::Review { head: value.commit },
-        w::Repair::Gate(value) => d::Repair::Gate(value.number),
-        w::Repair::Semantic => d::Repair::Semantic,
-        w::Repair::Landing(value) => d::Repair::Landing { gate: value.gate },
-    }
-}
-fn encode_delegate(value: d::Delegate) -> w::Delegate {
-    match value {
-        d::Delegate::Produce => w::Delegate::Produce,
-        d::Delegate::Close => w::Delegate::Close,
-        d::Delegate::Repair(why) => w::Delegate::Repair(w::RepairValue { why: encode_repair(why) }),
-        d::Delegate::Resolve { base } => w::Delegate::Resolve(w::Commit { commit: base }),
-        d::Delegate::Merge { base, from } => {
-            w::Delegate::Merge(w::MergeDelegate { base: w::Commit { commit: base }, from })
-        }
-        d::Delegate::Gate { number, head } => w::Delegate::Gate(w::DelegateGate { number, head }),
-    }
-}
-fn decode_delegate(value: w::Delegate) -> d::Delegate {
-    match value {
-        w::Delegate::Produce => d::Delegate::Produce,
-        w::Delegate::Close => d::Delegate::Close,
-        w::Delegate::Repair(value) => d::Delegate::Repair(decode_repair(value.why)),
-        w::Delegate::Resolve(value) => d::Delegate::Resolve { base: value.commit },
-        w::Delegate::Merge(value) => {
-            let w::MergeDelegate { base, from } = value;
-            d::Delegate::Merge { base: base.commit, from }
-        }
-        w::Delegate::Gate(value) => {
-            let w::DelegateGate { number, head } = value;
-            d::Delegate::Gate { number, head }
-        }
-    }
+    crate::generated::store::repair_to_domain(value, &super::Context::UNBOUNDED).expect("infallible store translation")
 }
 fn encode_live(value: &d::State) -> w::ChangeLive {
     match value {
@@ -431,34 +274,10 @@ fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
     (state, None)
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {
-    let d::Gate { number, kind, blocking, freshness, eager } = value;
-    w::Gate {
-        number: *number,
-        kind: encode_gate_kind(*kind),
-        blocking: *blocking,
-        freshness: encode_freshness(*freshness),
-        eager: *eager,
-    }
+    crate::generated::store::gate_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_gate(value: w::Gate) -> d::Gate {
-    let w::Gate { number, kind, blocking, freshness, eager } = value;
-    d::Gate { number, kind: decode_gate_kind(kind), blocking, freshness: decode_freshness(freshness), eager }
-}
-pub(super) fn encode_gate_report(value: &d::GateReport) -> w::GateReport {
-    let d::GateReport { number, head, status, revision } = value;
-    w::GateReport { number: *number, head: *head, status: encode_status(*status), revision: *revision }
-}
-pub(super) fn decode_gate_report(value: w::GateReport) -> d::GateReport {
-    let w::GateReport { number, head, status, revision } = value;
-    d::GateReport { number, head, status: decode_status(status), revision }
-}
-pub(super) fn encode_gate_remark(value: &top::GateRemark) -> w::GateRemark {
-    let top::GateRemark { number, head, words } = value;
-    w::GateRemark { number: *number, head: *head, words: words.clone() }
-}
-pub(super) fn decode_gate_remark(value: w::GateRemark) -> top::GateRemark {
-    let w::GateRemark { number, head, words } = value;
-    top::GateRemark { number, head, words }
+    crate::generated::store::gate_to_domain(value, &super::Context::UNBOUNDED).expect("infallible store translation")
 }
 fn encode_early(value: &d::Early) -> w::Early {
     let heads = match value {
@@ -467,7 +286,9 @@ fn encode_early(value: &d::Early) -> w::Early {
     };
     let mut encoded = List::with_capacity(u32::try_from(heads.len()).expect(FITS));
     for head in heads {
-        encoded.push(w::StartedFrom { task: head.task, head: head.head }).expect(FITS);
+        encoded
+            .push(crate::generated::store::started_from_to_record(head, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     let heads = w::EarlyHeads { heads: encoded };
     match value {
@@ -486,47 +307,26 @@ fn decode_early(value: w::Early) -> d::Early {
     let heads = heads.heads;
     let mut decoded = List::with_capacity(heads.len());
     for head in &heads {
-        decoded.push(d::StartedFrom { task: head.task, head: head.head }).expect(FITS);
+        decoded
+            .push(
+                crate::generated::store::started_from_to_domain(head.clone(), &super::Context::UNBOUNDED).expect(FITS),
+            )
+            .expect(FITS);
     }
     if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
 }
 
 pub(super) fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
     let clock = clock?;
-    Some(w::ExecutionClock {
-        since: clock.since.as_nanos(),
-        head: clock.head,
-        run: clock.run,
-        attempt: clock.attempt,
-        ran: clock.ran.as_nanos(),
-        waited: clock.waited.as_nanos(),
-        unknown: clock.unknown.as_nanos(),
-        at: clock.at.as_nanos(),
-        seen: match clock.seen {
-            d::Execution::Unknown => w::Execution::Unknown,
-            d::Execution::Waiting => w::Execution::Waiting,
-            d::Execution::Running => w::Execution::Running,
-        },
-    })
+    Some(crate::generated::store::execution_clock_to_record(&clock, &super::Context::UNBOUNDED).expect(FITS))
 }
 
 pub(super) fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock> {
     let clock = clock?;
-    Some(d::Clock {
-        since: Wall::from_nanos(clock.since),
-        head: clock.head,
-        run: clock.run,
-        attempt: clock.attempt,
-        ran: Duration::from_nanos(clock.ran),
-        waited: Duration::from_nanos(clock.waited),
-        unknown: Duration::from_nanos(clock.unknown),
-        at: Wall::from_nanos(clock.at),
-        seen: match clock.seen {
-            w::Execution::Unknown => d::Execution::Unknown,
-            w::Execution::Waiting => d::Execution::Waiting,
-            w::Execution::Running => d::Execution::Running,
-        },
-    })
+    Some(
+        crate::generated::store::execution_clock_to_domain(clock, &super::Context::UNBOUNDED)
+            .expect("infallible store translation"),
+    )
 }
 
 pub(super) fn encode_change(value: &d::Change) -> w::Change {
@@ -584,10 +384,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             Some(why) => Some(encode_hold(*why)),
             None => None,
         },
-        way: match way {
-            d::Way::Queue => w::Way::Queue,
-            d::Way::Turn => w::Way::Turn,
-        },
+        way: crate::generated::store::way_to_record(way, &super::Context::UNBOUNDED).expect(FITS),
         landing: *landing,
         landing_ask: match landing_ask {
             Some(ask) => Some(super::landing::encode_ask(ask.as_ref().clone())),
@@ -651,10 +448,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
             Some(why) => Some(decode_hold(why)),
             None => None,
         },
-        way: match way {
-            w::Way::Queue => d::Way::Queue,
-            w::Way::Turn => d::Way::Turn,
-        },
+        way: crate::generated::store::way_to_domain(way, &super::Context::UNBOUNDED).expect(FITS),
         landing,
         landing_ask: match landing_ask {
             Some(ask) => Some(Box::new(super::landing::decode_ask(ask))),
@@ -663,327 +457,18 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
     }
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
-    let top::ChangeCold {
-        source,
-        task,
-        repository,
-        branch,
-        base,
-        goal,
-        milestone,
-        person,
-        goal_title,
-        draft,
-        base_repair,
-        producing_charter,
-        review_charter,
-        producing_llm,
-        review_llm,
-        repairs,
-        catch_up,
-        close,
-        title,
-        body,
-        follows,
-        report,
-    } = value;
-    w::ChangeCold {
-        source: encode_source(source.as_ref()),
-        task: *task,
-        repository: names::encode_repository(*repository),
-        branch: branch.clone(),
-        base: base.clone(),
-        title: title.clone(),
-        body: body.clone(),
-        base_repair: *base_repair,
-        producing_charter: *producing_charter,
-        review_charter: *review_charter,
-        producing_llm: encode_llm(producing_llm.as_ref()),
-        review_llm: encode_llm(review_llm.as_ref()),
-        report: report.clone(),
-        repairs: *repairs,
-        follows: match follows {
-            Some(value) => Some(w::ChangeFollows { follow: value.follow, commits: encode_commits(&value.commits) }),
-            None => None,
-        },
-        catch_up: *catch_up,
-        close: close.clone(),
-        goal: *goal,
-        milestone: *milestone,
-        person: *person,
-        goal_title: goal_title.clone(),
-        draft: draft.clone(),
-    }
+    crate::generated::store::change_cold_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
-    let w::ChangeCold {
-        source,
-        task,
-        repository,
-        branch,
-        base,
-        goal,
-        milestone,
-        person,
-        goal_title,
-        draft,
-        base_repair,
-        producing_charter,
-        review_charter,
-        producing_llm,
-        review_llm,
-        repairs,
-        catch_up,
-        close,
-        title,
-        body,
-        follows,
-        report,
-    } = value;
-    top::ChangeCold {
-        source: decode_source(source),
-        goal,
-        milestone,
-        person,
-        goal_title,
-        draft,
-        task,
-        repository: names::decode_repository(repository),
-        branch,
-        base,
-        title,
-        body,
-        base_repair,
-        producing_charter,
-        review_charter,
-        producing_llm: decode_llm(producing_llm),
-        review_llm: decode_llm(review_llm),
-        report,
-        repairs,
-        follows: match follows {
-            Some(value) => {
-                let w::ChangeFollows { follow, commits } = value;
-                Some(top::ChangeFollows { follow, commits: commits.into_boxed() })
-            }
-            None => None,
-        },
-        catch_up,
-        close,
-    }
+    crate::generated::store::change_cold_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
-    let top::ChangeHot {
-        regate,
-        room,
-        kept,
-        task_release,
-        job,
-        signed,
-        ending,
-        repair_tasks,
-        resolution_tasks,
-        result,
-        task,
-        priority,
-        change,
-        ci,
-        pull,
-        pending,
-        effect,
-        delegate,
-        delegate_status,
-        spec_revision,
-        gate_revision,
-        delegate_flake,
-        delegate_no_test,
-        verdicts,
-        gate_remarks,
-        drift,
-        queue_repair,
-        queue_repairs,
-        effect_account,
-        producer_failure,
-        questions,
-        follow_check,
-        merge_result,
-        history,
-        delegate_head,
-    } = value;
-    w::ChangeHot {
-        regate: match regate {
-            Some(value) => {
-                Some(w::Regate { receipt: super::landing::encode_receipt_key(&value.receipt), run: value.run })
-            }
-            None => None,
-        },
-        room: *room,
-        kept: *kept,
-        task_release: match task_release {
-            Some(release) => Some(w::TaskRelease { revision: release.revision, at: release.at.as_nanos() }),
-            None => None,
-        },
-        job: super::history::encode_job_record(job.as_ref()),
-        signed: super::landing_log::encode_signed(signed),
-        result: encode_result(result),
-        task: *task,
-        priority: u32::from_be_bytes(priority.to_be_bytes()),
-        change: encode_change(change),
-        ci: match ci {
-            Some(read) => Some(w::ChangeCi { head: read.head, status: encode_status(read.status) }),
-            None => None,
-        },
-        pull: *pull,
-        pending: *pending,
-        effect: encode_effect_result(*effect),
-        delegate: match delegate {
-            Some((task, request)) => Some(w::DelegateRef { task: *task, request: encode_delegate(*request) }),
-            None => None,
-        },
-        delegate_status: encode_status(*delegate_status),
-        spec_revision: *spec_revision,
-        gate_revision: *gate_revision,
-        delegate_flake: *delegate_flake,
-        delegate_no_test: *delegate_no_test,
-        delegate_head: *delegate_head,
-        verdicts: encode_gate_reports(verdicts),
-        gate_remarks: encode_gate_remarks(gate_remarks),
-        drift: match drift {
-            Some(value) => Some(encode_hold(*value)),
-            None => None,
-        },
-        queue_repair: *queue_repair,
-        queue_repairs: *queue_repairs,
-        questions: encode_questions(questions),
-        producer_failure: producer_failure.clone(),
-        follow_check: match follow_check {
-            Some(check) => Some(encode_check(check)),
-            None => None,
-        },
-        merge_result: merge_result.clone(),
-        history: match history {
-            Some(value) => Some(super::history::encode_change_history(value)),
-            None => None,
-        },
-        ending: encode_ending(ending.as_ref()),
-        repair_tasks: encode_numbers(repair_tasks),
-        resolution_tasks: encode_numbers(resolution_tasks),
-        effect_account: match effect_account {
-            Some(account) => Some(w::EffectAccount { entry: account.entry, words: account.words.clone() }),
-            None => None,
-        },
-    }
+    crate::generated::store::change_hot_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
-#[expect(clippy::too_many_lines, reason = "each persisted and projected hot field is decoded explicitly")]
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
-    let w::ChangeHot {
-        regate,
-        room,
-        kept,
-        task_release,
-        job,
-        signed,
-        ending,
-        repair_tasks,
-        resolution_tasks,
-        result,
-        task,
-        priority,
-        change,
-        ci,
-        pull,
-        pending,
-        effect,
-        delegate,
-        delegate_status,
-        spec_revision,
-        gate_revision,
-        delegate_flake,
-        delegate_no_test,
-        verdicts,
-        gate_remarks,
-        drift,
-        queue_repair,
-        queue_repairs,
-        effect_account,
-        producer_failure,
-        questions,
-        follow_check,
-        merge_result,
-        history,
-        delegate_head,
-    } = value;
-    Ok(top::ChangeHot {
-        regate: decode_regate(regate),
-        room,
-        kept,
-        task_release: match task_release {
-            Some(release) => {
-                let w::TaskRelease { revision, at } = release;
-                Some(top::TaskRelease { revision, at: Wall::from_nanos(at) })
-            }
-            None => None,
-        },
-        job: super::history::decode_job_record(job),
-        signed: super::landing_log::decode_signed(signed),
-        ending: decode_ending(ending),
-        repair_tasks: repair_tasks.into_boxed(),
-        resolution_tasks: resolution_tasks.into_boxed(),
-        result: decode_result(result),
-        task,
-        priority: i32::from_be_bytes(priority.to_be_bytes()),
-        change: decode_change(change),
-        ci: match ci {
-            Some(read) => {
-                let w::ChangeCi { head, status } = read;
-                Some(d::Ci { head, status: decode_status(status) })
-            }
-            None => None,
-        },
-        pull,
-        pending,
-        effect: decode_effect_result(effect),
-        delegate: match delegate {
-            Some(value) => {
-                let w::DelegateRef { task, request } = value;
-                Some((task, decode_delegate(request)))
-            }
-            None => None,
-        },
-        delegate_status: decode_status(delegate_status),
-        spec_revision,
-        gate_revision,
-        delegate_flake,
-        delegate_no_test,
-        delegate_head,
-        verdicts: decode_gate_reports(verdicts),
-        gate_remarks: decode_gate_remarks(gate_remarks),
-        drift: match drift {
-            Some(value) => Some(decode_hold(value)),
-            None => None,
-        },
-        queue_repair,
-        queue_repairs,
-        questions: decode_questions(questions)?,
-        producer_failure,
-        follow_check: match follow_check {
-            Some(check) => Some(decode_check(check)),
-            None => None,
-        },
-        merge_result,
-        history: match history {
-            Some(value) => Some(super::history::decode_change_history(value)),
-            None => None,
-        },
-        effect_account: decode_effect_account(effect_account),
-    })
-}
-fn decode_effect_account(value: Option<w::EffectAccount>) -> Option<top::EffectAccount> {
-    let w::EffectAccount { entry, words } = value?;
-    Some(top::EffectAccount { entry, words })
-}
-fn decode_regate(value: Option<w::Regate>) -> Option<top::Regate> {
-    let w::Regate { receipt, run } = value?;
-    Some(top::Regate { receipt: super::landing::decode_receipt_key(receipt), run })
+    crate::generated::store::change_hot_to_domain(value, &super::Context::UNBOUNDED)
+        .or(Err(super::Undecodable::Malformed))
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
@@ -1025,94 +510,33 @@ fn decode_gates(values: List<w::Gate>) -> Box<[d::Gate]> {
     }
     result.into_boxed()
 }
-fn encode_gate_reports(values: &[d::GateReport]) -> List<w::GateReport> {
-    let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
-    for value in values {
-        let item = encode_gate_report(value);
-        result.push(item).expect("same count");
-    }
-    result
-}
-fn decode_gate_reports(values: List<w::GateReport>) -> Box<[d::GateReport]> {
-    let mut result = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        let item = decode_gate_report(value);
-        result.push(item).expect("same count");
-    }
-    result.into_boxed()
-}
-fn encode_gate_remarks(values: &[top::GateRemark]) -> List<w::GateRemark> {
-    let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
-    for value in values {
-        let item = encode_gate_remark(value);
-        result.push(item).expect("same count");
-    }
-    result
-}
-fn decode_gate_remarks(values: List<w::GateRemark>) -> Box<[top::GateRemark]> {
-    let mut result = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        let item = decode_gate_remark(value);
-        result.push(item).expect("same count");
-    }
-    result.into_boxed()
-}
-
 fn encode_gate_failures(values: &[d::GateFailure]) -> List<w::GateFailure> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
     for value in values {
-        let d::GateFailure { number, count } = value;
-        result.push(w::GateFailure { number: *number, count: *count }).expect("same count");
+        result
+            .push(crate::generated::store::gate_failure_to_record(value, &super::Context::UNBOUNDED).expect(FITS))
+            .expect("same count");
     }
     result
 }
 fn decode_gate_failures(values: List<w::GateFailure>) -> Box<[d::GateFailure]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        let w::GateFailure { number, count } = value;
-        result.push(d::GateFailure { number, count }).expect("same count");
+        result
+            .push(crate::generated::store::gate_failure_to_domain(value, &super::Context::UNBOUNDED).expect(FITS))
+            .expect("same count");
     }
     result.into_boxed()
 }
 
-fn encode_result_text(value: &top::ResultText) -> w::ResultText {
-    w::ResultText { bytes: value.bytes.clone(), cut: value.cut }
-}
-fn decode_result_text(value: w::ResultText) -> top::ResultText {
-    let w::ResultText { bytes, cut } = value;
-    top::ResultText { bytes, cut }
-}
-fn encode_result(value: &top::ChangeResult) -> w::ChangeResult {
-    w::ChangeResult {
-        head: value.head,
-        checks: encode_result_text(&value.checks),
-        failed: encode_result_text(&value.failed),
-        repairs: encode_result_text(&value.repairs),
-        repair_count: value.repair_count,
-        reviews: encode_result_text(&value.reviews),
-    }
-}
-fn decode_result(value: w::ChangeResult) -> top::ChangeResult {
-    let w::ChangeResult { head, checks, failed, repairs, repair_count, reviews } = value;
-    top::ChangeResult {
-        head,
-        checks: decode_result_text(checks),
-        failed: decode_result_text(failed),
-        repairs: decode_result_text(repairs),
-        repair_count,
-        reviews: decode_result_text(reviews),
-    }
-}
-
 fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
-    let jig_domain_tasks::ModelEffort { model, effort } = value;
-    w::ModelEffort { model, effort }
+    crate::generated::store::model_effort_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let w::ModelEffort { model, effort } = value;
-    jig_domain_tasks::ModelEffort { model, effort }
+    crate::generated::store::model_effort_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
-fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
+pub(super) fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
     let jig_domain_tasks::LlmChoice { main, subagents, account, .. } = value?;
     let mut models = List::with_capacity(u32::try_from(subagents.len()).expect("admitted count"));
     for model in subagents {
@@ -1120,7 +544,7 @@ fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoic
     }
     Some(w::LlmChoice { main: encode_model_effort(*main), subagents: models, account: *account })
 }
-fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice> {
+pub(super) fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice> {
     let w::LlmChoice { main, subagents, account } = value?;
     let mut models = List::with_capacity(subagents.len());
     for model in subagents.into_boxed() {
@@ -1134,171 +558,127 @@ fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice
     })
 }
 
-fn encode_questions(value: &d::Questions) -> w::Questions {
-    let mut open = List::with_capacity(u32::try_from(value.open.len()).expect("admitted count"));
-    for question in &value.open {
-        let stands = match &question.stands {
-            d::Stands::Taken => w::Stands::Taken,
-            d::Stands::Asked => w::Stands::Asked,
-            d::Stands::Held { answer } => w::Stands::Held(w::Held { answer: answer.clone() }),
-        };
-        open.push(w::Open {
-            asker: question.asker,
-            number: question.number,
-            line: question.line.clone(),
-            words: question.words.clone(),
-            stands,
-        })
-        .expect("same count");
-    }
-    let mut waiting = List::with_capacity(u32::try_from(value.waiting.len()).expect("admitted count"));
-    for word in &value.waiting {
-        waiting
-            .push(w::Waiting { from: word.from, number: word.number, words: word.words.clone(), passed: word.passed })
-            .expect("same count");
-    }
-    let mut answered = List::with_capacity(u32::try_from(value.answered.len()).expect("admitted count"));
-    for answer in &value.answered {
-        answered
-            .push(w::Answered {
-                revision: answer.revision,
-                asker: answer.asker,
-                number: answer.number,
-                line: answer.line.clone(),
-                answer: answer.answer.clone(),
-            })
-            .expect("same count");
-    }
-    let mut amended = List::with_capacity(u32::try_from(value.amended.len()).expect("admitted count"));
-    for amendment in &value.amended {
-        amended
-            .push(w::Amended { revision: amendment.revision, reason: amendment.reason.clone() })
-            .expect("same count");
-    }
-    w::Questions {
-        amended,
-        route: match value.route {
-            d::Route::None => w::Route::None,
-            d::Route::Up => w::Route::Up,
-        },
-        taken: value.taken,
-        open,
-        waiting,
-        answered,
-    }
-}
-
-fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::Questions { route, taken, open, waiting, answered, amended } = value;
-    let mut answers = List::with_capacity(answered.len());
-    for answer in answered.into_boxed() {
-        let w::Answered { asker, number, line, answer, revision } = answer;
-        answers.push(d::Answered { asker, number, line, answer, revision }).expect("same count");
-    }
-    let mut amendments = List::with_capacity(amended.len());
-    for w::Amended { revision, reason } in amended.into_boxed() {
-        amendments.push(d::Amended { revision, reason }).expect("same count");
-    }
-    let mut words_waiting = List::with_capacity(waiting.len());
-    for word in waiting.into_boxed() {
-        let w::Waiting { from, number, words, passed } = word;
-        words_waiting.push(d::Waiting { from, number, words, passed }).expect("same count");
-    }
-    let mut questions = List::with_capacity(open.len());
-    for question in open.into_boxed() {
-        let w::Open { asker, number, line, words, stands } = question;
-        let stands = match stands {
-            w::Stands::Taken => d::Stands::Taken,
-            w::Stands::Retired => return Err(super::Undecodable::Malformed),
-            w::Stands::Asked => d::Stands::Asked,
-            w::Stands::Held(value) => d::Stands::Held { answer: value.answer },
-        };
-        questions.push(d::Open { asker, number, line, words, stands }).expect("same count");
-    }
-    Ok(d::Questions {
-        route: match route {
-            w::Route::Retired => return Err(super::Undecodable::Malformed),
-            w::Route::None => d::Route::None,
-            w::Route::Up => d::Route::Up,
-        },
-        taken,
-        open: questions.into_boxed(),
-        waiting: words_waiting.into_boxed(),
-        answered: answers.into_boxed(),
-        amended: amendments.into_boxed(),
-    })
-}
-
-fn encode_ending(ending: Option<&top::Ending>) -> Option<w::ChangeEnding> {
-    Some(match ending? {
-        top::Ending::Landed => w::ChangeEnding::Landed,
-        top::Ending::NoChange => w::ChangeEnding::NoChange,
-        top::Ending::Cancelled => w::ChangeEnding::Cancelled,
-        top::Ending::Failed { line } => w::ChangeEnding::Failed(w::ChangeFailure { line: line.clone() }),
-    })
-}
-fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
-    Some(match ending? {
-        w::ChangeEnding::Landed => top::Ending::Landed,
-        w::ChangeEnding::NoChange => top::Ending::NoChange,
-        w::ChangeEnding::Cancelled => top::Ending::Cancelled,
-        w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.line },
-    })
-}
-
 pub(super) fn encode_judgement(value: &d::Judgement) -> w::Judgement {
-    w::Judgement {
-        landing: value.landing,
-        round: value.round,
-        pull: value.pull,
-        branch: value.branch.clone(),
-        base: value.base.clone(),
-        prefix: value.prefix,
-    }
-}
-fn encode_check(check: &top::FollowCheck) -> w::FollowCheckProgress {
-    w::FollowCheckProgress {
-        follow: check.follow,
-        source: check.source,
-        head: check.head,
-        definition: check.definition.clone(),
-        key: check.key,
-        flight: match &check.flight {
-            Some(flight) => Some(super::tiers::encode_flight(flight)),
-            None => None,
-        },
-        page: check.page,
-        faults: check.faults,
-        held: check.held.clone(),
-    }
+    crate::generated::store::judgement_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_judgement(value: w::Judgement) -> d::Judgement {
-    let w::Judgement { landing, round, pull, branch, base, prefix } = value;
-    d::Judgement { landing, round, pull, branch, base, prefix }
+    crate::generated::store::judgement_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
-fn decode_check(check: w::FollowCheckProgress) -> top::FollowCheck {
-    let w::FollowCheckProgress { follow, source, head, definition, key, flight, page, faults, held } = check;
-    top::FollowCheck {
-        follow,
-        source,
-        head,
-        definition,
-        key,
-        flight: match flight {
-            Some(flight) => Some(super::tiers::decode_flight(flight)),
-            None => None,
-        },
-        page,
-        faults,
-        held,
+pub(crate) fn authority_hold_to_record(
+    value: &d::AuthorityHold,
+    context: &super::Context,
+) -> Result<w::AuthorityHold, w::Problem> {
+    Ok(w::AuthorityHold {
+        lack: crate::generated::store::authority_lack_to_record(&value.lack, context)?,
+        had: value.had,
+        released: value.released,
+        task: value.recovery.task,
+        spec: value.recovery.spec,
+        hold: value.recovery.hold,
+        tasks: value.recovery.tasks,
+    })
+}
+
+pub(crate) fn authority_hold_to_domain(
+    value: w::AuthorityHold,
+    context: &super::Context,
+) -> Result<d::AuthorityHold, w::Problem> {
+    Ok(d::AuthorityHold {
+        lack: crate::generated::store::authority_lack_to_domain(value.lack, context)?,
+        had: value.had,
+        released: value.released,
+        recovery: d::AuthorityRecovery { task: value.task, spec: value.spec, hold: value.hold, tasks: value.tasks },
+    })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_below_to_record(
+    value: &d::Below,
+    _context: &super::Context,
+) -> Result<w::LandingBelow, w::Problem> {
+    Ok(encode_below(Some(*value)).expect("present below"))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn landing_below_to_domain(
+    value: w::LandingBelow,
+    _context: &super::Context,
+) -> Result<d::Below, w::Problem> {
+    Ok(decode_below(Some(value)).expect("present below"))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn change_to_record(value: &d::Change, _context: &super::Context) -> Result<w::Change, w::Problem> {
+    Ok(encode_change(value))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn change_to_domain(value: w::Change, _context: &super::Context) -> Result<d::Change, w::Problem> {
+    Ok(decode_change(value))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn llm_choice_to_record(
+    value: &jig_domain_tasks::LlmChoice,
+    _context: &super::Context,
+) -> Result<w::LlmChoice, w::Problem> {
+    Ok(encode_llm(Some(value)).expect("present choice"))
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn llm_choice_to_domain(
+    value: w::LlmChoice,
+    _context: &super::Context,
+) -> Result<jig_domain_tasks::LlmChoice, w::Problem> {
+    Ok(decode_llm(Some(value)).expect("present choice"))
+}
+
+pub(crate) fn delegate_ref_to_record(
+    value: &(u64, d::Delegate),
+    context: &super::Context,
+) -> Result<w::DelegateRef, w::Problem> {
+    Ok(w::DelegateRef { task: value.0, request: crate::generated::store::delegate_to_record(&value.1, context)? })
+}
+
+pub(crate) fn delegate_ref_to_domain(
+    value: w::DelegateRef,
+    context: &super::Context,
+) -> Result<(u64, d::Delegate), w::Problem> {
+    Ok((value.task, crate::generated::store::delegate_to_domain(value.request, context)?))
+}
+
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn route_to_record(value: &d::Route, _context: &super::Context) -> Result<w::Route, w::Problem> {
+    Ok(match value {
+        d::Route::None => w::Route::None,
+        d::Route::Up => w::Route::Up,
+    })
+}
+
+pub(crate) fn route_to_domain(value: w::Route, _context: &super::Context) -> Result<d::Route, w::Problem> {
+    match value {
+        w::Route::None => Ok(d::Route::None),
+        w::Route::Up => Ok(d::Route::Up),
+        w::Route::Retired => Err(w::paths::ROUTE_TAG.problem(skein_codec::Reason::Malformed)),
     }
 }
 
-fn encode_source(value: Option<&top::ChangeSource>) -> Option<w::ChangeSource> {
-    let value = value?;
-    Some(w::ChangeSource { branch: value.branch.clone(), at: value.at })
+#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
+pub(crate) fn stands_to_record(value: &d::Stands, _context: &super::Context) -> Result<w::Stands, w::Problem> {
+    Ok(match value {
+        d::Stands::Taken => w::Stands::Taken,
+        d::Stands::Asked => w::Stands::Asked,
+        d::Stands::Held { answer } => w::Stands::Held(w::Held { answer: answer.clone() }),
+    })
 }
-fn decode_source(value: Option<w::ChangeSource>) -> Option<top::ChangeSource> {
-    let w::ChangeSource { branch, at } = value?;
-    Some(top::ChangeSource { branch, at })
+
+pub(crate) fn stands_to_domain(value: w::Stands, _context: &super::Context) -> Result<d::Stands, w::Problem> {
+    match value {
+        w::Stands::Taken => Ok(d::Stands::Taken),
+        w::Stands::Asked => Ok(d::Stands::Asked),
+        w::Stands::Held(value) => Ok(d::Stands::Held { answer: value.answer }),
+        w::Stands::Retired => Err(w::paths::STANDS_TAG.problem(skein_codec::Reason::Malformed)),
+    }
 }

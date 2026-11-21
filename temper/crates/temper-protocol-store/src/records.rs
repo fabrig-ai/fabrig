@@ -4,6 +4,26 @@ use alloc::boxed::Box;
 use skein_codec::Record;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
+pub(crate) mod by_hand;
+
+/// Context for owner-shaped maps (skein/docs/design/data/codec/maps.md, 4.1).
+/// Piece bounds, old-log acceptance and a posting's failing IDs stay the owner's.
+/// Translations needing none of those use `UNBOUNDED`.
+pub(crate) struct Context {
+    follow_files: u32,
+    answer_name_bytes: u32,
+    logged_landing_tiers: u32,
+    posted_failures: temper_engine_domain_forge_tiers::Failures,
+}
+impl Context {
+    pub(crate) const UNBOUNDED: Self = Self {
+        follow_files: u32::MAX,
+        answer_name_bytes: w::CEILINGS.answer_name_name,
+        logged_landing_tiers: w::CEILINGS.logged_landing_tiers,
+        posted_failures: temper_engine_domain_forge_tiers::Failures::Many,
+    };
+}
+
 mod answers;
 mod api;
 mod application;

@@ -100,12 +100,12 @@ fn client_layout(source: &str, family: &str) {
 
 #[test]
 fn store_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches(
-        "temper-protocol-store-codec",
-        "store",
-        "store",
-        temper_protocol_store::OWNER_SET.families.first().expect("store family").current,
-    );
+    let source = temper_protocol_store::OWNER_SET.families.first().expect("store family").current;
+    schema_matches("temper-protocol-store-codec", "store", "store", source);
+    let maps = include_str!("../../../../crates/temper-protocol-store/schema/store.maps");
+    let translation = skein_codegen::translate(&values(source).schema, maps).expect("store maps valid");
+    let path = skein_scratch::paths::tree().join("crates/temper-protocol-store/src/generated/store.rs");
+    check_text(&path, &translation, temper_test_env::rewrite());
 }
 
 #[test]
