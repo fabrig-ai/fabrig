@@ -17,6 +17,8 @@
 //!   case, under the counting allocator (testing/simulator.md, 5), and once
 //!   settled checks that every process holds
 //!   nothing and the simulator nothing in flight;
+//! - [`inspect`]: frozen component records and shared checks for live wakes
+//!   and bounded tables, filled by each component's own inspection adapter;
 //! - [`real`]: the same processes and referee in one loop over the real
 //!   shared ring, hosting spawns over real pipes with per-service signals,
 //!   on the real clock (testing-strategy.md, 2.8).
@@ -47,6 +49,7 @@ pub mod end_to_end;
 pub mod faults;
 pub mod files;
 mod heap;
+pub mod inspect;
 mod outcome;
 use skein_sim_world::program;
 #[cfg(unix)]

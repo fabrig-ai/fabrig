@@ -2,3 +2,4 @@
 //! (`skein/docs/design/testing/sweeps.md`, 6).
 
 mod faults;
+mod inspect;

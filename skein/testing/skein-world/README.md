@@ -43,6 +43,9 @@ The `domain` module is the shared machinery of domain worlds:
 - `domain::heap`: explicit reexports of `skein-heap`'s existing `Counting`,
   `Meter` and `Measured`; there is one allocator implementation.
 
+`inspect` supplies frozen component records and shared wait and table checks,
+filled by each component's own adapter (`skein/docs/design/testing/inspection.md`).
+
 These helpers are ordinary Rust used only by tests. The world supplies
 clock values, limits and observations, bounds the work it scripts and
 checks quiescence. No helper performs IO or reads a clock.
