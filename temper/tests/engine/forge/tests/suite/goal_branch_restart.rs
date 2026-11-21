@@ -26,6 +26,7 @@ fn name() -> top::Name {
 fn before_restart() -> World {
     let mut world = World::with_entries(377, 2);
     world.adopt();
+    world.hold_task(GOAL);
     world.store_before_restart(top::Stored::Hold(top::Hold {
         name: name(),
         task: GOAL,
@@ -160,6 +161,8 @@ fn finish_making(world: &mut World) {
 #[test]
 fn a_full_outbox_delays_a_restarted_goal_making_but_not_reading_afresh() {
     let mut world = before_restart();
+    // Closing tasks stay held until their outbox entries have settled.
+    world.hold_task(ENDED);
     world.store_before_restart(top::Stored::Landing(cancelled_landing()));
     for number in [1, 2] {
         world.store_before_restart(held_dispatch(number));

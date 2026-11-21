@@ -7173,7 +7173,10 @@ dependencies = [
 name = "temper-engine-forge-world"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-tasks-kit",
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",

@@ -1,4 +1,5 @@
 use crate::translate;
+use jig_conformance::store_check::StoreChecks;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::{BTreeMap, BTreeSet};
@@ -127,6 +128,8 @@ struct Pending {
 mod follows;
 #[path = "world/history.rs"]
 mod history_reads;
+mod store_check;
+mod tasks;
 
 struct ReadScript {
     branch_error: Option<(Box<[u8]>, skein_forge::api::Error)>,
@@ -149,6 +152,9 @@ pub struct World {
     top_out: Queue<top::Request>,
     pending: Map<Token, Pending>,
     stored: Map<top::Key, top::Stored>,
+    tasks: jig_domain_tasks::Domain,
+    store_checks: StoreChecks,
+    commits: u64,
     // Index coordinates keep number/project order; reads still observe event erasure and replacement.
     history_by_change: BTreeMap<u64, BTreeSet<(u64, u32)>>,
     history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
@@ -814,6 +820,9 @@ impl World {
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
             stored: Map::with_capacity(4096),
+            tasks: tasks::domain(seed),
+            store_checks: StoreChecks::sampled(seed, store_check::ONE_IN),
+            commits: 0,
             history_by_change: BTreeMap::new(),
             history_loads: Vec::new(),
             history_page_rows: 32,
@@ -1112,6 +1121,7 @@ impl World {
     }
 
     pub fn event(&mut self, event: top::Event) {
+        self.handed_tasks(&event);
         top::step(&mut self.top, &self.env, event, &mut self.top_out);
         self.take_top();
         self.top.reclaim();
@@ -1346,7 +1356,17 @@ impl World {
     }
     pub fn restart(&mut self) {
         self.generation += 1;
-        self.top = top::Domain::new(
+        let (restored, mut output) = self.restored(&self.stored);
+        self.top = restored;
+        while let Some(request) = output.pop() {
+            self.top_out.push(request);
+        }
+        self.take_top();
+        self.connected();
+    }
+
+    fn restored(&self, stored: &Map<top::Key, top::Stored>) -> (top::Domain, Queue<top::Request>) {
+        let mut restored = top::Domain::new(
             &self.env.limits,
             self.seed,
             temper_engine_domain_forge::Config {
@@ -1371,7 +1391,7 @@ impl World {
         )
         .expect("same configured connector");
         if let Some((project, way, gates)) = &self.landing_config {
-            assert!(self.top.project_landing(
+            assert!(restored.project_landing(
                 *project,
                 *way,
                 gates.clone(),
@@ -1385,18 +1405,20 @@ impl World {
                     bound: Duration::from_millis(7_200_000),
                 },
             ));
-            assert!(self.top.project_batch(*project, self.landing_batch));
+            assert!(restored.project_batch(*project, self.landing_batch));
         }
-        let mut rows = List::with_capacity(self.stored.len());
-        for (_, record) in &self.stored {
-            rows.push(record.clone()).expect("store snapshot capacity");
+        let mut output = Queue::uncapped();
+        restored.restore_begin(self.env.wall);
+        for (_, record) in stored {
+            top::step(&mut restored, &self.env, top::Event::Restore { record: record.clone() }, &mut output);
         }
-        self.top.restore_begin(self.env.wall);
-        for record in rows.into_boxed() {
-            self.event(top::Event::Restore { record });
-        }
-        self.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        self.connected();
+        top::step(
+            &mut restored,
+            &self.env,
+            top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+            &mut output,
+        );
+        (restored, output)
     }
 
     /// Script a worker's pushed branch through the independent fake git.
@@ -1712,10 +1734,15 @@ impl World {
         true
     }
 
-    #[expect(clippy::too_many_lines, reason = "one exhaustive connector output dispatcher")]
     fn take_top(&mut self) {
+        self.try_take_top().expect("forge world store check");
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one exhaustive connector output dispatcher")]
+    fn try_take_top(&mut self) -> Result<(), String> {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
+        let mut wrote = false;
         while let Some(request) = self.top_out.pop() {
             match request {
                 top::Request::ChoosePlace { request, kind, .. } => {
@@ -1786,6 +1813,7 @@ impl World {
                             panic!("admitted projection saves only")
                         };
                         self.store_record(record);
+                        wrote = true;
                     }
                 }
                 top::Request::Save { record, release, read_afresh } => {
@@ -1798,12 +1826,14 @@ impl World {
                         self.writer_saves += 1;
                     }
                     self.store_record(record);
+                    wrote = true;
                     if let Some(entry) = release {
                         self.to_top.push((self.generation, top::Event::Committed { entry }));
                     }
                 }
                 top::Request::Erase { key } => {
                     let removed = self.erase_record(&key);
+                    wrote = true;
                     // Last rows can be replaced while loaded; release also erases an unwatched client repository.
                     if !matches!(
                         key,
@@ -1891,12 +1921,16 @@ impl World {
                 }
             }
         }
+        if wrote {
+            self.check_commit()?;
+        }
         for (call, repository, op) in calls.into_boxed() {
             self.submit(call, repository, op);
         }
         if let Some(event) = restart {
             self.event(event);
         }
+        Ok(())
     }
 
     fn submit(&mut self, call: Token, repository: skein_forge::api::Repository, op: skein_forge::api::Op) {

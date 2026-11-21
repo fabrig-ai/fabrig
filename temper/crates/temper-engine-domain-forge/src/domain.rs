@@ -44,7 +44,7 @@ mod restart_wait;
 #[path = "restore.rs"]
 mod restore;
 mod room;
-pub use restore::{RestoreFit, RestoreSet};
+pub use restore::{RestoreFit, RestoreSet, StartLink};
 #[path = "design.rs"]
 mod design;
 #[path = "written.rs"]

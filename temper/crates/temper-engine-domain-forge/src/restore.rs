@@ -1,11 +1,40 @@
 //! Configured restoration fit before linking (temper/docs/design/domain/forge/README.md, 9).
 use super::Domain;
-use crate::{CallPayload, Limits, RecordKind, Stored, What};
+use crate::{CallPayload, Key, Limits, MissingLink, RecordKind, Request, Stored, What};
 use alloc::boxed::Box;
-use skein_lib::{Map, Wall};
+use skein_lib::{Env, Map, Queue, Wall};
 pub use temper_engine_domain_forge_vocabulary::restore::*;
 
+/// The forge's half of a start's Link phase (temper/docs/design/testing/store-check.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum StartLink {
+    Row(Key),
+    Fit(RestoreFit),
+    Link(MissingLink),
+}
+
 impl Domain {
+    /// Link restored records in the same order at a root start and a store check.
+    pub fn start_links(
+        &mut self,
+        tasks: &jig_domain_tasks::Domain,
+        env: &Env<Limits>,
+        out: &mut Queue<Request>,
+    ) -> Result<(), StartLink> {
+        if let Some(key) = self.unjoined_change() {
+            return Err(StartLink::Row(key));
+        }
+        self.link_names(tasks, &env.limits);
+        self.link_tiers(tasks, &env.limits);
+        self.link_landings(tasks, env, out);
+        if let Err(failure) = self.fit_restored(&env.limits) {
+            return Err(StartLink::Fit(failure));
+        }
+        if let Some(link) = self.missing_link(tasks) {
+            return Err(StartLink::Link(link));
+        }
+        Ok(())
+    }
     /// Establish the start's single expiry observation without resetting restored state.
     pub fn restore_begin(&mut self, started: Wall) {
         if self.restore_started.is_none() {
@@ -22,15 +51,15 @@ impl Domain {
     }
     /// A change with only one part is an unreadable row (protocol/store.md, 5).
     #[must_use]
-    pub fn unjoined_change(&self) -> Option<crate::Key> {
+    pub fn unjoined_change(&self) -> Option<Key> {
         for (task, _) in &self.change_cold {
             if !self.changes.contains_key(task) && !self.change_hot.contains_key(task) {
-                return Some(crate::Key::ChangeCold(*task));
+                return Some(Key::ChangeCold(*task));
             }
         }
         for (task, _) in &self.change_hot {
             if !self.change_cold.contains_key(task) {
-                return Some(crate::Key::ChangeHot(*task));
+                return Some(Key::ChangeHot(*task));
             }
         }
         None
