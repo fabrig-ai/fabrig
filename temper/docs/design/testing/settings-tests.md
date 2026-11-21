@@ -71,7 +71,7 @@ and the resolution's followers, each once, with its kind and design):
 | a worker's workspaces and git operations | follows | its `slots` (`../protocol/configuration/derived.md`, 5.2 and 5.3) |
 | the counts that scale with `live_goals` | follows | ⌈stock × `live_goals` / 40⌉, each at most its cap (`../protocol/configuration/derived.md`, 5.4) |
 | the ties of 5.4: landing members, landings, delegates, operations, inbox tasks, exemptions | follows | their scaled side (`../protocol/configuration/derived.md`, 5.4) |
-| the brief's bytes and the journal's result bytes | set by temper | the brief's budgets (`../protocol/configuration/limits.md`) |
+| the brief's figures: the loads' read bytes against the brief's task budget, the forge's brief bytes against the loads' read bytes, the journal's result bytes against the brief's bytes, and the brief's bytes within the host part's authorised brief | follows or floor, each as the resolution and the start's checks treat it: the stock sets the brief's bytes from the host part's room, not from the sum of the brief's budgets, and each is configurable (`../protocol/configuration/limits.md`, the brief) |
 | the stop bound and a unit's stop timeout | follows | the forge client's lifetime and clock margin (`../protocol/configuration/derived.md`, 5.6) |
 | the forge's holds against its landings and their members | holds what it must | none: a landing past them is refused at its forming and its changes wait (`../domain/landing.md`, 12) |
 | the forge client's resources, entries and repositories against the forge's | holds what it must | none: a batch past either bound is refused, and a full table refuses rather than stops (`../domain/forge/keeping-up.md`) |
@@ -145,6 +145,19 @@ check would refuse.
   deciding every kind), judged by that role, are left out by that
   scenario's name and nothing broader: the other roles it is addressed
   to are judged.
+- **A proposal its addressed role can't fund** is an open problem this
+  walk found (section 7, `a_members_batch_is_addressed_to_a_role_that_can_fund_it`):
+  the address weighs only the kinds a role decides, while acceptance
+  caps a batch by the role's authority spend as well as its pool. In
+  the stock policy the owners' and maintainers' authority spend is
+  24K beside pools of 1,920K, so a member's batch one past 24K is
+  addressed to the owners and refused there; a role's pool narrowed
+  doesn't move the address either. The generated cases whose proposal
+  is past the addressed role's authority spend or pool, while within
+  the kinds it decides, are left out by that scenario's name and
+  nothing broader. Its fix, the address weighing its accepter's funding
+  or the stock roles' spend covering what they are addressed, is no
+  work of these tests: the second moves a stock figure, the user's.
 
 ## 6. Generated mutations
 
@@ -169,6 +182,23 @@ whole check and catalogue check, as settings apply runs them. A case
 whose decision differs from its row fails, naming the mutation, its
 relation and the decision it got.
 
+- **Where one mutation meets two relations:** every profile mutation
+  goes through the resolution. A source overridden alone that breaks
+  another relation of the tables (the forge client's calls, which the
+  component's connections must equal; the forge's repositories past the
+  forge client's) gets that relation's refusal, named in the case, and
+  only where that relation is a row of its own. The same source is then
+  overridden again with a companion override that keeps the other
+  relation (the connections with the calls), and that case gets its own
+  row's decision, the formula observed through the same resolution.
+- **Where one removal meets several references:** jig's whole check
+  names the first reference it meets, the policy's rules before the
+  templates. A charter's or producer's removal from the stock as it
+  ships gets the refusal the whole check gives, `Fault::Reference`
+  naming what it met first; the same removal over a copy of the stock
+  with every other reference to it cleared gets the row's decision,
+  naming the template.
+
 ## 7. The draft's open settings rows
 
 Each is an ignored scenario, its `#[ignore]` naming the work that fixes
@@ -179,6 +209,7 @@ it, run by that work's goals until they land it (the draft, 6):
 | P128 | `a_discovered_model_has_efforts` | `temper-engine-service-stock`'s step tests | a model a preset discovers from its provider's list (`gpt-6.2-sol`, as the OpenAI list gives it, with no efforts), which a template or charter can pick, has efforts in the catalogue | provider failures |
 | P59 | `a_retired_producer_is_refused_while_named` | `temper-engine-service-stock`'s step tests, through settings apply's whole check | settings apply refuses retiring a producer a stock template's work names, naming the producer and the template | provider failures |
 | P81 residual | `a_json_proposal_carries_hundredths` | `temper-client-tools`' step tests | the `--json` answer's proposed command carries a budget's amount in the unit ctl reads, hundredths as `5.00` | its own fix |
+| found by section 5's walk | `a_members_batch_is_addressed_to_a_role_that_can_fund_it` | `temper-engine-service-stock`'s step tests | a member's batch one past the owners' authority spend, in the stock policy, is addressed to a role whose acceptance passes, or refused as nobody's | the address weighing its accepter's funding |
 
 A scenario that passes when written is no open problem: it stays
 enabled, and the draft's status says its row is fixed.
