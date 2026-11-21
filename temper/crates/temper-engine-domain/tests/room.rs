@@ -1,7 +1,8 @@
 //! Brief-room admission and its diagnostic (temper/docs/design/domain/agent/tools.md).
+#![cfg(test)]
 
-use crate::room::{BRIEF_ROOM, Cost, HostPart, Measure, Short, Unfit};
 use jig_domain_tasks::Reasons;
+use temper_engine_domain::room::{BRIEF_ROOM, Cost, HostPart, Measure, Short, Unfit};
 const ZERO: Cost = Cost { rendered: 0, owned: 0, encoded: 0 };
 
 const TABLE: HostPart = HostPart {
@@ -22,7 +23,7 @@ const TABLE: HostPart = HostPart {
 
 #[test]
 fn check_requires_at_least_2048_bytes() {
-    let mut charter = crate::tests::resume_fixture::charter();
+    let mut charter = jig_test_profile::start_values::charter();
     charter.number = 7;
     let cost = TABLE.non_brief(&charter);
     let short = HostPart { bound: Some(cost + BRIEF_ROOM - 1), ..TABLE };
@@ -38,7 +39,7 @@ fn check_requires_at_least_2048_bytes() {
 
 #[test]
 fn parts_include_their_join_and_the_joined_text_ending() {
-    let mut charter = crate::tests::resume_fixture::charter();
+    let mut charter = jig_test_profile::start_values::charter();
     charter.policy.instructions = Box::new([]);
     let empty = TABLE.non_brief(&charter);
     charter.parts = Box::new([
@@ -68,7 +69,7 @@ fn short_names_the_charter_room_and_bound() {
 
 #[test]
 fn the_table_counts_only_enabled_families_and_saturates() {
-    let mut charter = crate::tests::resume_fixture::charter();
+    let mut charter = jig_test_profile::start_values::charter();
     charter.policy.instructions = Box::new([]);
     charter.policy.inspect = false;
     charter.policy.modify = false;
@@ -88,8 +89,8 @@ fn the_table_counts_only_enabled_families_and_saturates() {
     assert_eq!(huge.room(&charter), 0);
 }
 
-fn fixed_charter() -> crate::Charter {
-    let mut charter = crate::tests::resume_fixture::charter();
+fn fixed_charter() -> temper_engine_domain::Charter {
+    let mut charter = jig_test_profile::start_values::charter();
     charter.number = 5;
     charter.policy.instructions = b"base".as_slice().into();
     charter.policy.model.name = b"main".as_slice().into();
@@ -134,7 +135,7 @@ fn fixed_ownership_precedes_encoding_and_fixed_precedes_rendered() {
     let charter = fixed_charter();
     let host = HostPart { allowance: 13, bound: Some(0), fixed: Cost { owned: 2, encoded: 50, ..ZERO }, ..TABLE };
     let owned = Unfit { charter: 5, wake: Reasons::FIRST, measure: Measure::Owned, bytes: 14, allowance: 13, floor: 0 };
-    assert_eq!(host.check(&charter), Err(crate::room::Refusal::Fixed(owned)));
+    assert_eq!(host.check(&charter), Err(temper_engine_domain::room::Refusal::Fixed(owned)));
     let encoded = HostPart { allowance: 14, ..host }.check_fixed(&charter).unwrap_err();
     assert_eq!(encoded, Unfit { bytes: 62, allowance: 14, measure: Measure::Encoded, ..owned });
 }
