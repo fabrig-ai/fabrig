@@ -145,6 +145,12 @@ cpu_s = 7
 [gate.default.skein.end-to-end]
 cpu_s = 4
 
+[[gate.default.moves]]
+from = "skein.real-loop"
+to = "skein.simulated"
+cpu_s = 3.7
+why = "skein-echo-world, skein-fake-peers-tests, skein-kv-tests, skein-oauth-accounts-world and skein-world-tests' replaying tests left their real-loop suites for simulated binaries (tools/tiers/layers.md, 6.1)."
+
 [gate.default.smith]
 ideal_s = 30
 
@@ -386,6 +392,12 @@ cpu_s = 20
 
 [gate.fuzzy.skein.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "skein.real-loop"
+to = "skein.simulated"
+cpu_s = 17.6
+why = "skein-echo-world, skein-fake-peers-tests, skein-kv-tests, skein-oauth-accounts-world and skein-world-tests' replaying fuzzy sweeps left their real-loop suites for simulated binaries (tools/tiers/layers.md, 6.1)."
 
 [gate.fuzzy.smith]
 ideal_s = 120

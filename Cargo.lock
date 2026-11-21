@@ -3620,6 +3620,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-fake-peers-kit"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
+ "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
+ "skein-fake-peers",
+ "skein-forge",
+ "skein-http",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-kit",
+ "skein-shell",
+ "skein-sim",
+]
+
+[[package]]
 name = "skein-fake-peers-tests"
 version = "0.0.0"
 dependencies = [
@@ -3632,6 +3652,7 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
  "skein-fake-peers",
+ "skein-fake-peers-kit",
  "skein-fake-push",
  "skein-forge",
  "skein-forge-connection",
