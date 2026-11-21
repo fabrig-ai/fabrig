@@ -495,7 +495,10 @@ a store sit) is the one the worker's inspection adapter reads
 - **packs:** each fetch into a store leaves a pack in it, and each check
   out's and merge's fetch of contents one in its repository; a `Pack`
   leaves one pack in each place it names that held more than 50
-  (`../protocol/git.md`, 4.14).
+  (`../protocol/git.md`, 4.14). A pack is a file
+  `objects/pack/pack-<n>.pack`, `<n>` the place's next number in
+  decimal, in the place's git directory: the store's own directory, or
+  the repository's `.git`.
 
 The git protocol world's io, below the git component, can mark a path
 that refuses every removal (`worker.md`, 3.3). skein's fake machine

@@ -33,16 +33,18 @@ pub const KINDS: &[&str] = &[
 /// `Inspection::new(COMPONENT, KINDS)`.
 pub fn inspection() -> Inspection;
 /// The whole worker: `inspect_root`, `inspect_checkout` over `domain.checkout()`, and `inspect_disk`.
-pub fn inspect(domain: &temper_worker_domain::Domain, disk: &skein_fake_checkout::Checkout, into: &mut Inspection);
+pub fn inspect(domain: &temper_worker_domain::Domain, limits: &temper_worker_domain::Limits, disk: &skein_fake_checkout::Checkout, into: &mut Inspection);
 /// The root's run slots.
-pub fn inspect_root(domain: &temper_worker_domain::Domain, into: &mut Inspection);
+pub fn inspect_root(domain: &temper_worker_domain::Domain, limits: &temper_worker_domain::Limits, into: &mut Inspection);
 /// The checkout child: its holds' waits, its workspaces and its prepare permits.
-pub fn inspect_checkout(checkout: &temper_worker_domain_checkout::Domain, into: &mut Inspection);
+pub fn inspect_checkout(checkout: &temper_worker_domain_checkout::Domain, limits: &temper_worker_domain_checkout::Limits, into: &mut Inspection);
 /// What the fake disk holds for the checkout: per-run scratch, packs and git's locks.
-pub fn inspect_disk(checkout: &temper_worker_domain_checkout::Domain, disk: &skein_fake_checkout::Checkout, into: &mut Inspection);
+pub fn inspect_disk(checkout: &temper_worker_domain_checkout::Domain, limits: &temper_worker_domain_checkout::Limits, disk: &skein_fake_checkout::Checkout, into: &mut Inspection);
 /// The git component's trash, with its entries as the world lists them beneath `trash/`.
 pub fn inspect_trash(component: &temper_worker_protocol_git::Component, trash: &[&[u8]], into: &mut Inspection);
 ```
+
+- **The limits** are those the world steps the domain with: a domain reads some of them from each step's `Env` rather than keeping them (`checkout.preparations`), so a table's capacity comes from them.
 
 - **Its fault kinds** are the kit's too, so every worker world names them alike (section 3.5).
 - **The fake disk's layout** (where a workspace, a repository and a store sit on the fake checkout) is the domain-face fake's, which the worlds' translation writes (`fakes.md`, 3). The adapter reads it from the one place that writes it, never from a copy.
@@ -67,7 +69,7 @@ A check waiting for a build place is no wait of the worker's. Build places are t
 | workspaces | `checkout.workspaces` | each cached workspace, `workspace <t>` | its hold's release | `Pending` while a live hold holds it; `Kept` while idle, kept for its workstream until its slot is taken; `Due` while a hold that has ended still holds it |
 | prepare permits | `checkout.preparations` | each active prepare, `hold <h>`; each queued prepare `Refused` since it was queued, with no bound | the prepare's settling | `Pending`; `Due` once the prepare has settled and still holds its permit |
 | per-run scratch | `checkout.workspaces` × `checkout.repositories` | each repository's run `.git` on the fake disk (the run's view, and what its commands and checks write there: `../protocol/git.md`, 4.13), `workspace <t> <repository>` | the workspace's release | `Pending` while its workspace is cached; `Due` when no cached workspace has its token |
-| Git stores' packs | 2 × `checkout.workspaces` × `checkout.repositories` | each store and each workspace repository holding packs on the fake disk, `store <s>` or `workspace <t> <repository>` | the packing its own count triggers (`../domain/worker/checkouts.md`, *Kept packed*) | `Pending` at 75 packs or fewer; `Due` above 75, past the most a place holds between two counts |
+| Git stores' packs | 2 × `checkout.workspaces` × `checkout.repositories` | each store and each workspace repository holding packs on the fake disk (`fakes.md`, 3), `store <s>` or `workspace <t> <repository>` | the packing its own count triggers (`../domain/worker/checkouts.md`, *Kept packed*) | `Pending` at 75 packs or fewer; `Due` above 75, past the most a place holds between two counts |
 | git's locks | none: `u64::MAX` | each `*.lock` on the fake disk beneath a workspace or a store's `refs/temper/<t>`, keyed by its path | the workspace's making again (`../protocol/git.md`, 4.1 and 7, *Kill at once*) | `Pending` while its workspace is untrusted or not cached; `Due` while the checkout trusts the workspace it belongs to |
 | run slots | the hub's slots | each hosted run, `run <r> attempt <a>` | the run's end, its answer acknowledged | `Pending` |
 | trash | none: `u64::MAX`, since `../protocol/git.md`, 8 bounds trash by what it took, not by a count | each entry beneath `trash/`, `trash/<n>` | the sweep (`../protocol/git.md`, 4.1) | `Pending` while a pass runs or is due, and after a pass that ended at a refused removal, its failure counted, which leaves what it hadn't reached for the next pass; `Due` once no pass runs or is due, the last ended with no failure, and the entry is still there |

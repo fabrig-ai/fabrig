@@ -539,8 +539,10 @@ landing's or a change's wait and a task's resolve across inspections.
     system world's.
 - **The worker's,** `temper/testing/temper-worker-inspect`:
   `temper_worker_inspect::inspect(domain: &temper_worker_domain::Domain,
-  disk: &skein_fake_checkout::Checkout, into: &mut Inspection)`,
-  component `worker`: the domain's workspaces and the world's fake disk,
+  limits: &temper_worker_domain::Limits, disk:
+  &skein_fake_checkout::Checkout, into: &mut Inspection)`, component
+  `worker`: the domain's workspaces and the world's fake disk, the limits
+  the world steps it with giving the tables' capacities,
   with a function for each part a world holds alone, the checkout child,
   the fake disk and the git component's trash (`worker.md`, 2).
   - **Waits:** a prepare queued for a permit or waiting for another's
