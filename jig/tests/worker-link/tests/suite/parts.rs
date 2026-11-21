@@ -13,17 +13,39 @@ fn parts_are_requested_and_sent_only_at_twenty_two_and_acknowledged_back() {
         let mut assignment = fixtures::assignment();
         assignment.assignment.charter = super::translation::charter(1);
         assignment.turns = Box::new([]);
-        world.engine_down(host::LinkDown::Assign { assignment }, fixtures::assignment_parts(), crate::joined_world::values());
+        world.engine_down(
+            host::LinkDown::Assign { assignment },
+            fixtures::assignment_parts(),
+            crate::joined_world::values(),
+        );
         world.run();
-        let Request::Down { down: host::LinkDown::Assign { assignment }, .. } = world.worker_root.last().expect("assignment") else { panic!("assignment") };
+        let Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
+            world.worker_root.last().expect("assignment")
+        else {
+            panic!("assignment")
+        };
         assert_eq!(assignment.tell_parts, version == 22);
         assert!(assignment.parts.is_empty());
         let before = world.worker_records().len();
-        let body = super::translation::golden(smith_transcript::patches::kept::smith_transcript::TEXTS.last().unwrap(), "record_turn_smallest");
-        world.worker_up(host::LinkUp::Part {
-            run: fixtures::RUN_SEVEN, attempt: fixtures::ATTEMPT_TWO,
-            part: jig_domain_link::Part { number: 3, turn: 1, thread: 0, call: 4, kind: jig_domain_link::PartKind::Answer, body },
-        }, Box::new([]));
+        let body = super::translation::golden(
+            smith_transcript::patches::kept::smith_transcript::TEXTS.last().unwrap(),
+            "record_turn_smallest",
+        );
+        world.worker_up(
+            host::LinkUp::Part {
+                run: fixtures::RUN_SEVEN,
+                attempt: fixtures::ATTEMPT_TWO,
+                part: jig_domain_link::Part {
+                    number: 3,
+                    turn: 1,
+                    thread: 0,
+                    call: 4,
+                    kind: jig_domain_link::PartKind::Answer,
+                    body,
+                },
+            },
+            Box::new([]),
+        );
         world.run();
         if version == 22 {
             assert_eq!(world.worker_records().get(before..), Some([wire::Kind::Part.number()].as_slice()));

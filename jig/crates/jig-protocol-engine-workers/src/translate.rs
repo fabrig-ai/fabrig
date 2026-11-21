@@ -190,10 +190,15 @@ pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
         Up::Source(up) => up,
         Up::ListRead(record) => host::LinkUp::ListRead { read: record.read, outcome: list_outcome(record.outcome) },
         Up::Part(record) => host::LinkUp::Part {
-            run: Token::new(record.task), attempt: Token::new(record.attempt),
+            run: Token::new(record.task),
+            attempt: Token::new(record.attempt),
             part: jig_domain_link::Part {
-                number: record.number, turn: record.turn, thread: record.thread, call: record.call,
-                kind: part_kind_up(record.kind), body: record.body,
+                number: record.number,
+                turn: record.turn,
+                thread: record.thread,
+                call: record.call,
+                kind: part_kind_up(record.kind),
+                body: record.body,
             },
         },
         Up::Turn(record) => turn(record),
@@ -849,10 +854,16 @@ fn assignment_record(
     let transcript = transcript(&assignment.turns, limits.assignment_transcript)?;
     let mut kept_parts = List::with_capacity(u32::try_from(assignment.parts.len()).expect("bounded kept parts"));
     for part in assignment.parts {
-        kept_parts.push(wire::KeptPart {
-            attempt: part.attempt, turn: part.turn, thread: part.thread, call: part.call,
-            kind: part_kind_down(part.kind), body: part.body,
-        }).expect("one slot per kept part");
+        kept_parts
+            .push(wire::KeptPart {
+                attempt: part.attempt,
+                turn: part.turn,
+                thread: part.thread,
+                call: part.call,
+                kind: part_kind_down(part.kind),
+                body: part.body,
+            })
+            .expect("one slot per kept part");
     }
     let kept_parts = match wire::parts::encode(kept_parts.as_slice(), limits) {
         Ok(parts) => parts,

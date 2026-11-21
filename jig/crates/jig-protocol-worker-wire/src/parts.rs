@@ -15,8 +15,11 @@ pub fn encode(parts: &[wire::KeptPart], limits: &wire::Limits) -> Result<Box<[u8
     }
     let mut length = 0_u32;
     for part in parts {
-        length = length.checked_add(part.measure(limits)?).ok_or(path.problem(Reason::Bound))?
-            .checked_add(4).ok_or(path.problem(Reason::Bound))?;
+        length = length
+            .checked_add(part.measure(limits)?)
+            .ok_or(path.problem(Reason::Bound))?
+            .checked_add(4)
+            .ok_or(path.problem(Reason::Bound))?;
     }
     if length > limits.assignment_parts.min(wire::CEILINGS.assignment_parts) {
         return Err(path.problem(Reason::Bound));

@@ -197,7 +197,8 @@ fn turns_stay_in_the_host_until_their_own_ack_and_credit_returns() {
             assignment,
             turns: Box::new([]),
             answered: Box::new([]),
-            parts: Box::new([]), tell_parts: false,
+            parts: Box::new([]),
+            tell_parts: false,
         },
     }));
     let [Request::Agent(crate::ToAgent::Start { owner, start })] = &*requests else {
@@ -531,7 +532,14 @@ mod fixtures {
     }
     pub fn assign(assignment: RunAssignment) -> Event {
         Event::Down(LinkDown::Assign {
-            assignment: Assignment { messages: Box::new([]), assignment, turns: Box::new([]), answered: Box::new([]), parts: Box::new([]), tell_parts: false },
+            assignment: Assignment {
+                messages: Box::new([]),
+                assignment,
+                turns: Box::new([]),
+                answered: Box::new([]),
+                parts: Box::new([]),
+                tell_parts: false,
+            },
         })
     }
     pub fn inbound(run: Token, attempt: Token, name: Token, words: Box<[u8]>) -> Event {
@@ -1317,12 +1325,18 @@ fn a_part_is_acknowledged_to_its_agent_without_retaining_or_relaying() {
     let mut h = Harness::new();
     let (owner, _, agent) = h.live(1);
     let part = jig_domain_link::Part {
-        number: 1, turn: 1, thread: 2, call: 3, kind: jig_domain_link::PartKind::Result,
+        number: 1,
+        turn: 1,
+        thread: 2,
+        call: 3,
+        kind: jig_domain_link::PartKind::Result,
         body: b"opaque".as_slice().into(),
     };
     assert!(h.step(Event::Agent(crate::FromAgent::Part { owner: Token::new(999), part: part.clone() })).is_empty());
-    assert_eq!(h.step(Event::Agent(crate::FromAgent::Part { owner, part })).as_ref(),
-        &[Request::Agent(crate::ToAgent::AcknowledgePart { agent, number: 1 })]);
+    assert_eq!(
+        h.step(Event::Agent(crate::FromAgent::Part { owner, part })).as_ref(),
+        &[Request::Agent(crate::ToAgent::AcknowledgePart { agent, number: 1 })]
+    );
     assert_eq!(h.domain.retained_turns(), 0);
     assert_eq!(h.domain.kept_answers(), 0);
 }

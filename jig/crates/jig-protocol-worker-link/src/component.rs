@@ -309,7 +309,10 @@ impl Component {
             Phase::Open { proved, ref connection, .. } => crate::connection::earlier(proved, connection.next()),
             Phase::Connecting => None,
         };
-        crate::connection::earlier(crate::connection::earlier(phase, crate::connection::earlier(self.busy.next(), self.part_busy.next())), self.grace.next())
+        crate::connection::earlier(
+            crate::connection::earlier(phase, crate::connection::earlier(self.busy.next(), self.part_busy.next())),
+            self.grace.next(),
+        )
     }
     #[must_use]
     pub fn dropped_facts(&self) -> u64 {
@@ -369,7 +372,7 @@ impl Component {
             Phase::Closing { retry, .. } => retry,
             Phase::Open { connection, .. } => {
                 self.busy.clear();
-        self.part_busy.clear();
+                self.part_busy.clear();
                 self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 out.push(Request::Lost);
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
@@ -434,8 +437,13 @@ impl Component {
         let up = match up {
             host::LinkUp::Part { run, attempt, part } => {
                 let Some(connection) = self.phase.connection() else { return };
-                if self.schema.version(connection.version).expect("agreed version")
-                    .kind(wire::Kind::Part.number()).is_none() {
+                if self
+                    .schema
+                    .version(connection.version)
+                    .expect("agreed version")
+                    .kind(wire::Kind::Part.number())
+                    .is_none()
+                {
                     return;
                 }
                 host::LinkUp::Part { run, attempt, part }
@@ -842,8 +850,12 @@ impl Component {
                 let forward = match &mut down {
                     host::LinkDown::Assign { assignment } => {
                         let version = self.phase.connection().expect("received on a channel").version;
-                        assignment.tell_parts = self.schema.version(version).expect("agreed version")
-                            .kind(wire::Kind::Part.number()).is_some();
+                        assignment.tell_parts = self
+                            .schema
+                            .version(version)
+                            .expect("agreed version")
+                            .kind(wire::Kind::Part.number())
+                            .is_some();
                         true
                     }
                     host::LinkDown::Relayed { run, attempt, call, .. } => self.relays.end(*run, *attempt, call),
@@ -988,7 +1000,7 @@ impl Component {
         self.phase = match phase {
             Phase::Open { mut connection, .. } => {
                 self.busy.clear();
-        self.part_busy.clear();
+                self.part_busy.clear();
                 self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 connection.quiet();
                 connection.stall = None;

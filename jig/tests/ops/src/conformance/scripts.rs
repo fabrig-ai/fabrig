@@ -176,7 +176,7 @@ impl Agents {
                     agent.ready = true;
                 }
             }
-            host::ToAgent::Drain { agent: owner } | host::ToAgent::Cancel { agent: owner } => {
+            host::ToAgent::Drain { agent: owner, grace: _ } | host::ToAgent::Cancel { agent: owner } => {
                 if let Some(agent) = self.live.remove(&owner) {
                     if !agent.finished {
                         out.push(host::FromAgent::Finished {
@@ -190,7 +190,10 @@ impl Agents {
                     out.push(host::FromAgent::Gone { owner, detail: Box::new([]) });
                 }
             }
-            host::ToAgent::Acknowledge { .. } | host::ToAgent::Renewals { .. } | host::ToAgent::Grant { .. } => {}
+            host::ToAgent::Acknowledge { .. }
+            | host::ToAgent::AcknowledgePart { .. }
+            | host::ToAgent::Renewals { .. }
+            | host::ToAgent::Grant { .. } => {}
         }
         out.into_iter().map(|report| Input::Event(root::Event::Agent(report))).collect()
     }

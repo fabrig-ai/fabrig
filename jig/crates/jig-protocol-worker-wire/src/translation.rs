@@ -210,7 +210,9 @@ impl Translation {
         }
         // A kept window's turns carry their own versions, even on a current link.
         !(self.transcript.first() < self.transcript.current()
-            && (kind == crate::Kind::Turn.number() || kind == crate::Kind::Part.number() || kind == crate::Kind::Assignment.number()))
+            && (kind == crate::Kind::Turn.number()
+                || kind == crate::Kind::Part.number()
+                || kind == crate::Kind::Assignment.number()))
     }
 
     fn application_total(&mut self, wire: &Agreed) -> bool {

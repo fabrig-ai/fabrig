@@ -1352,6 +1352,7 @@ fn core_now(
             let budget = run.budget;
             let brief = domain.hub_link.take_brief(task).expect("completed brief parts");
             let assignment = jig_domain_hub_link::Assignment {
+                parts: Box::new([]),
                 charter,
                 live,
                 task,

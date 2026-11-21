@@ -116,14 +116,17 @@ impl State {
                 }
                 Vec::new()
             }
-            host::ToAgent::Drain { agent } | host::ToAgent::Cancel { agent } => {
+            host::ToAgent::Drain { agent, grace: _ } | host::ToAgent::Cancel { agent } => {
                 if let Some(worker) = self.workers.remove(&agent) {
                     self.spent += worker.actual_spent;
                     self.acknowledged += worker.turn_acks;
                 }
                 vec![Input::Event(root::Event::Agent(host::FromAgent::Gone { owner: agent, detail: Box::new([]) }))]
             }
-            host::ToAgent::Renewals { .. } | host::ToAgent::Grant { .. } | host::ToAgent::Answer { .. } => Vec::new(),
+            host::ToAgent::AcknowledgePart { .. }
+            | host::ToAgent::Renewals { .. }
+            | host::ToAgent::Grant { .. }
+            | host::ToAgent::Answer { .. } => Vec::new(),
         }
     }
     pub(super) fn poll(&mut self, clock: Clock) -> Inputs {

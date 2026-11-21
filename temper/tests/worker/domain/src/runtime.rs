@@ -537,6 +537,8 @@ impl World {
             },
         };
         let assignment = host::Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
             messages: Box::new([]),
             turns: Box::new([protocol::transcript_turn(1, crate::TURN_TEXT, true)]),
             answered: Box::new([]),

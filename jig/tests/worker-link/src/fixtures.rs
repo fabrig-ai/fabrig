@@ -494,7 +494,8 @@ pub fn grant(form: Form) -> Grant {
 #[must_use]
 pub fn assignment() -> host::Assignment {
     host::Assignment {
-        parts: Box::new([]), tell_parts: false,
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             run: RUN_SEVEN,
             attempt: ATTEMPT_TWO,

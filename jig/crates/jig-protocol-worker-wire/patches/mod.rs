@@ -112,7 +112,7 @@ owner jig 11
 family jig-worker-wire 20 to 21
 add Hello.fresh bool false
 ",
-    r"patch 1
+    r#"patch 1
 owner jig 12
 
 family jig-worker-wire 21 to 22
@@ -126,7 +126,8 @@ add FromWorker.part
 add FromEngine.part_kept
 add FromEngine.part_busy
 down written Assignment
-",
+refuses parts "an older worker starts from its window, without parts"
+"#,
 ];
 
 pub mod kept {
@@ -14003,7 +14004,12 @@ enum FromEngine {
     }
 }
 
-pub mod refusal {}
+pub mod refusal {
+    pub mod p0012 {
+        use skein_codec::patch::RefusalIx;
+        pub const PARTS: RefusalIx = RefusalIx::new(0);
+    }
+}
 
 pub fn written(site: Site, old: &Old, new: &mut Build, at: Node, cx: &mut Context) -> Result<(), Halt> {
     match site.patch() {

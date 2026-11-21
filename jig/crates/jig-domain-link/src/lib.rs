@@ -45,7 +45,11 @@ pub enum PauseState {
 
 /// A turn part's kind (jig/docs/design/domain/hosts/hub.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum PartKind { Answer, Result, Window }
+pub enum PartKind {
+    Answer,
+    Result,
+    Window,
+}
 
 /// A numbered part told within one attempt (domain/hosts/hub.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

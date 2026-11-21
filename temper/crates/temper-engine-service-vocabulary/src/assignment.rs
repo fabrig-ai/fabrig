@@ -137,7 +137,8 @@ pub fn down(
         channel,
         down: host::LinkDown::Assign {
             assignment: host::Assignment {
-                parts: Box::new([]), tell_parts: false,
+                parts: Box::new([]),
+                tell_parts: false,
                 messages: messages(assignment.task, &assignment.messages),
                 assignment: host::RunAssignment {
                     identity,

@@ -105,11 +105,15 @@ fn largest_roots_stay_within_decoded_bounds() {
             agents_profile,
             agents_endpoints,
             figures_limits,
+            part_body,
+            kept_part_body,
+            assignment_parts,
         ],
         roots [
             Credential,
+            KeptPart,
             FromWorker => (288_227_333, 290_914_304),
-            FromEngine => (2_351_596_230, 2_351_680_512),
+            FromEngine => (2_485_813_962, 2_485_898_240),
         ]
     );
 }

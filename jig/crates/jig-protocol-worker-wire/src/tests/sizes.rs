@@ -11,7 +11,7 @@ fn the_largest_turn_kept_body_is_twenty_bytes() {
 
 #[test]
 fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
-    // Assignment342, message65, relayed58, kept20, ack16, cancel16, grants2*73;
+    // Assignment362, message65, relayed58, kept20, ack16, cancel16, grants2*73;
     // eight frame headers add64:350+73+66+28+24+24+162=727.
     // Sources84 + two checks44 + two sign-outs44 add260 and five frames.
     // One read list (read8 + endpoint4 + grant57 + header8) adds77 and one frame.
@@ -19,7 +19,7 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
     // Figures adds its fixed schema bound 10,062,736 + header8 and one frame.
     // Two application answers: 2 * (24 + tag1 + length4 + bytes16 + header8) =106.
     // ReadUsage (read8 + source36 + header8) adds52 and one frame.
-    assert_eq!(engine_cap(&SIZES_ONE_SLOT), Some(Cap { bytes: 10_064_586, frames: 19 }));
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT), Some(Cap { bytes: 10_064_606, frames: 19 }));
 }
 
 #[test]
@@ -55,9 +55,9 @@ fn the_largest_turn_body_matches_a_measured_fullest_turn() {
 fn the_largest_assignment_body_matches_a_measured_fullest_assignment() {
     let assignment = fixtures::fullest_assignment();
     // Fixed32 + workspace29 + save1 + live3 + charter20 + transcript20 + calls66
-    // + messages53 + grants118 =342 (two full program names).
-    assert_eq!(assignment.measure(&crate::CEILINGS).expect("record within limits"), 342);
-    assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(342));
+    // + messages53 + grants118 + parts20 =362 (two full program names).
+    assert_eq!(assignment.measure(&crate::CEILINGS).expect("record within limits"), 362);
+    assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(362));
 }
 
 #[test]

@@ -50,6 +50,9 @@ pub const LIMITS: v22::Limits = v22::Limits {
     hello_hosting: 2,
     turn_refused: 2,
     turn_body: 32,
+    part_body: 32,
+    kept_part_body: 32,
+    assignment_parts: 32,
     call_name: 16,
     call_tool: 16,
     call_input: 32,
@@ -435,7 +438,7 @@ pub fn fullest_assignment() -> crate::Assignment {
         answered,
         messages,
         grants: fullest_grants(&limits),
-        parts: Box::new([]),
+        parts: full_bytes(),
     }
 }
 

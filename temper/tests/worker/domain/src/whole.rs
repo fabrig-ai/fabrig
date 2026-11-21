@@ -265,7 +265,8 @@ impl World {
                 assert_eq!(input.as_ref(), b"{}");
                 assert!(self.call.replace(call).is_none());
             }
-            host::LinkUp::UsageRead { .. }
+            host::LinkUp::Part { .. }
+            | host::LinkUp::UsageRead { .. }
             | host::LinkUp::ListRead { .. }
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
@@ -815,6 +816,8 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
         },
     };
     let assignment = host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),

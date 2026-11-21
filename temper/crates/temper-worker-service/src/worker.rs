@@ -657,6 +657,7 @@ impl Worker {
                     self.io.push(io::Request::Abort { entity });
                 }
             }
+            link::Request::ResendPart { .. } => {}
             link::Request::Closed => self.closed = true,
             link::Request::Refused { reason, text } => {
                 self.notes.push(crate::worker_alone::Note::OpeningRefused { reason, text });

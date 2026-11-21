@@ -11,9 +11,9 @@ fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
 
-// Wire 20 has seventeen up records and nineteen down records.
-const UP_KINDS: u32 = 17;
-const DOWN_KINDS: u32 = 19;
+// Wire 22 has eighteen up records and twenty-one down records.
+const UP_KINDS: u32 = 18;
+const DOWN_KINDS: u32 = 21;
 const CHANNEL_KINDS: u32 = UP_KINDS + DOWN_KINDS;
 fn hello_terms(largest: u32) -> List<Term> {
     let mut terms = List::with_capacity(UP_KINDS);
@@ -40,6 +40,7 @@ fn hello_terms(largest: u32) -> List<Term> {
         // UsageRead: read8 + outcome1 + count4 + eight windows of59.
         (0x010f, 485),
         (0x0110, 1),
+        (0x0111, 69), // Part: six numbers, kind, and bounded body.
     ] {
         terms.push(Term { kind, largest }).expect("one term per up kind");
     }
@@ -50,7 +51,7 @@ fn down_terms() -> List<Term> {
     let mut terms = List::with_capacity(DOWN_KINDS);
     // Independently summed from field widths and the fixture limits.
     for (kind, largest) in [
-        (0x0180, 567),
+        (0x0180, 603),
         (0x0181, 81),
         (0x0182, 74),
         (0x0183, 20),
@@ -69,6 +70,8 @@ fn down_terms() -> List<Term> {
         (0x0190, 10_062_736),
         (0x0191, 44), // ReadUsage: read8 + source name36.
         (0x0192, 1),
+        (0x0193, 20),
+        (0x0194, 20),
     ] {
         terms.push(Term { kind, largest }).expect("one term per down kind");
     }

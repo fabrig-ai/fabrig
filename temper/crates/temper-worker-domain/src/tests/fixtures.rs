@@ -123,7 +123,8 @@ pub fn assignment(workspace: bool, grants: Box<[Grant]>) -> host::Assignment {
     let workspace =
         if workspace { Some(host::Workspace { workstream: WORKSTREAM, items: Token::new(0) }) } else { None };
     host::Assignment {
-        parts: Box::new([]), tell_parts: false,
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),

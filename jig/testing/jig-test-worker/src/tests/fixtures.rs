@@ -110,6 +110,8 @@ pub fn charter_value() -> smith::Charter {
 
 pub fn assignment(charter: Box<[u8]>) -> host::Assignment {
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),

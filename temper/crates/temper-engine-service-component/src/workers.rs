@@ -320,6 +320,9 @@ impl Workers {
                     kit::Bound::Translation { .. } => match unsent.kind {
                         jig_protocol_worker_wire::Kind::Assignment | jig_protocol_worker_wire::Kind::Job => {}
                         jig_protocol_worker_wire::Kind::Hello
+                        | jig_protocol_worker_wire::Kind::Part
+                        | jig_protocol_worker_wire::Kind::PartKept
+                        | jig_protocol_worker_wire::Kind::PartBusy
                         | jig_protocol_worker_wire::Kind::Turn
                         | jig_protocol_worker_wire::Kind::Call
                         | jig_protocol_worker_wire::Kind::Answer
@@ -458,6 +461,7 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
         | host::LinkUp::Usage { .. }
         | host::LinkUp::Limited { .. }
         | host::LinkUp::AccountRefused { .. }
+        | host::LinkUp::Part { .. }
         | host::LinkUp::Turn { .. }
         | host::LinkUp::Ask { .. }
         | host::LinkUp::Call { .. } => (None, None),

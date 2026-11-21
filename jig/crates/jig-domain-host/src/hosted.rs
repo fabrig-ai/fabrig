@@ -1381,9 +1381,16 @@ fn refused(assignment: &RunAssignment, refusal: Refusal, _runtime: &Runtime, out
 pub(crate) fn parted(domain: &Hub, owner: Token, number: u32, out: &mut Queue<Request>) {
     let Some(entry) = domain.hosted.get(Id::<Hosted>::from_token(owner)) else { return };
     let agent = match entry.state {
-        State::Active { agent, .. } | State::Waiting { agent, .. } | State::Stopping { agent, gone: false, .. } => agent,
-        State::Preparing { .. } | State::Cancelling { .. } | State::Starting { .. } | State::Unwanted { .. }
-        | State::Stopping { gone: true, .. } | State::Saving { .. } | State::Closed => return,
+        State::Active { agent, .. } | State::Waiting { agent, .. } | State::Stopping { agent, gone: false, .. } => {
+            agent
+        }
+        State::Preparing { .. }
+        | State::Cancelling { .. }
+        | State::Starting { .. }
+        | State::Unwanted { .. }
+        | State::Stopping { gone: true, .. }
+        | State::Saving { .. }
+        | State::Closed => return,
     };
     out.push(Request::Agent(crate::ToAgent::AcknowledgePart { agent, number }));
 }

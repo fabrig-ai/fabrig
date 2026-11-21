@@ -1438,6 +1438,7 @@ impl World {
                     | host::LinkUp::Usage { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
+                    | host::LinkUp::Part { .. }
                     | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::Ask { .. }
                     | host::LinkUp::Answer { .. } => {}

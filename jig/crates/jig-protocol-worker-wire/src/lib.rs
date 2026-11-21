@@ -29,7 +29,7 @@ pub mod sizes;
 
 pub mod fit;
 pub mod parts;
-pub use v22::{PartBusy, PartKept, PartKind, KeptPart};
+pub use v22::{KeptPart, PartBusy, PartKept, PartKind};
 
 #[cfg(test)]
 mod tests;

@@ -398,7 +398,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
             LinkDown::AssignJob { job } => crate::jobs::assign(domain, env, job, out),
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
-            LinkDown::PartKept { .. } => {},
+            LinkDown::PartKept { .. } => {}
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),
             LinkDown::Pause { mode } => pause(domain, mode, out),

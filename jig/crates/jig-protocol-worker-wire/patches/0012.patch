@@ -12,3 +12,4 @@ add FromWorker.part
 add FromEngine.part_kept
 add FromEngine.part_busy
 down written Assignment
+refuses parts "an older worker starts from its window, without parts"
