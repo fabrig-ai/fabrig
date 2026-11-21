@@ -1,3 +1,5 @@
+#[path = "root_routes/deadlines.rs"]
+mod deadlines;
 #[path = "root_routes/milestones.rs"]
 mod milestones;
 #[path = "root_routes/parts.rs"]
@@ -1415,7 +1417,15 @@ fn batch_fixture_custom(
     person: bool,
 ) -> (Driver, engine::Assignment) {
     let (configuration, bounds) = batch_settings(slots, depth, pool_budget, second_owner, procedure, person);
-    let mut driver = Driver::configured(Store::new(), configuration, &bounds);
+    batch_driver(configuration, &bounds, slots)
+}
+
+fn batch_driver(
+    configuration: [engine::Config; 2],
+    bounds: &engine::Limits,
+    slots: u32,
+) -> (Driver, engine::Assignment) {
+    let mut driver = Driver::configured(Store::new(), configuration, bounds);
     driver.send(hello_with(Token::new(7), slots, Duration::from_secs(1), Box::new([])));
     driver.settle();
     driver.sign_in();

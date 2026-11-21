@@ -129,21 +129,6 @@ pub enum Read {
     RedRootsEnded,
     RedRootsPending,
     RedUpdatedReviewEnded,
-    // Act 3, step 6.7 (testing/reference-case.md)
-    CapHeldWait,
-    CapHeld,
-    CapA5Writing,
-    CapOwnerWaiting,
-    CapInboxHeld,
-    CapPassed,
-    CapReleased,
-    CapA5Ended,
-    CapSubownerEnded,
-    CapOwnerEnded,
-    CapDirectorEnded,
-    CapInboxEnded,
-    CapOwnerFirst,
-    CapDirectorFirst,
     QaSubownerBefore,
     QaNextWriting,
     QaSubownerLive,
@@ -1092,80 +1077,6 @@ pub fn step_6_4() -> Vec<calls::Step> {
         steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
     }
     steps.push(call(D1, argv!["task", "list", "--project", number(PROJECT), "--ended", "--json"]));
-    steps
-}
-
-// Act 3, step 6.7 (testing/reference-case.md)
-pub const READS_6_7: &[(Read, usize)] = &[
-    (Read::CapHeldWait, 7),
-    (Read::CapHeld, 8),
-    (Read::CapA5Writing, 9),
-    (Read::CapOwnerWaiting, 10),
-    (Read::CapInboxHeld, 11),
-    (Read::CapPassed, 14),
-    (Read::CapReleased, 16),
-    (Read::CapA5Ended, 17),
-    (Read::CapSubownerEnded, 18),
-    (Read::CapOwnerEnded, 19),
-    (Read::CapDirectorEnded, 20),
-    (Read::CapInboxEnded, 21),
-    (Read::CapDirectorFirst, 22),
-];
-
-#[must_use]
-pub fn step_6_7() -> Vec<calls::Step> {
-    use super::{
-        Agent, CAP_A5, CAP_A5_HOLD, CAP_DIRECTOR, CAP_OWNER, CAP_PASS_HOLD, CAP_PERSON, CAP_SPLIT_HOLD, CAP_SUBOWNER,
-        PROJECT,
-    };
-    let mut steps = vec![
-        sign_in(D1),
-        call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "cap", CAP_PERSON]),
-        start(D1, argv!["task", "show", number(CAP_DIRECTOR), "--until", "ended", "--json"]),
-        call(D1, argv!["task", "show", number(CAP_DIRECTOR), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(CAP_OWNER), "--until", "replied"]),
-        until(D1, argv!["task", "show", number(CAP_SUBOWNER), "--json"], Agent::CapImplementer.cue(), b"\"task\""),
-        until(D1, argv!["task", "show", number(CAP_A5), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        // The deadline hold lasts until the director is explicitly released below.
-        call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--until", "held", "--json"]),
-        until(
-            D1,
-            argv!["task", "show", number(CAP_SUBOWNER), "--activity", "32", "--json"],
-            b"\"reason\":\"deadline\"",
-            b"\"task\"",
-        ),
-        call(D1, argv!["task", "show", number(CAP_A5), "--activity", "32", "--json"]),
-        until(
-            D1,
-            argv!["task", "show", number(CAP_OWNER), "--activity", "32", "--json"],
-            b"\"work\":\"writing\"",
-            b"\"task\"",
-        ),
-        // The needs-group tag starts an unfiltered page; empty needs have no continuation.
-        call(D1, argv!["inbox", "--after", "00", "--json"]),
-        calls::release_hold(CAP_PASS_HOLD),
-        // The director's document includes A's observation too. Once A parks
-        // after its pass, only the director can satisfy the writing checkpoint.
-        call(D1, argv!["task", "show", number(CAP_OWNER), "--until", "phase:idle"]),
-        until(D1, argv!["task", "show", number(CAP_DIRECTOR), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--activity", "32", "--json"]),
-        calls::release_hold(CAP_SPLIT_HOLD),
-        call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--until", "phase:idle"]),
-        call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--activity", "32", "--json"]),
-        calls::release_hold(CAP_A5_HOLD),
-        join(2),
-    ];
-    for task in [CAP_A5, CAP_SUBOWNER, CAP_OWNER, CAP_DIRECTOR] {
-        steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
-    }
-    steps.push(call(D1, argv!["inbox", "--after", "00", "--json"]));
-
-    // Without the timer, A1's whole journal fits the latest window.
-    // The director still needs its earlier page.
-    steps.push(call(
-        D1,
-        argv!["task", "activity", number(CAP_DIRECTOR), "--before", calls::activity_before(20), "--json"],
-    ));
     steps
 }
 

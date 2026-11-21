@@ -133,11 +133,6 @@ pub enum Agent {
     RedOwner,
     RedCoder,
     RedRepairCoder,
-    // Act 3, step 6.7 (testing/reference-case.md)
-    CapDirector,
-    CapOwner,
-    CapSubowner,
-    CapImplementer,
     QaDirector,
     QaOwner,
     QaSubowner,
@@ -194,11 +189,6 @@ impl Agent {
             Self::Design => b"@case_design",
             Self::Survey => b"@case_survey",
             Self::Review => b"Review this change at the named head",
-            // Act 3, step 6.7 (testing/reference-case.md)
-            Self::CapDirector => b"@case_cap_director",
-            Self::CapOwner => b"@case_cap_owner",
-            Self::CapSubowner => b"@case_cap_subowner",
-            Self::CapImplementer => b"@case_cap_implementer",
             Self::QaDirector => b"@case_qa_director",
             Self::QaOwner => b"@case_qa_owner",
             Self::QaSubowner => b"@case_qa_subowner",
@@ -913,61 +903,6 @@ pub fn fixture_6_4() -> forge::Fixture {
             landing::admit(value);
         },
         ..forge::fixture()
-    }
-}
-
-// Act 3, step 6.7 (testing/reference-case.md)
-pub const CAP_DIRECTOR: u64 = 1;
-pub const CAP_OWNER: u64 = 2;
-pub const CAP_SUBOWNER: u64 = 3;
-pub const CAP_A5: u64 = 4;
-pub const CAP_REVISION: u64 = 1;
-pub const CAP_HOLD_REVISION: u64 = 1;
-pub const CAP_RELEASE_DECISION: u64 = 2;
-// A1 making to a5 begin: 10 isolated trials max 99,528,732 ns;
-// 3 concurrent fuzzy suites max 113,037,615 ns (3 serial suites: 99,921,661 ns).
-// Twice the largest, 226,075,230 ns, rounded up to whole seconds (at least 1): 1 s.
-pub const CAP_SECONDS: u64 = 1;
-pub const CAP_PERSON: &str = "@case_cap_director Delegate A to own M1 and decide its cap without asking me.";
-pub const CAP_SPLIT: &str = "What has landed is M1; a5's fix opens M2. Report the split once a5 has ended.";
-pub const CAP_REASON: &str = "Split M1 at its cap instead of granting a grace to its delegates.";
-pub const CAP_A5_REPORT: &str = "a5's fix finished within its original running attempt.";
-pub const CAP_SUBOWNER_REPORT: &str = "A1 reports the split: what has landed is M1; a5's fix opens M2.";
-pub const CAP_OWNER_REPORT: &str = "A reports A1's milestone split and a5's ending.";
-pub const CAP_DIRECTOR_REPORT: &str = "The director split M1 by amendment and release without asking the person.";
-pub const CAP_A5_HOLD: &[u8] = b"case-6-7-a5";
-pub const CAP_PASS_HOLD: &[u8] = b"case-6-7-pass";
-pub const CAP_SPLIT_HOLD: &[u8] = b"case-6-7-split";
-
-#[must_use]
-pub fn fixture_6_7() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            // Small profile, four tasks in singleton batches (base allowance 8).
-            // Two calls admit tool + parked wait, three fleet calls admit the
-            // cluster's workers. Budget 65 admits the widening: 1 director completion + A's
-            // 33 reserved + director run reserve 10 + A1's 21 unspent
-            // funded anew by the director. A needs 33 = its delegation's
-            // 1 spent + A1's 22 + run reserve 10. A1 needs 22 = a5's 10
-            // + one opening completion + next run reserve 10, with one spare. No landing projects are used.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            small_two_call_window(value, agent);
-            value.jig_over("hub.run_calls", 2);
-            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
-            value["world_settings"]["cap"] = 65.into();
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
-            }
-            // Base 391 lacks decide (8) and subscribe (32).
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["tools"] = 431.into();
-                project["policy"]["roles"][0]["authority"]["tools"] = 431.into();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            landing::admit(value);
-        },
-        ..fixture()
     }
 }
 
