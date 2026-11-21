@@ -253,6 +253,7 @@ impl World {
             worker,
             channel,
             hello: Hello {
+                fresh: false,
                 jobs: kinds,
                 bounds,
                 stop_bound: Duration::from_millis(100),

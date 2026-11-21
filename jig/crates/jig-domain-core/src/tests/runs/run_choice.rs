@@ -73,6 +73,7 @@ pub(in crate::tests) fn host_with_endpoints(
             worker: u32::from(channel == SECOND).min(limits.fleet.workers.saturating_sub(1)),
             channel,
             hello: Hello {
+                fresh: false,
                 jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::ZERO,
@@ -151,6 +152,7 @@ fn placement_worker(core: &mut Core, limits: &Limits, worker: u32, channel: Toke
             worker,
             channel,
             hello: Hello {
+                fresh: false,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -205,6 +207,7 @@ fn a_suspended_task_waits_for_its_workers_new_admitted_channel_and_logins() {
             worker: 1,
             channel: RETURNED,
             hello: Hello {
+                fresh: false,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -302,6 +305,7 @@ fn an_unavailable_suspension_worker_is_not_replaced_or_explained_by_another_host
                         worker: 1,
                         channel: SECOND,
                         hello: Hello {
+                            fresh: false,
                             bounds,
                             jobs: Box::new([]),
                             stop_bound: Duration::ZERO,
@@ -359,6 +363,26 @@ fn a_suspended_tasks_account_and_credential_waits_still_name_their_cause() {
     let context = core.tasks.run_context(TASK).unwrap();
     assert_eq!(core.run_admission(&context, core.run_wall, Box::new([])), RunAdmission::Wait(RunWait::Credential));
     assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Credential));
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the restored fixture emits only Adopt or Cross")]
+fn restored_claims_pass_their_worker_setting_as_a_position() {
+    for (number, crossed) in [(None, false), (Some(2), false), (Some(2), true)] {
+        let (mut core, limits) = ready(false);
+        let mut proof = RunProof::claimed(TASK, 7, 7, None, fleet::HostKind::Worker);
+        proof.worker = number;
+        proof.crossed = crossed;
+        core.proofs.insert(TASK, proof).unwrap();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        core.adopt(&env, TASK, 7, 0);
+        let position = match core.adopted.pop().expect("restored claim") {
+            fleet::Event::Adopt { worker, .. } if !crossed => worker,
+            fleet::Event::Cross { worker, .. } if crossed => worker,
+            other => panic!("restored claim: {other:?}"),
+        };
+        assert_eq!(position, number.map(|number| number - 1));
+    }
 }
 
 #[test]
@@ -508,6 +532,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
                 worker: 0,
                 channel: FIRST,
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: Duration::ZERO,
@@ -530,6 +555,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
             &mut core.fleet,
             &environment,
             fleet::Event::Adopt {
+                worker: None,
                 reply_to: ReplyTo::new(Token::new(1)),
                 run: Token::new(TASK),
                 attempt: BUSY_ATTEMPT,
@@ -1471,6 +1497,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds,
                     stop_bound: Duration::ZERO,
@@ -1512,6 +1539,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds: Bounds { turns: 0, ..fixtures::bounds() },
                     stop_bound: Duration::ZERO,
@@ -1540,6 +1568,7 @@ fn a_due_tasks_bounds_wait_tracks_its_charters_growth_and_recovery() {
             channel: FIRST,
             worker: 0,
             hello: Hello {
+                fresh: false,
                 jobs: Box::default(),
                 bounds: Bounds { turns: WORKER_TURNS, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1652,6 +1681,7 @@ fn an_untooled_fault_keeps_bounds_and_account_refusals_first() {
             worker: 0,
             channel: FIRST,
             hello: Hello {
+                fresh: false,
                 jobs: Box::new([]),
                 bounds: Bounds { turns: 800, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1773,6 +1803,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
             channel: Token::new(99),
             worker: 0,
             hello: Hello {
+                fresh: false,
                 jobs: Box::default(),
                 bounds: Bounds { turns: 0, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1866,7 +1897,7 @@ fn crossed_callback(worked: bool) -> (u32, u32, tasks::End) {
     };
     // Exercise the parent's handling of either fleet terminal while its
     // restored proof is still unworked and no worker has reported it.
-    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Cross { reply_to, run, attempt, worked })));
+    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Cross { worker: None, reply_to, run, attempt, worked })));
     env.now = env.now.saturating_add(env.limits.fleet.grace);
     env.wall = Wall::from_nanos(env.limits.fleet.grace.as_nanos());
     drop(fire(&mut core, &env, Timer::Fleet));
@@ -2695,6 +2726,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
         &mut core.fleet,
         &env.with(limits.fleet),
         fleet::Event::Adopt {
+            worker: None,
             reply_to: ReplyTo::new(Token::new(OPEN_ATTEMPT)),
             run: Token::new(OPEN_TASK),
             attempt: Token::new(OPEN_ATTEMPT),
@@ -2713,6 +2745,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
             worker: 1,
             channel: SECOND,
             hello: Hello {
+                fresh: false,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

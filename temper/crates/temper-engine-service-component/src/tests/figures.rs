@@ -137,6 +137,7 @@ impl Peer {
                             NOW,
                             link::Event::Hello {
                                 hello: jig_domain_link::Hello {
+                                    fresh: false,
                                     jobs: Box::new([]),
                                     slots: 1,
                                     stop_bound: Duration::from_millis(100),

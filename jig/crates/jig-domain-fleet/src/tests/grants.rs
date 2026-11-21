@@ -30,6 +30,7 @@ impl Harness {
     fn adopt_granted(&mut self, run: Token, attempt: Token, grant: Grant) {
         assert!(
             self.step(Event::Adopt {
+                worker: None,
                 reply_to: to(attempt),
                 run,
                 attempt,

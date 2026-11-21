@@ -43,7 +43,9 @@ mod agreement {
     fn a_hello_crosses_unchanged() {
         let mut world = world();
         let engine::Request::Hello { hello, .. } = &world.engine_root[0] else { panic!("hello") };
-        assert_eq!(hello, &fixtures::hello());
+        let mut expected = fixtures::hello();
+        expected.fresh = true;
+        assert_eq!(hello, &expected);
         world.finish();
     }
     #[test]

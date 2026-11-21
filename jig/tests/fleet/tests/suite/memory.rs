@@ -112,6 +112,7 @@ impl Measured {
             worker: u32::try_from(channel.raw()).expect("fixture channel") % LIMITS.configured_workers,
             channel,
             hello: Hello {
+                fresh: false,
                 jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::from_secs(0),
@@ -273,6 +274,7 @@ fn every_entry_point_preserves_its_lifecycle() {
     fleet.step(answer);
     fleet.step(Event::Loaded);
     fleet.step(Event::Adopt {
+        worker: None,
         holds: Box::new([]),
         grants: Box::new([]),
         reply_to: ReplyTo::new(a2),
@@ -284,6 +286,7 @@ fn every_entry_point_preserves_its_lifecycle() {
     });
     fleet.step(Event::Acknowledge { run: r2, attempt: a2 });
     fleet.step(Event::Adopt {
+        worker: None,
         holds: Box::new([]),
         grants: Box::new([]),
         reply_to: ReplyTo::new(a1),
@@ -381,6 +384,7 @@ fn held_turns_refuse_overflow_and_release_after_adoption() {
     let refused = fleet.step(Event::Turn { channel: channel(0), run, attempt, turn: 9, body: Token::new(9) });
     assert!(matches!(refused[..], [Request::TurnBusy { .. }, Request::Drop { .. }]));
     fleet.step(Event::Adopt {
+        worker: None,
         holds: Box::new([]),
         grants: Box::new([]),
         reply_to: ReplyTo::new(attempt),
@@ -417,6 +421,7 @@ fn two_standing_refusals_with_no_history_retain_no_additional_heap() {
         channel,
         worker: 0,
         hello: Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds,
             stop_bound: Duration::ZERO,

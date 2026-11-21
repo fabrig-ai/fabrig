@@ -42,7 +42,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             turn_record_transcript,
         ],
         roots [
-            Row => (1_073_747_847, 1_073_747_712),
+            Row => (1_073_747_852, 1_073_747_712),
         ]
     );
     family!(

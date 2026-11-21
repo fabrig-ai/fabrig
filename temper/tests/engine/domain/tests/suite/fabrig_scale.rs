@@ -192,6 +192,7 @@ fn worker(world: &mut World, stock: &core::settings::Defaults) {
         link: engine::Link::Hello {
             worker: 0,
             hello: jig_domain_link::Hello {
+                fresh: false,
                 jobs: Box::new([]),
                 slots: world.env.limits.fleet.slots,
                 stop_bound: Duration::from_millis(100),

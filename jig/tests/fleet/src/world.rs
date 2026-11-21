@@ -910,6 +910,7 @@ impl World {
                     worker: u32::try_from(self.channels[&channel].worker).expect("configured worker position"),
                     channel: token,
                     hello: Hello {
+                        fresh: false,
                         jobs: self.settings.job.into_iter().collect(),
                         bounds: crate::fixtures::bounds(),
                         slots,
@@ -1074,6 +1075,7 @@ impl World {
             }
             Request::Listed { .. } => self.end("listed"),
             Request::NotStarted { .. } => panic!("worker-only world cannot lose an engine slot"),
+            Request::Suspended { .. } => panic!("scripted workers reconnect as the same process"),
             Request::Lost { to, run, attempt } => self.ended(to, run, attempt, End::Lost),
             Request::Withdrawn { to, run, attempt, withdrawal } => {
                 let end = match withdrawal {
@@ -1370,6 +1372,7 @@ impl World {
                         adopt: true,
                     },
                     None => Event::Adopt {
+                        worker: None,
                         holds: Box::new([]),
                         grants: Box::new([]),
                         reply_to: ReplyTo::new(token),

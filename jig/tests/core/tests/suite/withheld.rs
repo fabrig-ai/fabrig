@@ -36,6 +36,7 @@ fn chat() -> (World, u64, u64, u64) {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),

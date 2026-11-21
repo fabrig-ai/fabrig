@@ -199,6 +199,7 @@ fn hello() -> fleet::Event {
         worker: 0,
         channel: Token::new(77),
         hello: Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: Duration::ZERO,

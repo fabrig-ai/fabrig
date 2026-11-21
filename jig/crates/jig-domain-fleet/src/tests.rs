@@ -173,6 +173,7 @@ impl Harness {
             keys.push(*key).unwrap();
         }
         let hello = Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: Duration::from_secs(0),
@@ -485,6 +486,7 @@ fn retained_host_and_hello_history_is_bounded_and_independent_of_diagnostics() {
         worker: 0,
         channel: C3,
         hello: Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: LIMITS.grace,
@@ -598,6 +600,7 @@ fn a_draining_worker_takes_nothing_even_once_it_frees_a_slot() {
             worker: u32::try_from(channel.raw()).expect("fixture channel").checked_rem(64).expect("membership"),
             channel,
             hello: Hello {
+                fresh: false,
                 slots: 2,
                 stop_bound: Duration::ZERO,
                 bounds: fixtures::bounds(),
@@ -639,6 +642,7 @@ fn a_draining_workers_next_channel_is_placed_on() {
     h.step(Event::Lost { channel: C1 });
     // The same configured worker returns on a new channel; the harness answers its logins.
     let hello = Hello {
+        fresh: false,
         slots: 1,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -696,6 +700,7 @@ fn a_worker_restricted_probe_ignores_other_hosts_affinity_and_room() {
             worker: 38,
             channel: C3,
             hello: Hello {
+                fresh: false,
                 slots: 1,
                 stop_bound: Duration::ZERO,
                 bounds: fixtures::bounds(),
@@ -1153,6 +1158,96 @@ fn an_attempt_listed_for_a_run_claimed_otherwise_is_fenced_at_once() {
     assert_eq!(&*h.settle(), &[assign(C1, R1, A2), placed(R1, A2)]);
 }
 
+#[test]
+fn a_fresh_process_suspends_only_its_unlisted_adrift_claims() {
+    for fresh in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let hello = || Hello {
+            fresh: false,
+            slots: 2,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        };
+        h.step(Event::Hello { channel: C1, worker: 1, hello: hello() });
+        h.place(R1, A1, 1);
+        h.place(R2, A2, 2);
+        h.step(Event::Lost { channel: C1 });
+        assert!(h.at(1).is_empty());
+        let mut report = hello();
+        report.fresh = fresh;
+        report.hosting = Box::new([hosted(R1, A1, Phase::Active)]);
+        let out = h.step(Event::Hello { channel: C2, worker: 1, hello: report });
+        if fresh {
+            assert_eq!(&*out, &[Request::Suspended { to: to(A2), run: R2, attempt: A2, worker: 1 }]);
+            assert!(h.at(10).is_empty(), "suspension removed the grace alarm");
+        } else {
+            assert!(out.is_empty());
+            assert!(h.at(9).is_empty());
+            assert_eq!(&*h.at(10), &[lost(R2, A2)]);
+        }
+        assert_eq!(
+            &*h.step(Event::Inbound { run: R1, attempt: A1, message: message(payload(1)) }),
+            &[Request::Inbound { channel: C2, run: R1, attempt: A1, message: message(payload(1)) }],
+        );
+    }
+}
+
+#[test]
+fn a_fresh_process_suspends_restored_claims_even_under_a_restart_hold() {
+    for fresh in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        h.step(Event::Restarting { wait: Duration::from_secs(20) });
+        let mut adoption = fixtures::adopt(R1, A1, 0);
+        let Event::Adopt { worker, .. } = &mut adoption else { panic!("adoption") };
+        *worker = Some(1);
+        h.step(adoption);
+        h.step(Event::Cross { reply_to: to(A2), run: R2, attempt: A2, worker: Some(1), worked: true });
+        h.step(Event::StartJob {
+            reply_to: to(A3),
+            run: R3,
+            attempt: A3,
+            workstream: 3,
+            job: jig_domain_link::JobBound {
+                kind: jig_domain_link::JobKind(1),
+                spec: 8,
+                result: 8,
+                deadline: Duration::from_secs(1),
+            },
+            adopt: true,
+        });
+        h.step(Event::Loaded);
+        let report = Hello {
+            fresh,
+            slots: 2,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        };
+        let out = h.step(Event::Hello { channel: C2, worker: 1, hello: report });
+        if fresh {
+            assert_eq!(
+                &*out,
+                &[
+                    Request::Suspended { to: to(A1), run: R1, attempt: A1, worker: 1 },
+                    Request::Suspended { to: to(A2), run: R2, attempt: A2, worker: 1 },
+                ]
+            );
+            // Only the restored job, with no proof of a worker, keeps its hold.
+            assert_eq!(&*h.at(30), &[lost(R3, A3), Request::Discharged]);
+        } else {
+            assert!(out.is_empty());
+            assert!(h.at(29).is_empty());
+            assert_eq!(&*h.at(30), &[lost(R1, A1), lost(R2, A2), lost(R3, A3), Request::Discharged]);
+        }
+        assert_eq!(h.domain.attempts(), 0);
+    }
+}
+
 // Restarts.
 
 #[test]
@@ -1445,6 +1540,7 @@ fn declared_stop_bounds_must_be_strictly_below_the_engine_grace() {
     ] {
         let mut h = Harness::new(LIMITS);
         let hello = Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound,
@@ -1528,6 +1624,7 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
         deadline: Duration::from_secs(3),
     };
     let hello = || Hello {
+        fresh: false,
         slots: 2,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -1581,6 +1678,7 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
             deadline: Duration::from_secs(3),
         };
         let hello = || Hello {
+            fresh: false,
             slots: 2,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -1691,6 +1789,7 @@ fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
         worker: 0,
         channel: C1,
         hello: Hello {
+            fresh: false,
             slots: 1,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -1746,6 +1845,7 @@ fn settings_hello(channel: Token, worker: u32) -> Event {
         channel,
         worker,
         hello: Hello {
+            fresh: false,
             jobs: Box::new([]),
             bounds: fixtures::bounds(),
             stop_bound: Duration::ZERO,

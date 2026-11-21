@@ -120,6 +120,7 @@ impl World {
                     worker: 0,
                     channel: Token::new(7),
                     hello: Hello {
+                        fresh: false,
                         jobs: Box::default(),
                         bounds: jig_test_profile::fixtures::bounds(),
                         stop_bound: Duration::from_millis(100),
@@ -161,6 +162,7 @@ impl World {
                 worker: 0,
                 channel: Token::new(0),
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds: jig_test_profile::fixtures::bounds(),
                     stop_bound: Duration::ZERO,

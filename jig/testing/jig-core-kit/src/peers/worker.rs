@@ -17,6 +17,7 @@ impl Peers {
                     .expect("bounded peer membership"),
                     channel: Token::new(channel),
                     hello: Hello {
+                        fresh: false,
                         jobs: Box::default(),
                         bounds: jig_test_profile::fixtures::bounds(),
                         slots,

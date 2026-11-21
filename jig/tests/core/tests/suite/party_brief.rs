@@ -83,6 +83,7 @@ fn start(kept: &[Kept], charter_tools: jig_domain_tasks::Tools) -> (World, [u64;
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),

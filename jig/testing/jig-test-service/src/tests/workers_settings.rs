@@ -41,7 +41,7 @@ fn component(driven: &mut Driven) -> &mut engine::Component {
 fn lower(driven: &mut Driven, connection: Token, event: LowerEvent, out: &mut Queue<engine::Request>) {
     component(driven).down(Time::ZERO, engine::Event::Lower { connection, event }, out);
 }
-fn hello(_codec: &wire::v18::Limits) -> skein_channel::Frame {
+fn hello(_codec: &wire::v19::Limits) -> skein_channel::Frame {
     let mut bounds = fixtures::agent().bounds;
     bounds.inbox = u32::MAX;
     bounds.unacknowledged = u32::MAX;
@@ -64,6 +64,7 @@ fn hello(_codec: &wire::v18::Limits) -> skein_channel::Frame {
         reply_bytes: bounds.reply_bytes,
     };
     let hello = wire::Hello {
+        fresh: false,
         slots: 4,
         stop_bound: Duration::ZERO,
         bounds,

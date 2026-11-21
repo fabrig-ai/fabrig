@@ -240,7 +240,8 @@ pub(crate) fn hello(
     }
     let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
     let places = domain.worker_names.places(worker).expect("admitted worker setting");
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, fresh } = hello;
+    let position = worker;
     let mut worker = Channel {
         jobs,
         evidence: crate::needs::evidence(&bounds),
@@ -290,6 +291,9 @@ pub(crate) fn hello(
             attempt::listed(domain, env, id, run, attempt, answered, out);
         }
         listed = listed.saturating_add(1);
+    }
+    if fresh {
+        attempt::restarted(domain, position, out);
     }
     out.push(Request::Sources { channel, sources: domain.program_sources.clone() });
     domain.facts.push(Fact::Hello { listed });
@@ -347,7 +351,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));
     let until = env.now.saturating_add(env.limits.grace);
     for &attempt in &hosts {
-        attempt::adrift(domain, attempt, channel, until);
+        attempt::adrift(domain, attempt, channel, worker, until);
     }
     domain.channels.retire(id);
     crate::history::lost(domain, crate::history::LostHost { worker, channel, slots, draining, until });

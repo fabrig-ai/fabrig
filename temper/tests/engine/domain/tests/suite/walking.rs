@@ -95,6 +95,7 @@ fn walking_referee_rejects_duplicate_transaction_keys_and_transcripts() {
     assert_eq!(WalkingReferee::default().commit(&writes), Err("same key written twice in one decision"));
     let proof = Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(
         temper_engine_domain::RunProof {
+            worker: None,
             conversation: task.attempt,
             endpoint: None,
             credentials: Box::new([]),
@@ -353,6 +354,7 @@ fn walking_referee_rejects_missing_or_split_current_claim_turn_and_terminal_proo
     live.run_spent = 0;
     let initial = Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(
         temper_engine_domain::RunProof {
+            worker: None,
             conversation: task.attempt,
             endpoint: None,
             credentials: Box::new([]),
@@ -528,6 +530,7 @@ fn independent_terminal_cut_referee_rejects_missing_or_altered_evidence() {
         Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(task.number))),
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(
             temper_engine_domain::RunProof {
+                worker: None,
                 conversation: task.attempt,
                 endpoint: None,
                 credentials: Box::new([]),

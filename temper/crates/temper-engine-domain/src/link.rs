@@ -574,6 +574,7 @@ mod tests {
             .insert(
                 task,
                 core::RunProof {
+                    worker: None,
                     task,
                     attempt: 1,
                     conversation: 1,

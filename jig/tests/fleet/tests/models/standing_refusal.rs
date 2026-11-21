@@ -19,6 +19,7 @@ impl Fleet {
             channel: Token::new(channel),
             worker,
             hello: Hello {
+                fresh: false,
                 jobs: Box::default(),
                 slots: 1,
                 stop_bound,

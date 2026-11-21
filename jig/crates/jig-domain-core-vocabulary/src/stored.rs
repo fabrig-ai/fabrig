@@ -514,6 +514,8 @@ pub struct RunProof {
     /// child answered this current attempt. At most twice task result bytes before normalization;
     /// cleared on replacement/end.
     pub terminal: Option<TerminalRecord>,
+    /// Setting number of the worker selected at preparation, none on an engine host.
+    pub worker: Option<u32>,
 }
 
 /// Durable current-window position (protocol/store/transcripts.md 6).
@@ -589,6 +591,7 @@ impl RunProof {
             outstanding: Box::new([]),
             turn: None,
             terminal: None,
+            worker: None,
         }
     }
 }

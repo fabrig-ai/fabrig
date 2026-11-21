@@ -85,6 +85,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
             &mut restarted,
             limits,
             Event::Adopt {
+                worker: None,
                 holds: Box::new([]),
                 grants: Box::new([]),
                 reply_to: ReplyTo::new(attempt),
@@ -103,6 +104,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
             &mut restarted_with_work,
             limits,
             Event::Adopt {
+                worker: None,
                 holds: Box::new([]),
                 grants: Box::new([]),
                 reply_to: ReplyTo::new(attempt),
@@ -152,6 +154,7 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
                 worker: 0,
                 channel: Token::new(5),
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds: jig_fleet_world::fixtures::bounds(),
                     slots: 1,
@@ -194,6 +197,7 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
                 worker: 0,
                 channel: Token::new(11),
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds: jig_fleet_world::fixtures::bounds(),
                     slots: 1,
@@ -285,7 +289,7 @@ fn a_worker_refused_for_its_agent_hosts_nothing() {
             Event::Hello {
                 worker: 0,
                 channel: Token::new(5),
-                hello: Hello {
+                hello: Hello { fresh: false,
                     jobs: Box::default(),
                     bounds,
                     slots: 1,
@@ -377,6 +381,7 @@ fn startup_and_hello_check_only_the_charters_for_the_host_kind() {
                 worker: 0,
                 channel,
                 hello: Hello {
+                    fresh: false,
                     jobs: Box::default(),
                     bounds,
                     slots: 1,

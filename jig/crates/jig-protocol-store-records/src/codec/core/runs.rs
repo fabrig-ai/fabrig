@@ -120,11 +120,13 @@ pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &View) -> Resu
         outstanding,
         turn,
         terminal,
+        worker,
     } = source;
     Ok(wire::RunProof {
         task: *task,
         attempt: *attempt,
         conversation: *conversation,
+        worker: *worker,
         endpoint: *endpoint,
         accounts: encode_accounts(accounts, limits)?,
         placement: match placement {
@@ -167,8 +169,10 @@ pub(super) fn decode_run_proof(source: wire::RunProof, limits: &View) -> Result<
         outstanding,
         turn,
         terminal,
+        worker,
     } = source;
     Ok(domain::RunProof {
+        worker,
         task,
         attempt,
         conversation,

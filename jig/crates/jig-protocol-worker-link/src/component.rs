@@ -60,6 +60,7 @@ pub struct Component {
     life: Life,
     facts: u64,
     pending_logins: Option<channel::Frame>,
+    fresh: bool,
 }
 impl Component {
     pub fn new(limits: &Limits, jig: List<wire::Spoken>, credential: Credential, seed: u64) -> Result<Self, Unusable> {
@@ -137,6 +138,7 @@ impl Component {
             life: Life::Active,
             facts: 0,
             pending_logins: None,
+            fresh: true,
         })
     }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
@@ -356,7 +358,12 @@ impl Component {
         };
         self.phase = Phase::Idle { at };
     }
+    fn hello_record(&self, mut value: Hello) -> Hello {
+        value.fresh = self.fresh;
+        value
+    }
     fn hello(&mut self, now: Time, value: Hello, out: &mut Queue<Request>) {
+        let value = self.hello_record(value);
         match &mut self.phase {
             Phase::Open { hello, .. } => {
                 if *hello {
@@ -673,7 +680,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v18::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v19::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -781,8 +788,11 @@ impl Component {
                         self.busy.acknowledged(*run, *attempt);
                         true
                     }
+                    host::LinkDown::Sources { .. } => {
+                        self.fresh = false;
+                        true
+                    }
                     host::LinkDown::ReadList { .. }
-                    | host::LinkDown::Sources { .. }
                     | host::LinkDown::Check { .. }
                     | host::LinkDown::SignOut { .. }
                     | host::LinkDown::AssignJob { .. }
@@ -943,7 +953,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v18::Limits,
+        limits: &wire::v19::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();
@@ -959,6 +969,43 @@ impl Component {
                 out.push(Request::Untranslated { kind, halt: error.halt });
                 None
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::fixtures;
+
+    fn open(component: &mut Component) {
+        component.phase = Phase::Connecting;
+        component.dialled(Time::ZERO, Token::new(1), &mut Queue::uncapped());
+        let Phase::Opening { mut connection, .. } = mem::replace(&mut component.phase, Phase::Connecting) else {
+            panic!("opening fixture")
+        };
+        connection.version = wire::VERSION;
+        connection.wires = Some(List::uncapped());
+        component.phase = Phase::Open { connection, proved: None, hello: true };
+    }
+
+    #[test]
+    fn a_process_builds_fresh_hellos_until_sources_admits_one() {
+        let mut link =
+            Component::new(&fixtures::LIMITS, wire::spoken(), fixtures::credential(), 1).expect("worker link");
+        for why in [Loss::Fault, Loss::Closed(Closed::RefusedPeer(wire::Reason::NotAdmitted.code()))] {
+            open(&mut link);
+            assert!(link.hello_record(fixtures::hello()).fresh);
+            link.lose(Time::ZERO, why, &mut Queue::uncapped());
+            assert!(link.hello_record(fixtures::hello()).fresh, "unadmitted channels keep no process evidence");
+        }
+        open(&mut link);
+        let sources = wire::Sources { sources: List::uncapped() }.encode(&fixtures::codec()).expect("sources");
+        link.body(Time::ZERO, wire::Kind::Sources.number(), &sources, &mut Queue::uncapped());
+        for _ in 0_u8..2 {
+            assert!(!link.hello_record(fixtures::hello()).fresh);
+            link.lose(Time::ZERO, Loss::Fault, &mut Queue::uncapped());
+            open(&mut link);
         }
     }
 }

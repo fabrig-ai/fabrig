@@ -131,6 +131,8 @@ pub(crate) struct Attempt {
     pub(crate) kept: u32,
     /// Last lost channel, if this engine observed it; restored adoptions do not invent one.
     pub(crate) lost_host: Option<Token>,
+    /// Worker position retained across channel loss or restored from the claim's proof.
+    pub(crate) worker: Option<u32>,
     pub(crate) progress: Option<crate::Observation>,
     /// The parent's conversation state references for an assignment.
     pub(crate) assignment: Assignment,
@@ -343,7 +345,7 @@ pub(crate) fn start_job(
 ) {
     let Names { run, attempt } = names;
     let accepted = if restoring {
-        adopt(domain, env, to, run, attempt, 0, out)
+        adopt(domain, env, to, run, attempt, (0, None), out)
     } else {
         start(
             domain,
@@ -369,7 +371,7 @@ pub(crate) fn adopt(
     to: ReplyTo,
     run: Token,
     attempt: Token,
-    kept: u32,
+    (kept, worker): (u32, Option<u32>),
     out: &mut Queue<Request>,
 ) -> bool {
     let names = Names { run, attempt };
@@ -389,7 +391,9 @@ pub(crate) fn adopt(
             State::Adopted { to, until },
         );
         let id = *domain.names.get(&(run, attempt)).expect("inserted above");
-        domain.attempts.get_mut(id).expect("inserted above").kept = kept;
+        let entry = domain.attempts.get_mut(id).expect("inserted above");
+        entry.kept = kept;
+        entry.worker = worker;
         hold(domain, env, run, attempt);
         return true;
     };
@@ -494,7 +498,7 @@ pub(crate) fn cross(
     to: ReplyTo,
     run: Token,
     attempt: Token,
-    worked: bool,
+    (worked, position): (bool, Option<u32>),
     out: &mut Queue<Request>,
 ) {
     let names = Names { run, attempt };
@@ -513,6 +517,8 @@ pub(crate) fn cross(
             Assignment { turns: Token::new(0), answered: Token::new(0) },
             State::Crossed { to, at, listed: false, worked },
         );
+        let id = *domain.names.get(&(run, attempt)).expect("inserted above");
+        domain.attempts.get_mut(id).expect("inserted above").worker = position;
         hold(domain, env, run, attempt);
         return;
     };
@@ -869,9 +875,10 @@ pub(crate) fn answer(
 }
 
 /// Its worker's channel was lost: the attempt `id` is kept until `until`.
-pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until: Time) {
+pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, worker: Option<u32>, until: Time) {
     let entry = domain.attempts.get_mut(id).expect("an attempt on a worker is tracked");
     entry.lost_host = Some(channel);
+    entry.worker = worker;
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     let until = domain.restart_holds.get(&id).copied().unwrap_or(until).max(until);
@@ -889,6 +896,37 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
         }
     };
     follow(domain, id, before);
+}
+
+/// A new process proves its worker's unlisted claims gone, even under a restart hold.
+pub(crate) fn restarted(domain: &mut Domain, worker: u32, out: &mut Queue<Request>) {
+    let mut missing = List::with_capacity(domain.claims);
+    for (_, &id) in &domain.names {
+        let entry = domain.attempts.get(id).expect("named attempt");
+        let state = implied(&entry.state);
+        if entry.worker == Some(worker) && state.claim && state.held && state.on.is_none() {
+            missing.push(id).expect("at most one entry per claim");
+        }
+    }
+    for &id in &missing {
+        let entry = domain.attempts.get_mut(id).expect("unlisted claim");
+        let before = implied(&entry.state);
+        let to = match mem::replace(&mut entry.state, State::Closed) {
+            State::Adopted { to, .. }
+            | State::Claimed { claiming: Claiming { to, .. }, .. }
+            | State::Cancelled { to, .. }
+            | State::Crossed { to, .. } => to,
+            State::Waiting { .. }
+            | State::Handed { .. }
+            | State::Acknowledged { .. }
+            | State::Stray { .. }
+            | State::Kept { .. }
+            | State::Fenced { .. }
+            | State::Closed => unreachable!("selected an adrift claim"),
+        };
+        out.push(Request::Suspended { to, run: entry.run, attempt: entry.token, worker });
+        follow(domain, id, before);
+    }
 }
 
 /// The alarm of the attempt `id`: the grace of its lost channel, or of its
@@ -1345,6 +1383,7 @@ fn insert(domain: &mut Domain, run: Token, attempt: Token, listed: bool, assignm
         listed,
         kept: 0,
         lost_host: None,
+        worker: None,
         progress: None,
         placement: None,
         grants: List::with_capacity(0),

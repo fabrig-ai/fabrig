@@ -8,6 +8,15 @@ use jig_domain_tasks as tasks;
 fn the_deployment_header_reads_back_with_its_id_and_projects_mark() {
     core_round_trip(core::CoreRecord::Deployment(fixtures::deployment()));
 }
+#[test]
+fn run_proofs_preserve_their_worker_setting_number() {
+    for worker in [None, Some(2)] {
+        let mut proof = fixtures::run();
+        proof.worker = worker;
+        core_round_trip(core::CoreRecord::RunProof(proof));
+    }
+}
+
 fn a_run_proof_with_its_terminal_reads_back() {
     core_round_trip(core::CoreRecord::RunProof(fixtures::run()));
 }

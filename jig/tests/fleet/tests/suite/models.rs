@@ -82,6 +82,7 @@ impl Fleet {
 
 fn hello(bounds: Bounds) -> Hello {
     Hello {
+        fresh: false,
         jobs: Box::default(),
         bounds,
         stop_bound: Duration::ZERO,

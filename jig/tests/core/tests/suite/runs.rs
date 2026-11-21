@@ -110,6 +110,7 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
@@ -711,6 +712,7 @@ fn untooled_hello(world: &mut World, channel: Token, worker: u32) {
         worker,
         channel,
         hello: Hello {
+            fresh: false,
             jobs: Box::new([]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),

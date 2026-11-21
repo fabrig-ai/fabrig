@@ -132,7 +132,7 @@ fn prepared_agreement_body() -> &'static [u8] {
         wires
             .push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 })
             .expect("application wire");
-        let record = wire::v18::Agreed { wires };
+        let record = wire::v19::Agreed { wires };
         let mut body = Writer::new(skein_lib::length::usize_of(
             record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
         ));
@@ -142,7 +142,7 @@ fn prepared_agreement_body() -> &'static [u8] {
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v18::Agreed { wires };
+    let record = wire::v19::Agreed { wires };
     let mut body = Writer::new(skein_lib::length::usize_of(
         record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     ));
@@ -202,12 +202,13 @@ pub const TOKEN_TWO: &[u8] = b"app-access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
 #[must_use]
-pub fn codec() -> wire::v18::Limits {
+pub fn codec() -> wire::v19::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 #[must_use]
 pub fn hello() -> Hello {
     Hello {
+        fresh: false,
         jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_secs(1),
@@ -415,7 +416,7 @@ pub fn down_frames() -> Vec<skein_channel::Frame> {
     frames
 }
 
-pub fn encoded<R: Record<Limits = wire::v18::Limits>>(record: &R) -> Box<[u8]> {
+pub fn encoded<R: Record<Limits = wire::v19::Limits>>(record: &R) -> Box<[u8]> {
     record.encode(&codec()).expect("record within fixture limits")
 }
 

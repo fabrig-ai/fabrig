@@ -3,7 +3,7 @@ use crate::Record;
 use crate::{
     self as wire,
     sizes::{self, Sizes},
-    v18,
+    v19,
 };
 use skein_lib::{List, Reader};
 
@@ -94,5 +94,5 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
             assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&bytes)), Ok(sources));
         }
     }
-    v18::check_limits(&limits).expect("source limits");
+    v19::check_limits(&limits).expect("source limits");
 }

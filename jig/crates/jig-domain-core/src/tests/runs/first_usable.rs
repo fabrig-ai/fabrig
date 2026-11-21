@@ -446,6 +446,7 @@ fn a_busy_login_host_is_a_host_wait() {
             worker: 0,
             channel: HOST,
             hello: Hello {
+                fresh: false,
                 jobs: Box::default(),
                 bounds: Bounds {
                     program_endpoints: Box::new([PROGRAM_ENDPOINT]),
@@ -468,6 +469,7 @@ fn a_busy_login_host_is_a_host_wait() {
         &mut core.fleet,
         &env,
         fleet::Event::Adopt {
+            worker: None,
             reply_to: ReplyTo::new(HOST),
             run: BUSY,
             attempt: BUSY,

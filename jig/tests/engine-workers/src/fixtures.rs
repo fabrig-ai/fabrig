@@ -228,6 +228,7 @@ pub fn hello_record() -> jig_protocol_worker_wire::Hello {
     let mut workstreams = List::with_capacity(1);
     workstreams.push(9).expect("one workstream");
     wire::Hello {
+        fresh: false,
         slots: 1,
         stop_bound: Duration::from_secs(20),
         workstreams,
@@ -332,7 +333,7 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     }
 }
 
-fn codec() -> jig_protocol_worker_wire::v18::Limits {
+fn codec() -> jig_protocol_worker_wire::v19::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
@@ -342,7 +343,7 @@ fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
     refused
 }
 
-fn encoded<R: Record<Limits = jig_protocol_worker_wire::v18::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
+fn encoded<R: Record<Limits = jig_protocol_worker_wire::v19::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
     frame(kind, &record.encode(&codec()).expect("record within fixture limits"))
 }
 #[must_use]
