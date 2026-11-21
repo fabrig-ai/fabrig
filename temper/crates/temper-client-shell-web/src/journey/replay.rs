@@ -212,7 +212,6 @@ impl Replay {
             Line::Journey { .. }
             | Line::Seed(_)
             | Line::Clocks { .. }
-            | Line::Fixed
             | Line::Primary(_)
             | Line::Ways { .. }
             | Line::Forge(_)
@@ -287,10 +286,6 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
         return Err(error(at));
     };
     at += 1;
-    let fixed = lines.get(at) == Some(&Line::Fixed);
-    if fixed {
-        at += 1;
-    }
     let Some(Line::Primary(primary)) = lines.get(at) else {
         return Err(error(at));
     };
@@ -332,7 +327,6 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     }
     Ok((
         Facts {
-            fixed,
             seed: *seed,
             now: *now,
             wall: *wall,

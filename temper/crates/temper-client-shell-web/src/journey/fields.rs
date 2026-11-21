@@ -56,7 +56,6 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
-        | Line::Fixed
         | Line::Primary(_)
         | Line::Zone(_)
         | Line::Turn { .. }

@@ -24,7 +24,6 @@ pub fn fixture_with_marks_and_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
 
 fn fixture(secret: Option<Box<[u8]>>, marked: bool) -> Box<[u8]> {
     let facts = journey::Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

@@ -79,8 +79,6 @@ Section 9's stock removal is reflected in `welcome-set-up`,
 is current too (`../tui/journeys.status.md`).
 
 - **Not yet:**
-  - 3.2 and 8.1: no `fixed` fact, and `walk` judges every key mark by its clocks [in flight: change 7721].
-  - 8.1: `again` gives the box and the page no fixed start [in flight: change 7722].
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
