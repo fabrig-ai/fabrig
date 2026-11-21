@@ -837,7 +837,7 @@ pub enum Request {
 - **Within it, the claim goes to that worker alone.** The claim's check
   (1, step 1) takes only that worker's channel, and so does the queued
   assignment's recheck (`fleet.md`). Where that worker has no channel
-  that may take the run (none connected, or its channel draining,
+  that may take the run (none connected, or its channel paused, draining,
   mismatched, refusing the task's versions, or full), the task waits
   with `RunWait::Worker { worker, until }`, shown as
   `TaskRunWait::Worker` (6.2), in place of the host wait it would

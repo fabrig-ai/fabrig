@@ -340,6 +340,29 @@ fn an_unavailable_suspension_worker_is_not_replaced_or_explained_by_another_host
 }
 
 #[test]
+fn a_suspended_task_waits_for_its_paused_worker_until_it_resumes_or_the_window_ends() {
+    use jig_domain_link::PauseState;
+    for state in [PauseState::Paused, PauseState::Draining, PauseState::Drained] {
+        let (mut core, limits) = ready(false);
+        suspended_on_second(&mut core, &limits);
+        fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Paused { channel: SECOND, state });
+        assert_eq!(core.run_choice(TASK), Err(RunWait::Worker { worker: 2, until: RESUME_UNTIL }));
+        assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }));
+        fleet_event(
+            &mut core,
+            &limits,
+            Wall::EPOCH,
+            fleet::Event::Paused { channel: SECOND, state: PauseState::Taking },
+        );
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
+        fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Paused { channel: SECOND, state });
+        core.run_wall = RESUME_UNTIL;
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST);
+        assert_eq!(document_wait(&core, &limits), None);
+    }
+}
+
+#[test]
 fn a_suspended_tasks_account_and_credential_waits_still_name_their_cause() {
     let (mut core, limits) = ready(false);
     suspended_on_second(&mut core, &limits);

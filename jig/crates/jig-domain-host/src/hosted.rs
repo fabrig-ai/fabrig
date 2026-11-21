@@ -720,8 +720,11 @@ pub(crate) fn finish_run(domain: &mut Hub, env: &Env<Limits>, owner: Token, fini
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         State::Active { workspace, agent } | State::Waiting { workspace, agent } => {
-            let cancelled =
-                if *shut { Failure::Cancelled(Reason::Shutdown) } else { Failure::Run(RunFailure::Cancelled) };
+            let cancelled = if *shut || entry.drained {
+                Failure::Cancelled(Reason::Shutdown)
+            } else {
+                Failure::Run(RunFailure::Cancelled)
+            };
             let ending = said(finish, cancelled, &env.limits);
             leave(entry.run, entry.attempt, &entry.relays, calls, out);
             out.push(Request::Agent(crate::ToAgent::Cancel { agent }));

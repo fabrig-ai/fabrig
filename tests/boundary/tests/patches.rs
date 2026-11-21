@@ -187,11 +187,11 @@ fn channel_kind_layout_changes_require_a_version_move() {
             changed = changed.replace("    assignment: Assignment, message: Inbound", "    message: Inbound");
         }
         assert_ne!(changed, text, "{name} changes the kinds' layout");
-        assert!(changed.starts_with("family jig-worker-wire 20\n"), "{name} keeps the version unmoved");
+        assert!(changed.starts_with("family jig-worker-wire 21\n"), "{name} keeps the version unmoved");
         fs::write(&path, changed).expect("mutate channel kind without moving its version");
         let findings = patch::check(scratch.path(), &landed).expect("check mutated channel kinds");
         assert!(findings.iter().any(|finding| matches!(finding,
-            Finding::Version { family, verdict: Version::Unmoved, kept: 20, current: 20 } if family == "jig-worker-wire"
+            Finding::Version { family, verdict: Version::Unmoved, kept: 21, current: 21 } if family == "jig-worker-wire"
         )), "{name} must move the wire's version: {findings:?}");
     }
 }

@@ -107,13 +107,13 @@ pub(crate) fn pause(domain: &mut Domain, worker: u32, mode: jig_domain_link::Pau
     let id = *domain.tokens.get(&channel).expect("admitted worker channel");
     domain.channels.get_mut(id).expect("named channel").pause_mode = mode;
     out.push(Request::Pause { channel, mode });
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 pub(crate) fn paused(domain: &mut Domain, channel: Token, state: jig_domain_link::PauseState) {
     let Some(&id) = domain.tokens.get(&channel) else { return };
     domain.channels.get_mut(id).expect("named channel").pause_state = state;
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// The protocol's name for the channel `channel`, which is in contact.

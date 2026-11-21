@@ -15,6 +15,13 @@ fn peer(version: u16) -> skein_fake_channel::ScriptedPeer {
     schema.versions.truncate(u32::from(version - wire::wire::FLOOR) + 1);
     fixtures::peer(schema, version, fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION)
 }
+fn hello(version: u16) -> skein_channel::Frame {
+    let codec = wire::sizes::limits(&fixtures::limits().sizes).expect("codec");
+    wire::translation::Translation::new(wire::Application::opaque(fixtures::application()))
+        .expect("opaque application")
+        .send(fixtures::hello_frame(), version, &[wire::Agreed { name: wire::wire::FAMILY, version }], &codec)
+        .expect("hello at the agreed version")
+}
 fn channel(world: &World) -> Token {
     world
         .root()
@@ -28,10 +35,10 @@ fn channel(world: &World) -> Token {
 
 #[test]
 fn every_pause_ask_is_sent_at_twenty_or_reported_once_to_older_workers() {
-    for version in [18, 19, 20] {
+    for version in [18, 19, 20, wire::VERSION] {
         let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
         let mut worker = peer(version);
-        worker.play(fixtures::hello_frame());
+        worker.play(hello(version));
         let connection = world.connect(worker);
         world.run();
         let channel = channel(&world);
@@ -44,7 +51,7 @@ fn every_pause_ask_is_sent_at_twenty_or_reported_once_to_older_workers() {
             let before = world.root().len();
             let sent = world.observed(connection).len();
             pause(&mut world, channel, mode);
-            if version == 20 {
+            if version >= 20 {
                 let frames = &world.observed(connection)[sent..];
                 assert_eq!(frames.len(), 1);
                 assert_eq!(frames[0].kind, 0x0192);
@@ -64,7 +71,7 @@ fn every_pause_ask_is_sent_at_twenty_or_reported_once_to_older_workers() {
 
 #[test]
 fn a_pause_sends_and_reports_nothing_before_hello_or_after_closing() {
-    for version in [18, 19, 20] {
+    for version in [18, 19, 20, wire::VERSION] {
         let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
         let connection = world.connect(peer(version));
         world.run();
@@ -73,7 +80,7 @@ fn a_pause_sends_and_reports_nothing_before_hello_or_after_closing() {
         pause(&mut world, Token::new(1), PauseMode::Drain);
         assert!(!world.root().iter().any(|r| matches!(r, Request::Unpaused { .. })));
         assert!(!world.observed(connection).iter().any(|r| r.kind == 0x0192));
-        world.play(connection, fixtures::hello_frame());
+        world.play(connection, hello(version));
         world.run();
         let channel = channel(&world);
         world.withhold_write_room(connection);
