@@ -1,52 +1,8 @@
 //! Core durable rows translated exhaustively (protocol/store/records.md, 1).
-use super::{View, domain, task_problem, too_large, wire};
+use super::{View, domain, maps, phase_bytes_to_domain, phase_bytes_to_record, too_large, wire};
 use alloc::boxed::Box;
 use skein_lib::List;
-pub(super) fn encode_projection_milestone(
-    source: &domain::ProjectionMilestone,
-    limits: &View,
-) -> Result<wire::ProjectionMilestone, wire::Problem> {
-    let domain::ProjectionMilestone { identity, phase, change, words } = source;
-    Ok(wire::ProjectionMilestone {
-        identity: encode_milestone_id(*identity, limits),
-        phase: match phase {
-            Some(value) => Some(encode_phase(value, limits)?),
-            None => None,
-        },
-        change: match change {
-            Some(value) => Some(wire::ChangeBytes {
-                value: match crate::codec::tasks::carried::change(value, &limits.tasks) {
-                    Ok(value) => value,
-                    Err(error) => return Err(task_problem(error)),
-                },
-            }),
-            None => None,
-        },
-        words: words.clone(),
-    })
-}
-pub(super) fn decode_projection_milestone(
-    source: wire::ProjectionMilestone,
-    limits: &View,
-) -> Result<domain::ProjectionMilestone, wire::Problem> {
-    let wire::ProjectionMilestone { identity, phase, change, words } = source;
-    Ok(domain::ProjectionMilestone {
-        identity: decode_milestone_id(identity),
-        phase: match phase {
-            Some(value) => Some(decode_phase(value, limits)?),
-            None => None,
-        },
-        change: match change {
-            Some(value) => Some(match crate::codec::tasks::carried::read_change(&value.value, &limits.tasks) {
-                Ok(value) => value,
-                Err(error) => return Err(task_problem(error)),
-            }),
-            None => None,
-        },
-        words,
-    })
-}
-pub(super) fn encode_projection_record(
+pub(crate) fn encode_projection_record(
     source: &domain::ProjectionRecord,
     limits: &View,
 ) -> Result<wire::ProjectionRecord, wire::Problem> {
@@ -57,7 +13,7 @@ pub(super) fn encode_projection_record(
                 number: *number,
                 project: *project,
                 priority: *priority,
-                phase: encode_phase(phase, limits)?,
+                phase: phase_bytes_to_record(phase, limits)?,
                 pending: encode_pending(pending, limits)?,
                 changed: *changed,
                 fed_at: *fed_at,
@@ -68,8 +24,8 @@ pub(super) fn encode_projection_record(
             wire::ProjectionRecord::TaskHot(wire::ProjectionTaskHot {
                 goal: *goal,
                 number: *number,
-                requester: encode_party(requester, limits),
-                phase: encode_phase(phase, limits)?,
+                requester: maps::party_to_record(requester, limits)?,
+                phase: phase_bytes_to_record(phase, limits)?,
             })
         }
         domain::ProjectionRecord::GoalWords { goal, task, words } => {
@@ -84,12 +40,12 @@ pub(super) fn encode_projection_record(
         domain::ProjectionRecord::Milestone { goal, milestone } => {
             wire::ProjectionRecord::Milestone(wire::ProjectionMilestoneRow {
                 goal: *goal,
-                milestone: encode_projection_milestone(milestone, limits)?,
+                milestone: maps::projection_milestone_to_record(milestone, limits)?,
             })
         }
     })
 }
-pub(super) fn decode_projection_record(
+pub(crate) fn decode_projection_record(
     source: wire::ProjectionRecord,
     limits: &View,
 ) -> Result<domain::ProjectionRecord, wire::Problem> {
@@ -97,7 +53,12 @@ pub(super) fn decode_projection_record(
         wire::ProjectionRecord::GoalHot(value) => {
             let wire::ProjectionGoalHot { number, project, priority, phase, pending, changed, fed_at } = value;
             domain::ProjectionRecord::GoalHot {
-                goal: domain::ProjectionGoalHot { number, project, priority, phase: decode_phase(phase, limits)? },
+                goal: domain::ProjectionGoalHot {
+                    number,
+                    project,
+                    priority,
+                    phase: phase_bytes_to_domain(phase, limits)?,
+                },
                 pending: decode_pending(pending),
                 changed,
                 fed_at,
@@ -109,8 +70,8 @@ pub(super) fn decode_projection_record(
                 goal,
                 task: domain::ProjectionTaskHot {
                     number,
-                    requester: decode_party(requester),
-                    phase: decode_phase(phase, limits)?,
+                    requester: maps::party_to_domain(requester, limits)?,
+                    phase: phase_bytes_to_domain(phase, limits)?,
                 },
             }
         }
@@ -127,7 +88,10 @@ pub(super) fn decode_projection_record(
         }
         wire::ProjectionRecord::Milestone(value) => {
             let wire::ProjectionMilestoneRow { goal, milestone } = value;
-            domain::ProjectionRecord::Milestone { goal, milestone: decode_projection_milestone(milestone, limits)? }
+            domain::ProjectionRecord::Milestone {
+                goal,
+                milestone: maps::projection_milestone_to_domain(milestone, limits)?,
+            }
         }
     })
 }
@@ -135,20 +99,6 @@ fn encode_words(goal: u64, task: u64, words: &[u8], _limits: &View) -> wire::Pro
     wire::ProjectionWords { goal, task, words: Box::from(words) }
 }
 
-fn encode_phase(source: &jig_domain_tasks::Phase, limits: &View) -> Result<wire::PhaseBytes, wire::Problem> {
-    Ok(wire::PhaseBytes {
-        value: match crate::codec::tasks::carried::phase(source, &limits.tasks) {
-            Ok(value) => value,
-            Err(error) => return Err(task_problem(error)),
-        },
-    })
-}
-fn decode_phase(source: wire::PhaseBytes, limits: &View) -> Result<jig_domain_tasks::Phase, wire::Problem> {
-    match crate::codec::tasks::carried::read_phase(&source.value, &limits.tasks) {
-        Ok(value) => Ok(value),
-        Err(error) => Err(task_problem(error)),
-    }
-}
 fn encode_pending(values: &[u16], limits: &View) -> Result<List<wire::Connector>, wire::Problem> {
     let count = match u32::try_from(values.len()) {
         Ok(value) => value,
@@ -169,42 +119,4 @@ fn decode_pending(values: List<wire::Connector>) -> Box<[u16]> {
         result.push(value.value).expect("same number of connectors");
     }
     result.into_boxed()
-}
-fn encode_milestone_id(value: domain::MilestoneId, _limits: &View) -> wire::MilestoneId {
-    match value {
-        domain::MilestoneId::Lifecycle { task, position } => {
-            wire::MilestoneId::Lifecycle(wire::MilestoneLifecycle { task, position })
-        }
-        domain::MilestoneId::Revision { task, revision } => {
-            wire::MilestoneId::Revision(wire::MilestoneRevision { task, revision })
-        }
-    }
-}
-fn decode_milestone_id(value: wire::MilestoneId) -> domain::MilestoneId {
-    match value {
-        wire::MilestoneId::Lifecycle(value) => {
-            let wire::MilestoneLifecycle { task, position } = value;
-            domain::MilestoneId::Lifecycle { task, position }
-        }
-        wire::MilestoneId::Revision(value) => {
-            let wire::MilestoneRevision { task, revision } = value;
-            domain::MilestoneId::Revision { task, revision }
-        }
-    }
-}
-fn encode_party(value: &jig_domain_tasks::Party, _limits: &View) -> wire::Party {
-    match value {
-        jig_domain_tasks::Party::Task(value) => wire::Party::Task(wire::PartyTask { value: *value }),
-        jig_domain_tasks::Party::Person(value) => wire::Party::Person(wire::PartyPerson { value: *value }),
-        jig_domain_tasks::Party::Deployment { project } => {
-            wire::Party::Deployment(wire::PartyDeployment { project: *project })
-        }
-    }
-}
-fn decode_party(value: wire::Party) -> jig_domain_tasks::Party {
-    match value {
-        wire::Party::Task(value) => jig_domain_tasks::Party::Task(value.value),
-        wire::Party::Person(value) => jig_domain_tasks::Party::Person(value.value),
-        wire::Party::Deployment(value) => jig_domain_tasks::Party::Deployment { project: value.project },
-    }
 }

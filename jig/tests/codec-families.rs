@@ -79,8 +79,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-core",
         generated: &["src/generated/core.rs"],
-        maps: None,
-        translation: None,
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/core.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/core.rs"),
     },
     Family {
         name: "tasks",
