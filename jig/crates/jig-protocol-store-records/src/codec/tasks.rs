@@ -549,3 +549,117 @@ pub fn decode_live(
     }
     Ok(row)
 }
+
+/// Translation context: the family's limits and the row's model-name remap.
+/// Carried values have no remap (skein/docs/design/data/codec/maps.md, 4).
+pub struct Context {
+    limits: wire::Limits,
+    moved: Option<[u64; 64]>,
+}
+impl Context {
+    pub(crate) fn new(limits: &wire::Limits, moved: Option<&[u64; 64]>) -> Self {
+        Self { limits: *limits, moved: moved.copied() }
+    }
+}
+
+pub fn tools_to_record(value: &domain::Tools) -> Result<u64, skein_codec::Reason> { Ok(value.0) }
+pub fn tools_to_domain(value: u64) -> Result<domain::Tools, skein_codec::Reason> { Ok(domain::Tools(value)) }
+pub fn scopes_to_record(value: &domain::Scopes) -> Result<u8, skein_codec::Reason> { Ok(value.0) }
+pub fn scopes_to_domain(value: u8) -> Result<domain::Scopes, skein_codec::Reason> { Ok(domain::Scopes(value)) }
+pub fn newest_to_record(value: &domain::Newest) -> Result<u64, skein_codec::Reason> { Ok(value.value()) }
+pub fn newest_to_domain(value: u64) -> Result<domain::Newest, skein_codec::Reason> { Ok(domain::Newest::of(value)) }
+pub fn reasons_to_record(value: &domain::Reasons) -> Result<u32, skein_codec::Reason> { Ok(value.0) }
+pub fn reasons_to_domain(value: u32) -> Result<domain::Reasons, skein_codec::Reason> {
+    let value = domain::Reasons(value);
+    if value.is_known() { Ok(value) } else { Err(skein_codec::Reason::Bound) }
+}
+
+pub fn name_to_record(value: &domain::Name, context: &Context) -> Result<wire::Name, wire::Problem> {
+    value::name(value, &context.limits)
+}
+pub fn name_to_domain(record: wire::Name, context: &Context) -> Result<domain::Name, wire::Problem> {
+    value::read_name(record, &context.limits)
+}
+
+pub fn spec_to_record(value: &domain::Spec, context: &Context) -> Result<wire::Spec, wire::Problem> {
+    value::spec(value, &context.limits)
+}
+pub fn spec_to_domain(record: wire::Spec, context: &Context) -> Result<domain::Spec, wire::Problem> {
+    value::read_spec(record, &context.limits)
+}
+
+pub fn task_result_to_record(value: &domain::TaskResult, context: &Context) -> Result<wire::TaskResult, wire::Problem> {
+    phase::result(value, &context.limits)
+}
+pub fn task_result_to_domain(record: wire::TaskResult, context: &Context) -> Result<domain::TaskResult, wire::Problem> {
+    phase::read_result(record, &context.limits)
+}
+
+pub fn authority_to_record(value: &domain::Authority, context: &Context) -> Result<wire::Authority, wire::Problem> {
+    value::authority(value, &context.limits, context.moved.as_ref())
+}
+pub fn authority_to_domain(record: wire::Authority, context: &Context) -> Result<domain::Authority, wire::Problem> {
+    value::read_authority(record, &context.limits)
+}
+
+pub fn proposal_action_to_record(value: &domain::ProposalAction, context: &Context) -> Result<wire::ProposalAction, wire::Problem> {
+    proposals::action(value, &context.limits, context.moved.as_ref())
+}
+pub fn proposal_action_to_domain(record: wire::ProposalAction, context: &Context) -> Result<domain::ProposalAction, wire::Problem> {
+    proposals::read_action(record, &context.limits)
+}
+
+pub fn result_kind_to_record(value: &domain::ResultKind, context: &Context) -> Result<wire::ResultKind, wire::Problem> {
+    activity::result_kind(value, &context.limits)
+}
+pub fn result_kind_to_domain(record: wire::ResultKind, context: &Context) -> Result<domain::ResultKind, wire::Problem> {
+    activity::read_result_kind(record, &context.limits)
+}
+
+pub fn why_to_record(value: &domain::Why, context: &Context) -> Result<wire::Why, wire::Problem> {
+    value::why(*value, &context.limits)
+}
+pub fn why_to_domain(record: wire::Why, context: &Context) -> Result<domain::Why, wire::Problem> {
+    Ok(value::read_why(record))
+}
+
+pub fn recurring_template_to_record(value: &domain::RecurringTemplate, context: &Context) -> Result<wire::RecurringTemplate, wire::Problem> {
+    phase::template(value, &context.limits, context.moved.as_ref())
+}
+pub fn recurring_template_to_domain(record: wire::RecurringTemplate, context: &Context) -> Result<domain::RecurringTemplate, wire::Problem> {
+    phase::read_template(record, &context.limits)
+}
+
+pub fn part_path_to_record(value: &skein_lib::List<Box<[u8]>>, context: &Context) -> Result<wire::PartPath, wire::Problem> {
+    let limits = &context.limits;
+    let segments = pieces::part_segments(value.as_slice(), limits, limits.part_path_segments, wire::paths::PART_PATH_SEGMENTS)?;
+    let mut bytes = 0_usize;
+    for segment in value { bytes = bytes.saturating_add(segment.len()); }
+    if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
+        return Err(wire::paths::PART_PATH_SEGMENTS.problem(skein_codec::Reason::Bound));
+    }
+    Ok(wire::PartPath { segments })
+}
+pub fn part_path_to_domain(record: wire::PartPath, context: &Context) -> Result<skein_lib::List<Box<[u8]>>, wire::Problem> {
+    let limits = &context.limits;
+    let segments = pieces::read_part_segments(record.segments, limits, wire::paths::PART_PATH_SEGMENTS)?;
+    let mut members = skein_lib::List::with_capacity(u32::try_from(segments.len()).expect("bounded path"));
+    let mut bytes = 0_usize;
+    for segment in segments {
+        bytes = bytes.saturating_add(segment.len());
+        members.push(segment).expect("same number of segments");
+    }
+    if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
+        return Err(wire::paths::PART_PATH_SEGMENTS.problem(skein_codec::Reason::Bound));
+    }
+    Ok(members)
+}
+pub fn result_followups_delegates_to_record(value: &[domain::New], context: &Context) -> Result<wire::ResultFollowupsDelegates, wire::Problem> {
+    let limits = &context.limits;
+    Ok(wire::ResultFollowupsDelegates { value: pieces::creations(value, limits, limits.result_followups_delegates_value, wire::paths::RESULT_FOLLOWUPS_DELEGATES_VALUE, context.moved.as_ref())? })
+}
+pub fn result_followups_delegates_to_domain(record: wire::ResultFollowupsDelegates, context: &Context) -> Result<Box<[domain::New]>, wire::Problem> {
+    pieces::read_creations(record.value, &context.limits, wire::paths::RESULT_FOLLOWUPS_DELEGATES_VALUE)
+}
+
+pub use proposals::{person_action_to_record, person_action_to_domain};

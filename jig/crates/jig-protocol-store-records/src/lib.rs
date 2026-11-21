@@ -12,6 +12,7 @@ pub mod generated {
     pub mod accounts;
     pub mod component;
     pub mod notes;
+    pub mod tasks;
 }
 
 use jig_protocol_store_core::core_v6;

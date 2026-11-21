@@ -482,21 +482,7 @@ pub fn person_proposal(
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::PersonProposal, wire::Problem> {
     let domain::PersonProposal { number, proposer, project, action, reason, state } = source;
-    let action = match action {
-        domain::PersonAction::Settings { against, items } => {
-            wire::PersonAction::Settings(setting_heads(*against, items, &[], limits)?)
-        }
-        domain::PersonAction::Batch(members) => {
-            wire::PersonAction::Batch(wire::ProposedBatch { members: batch(members, limits, moved)? })
-        }
-        domain::PersonAction::Amend { task, revision, amendment } => {
-            wire::PersonAction::Amend(Box::new(wire::ProposedAmendment {
-                task: *task,
-                revision: *revision,
-                amendment: self::amendment(amendment, limits, moved)?,
-            }))
-        }
-    };
+    let action = super::person_action_to_record(action, &super::Context::new(limits, moved))?;
     Ok(wire::PersonProposal {
         number: *number,
         proposer: *proposer,
@@ -512,20 +498,7 @@ pub fn read_person_proposal(
     limits: &wire::Limits,
 ) -> Result<domain::PersonProposal, wire::Problem> {
     let wire::PersonProposal { number, proposer, project, action, reason, state } = source;
-    let action = match action {
-        wire::PersonAction::Settings(row) => {
-            let mut items = List::with_capacity(domain::SETTINGS_ITEMS);
-            for item in row.items.into_boxed() {
-                items.push(read_setting_head(item)).expect("decoded heads");
-            }
-            domain::PersonAction::Settings { against: row.against, items: items.into_boxed() }
-        }
-        wire::PersonAction::Batch(batch) => domain::PersonAction::Batch(read_batch(batch.members, limits)?),
-        wire::PersonAction::Amend(value) => {
-            let wire::ProposedAmendment { task, revision, amendment } = *value;
-            domain::PersonAction::Amend { task, revision, amendment: Box::new(read_amendment(amendment, limits)?) }
-        }
-    };
+    let action = super::person_action_to_domain(action, &super::Context::new(limits, None))?;
     Ok(domain::PersonProposal { number, proposer, project, action, reason, state: read_person_state(state)? })
 }
 
@@ -764,4 +737,41 @@ fn setting_heads(
         copied.push(*project).expect("bounded proposal projects");
     }
     Ok(wire::ProposedSettings { against, items: heads, projects: copied })
+}
+
+pub fn person_action_to_record(value: &domain::PersonAction, context: &super::Context) -> Result<wire::PersonAction, wire::Problem> {
+    let limits = &context.limits;
+    let moved = context.moved.as_ref();
+    Ok(match value {
+        domain::PersonAction::Settings { against, items } => {
+            wire::PersonAction::Settings(setting_heads(*against, items, &[], limits)?)
+        }
+        domain::PersonAction::Batch(members) => {
+            wire::PersonAction::Batch(wire::ProposedBatch { members: batch(members, limits, moved)? })
+        }
+        domain::PersonAction::Amend { task, revision, amendment } => {
+            wire::PersonAction::Amend(Box::new(wire::ProposedAmendment {
+                task: *task,
+                revision: *revision,
+                amendment: self::amendment(amendment, limits, moved)?,
+            }))
+        }
+    })
+}
+pub fn person_action_to_domain(value: wire::PersonAction, context: &super::Context) -> Result<domain::PersonAction, wire::Problem> {
+    let limits = &context.limits;
+    Ok(match value {
+        wire::PersonAction::Settings(row) => {
+            let mut items = List::with_capacity(domain::SETTINGS_ITEMS);
+            for item in row.items.into_boxed() {
+                items.push(read_setting_head(item)).expect("decoded heads");
+            }
+            domain::PersonAction::Settings { against: row.against, items: items.into_boxed() }
+        }
+        wire::PersonAction::Batch(batch) => domain::PersonAction::Batch(read_batch(batch.members, limits)?),
+        wire::PersonAction::Amend(value) => {
+            let wire::ProposedAmendment { task, revision, amendment } = *value;
+            domain::PersonAction::Amend { task, revision, amendment: Box::new(read_amendment(amendment, limits)?) }
+        }
+    })
 }
