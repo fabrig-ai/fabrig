@@ -283,8 +283,12 @@ them is its own (temper's `protocol/wires.md`).
   its values, not its versions alone (an appended option at none goes
   down), so trying it is the judge, once per task and channel.
 - **But its parts are dropped, not refused** (`records.md`, 5): below
-  version 22 the reverse written for `Assignment.parts` drops them, and
-  so does a part whose body cannot go down to the worker's agreed
+  version 22 the translation clears `Assignment.parts` before the
+  assignment goes down, as it clears a hello's `fresh` below 21, since
+  the round trip refuses a reverse that drops a field it carries
+  (`skein/docs/design/data/codec/bridges.md`, 2.2); the reverse written
+  for `Assignment.parts` then meets an empty list. So
+  does a part whose body cannot go down to the worker's agreed
   version of `smith-transcript`; the run resumes from its window alone,
   its cut turn planned again, as before parts. A window that cannot go
   down is refused as above.
