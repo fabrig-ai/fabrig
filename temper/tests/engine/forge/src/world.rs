@@ -124,6 +124,7 @@ struct Pending {
     generation: u64,
 }
 
+mod check_record_open;
 mod follows;
 #[path = "world/history.rs"]
 mod history_reads;
