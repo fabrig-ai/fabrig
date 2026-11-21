@@ -1,4 +1,4 @@
-//! A journey's chain on one drive session (client/drive.md, 2; draft/journey-walks.md, 4.2).
+//! A journey's chain on one drive session (client/drive.md, 2; draft/archive/journey-walks.md, 4.2).
 use crate::{
     EnvironmentEntry, drive,
     line::{Record, Tui, Web},

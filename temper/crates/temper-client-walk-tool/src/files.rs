@@ -1,4 +1,4 @@
-//! Only differing bytes are written; a stopped journey never reaches here (journey-walks.md, 5).
+//! Only differing bytes are written; a stopped journey never reaches here (client/journey-walks.md, 5).
 use std::{fs, io, path::Path};
 pub(super) use temper_client_walk_lines::layout::assets;
 use temper_client_walk_lines::{layout::write_if_changed as write, print};

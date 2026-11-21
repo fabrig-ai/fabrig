@@ -1,4 +1,4 @@
-//! Owned setup on the world's box pipe (journey-walks.md, 4.4 and 7).
+//! Owned setup on the world's box pipe (client/journey-walks.md, 4.4 and 7).
 use skein_fake_person::{Find, Target};
 use skein_lib::Duration;
 use skein_ui::{Act, Node, Role};

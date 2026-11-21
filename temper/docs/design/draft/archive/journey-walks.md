@@ -2,7 +2,7 @@
 
 Draft, 2026-11-18, from a session with the user. They asked for "an assessment of the situation and how we could turn it into a nice clean story", having seen the journeys conflict between unrelated goals, check too much in, be recorded again without need and run slowly. Their direction, the same day: the printed pages may stay on main "with the constraint that only the writer writes it"; "recording / replay should be as cheap as possible according to the context", so that an agent answering "does what I write match the diff/html in the request" does it "without a full blown process (box or whatever)", through "a world-level client with a renderer"; and a check after landing is enough. The figures are the survey's, on main at `7307b6172b` (`temper/docs/development/journeys-survey-2026-11-18.md`).
 
-It is the journeys' part of what `codec-shape.md` does for generated code, which leaves recordings aside (`codec-shape.md`, 5.3). Where they differ, this draft wins over the browser's journeys (`../client/web/journeys.md`, sections 3 to 8), the TUI's (`../client/tui/journeys.md`, sections 3 to 10), `../client/journey-clock.md`, `../client/journey-placeholders.md`, the look requests' steps (`../client/web/look-requests.md`, 2 to 5) and the drafts `journey-clock.md`, `journey-placeholders.md`, `real-journeys.md` and `record-anywhere.md`, until its goals fold it into them.
+It is the journeys' part of what `../codec-shape.md` does for generated code, which leaves recordings aside (`../codec-shape.md`, 5.3). Where they differ, this draft wins over the browser's journeys (`../../client/web/journeys.md`, sections 3 to 8), the TUI's (`../../client/tui/journeys.md`, sections 3 to 10), `../client/journey-clock.md`, `../../client/journey-placeholders.md`, the look requests' steps (`../../client/web/look-requests.md`, 2 to 5) and the drafts `../journey-clock.md`, `../journey-placeholders.md`, `../real-journeys.md` and `../record-anywhere.md`, until its goals fold it into them.
 
 ## 1. In one page
 
@@ -34,10 +34,10 @@ From the survey, section 1:
 
 - **What main holds:** seven recordings and 66 pages, 1.6 MB (four and fourteen, 235 KB, before the TUI's three long journeys were walked again on 11-18), all of it made by walking a fake box with headless Chromium or a pseudo-terminal. The sources, every `walk` and `setup` file together, are 99 lines.
 - **A recording is the wire's bytes:** each turn's clocks and deadline, each ask, each answer. An ask names the wire's version, and jig's client wire went from version 19 to 34 between 11-10 and 11-18.
-- **So every change to the wire stales every journey,** and so does a change to what a page asks or when. The print's test then fails (`../client/web/journeys.md`, 6), and the goal runs `again` for each journey.
+- **So every change to the wire stales every journey,** and so does a change to what a page asks or when. The print's test then fails (`../../client/web/journeys.md`, 6), and the goal runs `again` for each journey.
 - **A walk rewrites its files whole.** In "Name tasks waiting after a program starts without its tools", 6,015 of the landing's 6,630 changed lines are journey files, and the pages differ by a drawn time. Two goals that walked the same journey cannot merge their recordings: one walks again.
 - **A walk needs what a plan may not have:** a built box, a browser, and Forgejo fetched from its host. On 11-18 that host's name did not resolve, and a goal removed six journeys in place of walking them. Main holds seven of eight today: `chat-draft` has been gone since 11-13.
-- **The fixes so far remove noise, not the cause.** Placeholders (`../client/journey-placeholders.md`) and the fixed start (`../client/journey-clock.md`) make two walks of the same screens give the same bytes. A wire change still rewrites everything.
+- **The fixes so far remove noise, not the cause.** Placeholders (`../../client/journey-placeholders.md`) and the fixed start (`../client/journey-clock.md`) make two walks of the same screens give the same bytes. A wire change still rewrites everything.
 - **One walk, three languages:** the browser's `setup`, the TUI's `walk`, and the recipes' lines, which wrap both (survey, 1.6).
 
 ## 3. A journey is its walk
@@ -47,8 +47,8 @@ From the survey, section 1:
 `NAME/` under `temper/docs/design/client/web/journeys/` or `temper/docs/design/client/tui/journeys/`, as today:
 
 - **`walk`:** 3.2's text. A source.
-- **`README.md`:** what the journey walks and what each page shows. A source.
-- **`scripts.json`,** where it has its own: the fake model's scripts for its steps, in the box's `--scripts` form, as a recipe's (`../client/recipe.md`, 2). A source.
+- **`../../domain/README.md`:** what the journey walks and what each page shows. A source.
+- **`scripts.json`,** where it has its own: the fake model's scripts for its steps, in the box's `--scripts` form, as a recipe's (`../../client/recipe.md`, 2). A source.
 - **Its pages,** `01.html` onwards, and for the TUI `01.txt` onwards: written by the writer alone (section 6).
 - **No `recording` and no `setup`.**
 
@@ -56,14 +56,14 @@ A journey belongs to the client whose pages it prints. Its walk may act in the o
 
 ### 3.2 The file
 
-Text, one record per line, in the drive session's form (`../client/drive.md`, 3.1):
+Text, one record per line, in the drive session's form (`../../client/drive.md`, 3.1):
 
 | Line | What it is |
 |---|---|
 | `walk 2` | the first line: the format's version |
 | `after NAME` | the second line, or absent: the journey NAME's lines come first (3.3) |
-| `web press`, `web submit`, `web toggle`, `web input`, `web see`, `web reload` | the drive session's browser lines (`../client/drive.md`, 3.2) |
-| `tui key`, `tui see`, `tui stop` | its TUI lines (`../client/drive.md`, 3.3) |
+| `web press`, `web submit`, `web toggle`, `web input`, `web see`, `web reload` | the drive session's browser lines (`../../client/drive.md`, 3.2) |
+| `tui key`, `tui see`, `tui stop` | its TUI lines (`../../client/drive.md`, 3.3) |
 | `tui approve` | the browser opens the address the TUI last asked to browse, presses its "Approve", and loads again the address it was on |
 | `web mark`, `tui mark` | prints that client's page as it is drawn then (3.4) |
 
@@ -94,16 +94,16 @@ tui mark
 ```
 
 - **A control is found as a person finds it:** by its role, its exact accessible name and its order among those, never by the event it gives. A `textbox` is a text field or a text area, in a world as in a browser.
-- **An act waits for its control** as a `see` waits for its text, up to the line's bound (`../client/drive.md`, 3.2).
-- **Nothing is implied in a journey.** The TUI starts at the first `tui` line, not signed in; a walk that needs it signed in says `tui approve`. The browser starts on the page the printed link opens. A recipe's walk keeps its session's own sign-in (`../client/drive.md`, 3.3): the file's first line, `walk 2` or `recipe 1`, says which holds, and `tui approve` and the marks are a journey's lines alone.
-- **No `ctl`, `forge` or `look` line.** A journey shows what a person does in a client. A state reached another way is a recipe's (`../client/recipe.md`).
-- **A walk changes with what a person does:** a control renamed, a step added or gone. Whoever changes those words changes the walks that hold them, in the same change, as it changes a test, and prints them (section 7). A recording held through a rename (`../client/web/journeys.md`, 3.3); a walk does not, and that is the price of a source a person can read.
+- **An act waits for its control** as a `see` waits for its text, up to the line's bound (`../../client/drive.md`, 3.2).
+- **Nothing is implied in a journey.** The TUI starts at the first `tui` line, not signed in; a walk that needs it signed in says `tui approve`. The browser starts on the page the printed link opens. A recipe's walk keeps its session's own sign-in (`../../client/drive.md`, 3.3): the file's first line, `walk 2` or `recipe 1`, says which holds, and `tui approve` and the marks are a journey's lines alone.
+- **No `ctl`, `forge` or `look` line.** A journey shows what a person does in a client. A state reached another way is a recipe's (`../../client/recipe.md`).
+- **A walk changes with what a person does:** a control renamed, a step added or gone. Whoever changes those words changes the walks that hold them, in the same change, as it changes a test, and prints them (section 7). A recording held through a rename (`../../client/web/journeys.md`, 3.3); a walk does not, and that is the price of a source a person can read.
 - **No walk changes for the wire, the exchange, the view's shape or the look.** Two goals that rename different controls of one journey change different lines of its walk, and merge as text. Two that change the same line meet a judgement, as in any source. No conflict in a walk is settled by printing.
 
 ### 3.3 `after`
 
 - **`after NAME`** names a journey of either client. Its lines run first, its own `after` before them, and its marks print nothing.
-- **A chain** holds at most eight, with no cycle, as a recipe's (`../client/recipe.md`, 3.2).
+- **A chain** holds at most eight, with no cycle, as a recipe's (`../../client/recipe.md`, 3.2).
 - **`scripts.json`** files join along the chain, as a recipe's parents' do.
 
 ### 3.4 Marks
@@ -118,38 +118,38 @@ tui mark
 ### 4.1 In a world
 
 - **One process and nothing else:** no child, socket, clock, environment or network, and no file but the journeys it reads and the directory it writes.
-- **What runs** is the playground's composition, which the one-process world and the playground's own page already run (`../testing/README.md`, 2.5): `temper-service` with its engine and one worker, its hosted agents over the fake model, the fake forge and the fake git program, on skein's simulator.
+- **What runs** is the playground's composition, which the one-process world and the playground's own page already run (`../../testing/README.md`, 2.5): `temper-service` with its engine and one worker, its hosted agents over the fake model, the fake forge and the fake git program, on skein's simulator.
 - **The browser's client** is the web shell's own host and its page. `temper/tests/playground` runs it against that service today, inside a test crate, with no reload, no tab and no HTML handed out (survey, 2.1). The print is what that host draws, never a view built aside.
-- **The TUI's client** is `temper-client-shell-tui`'s host, given keys and read as frames with no terminal. Today it runs only joined to the engine's root, in the client's world (`../client/testing.md`), where typed requests and events pass with no service between. Carrying its requests, its stream, what it keeps, its deadlines and its browse to the simulated service is new work, and a goal of its own.
-- **A walker gives the lines.** It finds a control through skein's fake person's faces (`../testing/fakes.md`, 4), by role, exact name and order, and adds what a walk needs beyond that person's steps: the wait for a control, a key, an approval, a mark. What is generic among those is skein's.
+- **The TUI's client** is `temper-client-shell-tui`'s host, given keys and read as frames with no terminal. Today it runs only joined to the engine's root, in the client's world (`../../client/testing.md`), where typed requests and events pass with no service between. Carrying its requests, its stream, what it keeps, its deadlines and its browse to the simulated service is new work, and a goal of its own.
+- **A walker gives the lines.** It finds a control through skein's fake person's faces (`../../testing/fakes.md`, 4), by role, exact name and order, and adds what a walk needs beyond that person's steps: the wait for a control, a key, an approval, a mark. What is generic among those is skein's.
 - **The world plays what a box would do,** each as a person would meet it, with no step taken through ctl:
-  - **the box,** a peer of the world's that speaks the box's protocol to the service (`../protocol/setup/box.md`, 1) and reports an owned forge's set-up step by step, as the box reports it, on the simulator's time. The one-process world's peer answers a start alone today (survey, 2.1);
-  - **a tab the page opens,** carried to the fake issuer and back, as a browser carries a sign-in's (`sign-in-new-tab.md`), so that an account is connected through the client;
+  - **the box,** a peer of the world's that speaks the box's protocol to the service (`../../protocol/setup/box.md`, 1) and reports an owned forge's set-up step by step, as the box reports it, on the simulator's time. The one-process world's peer answers a start alone today (survey, 2.1);
+  - **a tab the page opens,** carried to the fake issuer and back, as a browser carries a sign-in's (`../sign-in-new-tab.md`), so that an account is connected through the client;
   - **a reload,** the page started again at the address, with the sign-in ways its document names and what its small store kept;
   - **the address a TUI asks to browse,** given to the walk's browser.
-- **Its facts are fixed,** so nothing a page draws varies: the seed 7, the wall 2026-01-06T09:00:00Z, the service at `127.0.0.1:10001` and the forge at `127.0.0.1:10002`, a TUI of 80 columns by 24 rows whose build reads `0.0.0 (000000000000)`. They are the values main's pages hold now (`../client/journey-placeholders.md`, 2; `../client/journey-clock.md`, 2).
+- **Its facts are fixed,** so nothing a page draws varies: the seed 7, the wall 2026-01-06T09:00:00Z, the service at `127.0.0.1:10001` and the forge at `127.0.0.1:10002`, a TUI of 80 columns by 24 rows whose build reads `0.0.0 (000000000000)`. They are the values main's pages hold now (`../../client/journey-placeholders.md`, 2; `../client/journey-clock.md`, 2).
 - **The same bytes every time.** The simulator owns the schedule, so a walk takes the same turns on any host, on any day.
-- **A walk that cannot go on stops,** naming its journey, its line and what the line sought. Its bounds are the drive session's figures, in the simulator's time (`../client/drive.md`, 3.2 and 3.3).
+- **A walk that cannot go on stops,** naming its journey, its line and what the line sought. Its bounds are the drive session's figures, in the simulator's time (`../../client/drive.md`, 3.2 and 3.3).
 
 ### 4.2 On a box
 
-- **The drive session takes a journey's lines** on a fake box or a deployment, as it takes a recipe's (`../client/drive.md`, 1), with a journey's rule that nothing is implied (3.2). A `mark` there is a `look`: the page's accessible text, and a screenshot at the widths asked.
-- **A recipe's walk is unchanged:** its sign-in, its `tui stop` between steps and checks, and what `recipe walk` does (`../client/recipe.md`, 5.1).
-- **What it is for:** what only a browser or a terminal shows, the rendered look and a real program's set-up, after landing and outside every plan (`../client/web/look-requests.md`, 4).
+- **The drive session takes a journey's lines** on a fake box or a deployment, as it takes a recipe's (`../../client/drive.md`, 1), with a journey's rule that nothing is implied (3.2). A `mark` there is a `look`: the page's accessible text, and a screenshot at the widths asked.
+- **A recipe's walk is unchanged:** its sign-in, its `tui stop` between steps and checks, and what `recipe walk` does (`../../client/recipe.md`, 5.1).
+- **What it is for:** what only a browser or a terminal shows, the rendered look and a real program's set-up, after landing and outside every plan (`../../client/web/look-requests.md`, 4).
 - **It writes no page of main's.**
 
 ### 4.3 By hand, on a deployment
 
-- **The recorder stays** in both clients, switched on as today (`../client/web/journeys.md`, 3.1; `../client/tui/journeys.md`, 2). A person records on a deployment or on a box of their own, and saves a file.
-- **`temper-client-journeys print FILE OUT`** takes that file: it redacts it, proves the replay against the saved pages, scans it and prints its pages into OUT, as `add` does today (`../client/web/journey-redaction.md`; `../client/web/journeys.md`, 3.7 and 4.3). OUT is laid out as 5.2 has it, and is never under the repository's journeys.
-- **The file is the person's,** never committed, and main holds no journey made from one. Its pages may be drawn on as a hand-made page's are (`../client/web/look-requests.md`, 2), from wherever they were printed.
+- **The recorder stays** in both clients, switched on as today (`../../client/web/journeys.md`, 3.1; `../../client/tui/journeys.md`, 2). A person records on a deployment or on a box of their own, and saves a file.
+- **`temper-client-journeys print FILE OUT`** takes that file: it redacts it, proves the replay against the saved pages, scans it and prints its pages into OUT, as `add` does today (`../../client/web/journey-redaction.md`; `../../client/web/journeys.md`, 3.7 and 4.3). OUT is laid out as 5.2 has it, and is never under the repository's journeys.
+- **The file is the person's,** never committed, and main holds no journey made from one. Its pages may be drawn on as a hand-made page's are (`../../client/web/look-requests.md`, 2), from wherever they were printed.
 - **Printed by the build that recorded it.** A recording holds one build's wire, so the tool that prints it is built at the deployment's commit. `print` says so, by the layout's name, when it meets another.
 
 ## 5. The print
 
 ### 5.1 A page
 
-- **Its form is unchanged:** the browser's document, one tag per line, its stylesheets linked by their paths in the checkout, its ids numbered afresh (`../client/web/journeys.md`, 5.2 and 5.3); the TUI's text and themed page (`../client/tui/journeys.md`, 6).
+- **Its form is unchanged:** the browser's document, one tag per line, its stylesheets linked by their paths in the checkout, its ids numbered afresh (`../../client/web/journeys.md`, 5.2 and 5.3); the TUI's text and themed page (`../../client/tui/journeys.md`, 6).
 - **Linked by the act** (3.4), where today every control that gives the recorded event is.
 - **A journey's pages are replaced whole** by a walk that reached its last line: fewer marks leave fewer files. A walk that stopped leaves every page of its journey as it was.
 
@@ -160,7 +160,7 @@ tui mark
   - `temper-client-walk pages` writes main's pages in place (section 6).
 - **DIR is laid out as the tree is,** from `temper/` down: each journey's directory at its path, and the stylesheets its pages link, with their files, copied to theirs. So a page opens from DIR as it opens from the checkout, and its bytes are the ones `pages` would write.
 - **Its exit:** 0; 1 when a walk stopped, once the others are printed; 2 for its usage.
-- **It is a print, not a walk of a box:** it starts no process, as the gallery's print starts none (`../client/web/gallery.md`, 1), so a plan may run it.
+- **It is a print, not a walk of a box:** it starts no process, as the gallery's print starts none (`../../client/web/gallery.md`, 1), so a plan may run it.
 
 ### 5.3 Its code
 
@@ -169,13 +169,13 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **The lines' grammar and the two printers** leave `temper-client-journeys-tool`, which depends on the browser kit, for a library that does not. The drive session and the new binary both read lines through it.
 - **The world's driver,** the web host on the simulated service with its stepping, leaves the playground's test crate for a library its tests and the binary share. The box's peer and the walker join it there.
 - **The binary links** those two, the playground's composition and the two shells, and nothing of the box, the browser kit or the drive session.
-- **Its tests' layers:** the grammar and the printers, step; a walk in a world, simulated (`../testing/README.md`, 2). Each within its layer's budget as it stands, with the cost of a journey's walk measured by the goal that first prints one, beside the one-process stories' half a CPU second each (survey, 2.4).
+- **Its tests' layers:** the grammar and the printers, step; a walk in a world, simulated (`../../testing/README.md`, 2). Each within its layer's budget as it stands, with the cost of a journey's walk measured by the goal that first prints one, beside the one-process stories' half a CPU second each (survey, 2.4).
 
 ## 6. Main's pages have one writer
 
 - **What it writes:** each journey's pages, whole (5.1), and the generated files beside them (`skein-ui.css`, `journey.js`, `theme.css`, `tui-journey.js`). It removes the pages of a directory that holds no `walk`.
 - **One run at a time, on main's tip.** The writer prints the tip. While a change of its own is open it starts no other. When that change lands, or any other landing does, it runs again on the new tip. So it settles: once it has run on a tip and found nothing to write, main's pages are that tip's print.
-- **Its change** touches pages alone and is opened from a pushed branch (`mechanical-changes.md`). The last paragraph of its message holds `Printed: COMMIT`, the tip it printed.
+- **Its change** touches pages alone and is opened from a pushed branch (`../mechanical-changes.md`). The last paragraph of its message holds `Printed: COMMIT`, the tip it printed.
 - **Nothing else writes its files, so its change meets no conflict.** Were one to arise all the same, from a branch made by hand, fabrig's merge job settles it with no model, taking the landing branch's copy (`tools/merge/README.md`), and the next run writes the pages again.
 - **It rules by writing, not by guarding.** Whatever lands in a page, the next run replaces it with the tip's print. So no check has to know who wrote a page.
 - **Goals are kept off all the same,** against the habit: the delivery check (`tools/pre-pr/design.md`) refuses an agent's delivery whose branch changes a page, or a generated file beside one, together with any other file, naming `temper-client-walk print`. `AGENTS.md` says so.
@@ -184,34 +184,34 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **A page holds no stamp:** no commit, no date. A landing that changes no page changes no file.
 - **How far behind.** Between a landing and the writer's change, main's pages are an earlier tip's, and the last `Printed:` on main says which. Nothing reads them in between but a person.
 - **A walk that stops** leaves its pages as they were, and the run fails, naming the journey and the line, on that tip and on every later one until a goal repairs the walk or the client: one after-landing red, its owner the after-landing check's. A new journey whose walk stops has no page until then.
-- **The overlays stay empty on main:** the delivery check refuses a branch whose `overlay.css` holds anything, as the print's test does today (`../client/web/journeys.md`, 6).
+- **The overlays stay empty on main:** the delivery check refuses a branch whose `overlay.css` holds anything, as the print's test does today (`../../client/web/journeys.md`, 6).
 - **A new journey** lands as its `walk` and README. Its pages follow, from the writer.
 
 ## 7. Checking work against a request
 
-- **A request is drawn as today:** a commit on the person's `look-requests` or `tui-requests` branch, its diff the pages' changes and the overlay's rules, against main's pages (`../client/web/look-requests.md`, 2).
+- **A request is drawn as today:** a commit on the person's `look-requests` or `tui-requests` branch, its diff the pages' changes and the overlay's rules, against main's pages (`../../client/web/look-requests.md`, 2).
 - **`look-refresh.sh` goes by the print.** It says which commit main's pages were printed at, and how many landings follow it. It drops a request only once its pages are on main: when the commit carrying its trailer is the last `Printed:` commit, or an ancestor of it. Until then the request stays on its branch, on the pages main still holds, and a later request stays drawn on it.
 - **Whoever lands it prints into scratch,** `temper-client-walk print --out DIR`, on its own tree, and compares DIR's pages with the request's, read from the request's commit. They are equal where their facts agree. It needs no box, and nothing it compares can be stale.
 - **It commits no page.** After its landing the writer writes them.
 - **For a journey not yet moved,** the print into scratch is the reprint in the goal's own tree (8.3).
-- **The render check follows the writer's change:** the request's pages under their overlay against main's under the landed stylesheets, in a browser (`../client/web/look-requests.md`, 4).
-- **A state no journey reaches** is the gallery's (`../client/web/gallery.md`), a hand-made page's, or a page printed from a person's own recording (4.3).
+- **The render check follows the writer's change:** the request's pages under their overlay against main's under the landed stylesheets, in a browser (`../../client/web/look-requests.md`, 4).
+- **A state no journey reaches** is the gallery's (`../../client/web/gallery.md`), a hand-made page's, or a page printed from a person's own recording (4.3).
 
 ## 8. What goes, what stays
 
 ### 8.1 Goes
 
 - **Every committed `recording` and `setup`,** and `add` as the way a journey reaches main.
-- **`again`,** the browser's and the TUI's, with its walk's check against the old one, its prepared inputs and its scratch (`../client/web/journeys.md`, 8; `../client/tui/journeys.md`, 8).
-- **Placeholders and `normalise`** (`../client/journey-placeholders.md`): nothing varies in a world, and nothing recorded is compared.
+- **`again`,** the browser's and the TUI's, with its walk's check against the old one, its prepared inputs and its scratch (`../../client/web/journeys.md`, 8; `../../client/tui/journeys.md`, 8).
+- **Placeholders and `normalise`** (`../../client/journey-placeholders.md`): nothing varies in a world, and nothing recorded is compared.
 - **The fixed start** in the box, the page and the TUI (`../client/journey-clock.md`): `again` is its only user, and it goes with it once the last journey has moved. Until then it keeps the writer's walks of a box the same from run to run (8.3).
 - **The test that reprints main's journeys** and holds each recording to its normalisation, with the gate's entries that name a committed recording.
 - **Stale,** as a state of main: no committed file depends on the wire.
-- **A real journey on main** (`real-journeys.md`, 5): a person's recording prints where they choose (4.3).
+- **A real journey on main** (`../real-journeys.md`, 5): a person's recording prints where they choose (4.3).
 
 ### 8.2 Stays
 
-- **The recorder, the replay and the print of a recorded file,** for 4.3, with redaction and the last scan. The drive session reads the TUI's frames through them (`../client/drive.md`, 3.3).
+- **The recorder, the replay and the print of a recorded file,** for 4.3, with redaction and the last scan. The drive session reads the TUI's frames through them (`../../client/drive.md`, 3.3).
 - **The drive session and the recipes,** QA's, with a recipe's walk as it is.
 - **The gallery,** for the states no journey reaches.
 - **The look requests,** but for their refresh and step 6 of their landing (section 7).
@@ -223,10 +223,10 @@ Look requests, the browser's and the TUI's, are drawn and landed all the while (
 
 - **First, one writer, with `again` as its engine.** The gate's test goes, and with it every goal's part in a journey's files. From that landing the writer of section 6 runs on main's tip: it walks again, on a fake box, each journey whose recording no longer replays, reprints them all, and offers what differs, recordings and pages, as its change. Sections 6 and 7 hold from then: one run at a time, `Printed:`, the refresh going by the print, and the delivery check keeping goals off every journey file.
 - **A request is drawn on main's pages, as today,** and the writer keeps them current after each landing.
-- **Whoever lands a request** reprints in its own tree and compares with the request's pages. A change to the look leaves a recording replaying (`../client/web/journeys.md`, 8), so the reprint holds wherever main's recording does. Where the writer is still behind a change to the wire, that journey's comparison is the render check's. It commits no journey file.
+- **Whoever lands a request** reprints in its own tree and compares with the request's pages. A change to the look leaves a recording replaying (`../../client/web/journeys.md`, 8), so the reprint holds wherever main's recording does. Where the writer is still behind a change to the wire, that journey's comparison is the render check's. It commits no journey file.
 - **A journey moves alone:** the change that gives it a `walk` of version 2 that prints in a world takes its `setup` out; its `recording` goes with the writer's first run on it, which prints it in the world, since the delivery check keeps every change but the writer's off a recording (section 6). From that landing the writer prints it in the world, and whoever lands a request prints it into scratch (section 7).
 - **The writer knows a moved journey** by its `walk` of version 2, and takes the other engine for every other directory.
-- **What has no pages today** stays as it is until its journey moves, or is repaired sooner on its own: `chat-draft` alone, since the TUI's `design-session`, `launchpad-chat` and `launchpad-drawn` were walked again on 11-18 and are the writer's from its first run. A request for a state `chat-draft` would show is drawn on a hand-made page or the gallery's, as the look requests allow (`../client/web/look-requests.md`, 2).
+- **What has no pages today** stays as it is until its journey moves, or is repaired sooner on its own: `chat-draft` alone, since the TUI's `design-session`, `launchpad-chat` and `launchpad-drawn` were walked again on 11-18 and are the writer's from its first run. A request for a state `chat-draft` would show is drawn on a hand-made page or the gallery's, as the look requests allow (`../../client/web/look-requests.md`, 2).
 - **A new journey** is written as a walk of version 2 once its client walks in a world. Before that it is walked and added as today, by the writer's runner alone.
 
 ## 9. Upgrades
@@ -248,11 +248,11 @@ Focused, and native: no box, browser or terminal.
 
 ## 11. Later
 
-- **temper runs the writer:** a command the project names, run on a landing branch's new tip as `close` is run on a goal's (`../protocol/tooling.md`, 4.2), its staged files landing as a change of their own, one at a time. The script of section 6 then goes.
+- **temper runs the writer:** a command the project names, run on a landing branch's new tip as `close` is run on a goal's (`../../protocol/tooling.md`, 4.2), its staged files landing as a change of their own, one at a time. The script of section 6 then goes.
 - **A journey after a recipe,** so that a start QA already keeps is not walked again through the client.
 - **The gallery's states as walks,** once a world reaches them, their answers then the engine's own.
 - **The playground's `story-a.log`** (`temper/tests/playground/tests/fixtures/`), another recording on main that the merge job makes again (`tools/merge/README.md`): the same rule would have a test make it and no file keep it.
-- **A recorded file printed across layouts,** by the plans of `layouts-both-ways.md`, 4, so that 4.3 needs no build of the deployment's commit.
+- **A recorded file printed across layouts,** by the plans of `../layouts-both-ways.md`, 4, so that 4.3 needs no build of the deployment's commit.
 - **The box's `mark` compared with the world's page,** by their accessible text, as a check that a world draws what a box does.
 
 ## 12. Open questions

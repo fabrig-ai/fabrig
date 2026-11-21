@@ -61,7 +61,7 @@ A journey is a directory under `web/journeys/` or
 
 A journey belongs to the client whose root holds it and prints that
 client's pages; its walk may act in the other client too, as a TUI's
-sign-in is approved in the browser (`../draft/journey-walks.md`, 3.1).
+sign-in is approved in the browser (`../draft/archive/journey-walks.md`, 3.1).
 
 ### 2.2 Its lines
 
@@ -289,7 +289,7 @@ browser kit, box crate or `temper-client-journeys-tool`.
 `temper-client-walk-world`'s `tui` module, and `web::Page`'s TUI
 methods. The TUI's client is `temper-client-shell-tui`'s shipped host,
 given keys and read as frames with no terminal
-(`../draft/journey-walks.md`, 4.1), as the client's world drives it
+(`../draft/archive/journey-walks.md`, 4.1), as the client's world drives it
 (`temper/tests/client/src/tui.rs`), but against the playground's
 service, over HTTP, rather than joined to the engine's root.
 
@@ -329,7 +329,7 @@ service, over HTTP, rather than joined to the engine's root.
   | `close` | the TUI closed: every later TUI line fails `Failed::Closed` until a `tui stop` |
   | `stop`, `lend`, `unlend` | `Failed::Asked`, naming it: a world plays no box and lends no terminal |
 
-  The world keeps no file (`../draft/journey-walks.md`, 4.1), so what
+  The world keeps no file (`../draft/archive/journey-walks.md`, 4.1), so what
   the TUI keeps lives as long as the walk, as the client's world keeps
   it (`temper/tests/client/src/tui.rs`).
 - **Its deadlines:** `Host::deadline` joins the turn loop's wakes, and
@@ -391,7 +391,7 @@ service, over HTTP, rather than joined to the engine's root.
   harness `Clients`, with the box's peer at the service's box pipe
   (4.4).
 - **The forge at `FORGE`,** `127.0.0.1:10002`, the address a person's
-  pages drew from a box (`../draft/journey-walks.md`, 4.1): the
+  pages drew from a box (`../draft/archive/journey-walks.md`, 4.1): the
   composition started at a forge address of its caller's
   (`../playground.md`, 4), which every part that names the forge takes
   from that one address: the fake forge's listener, the forges' runtime
@@ -581,7 +581,7 @@ no group's steps, no listener of its own, no `box.log`, no record under
 
 The tab a model's sign-in opens (`../draft/sign-in-new-tab.md`, 2),
 carried as a browser carries it, so that an account is connected through
-the client (`../draft/journey-walks.md`, 4.1).
+the client (`../draft/archive/journey-walks.md`, 4.1).
 
 - **The page's tab duties,** `temper-client-shell-web`'s `Duties::tab`,
   are carried in the turn that gives them, before its transport, as the
@@ -852,7 +852,7 @@ its own process.
 - **The writer's run,** in the journeys tool's suite
   (`journey-writer.md`, 7).
 - **No test walks main's journeys** or compares a page of main's
-  (`../draft/journey-walks.md`, 10). Each test sits in its layer within
+  (`../draft/archive/journey-walks.md`, 10). Each test sits in its layer within
   that layer's budget as it stands; the cost of a journey's walk in a
   world is kept in `../../development/limits-worlds.md`.
 

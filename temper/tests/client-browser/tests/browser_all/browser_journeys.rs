@@ -1,4 +1,4 @@
-//! Box walks of scratch journeys (draft/journey-walks.md, 4.2 and 10).
+//! Box walks of scratch journeys (draft/archive/journey-walks.md, 4.2 and 10).
 use std::{
     fs,
     os::unix::{
