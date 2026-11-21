@@ -7,7 +7,13 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[lib]
+test = false
+doctest = false
+
 [dependencies]
+sha2.workspace = true
+skein-scratch.workspace = true
 smith-bench = { path = "../../benchmarks" }
 smith-events.workspace = true
 smith-events-fixtures.workspace = true

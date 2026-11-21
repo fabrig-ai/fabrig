@@ -140,6 +140,12 @@ cpu_s = 7
 [gate.default.skein.end-to-end]
 cpu_s = 4
 
+[[gate.default.moves]]
+from = "skein.real-loop"
+to = "skein.simulated"
+cpu_s = 3.7
+why = "skein-echo-world, skein-fake-peers-tests, skein-kv-tests, skein-oauth-accounts-world and skein-world-tests' replaying tests left their real-loop suites for simulated binaries (tools/tiers/layers.md, 6.1)."
+
 [gate.default.smith]
 ideal_s = 30
 
@@ -163,6 +169,24 @@ cpu_s = 2
 
 [gate.default.smith.end-to-end]
 cpu_s = 21
+
+[[gate.default.moves]]
+from = "smith.end-to-end"
+to = "smith.step"
+cpu_s = 1.4
+why = "smith-bench's offline harness checks and smith's offline configuration controls left their end-to-end binaries for step binaries (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "smith.end-to-end"
+to = "smith.simulated"
+cpu_s = 2.1
+why = "smith-fake-claude's encodings and hosted fake left their end-to-end binary for a simulated binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "smith.real-loop"
+to = "smith.simulated"
+cpu_s = 0.1
+why = "smith-machine-world's machine seams and fake-kernel stories left their real-loop binary for a simulated binary (tools/tiers/layers.md, 6.1)."
 
 [gate.default.jig]
 ideal_s = 30
@@ -192,6 +216,18 @@ cpu_s = 2
 
 [gate.default.jig.end-to-end]
 cpu_s = 2
+
+[[gate.default.moves]]
+from = "jig.real-loop"
+to = "jig.protocol"
+cpu_s = 1.5
+why = "The engine clients' codec bounds, scripted peers and joint HTTP stories replay in their own protocol binary, apart from the provider's openssl children (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "jig.end-to-end"
+to = "jig.step"
+cpu_s = 0.2
+why = "The reference service's refused-plan diagnostic replays in its step binary, apart from real-account service processes (tools/tiers/layers.md, 6.1)."
 
 [gate.default.temper]
 ideal_s = 100
@@ -232,6 +268,24 @@ cpu_s = 39
 ideal_s = 3
 reference_s = 2
 
+[[gate.default.moves]]
+from = "temper.end-to-end"
+to = "temper.domain"
+cpu_s = 2.1
+why = "temper-box's replaying harness checks and scripted client-tool reads have their own domain binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.step"
+cpu_s = 1.6
+why = "The forge setup's source checks, the process guard's scripted observations and QA's value checks have step binaries of their own (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 3.2
+why = "The redeploy's replaying value checks and fake-host orchestration have their own domain binary (tools/tiers/layers.md, 6.1)."
+
 [gate.default.hearth]
 ideal_s = 30
 
@@ -249,6 +303,12 @@ cpu_s = 11
 
 [gate.default.hearth.end-to-end]
 cpu_s = 2
+
+[[gate.default.moves]]
+from = "hearth.real-loop"
+to = "hearth.simulated"
+cpu_s = 3.9
+why = "hearth-builder-world's tests that replay left its real-loop binary for a binary of their own (tools/tiers/layers.md, 6.1)."
 
 [gate.default.repository]
 ideal_s = 30
@@ -328,6 +388,12 @@ cpu_s = 20
 [gate.fuzzy.skein.end-to-end]
 cpu_s = 1
 
+[[gate.fuzzy.moves]]
+from = "skein.real-loop"
+to = "skein.simulated"
+cpu_s = 17.6
+why = "skein-echo-world, skein-fake-peers-tests, skein-kv-tests, skein-oauth-accounts-world and skein-world-tests' replaying fuzzy sweeps left their real-loop suites for simulated binaries (tools/tiers/layers.md, 6.1)."
+
 [gate.fuzzy.smith]
 ideal_s = 120
 
@@ -352,6 +418,18 @@ cpu_s = 2
 [gate.fuzzy.smith.end-to-end]
 cpu_s = 3
 
+[[gate.fuzzy.moves]]
+from = "smith.end-to-end"
+to = "smith.step"
+cpu_s = 1.5
+why = "smith-bench's recorded parser sweeps left their end-to-end binary for a step binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.fuzzy.moves]]
+from = "smith.real-loop"
+to = "smith.simulated"
+cpu_s = 0.4
+why = "smith-machine-world's seeded machine seams and fake-kernel stories left their real-loop binary for a simulated binary (tools/tiers/layers.md, 6.1)."
+
 [gate.fuzzy.jig]
 ideal_s = 120
 
@@ -375,6 +453,12 @@ cpu_s = 2
 
 [gate.fuzzy.jig.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "jig.real-loop"
+to = "jig.protocol"
+cpu_s = 1.0
+why = "The engine clients' cursor and forwarded-field sweeps replay in their own protocol binary, apart from the provider's openssl children (tools/tiers/layers.md, 6.1)."
 
 [gate.fuzzy.temper]
 ideal_s = 180
@@ -403,6 +487,18 @@ cpu_s = 198
 [gate.fuzzy.temper.end-to-end]
 cpu_s = 1
 
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.step"
+cpu_s = 7.6
+why = "QA's seeded ledger sequences replay in their own step binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 4.6
+why = "The redeploy's seeded fake-host and parser cases replay in their own domain binary (tools/tiers/layers.md, 6.1)."
+
 [gate.fuzzy.hearth]
 ideal_s = 120
 
@@ -420,6 +516,12 @@ cpu_s = 9
 
 [gate.fuzzy.hearth.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "hearth.real-loop"
+to = "hearth.simulated"
+cpu_s = 7.8
+why = "hearth-builder-world's tests that replay left its real-loop binary for a binary of their own (tools/tiers/layers.md, 6.1)."
 
 [[gate.fuzzy.moves]]
 from = "jig.simulated"

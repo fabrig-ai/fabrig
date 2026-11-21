@@ -143,17 +143,3 @@ fn a_termination_signal_while_closing_aborts_and_drive_returns_when_those_settle
         }
     }
 }
-
-#[test]
-fn worlds_drain_once_per_iteration_in_the_simulator() {
-    let mut simulated = skein_world::World::new(
-        7,
-        skein_sim::Config::calm(),
-        skein_world_tests::hosted::Judge,
-        skein_world::Memory::Unchecked,
-    );
-    simulated.spawn(|| Script::new(&[]));
-    let outcome = simulated.run();
-    assert_eq!(outcome.procs[0].iterations, outcome.procs[0].drains);
-    assert!(outcome.procs[0].drains > 0);
-}

@@ -15,6 +15,10 @@ doctest = false
 name = "suite"
 path = "tests/suite/main.rs"
 
+[[test]]
+name = "step"
+path = "tests/step/main.rs"
+
 [dependencies]
 skein-shell.workspace = true
 serde_json.workspace = true

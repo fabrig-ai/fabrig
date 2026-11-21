@@ -27,6 +27,9 @@ mod recording;
 mod report;
 mod requests;
 pub mod runner;
+#[doc(hidden)]
+#[expect(clippy::must_use_candidate, reason = "shared test fixtures retain their helpers' signatures")]
+pub mod testing;
 mod text;
 mod tune;
 pub mod watch;

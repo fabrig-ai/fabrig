@@ -1,7 +1,7 @@
 //! Shipped smith on its own live accounts (smith/docs/design/testing.md, section 2.3).
 //! The live profile selects these stories serially, without retries.
 
-pub mod support;
+pub use smith_end_to_end_kit as support;
 
 pub use support::{live, live_report};
 
