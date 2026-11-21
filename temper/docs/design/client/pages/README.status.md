@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-21. Where the tree's code lags or departs from [README.md](README.md).
 
 
 
@@ -654,8 +654,8 @@ presses the switch across projects: the render check and the walk remain
 - **Design departs:** *Needs you*, *What the client keeps*, and `../view.md`, 3, from
   the request of 2026-11-05 for them, decided by its plan's cut, the request
   leaving that judgement to it. The rail's watch opens while a project's frame shows, not once signed
-  in: the rail alone reads it, and opened at sign-in it would stale all three
-  journeys' recordings. Bare `/inbox` is `/`, the Inbox's unfiltered address
+  in: the rail alone reads it. No reason for keeping it closed until a
+  project's frame is recorded. Bare `/inbox` is `/`, the Inbox's unfiltered address
   (`../web/README.md`, 2.3). The dots are a figure, not `role=img`: skein-ui's
   `Role::Image` is an image, with no children. Money reads "S of L used", not "$S
   of $L": the contract's units aren't dollars, and the request also asks the task
@@ -774,8 +774,8 @@ terminal look waiting, at every address but the sign-in page, the
 main is kept empty, not left out, because skein's outline asks exactly
 one main of every tree (skein's `ui/README.md`, 12). The frame's table covers
 `Chats`, `NewChat`, `Welcome` and a kept terminal look before `me` in
-both shells, and the welcome's tables its end; the welcome's journeys
-are reprinted with it. temper/ui's rendered comparison follows landing
+both shells, and the welcome's tables its end. These checks establish
+no rendered comparison; temper/ui's follows landing
 (`../web/README.md`, section 3).
 
 The document and `../view.md`, sections 1 and 6 have the browser's approval page in the

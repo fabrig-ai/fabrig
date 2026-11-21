@@ -248,6 +248,10 @@ terminal client, the captures and the faults.
   - people: skein's fake person in front of temper's terminal client,
     its domain, view and jig's native transport (../client/README.md, section 2;
     `fakes.md`, 4).
+- **Journeys' prints** use this composition too: the browser's shipped
+  host and the TUI's shipped host on the simulated service, with no box
+  and no terminal (`../client/journey-walks.md`, 3.2, 3.3 and 4). The
+  walker feeds their lines and prints their marks as pages.
 - **Stories:**
   - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;

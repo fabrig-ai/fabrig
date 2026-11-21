@@ -378,8 +378,9 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
 - **The agent judges** them against those landings' drafts
   (`../../draft/landed-qa.md`, 5):
   - **a flow a landing changed on purpose:** the recipe's to follow; the
-    agent edits `passes/P/setups/R/recipe`, as a journey's setup is
-    edited (`../../client/web/journeys.md`, 8), and runs `pass setup`
+    agent edits `passes/P/setups/R/recipe`, as a journey's walk follows
+    the controls a landing changes (`../../client/journey-walks.md`, 2.2),
+    and runs `pass setup`
     again, which walks it from its nearest ancestor's copy, since its
     hash changed. The edit goes with the pass's next request;
   - **a flow no landing meant to change:** a finding against temper
