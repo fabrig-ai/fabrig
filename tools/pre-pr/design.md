@@ -565,6 +565,17 @@ delivery hears every failure; the verdict is section 6's.
      `HEAD`. It is the delivery's own, never inherited (section 5).
    - **Passed:** neither; a delivery whose own paths are written files
      alone among them.
+9. **The merge job's tests,** where section 3's changed paths include
+   `.temper/merge` or a path under `tools/merge/` other than its
+   `README.md` and `codecs.txt`: `python3 -I -B tools/merge/test_merge.py`
+   from the tree's root, after check 7 and before check 8, announced
+   `pre-pr: merge …` and ended `pre-pr: merge: passed|failed, <seconds>
+   s`. Its test with the real generator builds `skein-codegen` under the
+   check's hold (`tools/merge/README.md`). Its exit decides:
+   - **0:** passed;
+   - **any other:** one failure, `merge`, its log the tests' output. It
+     is the delivery's own, never inherited (section 5): it runs only
+     for a delivery that changes the job.
 
 **The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5), and `TIERS_LEDGER` removed, as `TIERS_HOLD` is
