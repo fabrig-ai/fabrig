@@ -120,7 +120,7 @@ The status file beside each document held. temper's design documents' status fil
 - **A goal** that splits temper's files over the mark as 4.2 says, and removes the drafts section 5 lists.
 - **One area at a time:** `move.py` rewrites citations across the whole repository. So the goal's changes run one after another, each splitting one area's files: for example the domain, the protocol, the clients, and then the rest. Each change takes its batch from the files over the mark at the commit it starts from, and writes its maps alone. It's accepted when every file of its batch is under the mark.
 - **The first pass:** the 45 documents and drafts over the mark at `b2fdead79c` (27 of them over 56 KB), `draft/notes.md` among them; `client/pages/README.status.md` with its document; and the 13 drafts of 2.3.
-- **Later passes:** once the roll-up lists a temper document over 56 KB, another pass is proposed to the user, who approves it as any other goal (7.1).
+- **Later passes, by hand for now:** when the user checks in, the drafter brings the roll-up's due list for temper, a document over 56 KB above all, and they decide together whether to run a pass. A pass they decide on starts as a goal on the user's word. Once a few passes have given experience, the passes are automated (7.1).
 - **Goals in flight:** a split moves text that a goal in flight may cite or edit. A citation to a moved section finds its line (4.2). A goal whose branch edited a moved section meets a conflict at its merge. The goal's designer or coordinator resolves it with the map, since a repair may not edit design documents.
 - **Other trees:** the roll-up lists jig's, skein's, smith's and hearth's files over the mark for their areas. This draft runs no pass on them (7.2).
 
@@ -140,7 +140,7 @@ The status file beside each document held. temper's design documents' status fil
 
 ### 7.1 How often split passes run
 
-How often the roll-up is read for a pass, weekly for instance, and whether later passes carry the user's standing approval, as the fixes for temper's own bugs do, or each one waits for the user's word.
+Decided by the user, 2026-11-21: by hand at first, with no cadence and no standing approval. At the user's check-ins the drafter reminds them of the roll-up's due list, and they decide whether to run a pass (4.3). Once a few passes have given experience, the passes are automated, and their cadence and approval are decided then.
 
 ### 7.2 The other trees
 
