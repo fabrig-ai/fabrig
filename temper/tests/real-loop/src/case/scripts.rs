@@ -80,14 +80,14 @@ pub fn step_4_6_rules() -> Box<[Box<[Rule]>]> {
     // forever for a result it just read. Keep all turns, selecting that finish
     // from the result and the acknowledgement wait from the notice alone.
     let chat = [
-        (super::PHASE_REPORT, 5),
-        (CROSSED, 5),
-        ("Person answered task", 4),
-        (super::PHASE_QUESTION, 2),
-        (DELEGATED, 1),
-        (DELIVERY, 1),
+        (super::PHASE_REPORT, 4),
+        (CROSSED, 4),
+        ("Person answered task", 3),
+        (super::PHASE_QUESTION, 1),
+        (DELEGATED, 2),
+        (DELIVERY, 2),
         (BEGIN, 0),
-        ("", 3),
+        ("", 2),
     ]
     .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
     Box::new([Box::new(chat), Box::new([])])
@@ -388,7 +388,6 @@ pub fn step_4_6(_forge: SocketAddr) -> Box<[Script]> {
             cue: HANG_PERSON.as_bytes().into(),
             turns: Box::new([
                 owner(PHASE_SPEC, false),
-                wait("A's next phase is delegated."),
                 // Consult the project's phase notes before directing A. Unlike
                 // wait, the completed tool turn commits the question read.
                 {

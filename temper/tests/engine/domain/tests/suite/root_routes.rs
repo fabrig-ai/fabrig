@@ -6,6 +6,9 @@ mod parts;
 #[path = "root_routes/standing.rs"]
 mod standing;
 
+#[path = "root_routes/stopped_worker.rs"]
+mod stopped_worker;
+
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
@@ -420,7 +423,14 @@ fn a_member_starts_a_chat_and_an_observer_is_refused() {
 
 /// A real message commit leaves the parent with an unanswered question.
 fn unanswered_question() -> (Driver, engine::Assignment, u64, engine::Assignment) {
-    let (mut driver, parent) = batch_fixture_with(2, 1);
+    let (driver, parent) = batch_fixture_with(2, 1);
+    ask_question(driver, parent)
+}
+
+fn ask_question(
+    mut driver: Driver,
+    parent: engine::Assignment,
+) -> (Driver, engine::Assignment, u64, engine::Assignment) {
     let child = call_batch(&mut driver, &parent, 2034, Box::new([report_delegate(b"ask", Box::new([]))]))[0];
     let asker = assigned_task(&driver, child);
     let words = b"ship?".as_slice().into();
@@ -439,6 +449,9 @@ fn unanswered_question() -> (Driver, engine::Assignment, u64, engine::Assignment
 #[test]
 fn a_person_answers_a_question_its_task_has_already_read() {
     use jig_domain_core::{documents, reads};
+
+    const REQUESTS: u32 = 2; // The original command and its identical retry.
+    const ANSWERS: usize = 1; // One answer and one resulting report.
 
     let (mut driver, parent, question, asker) = unanswered_question();
     driver.send(protocol::turn(Token::new(7), parent.task, parent.attempt, 1, 1, Some(question), b"read question"));
@@ -470,14 +483,22 @@ fn a_person_answers_a_question_its_task_has_already_read() {
         reads::PageRow::Inbox(entry) if matches!(&entry.task, documents::TaskLink::Live(chip) if chip.number == parent.task)
             && entry.object == documents::InboxObject::Question { message: question }
     )));
-    driver.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(2036)),
-        sign_in: driver.session(),
-        key: [210; 16],
-        ask: people::Ask::AnswerQuestion { project: 1, task: parent.task, question, words: b"yes".as_slice().into() },
-    }));
-    driver.settle();
+    // Retrying the person's command must not send a second answer to A.
+    for _ in 0..REQUESTS {
+        driver.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(2036)),
+            sign_in: driver.session(),
+            key: [210; 16],
+            ask: people::Ask::AnswerQuestion {
+                project: 1,
+                task: parent.task,
+                question,
+                words: b"yes".as_slice().into(),
+            },
+        }));
+        driver.settle();
+    }
     assert!(driver.delivered.iter().any(|item| matches!(item,
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::QuestionAnswered {
             task, question: answered, ..
@@ -492,6 +513,34 @@ fn a_person_answers_a_question_its_task_has_already_read() {
     assert!(live(&driver, asker.task).inbox.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }
         && word.from == tasks::Party::Task(parent.task)
         && word.words.as_ref() == b"yes"));
+    assert_eq!(
+        live(&driver, asker.task)
+            .inbox
+            .iter()
+            .filter(|word| word.kind == tasks::MessageKind::Answer { question })
+            .count(),
+        ANSWERS,
+        "one direct answer, despite the repeated command"
+    );
+    assert_eq!(messages_to(&driver, &asker).iter().filter(|(_, words)| words.as_ref() == b"yes").count(), ANSWERS);
+    stopped_worker::finish(&mut driver, Token::new(7), &asker, b"phase reported");
+    assert_eq!(
+        live(&driver, parent.task)
+            .inbox
+            .iter()
+            .filter(|word| word.from == tasks::Party::Task(asker.task)
+                && word.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
+                && word.words.as_ref() == b"phase reported")
+            .count(),
+        ANSWERS
+    );
+    stopped_worker::finish(&mut driver, Token::new(7), &parent, b"director reported");
+    for (task, report) in [(asker.task, b"phase reported".as_slice()), (parent.task, b"director reported".as_slice())] {
+        assert!(driver.store.rows.values().any(|row| matches!(row,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
+                if row.number == task && row.phase == tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: report.into() }))
+        )));
+    }
 }
 
 #[test]
@@ -4826,17 +4875,11 @@ fn placements(driver: &Driver) -> Vec<(Token, u64, u64)> {
 
 // protocol/cluster.md, 4 and 6: the cluster's placement and fencing.
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the cluster story carries numbered worker settings beside both channel histories"
-)]
 fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const LOST_CHANNEL: Token = Token::new(7);
     const SURVIVING_CHANNEL: Token = Token::new(8);
     const LOST_POSITION: u32 = 0;
     const SURVIVING_POSITION: u32 = 1;
-    const WORKERS: u32 = 2; // The cluster has two configured workers.
-    const PROGRAM_HOSTS: u32 = WORKERS + 1; // Workers and the engine.
     const SLOTS: u32 = 1; // One run on each worker (README 15.6).
     const COMMITTED_TURN: u32 = 1;
     const STALE_TURN: u32 = 2;
@@ -4849,33 +4892,7 @@ fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const PAST_GRACE: Duration = Duration::from_secs(6);
     const PAST_RETRY: Duration = Duration::from_secs(7); // Also past the configured lost-retry backoff.
 
-    let mut bounds = limits();
-    bounds.fleet.configured_workers = WORKERS;
-    bounds.fleet.workers = WORKERS;
-    bounds.people.program_hosts = PROGRAM_HOSTS;
-    bounds.accounts.program_hosts = PROGRAM_HOSTS;
-    bounds.journal.deliveries = TWO_WORKER_DELIVERIES;
-    bounds.journal.held = 3 * bounds.journal.deliveries + 16;
-    let configs = [91, 91].map(|seed| {
-        let mut configuration = sharing_config(seed);
-        configuration.core.defaults.workers = Box::new([
-            jig_domain_core::settings::WorkerSetting {
-                number: 1,
-                name: b"first-worker".as_slice().into(),
-                places: 1,
-                digest: Some([7; 32]),
-                withdrawn: false,
-            },
-            jig_domain_core::settings::WorkerSetting {
-                number: 2,
-                name: b"second-worker".as_slice().into(),
-                places: 1,
-                digest: Some([7; 32]),
-                withdrawn: false,
-            },
-        ]);
-        configuration
-    });
+    let (configs, bounds) = stopped_worker::two_workers([91, 91].map(sharing_config), limits());
     let mut driver = Driver::configured(Store::new(), configs, &bounds);
     driver.settle();
     driver.send(protocol::hello_at(LOST_CHANNEL, LOST_POSITION, SLOTS, Box::new([])));

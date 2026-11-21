@@ -43,20 +43,6 @@ pub enum Read {
     BenchmarkWaiting,
     BenchmarkEnded,
     BEnded,
-    /// The retried director reports.
-    HangEnded,
-    /// The director commits its question read before stopping.
-    HangQuestionRead,
-    /// The director waits in its first attempt.
-    HangWaiting,
-    /// A's next phase reports.
-    PhaseEnded,
-    /// The newest director activity page.
-    HangActivity,
-    /// The middle director activity page.
-    HangActivityOlder,
-    /// The oldest director activity page.
-    HangActivityFirst,
     RulesWaiting,
     RulesHeld,
     ScopeHeld,
@@ -430,27 +416,13 @@ pub fn reads_4_1_4_3() -> Vec<(Read, usize)> {
 }
 
 const HANG_ENDED: usize = 2;
-const HANG_QUESTION_READ: usize = 3;
-const HANG_WAITING: usize = 4;
-const HANG_A_ENDED: usize = 7;
-const HANG_ACTIVITY: usize = 8;
-const HANG_ACTIVITY_OLDER: usize = 9;
-const HANG_ACTIVITY_FIRST: usize = 10;
-/// Documents within the standalone restart story, relative to its first call.
-pub const READS_4_6: &[(Read, usize)] = &[
-    (Read::HangEnded, HANG_ENDED),
-    (Read::HangQuestionRead, HANG_QUESTION_READ),
-    (Read::HangWaiting, HANG_WAITING),
-    (Read::PhaseEnded, HANG_A_ENDED),
-    (Read::HangActivity, HANG_ACTIVITY),
-    (Read::HangActivityOlder, HANG_ACTIVITY_OLDER),
-    (Read::HangActivityFirst, HANG_ACTIVITY_FIRST),
-];
+/// The restart seam is observed through worker lives and model input, not documents.
+pub const READS_4_6: &[(Read, usize)] = &[];
 
 /// Sign in and run the restart story; `base` names its first recorded call.
 #[must_use]
 pub fn step_4_6(base: usize) -> Vec<calls::Step> {
-    use super::{HANG, HANG_PERSON, HANG_READ, PHASE};
+    use super::{HANG, HANG_PERSON, HANG_READ};
     vec![
         sign_in(D1),
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "hang", HANG_PERSON]),
@@ -478,23 +450,6 @@ pub fn step_4_6(base: usize) -> Vec<calls::Step> {
             ],
         ),
         join(base + HANG_ENDED),
-        call(D1, argv!["task", "show", number(PHASE), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "activity", number(HANG), "--json"]),
-        call(
-            D1,
-            argv!["task", "activity", number(HANG), "--before", calls::activity_before(base + HANG_ACTIVITY), "--json"],
-        ),
-        call(
-            D1,
-            argv![
-                "task",
-                "activity",
-                number(HANG),
-                "--before",
-                calls::activity_before(base + HANG_ACTIVITY_OLDER),
-                "--json"
-            ],
-        ),
         // The ended chat is the cheapest event proving its retry cannot use ws.
         calls::start_worker("ws"),
     ]

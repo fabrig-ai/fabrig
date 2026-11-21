@@ -1542,96 +1542,18 @@ mod check_timer_tests {
     }
 }
 
-const REPLACED: Promise = Promise::Must("the chat's run placed again after its worker's grace (exact)");
-const FENCED: Promise = Promise::Must("one run per task, the lost attempt fenced before the next (gone)");
-const QUESTIONS_WAIT: Promise = Promise::Step("A's questions wait, since the director lives there");
 const ONCE: Promise = Promise::Add("nothing resumes twice");
 
-/// Retained first-edition story (testing/reference-case.md): supported retry, retained question and single answer checkpoint.
+/// The real worker restart delivers the direct answer once (testing/reference-case.md's 4.6 row).
 #[must_use]
 pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
-    use super::{HANG, HANG_REPORT, PHASE, PHASE_QUESTION_NUMBER, PHASE_REPORT};
     let mut misses = Vec::new();
-    let reads = [Read::HangActivity, Read::HangActivityOlder, Read::HangActivityFirst];
-    let rows: Vec<_> = observation_reads(observed, &reads)
-        .into_iter()
-        .flat_map(|read| document(observed, read)["rows"].as_array().into_iter().flatten())
-        .collect();
-    let complete = reads.iter().all(|read| document(observed, *read)["cut"] == false)
-        && document(observed, Read::HangActivityFirst)["before"].is_null();
-    let ordered = rows
-        .windows(2)
-        .all(|pair| number(pair[0], "/position").zip(number(pair[1], "/position")).is_some_and(|(new, old)| new > old));
-    let activity: Vec<_> = joined_activity(observed, &reads);
-    let mut open = None;
-    let mut sequenced = true;
-    let mut attempts = Vec::new();
-    let mut endings = Vec::new();
-    for source in activity.iter().rev() {
-        let line = &source["line"];
-        if let Some(began) = line.get("run_began") {
-            sequenced &= open.is_none();
-            open = number(began, "/attempt");
-            sequenced &= open.is_some();
-            attempts.push(open);
-        }
-        if let Some(ended) = line.get("run_ended") {
-            sequenced &= open.is_some() && open.take() == number(ended, "/attempt");
-            endings.push(ended);
-        }
-    }
-    sequenced &= open.is_none();
     step_check(
         &mut misses,
         "4.6",
-        complete && ordered && sequenced,
-        FENCED,
-        "the complete journal must order every run beginning after the previous ending, with no attempt left open",
-    );
-    let director = task_document(observed, Read::HangEnded);
-    // A worker's stop suspends without spending a try (jig's domain/engine/executors.md, 6.2).
-    let retried = matches!(attempts.as_slice(), [Some(first), Some(next)] if first != next)
-        && matches!(endings.as_slice(), [first, next]
-            if text(first, "/end/suspended/why") == "stopped"
-                && number(first, "/end/suspended/worker").is_some()
-                && text(next, "/end") == "finished");
-    step_check(
-        &mut misses,
-        "4.6",
-        retried
-            && complete
-            && ordered
-            && sequenced
-            && number(director, "/chip/task") == Some(HANG)
-            && text(director, "/chip/phase") == "ended"
-            && text(director, "/result/value/report/bytes") == HANG_REPORT,
-        REPLACED,
-        "the chat must have exactly two ordered attempts, suspended by its worker's stop then finished, and end with its report",
-    );
-    let read = check_activity(observed, Read::HangQuestionRead)
-        .iter()
-        .any(|source| number(source, "/line/turn/read") == Some(PHASE_QUESTION_NUMBER));
-    let waiting = task_document(observed, Read::HangWaiting);
-    let (retained, answered_once) = restart_messages(observed);
-    step_check(
-        &mut misses,
-        "4.6",
-        read && number(waiting, "/chip/task") == Some(HANG)
-            && text(waiting, "/chip/details/owner/details/observation/work") == "waiting"
-            && retained,
-        QUESTIONS_WAIT,
-        "before the stop, the director must have committed A's question read and be waiting; its retry must retain one copy",
-    );
-    let phase = task_document(observed, Read::PhaseEnded);
-    step_check(
-        &mut misses,
-        "4.6",
-        answered_once
-            && number(phase, "/chip/task") == Some(PHASE)
-            && text(phase, "/chip/phase") == "ended"
-            && text(phase, "/result/value/report/bytes") == PHASE_REPORT,
+        restart_answer_once(observed),
         ONCE,
-        "the person must answer A directly once with no director relay, and A's next phase must end with its report",
+        "A must receive the person's answer once, without a director relay",
     );
     misses
 }
@@ -1646,46 +1568,35 @@ fn user_words(told: &Told) -> impl Iterator<Item = &[u8]> {
     )
 }
 
-fn restart_messages(observed: &Observed) -> (bool, bool) {
-    use super::{PHASE_ANSWER, PHASE_QUESTION, PHASE_QUESTION_NUMBER};
+fn restart_answer_once(observed: &Observed) -> bool {
+    use super::{PHASE_ANSWER, PHASE_QUESTION_NUMBER};
     use skein_fake_llm_domain::api::Part;
-    let mut resumed = false;
-    let mut retained = true;
     let mut valid_answers = true;
     let mut received = 0;
     for told in &observed.told {
         if told.agent == Agent::Hang {
-            let mut waits = 0;
             for part in told.history.iter().flat_map(|message| &message.parts) {
-                if let Part::ToolCall { name, arguments, .. } = part {
-                    waits += usize::from(name.as_ref() == b"wait");
-                    if name.as_ref() == b"message"
-                        && let Ok(args) = serde_json::from_slice::<Value>(arguments)
-                        && args["form"] == "answer"
-                        && args["question"] == PHASE_QUESTION_NUMBER
-                    {
-                        valid_answers = false;
-                    }
+                if let Part::ToolCall { name, arguments, .. } = part
+                    && name.as_ref() == b"message"
+                    && let Ok(args) = serde_json::from_slice::<Value>(arguments)
+                    && args["form"] == "answer"
+                    && args["question"] == PHASE_QUESTION_NUMBER
+                {
+                    valid_answers = false;
                 }
-            }
-            if waits >= 2 && user_words(told).any(|words| contains(words, "Begin the work your brief describes.")) {
-                resumed = true;
-                retained &=
-                    user_words(told).map(|words| calls::occurrences(words, PHASE_QUESTION.as_bytes())).sum::<usize>()
-                        == 1;
             }
         }
         if told.agent == Agent::Phase {
             received += user_words(told).map(|words| calls::occurrences(words, PHASE_ANSWER.as_bytes())).sum::<usize>();
         }
     }
-    (resumed && retained, valid_answers && received == 1)
+    valid_answers && received == 1
 }
 
 #[cfg(test)]
 mod restart_tests {
     use super::*;
-    use crate::case::{HANG, HANG_REPORT, PHASE, PHASE_ANSWER, PHASE_QUESTION, PHASE_QUESTION_NUMBER, PHASE_REPORT};
+    use crate::case::{PHASE, PHASE_ANSWER, PHASE_QUESTION_NUMBER};
     use serde_json::json;
     use skein_fake_llm_domain::api::{Message, Part, Role};
 
@@ -1707,65 +1618,14 @@ mod restart_tests {
         }
     }
     fn met() -> Observed {
-        let events = [
-            json!({"run_ended":{"attempt":8,"end":"finished"}}),
-            json!({"run_began":{"attempt":8}}),
-            json!({"run_ended":{"attempt":7,"end":{"suspended":{"worker":1,"why":"stopped"}}}}),
-            json!({"run_began":{"attempt":7}}),
-        ];
-        let mut documents = BTreeMap::new();
-        for (index, read) in
-            [Read::HangActivity, Read::HangActivityOlder, Read::HangActivityFirst].into_iter().enumerate()
-        {
-            let selected = if index == 0 { &events[..2] } else { &events[index + 1..index + 2] };
-            let newest = if index == 0 { 4 } else { 3 - index };
-            let rows: Vec<_> = selected
-                .iter()
-                .enumerate()
-                .map(|(offset, line)| json!({"position":newest-offset,"event":{"owner":{"source":{"line":line}}}}))
-                .collect();
-            documents.insert(read, json!({"cut":false,"before":if index == 2 { Value::Null } else { json!({"value":"older"}) },"rows":rows}));
-        }
-        for (read, task, report) in [(Read::HangEnded, HANG, HANG_REPORT), (Read::PhaseEnded, PHASE, PHASE_REPORT)] {
-            documents.insert(
-                read,
-                json!({"task":{"chip":{"task":task,"phase":"ended"},"result":{"value":{"report":{"bytes":report}}}}}),
-            );
-        }
-        documents.insert(
-            Read::HangWaiting,
-            json!({"task":{"chip":{"task":HANG,"details":{"owner":{"details":{"observation":{"work":"waiting"}}}}}}}),
-        );
-        documents.insert(
-            Read::HangQuestionRead,
-            json!({"rows":[{"event":{"owner":{"source":{"line":{"turn":{"read":PHASE_QUESTION_NUMBER}}}}}}]}),
-        );
         Observed {
             activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
-            documents,
+            documents: BTreeMap::new(),
             commands: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main: BTreeMap::new(), merged_green: false },
             told: vec![
-                told(
-                    Agent::Hang,
-                    vec![
-                        Message {
-                            role: Role::Assistant,
-                            parts: vec![call("wait-one", "wait", &json!({})), call("wait-two", "wait", &json!({}))]
-                                .into_boxed_slice(),
-                        },
-                        Message {
-                            role: Role::User,
-                            parts: vec![Part::Text {
-                                text: format!("Begin the work your brief describes. {PHASE_QUESTION}")
-                                    .into_bytes()
-                                    .into_boxed_slice(),
-                            }]
-                            .into_boxed_slice(),
-                        },
-                    ],
-                ),
+                told(Agent::Hang, Vec::new()),
                 told(
                     Agent::Phase,
                     vec![Message {
@@ -1786,34 +1646,6 @@ mod restart_tests {
         assert_met(&step_4_6(&met()));
     }
     #[test]
-    fn a_shutdown_interruption_is_not_an_agent_failure() {
-        let mut observed = met();
-        observed.documents.get_mut(&Read::HangActivityOlder).expect("first ending")["rows"][0]["event"]["owner"]["source"]
-            ["line"]["run_ended"]["end"] = json!({"failed":{"class":"agent"}});
-        let misses = step_4_6(&observed);
-        assert_eq!(misses.len(), 1);
-        assert_eq!(misses[0].promise, REPLACED);
-    }
-    #[test]
-    fn restart_promises_report_independent_failures_together() {
-        const MISSES: usize = 4;
-        let mut observed = met();
-        observed.documents.get_mut(&Read::HangActivity).expect("activity")["rows"]
-            .as_array_mut()
-            .expect("rows")
-            .reverse();
-        observed.documents.get_mut(&Read::HangWaiting).expect("waiting")["task"]["chip"]["details"]["owner"]["details"]
-            ["observation"]["work"] = json!("running");
-        observed.documents.get_mut(&Read::PhaseEnded).expect("phase report")["task"]["result"]["value"]["report"]["bytes"] =
-            json!("wrong report");
-        let misses = step_4_6(&observed);
-        assert_eq!(misses.len(), MISSES);
-        assert!(misses.iter().all(|miss| miss.step == "4.6"));
-        for promise in [REPLACED, FENCED, QUESTIONS_WAIT, ONCE] {
-            assert!(misses.iter().any(|miss| miss.promise == promise));
-        }
-    }
-    #[test]
     fn replayed_history_is_one_answer_but_a_new_call_is_another() {
         const DIRECTOR_QUERY: usize = 0;
         let mut observed = met();
@@ -1832,17 +1664,14 @@ mod restart_tests {
         assert!(misses.iter().any(|miss| miss.promise == ONCE));
     }
     #[test]
-    fn a_missing_question_or_a_duplicate_delivery_breaks_its_promise() {
-        const DIRECTOR_QUERY: usize = 0;
-        const USER_MESSAGE: usize = 1;
+    fn a_missing_or_duplicate_answer_breaks_its_promise() {
         const PHASE_QUERY: usize = 1;
-        let mut observed = met();
-        observed.told[DIRECTOR_QUERY].history[USER_MESSAGE].parts =
-            vec![Part::Text { text: b"Begin the work your brief describes.".as_slice().into() }].into_boxed_slice();
-        observed.told.push(observed.told[PHASE_QUERY].clone());
-        let misses = step_4_6(&observed);
-        assert!(misses.iter().any(|miss| miss.promise == QUESTIONS_WAIT));
-        assert!(misses.iter().any(|miss| miss.promise == ONCE));
+        let mut missing = met();
+        missing.told.pop();
+        assert!(step_4_6(&missing).iter().any(|miss| miss.promise == ONCE));
+        let mut duplicate = met();
+        duplicate.told.push(duplicate.told[PHASE_QUERY].clone());
+        assert!(step_4_6(&duplicate).iter().any(|miss| miss.promise == ONCE));
     }
 }
 

@@ -2555,14 +2555,14 @@ exec "$@"
 // Shows the retained question and one answer across ws's two lives. Leaves out
 // the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
-// until after the ended chat's watch joins; the oracle checks both attempts.
+// until after the ended chat's watch joins; the oracle checks one direct answer.
 
 // testing/process-tier.md: the chat's connected GitHub change survives both services restarting.
 
 // Shows the retained question and one answer across ws's two lives. Leaves out
 // the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
-// until after the ended chat's watch joins; the oracle checks both attempts.
+// until after the ended chat's watch joins; the oracle checks one direct answer.
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
 #[cfg(target_os = "linux")]
 #[test]
