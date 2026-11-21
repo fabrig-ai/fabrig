@@ -7666,6 +7666,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-faults"
+version = "0.0.0"
+dependencies = [
+ "skein-world",
+]
+
+[[package]]
 name = "temper-fetch"
 version = "0.0.0"
 dependencies = [

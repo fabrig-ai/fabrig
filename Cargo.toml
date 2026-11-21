@@ -327,6 +327,7 @@ members = [
     "temper/testing/temper-process-guard",
     "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
+    "temper/testing/temper-faults",
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
@@ -728,6 +729,7 @@ temper-process-guard = { path = "temper/testing/temper-process-guard" }
 temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
 jig-protocol-config-fixtures = { path = "jig/testing/jig-protocol-config-fixtures" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
+temper-faults = { path = "temper/testing/temper-faults" }
 temper-agent-fixtures = { path = "temper/testing/temper-agent-fixtures" }
 temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
