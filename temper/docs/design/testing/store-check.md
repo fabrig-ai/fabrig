@@ -56,8 +56,8 @@ the start that checks, and where each world calls it.
   it too.
 - **In the conformance world** temper's `Application` gives jig's harness
   the root's rehearsal: `rehearse` is `Domain::rehearse`, `rehearsed` is
-  `Domain::rehearsed`, and `refused` is `start_stop()` in words, its phase
-  and its stop.
+  `Domain::rehearsed`, `refused` is `start_stop()` in its `Debug` form,
+  and `start_phase` is the root's `start_phase()`.
 - **The forge world** has no root and no core, and keeps its records in
   a map of its own. Its check is the forge's half: its stored records
   restored into a forge domain of its own, then the forge's checks at a
@@ -67,8 +67,11 @@ the start that checks, and where each world calls it.
   root's link hands the forge today (its limits, and the tasks
   `missing_link` reads) and answering `Result<(), StartLink>`,
   `StartLink` one of `Row(Key)`, `Fit(RestoreFit)` and
-  `Link(MissingLink)`, the vocabulary's own records; the forge world
-  passes the tasks it holds live. The root maps it to
+  `Link(MissingLink)`, the vocabulary's own records. The forge world
+  holds no tasks of its own: it keeps a scripted tasks domain, built
+  from `jig-tasks-kit`'s fixtures, holding the tasks its scripted
+  inputs hand it (never inferred from its stored rows), and passes
+  those. The root maps it to
   `StartStop::ForgeRow`, `ForgeFit` and `ForgeLink` as it does now, in
   the order it checks them now.
 - **The one-process world** rehearses as `temper-box upgrade --check`
@@ -89,7 +92,7 @@ the run's seed, each run's count reported.
 | `temper-conformance-world` | every commit of its commit-cut cases, by each child's restart; sampled elsewhere | jig's harness: `Harness::check_store`, and a cut's restart through `refused` |
 | `temper-engine-domain-world` | sampled | once its driver applies a commit (`Driver::advance`) |
 | `temper-system-world` | sampled | once its composed world's store applies a commit |
-| `temper-engine-forge-world` | sampled | once the world saves or erases a record |
+| `temper-engine-forge-world` | sampled | once the world has applied one step's writes: a `take_top` output's saves and erases together, its projections' included, as the root commits them in one commit (a change's cold and hot parts are two saves of one commit, never two commits) |
 | `temper-one-process-world` | sampled | once its referee observes a commit |
 
 - **The sample:** each sampled world names its `one_in`, so that a run

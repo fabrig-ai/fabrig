@@ -447,11 +447,16 @@ more than one world needs them (testing-strategy.md, section 4):
     (`World::store_checks`), sampled from the world's seed by default.
   - **The conformance harness:** `Harness::check_store(&self) ->
     Result<(), Violation>`, over a cold snapshot (`cold_snapshot`), with
-    three methods each application gives: `rehearse(domain: &mut
+    four methods each application gives: `rehearse(domain: &mut
     Self::Domain)`, before its start begins, which makes the start stop
     before the switch; `rehearsed(domain: &Self::Domain) -> bool`, it
-    stopped there; and `refused(domain: &Self::Domain) -> Option<String>`,
-    its start's refusal in words, phase and failure.
+    stopped there; `refused(domain: &Self::Domain) -> Option<String>`,
+    its start's refusal in its `Debug` form; and `start_phase(domain:
+    &Self::Domain) -> String`, the phase its start is in, which names a
+    refusal's phase and a stalled start's, so that no finding parses a
+    phase out of a refusal's text. The per-commit snapshot clones the
+    application's configuration, systems and peers, so their associated
+    types are `Clone`.
     `Harness::store_checks(&mut self, StoreChecks)` sets the commits,
     sampled from the harness's seed by default, and `Outcome` gains
     `checked: u64`.
@@ -461,7 +466,14 @@ more than one world needs them (testing-strategy.md, section 4):
     its commit's store, so a refusal there is the finding, read through
     `refused` (the core world's `start_failure()`), naming the commit it
     restarted from, and the parent counts each such commit `restarted`:
-    those sweeps check every commit, at no second start's cost. A
+    those sweeps check every commit, at no second start's cost. The core
+    world's sweep takes a commit's cut as `Cut::Durable(n)`, one per
+    commit it sweeps, and its child resumes the story, whose first cold
+    restart is the check: a refusal there is written to the child's
+    stderr as the finding, naming `n`, and the child exits failing, so
+    the parent fails naming the cut (`forked cut Durable(n) failed`),
+    the refusal in its child's output beside it; no channel carries the
+    finding's words back to the parent. A
     story's own restart (`World::restart`, `Harness::crash` called by a
     story) keeps its own reading of a refusal, since a story may be about
     one.
