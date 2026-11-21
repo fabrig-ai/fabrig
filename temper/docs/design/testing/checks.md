@@ -614,10 +614,12 @@ the providers' faults.
   - **Each fault it configures fell** (`Sweep::check_fell`), over the
     seeds its budget allows.
 
-  Its exclusions name only ignored scenarios: the rate window's
-  (`a_rate_window_is_waited_out`: a window longer than the session's
-  shortest first backoff), and any of the three below whose combination
-  the case meets, by their narrow conditions.
+  Its exclusions name only the ignored scenarios below, by their narrow
+  conditions, where the case meets their combinations. A rate window is
+  drawn shorter than the session's shortest first backoff: a longer one
+  is P127's combination, whose scenario, `a_rate_window_is_waited_out`,
+  is smith's, and an exclusion names a scenario of its own tree
+  (skein's `testing/sweeps.md`, 5), so smith's sweep excludes it there.
 - **The ignored scenarios,** in `tests/suite/accounts.rs`, each
   `#[ignore = "provider failures: ..."]`:
   - `a_limited_account_frees_its_tasks` (P26): two accounts of one
