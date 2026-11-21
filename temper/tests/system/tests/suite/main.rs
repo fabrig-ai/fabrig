@@ -4,10 +4,12 @@ mod brief;
 mod chat_words;
 mod composed;
 mod parked;
+mod restarts;
 mod simulation;
 
 mod fuzzy {
     mod composed;
+    mod restarts;
 }
 mod running_revision;
 
