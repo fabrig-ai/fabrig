@@ -1161,7 +1161,7 @@ pub fn tier_row() -> top::TierRow {
         branch: top::TierBranch::Pending { entry: 17 },
         probe: Some(top::TierProbeBranch { landing: 1, branch: top::TierBranch::Pending { entry: 19 } }),
         flight: Some(tier_flight()),
-        held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
+        held: Some(top::TierHeld::Faults(temper_engine_domain_forge_landing::Fault::Cancelled)),
         result: Some(top::Receipt {
             report: temper_engine_domain_forge::ReceiptReport::Unset,
             base: None,
@@ -1257,6 +1257,7 @@ fn tier_flight() -> top::TierFlight {
         jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: u64::from(id), attempt: 1 }).unwrap();
     }
     top::TierFlight {
+        clock: None,
         entry: 18,
         start: Some(skein_lib::Time::ZERO),
         since: Some(skein_lib::Time::ZERO),

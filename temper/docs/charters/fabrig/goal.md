@@ -1,4 +1,4 @@
-- **A coding change** also carries `"producer": 2` and `"llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}, "sub_agents": []}}`.
+- **A coding change** also carries `"producer": 2` and `"llm": {"producer": {"main": {"model": "gpt-6.2-sol", "effort": "high"}, "sub_agents": []}}`.
 - **Editing:** edit a file only after reading it with Read; a shell `cat` doesn't count.
 - **Status** follows `DESIGN.md`, section 2. A draft's status says **Design lags**, **Design departs** and **Open**; write it, and `STATUS.md`'s summaries, as they will stand once the goal lands.
 - **Reds:** `red` with `list` shows the goal's reds, each with its commit and why; end one with `end` once fixed. Specs list those in their packages.

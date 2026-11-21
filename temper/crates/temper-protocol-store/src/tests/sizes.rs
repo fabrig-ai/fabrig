@@ -4,7 +4,7 @@ use skein_codec::Record;
 use temper_engine_domain_forge_vocabulary as forge;
 
 // Tier rows dominate Row: eight full waiting filings and the row framing.
-const APPLICATION_ROW_BYTES: u32 = 3_995_463;
+const APPLICATION_ROW_BYTES: u32 = 3_995_550;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
@@ -46,7 +46,7 @@ fn the_change_bound_follows_the_tier_landings_ceilings() {
         [1024, 1024, 4096]
     );
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_909_124_196));
+    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_909_124_283));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();

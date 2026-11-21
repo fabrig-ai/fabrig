@@ -373,6 +373,11 @@ pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
 
 impl Follow {
     pub(crate) fn restore(&mut self, flight: &crate::TierFlight, actor: u64) {
+        self.clock = flight.clock;
+        self.wall = match flight.clock {
+            Some(clock) => Some(clock.since),
+            None => None,
+        };
         self.entry = flight.entry;
         self.start = flight.start;
         self.since = flight.since;
@@ -426,6 +431,7 @@ impl Follow {
             }
         }
         crate::TierFlight {
+            clock: self.clock,
             entry: self.entry,
             start: self.start,
             since: self.since,

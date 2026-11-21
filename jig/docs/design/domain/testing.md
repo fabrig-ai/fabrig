@@ -137,8 +137,8 @@ Settings (engine/settings.md) are tested where each part lives, most
 of it below this world: the current settings from defaults and changes,
 the check, a charter's version for a revision, the held revisions'
 accounting and the bounds' arithmetic as step tests of the core's
-settings functions, pure and fast; the records' round trip and
-goldens in the store's tests (`../protocol/store/README.md`, section 9); the
+settings functions, pure and fast; the records' round trips over
+fixed-rule values in the store's tests (`../protocol/store/README.md`, section 9); the
 document's members read as defaults, and the settings' limits, in the
 configuration's tests; the change's and the move's records in the
 client wire's. This world holds what needs the decision and the

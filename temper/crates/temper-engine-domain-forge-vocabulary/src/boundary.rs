@@ -3290,6 +3290,14 @@ pub struct TierGoal {
     /// When its last run started.
     pub started: Option<skein_lib::Time>,
 }
+/// Why a tier's run is held (temper/docs/design/domain/after-landing.md, section 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TierHeld {
+    /// Past the project's `tier_retries`: the last runner fault's kind.
+    Faults(landing::Fault),
+    /// Waiting or blocked for a runner past `forge.change_policy.runner_wait_ms`.
+    RunnerWait,
+}
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
@@ -3312,7 +3320,7 @@ pub struct TierRow {
     /// The current or completed probe, retained until its branch is released.
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
-    pub held: Option<landing::Fault>,
+    pub held: Option<TierHeld>,
     pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
@@ -3335,7 +3343,7 @@ pub struct TierPosting {
     /// Status is 0; comment i is i + 1.
     pub next: u32,
     pub entry: Option<u64>,
-    /// Zero for a verdict, a distinct positive status part at each fault hold.
+    /// Zero for a verdict, a distinct positive status part at each run hold.
     pub part: u16,
     /// Retains the rendering bound across restart and settings changes.
     pub op_bytes: u32,
@@ -3385,6 +3393,7 @@ pub struct TierProbeBranch {
 /// Durable follower progress; trees and workflow details are read again after restart.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierFlight {
+    pub clock: Option<change::Clock>,
     pub entry: u64,
     pub start: Option<skein_lib::Time>,
     pub since: Option<skein_lib::Time>,

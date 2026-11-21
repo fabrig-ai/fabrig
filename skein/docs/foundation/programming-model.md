@@ -65,7 +65,8 @@ is testing-strategy.md.
   a process ends once everything it owns has reported closed (5.2).
 - **A small Rust.** Structs, enums, `match`, functions, references, moves
   and a short list of library types. No `async`, closures, trait objects,
-  user-defined traits or generics, `Rc` or `RefCell`, `Drop` impls, or
+  user-defined traits or generics (except lib's and the codecs' written-once
+  code, 10.2), `Rc` or `RefCell`, `Drop` impls, or
   `unsafe` outside one module (in tests, also the counting allocator and
   the fork kit's process boundary: skein's ../design/testing/README.md, section 6). Panics
   abort.
@@ -1056,13 +1057,24 @@ hand-written impls of std traits for its own types, `Vec`, `BTreeMap` and
 container's capacity. It is written once and tested hard. Application code
 does not hand-roll data structures: what is missing goes into lib.
 
-`skein-codec` takes lib's exception for its codecs alone: the `Record`
-trait and the generic helpers that check, measure, encode, decode and
-bound each kind of field, with `Field`, the helpers' trait, which a
-private supertrait seals so that no other crate implements it.
-Generated codec code implements `Record` and calls the helpers; no
-hand-written code implements either trait, and a boundary test refuses
-it (skein's ../design/data/codec/README.md, sections 1 and 4).
+`skein-codec` takes lib's written-once, tested-hard exception for its codecs
+alone: the `Record` trait and the generic helpers that check, measure,
+encode, decode and bound each kind of field, with `Field`, the helpers'
+trait. A private supertrait seals `Field`; its implementations for integers,
+`Fixed`, `Sequence`, `Optional` and records are written by hand inside
+`skein-codec`. Generated codec code implements `Record` and calls the
+helpers. Outside `skein-codec`, only generated code implements `Record`,
+and nothing implements `Field`.
+`tests/boundary/tests/codec_impls.rs` refuses a hand-written implementation
+of either outside the crate (skein's ../design/data/codec/README.md,
+sections 1 and 4).
+
+The helpers and generated code keep 10.1's guarantees: bounded execution,
+checked arithmetic, no panic a peer can trigger, no hidden state. The
+workspace's lints run over them as over lib, with scoped
+`#[expect(..., reason = "...")]` only where a module says why, never
+`#[allow]`. Generated translation (skein's ../design/data/codec/maps.md,
+4.1) is ordinary subset code, with no part in this exception.
 
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
@@ -1078,7 +1090,7 @@ documented process-boundary module (skein's ../design/testing/README.md, section
 | `async`, `.await` | the loop schedules; state hides in generated futures, neither total nor snapshottable | review |
 | closures, function pointers | captured state, and calls the reader cannot follow | review |
 | `dyn Trait`, `impl Trait` | dynamic dispatch, hidden types | review; clippy `impl_trait_in_params` |
-| defining traits, generic items, hand-written trait impls | one way to call code, on concrete types | review |
+| defining traits, generic items, hand-written trait impls outside lib and the codecs (10.2) | one way to call code, on concrete types | review |
 | lifetime parameters on types, references in fields | a stored borrow; state stops being a plain value | review |
 | `Rc`, `Arc`, `Cell`, `RefCell`, atomics | shared ownership, interior mutability, global state | clippy `disallowed_types` |
 | `static`, `thread_local!` | global state | review; compiler (`no_std`) |

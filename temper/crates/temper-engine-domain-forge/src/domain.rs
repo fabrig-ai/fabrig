@@ -1018,7 +1018,13 @@ impl Domain {
             change_cold: Map::with_capacity(l.changes),
             change_hot: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
-            stall_words: Map::with_capacity(l.changes.checked_add(l.landings).expect("task bounds")),
+            stall_words: Map::with_capacity(
+                l.changes
+                    .checked_add(l.landings)
+                    .expect("task bounds")
+                    .checked_add(l.repositories.checked_mul(l.tiers.tiers).expect("tier bounds"))
+                    .expect("held task bounds"),
+            ),
             read_sessions: Map::with_capacity(l.changes),
             change_connections: None,
             start_conflicts: Map::with_capacity(l.changes),
