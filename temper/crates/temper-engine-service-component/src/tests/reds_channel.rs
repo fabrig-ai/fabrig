@@ -152,6 +152,7 @@ impl Channel {
                     | engine::Request::Lost { .. }
                     | engine::Request::Ended { .. }
                     | engine::Request::FiguresTaken { .. }
+                    | engine::Request::Unpaused { .. }
                     | engine::Request::Told { .. }
                     | engine::Request::Closed) => panic!("engine channel: {other:?}"),
                 }

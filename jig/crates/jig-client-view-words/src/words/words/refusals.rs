@@ -83,6 +83,7 @@ impl Words {
             | Refusal::LoginUnderWay
             | Refusal::NotLending
             | Refusal::NotOffered
+            | Refusal::Unlinked { .. }
             | Refusal::Concluded { .. }
             | Refusal::KeyConflict => self.text(b, JigPhrase::Word(Word::refusal(refusal)), &[]),
             Refusal::Llm { model, .. } => {

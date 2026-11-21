@@ -89,11 +89,13 @@ impl Expectations for Turns {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent scripted drop, restart, cancel and pause inputs")]
 pub struct Settings {
     pub seed: u64,
     pub drops: bool,
     pub restart: bool,
     pub cancel: bool,
+    pub pause: bool,
     pub facts: u32,
     pub capacity: u32,
     pub stop_bound: Duration,
@@ -107,6 +109,7 @@ impl Settings {
             drops: true,
             restart: true,
             cancel: false,
+            pause: false,
             facts: 4,
             capacity: 2,
             stop_bound: Duration::from_secs(10),
@@ -118,6 +121,7 @@ impl Settings {
 pub struct Report {
     pub trace: Vec<String>,
     pub committed: u32,
+    pub pauses: u32,
     pub capacity_busy: u32,
     pub parent_busy: u32,
     pub replays: u32,
@@ -183,6 +187,7 @@ impl World {
             report: Report {
                 trace: Vec::new(),
                 committed: 0,
+                pauses: 0,
                 capacity_busy: 0,
                 parent_busy: 0,
                 replays: 0,
@@ -215,6 +220,11 @@ impl World {
                         Event::Logins { channel, logins: Box::new([]) },
                         &mut self.out,
                     );
+                }
+                Request::Pause { channel, mode } => {
+                    assert_eq!(Some(channel), self.channel);
+                    assert_eq!(mode, jig_domain_link::PauseMode::Pause);
+                    self.report.pauses += 1;
                 }
                 Request::ProgramTargets { .. }
                 | Request::ProgramSignedOut { .. }
@@ -326,6 +336,9 @@ impl World {
         };
         self.see(Seen::Hello { bound: self.settings.stop_bound, grace: self.env.limits.grace });
         self.step(Event::Hello { worker: 0, channel, hello });
+        if self.settings.pause && !self.report.refused {
+            self.step(Event::PauseWorker { worker: 0, mode: jig_domain_link::PauseMode::Pause });
+        }
         for held in self.worker.values_mut() {
             held.send_at = Some(self.tick);
         }

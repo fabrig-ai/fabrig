@@ -1,6 +1,6 @@
 # landed-qa: status
 
-2026-11-16. Where the design lags or departs from [landed-qa.md](landed-qa.md).
+2026-11-21. Where the design lags or departs from [landed-qa.md](landed-qa.md).
 
 Milestone Q1 is designed in `../testing/qa/README.md` and its documents: the watcher on main's ref, the deployment's kept builds, triage, and the ledger's landings, cases and builds.
 
@@ -86,7 +86,7 @@ offering the setups of the kinds the places run), with
 which needs nothing of a box, reached at a deployment's place too by
 `stock-landing`, one setup in two places; the user, 2026-11-16).
 
-- **Design lags:**
+- **Design lags:** none.
 
 - **Design departs:**
   - 5: a copy leaves out its worker's pinned agent, the program and configuration the worker writes into its root's `agent/` at each start (`../testing/qa/places.md`, 4; `../testing/qa/deployment.md`, 2), where the draft has a copy the place's whole data: that directory is the build's, a box's 354 of its 372 MB, saved and restored at every setup, and in a copy restored for a newer build it would hold the older program only for the start to replace it. Every start pins from the place's `bin/`, as the draft has the copies name the place's programs. The goal's designer, 2026-11-16.
@@ -94,8 +94,8 @@ which needs nothing of a box, reached at a deployment's place too by
   - 6, 10: a take reads the whole conversation, the agent's brief in its system text among it, rather than a tool's output alone, since a review's brief is where its pull request and head are named (skein's `testing/fakes/llm.md`, 2.6). The goal's designer, 2026-11-12.
   - 2, 12: bounds and places are tuned by the deployment from `temper-qa tune`'s figures and suggestions, never by the loop itself, since `qa.json` is the deployment's (`../testing/qa/ledger.md`, 6). More than one place gives each place its own ports (`../testing/qa/places.md`, 2). The goal's designer, 2026-11-12.
   - 3, 10: the client a build keeps is the TUI's recording build (`temper` with `TEMPER_INTERNAL_RECORD=1`, `../client/tui/journeys.md`, 2), beside the bundle's recording build: the drive session reads the TUI's frames from its saves, replayed natively, since nothing in the tree reads a pseudo-terminal's screen (`../client/drive.md`, 2.1 and 3.3). The goal's designer, 2026-11-12.
-  - 10: the journeys' `again` keeps building from the checkout and recording into it, a person's command (`../client/web/journeys.md`, 8.1); the drive session and the recipe walk are what walks and drives with a given build in a given scratch directory (`../client/drive.md`, 2; `../client/recipe.md`, 5), since `again` writes into the checkout, which a QA session never touches. The goal's designer, 2026-11-12.
-  - 7: the session signs the TUI in itself, by the browser's approval, when a line first needs it, so that no line and no recipe approves and a recipe walks the same from a fresh box or a copy (`../client/drive.md`, 3.3). The goal's designer, 2026-11-12.
+  - 10: a journey is its version-2 walk, printed in a world; main's pages have one after-landing writer (`../client/journey-walks.md`, 4; `../client/journey-writer.md`). The drive session walks a journey's chain on a box or deployment, or QA's recipes, with a given build in scratch, without writing main's pages (`../client/drive.md`, 2.7; `../client/recipe.md`, 5). The journey-walks draft's rule (`archive/journey-walks.md`, 4 to 6).
+  - 7: outside a journey's session, the session signs the TUI in itself, by the browser's approval, when a line first needs it, so that no recipe approves and a recipe walks the same from a fresh box or a copy; a journey's walk says `tui approve` explicitly (`../client/drive.md`, 3.3). The goal's designer, 2026-11-12.
   - 6: B1's twin commits the gate its fixture holds, not acceptance.md, 7's later text, which the twin never met (`../testing/qa/setups.md`, 4.4). The goal's coordinator, 2026-11-12.
   - 3: a kept build's `bin/fake-claude`, smith's fake of the coding agent's command line, prints no temper commit as its version; it is held by the build's manifest alone, and every temper executable of the build prints the commit (`../testing/qa/builds.md`, 3). The goal's designer, 2026-11-12.
   - 5, 7: a recipe's step that broke with no landing meaning it to fails the cases on that setup, with its finding, as section 7 has it, where section 5 says they are blocked by it: failed, they come back at the pass's resume (`../testing/qa/places.md`, 7). The goal's designer, 2026-11-12.

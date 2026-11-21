@@ -928,10 +928,10 @@ in a terminal or not, as 1 to 5 say.
   processes drawing their own ports. Focused proof holds the choice and
   retention rules; the process and browser walks hold the running box.
 
-- **A fake fetch for the fake box,** so that a journey prints the
-  percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
-  page moving, and `again` takes no page while it moves
-  (`../../client/web/journeys.md`, 8.1).
+- **A fake fetch for a box's rendered walk:** a real fetch lasts seconds
+  and its `fetched` lines keep the page moving. Main's journeys print
+  the percentage through the world's box peer, on simulator time,
+  without a box or fetch process (`../../client/journey-walks.md`, 4.4).
 
 - **The other fake peers' refused connections** (`box.md`, 5): the issuer's log
   takes a line for each connection it turns away at its cap, from skein's

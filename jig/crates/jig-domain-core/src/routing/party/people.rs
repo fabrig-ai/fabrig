@@ -254,6 +254,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::AccountMovedIn { .. }
                     | people::Outcome::AccountReading { .. }
                     | people::Outcome::AccountLoginAsked { .. }
+                    | people::Outcome::WorkerPauseAsked { .. }
                     | people::Outcome::AccountChanged
                     | people::Outcome::AccountRemoved { .. }
                     | people::Outcome::AccountSignedOut { .. }
@@ -413,6 +414,22 @@ pub(crate) fn tag_people_part(
                     }
                     people::Ask::Rename { name, .. } => {
                         super::projects::rename_request(core, env, &mut routed, party, name);
+                    }
+                    people::Ask::PauseWorker { worker, mode } => {
+                        let outcome = match worker.checked_sub(1) {
+                            Some(position) if core.fleet.worker_channel(position).is_some() => {
+                                crate::routing::children::append_fleet(
+                                    core,
+                                    env,
+                                    &mut routed.work,
+                                    jig_domain_fleet::Event::PauseWorker { worker: position, mode },
+                                    &mut routed.out,
+                                );
+                                people::Outcome::WorkerPauseAsked { worker }
+                            }
+                            Some(_) | None => people::Outcome::Refused(people::Refusal::Unlinked { worker }),
+                        };
+                        routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
                     }
                     people::Ask::MoveToNewest { revision } => {
                         let outcome = match crate::routing::settings::dispatch::move_to_newest(

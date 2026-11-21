@@ -1426,6 +1426,25 @@ fn worker_loss_notes_wait_for_the_operator_sink_without_blocking_the_link() {
 }
 
 #[test]
+fn each_unsent_pause_reaches_a_shell_note_not_the_domain() {
+    use jig_domain_link::PauseMode;
+    use jig_protocol_engine_workers::host::Output;
+    let mut service = fixtures::started();
+    let workers = &mut service.engine.as_mut().unwrap().workers;
+    let worker: Box<[u8]> = b"w2".as_slice().into();
+    let mut events = skein_lib::Queue::uncapped();
+    for mode in [PauseMode::Resume, PauseMode::Pause, PauseMode::Drain] {
+        workers.route(Output::Unpaused { worker: worker.clone(), version: 18, mode }, &mut events);
+        assert_eq!(
+            workers.notes.pop(),
+            Some(crate::Note::WorkerUnpaused { worker: worker.clone(), version: 18, mode })
+        );
+        assert!(workers.notes.is_empty(), "one note per ask");
+        assert!(events.is_empty(), "the outcome is a log note, not a domain input");
+    }
+}
+
+#[test]
 fn each_workers_restart_outcome_reaches_a_shell_note() {
     use jig_protocol_engine_workers::host::Output;
     let mut service = fixtures::started();

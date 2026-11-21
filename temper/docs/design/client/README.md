@@ -887,8 +887,9 @@ was answered with. A box enables it beside the printed link
     signed in first.
   - *Never shown:* the secret and the credential are never drawn on
     the screen or logged. A recording keeps them in the person's
-    private file; `add` redacts them before any recording or print is
-    written into the journeys (`tui/journeys.md`, 3.1 and section 5).
+    private file; `temper-client-journeys print FILE OUT` redacts them
+    before writing pages outside the repository's journeys
+    (`tui/journeys.md`, 3.1 and section 5; `web/journeys.md`, 5.1).
 
 ## 5. Open questions
 

@@ -170,7 +170,8 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
                 engine::Request::Lost { channel } => fixtures::engine(&mut driven.service)
                     .events
                     .push(jig_test_domain::Event::Link { channel, link: jig_test_domain::link::Event::Lost }),
-                engine::Request::Told { .. }
+                engine::Request::Unpaused { .. }
+                | engine::Request::Told { .. }
                 | engine::Request::Take { .. }
                 | engine::Request::TurnAway { .. }
                 | engine::Request::Opened { .. }

@@ -1,6 +1,6 @@
 # cli: status
 
-2026-11-12. Where the design lags or departs from [cli.md](cli.md).
+2026-11-21. Where the design lags or departs from [cli.md](cli.md).
 
 - **Design lags:**
   - 5: `../release.md`, sections 1, 2 and 5, give a release one file, the whole product, saved as `temper`.
@@ -13,7 +13,7 @@
   - 5.2: a failed download stays on the TUI's screen until the person closes it, then `temper` prints why and the `curl` line, exit 1, so the screen's words can be read (`../client/tui/box.md`). The `curl` line puts the file beside `temper`, where the first look finds it, since a cached file without its sum is fetched again (`../client/box-binary.md`, 3). C3's designer's reading, 2026-11-11.
   - 6: the playground's page is `temper-playground-page`, and the shipped page's wasm start moves out of `temper-client-shell-web` into `temper-client-web-page`, the bundle's entry, since a module has one start and the playground's crate links the shell (`../client/web/README.md`, 2.1). C5's designer's reading, 2026-11-12.
   - 6: the page's internal settings are on when their value is `1`, `internal-small-window` and `internal-loopback-navigation` honoured when the page's host is `127.0.0.1` or `[::1]`, and taken out of the address at start, so that no route or recording sees them and a reload is a load without them (`../client/web/README.md`, 2.1). C5's designer's reading, 2026-11-12.
-  - 6: `internal-record` is honoured on any origin, and the page records too by its `temper-record` meta, which `--record` asks of the deployment, where this section honours every internal setting on a loopback origin alone (`record-anywhere.md`, sections 2 and 3; `../client/web/README.md`, 2.1 and 2.2). The user's, 2026-11-12.
+  - 6: `internal-record` is honoured on any origin, and the page records too by its `temper-record` meta, which `--record` asks of the deployment, where this section honours every internal setting on a loopback origin alone (`../client/web/README.md`, 2.1 and 2.2; `../client/web/journeys.md`, 3.1). The user's, 2026-11-12.
   - 6: the records' reading at start, `temper-protocol-records-forge`, is linked by the engine's service, so by `temper-engine` and `temper-box`, and not by `temper-worker`, whose service reads no forge's records: the binary that needs a crate depends on it (3.2; `../protocol/components.md`). C5's designer's reading, 2026-11-12.
   - 6: skein's `seam` becomes a fixtures crate for its fixtures alone, `skein-forge-connection-fixtures`; its access to the component's state, which no crate outside reaches otherwise, is built in every build as the crate's public module `seam`, which only the machine world names, a check holding it (`skein/docs/design/forge/connection.md`, 10). The other trees' features goal's designer's reading, 2026-11-12, at the user's "no features, so every build is reusable".
   - 6: smith's `end-to-end` becomes no crate of its own: its tests run `smith-fake-claude`'s own `fake-claude`, found beside `smith`, and take that crate as a dev-dependency, so the package's binaries are the product's two (`smith/docs/design/testing.md`, 2.3; `skein/docs/foundation/cli.md`, 3). The same designer's reading, 2026-11-12.

@@ -18,6 +18,7 @@ impl<A: Application> Engine<A> {
             | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
+            | Ask::PauseWorker { .. }
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
             | Ask::Create { .. }

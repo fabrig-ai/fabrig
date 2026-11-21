@@ -328,6 +328,7 @@ pub(super) fn decode_limit_kind(value: w::LimitKind) -> p::LimitKind {
 )]
 pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker: *worker }),
         p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
         p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-store"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
@@ -444,6 +445,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
 pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
     match value {
         // Forge application records cannot contain a settings decision's stale revision.
+        w::Refusal::Unlinked(v) => p::Refusal::Unlinked { worker: v.worker },
         w::Refusal::Concluded(v) => p::Refusal::Concluded { at: Wall::from_nanos(v.at) },
         w::Refusal::Stale(_) => unreachable!("forge applications cannot store a stale settings refusal"),
         w::Refusal::Forgotten(_) => unreachable!("forge applications cannot store a forgotten settings refusal"),

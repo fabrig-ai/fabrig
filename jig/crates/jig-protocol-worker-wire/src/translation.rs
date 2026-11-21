@@ -1,7 +1,7 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::v20::Record;
-use crate::{Agreed, Application, Carried, Kept, Root, v20 as wire};
+use crate::v21::Record;
+use crate::{Agreed, Application, Carried, Kept, Root, v21 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -113,13 +113,7 @@ impl Translation {
         let mut refused = List::uncapped();
         for wire in agreed {
             let total = if wire.name.as_bytes() == self.jig.family() {
-                // FromWorker includes each variant as well as each record.
-                if wire.version < 20 {
-                    self.jig.total(20, b"FromWorker") == Some(true)
-                        && self.before_fresh.total(wire.version, b"FromWorker") == Some(true)
-                } else {
-                    self.jig.total(wire.version, b"FromWorker") == Some(true)
-                }
+                self.worker_sends_total(wire.version)
             } else if wire.name.as_bytes() == self.charter.family() {
                 self.charter.total(wire.version, b"RunResult") == Some(true)
             } else if wire.name.as_bytes() == self.transcript.family() {
@@ -132,6 +126,57 @@ impl Translation {
             }
         }
         refused
+    }
+
+    /// Optional notices are not admission requirements (protocol/channel/pause.md, 2 and 4).
+    fn worker_sends_total(&mut self, version: u16) -> bool {
+        use skein_codec::schema::{Shape, VariantIx, parse};
+        if version == self.jig.current() {
+            return true;
+        }
+        let mut text = None;
+        for kept in crate::patches::kept::jig_worker_wire::TEXTS {
+            if header_version(kept) == version {
+                text = Some(*kept);
+            }
+        }
+        let Some(text) = text else { return false };
+        let old = parse(text.as_bytes()).expect("kept worker schema");
+        let current = parse(crate::SCHEMA.as_bytes()).expect("current worker schema");
+        let (first, count) = match current.declaration(current.find(b"FromWorker").expect("worker kinds")).shape {
+            Shape::Enum { first, count } => (first, count),
+            Shape::Record { .. } => unreachable!("worker kinds are an enumeration"),
+        };
+        let Some(at) = old.find(b"FromWorker") else { return false };
+        let (old_first, old_count) = match old.declaration(at).shape {
+            Shape::Enum { first, count } => (first, count),
+            Shape::Record { .. } => unreachable!("worker kinds are an enumeration"),
+        };
+        for tag in 0..count {
+            let variant = current.variant(VariantIx::new(first.index().checked_add(tag).expect("bounded variants")));
+            let name = current.spelled(variant.name);
+            if name == b"paused" {
+                continue;
+            }
+            let mut present = false;
+            for old_tag in 0..old_count {
+                let kept =
+                    old.variant(VariantIx::new(old_first.index().checked_add(old_tag).expect("bounded variants")));
+                if old.spelled(kept.name) == name {
+                    present = true;
+                }
+            }
+            let record = current.declaration(variant.record.expect("each kind holds a record"));
+            let total = if name == b"hello" {
+                self.before_fresh.total(version, current.spelled(record.name))
+            } else {
+                self.jig.total(version, current.spelled(record.name))
+            };
+            if !present || total != Some(true) {
+                return false;
+            }
+        }
+        true
     }
 
     #[cfg(test)]
@@ -369,7 +414,7 @@ impl Lazy {
     const fn current(&self) -> u16 {
         match self.family {
             Family::Records => crate::VERSION,
-            Family::BeforeFresh => 19,
+            Family::BeforeFresh => 20,
             Family::Charter => smith_charter::wire::VERSION,
             Family::Transcript => smith_transcript::wire::VERSION,
         }
@@ -419,31 +464,31 @@ impl Lazy {
         self.materialize().ok()?.total(to, root)
     }
 }
-/// Wire 20 adds only the hello's freshness evidence. Its constrained sends
-/// at older versions have wire 19's shape (executors.md, 6.5).
+/// Wire 21 adds only the hello's freshness evidence. Its constrained sends
+/// at older versions have wire 20's shape (executors.md, 6.5).
 fn before_fresh_texts() -> &'static [&'static str] {
     let texts = crate::patches::kept::jig_worker_wire::TEXTS;
     for (index, text) in texts.iter().enumerate() {
-        if header_version(text) == 20 {
+        if header_version(text) == 21 {
             return texts.get(..index).expect("schema prefix");
         }
     }
-    unreachable!("wire 20 has a kept schema")
+    unreachable!("wire 21 has a kept schema")
 }
 
 fn before_fresh_patches() -> &'static [&'static str] {
     for (index, text) in crate::patches::PATCHES.iter().enumerate() {
-        if text.contains("family jig-worker-wire 19 to 20") {
+        if text.contains("family jig-worker-wire 20 to 21") {
             return crate::patches::PATCHES.get(..index).expect("patch prefix");
         }
     }
-    unreachable!("wire 20 has a patch")
+    unreachable!("wire 21 has a patch")
 }
 
 /// Older channels cannot prove process freshness (domain/engine/executors.md, 6.5).
 /// Clear that evidence before the lossless bridge judges the defaulted field.
 fn hello_at_version(value: Frame, version: u16, limits: &wire::Limits) -> Result<Frame, Untranslated> {
-    if version >= 20 || value.kind() != crate::Kind::Hello.number() {
+    if version >= 21 || value.kind() != crate::Kind::Hello.number() {
         return Ok(value);
     }
     let mut hello =
@@ -737,6 +782,7 @@ impl Translation {
             | wire::FromEngine::Check(_)
             | wire::FromEngine::SignOut(_)
             | wire::FromEngine::Figures(_)
+            | wire::FromEngine::Pause(_)
             | wire::FromEngine::Restarting(_)
             | wire::FromEngine::ReadUsage(_)
             | wire::FromEngine::Wires(_)) => record,
@@ -768,6 +814,7 @@ impl Translation {
             | wire::FromWorker::Usage(_)
             | wire::FromWorker::UsageRead(_)
             | wire::FromWorker::ListRead(_)
+            | wire::FromWorker::Paused(_)
             | wire::FromWorker::Draining(_)) => record,
         })
     }

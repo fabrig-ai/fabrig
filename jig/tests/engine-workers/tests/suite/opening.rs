@@ -238,11 +238,12 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 16..20, offered 15..15".as_slice().into())));
+        let expected = format!("speaks 16..{}, offered 15..15", jig_protocol_worker_wire::VERSION);
+        assert_eq!(world.refusal(connection), Some((1, expected.as_bytes().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 16..20, offered 15..15");
+        assert_eq!(text.as_ref(), expected.as_bytes());
         assert!(world.root().is_empty());
     }
     #[test]

@@ -1,9 +1,9 @@
 //! A resumed start's committed calls fitted to a room (jig/docs/design/protocol/channel/README.md, 8 and 10).
-use crate::v20::Record;
+use crate::v21::Record;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 
-use crate::v20;
+use crate::v21;
 
 /// What fitting did to an assignment.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -33,37 +33,37 @@ pub fn cut_words(bytes: u32) -> Box<[u8]> {
     writer.finish()
 }
 
-fn saving(answer: &v20::SettledAnswer) -> u32 {
+fn saving(answer: &v21::SettledAnswer) -> u32 {
     match answer {
-        v20::SettledAnswer::Host(host) => {
+        v21::SettledAnswer::Host(host) => {
             let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             bytes.saturating_sub(cut_length(bytes))
         }
-        v20::SettledAnswer::Delivery(_) => 0,
+        v21::SettledAnswer::Delivery(_) => 0,
     }
 }
 
-fn cut_call(call: v20::AnsweredCall) -> v20::AnsweredCall {
+fn cut_call(call: v21::AnsweredCall) -> v21::AnsweredCall {
     let mut parts = call;
     parts.answer = match parts.answer {
-        v20::SettledAnswer::Host(host) => {
+        v21::SettledAnswer::Host(host) => {
             let mut host = host;
             let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             host.body = cut_words(bytes);
 
-            v20::SettledAnswer::Host(host)
+            v21::SettledAnswer::Host(host)
         }
-        v20::SettledAnswer::Delivery(delivery) => v20::SettledAnswer::Delivery(delivery),
+        v21::SettledAnswer::Delivery(delivery) => v21::SettledAnswer::Delivery(delivery),
     };
     parts
 }
 
 /// `assignment` with its committed calls fitted to `room`, a frame's bytes.
 pub fn fit(
-    assignment: v20::Assignment,
-    limits: &v20::Limits,
+    assignment: v21::Assignment,
+    limits: &v21::Limits,
     room: u32,
-) -> Result<(v20::Assignment, Fitted), v20::Problem> {
+) -> Result<(v21::Assignment, Fitted), v21::Problem> {
     let mut bytes = u64::from(assignment.measure(limits)?).checked_add(8).expect("a u32 body and its header fit u64");
     if bytes <= u64::from(room) {
         return Ok((assignment, Fitted::Whole));

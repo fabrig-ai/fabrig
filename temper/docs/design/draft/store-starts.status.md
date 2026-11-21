@@ -1,6 +1,6 @@
 # store-starts: status
 
-2026-11-18. Where the design lags or departs from [store-starts.md](store-starts.md).
+2026-11-21. Where the design lags or departs from [store-starts.md](store-starts.md).
 
 Section 2 is designed. A zero-budget task outliving its ledger is jig's `domain/authority.md`, section 7, *A zero-budget task may outlive its ledger*, and `protocol/store/README.md`, 10.1. The typed decider is jig's `domain/tasks/proposals.md`, *An escalation's decider has its kind*; the client wire keeps its version (below, *Open*). The repair of stored rejections is jig's `protocol/store/jobs.md`, 1, `escalation-deciders`. The check before a swap is `../protocol/binaries.md`, section 2, and `redeploys.md`, 5.1.
 
@@ -11,4 +11,4 @@ Section 2 is designed. A zero-budget task outliving its ledger is jig's `domain/
   - 2, *Revise `holds.md`*: the typed decider is designed in jig's `domain/tasks/proposals.md`, which designs escalations, and `holds.md` is unchanged. Because `holds.md` designs resource holds alone, and one concept is kept in one document (`DESIGN.md`, section 5; the designer, 2026-11-18).
   - 2, *An escalation's rejecter is typed*: jig's tasks domain names it `EscalationDecider`, a task or a person, rather than its `Party`. Because a deployment never decides an escalation, so the store's kind holds every decider whole; a decided proposal keeps `Party` as before (the designer, 2026-11-18).
 - **Open:**
-  - 2, *reads show the kind*: the held task's document names the decider as a task or a person; the client wire's chip (`HoldEscalationRejected.by`) and the client's words name its number alone, the engine giving either kind's number, and the client wire's version does not move (2, *The client wire's version moves if…*). Whether and when a later move of the client wire shows the kind is open: jig's `domain/tasks/proposals.md`, *Open questions*. Because showing it records again the journeys that show a task's chip, which this plan does not walk, and the machines that record them could not reach the forge's download; B1's requester decided, 2026-11-18.
+  - 2, *reads show the kind*: the held task's document names the decider as a task or a person; the client wire's chip (`HoldEscalationRejected.by`) and the client's words name its number alone, the engine giving either kind's number, and the client wire's version does not move (2, *The client wire's version moves if…*). Whether and when a later move of the client wire shows the kind is open: jig's `domain/tasks/proposals.md`, *Open questions*. Main's journey pages are printed from walks in a world by the after-landing writer, not recorded by a goal (`../client/journey-writer.md`, 1 and 5).

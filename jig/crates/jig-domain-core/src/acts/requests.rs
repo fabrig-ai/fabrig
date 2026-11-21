@@ -31,6 +31,7 @@ pub(crate) fn request(
         | people::Ask::Lift { .. }
         | people::Ask::Propose { action: people::Action::Settings { .. }, .. }
         | people::Ask::ChangeSettings { .. }
+        | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::Application { .. }
@@ -187,6 +188,7 @@ pub(crate) fn request(
         | people::Ask::Rename { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::ChangeSettings { .. }
+        | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::ChangePolicy { .. }
         | people::Ask::SetRoles { .. }

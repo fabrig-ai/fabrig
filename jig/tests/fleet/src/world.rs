@@ -995,6 +995,7 @@ impl World {
             | Request::ProgramEmail { .. }
             | Request::ProgramTargets { .. }
             | Request::ProgramSignedOut { .. }
+            | Request::Pause { .. }
             | Request::Check { .. }
             | Request::SignOut { .. }
             | Request::SignedOut { .. } => {
@@ -1450,6 +1451,8 @@ fn describe(event: &Event) -> String {
         | Event::Observe { .. }
         | Event::Acknowledge { .. }
         | Event::Restarting { .. }
+        | Event::PauseWorker { .. }
+        | Event::Paused { .. }
         | Event::Loaded => format!("{event:?}"),
     }
 }

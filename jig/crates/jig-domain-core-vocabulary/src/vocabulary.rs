@@ -411,6 +411,10 @@ pub enum Held {
         channel: Token,
         name: SourceName,
     },
+    PauseWorker {
+        channel: Token,
+        mode: jig_domain_link::PauseMode,
+    },
     /// Ask this channel to sign out one source, without retrying after loss.
     SignOutSource {
         channel: Token,
@@ -1723,6 +1727,8 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }
+        | fleet::Event::PauseWorker { .. }
+        | fleet::Event::Paused { .. }
         | fleet::Event::Observe { .. } => false,
     }
 }

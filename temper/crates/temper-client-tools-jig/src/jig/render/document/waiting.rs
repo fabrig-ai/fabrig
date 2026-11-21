@@ -71,6 +71,7 @@ pub(super) fn text(
         let list = match part {
             Part::Inbox(_) | Part::Tasks(_) => true,
             Part::Me(_)
+            | Part::Workers(_)
             | Part::Task(_)
             | Part::Tree(_)
             | Part::Run(_)
@@ -128,11 +129,11 @@ fn subject_text(
 
         c::Delivery::Run(_) => super::super::activity::run(delivery, None, out),
         c::Delivery::RunState(run) => super::super::activity::run(delivery, run.writing.as_ref(), out),
+        c::Delivery::Deployment(deployment) => super::workers::text(deployment, out),
         c::Delivery::Project(_)
         | c::Delivery::Proposal(_)
         | c::Delivery::Chips(_)
         | c::Delivery::Settings(_)
-        | c::Delivery::Deployment(_)
         | c::Delivery::Terminal(_)
         | c::Delivery::Accounts(_) => unreachable!("wait subject"),
     }

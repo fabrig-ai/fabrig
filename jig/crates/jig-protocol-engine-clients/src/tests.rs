@@ -186,3 +186,6 @@ mod approval_surface;
 
 #[path = "tests/approval.rs"]
 mod approval;
+
+#[path = "tests/worker_pause.rs"]
+mod worker_pause;

@@ -99,6 +99,12 @@ pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Resul
                 digest: row.digest,
                 withdrawn: row.withdrawn,
                 linked: row.linked,
+                pause: match row.pause {
+                    w::WorkerPause::Taking => c::WorkerPause::Taking,
+                    w::WorkerPause::Paused => c::WorkerPause::Paused,
+                    w::WorkerPause::Draining => c::WorkerPause::Draining,
+                    w::WorkerPause::Drained => c::WorkerPause::Drained,
+                },
                 since: match row.since {
                     Some(at) => Some(skein_lib::Wall::from_nanos(at)),
                     None => None,

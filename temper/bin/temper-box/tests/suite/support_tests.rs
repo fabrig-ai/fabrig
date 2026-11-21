@@ -395,6 +395,16 @@ fn patience_an_interrupted_socket_retries_with_the_same_deadline() {
 }
 
 #[test]
+fn cluster_passed_accepts_only_a_successful_settled_verdict() {
+    support::cluster::verdict_tests::passed_accepts_only_a_successful_settled_verdict();
+}
+
+#[test]
+fn cluster_stop_bounds_read_the_printed_seconds_and_need_a_complete_line() {
+    support::cluster::deadline_tests::stop_bounds_read_the_printed_seconds_and_need_a_complete_line();
+}
+
+#[test]
 fn cluster_a_member_wait_can_defer_only_to_a_longer_world() {
     support::cluster::deadline_tests::a_member_wait_can_defer_only_to_a_longer_world();
 }

@@ -141,6 +141,7 @@ impl Joint {
                     | kit::Request::Hello { .. }
                     | kit::Request::Up { .. }
                     | kit::Request::Lost { .. }
+                    | kit::Request::Unpaused { .. }
                     | kit::Request::Told { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }

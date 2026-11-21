@@ -29,6 +29,7 @@ fn seeded_cancelled_runs_answer_once_and_release_inherited_descriptors() {
         skein_world::domain::assert_replays(seed, seed + 1, |seed| {
             let mut world = World::new(seed, &charter);
             world.signal();
+            world.cancel_after_signal();
             settle(&mut world);
             let answer = world.answer().expect("terminal answer");
             assert!(

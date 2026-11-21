@@ -1,19 +1,19 @@
 use super::fixtures;
-use crate::v20::Record;
+use crate::v21::Record;
 use crate::{Hello, Reason};
 use alloc::boxed::Box;
 use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + fresh1 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 1 + 4 + crate::v20::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 1 + 4 + crate::v21::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
 
-// Wire 19 has sixteen up records and eighteen down records.
-const UP_KINDS: u32 = 16;
-const DOWN_KINDS: u32 = 18;
+// Wire 20 has seventeen up records and nineteen down records.
+const UP_KINDS: u32 = 17;
+const DOWN_KINDS: u32 = 19;
 const CHANNEL_KINDS: u32 = UP_KINDS + DOWN_KINDS;
 fn hello_terms(largest: u32) -> List<Term> {
     let mut terms = List::with_capacity(UP_KINDS);
@@ -39,6 +39,7 @@ fn hello_terms(largest: u32) -> List<Term> {
         (0x010e, 79),
         // UsageRead: read8 + outcome1 + count4 + eight windows of59.
         (0x010f, 485),
+        (0x0110, 1),
     ] {
         terms.push(Term { kind, largest }).expect("one term per up kind");
     }
@@ -67,6 +68,7 @@ fn down_terms() -> List<Term> {
         (0x018f, 8),
         (0x0190, 10_062_736),
         (0x0191, 44), // ReadUsage: read8 + source name36.
+        (0x0192, 1),
     ] {
         terms.push(Term { kind, largest }).expect("one term per down kind");
     }
@@ -84,7 +86,7 @@ fn hello_through_bytes(hello: &Hello) -> Hello {
 
 #[test]
 fn assignment_charter_path_names_the_schema_field() {
-    let name: Option<&str> = crate::v20::name(crate::v20::paths::ASSIGNMENT_CHARTER);
+    let name: Option<&str> = crate::v21::name(crate::v21::paths::ASSIGNMENT_CHARTER);
     assert_eq!(name, Some("Assignment.charter"));
 }
 
@@ -202,8 +204,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v20::Problem {
-                path: crate::v20::paths::BOUNDS_PROGRAM_ENDPOINTS,
+            Err(crate::v21::Problem {
+                path: crate::v21::paths::BOUNDS_PROGRAM_ENDPOINTS,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -381,7 +383,7 @@ fn a_failed_answer_keeps_the_limited_or_refused_account_it_turned_on() {
     assert_eq!(refused.account, 7);
 }
 
-pub(super) fn through_bytes<T: Record<Limits = crate::v20::Limits>>(value: &T) -> T {
+pub(super) fn through_bytes<T: Record<Limits = crate::v21::Limits>>(value: &T) -> T {
     let bytes = value.encode(&fixtures::LIMITS).expect("notice within limits");
     T::decode(&fixtures::LIMITS, &mut Reader::new(&bytes)).expect("notice within limits")
 }

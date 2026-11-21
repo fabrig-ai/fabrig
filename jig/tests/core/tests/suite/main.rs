@@ -124,3 +124,5 @@ mod withheld;
 mod worker_resume;
 
 use jig_core_world::test_support::store_peer as store_peer_support;
+
+mod worker_pause;

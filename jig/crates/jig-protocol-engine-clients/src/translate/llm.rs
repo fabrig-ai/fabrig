@@ -345,6 +345,7 @@ pub(crate) fn refused(
         | w::Ask::RemoveProject(_)
         | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)
+        | w::Ask::PauseWorker(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::MakeProject(_)

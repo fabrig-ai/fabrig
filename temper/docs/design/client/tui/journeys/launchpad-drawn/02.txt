@@ -6,9 +6,9 @@
   Choice: Comma (recommended)
   Choice: Semicolon
 
-✦ Hello from the local fake model.
-
 ✦ Choose the CSV export delimiter. · Running
+
+
 
 
 

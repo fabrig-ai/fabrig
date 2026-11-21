@@ -10,6 +10,7 @@ use skein_lib::Writer;
 )]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker }),
         p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
         p::Refusal::NoTerminal => w::Refusal::NoTerminal,
         p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,

@@ -208,7 +208,7 @@ fn assign_runtime(
         refused(&assignment, Refusal::Busy, &runtime, out);
         return;
     }
-    let Hub { hosted, names, facts, shut, .. } = domain;
+    let Hub { hosted, names, facts, shut, pause, .. } = domain;
     // An assignment that can never fit is invalid, room or not: busy invites a
     // retry.
     if let Err(invalid) = assignment::check(&assignment, &env.limits) {
@@ -218,7 +218,11 @@ fn assign_runtime(
     // A slot whose run has answered is not free until the engine has the
     // answer.
     let taken = hosted.len();
-    if *shut || taken >= env.limits.slots || names.contains_key(&assignment.run) {
+    if *shut
+        || *pause != jig_domain_link::PauseState::Taking
+        || taken >= env.limits.slots
+        || names.contains_key(&assignment.run)
+    {
         refused(&assignment, Refusal::Busy, &runtime, out);
         return;
     }
@@ -427,12 +431,7 @@ pub(crate) fn drain(domain: &mut Hub, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn cancel_all(domain: &mut Hub, reason: Reason) {
-    let Hub { names, ready, shut, .. } = domain;
-    match reason {
-        // A host shutting down takes no more work.
-        Reason::Shutdown => *shut = true,
-        Reason::Engine | Reason::Contact => {}
-    }
+    let Hub { names, ready, .. } = domain;
     for (_, id) in names.iter() {
         if !ready.contains_key(id) {
             let earlier = ready.insert(*id, reason).expect("room on the ready list for every run");

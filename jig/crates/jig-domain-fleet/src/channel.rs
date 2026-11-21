@@ -62,6 +62,9 @@ pub(crate) struct Channel {
     pub(crate) draining: bool,
     /// The shutdown mark: no slot leaving clears it before the channel is lost.
     pub(crate) shutting_down: bool,
+    /// The owner's last ask and the worker's last word belong to this channel.
+    pub(crate) pause_mode: jig_domain_link::PauseMode,
+    pub(crate) pause_state: jig_domain_link::PauseState,
     /// A version refusal keeps placement off until this channel is lost.
     pub(crate) mismatched: bool,
     /// Tasks refused here for their values, until this channel is lost.
@@ -74,6 +77,43 @@ pub(crate) struct Channel {
     /// and the count that orders them.
     pub(crate) workstreams: Map<u64, u64>,
     pub(crate) uses: u64,
+}
+
+impl Channel {
+    pub(crate) fn pause(&self) -> jig_domain_link::PauseState {
+        use jig_domain_link::{PauseMode, PauseState};
+        match self.pause_state {
+            PauseState::Taking => match self.pause_mode {
+                PauseMode::Resume => PauseState::Taking,
+                PauseMode::Pause | PauseMode::Drain => PauseState::Paused,
+            },
+            PauseState::Paused | PauseState::Draining | PauseState::Drained => self.pause_state,
+        }
+    }
+
+    pub(crate) fn paused(&self) -> bool {
+        match self.pause() {
+            jig_domain_link::PauseState::Taking => false,
+            jig_domain_link::PauseState::Paused
+            | jig_domain_link::PauseState::Draining
+            | jig_domain_link::PauseState::Drained => true,
+        }
+    }
+}
+
+/// Carry every ask, even a repeated one; nothing here ends a hosted attempt.
+pub(crate) fn pause(domain: &mut Domain, worker: u32, mode: jig_domain_link::PauseMode, out: &mut Queue<Request>) {
+    let Some(channel) = domain.worker_channel(worker) else { return };
+    let id = *domain.tokens.get(&channel).expect("admitted worker channel");
+    domain.channels.get_mut(id).expect("named channel").pause_mode = mode;
+    out.push(Request::Pause { channel, mode });
+    exclude_waiting(domain, channel);
+}
+
+pub(crate) fn paused(domain: &mut Domain, channel: Token, state: jig_domain_link::PauseState) {
+    let Some(&id) = domain.tokens.get(&channel) else { return };
+    domain.channels.get_mut(id).expect("named channel").pause_state = state;
+    exclude_waiting(domain, channel);
 }
 
 /// The protocol's name for the channel `channel`, which is in contact.
@@ -257,6 +297,8 @@ pub(crate) fn hello(
         slots: slots.min(places).min(limits.slots),
         draining: false,
         shutting_down: false,
+        pause_mode: jig_domain_link::PauseMode::Resume,
+        pause_state: jig_domain_link::PauseState::Taking,
         mismatched: false,
         untranslated: skein_lib::List::uncapped(),
         untooled: Map::uncapped(),
@@ -400,6 +442,7 @@ pub(crate) fn choose(
         if !channel.sources.clear()
             || channel.draining
             || channel.shutting_down
+            || channel.paused()
             || channel.mismatched
             || free == 0
             || channel.untranslated.as_slice().contains(&run)
@@ -442,6 +485,7 @@ pub(crate) fn probe(
             || free == 0
             || channel.draining
             || channel.shutting_down
+            || channel.paused()
             || channel.mismatched
             || channel.untranslated.as_slice().contains(&run)
             || !kinds.allows(channel.kind)
@@ -471,6 +515,7 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
         || !kinds.allows(channel.kind)
         || channel.draining
         || channel.shutting_down
+        || channel.paused()
         || channel.mismatched
         || channel.slots <= channel.hosts.len()
     {
@@ -493,6 +538,7 @@ pub(crate) fn choose_job(
         if free == 0
             || channel.draining
             || channel.shutting_down
+            || channel.paused()
             || channel.mismatched
             || channel.untranslated.as_slice().contains(&run)
         {

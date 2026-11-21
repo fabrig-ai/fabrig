@@ -46,6 +46,14 @@ fn decode(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
     Ok(match record {
+        w::Ask::PauseWorker(value) => p::Ask::PauseWorker {
+            worker: value.worker,
+            mode: match value.mode {
+                w::WorkerPauseMode::Resume => jig_domain_link::PauseMode::Resume,
+                w::WorkerPauseMode::Pause => jig_domain_link::PauseMode::Pause,
+                w::WorkerPauseMode::Drain => jig_domain_link::PauseMode::Drain,
+            },
+        },
         w::Ask::ReadLists(value) => p::Ask::AccountChange {
             holder: p::AccountHolder::Own,
             change: p::AccountChange::ReadLists { provider: value.provider },

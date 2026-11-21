@@ -1,6 +1,6 @@
 # look: status
 
-2026-11-19. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-21. Where the tree's code lags or departs from [look.md](look.md).
 
 - **Not yet:** *An account's row*: the `accounts-usage` request's
   rendered comparison follows landing on main, owned by temper/ui
@@ -22,7 +22,7 @@
 - **Not yet:** *Day and night*, *The switch*: the `night-switch-top`
   request's rendered comparison follows landing on main, owned by temper/ui
   (`look-requests.md`, 4): its `journeys/night-switch-top/` welcome pages by
-  day and at night under the request's overlay against the reprinted
+  day and at night under the request's overlay against the world-printed
   welcome at 1440, 1000 and 420 px, and the states its message names in
   words: the switch last on every step of the welcome, the sign-in page, the
   `Authorize` and approval places and the pages outside a project, after

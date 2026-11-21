@@ -45,11 +45,13 @@ fn a_failed_answer_ends_standard_error_with_its_failure_in_words() {
 }
 
 #[test]
-fn a_termination_signal_in_the_middle_of_a_turn_answers_cancelled() {
+fn a_termination_signal_after_the_hosts_cancel_answers_cancelled() {
     let charter = charter();
     let mut world = World::new(8, &charter);
-    world.signal();
+    world.cancel_before_signal();
     assert!(world.settle(), "cancellation was answered");
+    assert_eq!(world.signals(), 1);
+    assert!(!world.observed().iter().any(|frame| frame.kind == smith_channel::kind::SIGNALLED));
     assert!(world.observed().iter().any(|frame| frame.kind == 0x0106), "run admitted before signal");
     let answer = world.answer().expect("host saw final answer");
     assert!(matches!( &answer.result, RunResult::Failed(failed) if failed.reason == RunFailure::Cancelled));
@@ -98,6 +100,7 @@ fn full_kernel_replay_leaves_the_same_answer() {
             let mut world = World::new(seed, &charter());
             if cancel {
                 world.signal();
+                world.cancel_after_signal();
             }
             assert!(world.settle());
             (world.trace(), world.answer())

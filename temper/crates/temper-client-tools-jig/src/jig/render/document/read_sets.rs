@@ -46,6 +46,7 @@ pub(super) fn text(
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
                 if call.tool == crate::jig::rows::WORKER_LIST_AT {
                     super::workers::text(deployment, out);
+                    super::subjects::text_digest(b"workers", &super::super::Part::Workers(deployment), limits, out);
                 } else {
                     super::census::text(deployment.census.as_deref(), out);
                 }
@@ -182,7 +183,7 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
                 if call.tool == crate::jig::rows::WORKER_LIST_AT {
-                    super::workers::encode(deployment, out);
+                    super::subjects::encode(&super::super::Part::Workers(deployment), limits, true, out);
                 } else {
                     super::census::encode(deployment.census.as_deref(), out);
                 }

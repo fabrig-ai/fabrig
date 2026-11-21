@@ -56,6 +56,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -254,6 +255,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -313,6 +315,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
+            | Ask::PauseWorker { .. }
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
             | Ask::MakeProject { .. }
@@ -378,6 +381,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }

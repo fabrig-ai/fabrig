@@ -409,6 +409,7 @@ pub fn task_refusal(value: &tasks::CapacityRefusal, limits: &w::Limits) -> Resul
         at: value.at.as_nanos(),
     })
 }
+#[expect(clippy::too_many_lines, reason = "one field-for-field deployment document translation")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
     let mut hosts = List::with_capacity(value.hosts.len());
     for row in &value.hosts {
@@ -470,6 +471,12 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
                 digest: row.digest,
                 withdrawn: row.withdrawn,
                 linked: row.linked,
+                pause: match row.pause {
+                    jig_domain_link::PauseState::Taking => w::WorkerPause::Taking,
+                    jig_domain_link::PauseState::Paused => w::WorkerPause::Paused,
+                    jig_domain_link::PauseState::Draining => w::WorkerPause::Draining,
+                    jig_domain_link::PauseState::Drained => w::WorkerPause::Drained,
+                },
                 since: match row.since {
                     Some(at) => Some(at.as_nanos()),
                     None => None,

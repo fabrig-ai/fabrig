@@ -31,7 +31,6 @@ record Hello {
     hosting: list 65536 Hosting
     jobs: list 256 JobBound
     bounds: Bounds
-    fresh: bool = false
 }
 
 # Other worker-to-engine records (protocol/channel/records.md, 1, and protocol/channel/README.md, 5.4).
@@ -245,15 +244,21 @@ record AgentEndpoint {
 record Agents { profile: list 128 Limit endpoints: list 64 AgentEndpoint }
 record Figures { places: u32 limits: list 1024 Limit agents: Agents }
 
+# Pausing and draining (protocol/channel/pause.md, 2).
+enum PauseMode { resume, pause, drain }
+record Pause { mode: PauseMode }
+enum PauseState { taking, paused, draining, drained }
+record Paused { state: PauseState }
+
 # The channel's kinds (protocol/channel/wires.md, 4).
 enum FromWorker {
     hello: Hello, turn: Turn, call: Call, answer: Answer, fact: Fact,
     unauthorized: Unauthorized, limited: Limited, account_refused: AccountRefused,
     logins: Logins, signed_out: SignedOut, list_read: ListRead, draining: Draining,
-    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead
+    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead, paused: Paused
 }
 enum FromEngine {
     assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
     turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
-    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, restarting: Restarting, figures: Figures, read_usage: ReadUsage
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, restarting: Restarting, figures: Figures, read_usage: ReadUsage, pause: Pause
 }

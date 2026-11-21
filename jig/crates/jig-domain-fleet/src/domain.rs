@@ -118,6 +118,29 @@ impl Domain {
         self.worker_names.get(worker)
     }
 
+    /// The admitted channel of a worker position, including a paused channel.
+    #[must_use]
+    pub fn worker_channel(&self, worker: u32) -> Option<Token> {
+        for (_, id) in &self.tokens {
+            let channel = self.channels.get(*id).expect("named channel");
+            if channel.worker == Some(worker) {
+                return Some(channel.token);
+            }
+        }
+        None
+    }
+
+    /// The document's pause is taking when this worker is not linked (workers.md, 6).
+    #[must_use]
+    pub fn worker_pause(&self, worker: u32) -> jig_domain_link::PauseState {
+        match self.worker_channel(worker) {
+            Some(token) => {
+                self.channels.get(*self.tokens.get(&token).expect("named channel")).expect("named channel").pause()
+            }
+            None => jig_domain_link::PauseState::Taking,
+        }
+    }
+
     /// Link observations survive channel retirement, not an engine restart (workers.md, 6).
     #[must_use]
     pub fn worker_link(&self, name: &[u8]) -> (bool, Option<skein_lib::Wall>) {
@@ -169,6 +192,8 @@ impl Domain {
                 slots: limits.engine_slots,
                 draining: false,
                 shutting_down: false,
+                pause_mode: jig_domain_link::PauseMode::Resume,
+                pause_state: jig_domain_link::PauseState::Taking,
                 mismatched: false,
                 untranslated: List::uncapped(),
                 untooled: Map::uncapped(),
@@ -286,7 +311,10 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if admitted && kinds.allows(host.kind) && !(host.draining || host.shutting_down || host.mismatched) {
+            if admitted
+                && kinds.allows(host.kind)
+                && !(host.draining || host.shutting_down || host.paused() || host.mismatched)
+            {
                 return None;
             }
         }
@@ -324,7 +352,13 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if !admitted || !kinds.allows(host.kind) || host.draining || host.shutting_down || host.mismatched {
+            if !admitted
+                || !kinds.allows(host.kind)
+                || host.draining
+                || host.shutting_down
+                || host.paused()
+                || host.mismatched
+            {
                 continue;
             }
             crate::needs::version_shortfall(&self.needs, version, &host.evidence)?;
@@ -570,6 +604,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 channel::mismatch(domain, id);
             }
         }
+        Event::PauseWorker { worker, mode } => channel::pause(domain, worker, mode, out),
+        Event::Paused { channel, state } => channel::paused(domain, channel, state),
         Event::Draining { channel } => channel::draining(domain, channel),
         Event::Untooled { run, channel, source } => crate::untooled::record(domain, run, channel, source),
         Event::Needs(needs) => {

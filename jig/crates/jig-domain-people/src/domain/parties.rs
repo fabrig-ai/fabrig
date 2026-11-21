@@ -202,6 +202,7 @@ pub(super) fn make_service(
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::SetPool { .. }
         | Ask::DecideEscalation { .. }

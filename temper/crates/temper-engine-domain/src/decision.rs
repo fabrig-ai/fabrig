@@ -832,6 +832,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Answer { .. }
         | Event::Turn { .. }
         | Event::TurnBusy { .. }
+        | Event::PauseWorker { .. }
+        | Event::Paused { .. }
         | Event::Observe { .. } => false,
     }
 }

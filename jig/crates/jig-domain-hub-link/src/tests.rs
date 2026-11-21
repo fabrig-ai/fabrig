@@ -1124,3 +1124,18 @@ fn the_engines_own_hub_routes_application_asks_and_answers_by_number() {
     assert!(out.is_empty());
     assert_eq!(link.payload_count(), 0, "a read keeps no payload for commitment");
 }
+
+#[test]
+fn a_workers_pause_word_reaches_the_fleet_on_its_channel() {
+    use jig_domain_link::PauseState;
+    let mut link = link();
+    link.connect(CHANNEL);
+    for state in [PauseState::Taking, PauseState::Paused, PauseState::Draining, PauseState::Drained] {
+        let Some(core::Event::Fleet(fleet::Event::Paused { channel, state: heard })) =
+            up(&mut link, CHANNEL, host::LinkUp::Paused { state })
+        else {
+            panic!("the worker's word reaches the fleet")
+        };
+        assert_eq!((channel, heard), (CHANNEL, state));
+    }
+}

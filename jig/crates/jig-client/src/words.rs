@@ -48,6 +48,7 @@ pub enum HoldWord {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefusalWord {
+    Unlinked,
     Concluded,
     Judged,
     Ceiling,
@@ -153,6 +154,7 @@ impl Word {
     #[must_use]
     pub fn refusal(value: &Refusal) -> Self {
         Self::Refusal(match value {
+            Refusal::Unlinked { .. } => RefusalWord::Unlinked,
             Refusal::Concluded { .. } => RefusalWord::Concluded,
             Refusal::Judged { .. } => RefusalWord::Judged,
             Refusal::Forgotten { .. } => RefusalWord::Forgotten,
@@ -319,6 +321,7 @@ pub const ALL: [Word; 133] = [
     Word::Refusal(RefusalWord::Limit),
     Word::Refusal(RefusalWord::Moved),
     Word::Refusal(RefusalWord::Ended),
+    Word::Refusal(RefusalWord::Unlinked),
     Word::Refusal(RefusalWord::Concluded),
     Word::Refusal(RefusalWord::Provider),
     Word::Refusal(RefusalWord::Unknown),

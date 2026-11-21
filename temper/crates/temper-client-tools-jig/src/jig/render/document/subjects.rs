@@ -30,6 +30,12 @@ pub(crate) fn encode_as(
         Cut { room: usize::try_from(limits.text).expect("text fits"), left: 0, turn: None, subject: true, digest };
     match part {
         Part::Me(value) => super::encode_me(value, out, &mut cut, limits),
+        Part::Workers(value) => {
+            out.object_start();
+            out.key(b"rows");
+            super::workers::encode(value, out);
+            super::subject_end(digest, out);
+        }
         Part::Task(value) => super::encode_task(value, out, &mut cut),
 
         Part::Tree(value) => super::encode_owner_tree(value, out, &mut cut),
@@ -69,7 +75,7 @@ fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
                 super::encode_task_line(row, out, cut);
             }
         }
-        Part::Me(_) | Part::Task(_) | Part::Tree(_) | Part::Run(_) | Part::RunState(_) => {
+        Part::Me(_) | Part::Workers(_) | Part::Task(_) | Part::Tree(_) | Part::Run(_) | Part::RunState(_) => {
             unreachable!("list subject")
         }
     }

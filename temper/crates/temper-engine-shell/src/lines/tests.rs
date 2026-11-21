@@ -1617,6 +1617,20 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
 }
 
 #[test]
+fn unsent_pause_lines_name_the_mode_worker_and_wire_version() {
+    use jig_domain_link::PauseMode;
+    use temper_engine_service::Note;
+    for (mode, text) in [(PauseMode::Resume, "resume"), (PauseMode::Pause, "pause"), (PauseMode::Drain, "drain")] {
+        assert_eq!(
+            note_line("temper", Note::WorkerUnpaused { worker: b"w2".as_slice().into(), version: 18, mode }),
+            format!(
+                "temper serve: worker w2 not told to {text}: jig-worker-wire 18; the engine's placement follows the ask\n"
+            )
+        );
+    }
+}
+
+#[test]
 fn restart_lines_name_the_wait_or_the_workers_older_wire() {
     use temper_engine_service::Note;
     for (wait, version, expected) in [

@@ -313,6 +313,12 @@ pub enum Note {
         version: u16,
         wait: Option<skein_lib::Duration>,
     },
+    /// A pause ask the worker's channel cannot carry (protocol/wires.md, 4).
+    WorkerUnpaused {
+        worker: Box<[u8]>,
+        version: u16,
+        mode: jig_domain_link::PauseMode,
+    },
     WorkerOpened {
         worker: Box<[u8]>,
         wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,

@@ -167,20 +167,20 @@ fn channel_kind_layout_changes_require_a_version_move() {
     for (name, old, new) in [
         (
             "appended",
-            "figures: Figures, read_usage: ReadUsage\n}",
-            "figures: Figures, read_usage: ReadUsage, added: Cancel\n}",
+            "figures: Figures, read_usage: ReadUsage, pause: Pause\n}",
+            "figures: Figures, read_usage: ReadUsage, pause: Pause, added: Cancel\n}",
         ),
         ("reordered", "assignment: Assignment, message: Inbound", "message: Inbound, assignment: Assignment"),
         (
             "other_direction",
-            "    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead\n}",
-            "    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead, assignment: Assignment\n}",
+            "    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead, paused: Paused\n}",
+            "    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead, paused: Paused, assignment: Assignment\n}",
         ),
     ] {
         let scratch = Scratch::new("boundary-channel-kinds");
         copy_directory(&source, scratch.path());
         let landed = Landed::read(scratch.path()).expect("scratch wire's baseline");
-        let path = scratch.path().join("schema/worker-wire-v20.schema");
+        let path = scratch.path().join("schema/worker-wire-v21.schema");
         let text = fs::read_to_string(&path).expect("current channel schema");
         let mut changed = text.replace(old, new);
         if name == "other_direction" {
