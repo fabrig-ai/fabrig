@@ -97,6 +97,7 @@ pub(super) fn configuration_for_launch(
         let path = std::path::absolute(launch.root_path.join("extra")).expect("extra root");
         let host: Box<[u8]> = path.as_os_str().as_encoded_bytes().into();
         directories.push(smith_domain::run::Directory {
+            results: None,
             host: host.clone(),
             name: plain.name.clone(),
             root: skein_lib::Token::new(2),
@@ -192,6 +193,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
     };
     let workspace = change.then(|| run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: paths[0].clone(),
             name: b"repo".as_slice().into(),
             root: skein_lib::Token::new(1),

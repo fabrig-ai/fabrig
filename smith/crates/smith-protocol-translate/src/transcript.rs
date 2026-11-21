@@ -124,6 +124,18 @@ pub fn decode_turn(
     translate_turn(source, endpoint, dialect, limits, u32::MAX)
 }
 
+/// Decode a part's turn body without imposing a main-conversation sequence.
+pub fn decode_part(
+    bytes: &[u8],
+    limits: &wire::v8::Limits,
+    endpoints: &Endpoints,
+) -> Result<record::Turn, record::Refusal> {
+    let source = saved_turn(bytes, None, limits)?;
+    let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
+    let dialect = source.dialect;
+    translate_turn(source, endpoint, dialect, limits, u32::MAX)
+}
+
 fn saved_endpoint(endpoints: &Endpoints, name: &[u8]) -> Option<llm::Endpoint> {
     let endpoint = endpoints.resolve(name)?;
     Some(llm::Endpoint(endpoint.number))

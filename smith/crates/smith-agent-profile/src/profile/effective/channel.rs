@@ -14,6 +14,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     let smith_channel::Limits {
         directory_name,
         directory_path,
+        directory_results_some,
         directory_conflicts,
         directory_conflicts_item,
         workspace_directories,
@@ -39,6 +40,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         message_text,
         start_charter,
         start_transcript,
+        start_parts,
         start_answered,
         start_grants,
         start_messages,
@@ -48,6 +50,8 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         field_text,
         deliver_ask_fields,
         turn_body,
+        part_body,
+        kept_part_body,
         accepted_result,
         live_call_id,
         live_call_tool,
@@ -61,6 +65,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.layer = Layer::Channel;
     inventory.value("directory_name", Value::Bytes(u64::from(directory_name)))?;
     inventory.value("directory_path", Value::Bytes(u64::from(directory_path)))?;
+    inventory.value("directory_results_some", Value::Bytes(u64::from(directory_results_some)))?;
     inventory.value("directory_conflicts", Value::Count(u64::from(directory_conflicts)))?;
     inventory.value("directory_conflicts_item", Value::Bytes(u64::from(directory_conflicts_item)))?;
     inventory.value("workspace_directories", Value::Count(u64::from(workspace_directories)))?;
@@ -86,6 +91,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.value("message_text", Value::Bytes(u64::from(message_text)))?;
     inventory.value("start_charter", Value::Bytes(u64::from(start_charter)))?;
     inventory.value("start_transcript", Value::Bytes(u64::from(start_transcript)))?;
+    inventory.value("start_parts", Value::Bytes(u64::from(start_parts)))?;
     inventory.value("start_answered", Value::Count(u64::from(start_answered)))?;
     inventory.value("start_grants", Value::Count(u64::from(start_grants)))?;
     inventory.value("start_messages", Value::Count(u64::from(start_messages)))?;
@@ -95,6 +101,8 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.value("field_text", Value::Bytes(u64::from(field_text)))?;
     inventory.value("deliver_ask_fields", Value::Count(u64::from(deliver_ask_fields)))?;
     inventory.value("turn_body", Value::Bytes(u64::from(turn_body)))?;
+    inventory.value("part_body", Value::Bytes(u64::from(part_body)))?;
+    inventory.value("kept_part_body", Value::Bytes(u64::from(kept_part_body)))?;
     inventory.value("accepted_result", Value::Bytes(u64::from(accepted_result)))?;
     inventory.value("live_call_id", Value::Bytes(u64::from(live_call_id)))?;
     inventory.value("live_call_tool", Value::Bytes(u64::from(live_call_tool)))?;

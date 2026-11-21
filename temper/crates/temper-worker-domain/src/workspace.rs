@@ -783,6 +783,7 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
     for root in &record.roots {
         roots
             .push(agent::Directory {
+                results: None,
                 root: directory,
                 name: copy_of(&root.name),
                 host: Box::new([]),

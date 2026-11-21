@@ -4,12 +4,12 @@ pub fn all(family: &str, version: u16) -> Vec<skein_codegen::Golden> {
     let text = match (family, version) {
         ("charter", 5) => smith_charter::SCHEMA,
         ("transcript", 8) => smith_transcript::SCHEMA,
-        ("channel", 13) => smith_channel::CHANNEL_SCHEMA,
+        ("channel", 14) => smith_channel::CHANNEL_SCHEMA,
         ("channel", 9) => include_str!("../../../../../crates/smith-channel/schema/kept/smith-channel-v9.schema"),
         ("channel", 7) => include_str!("../../../../../crates/smith-channel/schema/kept/smith-channel-v7.schema"),
         _ => panic!("no embedded schema for {family} v{version}"),
     };
-    if (family == "channel" && version == 13) || family == "charter" || family == "transcript" {
+    if (family == "channel" && version == 14) || family == "charter" || family == "transcript" {
         skein_codegen::values(text).goldens.clone()
     } else {
         skein_codegen::goldens(&skein_codegen::parse(text).expect("valid embedded schema"))

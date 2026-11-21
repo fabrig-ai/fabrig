@@ -475,6 +475,7 @@ fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request
         parent::Request::Admitted { .. } => {
             send_line(domain, env, out);
         }
+        parent::Request::Part { .. } => unreachable!("the local host asks for no parts"),
         parent::Request::Turn { turn, .. } => {
             domain.told.turns = turn.number;
             domain.told.spent = turn.spent;

@@ -77,6 +77,8 @@ impl Room {
         }
         let terms = skein_channel::control_frame(&Control::Terms { entries }, &self.limits.channel).unwrap();
         let start = smith_channel::Start {
+            parts: Box::default(),
+            tell_parts: false,
             identity: None,
             activation: 1,
             charter: charter_fixture(),

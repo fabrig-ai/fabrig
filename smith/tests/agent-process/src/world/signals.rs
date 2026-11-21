@@ -44,7 +44,8 @@ impl Plan {
                 Word::None | Word::CancelFirst => return,
                 Word::Cancel => parent.cancel_pending = true,
                 Word::Drain => parent.peer.play(
-                    smith_channel::frame(smith_channel::Body::Drain(smith_channel::Drain {})).expect("drain frame"),
+                    smith_channel::frame(smith_channel::Body::Drain(smith_channel::Drain { grace: None }))
+                        .expect("drain frame"),
                 ),
                 Word::HangUp => {
                     if let Some(input) = parent.input.take() {

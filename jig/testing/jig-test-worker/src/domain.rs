@@ -369,7 +369,7 @@ fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::ToAgent, out:
         }
         host::ToAgent::Renewals { agent: _, held } => smith::parent::Event::Renewals { held },
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
-        host::ToAgent::Drain { agent } => smith::parent::Event::Drain { agent },
+        host::ToAgent::Drain { agent } => smith::parent::Event::Drain { agent, grace: None },
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         host::ToAgent::Grant { agent, grant } => {
             let Some(grant) = translate::grant(grant) else { return };
@@ -410,6 +410,10 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
         smith::parent::Request::Admitted { client } => {
             let agent = *domain.agents.get(&client).expect("started before admitted");
             hub(domain, env, HubEvent::Agent(FromAgent::Started { owner: client, agent }));
+        }
+        smith::parent::Request::Part { client, part } => {
+            let agent = *domain.agents.get(&client).expect("a part belongs to a started agent");
+            parent(domain, env, smith::parent::Event::AcknowledgePart { agent, number: part.number });
         }
         smith::parent::Request::Turn { client, turn } => {
             domain.pending.push(Pending::Turn { owner: client });

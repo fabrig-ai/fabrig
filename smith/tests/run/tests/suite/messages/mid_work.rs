@@ -50,6 +50,7 @@ fn scripted_mode(
     fixture.checkout.program(b"cargo build", program(200, b"Finished\n", Exit::Code(0), &[]));
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/work/temper".as_slice().into(),
             name: b"work".as_slice().into(),
             root: fixture.repos[0].root,

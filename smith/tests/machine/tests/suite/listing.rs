@@ -27,6 +27,7 @@ fn configured_component(variables: &[smith_protocol_machine::Variable], rg: &[u8
     );
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"code"[..]),
             root: Token::new(10),

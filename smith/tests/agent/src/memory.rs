@@ -143,6 +143,7 @@ impl Driver {
                     }
                 }
                 Request::MessageRefused { .. }
+                | Request::Part { .. }
                 | Request::Turn { .. }
                 | Request::Waiting { .. }
                 | Request::Long { .. }

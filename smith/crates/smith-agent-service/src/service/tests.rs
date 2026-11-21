@@ -147,6 +147,8 @@ fn diagnostic_parent(seed: u64, activation: u64) -> Service {
     enter(
         &mut agent,
         Input::Domain(domain::Event::Start(domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(1)),
             host_run: Token::new(1),
             activation,
@@ -792,6 +794,7 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
         &mut service,
         Input::Host(channel::Heard::Start {
             start: decoded_start(Box::new([smith_protocol_translate::Mount {
+                results: None,
                 name: Box::from(b"work".as_slice()),
                 path: Box::from(b"/work".as_slice()),
                 writable: false,

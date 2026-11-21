@@ -5,6 +5,8 @@ use smith_protocol_translate::{DecodedStart, Mount};
 
 pub(super) fn decoded_start(mounts: Box<[Mount]>) -> Box<DecodedStart> {
     Box::new(DecodedStart {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         identity: None,
         messages: Box::default(),
@@ -208,6 +210,8 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
         domain,
         &service.stages.domain_env,
         domain::Event::Start(domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(9)),
             host_run: Token::new(9),
             activation: 1,
@@ -217,6 +221,7 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
             charter,
             workspace: Some(run::Workspace {
                 directories: Box::new([run::Directory {
+                    results: None,
                     name: Box::from(b"work".as_slice()),
                     host: Box::from(b"/work".as_slice()),
                     root: Token::new(900),

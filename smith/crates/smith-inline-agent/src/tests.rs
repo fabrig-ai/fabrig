@@ -34,6 +34,8 @@ fn start() -> host::Start {
     charter.grants.agents = false;
     charter.grants.tools = run::charter::Tools { inspect: false, modify: false, shell: false };
     host::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(7),
@@ -517,6 +519,7 @@ fn probe_check_and_abort_route_once_and_wait_for_the_matching_terminal() {
         handle,
         owner,
         run::Place { root: Token::new(9), path: b"check".as_slice().into() },
+        None,
         Duration::from_nanos(100),
         Time::from_nanos(100),
         3,
@@ -542,6 +545,7 @@ fn directories_move_the_exact_io_root_into_the_run() {
     let workspace = crate::workspace::start(
         Some(Token::new(10)),
         Box::from([host::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             root: Token::new(900),
             name: b"mounted".as_slice().into(),
@@ -738,7 +742,7 @@ fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
         }
     }
     let (handle, owner) = completion.expect("provider request");
-    step(&mut agent, &env, Input::Parent(parent::Event::Drain { agent: handle }), &mut out);
+    step(&mut agent, &env, Input::Parent(parent::Event::Drain { agent: handle, grace: None }), &mut out);
     agent.reclaim();
     for _ in 0_u32..8 {
         if !agent.is_ready() {

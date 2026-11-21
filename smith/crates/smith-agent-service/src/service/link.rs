@@ -97,6 +97,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             | smith_domain::Lower::Check { .. }
             | smith_domain::Lower::Abort { .. },
         )
+        | domain::Request::Part { .. }
         | domain::Request::Waiting { .. }
         | domain::Request::HostCall { .. }
         | domain::Request::WithdrawHost { .. }
@@ -117,6 +118,9 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
     let result = match request {
         domain::Request::Waiting { host_run: _, read } => {
             frame.channel.send_waiting(read, token, &mut service.channel_events, &mut service.channel_below)
+        }
+        domain::Request::Part { host_run: _, number, turn, part } => {
+            frame.channel.send_part(number, turn, &part, token, &mut service.channel_events, &mut service.channel_below)
         }
         domain::Request::Turn { host_run: _, number, position: _, read, spent, opens_window, turn } => {
             frame.channel.send_turn(

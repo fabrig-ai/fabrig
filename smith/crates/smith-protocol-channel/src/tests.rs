@@ -699,6 +699,8 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         let mut grants = List::with_capacity(1);
         grants.push(grant).expect("one grant");
         let start = wire::Start {
+            parts: Box::default(),
+            tell_parts: false,
             identity: None,
             activation: 1,
             charter: Box::default(),

@@ -128,6 +128,8 @@ pub fn assignment(charter: Box<[u8]>) -> host::Assignment {
 
 pub fn start(source: host::Start) -> smith::Start {
     smith::Start {
+        parts: Box::default(),
+        tell_parts: false,
         identity: Some(smith_domain_run::Identity::new(source.identity)),
         live: None,
         logical_run: RUN,
@@ -138,6 +140,7 @@ pub fn start(source: host::Start) -> smith::Start {
         transcript: None,
         answered: Box::new([]),
         directories: Box::new([smith::Directory {
+            results: None,
             root: Token::new(9),
             name: Box::from(&b"workspace"[..]),
             host: Box::from(&b"/test"[..]),

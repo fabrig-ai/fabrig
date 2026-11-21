@@ -76,6 +76,7 @@ pub(crate) enum Sent {
     Call(Token),
     Busy { call: Token, name: CallName },
     Ack(u32),
+    PartKept(u32),
     Grant,
     Renewals,
     Cancel,
@@ -108,6 +109,12 @@ pub(crate) struct Agent {
     busy: Queue<BusyCall>,
     calls: Map<Token, Call>,
     turns: Map<u32, TurnMeta>,
+    parts: Map<u32, TurnMeta>,
+    tell_parts: bool,
+    part_number: u32,
+    part_ack: u32,
+    kept_parts: skein_lib::Set<u32>,
+    answered_turn: bool,
     accounts: Map<u32, Account>,
     messages: u32,
     unread: crate::Inbox,
@@ -251,13 +258,17 @@ fn from_parent(
             drop_run(current(domain, token)?, token, env, out);
             token
         }
-        parent::Event::Drain { agent: token } => {
+        parent::Event::AcknowledgePart { agent: token, number } => {
+            acknowledge_part(current(domain, token)?, number);
+            token
+        }
+        parent::Event::Drain { agent: token, grace } => {
             let agent = current(domain, token)?;
             match agent.supervision {
                 State::Spawning | State::Watching(_) => {
                     if !agent.turn_stop && !agent.host_stopped && !agent.word.last_word() {
                         agent.turn_stop = true;
-                        agent.outbox.push(Down::Drain);
+                        agent.outbox.push(Down::Drain { grace });
                     }
                 }
                 State::Cancelled { .. }
@@ -444,6 +455,7 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, client: Token, start: Start, ou
         logical_run,
         activation,
         supervision: State::Spawning,
+        tell_parts: start.tell_parts,
         tree: tree::State::Spawning { start },
         word: word::State::Open(word::Admission::Pending),
         host_stopped: false,
@@ -459,6 +471,11 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, client: Token, start: Start, ou
         busy: Queue::with_capacity(2),
         calls: Map::with_capacity(env.limits.calls),
         turns: Map::with_capacity(env.limits.turns),
+        parts: Map::with_capacity(env.limits.turns),
+        part_number: 0,
+        part_ack: 0,
+        kept_parts: skein_lib::Set::with_capacity(env.limits.turns),
+        answered_turn: false,
         accounts,
         messages: 0,
         unread,
@@ -551,6 +568,32 @@ fn acknowledge_turn(agent: &mut Agent, number: u32) {
     }
 }
 
+fn acknowledge_part(agent: &mut Agent, number: u32) {
+    if number <= agent.part_ack {
+        return;
+    }
+    assert!(number <= agent.part_number, "parent ACK names a forwarded part");
+    if !agent.parts.contains_key(&number) {
+        return;
+    }
+    agent.kept_parts.insert(number).expect("one kept marker per held part");
+    for _ in 0..agent.parts.len() {
+        let Some(next) = agent.part_ack.checked_add(1) else { break };
+        if !agent.kept_parts.remove(&next) {
+            break;
+        }
+        let part = agent.parts.get_mut(&next).expect("kept part is held");
+        part.stage = SendState::Queued;
+        agent.turn_bytes = agent.turn_bytes.checked_sub(part.bytes).expect("held part bytes");
+        agent.part_ack = next;
+        if listens(agent) {
+            agent.outbox.push(Down::PartKept { number: next });
+        } else {
+            agent.parts.remove(&next).expect("kept part metadata");
+        }
+    }
+}
+
 fn grant_name(agent: &mut Agent, grant: Grant) {
     if !listens(agent) {
         return;
@@ -576,9 +619,10 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
             | Down::Message { .. }
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
+            | Down::PartKept { .. }
             | Down::Grant { .. }
             | Down::Cancel
-            | Down::Drain => {}
+            | Down::Drain { .. } => {}
         }
     }
     let mut replaced = false;
@@ -594,8 +638,9 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
             | Down::Message { .. }
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
+            | Down::PartKept { .. }
             | Down::Cancel
-            | Down::Drain
+            | Down::Drain { .. }
             | Down::Renewals { .. }) => old,
         };
         agent.outbox.push(next);
@@ -694,10 +739,25 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
             assert!(agent.unread.refused(name), "validated refusal owns an accepted message");
             out.push(Output::Parent(parent::Request::MessageRefused { client: agent.client, name, reason }));
         }
+        Up::Part { part } => {
+            agent.waiting = false;
+            agent.part_number = part.number;
+            if part.thread == 0 && part.kind == smith_domain::session::record::PartKind::Answer {
+                agent.answered_turn = true;
+            }
+            let bytes = part.body.owned_bytes();
+            agent.turn_bytes = agent.turn_bytes.checked_add(bytes).expect("validated byte credit");
+            agent
+                .parts
+                .insert(part.number, TurnMeta { bytes, stage: SendState::Parent })
+                .expect("part room reserved before read");
+            out.push(Output::Parent(parent::Request::Part { client: agent.client, part }));
+        }
         Up::Turn { turn } => {
             agent.waiting = false;
             agent.unread.fence(turn.read);
             agent.number = turn.number;
+            agent.answered_turn = false;
             agent.spent = turn.spent;
             let bytes = turn.body.owned_bytes();
             agent.turn_bytes = agent.turn_bytes.checked_add(bytes).expect("validated byte credit");
@@ -747,6 +807,7 @@ fn discarded_work(agent: &Agent, message: &Up) -> bool {
             | Up::Call { .. }
             | Up::Withdraw { .. }
             | Up::Turn { .. }
+            | Up::Part { .. }
             | Up::Fact { .. }
             | Up::Long { .. }
             | Up::LongDone
@@ -789,6 +850,10 @@ fn settle_send(agent: &mut Agent, sent: Sent) {
         Sent::Call(callback) => {
             let call = agent.calls.remove(&callback).expect("call transmission still reserved");
             assert!(call.stage == SendState::Sending, "send terminal owns reservation");
+        }
+        Sent::PartKept(number) => {
+            let part = agent.parts.remove(&number).expect("part ACK transmission reserved");
+            assert!(part.stage == SendState::Sending, "part ACK owns metadata");
         }
         Sent::Ack(number) => {
             let turn = agent.turns.remove(&number).expect("ACK transmission still reserved");
@@ -841,6 +906,7 @@ fn fail(agent: &mut Agent, owner: Token, fault: Fault, env: &Env<Limits>, out: &
 
 fn drop_run(agent: &mut Agent, owner: Token, env: &Env<Limits>, out: &mut Queue<Output>) {
     agent.word.drop_run();
+    agent.kept_parts = skein_lib::Set::with_capacity(env.limits.turns);
     agent.host_stopped = true;
     agent.supervision.clear_fault();
     let mut released = skein_lib::List::with_capacity(env.limits.turns);
@@ -853,6 +919,17 @@ fn drop_run(agent: &mut Agent, owner: Token, env: &Env<Limits>, out: &mut Queue<
     for number in &released {
         let turn = agent.turns.remove(number).expect("held turn released exactly once");
         agent.turn_bytes = agent.turn_bytes.checked_sub(turn.bytes).expect("held turn byte credit");
+    }
+    let mut released = skein_lib::List::with_capacity(env.limits.turns);
+    for (number, part) in &agent.parts {
+        match part.stage {
+            SendState::Parent => released.push(*number).expect("bounded held parts"),
+            SendState::Queued | SendState::Sending => {}
+        }
+    }
+    for number in &released {
+        let part = agent.parts.remove(number).expect("held part released once");
+        agent.turn_bytes = agent.turn_bytes.checked_sub(part.bytes).expect("held part byte credit");
     }
     match agent.supervision {
         State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. } => {
@@ -890,7 +967,7 @@ fn signal(agent: &mut Agent, owner: Token, signal: Signal, out: &mut Queue<Outpu
 }
 
 fn turn_room(agent: &Agent, limits: &Limits) -> bool {
-    agent.turns.len() < limits.turns
+    agent.turns.len().checked_add(agent.parts.len()).expect("bounded held records") < limits.turns
         && match agent.turn_bytes.checked_add(limits.turn_bytes) {
             Some(bytes) => bytes <= limits.unacknowledged_bytes,
             None => false,
@@ -931,6 +1008,10 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                     entry.stage = SendState::Sending;
                     Sent::Call(*call)
                 }
+                Down::PartKept { number } => {
+                    agent.parts.get_mut(number).expect("part ACK metadata").stage = SendState::Sending;
+                    Sent::PartKept(*number)
+                }
                 Down::Acknowledge { turn } => {
                     agent.turns.get_mut(turn).expect("exact ACK metadata").stage = SendState::Sending;
                     Sent::Ack(*turn)
@@ -944,7 +1025,7 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                     agent.cancel_sent = true;
                     Sent::Cancel
                 }
-                Down::Drain => Sent::Drain,
+                Down::Drain { .. } => Sent::Drain,
             };
             (sent, message)
         }
@@ -965,6 +1046,9 @@ fn disconnect(agent: &mut Agent, limits: &Limits, out: &mut Queue<Output>) {
             Down::Answer { call, .. } => {
                 agent.calls.remove(&call).expect("already answered queued call");
             }
+            Down::PartKept { number } => {
+                agent.parts.remove(&number).expect("committed queued part");
+            }
             Down::Acknowledge { turn } => {
                 agent.turns.remove(&turn).expect("committed queued turn");
             }
@@ -972,7 +1056,7 @@ fn disconnect(agent: &mut Agent, limits: &Limits, out: &mut Queue<Output>) {
                 agent.messages = agent.messages.checked_sub(1).expect("queued message count");
             }
             Down::Start { .. } => unreachable!("start never queued"),
-            Down::Grant { .. } | Down::Renewals { .. } | Down::Cancel | Down::Drain => {}
+            Down::Grant { .. } | Down::Renewals { .. } | Down::Cancel | Down::Drain { .. } => {}
         }
     }
     let busy_count = agent.busy.len();
@@ -1044,7 +1128,8 @@ fn follow(domain: &mut Domain, env: &Env<Limits>, id: Id<Agent>, out: &mut Queue
             && agent.sending.is_none()
             && agent.signals == 0
             && agent.calls.is_empty()
-            && agent.turns.is_empty());
+            && agent.turns.is_empty()
+            && agent.parts.is_empty());
     if done {
         if !agent.supervision.closed() {
             if let Some(fault) = agent.supervision.take_fault() {
@@ -1093,6 +1178,7 @@ fn observations(domain: &mut Domain, out: &Queue<Output>, before: u32) {
                     parent::Request::Called { .. }
                     | parent::Request::Withdrawn { .. }
                     | parent::Request::Turn { .. }
+                    | parent::Request::Part { .. }
                     | parent::Request::Signalled { .. }
                     | parent::Request::Waiting { .. }
                     | parent::Request::Long { .. }

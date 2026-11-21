@@ -819,6 +819,7 @@ fn answer_head(service: &Stages) -> bool {
             )
             | domain::Request::MessageRefused { .. }
             | domain::Request::Waiting { .. }
+            | domain::Request::Part { .. }
             | domain::Request::Turn { .. }
             | domain::Request::HostCall { .. }
             | domain::Request::WithdrawHost { .. }

@@ -266,6 +266,8 @@ pub fn start(run: Token, source: &host::Start) -> agent::Start {
         grants.push(grant).expect("room for each grant");
     }
     agent::Start {
+        parts: Box::default(),
+        tell_parts: false,
         identity: None,
         messages: messages.into_boxed(),
         logical_run: run,

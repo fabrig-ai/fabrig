@@ -178,6 +178,8 @@ pub fn decode_with_dialect(
         }
     }
     Ok(Box::new(agent::Start {
+        parts: Box::default(),
+        tell_parts: false,
         identity: Some(smith_domain_run::Identity::new(source.identity)),
         logical_run: run,
         activation: source.activation,

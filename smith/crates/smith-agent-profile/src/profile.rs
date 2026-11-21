@@ -296,6 +296,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let mut bodies = smith_channel::CEILINGS;
     bodies.directory_name = run.directory_name_bytes;
     bodies.directory_path = run.host_path_bytes;
+    bodies.directory_results_some = 4096;
     bodies.directory_conflicts = run.conflicts;
     bodies.directory_conflicts_item = run.conflict_path_bytes;
     bodies.workspace_directories = run.directories;
@@ -321,6 +322,9 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let piece = history.checked_add(lengths).ok_or(derived(Layer::Channel, "start_transcript"))?;
     validate::turn_in_channel(piece, u64::from(bodies.start_transcript))?;
     bodies.start_transcript = u32::try_from(piece).or(Err(derived(Layer::Channel, "start_transcript")))?;
+    bodies.start_parts = bodies.start_transcript;
+    bodies.part_body = bodies.turn_body;
+    bodies.kept_part_body = bodies.turn_body;
     validate::turn_in_channel(turn, u64::from(smith_channel::CEILINGS.turn_body))?;
     validate::turn_in_channel(charter, u64::from(smith_channel::CEILINGS.start_charter))?;
     validate::turn_in_channel(u64::from(run.message_bytes), u64::from(smith_channel::CEILINGS.message_text))?;
@@ -391,7 +395,7 @@ fn channel_limits(
             skip: channel_start_bytes(&bodies)?.max(output_bytes),
             output_bytes,
             output_frames,
-            kinds: u32::try_from(smith_channel::V13.len()).or(Err(derived(Layer::Channel, "kinds")))?,
+            kinds: u32::try_from(smith_channel::V14.len()).or(Err(derived(Layer::Channel, "kinds")))?,
         },
         endpoints: ENDPOINTS,
         calls: domain.run.calls,
