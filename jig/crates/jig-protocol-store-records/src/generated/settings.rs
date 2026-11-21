@@ -369,6 +369,7 @@ pub fn charter_to_domain(record: crate::settings_v3::Charter, context: &crate::s
 }
 
 // Maps line 28: Overlay.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn overlay_to_record(value: &jig_domain_core_vocabulary::settings::Overlay, context: &crate::settings_v3::Limits) -> Result<crate::settings_v3::Overlay, crate::settings_v3::Problem> {
     let jig_domain_core_vocabulary::settings::Overlay { rest: field_000000, model: field_000001, alternatives: field_000002, inspect: field_000003, modify: field_000004, shell: field_000005, agents: field_000006, tools: field_000007, hosts: field_000008, waiting: field_000009, resume: field_000010, turns: field_000011, time: field_000012, reserve_turns: field_000013, reserve_time: field_000014, call_timeout: field_000015, spend: field_000016, documents: field_000017, instructions: field_000018, parts: field_000019 } = value;
     Ok(crate::settings_v3::Overlay {
@@ -477,6 +478,7 @@ pub fn overlay_to_record(value: &jig_domain_core_vocabulary::settings::Overlay, 
 }
 
 // Maps line 28: Overlay.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn overlay_to_domain(record: crate::settings_v3::Overlay, context: &crate::settings_v3::Limits) -> Result<jig_domain_core_vocabulary::settings::Overlay, crate::settings_v3::Problem> {
     let crate::settings_v3::Overlay { rest: field_000000, model: field_000001, alternatives: field_000002, inspect: field_000003, modify: field_000004, shell: field_000005, agents: field_000006, tools: field_000007, hosts: field_000008, waiting: field_000009, resume: field_000010, turns: field_000011, time: field_000012, reserve_turns: field_000013, reserve_time: field_000014, call_timeout: field_000015, spend: field_000016, documents: field_000017, instructions: field_000018, parts: field_000019 } = record;
     Ok(jig_domain_core_vocabulary::settings::Overlay {
