@@ -11,4 +11,6 @@
   - 3.7: the engine's forge world, which runs the forge without jig's core or store, checks the forge's half of a start over its stored records, by the function the root's link calls (`../testing/store-check.md`, 2); jig's half is checked in the worlds that run the core. The goal's designer, 2026-11-21.
   - 3.7: a sampled world's commits are drawn from a part of its own of the seed's scheduling stream, `store check`, so that the sample moves none of the world's draws (`jig/docs/design/domain/testing.md`, 7). The goal's designer, 2026-11-21.
   - 3: an adapter is a kit of its component's tree, beside it, over `pub` reads the component documents as its adapter's, not code inside the component's crate (`skein/docs/design/testing/inspection.md`, 2): the workspace has no feature or `cfg` for test-only code, and a shipped binary links no testing crate. The adapter still changes with its component, reads it by a shared borrow and is linked only by worlds. The goal's designer, 2026-11-20.
-- **Open:** 8: the moves between layers that F0's plan proposes are the user's decision.
+- **Open:**
+  - 8: the moves between layers that F0's plan proposes are the user's decision.
+  - 7: the settings walk found a problem the catalog has no row for: a member's batch addressed to a role whose authority spend can't fund it (`../testing/settings-tests.md`, 5 and 7). Its scenario is ignored; no work fixes it yet, and one of its fixes moves a stock figure, the user's.
