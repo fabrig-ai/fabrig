@@ -6,37 +6,9 @@ use skein_fake_machine::Item;
 use skein_io::kernel::ServiceSignal;
 use smith_fake_claude::Story;
 
-pub const SESSION: &str = "12345678-1234-1234-1234-123456789abc";
-pub const MCP: &[u8] = br#"{"mcpServers":{"smith":{"type":"stdio","command":"server","args":["{}"],"env":{}}}}"#;
+pub use smith_fake_claude::invocation::{SESSION, arguments};
 
-pub fn arguments() -> Vec<String> {
-    [
-        "-p",
-        "--input-format",
-        "stream-json",
-        "--output-format",
-        "stream-json",
-        "--verbose",
-        "--setting-sources",
-        "user",
-        "--model",
-        "test-model",
-        "--append-system-prompt-file",
-        "unread",
-        "--mcp-config",
-        "run/mcp.json",
-        "--strict-mcp-config",
-        "--permission-prompt-tool",
-        "mcp__smith__prompt",
-        "--tools",
-        "Read,Bash",
-        "--session-id",
-        SESSION,
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect()
-}
+pub const MCP: &[u8] = br#"{"mcpServers":{"smith":{"type":"stdio","command":"server","args":["{}"],"env":{}}}}"#;
 
 pub fn invocation(count: usize) -> Invocation {
     let mut invocation = Invocation::auth("unused");

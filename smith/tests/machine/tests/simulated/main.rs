@@ -1,0 +1,12 @@
+#[global_allocator]
+static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
+
+mod listing;
+mod memory;
+mod simulated_jobs;
+mod stories;
+
+mod fuzzy {
+    mod listing;
+    mod worlds;
+}

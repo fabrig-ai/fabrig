@@ -4592,6 +4592,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-agent-world",
  "smith-bench",
+ "smith-end-to-end-kit",
  "smith-events",
  "smith-events-fixtures",
  "smith-fake-claude",
@@ -4840,7 +4841,9 @@ name = "smith-bench-fixtures"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "sha2",
  "skein-lib",
+ "skein-scratch",
  "smith-bench",
  "smith-events",
  "smith-events-fixtures",
@@ -4987,6 +4990,33 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "smith-domain-tools",
+]
+
+[[package]]
+name = "smith-end-to-end-kit"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fake-llm-domain",
+ "skein-fake-peers",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-oauth",
+ "skein-scratch",
+ "skein-shell",
+ "skein-world",
+ "smith-agent-process-world",
+ "smith-agent-shell",
+ "smith-agent-world",
+ "smith-bench",
+ "smith-events",
+ "smith-fake-claude",
+ "smith-hosts-world",
+ "smith-local-process-world",
+ "smith-local-shell",
+ "smith-real-world",
+ "toml",
 ]
 
 [[package]]

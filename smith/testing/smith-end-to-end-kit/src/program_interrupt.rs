@@ -6,7 +6,6 @@ use std::{io::BufRead as _, path::PathBuf};
 pub(super) struct Watch {
     path: PathBuf,
     poll: Time,
-    #[expect(clippy::disallowed_types, reason = "The outside observer retains a fixture log, not a ring descriptor")]
     reader: Option<std::io::BufReader<std::fs::File>>,
     pending: Vec<u8>,
     statuses: usize,

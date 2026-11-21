@@ -1,0 +1,56 @@
+[package]
+name = "smith-end-to-end-kit"
+description = "Shared shipped-binary stories and offline controls"
+license.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+skein-io.workspace = true
+skein-shell.workspace = true
+smith-agent-shell.workspace = true
+smith-local-shell.workspace = true
+smith-fake-claude.workspace = true
+smith-agent-world.workspace = true
+skein-scratch.workspace = true
+smith-hosts-world = { path = "../../tests/hosts" }
+toml.workspace = true
+smith-events.workspace = true
+smith-bench = { path = "../../benchmarks" }
+skein-world.workspace = true
+skein-lib.workspace = true
+skein-oauth.workspace = true
+skein-llm.workspace = true
+serde_json.workspace = true
+
+smith-real-world.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-peers.workspace = true
+smith-local-process-world.workspace = true
+smith-agent-process-world.workspace = true
+
+
+[lints.rust] # harness: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"

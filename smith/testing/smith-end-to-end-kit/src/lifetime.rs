@@ -42,10 +42,6 @@ fn alive(process: &Identity) -> bool {
     identity(process.pid).is_some_and(|current| current.start == process.start)
 }
 
-#[expect(
-    clippy::disallowed_types,
-    reason = "protocol/programs.md, 5.1: SIGKILL targets the agent alone, without ending its tree"
-)]
 fn kill_agent(agent: &Identity) -> Result<(), String> {
     if !alive(agent) {
         return Err(String::from("the observed agent identity still holds"));

@@ -13,7 +13,7 @@ full_limits 101
 temp_dir 0
 bare_wire_kind 0
 io_resume 2
-test_windows 35
+test_windows 34
 path_attribute 5
 domain_while 0
 domain_loop 0

@@ -3,6 +3,7 @@
 use super::{edit, events::record};
 use smith_events::Record;
 
+#[must_use]
 pub fn tool_pair(tool: &str, call: &str) -> (Record, Record) {
     static START: std::sync::LazyLock<Record> = std::sync::LazyLock::new(|| {
         record(include_str!("../../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"))
