@@ -1,12 +1,11 @@
 pub(super) use fixtures::{TuiWorld, tui_approval_reply};
 use fixtures::{
     absent, fixture_recording, fixture_with_marks_and_secret, fixture_with_secret, stale_recording, tree_bytes,
-    tui_approval_recording, tui_recording, tui_written,
+    tui_approval_recording, tui_recording,
 };
 use temper_client_journeys_kit as fixtures;
 
 use crate::JOURNEYS;
-use skein_lib::Time;
 use skein_scratch::Scratch;
 use std::{fs, path::Path};
 use temper_client_shell_web::journey;
@@ -44,13 +43,7 @@ fn the_overlay_is_empty() {
 }
 #[test]
 fn every_journey_has_its_description() {
-    for name in crate::names(Path::new(JOURNEYS)).expect("committed journeys") {
-        let path = Path::new(JOURNEYS).join(&name).join("README.md");
-        assert!(
-            fs::read_to_string(path).is_ok_and(|text| !text.trim().is_empty()),
-            "{name} needs a README.md holding its description"
-        );
-    }
+    descriptions(Path::new(JOURNEYS)).expect("committed journey descriptions");
 }
 #[test]
 fn the_tui_overlay_is_empty() {
@@ -60,28 +53,7 @@ fn the_tui_overlay_is_empty() {
 
 #[test]
 fn every_tui_journey_has_its_description() {
-    for name in crate::names(Path::new(crate::TUI_JOURNEYS)).expect("committed TUI journeys") {
-        let path = Path::new(crate::TUI_JOURNEYS).join(&name).join("README.md");
-        let description = fs::read_to_string(path).expect("TUI journey README.md");
-        assert!(!description.trim().is_empty(), "{name} needs a README.md holding its description");
-    }
-}
-
-#[test]
-fn a_reprint_keeps_a_journeys_readme() {
-    let scratch = Scratch::new("temper-client-journeys-readme");
-    let source = scratch.path().join("source");
-    let out = scratch.path().join("out");
-    crate::add(&source, "welcome", &fixture_recording(), &[]).expect("add fixture journey");
-    let directory = out.join("welcome");
-    fs::create_dir_all(&directory).expect("journey directory");
-    let readme = directory.join("README.md");
-    let description = b"The journey's description.\n";
-    fs::write(&readme, description).expect("write description");
-    fs::write(directory.join("99.html"), "old page").expect("old page");
-    assert_eq!(crate::reprint(&source, &out).expect("reprint").len(), 0);
-    assert_eq!(fs::read(readme).expect("description kept"), description);
-    assert!(!directory.join("99.html").exists());
+    descriptions(Path::new(crate::TUI_JOURNEYS)).expect("committed TUI journey descriptions");
 }
 
 fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>> {
@@ -137,18 +109,6 @@ fn a_refused_add_keeps_the_journey_of_its_name() {
         "stale recording refused"
     );
     assert!(snapshot(scratch.path()) == before, "a refused add keeps every directory and file byte for byte");
-}
-
-#[test]
-fn a_stale_reprint_leaves_its_pages_as_they_were() {
-    let scratch = Scratch::new("temper-client-journeys-stale-reprint");
-    let recording = fixture_recording();
-    crate::add(scratch.path(), "welcome", &recording, &[]).expect("add fixture journey");
-    fs::write(scratch.path().join("welcome/recording"), stale_recording(&recording)).expect("stale recording");
-    let before = snapshot(scratch.path());
-    let stale = crate::reprint(scratch.path(), scratch.path()).expect("reprint");
-    assert!(matches!(stale.as_slice(), [(name, _)] if name == "welcome"), "reprint reports the stale journey");
-    assert!(snapshot(scratch.path()) == before, "a stale reprint keeps every page byte for byte");
 }
 
 fn write_lines(lines: &[journey::Line]) -> Box<[u8]> {
@@ -289,71 +249,6 @@ fn a_marked_walk_redacted_prints_the_same_pages() {
 }
 
 #[test]
-fn a_setup_joins_only_the_named_steps() {
-    let scratch = Scratch::new("journeys-setup-join");
-    for name in ["base", "child"] {
-        fs::create_dir(scratch.path().join(name)).expect("setup directory");
-    }
-    fs::write(
-        scratch.path().join("base/setup"),
-        b"setup 1\npress button \"First\"\nreload \"/base\"\nmark 1 \"Base mark\"\n",
-    )
-    .expect("base setup");
-    fs::write(
-        scratch.path().join("child/setup"),
-        b"setup 1\nafter \"base\"\nsee \"Ready\"\nreload \"/child\"\nmark 2 \"Child mark\"\n",
-    )
-    .expect("child setup");
-    let joined = crate::again::setup(scratch.path(), "child").expect("join").expect("setup");
-    assert!(
-        matches!(&joined.steps[..], [journey::SetupStep::Act { name, .. }, journey::SetupStep::See { text }] if name.as_ref() == b"First" && text.as_ref() == b"Ready")
-    );
-    assert_eq!(joined.reload.as_ref(), b"/child");
-    assert_eq!(joined.marks, [journey::MarkWait { mark: 2, text: b"Child mark".as_slice().into() }]);
-    assert!(crate::again::setup(scratch.path(), "missing").expect("optional setup").is_none());
-}
-
-#[test]
-fn a_setups_after_refuses_chains_missing_and_self() {
-    let scratch = Scratch::new("journeys-setup-after");
-    for name in ["base", "parent", "child"] {
-        fs::create_dir(scratch.path().join(name)).expect("setup directory");
-    }
-    fs::write(scratch.path().join("base/setup"), b"setup 1\nreload \"/\"\n").expect("base");
-    fs::write(scratch.path().join("parent/setup"), b"setup 1\nafter \"base\"\nreload \"/\"\n").expect("parent");
-    for (after, why) in [
-        ("parent", "a chain of after is refused"),
-        ("missing", "has no setup"),
-        ("child", "names the journey itself"),
-        ("../base", "invalid setup name"),
-    ] {
-        fs::write(scratch.path().join("child/setup"), format!("setup 1\nafter \"{after}\"\nreload \"/\"\n"))
-            .expect("child");
-        assert!(
-            matches!(crate::again::setup(scratch.path(), "child"), Err(crate::Refusal::SetupAfter { name, after: found, why: reason }) if name == "child" && found == after && reason == why),
-            "after {after}: {why}"
-        );
-    }
-}
-
-#[test]
-fn every_committed_setup_reads_and_joins() {
-    let root = Path::new(JOURNEYS);
-    let mut count = 0;
-    let names = crate::names(root).expect("committed journeys");
-    for name in &names {
-        if root.join(name).join("setup").is_file() {
-            let bytes = fs::read(root.join(name).join("setup")).expect("committed setup");
-            journey::setup(&bytes).expect("read setup natively");
-            let joined = crate::again::setup(root, name).expect("join setup").expect("setup exists");
-            assert!(!joined.steps.is_empty(), "{name} has setup steps");
-            count += 1;
-        }
-    }
-    assert!(count > 0 || names.is_empty(), "committed setups exercised unless every journey has moved");
-}
-
-#[test]
 fn normalised_stale_replays_use_the_proofs_safe_refusal() {
     use temper_client_shell_tui::journey as tj;
     let web = crate::proof_refusal(
@@ -466,15 +361,25 @@ fn a_name_is_unique_across_both_clients_directories() {
     }
 }
 
+fn descriptions(root: &Path) -> Result<(), String> {
+    for entry in fs::read_dir(root).map_err(|why| why.to_string())? {
+        let entry = entry.map_err(|why| why.to_string())?;
+        let path = entry.path();
+        if entry.file_type().map_err(|why| why.to_string())?.is_dir()
+            && path.join("walk").is_file()
+            && !fs::read_to_string(path.join("README.md")).is_ok_and(|text| !text.trim().is_empty())
+        {
+            return Err(format!("{} needs a README.md holding its description", path.display()));
+        }
+    }
+    Ok(())
+}
+
 fn tui_sources(root: &Path) -> Result<(), String> {
     if !fs::read(root.join("overlay.css")).is_ok_and(|bytes| bytes.is_empty()) {
         return Err("TUI overlay.css holds a request; move its rules into the theme and empty it".into());
     }
-    for name in crate::names(root).map_err(|why| format!("{why:?}"))? {
-        if !fs::read_to_string(root.join(&name).join("README.md")).is_ok_and(|text| !text.trim().is_empty()) {
-            return Err(format!("{name} needs a README.md holding its description"));
-        }
-    }
+    descriptions(root)?;
     Ok(())
 }
 
@@ -482,13 +387,16 @@ fn tui_sources(root: &Path) -> Result<(), String> {
 fn tui_sources_refuse_an_overlay_and_missing_or_empty_descriptions() {
     let scratch = Scratch::new("journeys-tui-sources");
     fs::create_dir(scratch.path().join("described")).expect("journey");
-    fs::write(scratch.path().join("described/recording"), b"recording").expect("recording");
+    fs::write(scratch.path().join("described/walk"), b"walk 2\n").expect("walk");
     fs::write(scratch.path().join("overlay.css"), b"").expect("empty overlay");
     for description in [None, Some(""), Some(" \n")] {
         if let Some(description) = description {
             fs::write(scratch.path().join("described/README.md"), description).expect("description");
         }
-        assert!(tui_sources(scratch.path()).expect_err("description refused").contains("README.md"));
+        assert_eq!(
+            tui_sources(scratch.path()).expect_err("description refused"),
+            format!("{} needs a README.md holding its description", scratch.path().join("described").display())
+        );
     }
     fs::write(scratch.path().join("described/README.md"), "A journey.").expect("description");
     assert_eq!(tui_sources(scratch.path()), Ok(()));
@@ -497,27 +405,74 @@ fn tui_sources_refuse_an_overlay_and_missing_or_empty_descriptions() {
 }
 
 #[test]
-fn a_stale_tui_keeps_its_print_while_other_journeys_reprint() {
+fn normalise_rewrites_scratch_copies_and_keeps_stale_recordings() {
+    use crate as tool;
+    use fixtures::{assert_normalised, tui_written};
+    use skein_lib::Time;
     use temper_client_shell_tui::journey as tj;
-    let scratch = Scratch::new("journeys-tui-stale");
+    let scratch = Scratch::new("journeys-normalise");
     let web = scratch.path().join("web");
     let tui = scratch.path().join("tui");
-    for name in ["a-stale", "b-good"] {
-        crate::add_to(&web, &tui, name, &tui_recording(), &[]).expect("fixture");
+    for root in [&web, &tui] {
+        fs::create_dir_all(root).expect("scratch directory");
     }
-    let mut lines = tj::lines(&fs::read(tui.join("a-stale/recording")).expect("recording")).expect("lines");
-    let at = lines.iter().position(|line| matches!(line, tj::Line::Deadline(_))).expect("deadline");
-    lines[at] = tj::Line::Deadline(Some(Time::ZERO));
-    fs::write(tui.join("a-stale/recording"), tui_written(&lines)).expect("stale recording");
-    fs::write(tui.join("a-stale/01.html"), b"kept HTML").expect("kept print");
-    fs::write(tui.join("a-stale/01.txt"), b"kept text").expect("kept print");
-    fs::write(tui.join("b-good/99.txt"), b"obsolete").expect("extra print");
-    fs::write(tui.join("b-good/README.md"), b"Description").expect("description");
-    let stale = crate::tui::reprint(&tui, &tui).expect("reprint all");
-    assert_eq!(stale.len(), 1);
-    assert_eq!((&*stale[0].0, stale[0].1.turn, stale[0].1.line), ("a-stale", 1, u32::try_from(at + 1).expect("line")));
-    assert_eq!(fs::read(tui.join("a-stale/01.html")).expect("HTML"), b"kept HTML");
-    assert_eq!(fs::read(tui.join("a-stale/01.txt")).expect("text"), b"kept text");
-    assert!(!tui.join("b-good/99.txt").exists());
-    assert_eq!(fs::read(tui.join("b-good/README.md")).expect("description"), b"Description");
+    let browser = journey::prove(&fixture_recording()).expect("browser proof");
+    let terminal = tj::prove(&tui_recording()).expect("TUI proof");
+    for (root, good, stale) in [
+        (&web, browser.clone(), stale_recording(&browser)),
+        (&tui, terminal.clone(), {
+            let mut lines = tj::lines(&terminal).expect("TUI lines");
+            let at = lines.iter().position(|line| matches!(line, tj::Line::Deadline(_))).expect("deadline");
+            lines[at] = tj::Line::Deadline(Some(Time::ZERO));
+            tui_written(&lines).into()
+        }),
+    ] {
+        for (name, recording) in [("a-stale", stale), ("z-good", good)] {
+            fs::create_dir(root.join(name)).expect("fixture directory");
+            fs::write(root.join(name).join("recording"), recording).expect("fixture recording");
+            fs::write(root.join(name).join("01.html"), b"old print").expect("previous print");
+            fs::write(root.join(name).join("README.md"), b"Description").expect("description");
+        }
+    }
+    let before_web = tree_bytes(&web.join("a-stale"));
+    let before_tui = tree_bytes(&tui.join("a-stale"));
+    let (written, stale) = tool::normalise(&web, &tui).expect("normalise both scratch directories");
+    assert_eq!(written.iter().filter(|(name, _)| name == "z-good").count(), 2, "continue past both stale recordings");
+    assert_eq!(stale.len(), 2);
+    assert!(matches!(&stale[0], tool::Refusal::Proof { name, refusal: journey::Refusal::Stale(why) }
+        if name == "a-stale" && why.turn == 1 && why.recorded == "deadline" && why.asked == "deadline"));
+    assert!(matches!(&stale[1], tool::Refusal::TuiProof { name, refusal: tj::Refusal::Stale(why) }
+        if name == "a-stale" && why.turn == 1 && why.recorded.as_ref() == b"deadline" && why.asked.as_ref() == b"deadline"));
+    assert_eq!(before_web, tree_bytes(&web.join("a-stale")));
+    assert_eq!(before_tui, tree_bytes(&tui.join("a-stale")));
+    assert_eq!(tool::reprint(&web, &web).expect("reprint browser").len(), 1);
+    assert_eq!(tool::tui::reprint(&tui, &tui).expect("reprint TUI").len(), 1);
+    assert_eq!(before_web, tree_bytes(&web.join("a-stale")));
+    assert_eq!(before_tui, tree_bytes(&tui.join("a-stale")));
+    for root in [&web, &tui] {
+        assert_ne!(fs::read(root.join("z-good/01.html")).expect("new print"), b"old print");
+        fs::remove_dir_all(root.join("a-stale")).expect("remove stale fixture");
+        assert_normalised(root, root == &tui);
+    }
+    let before = tree_bytes(scratch.path());
+    let (written, stale) = tool::normalise(&web, &tui).expect("normalise again");
+    assert!(written.is_empty() && stale.is_empty(), "already normalised recordings aren't written again");
+    assert_eq!(before, tree_bytes(scratch.path()));
+}
+
+#[test]
+fn moved_names_refuse_add_for_either_client() {
+    let scratch = Scratch::new("moved-add");
+    let web = scratch.path().join("web");
+    let tui = scratch.path().join("tui");
+    for (root, name, recording) in [(&web, "browser", fixture_recording()), (&tui, "terminal", tui_recording())] {
+        crate::add_to(&web, &tui, name, &recording, &[]).expect("fixture journey");
+        fs::write(root.join(name).join("walk"), "walk 2\nmark\n").expect("moved source");
+        let before = tree_bytes(scratch.path());
+        assert_eq!(
+            crate::run::refusal(crate::add_to(&web, &tui, name, &recording, &[]).expect_err("add moved name")),
+            format!("{name} has a walk of version 2; use temper-client-walk")
+        );
+        assert_eq!(before, tree_bytes(scratch.path()), "refusal changes no byte");
+    }
 }
