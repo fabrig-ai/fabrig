@@ -14,6 +14,7 @@ pub mod generated {
     pub mod core;
     pub mod notes;
     pub mod settings;
+    pub mod tasks;
 }
 
 use jig_protocol_store_core::core_v6;

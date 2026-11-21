@@ -1,17 +1,16 @@
 //! Tasks rows translated to their generated family (protocol/store/records.md, 1).
 pub mod activity;
 pub mod carried;
-pub mod index;
 mod lifecycle;
 mod models;
 pub mod phase;
 mod pieces;
-mod placed;
 pub mod proposals;
 pub mod record;
 pub mod state;
 mod summary;
 pub mod value;
+use crate::generated::tasks as mapped;
 use crate::tasks_v13::{self as wire, Record};
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
@@ -296,51 +295,39 @@ pub fn encode(
     names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let (models, moved) = models::encode(row, names, limits)?;
+    let context = &Context::new(limits, Some(&moved));
     let value = match row {
-        domain::Stored::PlacedHold(row) => wire::Value::PlacedHold(placed::encode(row, limits)?),
-        domain::Stored::Ledger(row) => wire::Value::Ledger(value::funding(row, limits)),
-        domain::Stored::ClosedLedger(row) => wire::Value::ClosedLedger(value::funding(row, limits)),
-        domain::Stored::Writer(domain::WriterSlot { number, resource, writer, lost }) => {
-            let writer = match writer {
-                domain::Writer::Run { task, attempt } => {
-                    wire::Writer::Run(wire::Run { task: *task, attempt: *attempt })
-                }
-                domain::Writer::Effect { entry } => wire::Writer::Effect(wire::Effect { entry: *entry }),
-            };
-            wire::Value::Writer(wire::WriterSlot {
-                number: *number,
-                resource: value::name(resource, limits)?,
-                writer,
-                lost: *lost,
-            })
-        }
-        domain::Stored::Pool(domain::PoolSlots { number, pool, slots }) => {
-            wire::Value::Pool(wire::PoolSlots { number: *number, pool: value::name(pool, limits)?, slots: *slots })
-        }
-        domain::Stored::History(row) => wire::Value::History(Box::new(proposals::history(row, limits, Some(&moved))?)),
-        domain::Stored::Attempt(row) => wire::Value::Attempt(lifecycle::attempt(row, limits)?),
-        domain::Stored::Hold(row) => wire::Value::Hold(lifecycle::hold(row, limits)?),
+        domain::Stored::PlacedHold(row) => wire::Value::PlacedHold(mapped::placed_hold_to_record(row, context)?),
+        domain::Stored::Ledger(row) => wire::Value::Ledger(mapped::funding_record_to_record(row, context)?),
+        domain::Stored::ClosedLedger(row) => wire::Value::ClosedLedger(mapped::funding_record_to_record(row, context)?),
+        domain::Stored::Writer(row) => wire::Value::Writer(mapped::writer_slot_to_record(row, context)?),
+        domain::Stored::Pool(row) => wire::Value::Pool(mapped::pool_slots_to_record(row, context)?),
+        domain::Stored::History(row) => wire::Value::History(Box::new(mapped::history_to_record(row, context)?)),
+        domain::Stored::Attempt(row) => wire::Value::Attempt(mapped::attempt_row_to_record(row, context)?),
+        domain::Stored::Hold(row) => wire::Value::Hold(mapped::hold_row_to_record(row, context)?),
         domain::Stored::PersonProposal(row) => {
-            wire::Value::PersonProposal(proposals::person_proposal(row, limits, Some(&moved))?)
+            wire::Value::PersonProposal(mapped::person_proposal_to_record(row, context)?)
         }
         domain::Stored::DecidedProposal(row) => {
-            wire::Value::DecidedProposal(proposals::person_proposal(row, limits, Some(&moved))?)
+            wire::Value::DecidedProposal(mapped::person_proposal_to_record(row, context)?)
         }
-        domain::Stored::Update(row) => wire::Value::Update(index::update(row, limits)?),
-        domain::Stored::Result(row) => wire::Value::Result(index::result_row(row, limits)?),
-        domain::Stored::EndedDelegate(row) => wire::Value::EndedDelegate(index::edge(row, limits)?),
-        domain::Stored::EndedByParty(row) => wire::Value::EndedByParty(index::ended_by_party(row, limits)?),
-        domain::Stored::EndedByProject(row) => wire::Value::EndedByProject(index::ended_by_project(row, limits)?),
-        domain::Stored::Delegate(row) => wire::Value::Delegate(index::edge(row, limits)?),
-        domain::Stored::Activity(row) => wire::Value::Activity(activity::activity_line(row, limits)?),
+        domain::Stored::Update(row) => wire::Value::Update(mapped::update_to_record(row, context)?),
+        domain::Stored::Result(row) => wire::Value::Result(mapped::result_row_to_record(row, context)?),
+        domain::Stored::EndedDelegate(row) => wire::Value::EndedDelegate(mapped::edge_to_record(row, context)?),
+        domain::Stored::EndedByParty(row) => wire::Value::EndedByParty(mapped::ended_by_party_to_record(row, context)?),
+        domain::Stored::EndedByProject(row) => {
+            wire::Value::EndedByProject(mapped::ended_by_project_to_record(row, context)?)
+        }
+        domain::Stored::Delegate(row) => wire::Value::Delegate(mapped::edge_to_record(row, context)?),
+        domain::Stored::Activity(row) => wire::Value::Activity(mapped::activity_line_to_record(row, context)?),
         domain::Stored::Live(row) => wire::Value::LiveHot(record::live_hot(row, limits, Some(&moved))?),
         domain::Stored::LiveCold { spec, contract, authority, instructions, .. } => {
             wire::Value::LiveCold(record::live_cold(spec, contract, authority, instructions, limits, Some(&moved))?)
         }
         domain::Stored::Ended(row) => wire::Value::EndedTalk(record::task_record(row, limits, Some(&moved))?),
-        domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
+        domain::Stored::Stub(row) => wire::Value::Stub(mapped::stub_to_record(row, context)?),
         domain::Stored::Summary(row) => wire::Value::Summary(Box::new(summary::encode(row, limits)?)),
-        domain::Stored::Retention(row) => wire::Value::Retention(summary::retention(*row, limits)),
+        domain::Stored::Retention(row) => wire::Value::Retention(mapped::retention_row_to_record(row, context)?),
     };
     let row = wire::Row { value, models };
     row.encode(limits)
@@ -352,55 +339,44 @@ pub fn decode(
     limits: &wire::Limits,
     names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<domain::Stored, wire::Problem> {
+    let context = &Context::new(limits, None);
     let wire::Row { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?;
     let mut row = match value {
         wire::Value::Summary(row) => domain::Stored::Summary(Box::new(summary::decode(*row)?)),
-        wire::Value::Retention(row) => domain::Stored::Retention(summary::read_retention(row)),
+        wire::Value::Retention(row) => domain::Stored::Retention(mapped::retention_row_to_domain(row, context)?),
         wire::Value::LiveHot(_) | wire::Value::LiveCold(_) => {
             return Err(wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound });
         }
         wire::Value::EndedTalk(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
-        wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),
-        wire::Value::Update(row) => domain::Stored::Update(index::read_update(row)?),
-        wire::Value::Result(row) => domain::Stored::Result(index::read_result_row(row)?),
-        wire::Value::EndedDelegate(row) => domain::Stored::EndedDelegate(index::read_edge(row)?),
-        wire::Value::EndedByParty(row) => domain::Stored::EndedByParty(index::read_ended_by_party(row)),
-        wire::Value::EndedByProject(row) => domain::Stored::EndedByProject(index::read_ended_by_project(row)),
-        wire::Value::Delegate(row) => domain::Stored::Delegate(index::read_edge(row)?),
-        wire::Value::Activity(row) => domain::Stored::Activity(activity::read_activity_line(row, limits)?),
+        wire::Value::PlacedHold(row) => {
+            domain::Stored::PlacedHold(Box::new(mapped::placed_hold_to_domain(row, context)?))
+        }
+        wire::Value::Update(row) => domain::Stored::Update(mapped::update_to_domain(row, context)?),
+        wire::Value::Result(row) => domain::Stored::Result(mapped::result_row_to_domain(row, context)?),
+        wire::Value::EndedDelegate(row) => domain::Stored::EndedDelegate(mapped::edge_to_domain(row, context)?),
+        wire::Value::EndedByParty(row) => domain::Stored::EndedByParty(mapped::ended_by_party_to_domain(row, context)?),
+        wire::Value::EndedByProject(row) => {
+            domain::Stored::EndedByProject(mapped::ended_by_project_to_domain(row, context)?)
+        }
+        wire::Value::Delegate(row) => domain::Stored::Delegate(mapped::edge_to_domain(row, context)?),
+        wire::Value::Activity(row) => domain::Stored::Activity(mapped::activity_line_to_domain(row, context)?),
         wire::Value::Ended(row) => domain::Stored::Ended(Box::new(record::read_before_talk(row, limits)?)),
-        wire::Value::Stub(row) => domain::Stored::Stub(state::read_stub(row)?),
-        wire::Value::Ledger(value) => domain::Stored::Ledger(value::read_funding(value)),
-        wire::Value::History(value) => domain::Stored::History(proposals::read_history(*value, limits)?),
-        wire::Value::Attempt(row) => domain::Stored::Attempt(lifecycle::read_attempt(row)?),
-        wire::Value::Hold(row) => domain::Stored::Hold(lifecycle::read_hold(row, limits)?),
+        wire::Value::Stub(row) => domain::Stored::Stub(mapped::stub_to_domain(row, context)?),
+        wire::Value::Ledger(value) => domain::Stored::Ledger(mapped::funding_record_to_domain(value, context)?),
+        wire::Value::History(value) => domain::Stored::History(mapped::history_to_domain(*value, context)?),
+        wire::Value::Attempt(row) => domain::Stored::Attempt(mapped::attempt_row_to_domain(row, context)?),
+        wire::Value::Hold(row) => domain::Stored::Hold(mapped::hold_row_to_domain(row, context)?),
         wire::Value::PersonProposal(value) => {
-            domain::Stored::PersonProposal(Box::new(proposals::read_person_proposal(value, limits)?))
+            domain::Stored::PersonProposal(Box::new(mapped::person_proposal_to_domain(value, context)?))
         }
         wire::Value::DecidedProposal(value) => {
-            domain::Stored::DecidedProposal(Box::new(proposals::read_person_proposal(value, limits)?))
+            domain::Stored::DecidedProposal(Box::new(mapped::person_proposal_to_domain(value, context)?))
         }
-        wire::Value::ClosedLedger(value) => domain::Stored::ClosedLedger(value::read_funding(value)),
-        wire::Value::Writer(value) => {
-            let wire::WriterSlot { number, resource, writer, lost } = value;
-            let writer = match writer {
-                wire::Writer::Run(value) => {
-                    let wire::Run { task, attempt } = value;
-                    domain::Writer::Run { task, attempt }
-                }
-                wire::Writer::Effect(value) => domain::Writer::Effect { entry: value.entry },
-            };
-            domain::Stored::Writer(domain::WriterSlot {
-                number,
-                resource: value::read_name(resource, limits)?,
-                writer,
-                lost,
-            })
+        wire::Value::ClosedLedger(value) => {
+            domain::Stored::ClosedLedger(mapped::funding_record_to_domain(value, context)?)
         }
-        wire::Value::Pool(value) => {
-            let wire::PoolSlots { number, pool, slots } = value;
-            domain::Stored::Pool(domain::PoolSlots { number, pool: value::read_name(pool, limits)?, slots })
-        }
+        wire::Value::Writer(value) => domain::Stored::Writer(mapped::writer_slot_to_domain(value, context)?),
+        wire::Value::Pool(value) => domain::Stored::Pool(mapped::pool_slots_to_domain(value, context)?),
     };
     row.remap_models(&models::moves(&kept, names));
     Ok(row)
@@ -548,4 +524,176 @@ pub fn decode_live(
         | domain::Stored::LiveCold { .. } => unreachable!("joined live task"),
     }
     Ok(row)
+}
+
+/// Translation context: the family's limits and the row's model-name remap.
+/// Carried values have no remap (skein/docs/design/data/codec/maps.md, 4).
+#[derive(Debug)]
+pub struct Context {
+    limits: wire::Limits,
+    moved: Option<[u64; 64]>,
+}
+impl Context {
+    pub(crate) fn new(limits: &wire::Limits, moved: Option<&[u64; 64]>) -> Self {
+        Self { limits: *limits, moved: moved.copied() }
+    }
+}
+
+pub fn tools_to_record(value: &domain::Tools) -> Result<u64, skein_codec::Reason> {
+    Ok(value.0)
+}
+pub fn tools_to_domain(value: u64) -> Result<domain::Tools, skein_codec::Reason> {
+    Ok(domain::Tools(value))
+}
+pub fn scopes_to_record(value: &domain::Scopes) -> Result<u8, skein_codec::Reason> {
+    Ok(value.0)
+}
+pub fn scopes_to_domain(value: u8) -> Result<domain::Scopes, skein_codec::Reason> {
+    Ok(domain::Scopes(value))
+}
+pub fn newest_to_record(value: &domain::Newest) -> Result<u64, skein_codec::Reason> {
+    Ok(value.value())
+}
+pub fn newest_to_domain(value: u64) -> Result<domain::Newest, skein_codec::Reason> {
+    Ok(domain::Newest::of(value))
+}
+pub fn reasons_to_record(value: &domain::Reasons) -> Result<u32, skein_codec::Reason> {
+    Ok(value.0)
+}
+pub fn reasons_to_domain(value: u32) -> Result<domain::Reasons, skein_codec::Reason> {
+    let value = domain::Reasons(value);
+    if value.is_known() { Ok(value) } else { Err(skein_codec::Reason::Bound) }
+}
+
+pub fn name_to_record(value: &domain::Name, context: &Context) -> Result<wire::Name, wire::Problem> {
+    value::name(value, &context.limits)
+}
+pub fn name_to_domain(record: wire::Name, context: &Context) -> Result<domain::Name, wire::Problem> {
+    value::read_name(record, &context.limits)
+}
+
+pub fn spec_to_record(value: &domain::Spec, context: &Context) -> Result<wire::Spec, wire::Problem> {
+    value::spec(value, &context.limits)
+}
+pub fn spec_to_domain(record: wire::Spec, context: &Context) -> Result<domain::Spec, wire::Problem> {
+    value::read_spec(record, &context.limits)
+}
+
+pub fn task_result_to_record(value: &domain::TaskResult, context: &Context) -> Result<wire::TaskResult, wire::Problem> {
+    phase::result(value, &context.limits)
+}
+pub fn task_result_to_domain(record: wire::TaskResult, context: &Context) -> Result<domain::TaskResult, wire::Problem> {
+    phase::read_result(record, &context.limits)
+}
+
+pub fn authority_to_record(value: &domain::Authority, context: &Context) -> Result<wire::Authority, wire::Problem> {
+    value::authority(value, &context.limits, context.moved.as_ref())
+}
+pub fn authority_to_domain(record: wire::Authority, context: &Context) -> Result<domain::Authority, wire::Problem> {
+    value::read_authority(record, &context.limits)
+}
+
+pub fn proposal_action_to_record(
+    value: &domain::ProposalAction,
+    context: &Context,
+) -> Result<wire::ProposalAction, wire::Problem> {
+    proposals::action(value, &context.limits, context.moved.as_ref())
+}
+pub fn proposal_action_to_domain(
+    record: wire::ProposalAction,
+    context: &Context,
+) -> Result<domain::ProposalAction, wire::Problem> {
+    proposals::read_action(record, &context.limits)
+}
+
+pub fn result_kind_to_record(value: &domain::ResultKind, context: &Context) -> Result<wire::ResultKind, wire::Problem> {
+    activity::result_kind(value, &context.limits)
+}
+pub fn result_kind_to_domain(record: wire::ResultKind, context: &Context) -> Result<domain::ResultKind, wire::Problem> {
+    activity::read_result_kind(record, &context.limits)
+}
+
+pub fn why_to_record(value: &domain::Why, context: &Context) -> Result<wire::Why, wire::Problem> {
+    value::why(*value, &context.limits)
+}
+pub fn why_to_domain(record: wire::Why, _context: &Context) -> Result<domain::Why, wire::Problem> {
+    Ok(value::read_why(record))
+}
+
+pub fn recurring_template_to_record(
+    value: &domain::RecurringTemplate,
+    context: &Context,
+) -> Result<wire::RecurringTemplate, wire::Problem> {
+    phase::template(value, &context.limits, context.moved.as_ref())
+}
+pub fn recurring_template_to_domain(
+    record: wire::RecurringTemplate,
+    context: &Context,
+) -> Result<domain::RecurringTemplate, wire::Problem> {
+    phase::read_template(record, &context.limits)
+}
+
+pub fn part_path_to_record(
+    value: &skein_lib::List<Box<[u8]>>,
+    context: &Context,
+) -> Result<wire::PartPath, wire::Problem> {
+    let limits = &context.limits;
+    let segments =
+        pieces::part_segments(value.as_slice(), limits, limits.part_path_segments, wire::paths::PART_PATH_SEGMENTS)?;
+    let mut bytes = 0_usize;
+    for segment in value {
+        bytes = bytes.saturating_add(segment.len());
+    }
+    if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
+        return Err(wire::paths::PART_PATH_SEGMENTS.problem(skein_codec::Reason::Bound));
+    }
+    Ok(wire::PartPath { segments })
+}
+pub fn part_path_to_domain(
+    record: wire::PartPath,
+    context: &Context,
+) -> Result<skein_lib::List<Box<[u8]>>, wire::Problem> {
+    let limits = &context.limits;
+    let segments = pieces::read_part_segments(record.segments, limits, wire::paths::PART_PATH_SEGMENTS)?;
+    let mut members = skein_lib::List::with_capacity(u32::try_from(segments.len()).expect("bounded path"));
+    let mut bytes = 0_usize;
+    for segment in segments {
+        bytes = bytes.saturating_add(segment.len());
+        members.push(segment).expect("same number of segments");
+    }
+    if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
+        return Err(wire::paths::PART_PATH_SEGMENTS.problem(skein_codec::Reason::Bound));
+    }
+    Ok(members)
+}
+pub fn result_followups_delegates_to_record(
+    value: &[domain::New],
+    context: &Context,
+) -> Result<wire::ResultFollowupsDelegates, wire::Problem> {
+    let limits = &context.limits;
+    Ok(wire::ResultFollowupsDelegates {
+        value: pieces::creations(
+            value,
+            limits,
+            limits.result_followups_delegates_value,
+            wire::paths::RESULT_FOLLOWUPS_DELEGATES_VALUE,
+            context.moved.as_ref(),
+        )?,
+    })
+}
+pub fn result_followups_delegates_to_domain(
+    record: wire::ResultFollowupsDelegates,
+    context: &Context,
+) -> Result<Box<[domain::New]>, wire::Problem> {
+    pieces::read_creations(record.value, &context.limits, wire::paths::RESULT_FOLLOWUPS_DELEGATES_VALUE)
+}
+
+pub use proposals::{person_action_to_domain, person_action_to_record};
+
+/// The selector's tag, unlike a bit-set converter, is stored separately.
+pub fn models_to_record(value: &domain::Models, _context: &Context) -> Result<wire::Models, wire::Problem> {
+    Ok(wire::Models { bits: value.bits(), all: value.is_all() })
+}
+pub fn models_to_domain(record: wire::Models, _context: &Context) -> Result<domain::Models, wire::Problem> {
+    Ok(domain::Models::from_parts(record.bits, record.all))
 }

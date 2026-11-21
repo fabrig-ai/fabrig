@@ -1,105 +1,48 @@
 //! Compact ended rows (protocol/store/retention.md, 3–4).
-use super::{phase, value};
+use super::Context;
+use super::value;
+use crate::generated::tasks as mapped;
 use crate::tasks_v13 as w;
 use jig_domain_tasks as d;
 use skein_lib::Wall;
 
-pub(super) fn stage(stage: d::RetentionStage) -> w::RetentionStage {
-    match stage {
-        d::RetentionStage::Turns => w::RetentionStage::Turns,
-        d::RetentionStage::Record => w::RetentionStage::Record,
-        d::RetentionStage::Summary => w::RetentionStage::Summary,
-        d::RetentionStage::Forgotten => w::RetentionStage::Forgotten,
-        d::RetentionStage::Proposal => w::RetentionStage::Proposal,
-    }
-}
-pub(super) fn read_stage(stage: w::RetentionStage) -> d::RetentionStage {
-    match stage {
-        w::RetentionStage::Turns => d::RetentionStage::Turns,
-        w::RetentionStage::Record => d::RetentionStage::Record,
-        w::RetentionStage::Summary => d::RetentionStage::Summary,
-        w::RetentionStage::Forgotten => d::RetentionStage::Forgotten,
-        w::RetentionStage::Proposal => d::RetentionStage::Proposal,
-    }
-}
-pub(super) fn retention(row: d::RetentionRow, _limits: &w::Limits) -> w::RetentionRow {
-    w::RetentionRow { stage: stage(row.stage), since: row.since.as_nanos(), number: row.number }
-}
-pub(super) fn read_retention(row: w::RetentionRow) -> d::RetentionRow {
-    let w::RetentionRow { stage, since, number } = row;
-    d::RetentionRow { stage: read_stage(stage), since: Wall::from_nanos(since), number }
-}
-fn ending(ending: d::SummaryEnding, limits: &w::Limits) -> Result<w::SummaryEnding, w::Problem> {
-    Ok(match ending {
-        d::SummaryEnding::Done => w::SummaryEnding::Done,
-        d::SummaryEnding::Failed => w::SummaryEnding::Failed,
-        d::SummaryEnding::Cancelled { by, at } => {
-            w::SummaryEnding::Cancelled(w::SummaryCancelled { by: value::party(&by, limits)?, at: at.as_nanos() })
-        }
+fn result(row: &d::SummaryResult, limits: &w::Limits) -> Result<w::SummaryResult, w::Problem> {
+    Ok(w::SummaryResult {
+        kind: mapped::summary_result_kind_to_record(&row.kind, &Context::new(limits, None))?,
+        words: row.words.clone(),
     })
 }
-fn read_ending(ending: w::SummaryEnding) -> d::SummaryEnding {
-    match ending {
-        w::SummaryEnding::Done => d::SummaryEnding::Done,
-        w::SummaryEnding::Failed => d::SummaryEnding::Failed,
-        w::SummaryEnding::Cancelled(row) => {
-            let w::SummaryCancelled { by, at } = row;
-            d::SummaryEnding::Cancelled { by: value::read_party(by), at: Wall::from_nanos(at) }
-        }
-    }
-}
-fn result(row: &d::SummaryResult, _limits: &w::Limits) -> w::SummaryResult {
-    let kind = match row.kind {
-        d::SummaryResultKind::Job => w::SummaryResultKind::Job,
-        d::SummaryResultKind::Approved => w::SummaryResultKind::Approved,
-        d::SummaryResultKind::Report => w::SummaryResultKind::Report,
-        d::SummaryResultKind::Verdict { code } => w::SummaryResultKind::Verdict(w::SummaryVerdict { code }),
-        d::SummaryResultKind::Change { connector, kind, resource } => {
-            w::SummaryResultKind::Change(w::SummaryChange { connector, kind, resource })
-        }
-        d::SummaryResultKind::NoChange => w::SummaryResultKind::NoChange,
-        d::SummaryResultKind::Failed => w::SummaryResultKind::Failed,
-    };
-    w::SummaryResult { kind, words: row.words.clone() }
-}
-fn read_result(row: w::SummaryResult, words_cut: bool) -> d::SummaryResult {
+fn read_result(row: w::SummaryResult, words_cut: bool) -> Result<d::SummaryResult, w::Problem> {
     let w::SummaryResult { kind, words } = row;
-    let kind = match kind {
-        w::SummaryResultKind::Job => d::SummaryResultKind::Job,
-        w::SummaryResultKind::Approved => d::SummaryResultKind::Approved,
-        w::SummaryResultKind::Report => d::SummaryResultKind::Report,
-        w::SummaryResultKind::Verdict(row) => d::SummaryResultKind::Verdict { code: row.code },
-        w::SummaryResultKind::Change(row) => {
-            let w::SummaryChange { connector, kind, resource } = row;
-            d::SummaryResultKind::Change { connector, kind, resource }
-        }
-        w::SummaryResultKind::NoChange => d::SummaryResultKind::NoChange,
-        w::SummaryResultKind::Failed => d::SummaryResultKind::Failed,
-    };
-    d::SummaryResult { kind, words, words_cut }
+    Ok(d::SummaryResult {
+        kind: mapped::summary_result_kind_to_domain(kind, &Context::new(&super::EMPTY, None))?,
+        words,
+        words_cut,
+    })
 }
 pub(super) fn encode(row: &d::TaskSummary, limits: &w::Limits) -> Result<w::TaskSummary, w::Problem> {
+    let context = &Context::new(limits, None);
     let words_cut = match &row.result {
         Some(row) => row.words_cut,
         None => false,
     };
     let cuts = u8::from(row.title_cut) | (u8::from(row.reason_cut) << 1_u8) | (u8::from(words_cut) << 2_u8);
     let result = match &row.result {
-        Some(row) => Some(result(row, limits)),
+        Some(row) => Some(result(row, limits)?),
         None => None,
     };
     Ok(w::TaskSummary {
         number: row.number,
         root: row.root,
         depth: row.depth,
-        requester: value::party(&row.requester, limits)?,
+        requester: mapped::party_to_record(&row.requester, context)?,
         project: row.project,
         label: row.label,
-        flags: phase::flags(row.flags, limits),
+        flags: mapped::flags_to_record(&row.flags, context)?,
         tracked: row.tracked,
-        executor: value::executor(row.executor, limits)?,
+        executor: mapped::executor_to_record(&row.executor, context)?,
         title: row.title.clone(),
-        ending: ending(row.ending, limits)?,
+        ending: mapped::summary_ending_to_record(&row.ending, context)?,
         reason: row.reason.clone(),
         result,
         cuts,
@@ -107,10 +50,10 @@ pub(super) fn encode(row: &d::TaskSummary, limits: &w::Limits) -> Result<w::Task
         changed: row.changed.as_nanos(),
         last_activity: row.last_activity.as_nanos(),
         ended_at: row.ended_at.as_nanos(),
-        numbers: phase::numbers(&row.numbers, limits),
+        numbers: mapped::numbers_to_record(&row.numbers, context)?,
         deadline: value::wall(row.deadline),
-        funder: value::funder(row.funder, limits),
-        ended_delegates: w::SummaryEndings { done: row.ended_delegates.done, failed: row.ended_delegates.failed },
+        funder: mapped::funder_to_record(&row.funder, context)?,
+        ended_delegates: mapped::summary_endings_to_record(&row.ended_delegates, context)?,
         attempt: row.attempt,
         activity: row.activity,
         result_position: row.result_position,
@@ -118,6 +61,7 @@ pub(super) fn encode(row: &d::TaskSummary, limits: &w::Limits) -> Result<w::Task
     })
 }
 pub(super) fn decode(row: w::TaskSummary) -> Result<d::TaskSummary, w::Problem> {
+    let context = &Context::new(&super::EMPTY, None);
     let w::TaskSummary {
         number,
         root,
@@ -149,24 +93,23 @@ pub(super) fn decode(row: w::TaskSummary) -> Result<d::TaskSummary, w::Problem> 
     if cuts & !7 != 0 {
         return Err(w::Problem { path: w::paths::TASK_SUMMARY_CUTS, reason: skein_codec::Reason::Bound });
     }
-    let w::SummaryEndings { done, failed } = ended_delegates;
     let result = match result {
-        Some(row) => Some(read_result(row, cuts & 4 != 0)),
+        Some(row) => Some(read_result(row, cuts & 4 != 0)?),
         None => None,
     };
     Ok(d::TaskSummary {
         number,
         root,
         depth,
-        requester: value::read_party(requester),
+        requester: mapped::party_to_domain(requester, context)?,
         project,
         label,
-        flags: phase::read_flags(flags),
+        flags: mapped::flags_to_domain(flags, context)?,
         tracked,
-        executor: value::read_executor(executor),
+        executor: mapped::executor_to_domain(executor, context)?,
         title,
         title_cut: cuts & 1 != 0,
-        ending: read_ending(ending),
+        ending: mapped::summary_ending_to_domain(ending, context)?,
         reason,
         reason_cut: cuts & 2 != 0,
         result,
@@ -174,10 +117,10 @@ pub(super) fn decode(row: w::TaskSummary) -> Result<d::TaskSummary, w::Problem> 
         changed: Wall::from_nanos(changed),
         last_activity: Wall::from_nanos(last_activity),
         ended_at: Wall::from_nanos(ended_at),
-        numbers: phase::read_numbers(numbers),
+        numbers: mapped::numbers_to_domain(numbers, context)?,
         deadline: value::read_wall(deadline),
-        funder: value::read_funder(funder),
-        ended_delegates: d::SummaryEndings { done, failed },
+        funder: mapped::funder_to_domain(funder, context)?,
+        ended_delegates: mapped::summary_endings_to_domain(ended_delegates, context)?,
         attempt,
         activity,
         result_position,
