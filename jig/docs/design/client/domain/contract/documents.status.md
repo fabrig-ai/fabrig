@@ -5,7 +5,6 @@
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
-- **Not yet:** 1: `Task.run_wait`'s `Worker { worker, until }`, from the client wire 40. [in flight: change 10956]
 
 `README.md`, sections 4 and 5.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the

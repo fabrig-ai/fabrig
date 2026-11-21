@@ -5,7 +5,6 @@
 
 - **Not yet:** 3: the refusal *live tasks*, absent from the contract's `Refusal`, the client wire and jig's words [in flight: change 628].
 - **Not yet:** 4: a deleted project's read answers unknown, not gone [in flight: change 629].
-- **Not yet:** 4: a history page's attempt row and the activity's `run_ended` line read `suspended`, from the client wire 40. [in flight: change 10956]
 - **Not yet:** 4: an `inbox` read of needs past the engine's cached prefix goes to the store, which holds none [in flight: change 7577].
 
 Section 3 has no known gap in a program declaration's name-taken

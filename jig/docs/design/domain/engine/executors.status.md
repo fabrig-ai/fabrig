@@ -2,12 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [executors.md](executors.md).
 
-- **Not yet:** 6.1, 6.2, 6.3 and 6.4's window: `End::Suspended` for a worker's `Cancelled(Shutdown)`, the fleet's answer naming its worker, the `suspended` end in the activity and the attempt's row, the task's suspension and time suspended in the tasks family, two `Restarted` ends in a row counted lost, the deadline moved by the time suspended, and the task activated again at its window's end. [in flight: change 10948]
-- **Not yet:** 6.4: a suspended task's claim taken by its worker alone within the window, and `RunWait::Worker` and `TaskRunWait::Worker` while it waits. [in flight: change 10952]
-- **Not yet:** 6.5: the hello's `fresh` on the workers' wire 19, a fresh hello's unlisted claims ended `Request::Suspended` at once, and `RunProof.worker` carried to restored claims. [in flight: change 10953]
-- **Not yet:** 6.2's words: the client wire's `RunEnd::suspended` and `TaskRunWait::worker` at version 40, jig's and temper's views and tools, and temper's engine log line saying suspended. [in flight: change 10956]
-- **Not yet:** 6.6: a run's agent exiting, faulting or cancelling while its hub drains or shuts down answers `Cancelled(Shutdown)`, and a job failing then before its delivery too. [in flight: change 10949]
-- **Not yet:** 6.3 and 6.6 through temper: a change whose producer is suspended past its stall bound is neither held stalled nor repaired, and its next attempt's run budget and check bound are whole. [in flight: change 10954]
 
 - **Not yet:** 1, step 3, and 2, *Resumed only where it ran*: the run proof's `endpoint` (core-v6); a window resumed only on the endpoint it ran on, judged at the activation's check and the claim's, a proof with no endpoint judged by its main provider's source kind; a moved window's run started fresh with its tail. [in flight: change 8569]
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).

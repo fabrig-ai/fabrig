@@ -2,9 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
-- **Not yet:** *Losing contact*: a worker back as a new process, its hello `fresh`, has each claim of it the hello doesn't list ended suspended at once. [in flight: change 10953]
-- **Not yet:** *A suspended task goes back to its worker*: its claim on that worker alone within the window. [in flight: change 10952]
-- **Not yet:** *A suspended task goes back to its worker*: an answer naming the position of the worker that gave it. [in flight: change 10948]
 
 
 
