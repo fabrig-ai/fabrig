@@ -486,7 +486,7 @@ delivery hears every failure; the verdict is section 6's.
      (`tools/tiers/references.md`, 6), which the summary does not repeat:
      both are main's, not the delivery's.
 
-5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
+5. **The docs:** `python3 -I -B tools/citations/citations.py --all
    --head <tree>` against section 3's private snapshot, including staged,
    unstaged and untracked documentation. The checker also enforces the
    design size limit for `tools/citations/sized.txt`'s trees (`DESIGN.md`,
@@ -619,14 +619,9 @@ cause.
   increases the excess refuses. Each count is judged separately and
   named as `old-forms <tree> <form>`; a malformed baseline or a tool error
   cannot be inherited from an exit code alone.
-- **A broken citation** uses the citation checker's counted keys per
-  source file and target, with renames mapped; line movement does not
-  make an old finding new. Check 5's `--base` comparison already refuses
-  only new occurrences. Its inherited total is reported as
-  `inherited: citations (N broken at base)`, even when new findings also
-  refuse. Design documents already over the size limit pass when they
-  do not grow; crossing the limit or growing while over it refuses.
-  Neither comparison needs a cargo build or the kept base worktree.
+- **Citations and design sizes** are checked on the delivery snapshot alone.
+  A broken citation or an oversized design document in that snapshot refuses
+  delivery. Check 5 can run when historical file contents are unavailable.
 
 - **The base's worktree** is `<git dir>/temper-pre-pr/base`, a detached
   worktree (`git worktree add --detach --force`), made at the first
@@ -715,10 +710,10 @@ cause.
 - **A base run that cannot run** (the worktree cannot be made, or a
   tree's `scripts/old_forms.py` fails of itself at the base): the
   exceeded counts stay the delivery's, and the summary says why the base
-  could not judge them. The citation check's independent comparison and
+  could not judge them. The candidate's citation check and
   the goal's reds still stand.
 - **Inherited never refuses:** each is named in the summary, with the
-  base for a count or a citation and with the file for a goal's red, and
+  base for a count and with the file for a goal's red, and
   the delivery passes on them.
 
 ## 6. Its output
@@ -768,8 +763,7 @@ cause.
   - then each inherited failure, one line each: a goal's red as
     `inherited: test <binary id> <name> (red, temper/reds)` or
     `inherited: clippy <package> <code> <file> (red, temper/reds)`,
-    exceeded counts as `inherited: old-forms <tree> <form>`, and the
-    inherited citation total;
+    or an exceeded count as `inherited: old-forms <tree> <form>`;
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole; the
     failures file holds each of them.
@@ -1011,7 +1005,7 @@ tests'. Its stories, a test each:
 
 `tools/pre-pr/test_pre_pr.py` first exercises code-only, docs-only, both
 and neither in scratch repositories. It runs the citation checker against
-private snapshots: new and inherited broken citations, a deleted cited
+private snapshots: new and pre-existing broken citations, a deleted cited
 document, and a design size violation. It checks that docs-only changes
 skip formatting, counted baselines and clippy even on a red baseline;
 unchanged red counts pass
