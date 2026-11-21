@@ -5,6 +5,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod invocation;
+
 mod act;
 mod commands;
 mod faces;

@@ -473,6 +473,8 @@ fn actual_account_outputs_wait_for_wires_release() {
     assert!(core.start.held.is_empty());
 }
 
+mod stopping;
+
 fn step_phase(action: Action, phase: Phase) {
     match action {
         Action::Step(found) => assert_eq!(found, phase),

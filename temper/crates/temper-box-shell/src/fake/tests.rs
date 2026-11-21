@@ -198,7 +198,6 @@ fn arguments() {
         assert_eq!(
             arguments,
             Arguments {
-                fixed_start: None,
                 state: None,
                 scripts: None,
                 strict: false,
@@ -213,23 +212,10 @@ fn arguments() {
 }
 
 #[test]
-fn peers_read_fixed_start_without_changing_their_seed() {
-    for peer in ["forge", "oauth", "llm"] {
-        let words = ["fake", peer, "--document", "peer.json", "--seed", "23", "--fixed-start", "1767690000,7"];
-        let Command::Fake { arguments } = configured(&words, &[]).expect("fixed peer") else {
-            panic!("fake command");
-        };
-        assert_eq!(arguments.fixed_start, skein_shell::FixedStart::read(b"1767690000,7"));
-        assert_eq!(arguments.seed, 23);
-        for value in ["1767690000", "x,7", "01,7", ""] {
-            let words = ["fake", peer, "--document", "peer.json", "--fixed-start", value];
-            let refusal = configured(&words, &[]).expect_err("bad fixed start");
-            assert!(refusal.contains("--fixed-start"), "{refusal}");
-        }
-        let words =
-            ["fake", peer, "--document", "peer.json", "--fixed-start", "1767690000,7", "--fixed-start", "1767690000,7"];
-        assert!(configured(&words, &[]).is_err(), "repeated fixed start");
-    }
+fn peer_refuses_the_removed_start_flag() {
+    let words = ["fake", "forge", "--document", "peer.json", "--fixed\x2dstart", "1767690000,7"];
+    let refusal = configured(&words, &[]).expect_err("removed flag");
+    assert_eq!(refusal.lines().next(), Some("temper-box fake forge: invalid arguments"));
 }
 
 #[test]
@@ -455,7 +441,6 @@ fn github_installation_records_end_at_the_pass_checkpoint() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
-        fixed_start: None,
         state: None,
         scripts: None,
         strict: false,
@@ -575,7 +560,6 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
         .expect("valid fixture");
         let path = directory.join("observations");
         let arguments = Arguments {
-            fixed_start: None,
             state: None,
             scripts: None,
             strict: false,
@@ -670,7 +654,6 @@ fn llm_records_full_counts_connections_without_queries() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
-        fixed_start: None,
         state: None,
         scripts: None,
         strict: false,
@@ -764,7 +747,6 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
-                    fixed_start: None,
                     state: None,
                     scripts: None,
                     strict: false,
@@ -804,7 +786,6 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
-                    fixed_start: None,
                     state: None,
                     scripts: None,
                     strict: false,

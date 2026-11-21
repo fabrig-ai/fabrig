@@ -716,7 +716,12 @@ command's refused arguments: 2, in its table's words.
 ## 8. Testing
 
 Focused and fuzzy alone (`draft/redeploys.md`, 10). No test reaches a
-host: no `ssh`, no service manager, no network.
+host: no `ssh`, no service manager, no network. The crate's `domain` target
+holds the step checks and the redeploy and referee on fake hosts and their
+clock, the seeded cases included. Its `suite` target holds the real-loop
+checks: scratch journal files and the real `sh` process seam. Shared value
+fixtures compile once in the crate's library (`tools/tiers/layers.md`, 6.1;
+`tools/crates/design.md`, 3.2).
 
 - **The fake deployment:** a `Hosts` whose engine and workers each keep
   whether they run, their installed and staged builds and the engine's

@@ -220,7 +220,7 @@ impl Plan {
         if let Some(display) = &self.tui_display {
             given.push((b"DISPLAY".as_slice().into(), display.as_bytes().into()));
         }
-        let mut environment = crate::tui_driver::unfixed_environment(&given, &self.options.scratch.join("session"))
+        let mut environment = crate::tui_driver::environment(&given, &self.options.scratch.join("session"))
             .map_err(|why| format!("cannot build TUI environment: {why}"))?;
         for (name, value) in &mut environment {
             if ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"].iter().any(|key| name == key) {

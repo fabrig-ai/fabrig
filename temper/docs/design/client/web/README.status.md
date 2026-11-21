@@ -2,7 +2,6 @@
 
 2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2.1: no `internal-fixed-start` [in flight: change 7721].
 
 
 

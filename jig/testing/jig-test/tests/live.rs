@@ -3,21 +3,7 @@ use jig_test_kit as support;
 use skein_shell::Clock;
 use std::{fs, os::unix::fs::PermissionsExt};
 
-#[path = "support/live_sign_in.rs"]
-mod live_sign_in;
-
-/// The live sign-in configurations, read as jig-test's startup reads them: no network, no person.
-#[test]
-fn the_live_configurations_are_ones_jig_test_reads() {
-    let sign_in = support::scratch();
-    live_sign_in::configuration_at(sign_in.path(), "192.0.2.1:443", live_sign_in::Peers::Real);
-    assert_eq!(jig_test::check(&sign_in.path().join("config.json")), Ok(()));
-    for peers in [live_sign_in::Peers::Fake, live_sign_in::Peers::Refusing] {
-        let fake = support::scratch();
-        live_sign_in::configuration_at(fake.path(), "127.0.0.1:34443", peers);
-        assert_eq!(jig_test::check(&fake.path().join("config.json")), Ok(()));
-    }
-}
+use support::live_sign_in;
 
 #[test]
 fn a_person_signs_in_to_chatgpt_and_a_real_model_answers() {

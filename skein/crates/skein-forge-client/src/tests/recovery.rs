@@ -197,11 +197,15 @@ fn restart_reads_before_settling_the_outbox() {
     h.event(Event::Writer { resource: kept::issue(), taken: true });
     h.event(Event::PauseOutbox);
     let saved = fixture::uncertain_comment().store.get(&1).expect("saved attempt").clone();
+    let task = saved.task;
     h.event(Event::Make { entry: saved });
     h.event(Event::ReadAfresh);
+    assert_eq!(h.domain.fresh_owed().as_ref(), &[kept::issue(), Resource { repository: REPO, what: What::Repository }]);
+    assert!(h.domain.unsettled().is_empty(), "the outbox has not started settling");
     let listing = h.one();
     assert_eq!(listing.op, Op::Read(Read::Items { single: false, since: at(fixture::START_AT), page: 1, kind: None }));
     h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(fixture::START_AT) });
+    assert_eq!(h.domain.fresh_owed().as_ref(), &[kept::issue()]);
     let object = h.one();
     assert_eq!(
         object.op,
@@ -209,12 +213,15 @@ fn restart_reads_before_settling_the_outbox() {
     );
     h.answer(object, fixture::empty_item());
     assert_eq!(h.fresh_done, 1);
+    assert!(h.domain.fresh_owed().is_empty());
     assert!(h.send().is_none());
     h.event(Event::SettleOutbox);
+    assert_eq!(h.domain.unsettled().as_ref(), &[(1, task)]);
     let find = h.one();
     assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(find, fixture::empty_item());
     assert_eq!(h.outbox_done, 1);
+    assert!(h.domain.unsettled().is_empty());
     assert!(h.send().is_none());
     assert_eq!(h.fresh_done, 1);
 }

@@ -502,7 +502,11 @@ fn root(input: &Input) -> Domain {
                     },
             } if input.goal.is_some() => {
                 let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
-                    w::Watch::Forges => wire::forges(&w::Forges { forges: f::goal_forges(true), linked: false }),
+                    w::Watch::Forges => wire::forges(&w::Forges {
+                        forges: f::goal_forges(true),
+                        full: List::with_capacity(0),
+                        linked: false,
+                    }),
                     w::Watch::Dismissed => {
                         let mut dismissed = List::with_capacity(wire::DISMISSED);
                         if input.goal == Some(true) {

@@ -1,6 +1,4 @@
 //! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup/box.md, 2).
-//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
-//! temper/docs/design/client/journey-clock.md, 4.1.
 //! Source retries follow temper/docs/design/protocol/openid-provider.md, 9.
 use crate::machine::{BoxKind, OwnedMachine};
 use alloc::boxed::Box;
@@ -167,14 +165,9 @@ impl Step {
         &self.arguments
     }
 }
-fn serve(
-    flags: &[Box<[u8]>],
-    listeners: Box<[core::net::SocketAddr]>,
-    record: bool,
-    fixed_start: Option<&[u8]>,
-) -> Step {
+fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>, record: bool) -> Step {
     let mut arguments = List::with_capacity(
-        u32::try_from(flags.len()).expect("bounded flags").checked_add(6).expect("bounded arguments"),
+        u32::try_from(flags.len()).expect("bounded flags").checked_add(4).expect("bounded arguments"),
     );
     arguments.push(bytes::copy_of(b"internal")).expect("command");
     arguments.push(bytes::copy_of(b"serve")).expect("command");
@@ -184,10 +177,6 @@ fn serve(
     arguments.push(bytes::copy_of(b"--box")).expect("box flag");
     if record {
         arguments.push(bytes::copy_of(b"--record")).expect("record flag");
-    }
-    if let Some(start) = fixed_start {
-        arguments.push(bytes::copy_of(b"--fixed-start")).expect("fixed start flag counted");
-        arguments.push(bytes::copy_of(start)).expect("fixed start counted");
     }
     Step::new(bytes::copy_of(b"serve"), arguments.into_boxed(), Kind::Long).listening(listeners)
 }
@@ -203,9 +192,8 @@ pub fn kinds(
     listeners: Box<[core::net::SocketAddr]>,
     forgejo_listens: bool,
     record: bool,
-    fixed_start: Option<&[u8]>,
 ) -> Steps {
-    let mut result = Steps { always: Box::new([serve(flags, listeners, record, fixed_start)]), asked: Box::new([]) };
+    let mut result = Steps { always: Box::new([serve(flags, listeners, record)]), asked: Box::new([]) };
     if let Some(owned) = owned {
         let mut group = List::with_capacity(5);
         if owned.fetch.forgejo || owned.fetch.runner {

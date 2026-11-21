@@ -1,4 +1,5 @@
 use super::{Domain, Env, Fact, Fresh, Limits, LiveRecord, Priority, Progress, RepositoryRecord, Scan, State, What};
+use alloc::boxed::Box;
 use skein_lib::usize_of;
 
 pub(crate) fn restore_writer(d: &mut Domain, env: &Env<Limits>, writer: crate::Writer) {
@@ -103,6 +104,26 @@ pub(crate) fn start_fresh(d: &mut Domain) {
         }
     }
 }
+/// Resources first, then listings, each in its table's order (forge/client.md, 8).
+pub(crate) fn fresh_owed(d: &Domain) -> Box<[crate::Resource]> {
+    let capacity = d.keep.live.len().checked_add(d.keep.repos.len()).expect("bounded fresh tables");
+    let mut owed = skein_lib::List::with_capacity(capacity);
+    if d.keep.fresh_active && !crate::outbox::stop::active(&d.outbox) {
+        for (resource, row) in &d.keep.live {
+            if row.active && row.fresh == Fresh::Pending {
+                owed.push(resource.clone()).expect("bounded by live table");
+            }
+        }
+        for (repository, row) in &d.keep.repos {
+            if row.active && row.fresh == Fresh::Pending {
+                owed.push(crate::Resource { repository: *repository, what: What::Repository })
+                    .expect("bounded by repository table");
+            }
+        }
+    }
+    owed.into_boxed()
+}
+
 pub(crate) fn fresh_done(d: &mut Domain) -> bool {
     if !d.keep.fresh_active {
         return false;

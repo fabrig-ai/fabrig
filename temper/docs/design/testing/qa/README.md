@@ -315,8 +315,13 @@ older home are removed and their worktree registrations pruned.
 
 ## 6. Its tests
 
-All in the focused and fuzzy suites, in the crate's `tests/suite/` and
-its binary's table test (`../tools.md`, 6), each failing first:
+All in the focused and fuzzy suites, in the crate's test targets and
+its binary's table test (`../tools.md`, 6), each failing first. The crate's
+`step` target holds the ledger, configuration, parser and reference checks,
+the seeded ledger sequences included. Its `suite` target holds the real-file
+checks: even the fake-clock world writes a scratch home and takes file locks,
+so it belongs to the real loop (`tools/tiers/layers.md`, 6.1). Shared value
+fixtures compile once in the crate's library.
 
 - **The ledger's rules over values** (`ledger.md`, 4): built in memory,
   driven through its operations, its records checked; the deletion

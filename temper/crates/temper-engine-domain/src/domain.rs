@@ -81,6 +81,7 @@ pub struct Domain {
     pub(crate) door_count: u32,
     pub(crate) startup_range: Option<Range>,
     pub(crate) start_wall: Option<Wall>,
+    pub(crate) start_report: Option<forge::Report>,
     pub(crate) start_stop: Option<StartStop>,
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
@@ -607,6 +608,7 @@ impl Domain {
             door_count: 0,
             startup_range: None,
             start_wall: None,
+            start_report: None,
             start_stop: None,
             opened: false,
             start_pending: false,
@@ -938,6 +940,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     domain.forge.begin_step();
     let mut out = core::mem::replace(&mut domain.scratch, Queue::with_capacity(0));
     step_routed(domain, env, event, &mut out);
+    crate::start_wait::report(domain, env);
     stage_now(domain, &mut out);
     assert!(out.is_empty(), "step stages every immediate output");
     domain.scratch = out;
@@ -1304,6 +1307,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     if domain.journal.stopped() || domain.start_stop().is_some() {
         return;
     }
+    crate::start_wait::report(domain, env);
     if !domain.start_runtime() {
         return;
     }

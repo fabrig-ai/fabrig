@@ -40,6 +40,7 @@ skein-lib.workspace = true
 skein-kv.workspace = true
 skein-json.workspace = true
 skein-forge.workspace = true
+skein-forge-client.workspace = true
 jig-protocol-config.workspace = true
 temper-protocol-store.workspace = true
 temper-protocol-worker-wire.workspace = true

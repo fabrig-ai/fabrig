@@ -518,12 +518,15 @@ The worker's child domain worlds keep their checks inline.
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
+bin/temper-box/tests/domain          step and domain harness checks over values, committed fixtures and scripted client-tool reads
+bin/temper-box/tests/suite           real scratch files, sockets, locks, clocks, shell children and shipped wiring
+crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
 bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
-testing/temper-process-guard        the kit's process guard, its tests on real processes
+testing/temper-process-guard        the kit's process guard: step observes scripted read/exit results, parent observes real /bin/cat identities
 bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 bin/temper-box/tests/fixtures/github   the GitHub App's documents, its key and its workers' secrets, read by the kit's GitHub stories
 bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
@@ -554,7 +557,8 @@ tests/*/*/tests/suite/*.rs                a world's focused tests
 tests/*/*/tests/suite/fuzzy/*.rs          its fuzzy tests: random worlds, domains driven at random
 tests/fake-checkout                 temper-fake-checkout: working trees' git, over skein's fake checkout
 crates/temper-twin-tool             the live run's twin: bin/temper-twin, selected transcripts as a fake LLM document (fakes.md, 1)
-crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md)
+crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md); step holds values and seeded ledger sequences, suite keeps real scratch homes, sockets, locks and children
+crates/temper-redeploy-tool         domain holds values and fake-host/clock orchestration, suite keeps scratch journals and real sh processes (../redeploy.md, 8)
 crates/temper-git-transcripts-tool  git's transcripts, recorded by bin/temper-git-transcripts against skein's throwaway Forgejo (../protocol/git.md, section 9)
 crates/temper-client-gallery-tool    bin/temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
 crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its tests on walks they record

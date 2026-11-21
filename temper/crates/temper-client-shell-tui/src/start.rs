@@ -1,5 +1,4 @@
 //! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
-//! Fixed starts follow temper/docs/design/client/journey-clock.md, 4.3.
 use crate::{
     limits,
     run::{Front, Run, Settings},
@@ -9,7 +8,7 @@ use skein_io::{
     kernel::{Exit, Fd},
 };
 use skein_lib::Duration;
-use skein_shell::{Clock, Config, FixedStart, Host, Input, Kernel, Keys, Watch};
+use skein_shell::{Clock, Config, Host, Input, Kernel, Keys, Watch};
 use skein_ui_screen_terminal::{Depth, LEAVE};
 use std::{
     net::{SocketAddr, ToSocketAddrs},
@@ -34,7 +33,6 @@ pub enum Refused {
     HttpsAddress,
     Resolve { name: String, why: String },
     Roots(String),
-    FixedStart,
     Directory(String),
 }
 impl Refused {
@@ -54,7 +52,6 @@ impl Refused {
             Self::HttpsAddress => "https:// needs the deployment's name".into(),
             Self::Resolve { name, why } => format!("can't find {name}: {why}"),
             Self::Roots(why) => format!("the machine's trust roots: {why}"),
-            Self::FixedStart => "TEMPER_INTERNAL_FIXED_START: expected SECONDS,SEED".into(),
             Self::Directory(why) => why.clone(),
         }
     }
@@ -96,28 +93,6 @@ pub fn directory(environment: &[EnvironmentEntry]) -> Result<PathBuf, Refused> {
 #[must_use]
 pub fn recording(environment: &[EnvironmentEntry]) -> bool {
     temper_shell::environment::INTERNAL_RECORD.value(environment).is_some()
-}
-
-/// Read a walk's start only at a loopback engine (journey-clock.md, 4.3).
-/// # Errors
-/// Refuses a nonempty value that is not a fixed start, naming its variable.
-pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Result<Option<FixedStart>, Refused> {
-    if engine.ip() != std::net::Ipv4Addr::LOCALHOST && engine.ip() != std::net::Ipv6Addr::LOCALHOST {
-        return Ok(None);
-    }
-    let Some(value) = temper_shell::environment::INTERNAL_FIXED_START.value(environment) else { return Ok(None) };
-    FixedStart::read(value).map(Some).ok_or(Refused::FixedStart)
-}
-
-// The TUI's seed stream (temper/docs/design/client/journey-clock.md, 4.3).
-const TUI_SEED_STREAM: u64 = 4;
-
-// Draw a walk's seed on the TUI's stream and keep it with its loop clock at startup.
-pub(crate) fn fixed_run(start: &FixedStart) -> (u64, Clock) {
-    let mut bytes = [0u8; 8];
-    start.draw(TUI_SEED_STREAM, &mut bytes);
-    let seed = u64::from_le_bytes(bytes);
-    (seed, Clock::fixed(start))
 }
 
 #[must_use]
@@ -406,12 +381,6 @@ fn start(
     let (origin, link_file, boxed) =
         select(given, saved.clone(), link_path(environment, working), &|path| link_file::read(path, user));
     let engine = engine(&origin, environment, &|name, port| (name, port).to_socket_addrs().map(Iterator::collect))?;
-    let fixed = match &origin {
-        Origin::Http(socket) if front.is_none() => fixed_start(environment, *socket)?,
-        Origin::Http(_) | Origin::Https { .. } => None,
-    };
-    let fixed = fixed.as_ref().map(fixed_run);
-    let run_clock = fixed.as_ref().map_or(clock, |(_, clock)| clock);
     let (origin_directory, made) = deployment::prepare(&directory, &origin, user)?;
     let theme = deployment::theme(&directory, &origin, user, made);
     let note = read_note(&origin_directory, &origin, user);
@@ -472,10 +441,7 @@ fn start(
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             }),
         };
-        let seed = match &fixed {
-            Some((seed, _)) => *seed,
-            None => skein_shell::seed().expect("kernel seed"),
-        };
+        let seed = skein_shell::seed().expect("kernel seed");
         let run = local_run(settings, root, user, seed, signals);
         let kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
         Ok((run, kernel, seed, in_front))
@@ -490,9 +456,9 @@ fn start(
     };
     let mut run = run.with_kept(kept);
     let exit = if in_front {
-        drive_front(&mut kernel, run_clock, &mut run)
+        drive_front(&mut kernel, clock, &mut run)
     } else {
-        skein_shell::drive(&mut kernel, run_clock, &mut run)
+        skein_shell::drive(&mut kernel, clock, &mut run)
     };
     skein_fail_stop::before_report(None);
     run.restore_terminal();

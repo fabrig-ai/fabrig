@@ -87,6 +87,7 @@ pub struct Side {
     deployment: deployment::State,
     forges: forges::State,
     linked: Option<bool>,
+    full: Box<[forges::FullTable]>,
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
@@ -127,6 +128,7 @@ impl Side {
             deployment: deployment::State::new(),
             forges: forges::State::Unknown,
             linked: None,
+            full: Box::new([]),
             forges_open: false,
             dismissed: dismissed::State::Unknown,
             dismissed_open: false,
@@ -233,6 +235,10 @@ impl Side {
     #[must_use]
     pub const fn linked(&self) -> Option<bool> {
         self.linked
+    }
+    #[must_use]
+    pub fn full_tables(&self) -> &[forges::FullTable] {
+        &self.full
     }
     #[must_use]
     pub const fn forges(&self) -> &forges::State {

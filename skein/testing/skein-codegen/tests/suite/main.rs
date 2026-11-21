@@ -1,12 +1,8 @@
 extern crate alloc;
 
-mod diff;
-mod largest;
-mod parse;
 mod patch_bridges;
 mod patch_check;
 mod patch_generated;
 mod patch_registered;
 mod patch_run;
 mod patch_wires;
-mod values;

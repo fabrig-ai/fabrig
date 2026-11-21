@@ -76,3 +76,7 @@ path = "tests/process.rs"
 [[test]]
 name = "live"
 path = "tests/live.rs"
+
+[[test]]
+name = "step"
+path = "tests/step.rs"

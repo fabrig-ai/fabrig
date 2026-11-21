@@ -4124,16 +4124,7 @@ fn settling_places_no_run_and_answers_a_call_busy() {
 fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
     let (mut world, assignment, entry) = held_issue_write();
     world.send(engine::Event::Stop);
-    let until = world.env.now.saturating_add(
-        world
-            .env
-            .limits
-            .forge
-            .client
-            .lifetime
-            .saturating_add(world.env.limits.forge.client.clock_margin)
-            .saturating_mul(2),
-    );
+    let until = world.env.now.saturating_add(skein_forge_client::stop_bound(&world.env.limits.forge.client));
     while world.env.now < until {
         world.tick();
     }

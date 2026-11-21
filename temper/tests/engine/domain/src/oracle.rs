@@ -545,7 +545,8 @@ mod tests {
         let before = driver.root.forges();
         assert!(!before.rows.is_empty(), "fixture configures a forge");
         assert_eq!(compare_forges(before.clone(), before.clone()), Ok(()));
-        let finding = compare_forges(before, forge::Forges { rows: Box::new([]) }).expect_err("lost forge");
+        let finding =
+            compare_forges(before, forge::Forges { full: Box::new([]), rows: Box::new([]) }).expect_err("lost forge");
         assert!(finding.contains("restart oracle forge document forges, field"), "{finding}");
         assert!(finding.contains("left: Forges") && finding.contains("right: Forges"), "{finding}");
     }

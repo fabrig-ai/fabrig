@@ -7,6 +7,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+pub use temper_qa_tool::testing::id;
 use temper_qa_tool::{
     Exit, Home, Ledger, Refusal,
     faces::{
@@ -16,9 +17,6 @@ use temper_qa_tool::{
     runner::Run,
 };
 
-pub fn id(number: u64) -> String {
-    format!("{number:040x}")
-}
 #[derive(Default)]
 pub struct Range {
     pub patch: Vec<u8>,

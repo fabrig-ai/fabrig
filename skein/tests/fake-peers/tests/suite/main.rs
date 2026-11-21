@@ -1,13 +1,6 @@
 //! Integration tests collected in one suite.
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
+#[path = "real_forge.rs"]
 mod forge;
-mod github_memory;
+#[path = "real_llm.rs"]
 mod llm;
-mod oauth;
-mod push;
-mod fuzzy {
-    mod push;
-}

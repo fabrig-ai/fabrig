@@ -29,19 +29,6 @@ const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
-const FIXED_START_SETTINGS: skein_shell::Settings = skein_shell::Settings {
-    tool: "temper",
-    about: "The fake box's fixed start.",
-    table: &[skein_shell::Setting {
-        name: "fixed-start",
-        value: "SECONDS,SEED",
-        set: Set::Internal,
-        twin: None,
-        about: "Start the fake box's engine and peers from this fixed instant and seed: SECONDS,SEED.",
-        fallback: skein_shell::Fallback::Text(""),
-        notes: "Requires --fake-backends on the box, or --box on internal serve.",
-    }],
-};
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
@@ -89,7 +76,7 @@ pub(crate) const BOX: Command = Command {
     forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]"],
     line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.",
     arguments: &[DIRECTORIES],
-    settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS, &FIXED_START_SETTINGS],
+    settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS],
     switches: &[
         temper_engine_shell::commands::RECORD,
         Switch {
@@ -215,10 +202,10 @@ Refused unchanged if the configuration directory holds a current or former confi
     Command {
         reach: Reach::Words(&["internal", "serve"]),
         set: Set::Internal,
-        forms: &["[DIRECTORIES] --box [--record] [--fixed-start SECONDS,SEED]"],
+        forms: &["[DIRECTORIES] --box [--record]"],
         line: "Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.",
         arguments: &[DIRECTORIES],
-        settings: &[&directories::SETTINGS, &FIXED_START_SETTINGS],
+        settings: &[&directories::SETTINGS],
         switches: &[temper_engine_shell::commands::RECORD, Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "",

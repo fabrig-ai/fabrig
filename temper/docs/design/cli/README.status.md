@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-21. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 8: no `TEMPER_INTERNAL_FIXED_START` [in flight: change 7721].
+No known implementation gap.
 

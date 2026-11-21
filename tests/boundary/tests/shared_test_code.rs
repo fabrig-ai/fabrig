@@ -21,11 +21,6 @@ struct Exception {
 
 const EXCEPTIONS: &[Exception] = &[
     Exception {
-        package: "smith",
-        path: "smith/tests/end-to-end/support",
-        until: "G8: smith/testing/smith-end-to-end-kit",
-    },
-    Exception {
         package: "temper-client-shell-terminal",
         path: "temper/crates/temper-client-shell-terminal/tests/support/world.rs",
         until: "its area, when it next works on its library's tests (tools/crates/design.md, 3.2)",
