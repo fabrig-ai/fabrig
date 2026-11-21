@@ -1,7 +1,10 @@
 # Status
 
-2026-11-11. Where jig's code lags or departs from its design, from the
-status files below. A task's `ended_by` may be `standing`: an agent task
+2026-11-21. Where jig's code lags or departs from its design, from the
+status files below. A hub relays its runs' parts, the engine keeps them
+until a committed turn makes them moot and hands them back to a resumed
+run, and a drained run asked for parts stops at its answer after the
+drain's grace (`protocol/channel/records.md`, 5; `domain/engine/executors.md`, 2). A task's `ended_by` may be `standing`: an agent task
 a person requests, never told that nothing is awaited, its finish parked
 and only a cancel ending it, its budget carved again each period, its
 runs in sessions that resume while its model's prompt cache is warm and

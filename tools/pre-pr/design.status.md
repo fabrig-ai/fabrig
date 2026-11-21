@@ -1,6 +1,6 @@
 # design: status
 
-2026-11-19. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
+2026-11-21. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
 
 - **Not yet:** 1, 4: the check runs no check 7: a delivery that raises a figure of `tools/tiers/budgets.toml` or adds a reason's line passes [in flight: change 8161].
 - **Not yet:** 1, 2, 3, *Changed paths*, and 9.2: the selection reads the whole base-to-tree diff, merged tips' entries included, so a merge repair selects every package the merge brought in, and no line names the merged tips [in flight: change 9656].
@@ -13,3 +13,5 @@
 
 No other gap in sections 1–9. Section 10's later work remains outside the
 delivery check.
+
+- **Not yet:** 7, *Passed tests kept for a check run again*: the check keeps no passed test in a results directory and skips none [in flight: change 11462].

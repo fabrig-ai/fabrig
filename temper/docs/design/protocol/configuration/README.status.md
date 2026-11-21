@@ -1,6 +1,6 @@
 # configuration: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-21. Where temper's code lags or departs from [README.md](README.md).
 
 
 
@@ -254,3 +254,5 @@ or in the terminal refusal naming the item and rejected way.
 - **Design departs:** `reference.md`, the project-settings file departure remains `reference.status.md` (Design departs, ui-settings).
 
 - **Departs:** 6: the kept-GitHub remote departure remains `engine.status.md` (Departs, the whole document). 1: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The elsewhere-forge configuration-advice gap remains `../../client/forge/deployment.status.md` (Not yet, the whole document).  the unnamed stock procedures remain `stock.status.md` (Departs, the whole document).
+
+- **Not yet:** 3, *The drain's grace*: temper's worker takes no `graces.drain_grace_ms` [in flight: change 11471].

@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-19. Where temper's code lags or departs from [README.md](README.md).
+2026-11-21. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 5, *Its build places too, and its bound counts only them*: fabrig's check takes a hold's first line as held, a `waiting` line included, and tells smith of no wait (`tools/tiers/run`, `hold`) [in flight: change 9657].
 - **Not yet:** 5, *Its build places too, and its bound counts only them*: smith counts a check's bound from its start, its waits included (`smith-domain-run/src/land.rs`, `next`) [in flight: change 9658].
@@ -99,3 +99,5 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   (`../../draft/dogfood-hacks.md`, 2.13). It carries no credential. No test
   runs the variable from a worker through a real agent process to a file, as
   the request of 2026-11-05 leaves that to the next comparison's run.
+
+- **Not yet:** 2, *Told to stop, the worker drains*: its agents stop at the end of their turns, with no drain's grace, no part relayed and no workspace kept [in flight: change 11471].

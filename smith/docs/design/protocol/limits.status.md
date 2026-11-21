@@ -1,6 +1,6 @@
 # limits: status
 
-2026-11-19. Where smith's code lags or departs from [limits.md](limits.md).
+2026-11-21. Where smith's code lags or departs from [limits.md](limits.md).
 
 Sections 3.6 and 3.8's `host_limits` and the agent's profile derivation
 are `smith-agent-profile`'s at main's `fdc26f71c6`, re-exported at the
@@ -53,3 +53,5 @@ runtime outcome is supplied here.
   (`smith-agent-profile/src/profile/effective/llm.rs`), because the names
   are output and the user's request of 2026-11-04 changed no behaviour
   (13).
+
+- **Not yet:** 3.6: a resumed start's parts counted with its transcript against the resume limit, and a part's frame [in flight: change 11455].

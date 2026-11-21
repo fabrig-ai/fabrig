@@ -1,6 +1,6 @@
 # executors: status
 
-2026-11-20. Where the tree's code lags or departs from [executors.md](executors.md).
+2026-11-21. Where the tree's code lags or departs from [executors.md](executors.md).
 
 
 - **Not yet:** 1, step 3, and 2, *Resumed only where it ran*: the run proof's `endpoint` (core-v6); a window resumed only on the endpoint it ran on, judged at the activation's check and the claim's, a proof with no endpoint judged by its main provider's source kind; a moved window's run started fresh with its tail. [in flight: change 8569]
@@ -30,3 +30,5 @@
   page's `last`), so whether there is a next page, and the cursor the
   root holds, can come from another project's entry; temper says only
   whether more wait. No test pages a filtered inbox.
+
+- **Not yet:** 2, *Parts kept between turns*: the core keeps no part and hands none back [in flight: change 11469].
