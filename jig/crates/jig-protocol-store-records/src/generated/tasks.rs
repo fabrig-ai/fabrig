@@ -2425,6 +2425,7 @@ pub fn message_kind_to_record(value: &jig_domain_tasks::MessageKind, context: &c
 }
 
 // Maps line 196: MessageKind.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn message_kind_to_domain(record: crate::tasks_v13::MessageKind, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::MessageKind, crate::tasks_v13::Problem> {
     match record {
         crate::tasks_v13::MessageKind::Escalation(held) => {
@@ -2926,6 +2927,7 @@ pub fn line_to_record(value: &jig_domain_tasks::Line, context: &crate::codec::ta
 }
 
 // Maps line 223: Line.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn line_to_domain(record: crate::tasks_v13::Line, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Line, crate::tasks_v13::Problem> {
     match record {
         crate::tasks_v13::Line::Words(held) => {
@@ -4149,6 +4151,7 @@ pub fn capacity_cause_to_record(value: &jig_domain_tasks::CapacityCause, _contex
 }
 
 // Maps line 328: CapacityCause.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn capacity_cause_to_domain(record: crate::tasks_v13::CapacityCause, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::CapacityCause, crate::tasks_v13::Problem> {
     match record {
         crate::tasks_v13::CapacityCause::Tasks(held) => {
@@ -4418,6 +4421,7 @@ pub fn refusal_to_record(value: &jig_domain_tasks::Refusal, context: &crate::cod
 }
 
 // Maps line 342: Refusal.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_domain(record: crate::tasks_v13::Refusal, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Refusal, crate::tasks_v13::Problem> {
     match record {
         crate::tasks_v13::Refusal::Goals => Ok(jig_domain_tasks::Refusal::Goals),

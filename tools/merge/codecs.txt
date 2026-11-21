@@ -15,6 +15,7 @@ jig/crates/jig-protocol-store-people/src/generated/people.rs jig/crates/jig-prot
 jig/crates/jig-protocol-store-records/src/generated/accounts.rs jig/crates/jig-protocol-store/schema/accounts-v2.schema jig/crates/jig-protocol-store/schema/accounts.maps
 jig/crates/jig-protocol-store-records/src/generated/component.rs jig/crates/jig-protocol-store/schema/component-v3.schema jig/crates/jig-protocol-store/schema/component.maps
 jig/crates/jig-protocol-store-records/src/generated/notes.rs jig/crates/jig-protocol-store/schema/notes-v1.schema jig/crates/jig-protocol-store/schema/notes.maps
+jig/crates/jig-protocol-store-records/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema jig/crates/jig-protocol-store/schema/tasks.maps
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
 jig/crates/jig-protocol-store/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v1.schema jig/crates/jig-protocol-store/schema/openings.maps

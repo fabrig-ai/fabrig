@@ -12,7 +12,7 @@ record Project
 enum Party = d::Party { task tuple, person tuple }
 enum Class = d::Class
 record Tries = d::Tries
-enum Why by hand
+enum Why by hand # Retry nests a named tries field around the payload
 record Role stands for role
 enum PersonAddress = d::PersonAddress { person tuple, role tuple }
 record Agent
@@ -27,21 +27,21 @@ enum Parameter = d::Parameter
 record JobSpec = d::JobSpec
 record JobContract
 record JobResult
-record Spec by hand
+record Spec by hand # framed parameters and aggregate specification bytes
 enum PartKind = d::PartKind
 record PartSegment stands for bytes
-record PartPath by hand
+record PartPath by hand # framed segments and aggregate path bytes
 enum PartKey = d::PartKey { path tuple, number tuple }
 record Part = d::Part
 record FieldRule = d::FieldRule
-record Verdict by hand
+record Verdict by hand # framed field rules and aggregate result budget
 record Approval
 record Report
 record Choices
 record ChangeContract
-enum Contract by hand
+enum Contract by hand # cross-field budgets, with framed verdict rules
 record Tools stands for bits via h::tools
-record Models by hand
+record Models by hand # bits and all jointly represent one selector
 record ModelEffort = d::ModelEffort
 record LlmLater = d::LlmLater { subagents slice }
 record LlmChoice = d::LlmChoice { subagents slice }
@@ -57,7 +57,7 @@ record AuthorityJob stands for kind
 enum AuthorityExecutor = d::AuthorityExecutor { charter tuple, procedure tuple, role tuple, job tuple }
 record Delegation = d::Delegation { kinds slice }
 record Budget = d::Budget { deadline via s::wall }
-record Authority by hand
+record Authority by hand # framed grants/resources share one byte budget; models remap by row
 record Task stands for task
 record Pool
 record Recurring
@@ -67,7 +67,7 @@ record Numbers = d::Numbers
 record PeriodTimes = d::PeriodTimes { began via s::wall, next via s::wall }
 record FundingRecord = d::FundingRecord
 record Segment stands for bytes
-record Name by hand
+record Name by hand # framed segments and aggregate name bytes
 record Run
 record Effect
 enum Writer = d::Writer
@@ -88,16 +88,16 @@ enum EndedBy = d::EndedBy { closer tuple }
 record Flags = d::Flags
 record DeadlineSpan stands for value
 enum Deadline = d::Deadline { span tuple }
-record Member by hand
-record RecurringTemplate by hand
-record Creation by hand
+record Member by hand # one creation without its optional recurring template
+record RecurringTemplate by hand # framed members must not recur
+record Creation by hand # joins a member and its optional recurring template
 record ResultField = d::ResultField
 record Approved
 record ReportResult
-record VerdictResult by hand
-record ChangeResult by hand
+record VerdictResult by hand # framed fields share the result byte budget
+record ChangeResult by hand # title has the domain checked constructor
 record FailureResult
-enum TaskResult by hand
+enum TaskResult by hand # aggregate bytes, framed fields and the checked change title
 record Done stands for result
 record Cancelled { at via s::wall }
 enum Ending = d::Ending { done tuple }
@@ -139,7 +139,7 @@ record AddressChange = d::AddressChange
 record Tracked
 enum Tracking = d::Tracking
 record Amendment = d::Amendment { dependencies slice }
-record ProposedBatch by hand
+record ProposedBatch by hand # framed creations under the batch byte budget
 record ProposedEffect
 record ProposedProcedureEffect
 record ProposedAmendment
@@ -150,7 +150,7 @@ enum Setting = d::Setting { charter tuple, template tuple, policy tuple, model t
 enum SettingEdit = d::SettingEdit
 record SettingHead = d::SettingHead
 record ProposedSettings
-enum ProposalAction by hand
+enum ProposalAction by hand # batch framing and settings count ceilings
 record Proposal = d::Proposal
 enum Change = d::Change
 record Settings = d::Settings { dependencies slice }
@@ -161,7 +161,7 @@ record RejectedPersonProposal { at via s::wall }
 record WithdrawnPersonProposal { at via s::wall }
 record SettingsAccepted
 enum PersonProposalState = d::PersonProposalState
-enum PersonAction by hand
+enum PersonAction by hand # batch framing and settings projects absent from the domain
 record PersonProposal = d::PersonProposal
 record HoldRow = d::HoldRow { at via s::wall }
 record Grace = d::Grace { until via s::wall }
@@ -174,9 +174,9 @@ record NoticeHeld
 enum NoticeState = d::NoticeState
 enum NewsClass = d::NewsClass
 record ApprovalMessage
-record VerdictMessage by hand
+record VerdictMessage by hand # framed result fields
 record ChangeMessage
-enum ResultKind by hand
+enum ResultKind by hand # verdict fields are framed
 record EscalationMessage
 record ProposalMessage
 record StalledMessage
@@ -232,9 +232,9 @@ enum EscalationHolder = d::EscalationHolder { task tuple, person tuple }
 record UnheldEscalation
 record RoutingEscalation
 record WaitingEscalation { since via s::wall }
-enum DeciderKind by hand
-record RejectedEscalation by hand
-enum Escalation by hand
+enum DeciderKind by hand # discriminator belongs to the rejected escalation number
+record RejectedEscalation by hand # by and by_kind jointly represent the decider
+enum Escalation by hand # rejected payload splits its decider into two fields
 record PersonAnswer = d::PersonAnswer { at via s::wall }
 record PersonStallNotice = d::PersonStallNotice { at via s::wall }
 record PersonWait = d::PersonWait { since via s::wall, deadline via s::wall }
@@ -245,7 +245,7 @@ record TimerInterest { at via s::wall }
 record TopicInterest
 enum SubscriptionKind = d::SubscriptionKind
 record Subscription = d::Subscription
-record SavedResource by hand
+record SavedResource by hand # path is framed authority segments
 record AnswerLine = d::AnswerLine
 record QuestionLine = d::QuestionLine
 record ProposalRow = d::ProposalRow
@@ -257,25 +257,25 @@ record Update = d::Update { at via s::wall }
 record ResultRow = d::ResultRow
 record Edge = d::Edge
 record TranscriptState stands for ever_turned
-record TaskHistory by hand
-record TaskRun by hand
+record TaskHistory by hand # part of the flat TaskRecord
+record TaskRun by hand # part of the flat TaskRecord
 record Added = d::Added { at via s::wall }
-record TaskDefinition by hand
-enum InboxItem by hand
-record TaskInterests by hand
+record TaskDefinition by hand # part of the flat TaskRecord
+enum InboxItem by hand # three domain lists share the stored inbox list
+record TaskInterests by hand # part of the flat TaskRecord, with the joined inbox
 record RoomProject stands for project
 enum LiveRoom = d::LiveRoom { project tuple }
 record RoomWait = d::RoomWait
-record TaskOutcome by hand
+record TaskOutcome by hand # part of the flat TaskRecord
 record Talk = d::Talk { opened via s::wall, last via s::wall }
 record Session = d::Session { reasons via h::reasons, last via s::wall }
-record BeforeTalk by hand
+record BeforeTalk by hand # flat TaskRecord without talk or conclusion
 record Concluded = d::Concluded { at via s::wall }
-record TaskRecord by hand
-record HotHistory by hand
-record HotDefinition by hand
-record LiveHot by hand
-record LiveCold by hand
+record TaskRecord by hand # joins BeforeTalk, talk and conclusion
+record HotHistory by hand # hot subset of flat TaskRecord
+record HotDefinition by hand # hot subset of flat TaskRecord
+record LiveHot by hand # hot/cold split with model names owned by each row
+record LiveCold by hand # cold subset has no standalone domain record or key identity
 record EndedByParty = d::EndedByParty { ended_at via s::wall }
 record EndedByProject = d::EndedByProject { ended_at via s::wall }
 enum HoldOwner = d::Owner { task { value = task } }
@@ -288,14 +288,14 @@ enum SummaryEnding = d::SummaryEnding
 record SummaryVerdict
 record SummaryChange
 enum SummaryResultKind = d::SummaryResultKind
-record SummaryResult by hand
+record SummaryResult by hand # words_cut lives in the parent summary bit set
 record SummaryEndings = d::SummaryEndings
-record TaskSummary by hand
+record TaskSummary by hand # cuts packs three domain booleans
 enum RetentionStage = d::RetentionStage
 record RetentionRow = d::RetentionRow { since via s::wall }
-enum Value by hand
+enum Value by hand # row routing includes split records and model-name context
 record ModelName stands for value
-record Row by hand
+record Row by hand # routing, model vocabulary and key identity
 record CapacityActionBatch
 record CapacityActionProposal
 record CapacityActionPersonProposal
@@ -341,7 +341,7 @@ record TalkOpen
 record RefusalConcluded { at via s::wall }
 enum Refusal = d::Refusal
 record TaskProblem = d::Problem { blocked_by slice }
-record ResultFollowupsDelegates by hand
+record ResultFollowupsDelegates by hand # framed creations under the batch byte budget
 record ResultFollowupsProposal stands for value
 enum ResultFollowups = d::ResultFollowups { delegates tuple, proposal tuple boxed }
 record EndFinished
