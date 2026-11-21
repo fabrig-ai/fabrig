@@ -1,7 +1,8 @@
 # testing: status
 
-2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-21. Where the tree's code lags or departs from [testing.md](testing.md).
 
+- **Not yet:** 2: area 3's joined stories of a service's credential reissued [in flight: change 11708].
 
 - **Not yet:** 2: the user's `ctl-waits` request asks for the
   long-chat wait with a fake model refusing its resume, concurrent reads and

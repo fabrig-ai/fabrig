@@ -1,7 +1,9 @@
 # tools: status
 
-2026-11-19. Remaining gaps between temper's code and [README.md](README.md).
+2026-11-21. Remaining gaps between temper's code and [README.md](README.md).
 
+- **Not yet:** 6.1: `sign-in` reading a service link [in flight: change 11703].
+- **Not yet:** 7: `party reissue` and its service link; `me`'s `sign-in expires:` line [in flight: change 11707].
 
 - **Not yet:** 5: the spent-pool refusal's figures in ctl's amount, and its `reserved:` line [in flight: change 7671].
 

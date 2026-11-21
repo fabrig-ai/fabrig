@@ -1,8 +1,8 @@
 # areas: status
 
-2026-11-20. Where the tree's code lags or departs from [areas.md](areas.md).
+2026-11-21. Where the tree's code lags or departs from [areas.md](areas.md).
 
-
+- **Not yet:** area 3: `party reissue` [in flight: change 11707].
 
 - **Not yet:** area 2: `goal start`'s and `milestone new`'s `--budget` in ctl's amount, and `--as-allowed`'s help lines saying what it takes [in flight: change 7671].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
@@ -25,7 +25,7 @@
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
    the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
   the whole document: area 2's procedure executor choice for `goal start`
-  and `seen`; area 3's `party make`, `sign-in --service`, `deployment
+  and `seen`; area 3's `deployment
   show`, `task move`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.

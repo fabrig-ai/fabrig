@@ -1,7 +1,8 @@
 # people: status
 
-2026-11-18. Where jig's code lags or departs from [README.md](README.md).
+2026-11-21. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3: an owner reissues a service's credential, its sign-ins ending, as `acts.md`, 1 has it [in flight: change 11702].
 - **Not yet:** 5, *Bounded*: needs are read from the child's cached prefix of `people.inbox_entries`, and past it a page goes to the store, which holds none, so the later pages of a party's needs are empty [in flight: change 7577].
 - **Not yet:** 10: the world's story of an owner's deletion refused while a task is live [in flight: change 628].
 - **Not yet:** 10: the world's stories of a deleted project's read answered gone and an owner's deletion answered removed after it ended [in flight: change 629].
@@ -35,7 +36,7 @@ Section 3's browser-approved sign-in uses the clients' component's
 `Whose` and an ordinary sign-in with no held credential. Nothing reaches
 people before the take; the joint-client stories cover the approving
 party and an approval never taken making no sign-in.
-- **Not yet:** 3: a service's credential reissued or removed. 
+- **Not yet:** 3: a service removed. 
   the unbuilt party acts remain `acts.status.md`, 1. 5: retention; a
   delegate's question to a conversation kept with the conversation. 6:
   a chat answering its delegates' questions and asking its person by a
