@@ -18,7 +18,6 @@ use temper_client_shell_web::journey::{self, Line};
 
 fn fixture() -> Vec<Line> {
     let facts = journey::Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

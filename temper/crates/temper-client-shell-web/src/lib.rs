@@ -56,14 +56,11 @@ pub enum Report {
     World(platform::worker::Heard),
 }
 #[cfg(target_arch = "wasm32")]
-/// The shared host loop (temper/docs/design/playground.md, 6), with fixed clocks
-/// from temper/docs/design/client/journey-clock.md, 4.2.
+/// The shared host loop (temper/docs/design/playground.md, 6).
 pub struct Shell<P: ShellPlatform> {
     host: host::Host,
     push_inbox: Rc<Inbox<Report>>,
     recorder: Option<journey::Recorder>,
-    fixed_clock: Option<skein_lib::FixedClock>,
-    native: skein_lib::Time,
     page: Rc<RefCell<Page<'static>>>,
     dom: Dom,
     platform: P,
@@ -128,7 +125,6 @@ pub fn start() {
     start_signed_in(settings);
 }
 #[cfg(target_arch = "wasm32")]
-#[expect(clippy::too_many_lines, reason = "the signed-in starter erases either link form before building the host")]
 fn start_signed_in(settings: internal::Internal) {
     if !skein_ui_web::restart::Restart::new(
         3,
@@ -165,9 +161,7 @@ fn start_signed_in(settings: internal::Internal) {
         .and_then(|meta| meta.get_attribute("content"));
     let record = settings.recording(record_content.as_deref());
     let mount = document.get_element_by_id("app").expect("bundle mount");
-    let mut facts = platform::facts();
-    let native = facts.now;
-    let fixed_clock = settings.start(&mut facts);
+    let facts = platform::facts();
     let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
     #[cfg(debug_assertions)]
     assert_ne!(path.split('?').next(), Some("/test/panic"), "the test address panics at start");
@@ -194,7 +188,6 @@ fn start_signed_in(settings: internal::Internal) {
     stored.extend(kept.read_all(&platform).into_iter().filter(|record| record.key.as_ref() == records::LOOK_KEY));
     let recorder = record.then(|| {
         journey::Recorder::new(&journey::Facts {
-            fixed: fixed_clock.is_some(),
             seed: facts.seed,
             now: facts.now,
             wall: facts.wall,
@@ -217,8 +210,6 @@ fn start_signed_in(settings: internal::Internal) {
         host,
         push_inbox: Rc::clone(&inbox),
         recorder,
-        fixed_clock,
-        native,
         page,
         dom,
         platform,
@@ -270,8 +261,6 @@ impl<P: ShellPlatform> Shell<P> {
             host,
             push_inbox: Rc::clone(inbox),
             recorder: None,
-            fixed_clock: None,
-            native: skein_lib::Time::ZERO,
             page,
             dom,
             platform,
@@ -305,12 +294,7 @@ impl<P: ShellPlatform> Shell<P> {
         self.draw(new_page, now);
     }
     pub fn begin(&mut self) -> skein_lib::Time {
-        let (native, wall) = self.platform.clocks();
-        self.native = native;
-        let (now, wall) = match &mut self.fixed_clock {
-            Some(clock) => clock.read(native),
-            None => (native, wall),
-        };
+        let (now, wall) = self.platform.clocks();
         if let Some(recorder) = &mut self.recorder {
             recorder.turn(now, wall);
         }
@@ -527,10 +511,6 @@ impl<P: ShellPlatform> Shell<P> {
         if let Some(recorder) = &mut self.recorder {
             recorder.deadline(deadline);
         }
-        let (deadline, now) = match &mut self.fixed_clock {
-            Some(clock) => (clock.until(deadline, self.native), self.native),
-            None => (deadline, now),
-        };
         self.platform.timer(&mut self.timer, deadline, now);
     }
     fn save_recording(&mut self, departing: bool) {

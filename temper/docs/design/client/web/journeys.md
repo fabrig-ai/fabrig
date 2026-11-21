@@ -190,7 +190,6 @@ comment, no blank.
 | `journey` | `2`, the format's version | the first line |
 | `seed` | the platform's seed | the start's facts, in this order |
 | `clocks` | now and wall, in nanoseconds | |
-| `fixed` | none | on a fixed start (`../journey-clock.md`, 4.2) |
 | `primary` | `control` or `meta` | |
 | `ways` | the `temper-sign-in` meta's content, the page's origin | when the page has the meta |
 | `forge` | a `temper-forge-sign-in` meta's content | one per meta, in order |
@@ -628,8 +627,6 @@ reprint carries, since its acts are events, not controls.
   its `../README.md` and the change that moved it, then added (`add NAME
   FILE`) by the writer's runner (`../journey-writer.md`, 2). The README
   changes with the change that moved it, and its new pages are read as new.
-- **`again`'s walks** match but where real processes decide
-  (`../journey-clock.md`, 5).
 
 ### 8.1 Again
 
@@ -659,13 +656,11 @@ over skein's harness.
   walk. It keeps no print mark before it, as an `input` keeps none, but
   still counts as a report when deciding whether the page is still or a
   key's mark caught it moving. Replay gives it as recorded (section 4). A
-  `drawing` act is no person's to give, and, without `fixed` (3.2), a
-  key's mark that caught the page moving (a report but a due within half
-  a second after it)
+  `drawing` act is no person's to give, and a key's mark that caught the
+  page moving (a report but a due within half a second after it)
   is no state a still page shows: such a journey is refused before
   anything starts, and walked anew.
-- **A fresh fake box** (3.5) on `again`'s fixed start
-  (`../journey-clock.md`, 4.4): `temper box --fake-backends`, built from
+- **A fresh fake box** (3.5): `temper box --fake-backends`, built from
   the checkout with the bundle (`scripts/bundle.sh`), its printed link
   opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
   every directory fresh in the scratch one.

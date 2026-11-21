@@ -9,7 +9,6 @@ use temper_client_shell_web::journey;
 fn a_stale_recording_prints_no_line_of_its_own() {
     let scratch = Scratch::new("temper-client-journeys-stale-message");
     let facts = journey::Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

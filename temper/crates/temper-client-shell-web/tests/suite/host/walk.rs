@@ -28,7 +28,6 @@ struct Walk {
 impl Walk {
     fn new() -> Self {
         let facts = Facts {
-            fixed: false,
             seed: 11,
             now: Time::ZERO,
             wall: Wall::EPOCH,
@@ -424,7 +423,6 @@ pub(super) fn keyed(value: &[u8], byte_at_a_time: bool) -> Box<[u8]> {
 }
 pub(super) fn stored_stream(record: skein_ui_web::store::Record) -> Box<[u8]> {
     let facts = Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,
