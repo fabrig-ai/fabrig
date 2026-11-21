@@ -167,7 +167,7 @@ impl Host {
                     }
                 }
             }
-            if self.domain.ready() {
+            if self.domain.ready() || self.domain.rehearsed() {
                 return;
             }
         }
@@ -261,6 +261,27 @@ fn empty_store_opens_after_the_wires_continuation() {
     assert!(host.wires.is_some());
     assert_eq!(host.commits.first(), Some(&(1, false)));
     assert!(host.commits.iter().any(|(_, wires)| *wires));
+}
+
+#[test]
+fn rehearsal_stops_at_switch_without_wires_or_system_reads() {
+    let mut host = Host::new(populated_rows());
+    host.domain.rehearse();
+    assert!(!host.domain.rehearsed());
+    host.begin();
+    host.drive();
+    assert!(host.domain.rehearsed());
+    assert_eq!(host.domain.start_phase(), Some(Phase::Switch));
+    assert_eq!(host.domain.start_failure(), None);
+    assert_eq!(host.phases.last(), Some(&Phase::Sweep));
+    assert!(host.domain.core.tasks.task(1).is_some(), "the live fixture was restored and linked");
+    assert!(!host.domain.ready());
+    assert!(host.reads.is_empty(), "no connector reached its system");
+    assert!(host.wires.is_none());
+    assert!(host.commits.iter().all(|(_, wires)| !wires));
+    let mut out = Queue::uncapped();
+    crate::release(&mut host.domain, &host.env, &mut out);
+    assert!(out.is_empty(), "the switch has no request or later work");
 }
 
 fn policy() -> people::PolicyValue {
