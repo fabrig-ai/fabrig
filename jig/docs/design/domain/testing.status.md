@@ -4,17 +4,19 @@
 
 - **Not yet:**
   7.1: jig's inspection adapter, `jig-inspect`'s `tasks` and `core`, with
-  the reads they take.
+  the reads they take. [in flight: change 11665]
   7.1, 7.2: `jig_inspect::engine_clients`, and the engine-clients world's
-  calls of the shared checks.
+  calls of the shared checks. [in flight: change 11678]
   7.2: the core kit's `World` calls the shared checks at its quiet point,
-  with each check's own tests.
+  with each check's own tests. [in flight: change 11676]
   7.3: the core world's scenarios of P43, S15 and P77, and P77's client
-  part.
+  part. [in flight: change 11668]
   7.3: the core world's scenarios of P76, P93, P98 and P82's residual.
+  [in flight: change 11673]
   7.3: the engine-clients world's scenario of P117.
+  [in flight: change 11674]
   7.3: the exclusions in `jig_core_kit::open` and
-  `jig_engine_clients_kit::open`.
+  `jig_engine_clients_kit::open`. [in flight: change 11679]
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
