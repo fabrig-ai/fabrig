@@ -122,6 +122,53 @@ fn maps_defaults_are_concrete_and_unused_hand_maps_need_no_module() {
 }
 
 #[test]
+fn long_translation_pairs_expect_only_the_direction_over_the_line_bound() {
+    let unit_variants = |count: usize| (0..count).map(|index| format!("v{index}")).collect::<Vec<_>>().join(", ");
+    let fields = |count: usize| (0..count).map(|index| format!("f{index}: u32")).collect::<Vec<_>>().join(", ");
+    let payload_variants =
+        |count: usize| (0..count).map(|index| format!("v{index}: Field")).collect::<Vec<_>>().join(", ");
+    let cases = [
+        (format!("enum Wide {{ {} }}", unit_variants(3)), "enum Wide = d::Wide", 5, 5),
+        (format!("enum Wide {{ {} }}", unit_variants(90)), "enum Wide = d::Wide", 92, 92),
+        (format!("enum Wide {{ {} }}", unit_variants(98)), "enum Wide = d::Wide", 100, 100),
+        (format!("enum Wide {{ {} }}", unit_variants(99)), "enum Wide = d::Wide", 101, 101),
+        (format!("enum Wide {{ {} }}", unit_variants(120)), "enum Wide = d::Wide", 122, 122),
+        (format!("record Wide {{ {} }}", fields(97)), "record Wide = d::Wide", 100, 100),
+        (format!("record Wide {{ {} }}", fields(98)), "record Wide = d::Wide", 101, 101),
+        (
+            format!("record Field {{ value: u32 }} enum Wide {{ {} }}", payload_variants(16)),
+            "record Field\nenum Wide = d::Wide",
+            50,
+            98,
+        ),
+        (
+            format!("record Field {{ value: u32 }} enum Wide {{ {} }}", payload_variants(17)),
+            "record Field\nenum Wide = d::Wide",
+            53,
+            104,
+        ),
+    ];
+    let expectation = "#[expect(clippy::too_many_lines, reason = \"one translation step per field or variant (data/codec/maps.md, 4.1)\")]";
+    for (declaration, mapping, record_lines, domain_lines) in cases {
+        let schema = parse(&format!("family line_bound 1\n{declaration}")).expect("schema");
+        let output = translate(&schema, &format!("records r\n{mapping}")).expect("maps");
+        for (direction, lines) in [("record", record_lines), ("domain", domain_lines)] {
+            let signature = format!("pub fn wide_to_{direction}(");
+            let (prefix, body) = output.split_once(&signature).expect("pair emitted");
+            let body = body.split_once('\n').expect("body starts").1.split_once("\n}\n").expect("body ends").0;
+            assert_eq!(body.lines().filter(|line| !line.trim().is_empty()).count(), lines);
+            let mut preceding = prefix.lines().rev();
+            if lines > 100 {
+                assert_eq!(preceding.next(), Some(expectation), "{direction}: {declaration}");
+            }
+            assert!(preceding.next().expect("maps comment").starts_with("// Maps line "), "{direction}: {lines} lines");
+        }
+        let expected_count = usize::from(record_lines > 100) + usize::from(domain_lines > 100);
+        assert_eq!(output.matches("#[expect(").count(), expected_count);
+    }
+}
+
+#[test]
 fn maps_command_uses_split_schema_order_and_the_first_stem() {
     let scratch = skein_scratch::Scratch::new("maps-command");
     let first = scratch.path().join("worker-wire-v1.schema");
